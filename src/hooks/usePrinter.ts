@@ -12,7 +12,7 @@ import {
   getActiveNodes,
 } from 'utils/utils'
 
-import { BOXPADDING, RESIZERECTSIZE } from 'constants/index'
+import { BOXMARGIN, BOXPADDING, RESIZERECTSIZE } from 'constants/index'
 
 export default function usePrinter(ctx: CanvasRenderingContext2D | null, template: Template | undefined) {
   const animationFrameIdRef = useRef<number | undefined>()
@@ -148,8 +148,9 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
               ctx.fillStyle = parseColor(fontOptions.color)
 
               const [startIndex, endIndex] = selectionStr2Arr(subSelection as Selection)
+              for (let i = startIndex; i < endIndex; i++) {
+                const character = content.toString().slice(i, i + 1)
 
-              for (const character of content.toString().slice(startIndex, endIndex)) {
                 ctx.fillText(
                   character,
                   nodeLocation.x +
@@ -165,23 +166,40 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
                     fontOptions.fontSize -
                     fontOptions.fontSize * options.Leading * 0.1, //留下最下方空隙和字高,
                 )
-                walkedWidth = walkedWidth + fontOptions.characterWidth
+                walkedWidth = walkedWidth + fontOptions.characterWidth[i - startIndex]
               }
             }
-            //行盒子
-            // ctx.fillStyle = "rgba(200,0,0,0.2)"
-            // ctx.fillRect(
-            //   node.structure.contentBox.location.x +
-            //     options.contentBox.location.x +
-            //     paragrahOptions.contentBox.location.x +
-            //     rowOptions.contentBox.location.x,
-            //   node.structure.contentBox.location.y +
-            //     options.contentBox.location.y +
-            //     paragrahOptions.contentBox.location.y +
-            //     rowOptions.contentBox.location.y,
-            //   rowOptions.contentBox.size.width,
-            //   rowOptions.contentBox.size.height,
-            // )
+            // 行盒子(文本底色)
+            ctx.strokeStyle = 'rgba(200,0,0,0.2)'
+            ctx.strokeRect(
+              node.structure.contentBox.location.x +
+                options.contentBox.location.x +
+                paragrahOptions.contentBox.location.x +
+                rowOptions.contentBox.location.x,
+              node.structure.contentBox.location.y +
+                options.contentBox.location.y +
+                paragrahOptions.contentBox.location.y +
+                rowOptions.contentBox.location.y,
+              rowOptions.contentBox.size.width,
+              rowOptions.contentBox.size.height,
+            )
+            // 节点盒子
+            ctx.strokeStyle = 'rgba(0,200,0,0.2)'
+            ctx.strokeRect(
+              node.structure.contentBox.location.x,
+              node.structure.contentBox.location.y,
+              node.structure.contentBox.size.width,
+              node.structure.contentBox.size.height,
+            )
+
+            // 节点盒子相应区域
+            ctx.strokeStyle = 'rgba(0,0,200,0.2)'
+            ctx.strokeRect(
+              node.structure.contentBox.location.x - BOXPADDING - BOXMARGIN,
+              node.structure.contentBox.location.y - BOXPADDING - BOXMARGIN,
+              node.structure.contentBox.size.width + 2 * (BOXPADDING + BOXMARGIN),
+              node.structure.contentBox.size.height + 2 * (BOXPADDING + BOXMARGIN),
+            )
           }
         }
 

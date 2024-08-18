@@ -86,7 +86,7 @@ export type FontOptions = {
   italicly: boolean
   underLine: boolean
   color: number[] | number
-  characterWidth: number
+  characterWidth: number[]
 }
 
 export type Range<T> = Record<Selection, T>

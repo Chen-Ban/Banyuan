@@ -18,13 +18,13 @@ import { BOXMARGIN, BOXPADDING, RESIZERECTSIZE, RESIZERECTSIZE_RESPONSE } from '
 
 //防抖函数
 export function debounce<T>(fn: (p: T) => void, delay = 200): (p: T) => void {
-  let timerId: number | undefined = void 0
+  let timerId: number | undefined | NodeJS.Timeout = void 0
   return (...args) => {
     if (timerId) {
       clearTimeout(timerId)
     }
-    timerId = window.setTimeout(() => {
-      fn.apply(...args)
+    timerId = globalThis.setTimeout(() => {
+      fn(...args)
     }, delay)
   }
 }
@@ -46,6 +46,35 @@ export function throttle<T extends (...args: any[]) => any | void>(
     return res
   }
 }
+
+//节流的延迟要不大于防抖的延迟
+export function throttleWithDebounce<T extends (...args: any[]) => any | void>(
+  fn: T,
+  throttleLimit: number = 50,
+  debounceLimit: number = 50,
+): (...args: Parameters<T>) => ReturnType<T> | void {
+  let last = Date.now()
+  let timerId: number | undefined = void 0
+  return function (...args) {
+    const now = Date.now()
+    const duration = now - last
+
+    if (duration > throttleLimit) {
+      setTimeout(() => {
+        fn(...args)
+      }, 0)
+      last = Date.now()
+    } else {
+      if (timerId) {
+        clearTimeout(timerId)
+      }
+      timerId = window.setTimeout(() => {
+        fn(...args)
+      }, debounceLimit)
+    }
+  }
+}
+
 //从质心出发放大质心到点的倍数
 export const computePathByCentroidScale = (path: Path, scaleFactor: number = 1.1): Path => {
   //.计算质心
@@ -134,7 +163,7 @@ export const computeCentroidByPath = (path: Path): Point => {
   return centroid
 }
 
-//将非多边形的位置信息转变成path
+//将矩形的尺度信息转变成path
 export const convertLocation2Path = (location: Point, size: Size): Path => {
   return [
     location,
@@ -156,7 +185,7 @@ export const convertLocation2Path = (location: Point, size: Size): Path => {
   ]
 }
 
-//根据内容框路径形成包围框路径
+//根据内容框路径形成包围框路径（1，计算边的偏移；2，计算边的交点形成路径）
 export const computePathByEdgeOffset = (path: Path, offset: number): Path => {
   const liens = generateLinesByOffset(path, offset)
   const linesLen = liens.length
@@ -720,13 +749,13 @@ export const getCursorLocation = (node: CanvasNode, location: Point): number => 
               const restWidth = location.x - walkedWidth
 
               if (
-                restWidth < fOptions.characterWidth ||
-                (i === rEndeIndex - 1 && restWidth >= fOptions.characterWidth)
+                restWidth < fOptions.characterWidth[i - startIndex] ||
+                (i === rEndeIndex - 1 && restWidth >= fOptions.characterWidth[i - startIndex])
               ) {
-                cursorLocation = restWidth < fOptions.characterWidth / 2 ? i : i + 1
+                cursorLocation = restWidth < fOptions.characterWidth[i - startIndex] / 2 ? i : i + 1
                 break seek
               } else {
-                walkedWidth += fOptions.characterWidth
+                walkedWidth += fOptions.characterWidth[i - startIndex]
               }
             }
           }

@@ -17,22 +17,24 @@ export const emptyBox = (): Omit<Box, 'path'> => ({
 export const randomFontOptions = Array.from({ length: 10 }, () => ({
   fontFamily: 'Arial',
   fontWeight: 'normal',
-  fontSize: Random.integer(24, 48),
+  // fontSize: Random.integer(24, 48),
+  fontSize: 24,
   italicly: false,
   underLine: false,
   color: 0x000000,
-  characterWidth: 0,
+  characterWidth: [],
 }))
 
 //TODO抽取出构造函数，传入属性构建，或抽离成常量；方便拓展(后续再考虑数据库存储)
 export default [
   {
     componentId: '0001-001',
-    componentName: '一级标题二级标题一级标题二级标题黑',
+    componentName: '一级标题二级sd一级标题二级标题黑',
     component: lazy(() => import('./TextTemplate')),
     propName: 'title',
+
     options: {
-      rowsIndex: ['0-4', '4-6', '6-8', '8-12', '12-17'],
+      rowsIndex: ['0-4', '4-8', '8-12', '12-17'],
       paragrahsIndex: ['0-8', '8-17'],
       paragrahs: {
         '0-8': {
@@ -175,6 +177,7 @@ export default [
       },
       Leading: 1,
     } as RenderTextOptions,
+
     type: '文本',
   },
 ]
