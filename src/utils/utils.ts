@@ -47,34 +47,6 @@ export function throttle<T extends (...args: any[]) => any | void>(
   }
 }
 
-//节流的延迟要不大于防抖的延迟
-export function throttleWithDebounce<T extends (...args: any[]) => any | void>(
-  fn: T,
-  throttleLimit: number = 50,
-  debounceLimit: number = 50,
-): (...args: Parameters<T>) => ReturnType<T> | void {
-  let last = Date.now()
-  let timerId: number | undefined = void 0
-  return function (...args) {
-    const now = Date.now()
-    const duration = now - last
-
-    if (duration > throttleLimit) {
-      setTimeout(() => {
-        fn(...args)
-      }, 0)
-      last = Date.now()
-    } else {
-      if (timerId) {
-        clearTimeout(timerId)
-      }
-      timerId = window.setTimeout(() => {
-        fn(...args)
-      }, debounceLimit)
-    }
-  }
-}
-
 //从质心出发放大质心到点的倍数
 export const computePathByCentroidScale = (path: Path, scaleFactor: number = 1.1): Path => {
   //.计算质心
@@ -671,7 +643,6 @@ export const getDifferSelection = (sel1: Selection, sel2: Selection) => {
 }
 
 export const getCursorLocation = (node: CanvasNode, location: Point): number => {
-  //将光标移动到对应的位置（修改对应节点的options）参考微信输入框（鼠标落下时确认光标位置，移动过程中不显示）
   const options = node.options as RenderTextOptions
   const textContentBox = options.contentBox
   let cursorLocation: number = 0
@@ -821,6 +792,3 @@ export const getRelativeLocBounding = (cursorLocation: Point, node: CanvasNode):
     w: 1,
   }
 }
-
-//重写关于区间的方法
-//以下方法用于重构selection接口，过渡版本，方便项目形成MVP版本

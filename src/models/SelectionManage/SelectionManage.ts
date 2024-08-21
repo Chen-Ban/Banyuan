@@ -20,8 +20,8 @@ class SelectionManage implements ISelectionManage {
 
   isInterior(sel1: SelectionObj, sel2: SelectionObj): boolean {
     return (
-      (sel1.startIndex === sel2.startIndex && sel1.endIndex != sel2.endIndex) ||
-      (sel1.endIndex === sel2.endIndex && sel1.startIndex != sel2.startIndex)
+      (sel1.startIndex === sel2.startIndex && sel1.endIndex < sel2.endIndex) ||
+      (sel1.endIndex === sel2.endIndex && sel1.startIndex > sel2.startIndex)
     )
   }
   isOverlap(sel1: SelectionObj, sel2: SelectionObj): boolean {
@@ -71,7 +71,7 @@ class SelectionManage implements ISelectionManage {
       return null
     }
 
-    if (this.isContained(sel2, sel1) && !this.isInterior(sel1, sel2)) {
+    if (this.isContained(sel2, sel1) && !this.isInterior(sel2, sel1)) {
       return [
         {
           startIndex: sel1.startIndex,

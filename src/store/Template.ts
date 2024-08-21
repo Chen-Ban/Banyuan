@@ -54,19 +54,13 @@ const TemplateSlice = createSlice({
       }>,
     ) {
       const { templateId, templateDataItem, node } = action.payload
-
-      return templates.map((template) => {
+      templates.map((template) => {
         if (template.templateId == templateId) {
-          return {
-            ...template,
-            nodeList: [...template.nodeList, node],
-            templateData: {
-              ...template.templateData,
-              [node.propName]: templateDataItem,
-            },
-          }
+          template.nodeList.map((node) => (node.isActive = false))
+          template.nodeList.push(node)
+          template.nodeList[template.nodeList.length - 1].isActive = true
+          template.templateData[node.propName] = templateDataItem
         }
-        return template
       })
     },
     //激活节点，失活节点(传入要激活的节点实例id，激活这些id的节点，失活其他节点)

@@ -87,6 +87,7 @@ export type FontOptions = {
   underLine: boolean
   color: number[] | number
   characterWidth: number[]
+  letterSpace: number
 }
 
 export type Range<T> = Record<Selection, T>
@@ -140,6 +141,9 @@ export type RenderOptions =
   | RenderBarcodeOptions
 
 //模板中的节点类型
+
+//TODO: fix: 给节点添加renderoptions泛型
+
 export type CanvasNode = {
   componentId: string //对应的母版id
   instanceId: string //模板中的实例id

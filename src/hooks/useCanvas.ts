@@ -16,15 +16,11 @@ import {
   computeLocAndSizeOffsetOnResizing,
   isSameLocation,
   getActiveNodes,
-  mergeRange,
   selectionStr2Arr,
-  getOverlapSelection,
-  getDifferSelection,
   getCursorLocation,
   getRelativeLocBounding,
   computeMagnitude,
   hasOverlap,
-  getCursorPIndex,
   debounce,
 } from 'utils/utils'
 import {
@@ -48,39 +44,29 @@ import {
   Vector,
   VerAlign,
   HorAlign,
-  Box,
   RenderTextOptions,
-  Range,
-  FontOptions,
   Selection,
-  RowOptions,
 } from 'store/types/Template.type'
 import selectionManage from 'models/SelectionManage/SelectionManage'
 import { TemplateData } from 'store/types/TemplateData.type'
 import usePrinter from './usePrinter'
-import { BOXMARGIN, BOXPADDING, MOUSEMOVEPERIOD } from '../constants'
+import {
+  BOXMARGIN,
+  BOXPADDING,
+  MOUSEMOVEPERIOD,
+  ValidModifierKeys,
+  ArrowKeys,
+  ComposingKeys,
+  CanvasNodeMouseEventOperation,
+  isArrowKeys,
+  isComposingKeys,
+  isValidModifier,
+} from '../constants'
 import { emptyBox } from 'components/PrintTemplate/TextTemplate/builtIn'
 import { SelectionObj } from 'src/models/SelectionManage/ISelectionManage'
+import TextOptionManage from 'src/models/TextOptionManage/TextOptionManage'
+import { generateBoxPath } from 'src/utils/boxUtils'
 
-enum CanvasNodeMouseEventOperation {
-  ISMOVING = 'isMoving', //移动位置
-  ISRESIZING = 'isResizing', //调整尺寸
-  ISSELECTION = 'isSelection', //文本框选择
-  ISSELECTING = 'isSelecting', //节点选择
-  CLICK = 'click',
-  NONE = 'none',
-}
-const validModifierKeys = [
-  'Tab',
-  'Control',
-  'Delete',
-  'Enter',
-  'Backspace',
-  'ArrowDown',
-  'ArrowLeft',
-  'ArrowRight',
-  'ArrowUp',
-]
 const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Template | undefined) => {
   const dispatch = useDispatch()
 
@@ -93,10 +79,10 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
   const mousedownCursorIndexRef = useRef<number | undefined>()
   //上一次鼠标位置
   const lastMousemoveLocationRef = useRef<Point | null>(null)
-  //鼠标落下位置的节点
+  //最近激活节点
   const metaNodeRef = useRef<CanvasNode | null>(null)
   //键盘转发元素ref
-  const canvasProxy = useRef<HTMLDivElement | null>(null)
+  const canvasProxy = useRef<HTMLInputElement | null>(null)
 
   //画布上下文ref
   const canvasContextRef = useRef<CanvasRenderingContext2D | null>(null)
@@ -143,6 +129,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                         underLine: false,
                         color: 0x000000,
                         characterWidth: [],
+                        letterSpace: 0,
                       },
                     },
                     contentBox: emptyBox(),
@@ -226,6 +213,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
           }),
         )
       }
+      mouseOperationRef.current == CanvasNodeMouseEventOperation.NONE
     },
     [canvasRef.current, template, metaNodeRef.current],
   )
@@ -635,39 +623,28 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
         const cursorLocation = client2canvas(e)
         const node = JSON.parse(e.dataTransfer.getData('application/json:node')) as CanvasNode
         const data = e.dataTransfer.getData('text/plain:name')
-        //TODO:文字节点可根据文字内容自适应内容框
         switch (node.type) {
           case NodeType.TEXT: {
             canvasProxy.current.focus()
-            const options = node.options as RenderTextOptions
-            const { heightPerParagrah, widthPerParagrah } = computeMulTextSize(options, data)
 
-            //更新文本内容的总宽高
-            options.contentBox.size.height = heightPerParagrah.reduce((pre, cur) => pre + cur)
-            options.contentBox.size.width = Math.max(...widthPerParagrah)
-            node.structure = {
-              contentBox: {
-                location: cursorLocation,
-                size: options.contentBox.size,
-                path: convertLocation2Path(cursorLocation, options.contentBox.size),
-              },
-            }
+            const textOptionManage = new TextOptionManage(node, data, canvasContextRef.current)
+            //拖拽时没有样式结构
+            textOptionManage.modifyOptionsSize()
+            //节点结构依赖样式结构和鼠标位置(节点结构使用样式结构)
+            textOptionManage.setNodeStructure({ location: cursorLocation })
+
+            const selectionLocation = textOptionManage.selection2RelativeLocation(
+              (textOptionManage.node.options as RenderTextOptions).selection,
+            )
+
+            mousedownLocationRef.current = selectionLocation[0]
+            mouseupLocationRef.current = selectionLocation[1]
           }
         }
 
-        node.layer = template.nodeList.length + 1
+        node.layer = template.nodeList.length
 
         metaNodeRef.current = node
-        mousedownLocationRef.current = {
-          x: cursorLocation.x + node.structure.contentBox.size.width,
-          y: cursorLocation.y + node.structure.contentBox.size.height,
-          w: 1,
-        }
-        mouseupLocationRef.current = {
-          x: cursorLocation.x + node.structure.contentBox.size.width,
-          y: cursorLocation.y + node.structure.contentBox.size.height,
-          w: 1,
-        }
 
         dispatch(
           patchTemplateNodeList({
@@ -676,40 +653,153 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
             templateDataItem: data,
           }),
         )
-        dispatch(
-          updateNodeActivation({
-            templateId: template.templateId,
-            toActiveNodesId: [node.instanceId],
-          }),
-        )
       }
     },
     [template, canvasProxy.current, canvasContextRef.current],
   )
+
+  //方向键的按下同时改变selection和输入框的位置
+  //上下按键改变一行，需要获取所在行和临近行的字符数量，selection方向（通过鼠标落下和松开的位置判断），selection长度
+
+  //TODO: feat: 新增control按下时的方向键的连续选择（拆分修饰符，重写keydown事件）
+  //TODO: feat: 新增selection->location. fix:location->selection
+  const getArrowCursorSelection = useCallback(
+    (arrowKeys: ArrowKeys, options: RenderTextOptions) => {
+      if (mousedownLocationRef.current && metaNodeRef.current && mouseupLocationRef.current) {
+        const mousedownRelativeTCLocation: Point = getRelativeLocBounding(
+          mousedownLocationRef.current,
+          metaNodeRef.current,
+        )
+        const mouseupRelativeTCLocation: Point = getRelativeLocBounding(mouseupLocationRef.current, metaNodeRef.current)
+        const mousedownCursorIndex = getCursorLocation(metaNodeRef.current, mousedownRelativeTCLocation)
+        const mouseupCursorIndex = getCursorLocation(metaNodeRef.current, mouseupRelativeTCLocation)
+        //负：向前选择
+        //正：向后选择
+        const dircection = mouseupCursorIndex - mousedownCursorIndex
+        const selectionTerminal = dircection > 0 ? mouseupCursorIndex : mousedownCursorIndex
+        // const selectionStart = dircection > 0 ? mousedownCursorIndex : mouseupCursorIndex
+        const maxSelectionIndex = selectionManage.parseSelection(
+          options.rowsIndex[options.rowsIndex.length - 1],
+        ).endIndex
+        //获取当前行索引
+        const curRowSelectionIndex = options.rowsIndex.findIndex((r) => {
+          const rowSlectionObj = selectionManage.parseSelection(r)
+          return (
+            (rowSlectionObj.startIndex <= selectionTerminal && rowSlectionObj.endIndex > selectionTerminal) ||
+            (selectionTerminal === maxSelectionIndex && rowSlectionObj.endIndex === maxSelectionIndex)
+          )
+        })
+        const curRowSelection = selectionManage.parseSelection(options.rowsIndex[curRowSelectionIndex])
+        const curRowLength = curRowSelection.endIndex - curRowSelection.startIndex
+
+        let nextTerminalIndex: number
+        switch (arrowKeys) {
+          case ArrowKeys.ARROWRIGHT: {
+            nextTerminalIndex = Math.min(maxSelectionIndex, selectionTerminal + 1)
+            break
+          }
+          case ArrowKeys.ARROWDOWN: {
+            const nextRowSelectionIndex = Math.min(options.rowsIndex.length - 1, curRowSelectionIndex + 1)
+            if (nextRowSelectionIndex != curRowSelectionIndex) {
+              const nextRowSelection = selectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
+              const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
+              const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
+              nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+            } else {
+              nextTerminalIndex = curRowSelection.endIndex
+            }
+            break
+          }
+          case ArrowKeys.ARROWLEFT: {
+            nextTerminalIndex = Math.max(0, selectionTerminal - 1)
+            break
+          }
+          case ArrowKeys.ARROWUP: {
+            const nextRowSelectionIndex = Math.max(0, curRowSelectionIndex - 1)
+
+            if (nextRowSelectionIndex != curRowSelectionIndex) {
+              const nextRowSelection = selectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
+
+              const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
+              const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
+              nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+            } else {
+              nextTerminalIndex = curRowSelection.startIndex
+            }
+            break
+          }
+        }
+        return {
+          startIndex: nextTerminalIndex,
+          endIndex: nextTerminalIndex,
+        }
+      }
+      return selectionManage.parseSelection(options.selection)
+    },
+    [mousedownLocationRef.current, metaNodeRef.current, mouseupLocationRef.current],
+  )
   //输入法拦截合成输入后完成合成事件会同时触发两相同事件(第一次为合成事件，第二次为非合成事件)
-  //TODO：支持持续的输入
-  //fix:Electron中输入法合成事件再拼音中不会出现第二次的非合成事件，只会有一次合成事件
+  //TODO：feat: 支持持续的输入
+  //TODO: fix: Electron中输入法合成事件再拼音中不会出现第二次的非合成事件，只会有一次合成事件
+  //TODO: feat: 支持按键修饰符和组合按键
   const inputWithouFocus = useCallback(
     debounce((e: Event) => {
       const { isComposing, inputCache } = (e as CustomEvent).detail
-      console.log((e as CustomEvent).detail)
-
-      if (template && metaNodeRef.current && mousedownLocationRef.current && mouseupLocationRef.current) {
+      if (
+        template &&
+        metaNodeRef.current &&
+        mousedownLocationRef.current &&
+        mouseupLocationRef.current &&
+        canvasProxy.current &&
+        canvasContextRef.current
+      ) {
         const activeNodes = getActiveNodes(template)
-
         if (activeNodes.length == 1 && activeNodes[0].type == NodeType.TEXT) {
           const activeNode = activeNodes[0]
           const options = structuredClone(activeNode.options) as RenderTextOptions
           const templateData = structuredClone(template.templateData)
+          let composeData = templateData[activeNode.propName] as string
+          const textOptionManage = new TextOptionManage(activeNode, composeData, canvasContextRef.current)
           //初始选择的selection（一段或光标位置）和后续输入中的selection(光标位置)
           const oldSelection = selectionManage.parseSelection(
             (metaNodeRef.current.options as RenderTextOptions).selection,
           )
 
-          const templateDataLength = templateData[activeNode.propName].toString().length
-          //所有修饰键都是非合成时间，当输入框中已经没有拼音时回退键为null
-          if (inputCache === null) {
-            const newSelection = selectionManage.offsetSelection(oldSelection, [-1, -1])
+          if (isValidModifier(inputCache) || isComposingKeys(inputCache) || isArrowKeys(inputCache)) {
+            let newSelection = oldSelection
+            switch (inputCache) {
+              case ArrowKeys.ARROWRIGHT:
+              case ArrowKeys.ARROWDOWN:
+              case ArrowKeys.ARROWLEFT:
+              case ArrowKeys.ARROWUP: {
+                newSelection = getArrowCursorSelection(inputCache, options)
+                break
+              }
+              //TODO：按照空间位置来划分
+              // case ValidModifierKeys.TAB: {
+              // }
+              case ValidModifierKeys.BACKSPACE: {
+                break
+              }
+              case ValidModifierKeys.DELETE: {
+                break
+              }
+              case ValidModifierKeys.ENTER: {
+                break
+              }
+              case ComposingKeys.COPY: {
+                break
+              }
+              case ComposingKeys.PASTE: {
+                break
+              }
+              case ComposingKeys.CHECKALL: {
+                break
+              }
+              case ComposingKeys.SELECTION: {
+                break
+              }
+            }
             metaNodeRef.current = {
               ...metaNodeRef.current,
               options: {
@@ -717,13 +807,6 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                 selection: selectionManage.stringifySelection(newSelection),
               } as RenderTextOptions,
             }
-            dispatch(
-              updateTemplateData({
-                templateId: template.templateId,
-                propName: activeNode.propName,
-                propData: templateData[activeNode.propName].toString().slice(0, templateDataLength - 1),
-              }),
-            )
             //更新node
             dispatch(
               updateNodeOptions({
@@ -735,11 +818,9 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                 },
               }),
             )
-          } else if (validModifierKeys.includes(inputCache.toString())) {
-            console.log(inputCache)
           } else {
             //拼接字符串,修改所有的selection
-            let composeData = templateData[activeNode.propName] as string
+
             const inputCacheLength = (inputCache as string).length
             const deleteLength = oldSelection.endIndex - oldSelection.startIndex
             //如果是合成事件（被输入法拦截了，每次的cache是这次输入的缓存）
@@ -752,29 +833,28 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                 inputCacheLength,
                 inputCacheLength - deleteLength,
               ])
+              canvasProxy.current.value = ''
             }
 
             //组装新的装填数据
             composeData =
               composeData.slice(0, oldSelection.startIndex) + inputCache + composeData.slice(oldSelection.endIndex)
 
-            //拖拽过来的节点是没有尺寸信息的，所以应该将拖拽的计算从调整节点中迁移到拖拽放下后
-            const mousedownPIndex = getCursorPIndex(
-              activeNode,
-              getRelativeLocBounding(mousedownLocationRef.current, metaNodeRef.current),
-            )
-            const mouseupPIndex = getCursorPIndex(
-              activeNode,
-              getRelativeLocBounding(mouseupLocationRef.current, metaNodeRef.current),
-            )
+            //1、selection后两个坐标的位置，用于判断是否需要合并用
+            //2、输入完成后根据newSelection起始index重新设置（down为开始索引位置，up为结束索引位置）
+            const mousedownPIndex = textOptionManage.relativeLocation2PIndex(mousedownLocationRef.current)
+            const mouseupPIndex = textOptionManage.relativeLocation2PIndex(mouseupLocationRef.current)
 
-            //删去选中区间
+            /** -----------------------------------------------------
+             *                     1、删除后的映射表                 -
+             -------------------------------------------------------*/
             const pSelectionMap: { [sel: Selection]: Selection[] } = {}
             const rSelectionMap: { [sel: Selection]: Selection[] } = {}
-            let pCombinedSet: Selection[] = []
+            const pCombinedSet: Selection[] = []
 
             for (const pSelection of options.paragrahsIndex.values()) {
               const psObj = selectionManage.parseSelection(pSelection)
+              //获取删除后区间的映射表
               if (selectionManage.isOverlap(psObj, oldSelection)) {
                 const differenceSelections = selectionManage.difference(psObj, oldSelection) || [
                   {
@@ -789,9 +869,11 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               } else {
                 pSelectionMap[pSelection] = [pSelection]
               }
+              //获取合并序列集合
               if (
-                options.paragrahs[pSelection].paragrahIndex === mousedownPIndex ||
-                options.paragrahs[pSelection].paragrahIndex === mouseupPIndex
+                (options.paragrahs[pSelection].paragrahIndex === mousedownPIndex ||
+                  options.paragrahs[pSelection].paragrahIndex === mouseupPIndex) &&
+                mousedownPIndex != mouseupPIndex
               ) {
                 pCombinedSet.push(pSelection)
               }
@@ -812,12 +894,9 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                 rSelectionMap[rSelection] = [rSelection]
               }
             }
-
-            //只有跨段落才会发生合并（无论是外切还是相交）
-            if (mousedownPIndex === mouseupPIndex) {
-              pCombinedSet = []
-            }
-            //删除所有内容
+            /** -----------------------------------------------------
+            *                     1*:如果删除所有内容                -
+            -------------------------------------------------------*/
             if (
               Object.keys(rSelectionMap).every(
                 (p) => rSelectionMap[p as Selection][0] === (`${Infinity}-${Infinity}` as Selection),
@@ -826,34 +905,42 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               pSelectionMap[options.paragrahsIndex[0]] = ['0-0']
               rSelectionMap[options.rowsIndex[0]] = ['0-0']
             }
-            //将输入序列加入
-            for (const [i, pSelection] of options.paragrahsIndex.entries()) {
+
+            /** -----------------------------------------------------
+            *                     2:将输入序列加入映射表中            -
+            -------------------------------------------------------*/
+            for (const pSelection of options.paragrahsIndex) {
               const pSelObj = selectionManage.parseSelection(pSelection)
               pSelectionMap[pSelection] = [
                 selectionManage.stringifySelection(
                   selectionManage.merge(...pSelectionMap[pSelection].map((s) => selectionManage.parseSelection(s))),
                 ),
               ]
+              //如果当前序列收到了影响
               if (pSelObj.endIndex >= oldSelection.startIndex) {
-                let offset = [0, inputCacheLength]
-                if (selectionManage.isExterior(pSelObj, oldSelection) && pSelObj.startIndex === oldSelection.endIndex) {
-                  offset = [
-                    oldSelection.startIndex === 0 ? -deleteLength : inputCacheLength - deleteLength,
-                    inputCacheLength - deleteLength,
-                  ]
-                } else if (
-                  selectionManage.isOverlap(pSelObj, oldSelection) &&
-                  !selectionManage.isContained(pSelObj, oldSelection) &&
-                  pSelObj.endIndex > oldSelection.endIndex &&
-                  oldSelection.startIndex <= pSelObj.startIndex
+                let offset
+                //选区和段落右相交或者右外切
+                if (
+                  (selectionManage.isExterior(pSelObj, oldSelection) && pSelObj.startIndex === oldSelection.endIndex) ||
+                  (selectionManage.isOverlap(pSelObj, oldSelection) &&
+                    !selectionManage.isContained(pSelObj, oldSelection) &&
+                    pSelObj.endIndex > oldSelection.endIndex &&
+                    oldSelection.startIndex <= pSelObj.startIndex)
                 ) {
                   offset = [
                     oldSelection.startIndex === 0 ? -deleteLength : inputCacheLength - deleteLength,
                     inputCacheLength - deleteLength,
                   ]
-                } else if (pSelObj.startIndex > oldSelection.endIndex) {
+                }
+                //选区在段落左边且不相交也不外切
+                else if (pSelObj.startIndex > oldSelection.endIndex) {
                   offset = [inputCacheLength - deleteLength, inputCacheLength - deleteLength]
                 }
+                //选区和段落左相切，左相交，包含于
+                else {
+                  offset = [0, inputCacheLength]
+                }
+
                 pSelectionMap[pSelection] = [
                   selectionManage.stringifySelection(
                     selectionManage.offsetSelection(
@@ -863,29 +950,26 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                   ),
                 ]
               }
-              options.paragrahsIndex[i] = pSelectionMap[pSelection][0]
+              const toChangedParaIndex = options.paragrahsIndex.findIndex((p) => p === pSelection)
+              options.paragrahsIndex[toChangedParaIndex] = pSelectionMap[pSelection][0]
             }
+            options.paragrahsIndex = options.paragrahsIndex.filter((p) => p != (`${Infinity}-${Infinity}` as Selection))
 
-            for (const [i, rSelection] of options.rowsIndex.entries()) {
+            for (const rSelection of options.rowsIndex) {
               const rSelObj = selectionManage.parseSelection(rSelection)
               rSelectionMap[rSelection] = [
                 selectionManage.stringifySelection(
                   selectionManage.merge(...rSelectionMap[rSelection].map((s) => selectionManage.parseSelection(s))),
                 ),
               ]
-
               if (rSelObj.endIndex >= oldSelection.startIndex) {
-                let offset = [0, inputCacheLength]
-                if (selectionManage.isExterior(rSelObj, oldSelection) && rSelObj.startIndex === oldSelection.endIndex) {
-                  offset = [
-                    oldSelection.startIndex === 0 ? -deleteLength : inputCacheLength - deleteLength,
-                    inputCacheLength - deleteLength,
-                  ]
-                } else if (
-                  selectionManage.isOverlap(rSelObj, oldSelection) &&
-                  !selectionManage.isContained(rSelObj, oldSelection) &&
-                  rSelObj.endIndex > oldSelection.endIndex &&
-                  oldSelection.startIndex <= rSelObj.startIndex
+                let offset
+                if (
+                  (selectionManage.isExterior(rSelObj, oldSelection) && rSelObj.startIndex === oldSelection.endIndex) ||
+                  (selectionManage.isOverlap(rSelObj, oldSelection) &&
+                    !selectionManage.isContained(rSelObj, oldSelection) &&
+                    rSelObj.endIndex > oldSelection.endIndex &&
+                    oldSelection.startIndex <= rSelObj.startIndex)
                 ) {
                   offset = [
                     oldSelection.startIndex === 0 ? -deleteLength : inputCacheLength - deleteLength,
@@ -893,6 +977,8 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                   ]
                 } else if (rSelObj.startIndex > oldSelection.endIndex) {
                   offset = [inputCacheLength - deleteLength, inputCacheLength - deleteLength]
+                } else {
+                  offset = [0, inputCacheLength]
                 }
                 rSelectionMap[rSelection] = [
                   selectionManage.stringifySelection(
@@ -903,13 +989,13 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                   ),
                 ]
               }
-              options.rowsIndex[i] = rSelectionMap[rSelection][0]
+              const toChangedRowIndex = options.rowsIndex.findIndex((r) => r === rSelection)
+              options.rowsIndex[toChangedRowIndex] = rSelectionMap[rSelection][0]
             }
-
-            options.paragrahsIndex = options.paragrahsIndex.filter((p) => p != (`${Infinity}-${Infinity}` as Selection))
             options.rowsIndex = options.rowsIndex.filter((r) => r != (`${Infinity}-${Infinity}` as Selection))
-
-            //重新赋值段落序列
+            /** -----------------------------------------------------
+            *                     3:更新段落（先加后删)               -
+            -------------------------------------------------------*/
             for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
               if (
                 pSelectionMap[pSelection as Selection][0] != (`${Infinity}-${Infinity}` as Selection) &&
@@ -924,14 +1010,15 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               } else if (pCombinedSet.findIndex((p) => p === pSelection) === 1) {
                 const curOption = pOptions
                 const lastOption = options.paragrahs[pCombinedSet[0] as Selection]
+                const mergedSelection = selectionManage.stringifySelection(
+                  selectionManage.merge(
+                    ...pCombinedSet.map((p) => pSelectionMap[p][0]).map((p) => selectionManage.parseSelection(p)),
+                  ),
+                )
+                const curIndex = options.paragrahsIndex.findIndex((p) => p === pSelectionMap[pCombinedSet[0]][0])
+                options.paragrahsIndex.splice(curIndex, 2, mergedSelection)
 
-                options.paragrahs[
-                  selectionManage.stringifySelection(
-                    selectionManage.merge(
-                      ...pCombinedSet.map((p) => pSelectionMap[p][0]).map((p) => selectionManage.parseSelection(p)),
-                    ),
-                  )
-                ] = {
+                options.paragrahs[mergedSelection] = {
                   ...lastOption,
                   rows: {
                     ...lastOption.rows,
@@ -950,32 +1037,33 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                 delete options.paragrahs[p as Selection]
               }
             })
-            //更新行号
+
+            /** -----------------------------------------------------
+            *                     4:更新行区间                             -
+            -------------------------------------------------------*/
             for (const pOptions of Object.values(options.paragrahs)) {
               for (const [rSelection, rOptions] of Object.entries(pOptions.rows)) {
                 delete pOptions.rows[rSelection as Selection]
                 if (rSelectionMap[rSelection as Selection][0] != (`${Infinity}-${Infinity}` as Selection)) {
                   pOptions.rows[rSelectionMap[rSelection as Selection][0]] = {
                     ...rOptions,
-                    rowIndex: options.rowsIndex
-                      .filter((r) => r != (`${Infinity}-${Infinity}` as Selection))
-                      .findIndex((r) => r === rSelectionMap[rSelection as Selection][0]),
+                    rowIndex: options.rowsIndex.findIndex((r) => r === rSelectionMap[rSelection as Selection][0]),
                   }
                 }
               }
             }
 
-            //更新字体区间
+            /** -----------------------------------------------------
+            *                     5:更新字体区间                     -
+            -------------------------------------------------------*/
+
             font: for (const pOptions of Object.values(options.paragrahs)) {
               for (const rOptions of Object.values(pOptions.rows)) {
                 for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
                   const fSeObj = selectionManage.parseSelection(fSelection as Selection)
-                  if (
-                    options.paragrahsIndex[0] === '0-1' &&
-                    options.paragrahsIndex.slice(1).every((s) => s === (`${Infinity}-${Infinity}` as Selection))
-                  ) {
-                    options.paragrahs['0-1'].rows['0-1'].font = {
-                      '0-1': fOptions,
+                  if (textOptionManage.isSelectAll()) {
+                    options.paragrahs[options.paragrahsIndex[0]].rows[options.rowsIndex[0]].font = {
+                      [selectionManage.stringifySelection({ startIndex: 0, endIndex: inputCacheLength })]: fOptions,
                     }
                     break font
                   }
@@ -992,7 +1080,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                           ]),
                         )
                       }
-                      //前面还有值，当前区间位于区间左侧，将新增字体加入到此区间
+                      //前面还有值，当前区间位于选区左侧，将新增字体加入到此区间
                       else if (fSeObj.endIndex === oldSelection.startIndex) {
                         newSelection = selectionManage.stringifySelection(
                           selectionManage.offsetSelection(fSeObj, [0, inputCacheLength]),
@@ -1037,40 +1125,40 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                         }
                       }
                       rOptions.font[newSelection] = fOptions
-                    } else if (
-                      selectionManage.isInterior(oldSelection, fSeObj) &&
-                      oldSelection.startIndex === fSeObj.startIndex
-                    ) {
+                    } else if (selectionManage.isContained(oldSelection, fSeObj)) {
                       let newSelection: Selection
-                      if (oldSelection.startIndex === 0) {
+                      if (selectionManage.isSameSelection(oldSelection, fSeObj)) {
                         newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(fSeObj, [
-                            -fSeObj.startIndex,
-                            inputCacheLength - deleteLength,
-                          ]),
+                          selectionManage.offsetSelection(oldSelection, [0, inputCacheLength - deleteLength]),
                         )
+                      } else if (selectionManage.isInterior(oldSelection, fSeObj)) {
+                        if (oldSelection.startIndex === 0) {
+                          newSelection = selectionManage.stringifySelection(
+                            selectionManage.offsetSelection(fSeObj, [
+                              -fSeObj.startIndex,
+                              inputCacheLength - deleteLength,
+                            ]),
+                          )
+                        } else if (oldSelection.startIndex === fSeObj.startIndex) {
+                          newSelection = selectionManage.stringifySelection(
+                            selectionManage.offsetSelection(fSeObj, [-deleteLength, inputCacheLength - deleteLength]),
+                          )
+                        } else {
+                          newSelection = selectionManage.stringifySelection(
+                            selectionManage.offsetSelection(fSeObj, [
+                              inputCacheLength - deleteLength,
+                              inputCacheLength - deleteLength,
+                            ]),
+                          )
+                        }
                       } else {
+                        const fDiffSelection = selectionManage.merge(
+                          ...selectionManage.difference(fSeObj, oldSelection)!,
+                        )
                         newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(fSeObj, [
-                            inputCacheLength - deleteLength,
-                            inputCacheLength - deleteLength,
-                          ]),
+                          selectionManage.offsetSelection(fDiffSelection, [0, inputCacheLength]),
                         )
                       }
-                      rOptions.font[newSelection] = fOptions
-                    } else if (
-                      selectionManage.isContained(oldSelection, fSeObj) &&
-                      !selectionManage.isSameSelection(oldSelection, fSeObj)
-                    ) {
-                      const fDiffSelection = selectionManage.merge(...selectionManage.difference(fSeObj, oldSelection)!)
-                      const newSelection = selectionManage.stringifySelection(
-                        selectionManage.offsetSelection(fDiffSelection, [0, inputCacheLength]),
-                      )
-                      rOptions.font[newSelection] = fOptions
-                    } else if (selectionManage.isSameSelection(oldSelection, fSeObj)) {
-                      const newSelection = selectionManage.stringifySelection(
-                        selectionManage.offsetSelection(oldSelection, [0, inputCacheLength - deleteLength]),
-                      )
                       rOptions.font[newSelection] = fOptions
                     } else if (fSeObj.startIndex > oldSelection.endIndex) {
                       const newSelection = selectionManage.stringifySelection(
@@ -1086,6 +1174,8 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               }
             }
 
+            console.log(options, newSelection)
+
             metaNodeRef.current = {
               ...metaNodeRef.current,
               options: {
@@ -1100,17 +1190,13 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                 propData: composeData,
               }),
             )
-            //更新node
             dispatch(
               updateNodeOptions({
                 templateId: template.templateId,
                 instanceId: activeNode.instanceId,
                 options: {
                   ...options,
-                  selection: selectionManage.stringifySelection({
-                    startIndex: newSelection.endIndex,
-                    endIndex: newSelection.endIndex,
-                  }),
+                  selection: selectionManage.stringifySelection(newSelection),
                 },
               }),
             )
@@ -1119,7 +1205,14 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
       }
     }, 50),
 
-    [template, metaNodeRef.current, mousedownLocationRef.current, mouseupLocationRef.current],
+    [
+      template,
+      metaNodeRef.current,
+      mousedownLocationRef.current,
+      mouseupLocationRef.current,
+      canvasProxy.current,
+      canvasContextRef.current,
+    ],
   )
 
   const focusProxy = useCallback(
@@ -1140,466 +1233,54 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
   )
 
   /**
-   * 根据文本节点样式计算文本盒的尺寸和位置
-   * @param {RenderTextOptions} options  文本节点样式
-   * @param {TemplateData[keyof TemplateData]} content:节点的装填信息
+   * 调整文本节点
    */
-  //TODO:文字的间距还需要调整，应该像行高一样设置默认的左右间距，标点符号，字母，汉字间的间距和光标的交互有点奇怪
-  const computeMulTextSize = useCallback(
-    (options: RenderTextOptions, content: TemplateData[keyof TemplateData]) => {
-      const { paragrahs, Leading, rowsIndex, paragrahsIndex } = options
-      const heightPerParagrah: number[] = Array.from({ length: paragrahsIndex.length }, () => 0)
-      const widthPerParagrah: number[] = Array.from({ length: paragrahsIndex.length }, () => 0)
-      const heightPerRow: number[] = Array.from({ length: rowsIndex.length }, () => 0) //每一行的最大字体高度
-      const widthPerRow: number[] = Array.from({ length: rowsIndex.length }, () => 0) //每一行的宽度
-      let maxCharacterWidth = -Infinity //缩放时确定的最小宽度为最大字符宽度
+  //TODO: fix: 选择框只能整行选中
+  const adjustTextNode = useCallback(
+    (node: CanvasNode, content: TemplateData[keyof TemplateData]) => {
       if (canvasContextRef.current) {
-        for (const { rows, paragrahIndex, contentBox, preGap, postGap } of Object.values(paragrahs)) {
-          for (const { font, rowIndex, contentBox } of Object.values(rows)) {
-            for (const [subRange, fontOptions] of Object.entries(font)) {
-              //计算每行的高度，由最大的字高决定（1.2为默认在行框上下有10%行高大小的间隔，不可变）
-              heightPerRow[rowIndex] = Math.max(heightPerRow[rowIndex], fontOptions.fontSize * Leading * 1.2)
+        const textOptionManage = new TextOptionManage(node, content, canvasContextRef.current)
+        const options = node.options as RenderTextOptions
+        options.rowsIndex = Array.from({ length: options.paragrahsIndex.length })
 
-              const { startIndex, endIndex } = selectionManage.parseSelection(subRange as Selection)
+        //将所有段落合并成一行
+        textOptionManage.combineRows()
 
-              //获取每个字符的宽度（如果只计算一个字符宽度会造成英文和中文宽度不一致的情况还是用的统一宽度，导致文字坍塌）
-              const contentStr = content.toString()
-              for (let i = startIndex; i < endIndex; i++) {
-                const character = contentStr[i]
-                canvasContextRef.current.font = `${fontOptions.fontSize}px ${fontOptions.fontFamily} ${fontOptions.italicly ? 'italic' : 'normal'} ${fontOptions.fontWeight}`
-                const { actualBoundingBoxRight: right, actualBoundingBoxLeft: left } =
-                  canvasContextRef.current.measureText(character)
-                const characterWidth = right + left || 24 // 给空格一个默认值（TODO：考虑排版动态设置）
-                fontOptions.characterWidth[i - startIndex] = characterWidth
-                widthPerRow[rowIndex] += characterWidth
-                maxCharacterWidth = Math.max(maxCharacterWidth, characterWidth)
-              }
-            }
-            contentBox.size.width = widthPerRow[rowIndex]
-            contentBox.size.height = heightPerRow[rowIndex]
-            widthPerParagrah[paragrahIndex] = Math.max(widthPerParagrah[paragrahIndex], widthPerRow[rowIndex])
-            heightPerParagrah[paragrahIndex] += heightPerRow[rowIndex]
-          }
-          contentBox.size.width = widthPerParagrah[paragrahIndex]
-          contentBox.size.height = heightPerParagrah[paragrahIndex] + preGap + postGap
+        //重新计算样式结构
+        textOptionManage.modifyOptionsSize()
+        /** ------------------------------------------------------------------------
+         *              //根据节点宽度调整options
+         --------------------------------------------------------------------------*/
+        textOptionManage.regulateOptions()
+
+        //重新计算样式结构
+        textOptionManage.modifyOptionsSize()
+
+        //调整节点行高，随输入的变化而变化
+        //当用户resize高度时isAdoptiveHeight会为false
+        //当用户输入时如果节点高大于等于文本高度会为true
+        if (options.isAdoptiveHeight) {
+          textOptionManage.setNodeStructure({
+            location: textOptionManage.node.structure.contentBox.location,
+            size: { ...textOptionManage.node.structure.contentBox.size, height: options.contentBox.size.height },
+            path: generateBoxPath(node.structure.contentBox.location, node.structure.contentBox.size),
+          })
         }
-      }
 
-      options.minContentWidth = maxCharacterWidth
-      return {
-        heightPerRow,
-        widthPerRow,
-        heightPerParagrah,
-        widthPerParagrah,
+        /** ------------------------------------------------------------------------
+         *              修改文本样式结构（根据节点尺寸，对齐方式）
+         --------------------------------------------------------------------------*/
+        textOptionManage.modifyOptionsLocation()
+
+        /** ------------------------------------------------------------------------
+         *              修改文本选择盒结构
+         --------------------------------------------------------------------------*/
+
+        textOptionManage.modifySelectionBoxes()
       }
     },
     [canvasContextRef.current],
   )
-
-  /**
-   * 调整文本节点
-   */
-  const adjustTextNode = useCallback((node: CanvasNode, content: TemplateData[keyof TemplateData]) => {
-    const options = node.options as RenderTextOptions
-
-    //调整行如果节点宽度变化
-    //节点盒宽度***没有上限***，文本框的宽度的上限是最长段落的宽度（最长段落：段落排列成一行的宽度）
-    //节点盒宽度***有下限***，不能小于最大字符的宽度
-    //当节点盒宽度变化时，文本框要跟着变化
-    // 行索引调整为段落索引
-    options.rowsIndex = []
-    options.selectionBoxes = []
-
-    //将所有段落合并成一行
-    for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
-      let fRange: Range<FontOptions> | undefined
-      for (const rOptions of Object.values(pOptions.rows)) {
-        fRange = fRange ? mergeRange(fRange, rOptions.font) : rOptions.font
-      }
-      options.paragrahs[pSelection as Selection] = {
-        contentBox: {
-          size: { width: 0, height: 0 },
-          location: { x: 0, y: 0, w: 1 },
-        },
-        preGap: 0,
-        postGap: 0,
-        paragrahIndex: pOptions.paragrahIndex,
-        rows: {
-          [pSelection]: {
-            font: fRange,
-            contentBox: {
-              size: { width: 0, height: 0 },
-              location: { x: 0, y: 0, w: 1 },
-            },
-            rowIndex: pOptions.paragrahIndex,
-          } as RowOptions,
-        },
-      }
-    }
-
-    //计算所有段落变成一行的尺寸
-    const { heightPerParagrah, widthPerParagrah } = computeMulTextSize(options, content)
-    options.contentBox.size.height = heightPerParagrah.reduce((pre, cur) => pre + cur)
-    options.contentBox.size.width = Math.max(...widthPerParagrah)
-
-    let rowOffset = 0
-    for (const pOptions of Object.values(options.paragrahs)) {
-      for (const [rSelection, rOptions] of Object.entries(pOptions.rows)) {
-        const breakPoints: number[] = []
-        let walkedWidth = 0
-        const { startIndex, endIndex } = selectionManage.parseSelection(rSelection as Selection)
-        //确定每一行的分离点
-        for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
-          const { startIndex, endIndex } = selectionManage.parseSelection(fSelection as Selection)
-          for (let i = startIndex; i < endIndex; i++) {
-            const characterWidth = fOptions.characterWidth[i - startIndex]
-            const restWidth = node.structure.contentBox.size.width - walkedWidth
-            if (restWidth < characterWidth) {
-              breakPoints.push(i)
-              walkedWidth = 0
-            } else {
-              walkedWidth += characterWidth
-            }
-          }
-        }
-
-        //删除一整行
-        delete pOptions.rows[rSelection as Selection]
-
-        breakPoints.push(endIndex)
-        //根据分离点，重整字体区间
-        for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
-          const { startIndex, endIndex } = selectionManage.parseSelection(fSelection as Selection)
-          delete rOptions.font[fSelection as Selection]
-          const breakPointsInFontRange = breakPoints.filter((point) => point > startIndex && point < endIndex)
-          if (breakPointsInFontRange.length != 0) {
-            //有可能一个字体区间内有多个分离点
-            breakPointsInFontRange.push(endIndex)
-            const breakedFontRange = Object.fromEntries(
-              breakPointsInFontRange.map((point, i) => {
-                const newSelection = selectionManage.difference(
-                  { startIndex: i === 0 ? startIndex : breakPointsInFontRange[i - 1], endIndex },
-                  { startIndex: point, endIndex },
-                )![0]
-
-                return [
-                  selectionManage.stringifySelection(newSelection),
-                  {
-                    ...fOptions,
-                    characterWidth: fOptions.characterWidth.slice(
-                      newSelection.startIndex - startIndex,
-                      newSelection.endIndex - startIndex,
-                    ),
-                  },
-                ]
-              }),
-            )
-            Object.assign(rOptions.font, breakedFontRange)
-          } else {
-            rOptions.font[fSelection as Selection] = fOptions
-          }
-        }
-
-        //根据分离点，重整行区间
-        const newRowRange = Object.fromEntries(
-          breakPoints.map((point, i) => {
-            const newSelection = selectionManage.difference(
-              {
-                startIndex: i === 0 ? startIndex : breakPoints[i - 1],
-                endIndex,
-              },
-              { startIndex: point, endIndex },
-            )![0]
-            const rowIndex = i + rowOffset
-            options.rowsIndex[rowIndex] = selectionManage.stringifySelection(newSelection)
-            const newOptions = Object.fromEntries(
-              Object.keys(rOptions.font)
-                .filter((f) =>
-                  selectionManage.isContained(selectionManage.parseSelection(f as Selection), newSelection),
-                )
-                .map((f) => [f, rOptions.font[f as Selection]]),
-            )
-            return [
-              selectionManage.stringifySelection(newSelection),
-              {
-                contentBox: {
-                  size: { width: 0, height: 0 },
-                  location: { x: 0, y: 0, w: 1 },
-                },
-                font: newOptions,
-                rowIndex,
-              } as RowOptions,
-            ]
-          }),
-        )
-        pOptions.rows = newRowRange
-        rowOffset += breakPoints.length
-      }
-    }
-
-    const { heightPerParagrah: adjustedHPP, widthPerParagrah: adjustedWPP } = computeMulTextSize(options, content)
-    options.contentBox.size.height = adjustedHPP.reduce((pre, cur) => pre + cur)
-    options.contentBox.size.width = Math.max(...adjustedWPP)
-    if (options.isAdoptiveHeight) {
-      node.structure.contentBox.size.height = options.contentBox.size.height
-      node.structure.contentBox.path = convertLocation2Path(
-        node.structure.contentBox.location,
-        node.structure.contentBox.size,
-      )
-    }
-
-    /** ------------------------------------------------------------------------
-         *              文本位置的计算（根据节点尺寸，对齐方式）
-         --------------------------------------------------------------------------*/
-    //根据对齐方式计算文本内容的起点:相对节点内容盒的偏移
-    const contentSize = node.structure.contentBox.size
-    const alignment = options.align
-    //水平/垂直坐标(相对于父盒子的偏移)
-    switch (alignment.horizontal) {
-      case HorAlign.LEFT:
-        options.contentBox.location.x = 0
-
-        for (const paragraphOptions of Object.values(options.paragrahs)) {
-          paragraphOptions.contentBox.location.x = 0
-          for (const rowOptions of Object.values(paragraphOptions.rows)) {
-            rowOptions.contentBox.location.x = 0
-          }
-        }
-        break
-      case HorAlign.JUSTIFY:
-        //文本框将节点框撑大
-        options.contentBox.location.x = 0
-        options.contentBox.size.width = contentSize.width
-        for (const paragraphOptions of Object.values(options.paragrahs)) {
-          paragraphOptions.contentBox.location.x = 0
-          paragraphOptions.contentBox.size.width = contentSize.width
-          for (const [rowSelection, rowOptions] of Object.entries(paragraphOptions.rows)) {
-            const rowContentBox = rowOptions.contentBox
-            const [startIndex, endIndex] = selectionStr2Arr(rowSelection as Selection)
-            const characterLength = endIndex - startIndex
-            const spareWidthPerCharacter = (contentSize.width - rowContentBox.size.width) / characterLength
-            for (const fontOptions of Object.values(rowOptions.font)) {
-              fontOptions.characterWidth = fontOptions.characterWidth.map((w) => (w += spareWidthPerCharacter)) //在这里直接加，每次渲染都需要重新根据option计算字符宽度，不会累计
-            }
-            rowOptions.contentBox.size.width = contentSize.width
-            rowOptions.contentBox.location.x = 0
-          }
-        }
-        break
-      case HorAlign.CENTER:
-        options.contentBox.location.x = (contentSize.width - options.contentBox.size.width) / 2
-        for (const paragrahOptions of Object.values(options.paragrahs)) {
-          paragrahOptions.contentBox.location.x =
-            (options.contentBox.size.width - paragrahOptions.contentBox.size.width) / 2
-          for (const rowOptions of Object.values(paragrahOptions.rows)) {
-            rowOptions.contentBox.location.x =
-              (paragrahOptions.contentBox.size.width - rowOptions.contentBox.size.width) / 2
-          }
-        }
-        break
-      case HorAlign.RIGHT:
-        options.contentBox.location.x = contentSize.width - options.contentBox.size.width
-        for (const paragrahOptions of Object.values(options.paragrahs)) {
-          paragrahOptions.contentBox.location.x = options.contentBox.size.width - paragrahOptions.contentBox.size.width
-          for (const rowOptions of Object.values(paragrahOptions.rows)) {
-            rowOptions.contentBox.location.x = paragrahOptions.contentBox.size.width - rowOptions.contentBox.size.width
-          }
-        }
-        break
-    }
-    switch (alignment.vertical) {
-      case VerAlign.TOP:
-        {
-          options.contentBox.location.y = 0
-          let accParaHeight = 0
-          for (const paragrahOptions of Object.values(options.paragrahs)) {
-            paragrahOptions.contentBox.location.y = accParaHeight
-            let accRowHeight = 0
-            for (const rowOptions of Object.values(paragrahOptions.rows)) {
-              rowOptions.contentBox.location.y = accRowHeight
-              accRowHeight += rowOptions.contentBox.size.height
-            }
-            accParaHeight += paragrahOptions.contentBox.size.height
-          }
-        }
-        break
-      case VerAlign.MIDDLE:
-        {
-          options.contentBox.location.y = (contentSize.height - options.contentBox.size.height) / 2
-          let accParaHeight = 0
-          for (const paragrahOptions of Object.values(options.paragrahs)) {
-            paragrahOptions.contentBox.location.y = accParaHeight
-            let accRowHeight = 0
-            for (const rowOptions of Object.values(paragrahOptions.rows)) {
-              rowOptions.contentBox.location.y = accRowHeight
-              accRowHeight += rowOptions.contentBox.size.height
-            }
-            accParaHeight += paragrahOptions.contentBox.size.height
-          }
-        }
-        break
-      case VerAlign.BOTTOM:
-        {
-          options.contentBox.location.y = contentSize.height - options.contentBox.size.height
-          let accParaHeight = 0
-          for (const paragrahOptions of Object.values(options.paragrahs)) {
-            paragrahOptions.contentBox.location.y = accParaHeight
-            let accRowHeight = 0
-            for (const rowOptions of Object.values(paragrahOptions.rows)) {
-              rowOptions.contentBox.location.y = accRowHeight
-              accRowHeight += rowOptions.contentBox.size.height
-            }
-            accParaHeight += paragrahOptions.contentBox.size.height
-          }
-        }
-        break
-    }
-
-    /**
-     * 文本节点的selection
-     */
-    const selection = options.selection
-    const [startIndex, endIndex] = selectionStr2Arr(selection)
-    //根据selection计算selectionBoxs
-    const selectionBoxes: Box[] = []
-
-    if (endIndex === startIndex) {
-      for (const [pSelection, paragrahOptions] of Object.entries(options.paragrahs)) {
-        const pinter = getOverlapSelection(pSelection as Selection, selection)
-        const pdiffer = getDifferSelection(pSelection as Selection, selection)
-        //如果当前段落存在交集
-        if (
-          (pinter && selectionStr2Arr(pdiffer[0])[0] === selectionStr2Arr(pSelection as Selection)[0]) ||
-          (startIndex == 0 && paragrahOptions.paragrahIndex == 0)
-        ) {
-          for (const [rSelection, rowOptions] of Object.entries(paragrahOptions.rows)) {
-            const rinter = getOverlapSelection(rSelection as Selection, selection)
-            const rdiffer = getDifferSelection(rSelection as Selection, selection)
-            //如果当前行存在交集
-            if (
-              (rinter && selectionStr2Arr(rdiffer[0])[0] === selectionStr2Arr(rSelection as Selection)[0]) ||
-              (startIndex == 0 && rowOptions.rowIndex == 0)
-            ) {
-              let walkedWidth = 0
-              let interSelectionHeight = rowOptions.contentBox.size.height / options.Leading
-              for (const [fSelection, fontOptions] of Object.entries(rowOptions.font)) {
-                const differSelection = getDifferSelection(fSelection as Selection, selection)
-
-                if (
-                  differSelection[0] &&
-                  selectionStr2Arr(differSelection[0])[0] === selectionStr2Arr(fSelection as Selection)[0] &&
-                  endIndex > selectionStr2Arr(fSelection as Selection)[0]
-                ) {
-                  for (
-                    let i = selectionStr2Arr(differSelection[0])[0];
-                    i < selectionStr2Arr(differSelection[0])[1];
-                    i++
-                  ) {
-                    walkedWidth += fontOptions.characterWidth[i - selectionStr2Arr(differSelection[0])[0]]
-                  }
-                  interSelectionHeight = fontOptions.fontSize * 1.2
-                }
-              }
-              //框选框的大小和行框的高度一致，宽度为交集长度和（光标需要一个保底值）
-              const interBoxSize: Size = {
-                width: 2,
-                height: interSelectionHeight,
-              }
-              const interBoxLocation: Point = {
-                x:
-                  walkedWidth +
-                  node.structure.contentBox.location.x +
-                  options.contentBox.location.x +
-                  paragrahOptions.contentBox.location.x +
-                  rowOptions.contentBox.location.x,
-                y:
-                  node.structure.contentBox.location.y +
-                  options.contentBox.location.y +
-                  paragrahOptions.contentBox.location.y +
-                  rowOptions.contentBox.location.y +
-                  rowOptions.contentBox.size.height -
-                  rowOptions.contentBox.size.height / 12 - //减去字体底部响应式空隙
-                  interSelectionHeight / 1.2 - // 减去字体高度
-                  (interSelectionHeight - interSelectionHeight / 1.2) / 2,
-                w: 1,
-              }
-              const interBoxPath = convertLocation2Path(interBoxLocation, interBoxSize)
-              selectionBoxes.push({
-                size: interBoxSize,
-                location: interBoxLocation,
-                path: interBoxPath,
-              })
-            }
-          }
-        }
-      }
-    } else {
-      for (const [pSelection, paragrahOptions] of Object.entries(options.paragrahs)) {
-        //如果当前段落存在交集
-        if (hasOverlap(pSelection as Selection, selection)) {
-          for (const [rSelection, rowOptions] of Object.entries(paragrahOptions.rows)) {
-            //如果当前行存在交集
-            if (hasOverlap(rSelection as Selection, selection)) {
-              let walkedWidth = 0
-              let interSelectionWidth = 0
-              const interSelectionHeight = rowOptions.contentBox.size.height
-
-              for (const [fSelection, fontOptions] of Object.entries(rowOptions.font)) {
-                const interSelection = getOverlapSelection(fSelection as Selection, selection) as Selection
-                const differSelection = getDifferSelection(fSelection as Selection, selection)
-
-                if (interSelection) {
-                  for (let i = selectionStr2Arr(interSelection)[0]; i < selectionStr2Arr(interSelection)[1]; i++) {
-                    interSelectionWidth += fontOptions.characterWidth[i - selectionStr2Arr(interSelection)[0]]
-                  }
-                }
-
-                if (
-                  differSelection[0] &&
-                  selectionStr2Arr(differSelection[0])[0] === selectionStr2Arr(fSelection as Selection)[0] &&
-                  endIndex > selectionStr2Arr(fSelection as Selection)[0]
-                ) {
-                  for (
-                    let i = selectionStr2Arr(differSelection[0])[0];
-                    i < selectionStr2Arr(differSelection[0])[1];
-                    i++
-                  ) {
-                    walkedWidth += fontOptions.characterWidth[i - selectionStr2Arr(interSelection)[0]]
-                  }
-                }
-              }
-              //框选框的大小和行框的高度一致，宽度为交集长度和（光标需要一个保底值）
-              const interBoxSize: Size = {
-                width: interSelectionWidth,
-                height: interSelectionHeight,
-              }
-              const interBoxLocation: Point = {
-                x:
-                  walkedWidth +
-                  node.structure.contentBox.location.x +
-                  options.contentBox.location.x +
-                  paragrahOptions.contentBox.location.x +
-                  rowOptions.contentBox.location.x,
-                y:
-                  node.structure.contentBox.location.y +
-                  options.contentBox.location.y +
-                  paragrahOptions.contentBox.location.y +
-                  rowOptions.contentBox.location.y,
-                w: 1,
-              }
-              const interBoxPath = convertLocation2Path(interBoxLocation, interBoxSize)
-              selectionBoxes.push({
-                size: interBoxSize,
-                location: interBoxLocation,
-                path: interBoxPath,
-              })
-            }
-          }
-        }
-      }
-    }
-    options.selectionBoxes = selectionBoxes
-  }, [])
 
   /**
    * adjustTemplate 调整模板，根据节点信息和样式信息做适应性变化
@@ -1729,23 +1410,53 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
   const keydownProxy = useCallback(
     (e: KeyboardEvent) => {
       //阻止焦点切换和其他的事件
-      if (e.key === 'Tab') {
+      if (e.key === ValidModifierKeys.TAB) {
         e.preventDefault()
       }
-      if (canvasProxy.current && validModifierKeys.includes(e.key)) {
+
+      if (canvasRef.current && canvasProxy.current && (e.ctrlKey || e.shiftKey || isValidModifier(e.key))) {
+        let inputCache = e.key
+
+        if ((e.ctrlKey || e.shiftKey) && !isValidModifier(e.key)) {
+          e.preventDefault()
+          switch (e.key) {
+            case 'a':
+            case 'A': {
+              inputCache = ComposingKeys.CHECKALL
+              break
+            }
+            case 'c':
+            case 'C': {
+              inputCache = ComposingKeys.COPY
+              break
+            }
+            case 'v':
+            case 'V': {
+              inputCache = ComposingKeys.PASTE
+              break
+            }
+            case ArrowKeys.ARROWDOWN:
+            case ArrowKeys.ARROWLEFT:
+            case ArrowKeys.ARROWRIGHT:
+            case ArrowKeys.ARROWUP: {
+              inputCache = ComposingKeys.SELECTION
+              break
+            }
+          }
+        }
         const cusInputEnvent = new CustomEvent('inputWithouFocus', {
           detail: {
             type: e.type,
             value: (e.target as HTMLInputElement).value,
-            inputCache: e.key,
+            inputCache,
             isComposing: e.isComposing,
           },
         })
 
-        canvasRef.current?.dispatchEvent(cusInputEnvent)
+        canvasRef.current.dispatchEvent(cusInputEnvent)
       }
     },
-    [canvasProxy.current],
+    [canvasProxy.current, canvasRef.current],
   )
 
   const inputProxy = useCallback(
@@ -1753,7 +1464,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
       if (canvasProxy.current && template && canvasRef.current) {
         const activeNodes = getActiveNodes(template).filter((node) => node.type === NodeType.TEXT)
         //只有一个激活节点且是文本
-        if (activeNodes.length === 1) {
+        if (activeNodes.length === 1 && (e as InputEvent).data != null) {
           const node = activeNodes[0]
           //转发事件
           const cusInputEnvent = new CustomEvent('inputWithouFocus', {
@@ -1764,6 +1475,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               isComposing: (e as InputEvent).isComposing,
             },
           })
+
           canvasRef.current.dispatchEvent(cusInputEnvent)
           //修改代理元素位置(定位到selection末尾)
           //根据selection定位到（不新增ref，增加事件间耦合了）
@@ -1827,14 +1539,14 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
   useEffect(() => {
     if (canvasRef.current) {
       const proxyEle: HTMLInputElement = document.createElement('input')
-      proxyEle.style.width = `100px`
+      proxyEle.style.width = `200px` //设置大一点，放置页面闪烁
       proxyEle.style.height = `10px`
       proxyEle.style.position = 'absolute'
       proxyEle.style.left = '0'
       proxyEle.style.top = '0'
-      proxyEle.style.opacity = '0.8'
+      proxyEle.style.opacity = '0'
       proxyEle.style.backgroundColor = '#fff'
-      // proxyEle.style.zIndex = '-999'
+      proxyEle.style.zIndex = '-999'
       proxyEle.style.overflow = 'hidden'
       canvasProxy.current = proxyEle
       canvasRef.current.parentElement!.insertBefore(proxyEle, canvasRef.current)

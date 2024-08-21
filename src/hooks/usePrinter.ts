@@ -13,6 +13,7 @@ import {
 } from 'utils/utils'
 
 import { BOXMARGIN, BOXPADDING, RESIZERECTSIZE } from 'constants/index'
+import SelectionManage from 'src/models/SelectionManage/SelectionManage'
 
 export default function usePrinter(ctx: CanvasRenderingContext2D | null, template: Template | undefined) {
   const animationFrameIdRef = useRef<number | undefined>()
@@ -49,7 +50,7 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
         const { selection, selectionBoxes } = node.options as RenderTextOptions
 
         //渲染的是光标
-        if (selectionBoxes.length === 1 && new Set(selectionStr2Arr(selection)).size === 1) {
+        if (SelectionManage.isZeroSelection(SelectionManage.parseSelection(selection))) {
           const now = Date.now()
           //当和上次渲染超过200ms时
 
@@ -57,8 +58,8 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
             ctx.save()
             ctx.fillStyle = 'black'
             ctx.fillRect(
-              selectionBoxes[0].location.x,
-              selectionBoxes[0].location.y,
+              selectionBoxes[0].location.x + node.structure.contentBox.location.x,
+              selectionBoxes[0].location.y + node.structure.contentBox.location.y,
               selectionBoxes[0].size.width,
               selectionBoxes[0].size.height,
             )
@@ -73,8 +74,8 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
             ctx.save()
             ctx.fillStyle = `rgba(120,120,120,0.7)`
             ctx.fillRect(
-              selectionBox.location.x,
-              selectionBox.location.y,
+              selectionBox.location.x + node.structure.contentBox.location.x,
+              selectionBox.location.y + node.structure.contentBox.location.y,
               selectionBox.size.width,
               selectionBox.size.height,
             )
@@ -166,7 +167,7 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
                     fontOptions.fontSize -
                     fontOptions.fontSize * options.Leading * 0.1, //留下最下方空隙和字高,
                 )
-                walkedWidth = walkedWidth + fontOptions.characterWidth[i - startIndex]
+                walkedWidth = walkedWidth + fontOptions.characterWidth[i - startIndex] + fontOptions.letterSpace
               }
             }
             // 行盒子(文本底色)

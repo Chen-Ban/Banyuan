@@ -23,6 +23,7 @@ export const randomFontOptions = Array.from({ length: 10 }, () => ({
   underLine: false,
   color: 0x000000,
   characterWidth: [],
+  letterSpace: 0,
 }))
 
 //TODO抽取出构造函数，传入属性构建，或抽离成常量；方便拓展(后续再考虑数据库存储)
@@ -98,46 +99,6 @@ export default [
     } as RenderTextOptions,
     type: '文本',
   },
-  // {
-  //   componentId: '0001-001',
-  //   componentName: '标题',
-  //   propName: 'content',
-  //   component: lazy(() => import('./TextTemplate')),
-  //   options: {
-  //     rowsIndex: ['0-2'],
-  //     paragrahsIndex: ['0-2'],
-  //     paragrahs: {
-  //       '0-2': {
-  //         rows: {
-  //           '0-2': {
-  //             font: {
-  //               '0-2': randomFontOptions[Random.integer(0, 9)],
-  //             },
-  //             contentBox: emptyBox(),
-  //             rowIndex: 0,
-  //           },
-  //         },
-  //         contentBox: emptyBox(),
-  //         preGap: 0,
-  //         postGap: 10,
-  //         paragrahIndex: 0,
-  //       },
-  //     },
-  //     isAdoptiveHeight: true,
-
-  //     selection: '2-2',
-  //     selectionBoxes: [],
-  //     minContentWidth: Infinity,
-  //     align: { vertical: VerAlign.MIDDLE, horizontal: HorAlign.CENTER },
-  //     contentBox: {
-  //       size: { width: 0, height: 0 },
-  //       location: { x: 0, y: 0, w: 1 },
-  //       path: [],
-  //     },
-  //     Leading: 3,
-  //   } as RenderTextOptions,
-  //   type: '文本',
-  // },
   {
     componentId: '0001-002',
     componentName: '正文文本',
