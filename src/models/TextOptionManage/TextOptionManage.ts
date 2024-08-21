@@ -183,7 +183,6 @@ class TextOptionManage implements ITextOptionManage {
     if (SelectionManage.isZeroSelection(selection)) {
       const relativeLocation = this.selection2RelativeLocation(options.selection)[0]
       const fOptions = this.getFontOptionByindex(selection.startIndex)!
-      console.log(relativeLocation, fOptions)
 
       const interBoxLocation: Point = {
         ...relativeLocation,
@@ -632,6 +631,7 @@ class TextOptionManage implements ITextOptionManage {
   getFontOptionByindex(index: number): FontOptions | undefined {
     const options = this.node.options as RenderTextOptions
     const selectionObj = SelectionManage.parseSelection(`${index}-${index}`)
+
     const pSelection = options.paragrahsIndex.find((ps) =>
       SelectionManage.isContained(selectionObj, SelectionManage.parseSelection(ps)),
     )
@@ -641,9 +641,11 @@ class TextOptionManage implements ITextOptionManage {
     if (!pSelection || !rSelection) {
       throw new Error(`selection:${selectionObj.startIndex}-${selectionObj.endIndex} 不在任何区间内`)
     }
+
     for (const [fSelection, fOptions] of Object.entries(options.paragrahs[pSelection].rows[rSelection].font)) {
       const { startIndex, endIndex } = SelectionManage.parseSelection(fSelection as Selection)
-      for (let i = startIndex + 1; i <= endIndex; i++) {
+
+      for (let i = startIndex; i <= endIndex; i++) {
         if (i === index) {
           return fOptions
         }
@@ -730,7 +732,6 @@ class TextOptionManage implements ITextOptionManage {
           } else {
             nextTerminalIndex = curRowSelection.startIndex
           }
-          console.log(nextTerminalIndex)
           newSelection = {
             startIndex: nextTerminalIndex,
             endIndex: nextTerminalIndex,
