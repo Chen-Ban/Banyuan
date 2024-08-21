@@ -754,8 +754,10 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
         canvasContextRef.current
       ) {
         const activeNodes = getActiveNodes(template)
+
         if (activeNodes.length == 1 && activeNodes[0].type == NodeType.TEXT) {
           const activeNode = activeNodes[0]
+
           const options = structuredClone(activeNode.options) as RenderTextOptions
           const templateData = structuredClone(template.templateData)
           let composeData = templateData[activeNode.propName] as string
@@ -897,11 +899,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
             /** -----------------------------------------------------
             *                     1*:如果删除所有内容                -
             -------------------------------------------------------*/
-            if (
-              Object.keys(rSelectionMap).every(
-                (p) => rSelectionMap[p as Selection][0] === (`${Infinity}-${Infinity}` as Selection),
-              )
-            ) {
+            if (textOptionManage.isSelectAll()) {
               pSelectionMap[options.paragrahsIndex[0]] = ['0-0']
               rSelectionMap[options.rowsIndex[0]] = ['0-0']
             }
@@ -1052,136 +1050,76 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                 }
               }
             }
-
             /** -----------------------------------------------------
             *                     5:更新字体区间                     -
             -------------------------------------------------------*/
-
+            let firstFOptions
             font: for (const pOptions of Object.values(options.paragrahs)) {
               for (const rOptions of Object.values(pOptions.rows)) {
                 for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
                   const fSeObj = selectionManage.parseSelection(fSelection as Selection)
                   if (textOptionManage.isSelectAll()) {
                     options.paragrahs[options.paragrahsIndex[0]].rows[options.rowsIndex[0]].font = {
-                      [selectionManage.stringifySelection({ startIndex: 0, endIndex: inputCacheLength })]: fOptions,
+                      [selectionManage.stringifySelection({ startIndex: 0, endIndex: inputCacheLength })]:
+                        structuredClone(fOptions),
                     }
                     break font
                   }
                   if (fSeObj.endIndex >= oldSelection.startIndex) {
                     delete rOptions.font[fSelection as Selection]
-                    if (selectionManage.isExterior(fSeObj, oldSelection)) {
-                      let newSelection: Selection
-                      //前面没有值了，将新增的字体合并到后面
-                      if (oldSelection.startIndex === 0) {
-                        newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(fSeObj, [
-                            -fSeObj.startIndex,
-                            inputCacheLength - deleteLength,
-                          ]),
-                        )
-                      }
-                      //前面还有值，当前区间位于选区左侧，将新增字体加入到此区间
-                      else if (fSeObj.endIndex === oldSelection.startIndex) {
-                        newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(fSeObj, [0, inputCacheLength]),
-                        )
-                      }
-                      //前面还有值，当前区间位于区间右侧，将区间平行左移
-                      else {
-                        newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(fSeObj, [
-                            inputCacheLength - deleteLength,
-                            inputCacheLength - deleteLength,
-                          ]),
-                        )
-                      }
-                      rOptions.font[newSelection] = fOptions
-                    } else if (
-                      selectionManage.isOverlap(fSeObj, oldSelection) &&
-                      !selectionManage.isContained(fSeObj, oldSelection) &&
-                      !selectionManage.isContained(oldSelection, fSeObj)
-                    ) {
-                      let newSelection: Selection
-                      const fDiffSelection = selectionManage.difference(fSeObj, oldSelection)!
-                      if (fSeObj.startIndex < oldSelection.startIndex) {
-                        newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(fDiffSelection[0], [0, inputCacheLength]),
-                        )
-                      } else {
-                        if (oldSelection.startIndex === 0) {
-                          newSelection = selectionManage.stringifySelection(
-                            selectionManage.offsetSelection(fDiffSelection[0], [
-                              -fDiffSelection[0].startIndex,
-                              inputCacheLength - deleteLength,
-                            ]),
-                          )
+                    const diffSelection = selectionManage.difference(fSeObj, oldSelection)
+                    if (oldSelection.startIndex === 0) {
+                      firstFOptions = firstFOptions || fOptions
+                      if (diffSelection && diffSelection.length === 1) {
+                        if (diffSelection[0].startIndex === oldSelection.endIndex) {
+                          rOptions.font[`${0}-${inputCacheLength}`] = firstFOptions
+                          rOptions.font[selectionManage.stringifySelection(diffSelection[0])] = fOptions
                         } else {
-                          newSelection = selectionManage.stringifySelection(
-                            selectionManage.offsetSelection(fDiffSelection[0], [
+                          const newSelection = selectionManage.stringifySelection(
+                            selectionManage.offsetSelection(diffSelection[0], [
                               inputCacheLength - deleteLength,
                               inputCacheLength - deleteLength,
                             ]),
                           )
+                          rOptions.font[newSelection] = fOptions
                         }
                       }
-                      rOptions.font[newSelection] = fOptions
-                    } else if (selectionManage.isContained(oldSelection, fSeObj)) {
-                      let newSelection: Selection
-                      if (selectionManage.isSameSelection(oldSelection, fSeObj)) {
-                        newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(oldSelection, [0, inputCacheLength - deleteLength]),
+                    } else {
+                      if (diffSelection && diffSelection.length === 2) {
+                        const newSelection = selectionManage.stringifySelection(
+                          selectionManage.offsetSelection(selectionManage.merge(...diffSelection), [
+                            0,
+                            inputCacheLength,
+                          ]),
                         )
-                      } else if (selectionManage.isInterior(oldSelection, fSeObj)) {
-                        if (oldSelection.startIndex === 0) {
-                          newSelection = selectionManage.stringifySelection(
-                            selectionManage.offsetSelection(fSeObj, [
-                              -fSeObj.startIndex,
-                              inputCacheLength - deleteLength,
-                            ]),
+                        rOptions.font[newSelection] = fOptions
+                      } else if (diffSelection && diffSelection.length === 1) {
+                        if (diffSelection[0].endIndex === oldSelection.startIndex) {
+                          const newSelection = selectionManage.stringifySelection(
+                            selectionManage.offsetSelection(diffSelection[0], [0, inputCacheLength]),
                           )
-                        } else if (oldSelection.startIndex === fSeObj.startIndex) {
-                          newSelection = selectionManage.stringifySelection(
-                            selectionManage.offsetSelection(fSeObj, [-deleteLength, inputCacheLength - deleteLength]),
-                          )
+                          rOptions.font[newSelection] = fOptions
                         } else {
-                          newSelection = selectionManage.stringifySelection(
-                            selectionManage.offsetSelection(fSeObj, [
+                          const newSelection = selectionManage.stringifySelection(
+                            selectionManage.offsetSelection(diffSelection[0], [
                               inputCacheLength - deleteLength,
                               inputCacheLength - deleteLength,
                             ]),
                           )
+                          rOptions.font[newSelection] = fOptions
                         }
-                      } else {
-                        const fDiffSelection = selectionManage.merge(
-                          ...selectionManage.difference(fSeObj, oldSelection)!,
-                        )
-                        newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(fDiffSelection, [0, inputCacheLength]),
-                        )
                       }
-                      rOptions.font[newSelection] = fOptions
-                    } else if (fSeObj.startIndex > oldSelection.endIndex) {
-                      const newSelection = selectionManage.stringifySelection(
-                        selectionManage.offsetSelection(fSeObj, [
-                          inputCacheLength - deleteLength,
-                          inputCacheLength - deleteLength,
-                        ]),
-                      )
-                      rOptions.font[newSelection] = fOptions
                     }
                   }
                 }
               }
             }
 
-            console.log(options, newSelection)
+            options.selection = selectionManage.stringifySelection(newSelection)
 
             metaNodeRef.current = {
               ...metaNodeRef.current,
-              options: {
-                ...options,
-                selection: selectionManage.stringifySelection(newSelection),
-              } as RenderTextOptions,
+              options,
             }
             dispatch(
               updateTemplateData({
@@ -1194,10 +1132,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               updateNodeOptions({
                 templateId: template.templateId,
                 instanceId: activeNode.instanceId,
-                options: {
-                  ...options,
-                  selection: selectionManage.stringifySelection(newSelection),
-                },
+                options,
               }),
             )
           }
@@ -1235,13 +1170,13 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
   /**
    * 调整文本节点
    */
-  //TODO: fix: 选择框只能整行选中
+
   const adjustTextNode = useCallback(
     (node: CanvasNode, content: TemplateData[keyof TemplateData]) => {
       if (canvasContextRef.current) {
         const textOptionManage = new TextOptionManage(node, content, canvasContextRef.current)
         const options = node.options as RenderTextOptions
-        options.rowsIndex = Array.from({ length: options.paragrahsIndex.length })
+        options.rowsIndex = Array.from({ length: options.paragrahsIndex.length }, () => '0-0')
 
         //将所有段落合并成一行
         textOptionManage.combineRows()
