@@ -61,6 +61,8 @@ import {
   isArrowKeys,
   isComposingKeys,
   isValidModifier,
+  ComposingArrowKeys,
+  isComposingArrowKeys,
 } from '../constants'
 import { emptyBox } from 'components/PrintTemplate/TextTemplate/builtIn'
 import { SelectionObj } from 'src/models/SelectionManage/ISelectionManage'
@@ -658,86 +660,6 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
     [template, canvasProxy.current, canvasContextRef.current],
   )
 
-  //方向键的按下同时改变selection和输入框的位置
-  //上下按键改变一行，需要获取所在行和临近行的字符数量，selection方向（通过鼠标落下和松开的位置判断），selection长度
-
-  //TODO: feat: 新增control按下时的方向键的连续选择（拆分修饰符，重写keydown事件）
-  //TODO: feat: 新增selection->location. fix:location->selection
-  const getArrowCursorSelection = useCallback(
-    (arrowKeys: ArrowKeys, options: RenderTextOptions) => {
-      if (mousedownLocationRef.current && metaNodeRef.current && mouseupLocationRef.current) {
-        const mousedownRelativeTCLocation: Point = getRelativeLocBounding(
-          mousedownLocationRef.current,
-          metaNodeRef.current,
-        )
-        const mouseupRelativeTCLocation: Point = getRelativeLocBounding(mouseupLocationRef.current, metaNodeRef.current)
-        const mousedownCursorIndex = getCursorLocation(metaNodeRef.current, mousedownRelativeTCLocation)
-        const mouseupCursorIndex = getCursorLocation(metaNodeRef.current, mouseupRelativeTCLocation)
-        //负：向前选择
-        //正：向后选择
-        const dircection = mouseupCursorIndex - mousedownCursorIndex
-        const selectionTerminal = dircection > 0 ? mouseupCursorIndex : mousedownCursorIndex
-        // const selectionStart = dircection > 0 ? mousedownCursorIndex : mouseupCursorIndex
-        const maxSelectionIndex = selectionManage.parseSelection(
-          options.rowsIndex[options.rowsIndex.length - 1],
-        ).endIndex
-        //获取当前行索引
-        const curRowSelectionIndex = options.rowsIndex.findIndex((r) => {
-          const rowSlectionObj = selectionManage.parseSelection(r)
-          return (
-            (rowSlectionObj.startIndex <= selectionTerminal && rowSlectionObj.endIndex > selectionTerminal) ||
-            (selectionTerminal === maxSelectionIndex && rowSlectionObj.endIndex === maxSelectionIndex)
-          )
-        })
-        const curRowSelection = selectionManage.parseSelection(options.rowsIndex[curRowSelectionIndex])
-        const curRowLength = curRowSelection.endIndex - curRowSelection.startIndex
-
-        let nextTerminalIndex: number
-        switch (arrowKeys) {
-          case ArrowKeys.ARROWRIGHT: {
-            nextTerminalIndex = Math.min(maxSelectionIndex, selectionTerminal + 1)
-            break
-          }
-          case ArrowKeys.ARROWDOWN: {
-            const nextRowSelectionIndex = Math.min(options.rowsIndex.length - 1, curRowSelectionIndex + 1)
-            if (nextRowSelectionIndex != curRowSelectionIndex) {
-              const nextRowSelection = selectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
-              const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
-              const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
-              nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
-            } else {
-              nextTerminalIndex = curRowSelection.endIndex
-            }
-            break
-          }
-          case ArrowKeys.ARROWLEFT: {
-            nextTerminalIndex = Math.max(0, selectionTerminal - 1)
-            break
-          }
-          case ArrowKeys.ARROWUP: {
-            const nextRowSelectionIndex = Math.max(0, curRowSelectionIndex - 1)
-
-            if (nextRowSelectionIndex != curRowSelectionIndex) {
-              const nextRowSelection = selectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
-
-              const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
-              const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
-              nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
-            } else {
-              nextTerminalIndex = curRowSelection.startIndex
-            }
-            break
-          }
-        }
-        return {
-          startIndex: nextTerminalIndex,
-          endIndex: nextTerminalIndex,
-        }
-      }
-      return selectionManage.parseSelection(options.selection)
-    },
-    [mousedownLocationRef.current, metaNodeRef.current, mouseupLocationRef.current],
-  )
   //输入法拦截合成输入后完成合成事件会同时触发两相同事件(第一次为合成事件，第二次为非合成事件)
   //TODO：feat: 支持持续的输入
   //TODO: fix: Electron中输入法合成事件再拼音中不会出现第二次的非合成事件，只会有一次合成事件
@@ -767,19 +689,48 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
             (metaNodeRef.current.options as RenderTextOptions).selection,
           )
 
-          if (isValidModifier(inputCache) || isComposingKeys(inputCache) || isArrowKeys(inputCache)) {
+          if (
+            isValidModifier(inputCache) ||
+            isComposingKeys(inputCache) ||
+            isArrowKeys(inputCache) ||
+            isComposingArrowKeys(inputCache)
+          ) {
             let newSelection = oldSelection
             switch (inputCache) {
               case ArrowKeys.ARROWRIGHT:
               case ArrowKeys.ARROWDOWN:
               case ArrowKeys.ARROWLEFT:
-              case ArrowKeys.ARROWUP: {
-                newSelection = getArrowCursorSelection(inputCache, options)
+              case ArrowKeys.ARROWUP:
+              case ComposingArrowKeys.SELECTION_DOWN:
+              case ComposingArrowKeys.SELECTION_UP:
+              case ComposingArrowKeys.SELECTION_LEFT:
+              case ComposingArrowKeys.SELECTION_RIGHT: {
+                //每次输入和selection都会更新鼠标点位的ref，将drop和input还有selection统一起来
+                const mousedownIndex = textOptionManage.relativeLocation2Index(mousedownLocationRef.current)
+                const mouseupIndex = textOptionManage.relativeLocation2Index(mouseupLocationRef.current)
+                //selection方向，主要用于按住shift时的多选情况
+                const originDirection = mouseupIndex - mousedownIndex
+
+                newSelection = textOptionManage.getArrowCursorSelection(inputCache, originDirection)
+                const [startLocation, endLocation] = textOptionManage.selection2RelativeLocation(
+                  selectionManage.stringifySelection(newSelection),
+                )
+                //只有在原方向为0时才可能发生转向(新索引为空区间也可以走这个判断)
+                if (originDirection === 0) {
+                  mousedownLocationRef.current =
+                    Math.max(...Object.values(newSelection)) > oldSelection.endIndex ? startLocation : endLocation
+                  mouseupLocationRef.current =
+                    Math.max(...Object.values(newSelection)) > oldSelection.endIndex ? endLocation : startLocation
+                } else {
+                  mousedownLocationRef.current = originDirection > 0 ? startLocation : endLocation
+                  mouseupLocationRef.current = originDirection > 0 ? endLocation : startLocation
+                }
+
                 break
               }
-              //TODO：按照空间位置来划分
-              // case ValidModifierKeys.TAB: {
-              // }
+              case ValidModifierKeys.TAB: {
+                break
+              }
               case ValidModifierKeys.BACKSPACE: {
                 break
               }
@@ -798,26 +749,18 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               case ComposingKeys.CHECKALL: {
                 break
               }
-              case ComposingKeys.SELECTION: {
-                break
-              }
             }
+            options.selection = selectionManage.stringifySelection(newSelection)
             metaNodeRef.current = {
               ...metaNodeRef.current,
-              options: {
-                ...options,
-                selection: selectionManage.stringifySelection(newSelection),
-              } as RenderTextOptions,
+              options,
             }
             //更新node
             dispatch(
               updateNodeOptions({
                 templateId: template.templateId,
                 instanceId: activeNode.instanceId,
-                options: {
-                  ...options,
-                  selection: selectionManage.stringifySelection(newSelection),
-                },
+                options,
               }),
             )
           } else {
@@ -1053,7 +996,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
             /** -----------------------------------------------------
             *                     5:更新字体区间                     -
             -------------------------------------------------------*/
-            let firstFOptions
+
             font: for (const pOptions of Object.values(options.paragrahs)) {
               for (const rOptions of Object.values(pOptions.rows)) {
                 for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
@@ -1065,23 +1008,32 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                     }
                     break font
                   }
+
                   if (fSeObj.endIndex >= oldSelection.startIndex) {
                     delete rOptions.font[fSelection as Selection]
                     const diffSelection = selectionManage.difference(fSeObj, oldSelection)
                     if (oldSelection.startIndex === 0) {
-                      firstFOptions = firstFOptions || fOptions
                       if (diffSelection && diffSelection.length === 1) {
                         if (diffSelection[0].startIndex === oldSelection.endIndex) {
-                          rOptions.font[`${0}-${inputCacheLength}`] = firstFOptions
-                          rOptions.font[selectionManage.stringifySelection(diffSelection[0])] = fOptions
+                          rOptions.font[`${0}-${inputCacheLength}`] = structuredClone(fOptions)
+                          rOptions.font[
+                            selectionManage.stringifySelection(
+                              selectionManage.offsetSelection(diffSelection[0], [
+                                inputCacheLength - deleteLength,
+                                inputCacheLength - deleteLength,
+                              ]),
+                            )
+                          ] = structuredClone(fOptions)
                         } else {
+                          console.log(diffSelection[0])
+
                           const newSelection = selectionManage.stringifySelection(
                             selectionManage.offsetSelection(diffSelection[0], [
                               inputCacheLength - deleteLength,
                               inputCacheLength - deleteLength,
                             ]),
                           )
-                          rOptions.font[newSelection] = fOptions
+                          rOptions.font[newSelection] = structuredClone(fOptions)
                         }
                       }
                     } else {
@@ -1092,13 +1044,13 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                             inputCacheLength,
                           ]),
                         )
-                        rOptions.font[newSelection] = fOptions
+                        rOptions.font[newSelection] = structuredClone(fOptions)
                       } else if (diffSelection && diffSelection.length === 1) {
                         if (diffSelection[0].endIndex === oldSelection.startIndex) {
                           const newSelection = selectionManage.stringifySelection(
                             selectionManage.offsetSelection(diffSelection[0], [0, inputCacheLength]),
                           )
-                          rOptions.font[newSelection] = fOptions
+                          rOptions.font[newSelection] = structuredClone(fOptions)
                         } else {
                           const newSelection = selectionManage.stringifySelection(
                             selectionManage.offsetSelection(diffSelection[0], [
@@ -1106,7 +1058,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                               inputCacheLength - deleteLength,
                             ]),
                           )
-                          rOptions.font[newSelection] = fOptions
+                          rOptions.font[newSelection] = structuredClone(fOptions)
                         }
                       }
                     }
@@ -1116,7 +1068,11 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
             }
 
             options.selection = selectionManage.stringifySelection(newSelection)
-
+            const [startLocation, endLocation] = textOptionManage.selection2RelativeLocation(
+              selectionManage.stringifySelection(newSelection),
+            )
+            mousedownLocationRef.current = startLocation
+            mouseupLocationRef.current = endLocation
             metaNodeRef.current = {
               ...metaNodeRef.current,
               options,
@@ -1349,7 +1305,11 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
         e.preventDefault()
       }
 
-      if (canvasRef.current && canvasProxy.current && (e.ctrlKey || e.shiftKey || isValidModifier(e.key))) {
+      if (
+        canvasRef.current &&
+        canvasProxy.current &&
+        (e.ctrlKey || e.shiftKey || isValidModifier(e.key) || isArrowKeys(e.key))
+      ) {
         let inputCache = e.key
 
         if ((e.ctrlKey || e.shiftKey) && !isValidModifier(e.key)) {
@@ -1370,11 +1330,20 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               inputCache = ComposingKeys.PASTE
               break
             }
-            case ArrowKeys.ARROWDOWN:
-            case ArrowKeys.ARROWLEFT:
-            case ArrowKeys.ARROWRIGHT:
+            case ArrowKeys.ARROWDOWN: {
+              inputCache = ComposingKeys.SELECTION_DOWN
+              break
+            }
+            case ArrowKeys.ARROWLEFT: {
+              inputCache = ComposingKeys.SELECTION_LEFT
+              break
+            }
+            case ArrowKeys.ARROWRIGHT: {
+              inputCache = ComposingKeys.SELECTION_RIGHT
+              break
+            }
             case ArrowKeys.ARROWUP: {
-              inputCache = ComposingKeys.SELECTION
+              inputCache = ComposingKeys.SELECTION_UP
               break
             }
           }

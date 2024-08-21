@@ -17,6 +17,8 @@ import { isPointInPath, isPointOnPath } from 'utils/pointUtil'
 import { generateBoxPath } from 'src/utils/boxUtils'
 import SelectionManage from '../SelectionManage/SelectionManage'
 import { mergeRange } from 'src/utils/utils'
+import { ArrowKeys, ComposingArrowKeys } from 'src/constants'
+import { SelectionObj } from '../SelectionManage/ISelectionManage'
 
 class TextOptionManage implements ITextOptionManage {
   node: CanvasNode
@@ -181,6 +183,7 @@ class TextOptionManage implements ITextOptionManage {
     if (SelectionManage.isZeroSelection(selection)) {
       const relativeLocation = this.selection2RelativeLocation(options.selection)[0]
       const fOptions = this.getFontOptionByindex(selection.startIndex)!
+      console.log(relativeLocation, fOptions)
 
       const interBoxLocation: Point = {
         ...relativeLocation,
@@ -650,6 +653,147 @@ class TextOptionManage implements ITextOptionManage {
   isSelectAll(): boolean {
     const selObj = SelectionManage.parseSelection((this.node.options as RenderTextOptions).selection)
     return selObj.startIndex === 0 && selObj.endIndex === this.getLastFontIndex()
+  }
+  getArrowCursorSelection(arrowKeys: ArrowKeys | ComposingArrowKeys, direction: number): SelectionObj {
+    const options = this.node.options as RenderTextOptions
+    const selectionObj = SelectionManage.parseSelection(options.selection)
+    const isZeroSelection = SelectionManage.isZeroSelection(selectionObj)
+    //当前选中区间需要变更的索引
+    const selectionTerminal = direction >= 0 ? selectionObj.endIndex : selectionObj.startIndex
+    const staticIndex = direction >= 0 ? selectionObj.startIndex : selectionObj.endIndex
+
+    //该文本节点的最大文字索引值
+    const maxSelectionIndex = SelectionManage.parseSelection(options.rowsIndex[options.rowsIndex.length - 1]).endIndex
+    //获取当前行索引
+    const curRowSelectionIndex = options.rowsIndex.findIndex((r) => {
+      const rowSlectionObj = SelectionManage.parseSelection(r)
+      return (
+        (rowSlectionObj.startIndex <= selectionTerminal && rowSlectionObj.endIndex > selectionTerminal) ||
+        (selectionTerminal === maxSelectionIndex && rowSlectionObj.endIndex === maxSelectionIndex)
+      )
+    })
+    //当前行区间
+    const curRowSelection = SelectionManage.parseSelection(options.rowsIndex[curRowSelectionIndex])
+    //当前行长度
+    const curRowLength = curRowSelection.endIndex - curRowSelection.startIndex
+    let newSelection: SelectionObj = selectionObj
+    switch (arrowKeys) {
+      case ArrowKeys.ARROWRIGHT: {
+        const nextTerminalIndex = isZeroSelection
+          ? Math.min(maxSelectionIndex, selectionTerminal + 1)
+          : selectionObj.endIndex
+        newSelection = {
+          startIndex: nextTerminalIndex,
+          endIndex: nextTerminalIndex,
+        }
+        break
+      }
+      case ArrowKeys.ARROWDOWN: {
+        if (isZeroSelection) {
+          let nextTerminalIndex
+          const nextRowSelectionIndex = Math.min(options.rowsIndex.length - 1, curRowSelectionIndex + 1)
+          if (nextRowSelectionIndex != curRowSelectionIndex) {
+            const nextRowSelection = SelectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
+            const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
+            const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
+            nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+          } else {
+            nextTerminalIndex = curRowSelection.endIndex
+          }
+          console.log(nextTerminalIndex)
+
+          newSelection = {
+            startIndex: nextTerminalIndex,
+            endIndex: nextTerminalIndex,
+          }
+        }
+
+        break
+      }
+      case ArrowKeys.ARROWLEFT: {
+        const nextTerminalIndex = isZeroSelection ? Math.max(0, selectionTerminal - 1) : selectionObj.startIndex
+        newSelection = {
+          startIndex: nextTerminalIndex,
+          endIndex: nextTerminalIndex,
+        }
+        break
+      }
+      case ArrowKeys.ARROWUP: {
+        if (isZeroSelection) {
+          const nextRowSelectionIndex = Math.max(0, curRowSelectionIndex - 1)
+          let nextTerminalIndex
+          if (nextRowSelectionIndex != curRowSelectionIndex) {
+            const nextRowSelection = SelectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
+            const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
+            const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
+            nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+          } else {
+            nextTerminalIndex = curRowSelection.startIndex
+          }
+          console.log(nextTerminalIndex)
+          newSelection = {
+            startIndex: nextTerminalIndex,
+            endIndex: nextTerminalIndex,
+          }
+        }
+        break
+      }
+      case ComposingArrowKeys.SELECTION_UP: {
+        const nextRowSelectionIndex = Math.max(0, curRowSelectionIndex - 1)
+        let nextTerminalIndex
+        if (nextRowSelectionIndex != curRowSelectionIndex) {
+          const nextRowSelection = SelectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
+          const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
+          const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
+          nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+        } else {
+          nextTerminalIndex = curRowSelection.startIndex
+        }
+        newSelection = {
+          startIndex: Math.min(staticIndex, nextTerminalIndex),
+          endIndex: Math.max(staticIndex, nextTerminalIndex),
+        }
+
+        break
+      }
+      case ComposingArrowKeys.SELECTION_DOWN: {
+        let nextTerminalIndex
+        const nextRowSelectionIndex = Math.min(options.rowsIndex.length - 1, curRowSelectionIndex + 1)
+        if (nextRowSelectionIndex != curRowSelectionIndex) {
+          const nextRowSelection = SelectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
+          const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
+          const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
+          nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+        } else {
+          nextTerminalIndex = curRowSelection.endIndex
+        }
+        newSelection = {
+          startIndex: Math.min(staticIndex, nextTerminalIndex),
+          endIndex: Math.max(staticIndex, nextTerminalIndex),
+        }
+        break
+      }
+      case ComposingArrowKeys.SELECTION_LEFT: {
+        const nextTerminalIndex = Math.max(0, selectionTerminal - 1)
+        newSelection = {
+          startIndex: Math.min(staticIndex, nextTerminalIndex),
+          endIndex: Math.max(staticIndex, nextTerminalIndex),
+        }
+        break
+      }
+      case ComposingArrowKeys.SELECTION_RIGHT: {
+        const nextTerminalIndex = Math.min(maxSelectionIndex, selectionTerminal + 1)
+        newSelection = {
+          startIndex: Math.min(staticIndex, nextTerminalIndex),
+          endIndex: Math.max(staticIndex, nextTerminalIndex),
+        }
+        break
+      }
+      default: {
+        console.log(arrowKeys)
+      }
+    }
+    return newSelection
   }
 }
 

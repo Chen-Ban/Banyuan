@@ -1,4 +1,6 @@
 import { CanvasNode, Point, Size, FontOptions, Selection } from 'src/store/types/Template.type'
+import { SelectionObj } from '../SelectionManage/ISelectionManage'
+import { ArrowKeys, ComposingArrowKeys } from 'src/constants'
 
 export default interface ITextOptionManage {
   node: CanvasNode
@@ -52,4 +54,5 @@ export default interface ITextOptionManage {
   modifyOptionsSize(): void
   setNodeStructure(structure: CanvasNode['structure']['contentBox']): void
   isSelectAll(): boolean
+  getArrowCursorSelection(arrowKeys: ArrowKeys | ComposingArrowKeys, direction: number): SelectionObj
 }

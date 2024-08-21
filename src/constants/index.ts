@@ -44,12 +44,20 @@ export enum ComposingKeysPrefix {
   CONTROL = ValidModifierKeys.CONTROL,
   SHIFT = ValidModifierKeys.SHIFT,
 }
-
+export enum ComposingArrowKeys {
+  SELECTION_UP = 'selection_up',
+  SELECTION_DOWN = 'selection_down',
+  SELECTION_LEFT = 'selection_left',
+  SELECTION_RIGHT = 'selection_right',
+}
 export enum ComposingKeys {
   COPY = 'copy',
   PASTE = 'paste',
   CHECKALL = 'checkall',
-  SELECTION = 'selection',
+  SELECTION_UP = ComposingArrowKeys.SELECTION_UP,
+  SELECTION_DOWN = ComposingArrowKeys.SELECTION_DOWN,
+  SELECTION_LEFT = ComposingArrowKeys.SELECTION_LEFT,
+  SELECTION_RIGHT = ComposingArrowKeys.SELECTION_RIGHT,
 }
 
 export const isValidModifier = (key: any): key is ValidModifierKeys => {
@@ -60,6 +68,9 @@ export const isArrowKeys = (key: any): key is ArrowKeys => {
 }
 export const isComposingKeys = (key: any): key is ComposingKeys => {
   return (Object.values(ComposingKeys) as string[]).includes(key)
+}
+export const isComposingArrowKeys = (key: any): key is ComposingArrowKeys => {
+  return (Object.values(ComposingArrowKeys) as string[]).includes(key)
 }
 
 export const isComposingKeysPrefix = (key: any): key is ComposingKeysPrefix => {
