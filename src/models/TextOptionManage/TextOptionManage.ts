@@ -429,11 +429,9 @@ class TextOptionManage implements ITextOptionManage {
               : pOptions.contentBox.size.height,
       }
       const diffusionPPath = generateBoxPath(diffusionPLocation, diffusionPSize)
-      if (
-        isPointInPath(locationInTC, diffusionPPath) ||
-        (isPointOnPath(locationInTC, diffusionPPath) && locationInTC.y === diffusionPLocation.y)
-      ) {
-        for (const [rSelection, rOptions] of Object.entries(pOptions.rows)) {
+
+      if (isPointInPath(locationInTC, diffusionPPath) || isPointOnPath(locationInTC, diffusionPPath)) {
+        for (const rOptions of Object.values(pOptions.rows)) {
           const diffusionRLocation: Point = {
             x: 0,
             y:
@@ -466,19 +464,15 @@ class TextOptionManage implements ITextOptionManage {
             let walkedWidth =
               textContentBox.location.x + pOptions.contentBox.location.x + rOptions.contentBox.location.x
 
-            const rEndeIndex = SelectionManage.parseSelection(rSelection as Selection).endIndex
-
             seek: for (const [fselection, fOptions] of Object.entries(rOptions.font)) {
               const { startIndex, endIndex } = SelectionManage.parseSelection(fselection as Selection)
 
-              for (let i = startIndex; i < endIndex; i++) {
+              for (let i = startIndex; i <= endIndex; i++) {
                 const restWidth = locationInTC.x - walkedWidth
                 const characterWidth = fOptions.characterWidth[i - startIndex]
-                if (restWidth < characterWidth) {
+                if (restWidth <= characterWidth) {
                   indexOfCursorLocation = restWidth < characterWidth / 2 ? i : i + 1
                   break seek
-                } else if (i === rEndeIndex - 1) {
-                  indexOfCursorLocation = i
                 } else {
                   walkedWidth += fOptions.characterWidth[i - startIndex]
                 }
@@ -702,7 +696,6 @@ class TextOptionManage implements ITextOptionManage {
           } else {
             nextTerminalIndex = curRowSelection.endIndex
           }
-          console.log(nextTerminalIndex)
 
           newSelection = {
             startIndex: nextTerminalIndex,
@@ -780,6 +773,7 @@ class TextOptionManage implements ITextOptionManage {
           startIndex: Math.min(staticIndex, nextTerminalIndex),
           endIndex: Math.max(staticIndex, nextTerminalIndex),
         }
+
         break
       }
       case ComposingArrowKeys.SELECTION_RIGHT: {
@@ -789,9 +783,6 @@ class TextOptionManage implements ITextOptionManage {
           endIndex: Math.max(staticIndex, nextTerminalIndex),
         }
         break
-      }
-      default: {
-        console.log(arrowKeys)
       }
     }
     return newSelection

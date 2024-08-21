@@ -706,6 +706,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               case ComposingArrowKeys.SELECTION_LEFT:
               case ComposingArrowKeys.SELECTION_RIGHT: {
                 //每次输入和selection都会更新鼠标点位的ref，将drop和input还有selection统一起来
+
                 const mousedownIndex = textOptionManage.relativeLocation2Index(mousedownLocationRef.current)
                 const mouseupIndex = textOptionManage.relativeLocation2Index(mouseupLocationRef.current)
                 //selection方向，主要用于按住shift时的多选情况
@@ -725,6 +726,13 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                   mousedownLocationRef.current = originDirection > 0 ? startLocation : endLocation
                   mouseupLocationRef.current = originDirection > 0 ? endLocation : startLocation
                 }
+
+                console.log(
+                  mousedownIndex,
+                  mouseupIndex,
+                  textOptionManage.relativeLocation2Index(mouseupLocationRef.current),
+                  textOptionManage.relativeLocation2Index(mousedownLocationRef.current),
+                )
 
                 break
               }
