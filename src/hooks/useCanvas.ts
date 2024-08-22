@@ -65,7 +65,6 @@ import {
   isComposingArrowKeys,
 } from '../constants'
 import { emptyBox } from 'components/PrintTemplate/TextTemplate/builtIn'
-import { SelectionObj } from 'src/models/SelectionManage/ISelectionManage'
 import TextOptionManage from 'src/models/TextOptionManage/TextOptionManage'
 import { generateBoxPath } from 'src/utils/boxUtils'
 
@@ -665,7 +664,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
   //TODO: fix: Electron中输入法合成事件再拼音中不会出现第二次的非合成事件，只会有一次合成事件
   //TODO: feat: 支持按键修饰符和组合按键
   const inputWithouFocus = useCallback(
-    debounce((e: Event) => {
+    debounce(async (e: Event) => {
       const { isComposing, inputCache } = (e as CustomEvent).detail
       if (
         template &&
@@ -678,13 +677,12 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
         const activeNodes = getActiveNodes(template)
 
         if (activeNodes.length == 1 && activeNodes[0].type == NodeType.TEXT) {
-          const activeNode = activeNodes[0]
+          const activeNode = structuredClone(activeNodes[0])
+          let composeData: string = template.templateData[activeNode.propName].toString()
 
-          const options = structuredClone(activeNode.options) as RenderTextOptions
-          const templateData = structuredClone(template.templateData)
-          let composeData = templateData[activeNode.propName] as string
           const textOptionManage = new TextOptionManage(activeNode, composeData, canvasContextRef.current)
-          //初始选择的selection（一段或光标位置）和后续输入中的selection(光标位置)
+
+          //上一次选择区间
           const oldSelection = selectionManage.parseSelection(
             (metaNodeRef.current.options as RenderTextOptions).selection,
           )
@@ -705,8 +703,6 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               case ComposingArrowKeys.SELECTION_UP:
               case ComposingArrowKeys.SELECTION_LEFT:
               case ComposingArrowKeys.SELECTION_RIGHT: {
-                //每次输入和selection都会更新鼠标点位的ref，将drop和input还有selection统一起来
-
                 const mousedownIndex = textOptionManage.relativeLocation2Index(mousedownLocationRef.current)
                 const mouseupIndex = textOptionManage.relativeLocation2Index(mouseupLocationRef.current)
                 //selection方向，主要用于按住shift时的多选情况
@@ -726,14 +722,6 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                   mousedownLocationRef.current = originDirection > 0 ? startLocation : endLocation
                   mouseupLocationRef.current = originDirection > 0 ? endLocation : startLocation
                 }
-
-                console.log(
-                  mousedownIndex,
-                  mouseupIndex,
-                  textOptionManage.relativeLocation2Index(mouseupLocationRef.current),
-                  textOptionManage.relativeLocation2Index(mousedownLocationRef.current),
-                )
-
                 break
               }
               case ValidModifierKeys.TAB: {
@@ -749,33 +737,55 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
                 break
               }
               case ComposingKeys.COPY: {
+                navigator.clipboard.writeText(composeData.slice(oldSelection.startIndex, oldSelection.endIndex))
                 break
               }
               case ComposingKeys.PASTE: {
+                const copyStr = await navigator.clipboard.readText()
+                textOptionManage.modifyOptions(oldSelection, copyStr)
+                dispatch(
+                  updateTemplateData({
+                    templateId: template.templateId,
+                    propName: textOptionManage.node.propName,
+                    propData:
+                      composeData.slice(0, oldSelection.startIndex) +
+                      copyStr +
+                      composeData.slice(oldSelection.endIndex),
+                  }),
+                )
+                newSelection = selectionManage.offsetSelection(oldSelection, [
+                  copyStr.length,
+                  copyStr.length - oldSelection.endIndex + oldSelection.startIndex,
+                ])
                 break
               }
               case ComposingKeys.CHECKALL: {
+                newSelection = {
+                  startIndex: 0,
+                  endIndex: textOptionManage.getLastFontIndex(),
+                }
                 break
               }
             }
-            options.selection = selectionManage.stringifySelection(newSelection)
+            ;(textOptionManage.node.options as RenderTextOptions).selection =
+              selectionManage.stringifySelection(newSelection)
             metaNodeRef.current = {
               ...metaNodeRef.current,
-              options,
+              options: textOptionManage.node.options as RenderTextOptions,
             }
             //更新node
             dispatch(
               updateNodeOptions({
                 templateId: template.templateId,
                 instanceId: activeNode.instanceId,
-                options,
+                options: textOptionManage.node.options as RenderTextOptions,
               }),
             )
           } else {
+            const { startIndex, endIndex } = oldSelection
             //拼接字符串,修改所有的selection
-
-            const inputCacheLength = (inputCache as string).length
-            const deleteLength = oldSelection.endIndex - oldSelection.startIndex
+            const inputCacheLength = inputCache.toString().length
+            const deleteLength = endIndex - startIndex
             //如果是合成事件（被输入法拦截了，每次的cache是这次输入的缓存）
             //如果是合成事件那么selection不能改成光标位置而是开始位置到开始位置加合成长度
             let newSelection = oldSelection
@@ -790,300 +800,15 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
             }
 
             //组装新的装填数据
-            composeData =
-              composeData.slice(0, oldSelection.startIndex) + inputCache + composeData.slice(oldSelection.endIndex)
+            composeData = composeData.slice(0, startIndex) + inputCache + composeData.slice(endIndex)
 
-            //1、selection后两个坐标的位置，用于判断是否需要合并用
-            //2、输入完成后根据newSelection起始index重新设置（down为开始索引位置，up为结束索引位置）
-            const mousedownPIndex = textOptionManage.relativeLocation2PIndex(mousedownLocationRef.current)
-            const mouseupPIndex = textOptionManage.relativeLocation2PIndex(mouseupLocationRef.current)
+            textOptionManage.modifyOptions(oldSelection, inputCache.toString())
+            ;(textOptionManage.node.options as RenderTextOptions).selection =
+              selectionManage.stringifySelection(newSelection)
 
-            /** -----------------------------------------------------
-             *                     1、删除后的映射表                 -
-             -------------------------------------------------------*/
-            const pSelectionMap: { [sel: Selection]: Selection[] } = {}
-            const rSelectionMap: { [sel: Selection]: Selection[] } = {}
-            const pCombinedSet: Selection[] = []
-
-            for (const pSelection of options.paragrahsIndex.values()) {
-              const psObj = selectionManage.parseSelection(pSelection)
-              //获取删除后区间的映射表
-              if (selectionManage.isOverlap(psObj, oldSelection)) {
-                const differenceSelections = selectionManage.difference(psObj, oldSelection) || [
-                  {
-                    startIndex: Infinity,
-                    endIndex: Infinity,
-                  } as SelectionObj,
-                ]
-
-                pSelectionMap[pSelection] = differenceSelections.map((differenceSelection) =>
-                  selectionManage.stringifySelection(differenceSelection),
-                )
-              } else {
-                pSelectionMap[pSelection] = [pSelection]
-              }
-              //获取合并序列集合
-              if (
-                (options.paragrahs[pSelection].paragrahIndex === mousedownPIndex ||
-                  options.paragrahs[pSelection].paragrahIndex === mouseupPIndex) &&
-                mousedownPIndex != mouseupPIndex
-              ) {
-                pCombinedSet.push(pSelection)
-              }
-            }
-            for (const rSelection of options.rowsIndex) {
-              const rsObj = selectionManage.parseSelection(rSelection)
-              if (selectionManage.isOverlap(rsObj, oldSelection)) {
-                const differenceSelections = selectionManage.difference(rsObj, oldSelection) || [
-                  {
-                    startIndex: Infinity,
-                    endIndex: Infinity,
-                  } as SelectionObj,
-                ]
-                rSelectionMap[rSelection] = differenceSelections.map((differenceSelection) =>
-                  selectionManage.stringifySelection(differenceSelection),
-                )
-              } else {
-                rSelectionMap[rSelection] = [rSelection]
-              }
-            }
-            /** -----------------------------------------------------
-            *                     1*:如果删除所有内容                -
-            -------------------------------------------------------*/
-            if (textOptionManage.isSelectAll()) {
-              pSelectionMap[options.paragrahsIndex[0]] = ['0-0']
-              rSelectionMap[options.rowsIndex[0]] = ['0-0']
-            }
-
-            /** -----------------------------------------------------
-            *                     2:将输入序列加入映射表中            -
-            -------------------------------------------------------*/
-            for (const pSelection of options.paragrahsIndex) {
-              const pSelObj = selectionManage.parseSelection(pSelection)
-              pSelectionMap[pSelection] = [
-                selectionManage.stringifySelection(
-                  selectionManage.merge(...pSelectionMap[pSelection].map((s) => selectionManage.parseSelection(s))),
-                ),
-              ]
-              //如果当前序列收到了影响
-              if (pSelObj.endIndex >= oldSelection.startIndex) {
-                let offset
-                //选区和段落右相交或者右外切
-                if (
-                  (selectionManage.isExterior(pSelObj, oldSelection) && pSelObj.startIndex === oldSelection.endIndex) ||
-                  (selectionManage.isOverlap(pSelObj, oldSelection) &&
-                    !selectionManage.isContained(pSelObj, oldSelection) &&
-                    pSelObj.endIndex > oldSelection.endIndex &&
-                    oldSelection.startIndex <= pSelObj.startIndex)
-                ) {
-                  offset = [
-                    oldSelection.startIndex === 0 ? -deleteLength : inputCacheLength - deleteLength,
-                    inputCacheLength - deleteLength,
-                  ]
-                }
-                //选区在段落左边且不相交也不外切
-                else if (pSelObj.startIndex > oldSelection.endIndex) {
-                  offset = [inputCacheLength - deleteLength, inputCacheLength - deleteLength]
-                }
-                //选区和段落左相切，左相交，包含于
-                else {
-                  offset = [0, inputCacheLength]
-                }
-
-                pSelectionMap[pSelection] = [
-                  selectionManage.stringifySelection(
-                    selectionManage.offsetSelection(
-                      selectionManage.parseSelection(pSelectionMap[pSelection][0]),
-                      offset,
-                    ),
-                  ),
-                ]
-              }
-              const toChangedParaIndex = options.paragrahsIndex.findIndex((p) => p === pSelection)
-              options.paragrahsIndex[toChangedParaIndex] = pSelectionMap[pSelection][0]
-            }
-            options.paragrahsIndex = options.paragrahsIndex.filter((p) => p != (`${Infinity}-${Infinity}` as Selection))
-
-            for (const rSelection of options.rowsIndex) {
-              const rSelObj = selectionManage.parseSelection(rSelection)
-              rSelectionMap[rSelection] = [
-                selectionManage.stringifySelection(
-                  selectionManage.merge(...rSelectionMap[rSelection].map((s) => selectionManage.parseSelection(s))),
-                ),
-              ]
-              if (rSelObj.endIndex >= oldSelection.startIndex) {
-                let offset
-                if (
-                  (selectionManage.isExterior(rSelObj, oldSelection) && rSelObj.startIndex === oldSelection.endIndex) ||
-                  (selectionManage.isOverlap(rSelObj, oldSelection) &&
-                    !selectionManage.isContained(rSelObj, oldSelection) &&
-                    rSelObj.endIndex > oldSelection.endIndex &&
-                    oldSelection.startIndex <= rSelObj.startIndex)
-                ) {
-                  offset = [
-                    oldSelection.startIndex === 0 ? -deleteLength : inputCacheLength - deleteLength,
-                    inputCacheLength - deleteLength,
-                  ]
-                } else if (rSelObj.startIndex > oldSelection.endIndex) {
-                  offset = [inputCacheLength - deleteLength, inputCacheLength - deleteLength]
-                } else {
-                  offset = [0, inputCacheLength]
-                }
-                rSelectionMap[rSelection] = [
-                  selectionManage.stringifySelection(
-                    selectionManage.offsetSelection(
-                      selectionManage.parseSelection(rSelectionMap[rSelection][0]),
-                      offset,
-                    ),
-                  ),
-                ]
-              }
-              const toChangedRowIndex = options.rowsIndex.findIndex((r) => r === rSelection)
-              options.rowsIndex[toChangedRowIndex] = rSelectionMap[rSelection][0]
-            }
-            options.rowsIndex = options.rowsIndex.filter((r) => r != (`${Infinity}-${Infinity}` as Selection))
-            /** -----------------------------------------------------
-            *                     3:更新段落（先加后删)               -
-            -------------------------------------------------------*/
-            for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
-              if (
-                pSelectionMap[pSelection as Selection][0] != (`${Infinity}-${Infinity}` as Selection) &&
-                !pCombinedSet.includes(pSelection as Selection)
-              ) {
-                options.paragrahs[pSelectionMap[pSelection as Selection][0] as Selection] = {
-                  ...pOptions,
-                  paragrahIndex: options.paragrahsIndex.findIndex(
-                    (p) => p === pSelectionMap[pSelection as Selection][0],
-                  ),
-                }
-              } else if (pCombinedSet.findIndex((p) => p === pSelection) === 1) {
-                const curOption = pOptions
-                const lastOption = options.paragrahs[pCombinedSet[0] as Selection]
-                const mergedSelection = selectionManage.stringifySelection(
-                  selectionManage.merge(
-                    ...pCombinedSet.map((p) => pSelectionMap[p][0]).map((p) => selectionManage.parseSelection(p)),
-                  ),
-                )
-                const curIndex = options.paragrahsIndex.findIndex((p) => p === pSelectionMap[pCombinedSet[0]][0])
-                options.paragrahsIndex.splice(curIndex, 2, mergedSelection)
-
-                options.paragrahs[mergedSelection] = {
-                  ...lastOption,
-                  rows: {
-                    ...lastOption.rows,
-                    ...curOption.rows,
-                  },
-                }
-              }
-            }
-            Object.keys(pSelectionMap).forEach((p) => {
-              if (
-                !selectionManage.isSameSelection(
-                  selectionManage.parseSelection(p as Selection),
-                  selectionManage.parseSelection(pSelectionMap[p as Selection][0]),
-                )
-              ) {
-                delete options.paragrahs[p as Selection]
-              }
-            })
-
-            /** -----------------------------------------------------
-            *                     4:更新行区间                             -
-            -------------------------------------------------------*/
-            for (const pOptions of Object.values(options.paragrahs)) {
-              for (const [rSelection, rOptions] of Object.entries(pOptions.rows)) {
-                delete pOptions.rows[rSelection as Selection]
-                if (rSelectionMap[rSelection as Selection][0] != (`${Infinity}-${Infinity}` as Selection)) {
-                  pOptions.rows[rSelectionMap[rSelection as Selection][0]] = {
-                    ...rOptions,
-                    rowIndex: options.rowsIndex.findIndex((r) => r === rSelectionMap[rSelection as Selection][0]),
-                  }
-                }
-              }
-            }
-            /** -----------------------------------------------------
-            *                     5:更新字体区间                     -
-            -------------------------------------------------------*/
-
-            font: for (const pOptions of Object.values(options.paragrahs)) {
-              for (const rOptions of Object.values(pOptions.rows)) {
-                for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
-                  const fSeObj = selectionManage.parseSelection(fSelection as Selection)
-                  if (textOptionManage.isSelectAll()) {
-                    options.paragrahs[options.paragrahsIndex[0]].rows[options.rowsIndex[0]].font = {
-                      [selectionManage.stringifySelection({ startIndex: 0, endIndex: inputCacheLength })]:
-                        structuredClone(fOptions),
-                    }
-                    break font
-                  }
-
-                  if (fSeObj.endIndex >= oldSelection.startIndex) {
-                    delete rOptions.font[fSelection as Selection]
-                    const diffSelection = selectionManage.difference(fSeObj, oldSelection)
-                    if (oldSelection.startIndex === 0) {
-                      if (diffSelection && diffSelection.length === 1) {
-                        if (diffSelection[0].startIndex === oldSelection.endIndex) {
-                          rOptions.font[`${0}-${inputCacheLength}`] = structuredClone(fOptions)
-                          rOptions.font[
-                            selectionManage.stringifySelection(
-                              selectionManage.offsetSelection(diffSelection[0], [
-                                inputCacheLength - deleteLength,
-                                inputCacheLength - deleteLength,
-                              ]),
-                            )
-                          ] = structuredClone(fOptions)
-                        } else {
-                          console.log(diffSelection[0])
-
-                          const newSelection = selectionManage.stringifySelection(
-                            selectionManage.offsetSelection(diffSelection[0], [
-                              inputCacheLength - deleteLength,
-                              inputCacheLength - deleteLength,
-                            ]),
-                          )
-                          rOptions.font[newSelection] = structuredClone(fOptions)
-                        }
-                      }
-                    } else {
-                      if (diffSelection && diffSelection.length === 2) {
-                        const newSelection = selectionManage.stringifySelection(
-                          selectionManage.offsetSelection(selectionManage.merge(...diffSelection), [
-                            0,
-                            inputCacheLength,
-                          ]),
-                        )
-                        rOptions.font[newSelection] = structuredClone(fOptions)
-                      } else if (diffSelection && diffSelection.length === 1) {
-                        if (diffSelection[0].endIndex === oldSelection.startIndex) {
-                          const newSelection = selectionManage.stringifySelection(
-                            selectionManage.offsetSelection(diffSelection[0], [0, inputCacheLength]),
-                          )
-                          rOptions.font[newSelection] = structuredClone(fOptions)
-                        } else {
-                          const newSelection = selectionManage.stringifySelection(
-                            selectionManage.offsetSelection(diffSelection[0], [
-                              inputCacheLength - deleteLength,
-                              inputCacheLength - deleteLength,
-                            ]),
-                          )
-                          rOptions.font[newSelection] = structuredClone(fOptions)
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-
-            options.selection = selectionManage.stringifySelection(newSelection)
-            const [startLocation, endLocation] = textOptionManage.selection2RelativeLocation(
-              selectionManage.stringifySelection(newSelection),
-            )
-            mousedownLocationRef.current = startLocation
-            mouseupLocationRef.current = endLocation
             metaNodeRef.current = {
               ...metaNodeRef.current,
-              options,
+              options: textOptionManage.node.options as RenderTextOptions,
             }
             dispatch(
               updateTemplateData({
@@ -1096,7 +821,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               updateNodeOptions({
                 templateId: template.templateId,
                 instanceId: activeNode.instanceId,
-                options,
+                options: textOptionManage.node.options as RenderTextOptions,
               }),
             )
           }

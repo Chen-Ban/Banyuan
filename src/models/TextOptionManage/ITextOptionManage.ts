@@ -53,6 +53,7 @@ export default interface ITextOptionManage {
   getFontOptionByindex(index: number): FontOptions | undefined
   modifyOptionsSize(): void
   setNodeStructure(structure: CanvasNode['structure']['contentBox']): void
-  isSelectAll(): boolean
+  isSelectAll(selObj: SelectionObj): boolean
   getArrowCursorSelection(arrowKeys: ArrowKeys | ComposingArrowKeys, direction: number): SelectionObj
+  modifyOptions(oldSelection: SelectionObj, input: string): void
 }

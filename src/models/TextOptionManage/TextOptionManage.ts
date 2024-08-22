@@ -406,6 +406,277 @@ class TextOptionManage implements ITextOptionManage {
     options.contentBox.size.height = heightPerParagrah.reduce((pre, cur) => pre + cur)
     options.contentBox.size.width = Math.max(...widthPerParagrah)
   }
+  modifyOptions(oldSelection: SelectionObj, input: string): void {
+    const options = this.node.options as RenderTextOptions
+    const inputCacheLength = input.length
+    const deleteLength = oldSelection.endIndex - oldSelection.startIndex
+    const isSelectAll = this.isSelectAll(oldSelection)
+    /** -----------------------------------------------------
+     *                     1、删除后的映射表                 -
+     -------------------------------------------------------*/
+    const pSelectionMap: { [sel: Selection]: Selection[] } = {}
+    const rSelectionMap: { [sel: Selection]: Selection[] } = {}
+
+    for (const pSelection of options.paragrahsIndex.values()) {
+      const psObj = SelectionManage.parseSelection(pSelection)
+      //获取删除后区间的映射表
+      if (SelectionManage.isOverlap(psObj, oldSelection)) {
+        const differenceSelections = SelectionManage.difference(psObj, oldSelection) || [
+          {
+            startIndex: Infinity,
+            endIndex: Infinity,
+          } as SelectionObj,
+        ]
+
+        pSelectionMap[pSelection] = differenceSelections.map((differenceSelection) =>
+          SelectionManage.stringifySelection(differenceSelection),
+        )
+      } else {
+        pSelectionMap[pSelection] = [pSelection]
+      }
+    }
+    for (const rSelection of options.rowsIndex) {
+      const rsObj = SelectionManage.parseSelection(rSelection)
+      if (SelectionManage.isOverlap(rsObj, oldSelection)) {
+        const differenceSelections = SelectionManage.difference(rsObj, oldSelection) || [
+          {
+            startIndex: Infinity,
+            endIndex: Infinity,
+          } as SelectionObj,
+        ]
+        rSelectionMap[rSelection] = differenceSelections.map((differenceSelection) =>
+          SelectionManage.stringifySelection(differenceSelection),
+        )
+      } else {
+        rSelectionMap[rSelection] = [rSelection]
+      }
+    }
+    const pCombinedMap = Object.fromEntries(
+      Object.entries(pSelectionMap).filter((item) => new Set([item[0], item[1][0]]).size === 2),
+    )
+    const actKeys = Object.keys(pCombinedMap).filter(
+      (p) => pCombinedMap[p][0] != (`${Infinity}-${Infinity}` as Selection),
+    ) as Selection[]
+    const pCombinedSet: Selection[] = actKeys.length === 2 ? actKeys : []
+    /** -----------------------------------------------------
+    *                     1*:如果删除所有内容                -
+    -------------------------------------------------------*/
+    if (isSelectAll) {
+      pSelectionMap[options.paragrahsIndex[0]] = ['0-0']
+      rSelectionMap[options.rowsIndex[0]] = ['0-0']
+    }
+
+    /** -----------------------------------------------------
+    *                     2:将输入序列加入映射表中            -
+    -------------------------------------------------------*/
+    for (const pSelection of options.paragrahsIndex) {
+      const pSelObj = SelectionManage.parseSelection(pSelection)
+      pSelectionMap[pSelection] = [
+        SelectionManage.stringifySelection(
+          SelectionManage.merge(...pSelectionMap[pSelection].map((s) => SelectionManage.parseSelection(s))),
+        ),
+      ]
+      //如果当前序列收到了影响
+      if (pSelObj.endIndex >= oldSelection.startIndex) {
+        let offset
+        //选区和段落右相交或者右外切
+        if (
+          (SelectionManage.isExterior(pSelObj, oldSelection) && pSelObj.startIndex === oldSelection.endIndex) ||
+          (SelectionManage.isOverlap(pSelObj, oldSelection) &&
+            !SelectionManage.isContained(pSelObj, oldSelection) &&
+            pSelObj.endIndex > oldSelection.endIndex &&
+            oldSelection.startIndex <= pSelObj.startIndex)
+        ) {
+          offset = [
+            oldSelection.startIndex === 0 ? -deleteLength : inputCacheLength - deleteLength,
+            inputCacheLength - deleteLength,
+          ]
+        }
+        //选区在段落左边且不相交也不外切
+        else if (pSelObj.startIndex > oldSelection.endIndex) {
+          offset = [inputCacheLength - deleteLength, inputCacheLength - deleteLength]
+        }
+        //选区和段落左相切，左相交，包含于
+        else {
+          offset = [0, inputCacheLength]
+        }
+
+        pSelectionMap[pSelection] = [
+          SelectionManage.stringifySelection(
+            SelectionManage.offsetSelection(SelectionManage.parseSelection(pSelectionMap[pSelection][0]), offset),
+          ),
+        ]
+      }
+      const toChangedParaIndex = options.paragrahsIndex.findIndex((p) => p === pSelection)
+      options.paragrahsIndex[toChangedParaIndex] = pSelectionMap[pSelection][0]
+    }
+    options.paragrahsIndex = options.paragrahsIndex.filter((p) => p != (`${Infinity}-${Infinity}` as Selection))
+
+    for (const rSelection of options.rowsIndex) {
+      const rSelObj = SelectionManage.parseSelection(rSelection)
+      rSelectionMap[rSelection] = [
+        SelectionManage.stringifySelection(
+          SelectionManage.merge(...rSelectionMap[rSelection].map((s) => SelectionManage.parseSelection(s))),
+        ),
+      ]
+      if (rSelObj.endIndex >= oldSelection.startIndex) {
+        let offset
+        if (
+          (SelectionManage.isExterior(rSelObj, oldSelection) && rSelObj.startIndex === oldSelection.endIndex) ||
+          (SelectionManage.isOverlap(rSelObj, oldSelection) &&
+            !SelectionManage.isContained(rSelObj, oldSelection) &&
+            rSelObj.endIndex > oldSelection.endIndex &&
+            oldSelection.startIndex <= rSelObj.startIndex)
+        ) {
+          offset = [
+            oldSelection.startIndex === 0 ? -deleteLength : inputCacheLength - deleteLength,
+            inputCacheLength - deleteLength,
+          ]
+        } else if (rSelObj.startIndex > oldSelection.endIndex) {
+          offset = [inputCacheLength - deleteLength, inputCacheLength - deleteLength]
+        } else {
+          offset = [0, inputCacheLength]
+        }
+        rSelectionMap[rSelection] = [
+          SelectionManage.stringifySelection(
+            SelectionManage.offsetSelection(SelectionManage.parseSelection(rSelectionMap[rSelection][0]), offset),
+          ),
+        ]
+      }
+      const toChangedRowIndex = options.rowsIndex.findIndex((r) => r === rSelection)
+      options.rowsIndex[toChangedRowIndex] = rSelectionMap[rSelection][0]
+    }
+    options.rowsIndex = options.rowsIndex.filter((r) => r != (`${Infinity}-${Infinity}` as Selection))
+
+    /** -----------------------------------------------------
+    *                     3:更新段落（先加后删)               -
+    --------------------------------------------------------*/
+    for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
+      if (
+        pSelectionMap[pSelection as Selection][0] != (`${Infinity}-${Infinity}` as Selection) &&
+        !pCombinedSet.includes(pSelection as Selection)
+      ) {
+        options.paragrahs[pSelectionMap[pSelection as Selection][0] as Selection] = {
+          ...pOptions,
+          paragrahIndex: options.paragrahsIndex.findIndex((p) => p === pSelectionMap[pSelection as Selection][0]),
+        }
+      } else if (pCombinedSet.findIndex((p) => p === pSelection) === 1) {
+        const curOption = pOptions
+        const lastOption = options.paragrahs[pCombinedSet[0] as Selection]
+        const mergedSelection = SelectionManage.stringifySelection(
+          SelectionManage.merge(
+            ...pCombinedSet.map((p) => pSelectionMap[p][0]).map((p) => SelectionManage.parseSelection(p)),
+          ),
+        )
+        const curIndex = options.paragrahsIndex.findIndex((p) => p === pSelectionMap[pCombinedSet[0]][0])
+        options.paragrahsIndex.splice(curIndex, 2, mergedSelection)
+
+        options.paragrahs[mergedSelection] = {
+          ...lastOption,
+          rows: {
+            ...lastOption.rows,
+            ...curOption.rows,
+          },
+        }
+      }
+    }
+    Object.keys(pSelectionMap).forEach((p) => {
+      if (
+        !SelectionManage.isSameSelection(
+          SelectionManage.parseSelection(p as Selection),
+          SelectionManage.parseSelection(pSelectionMap[p as Selection][0]),
+        )
+      ) {
+        delete options.paragrahs[p as Selection]
+      }
+    })
+
+    /** -----------------------------------------------------
+            *                     4:更新行区间                             -
+            -------------------------------------------------------*/
+    for (const pOptions of Object.values(options.paragrahs)) {
+      for (const [rSelection, rOptions] of Object.entries(pOptions.rows)) {
+        delete pOptions.rows[rSelection as Selection]
+        if (rSelectionMap[rSelection as Selection][0] != (`${Infinity}-${Infinity}` as Selection)) {
+          pOptions.rows[rSelectionMap[rSelection as Selection][0]] = {
+            ...rOptions,
+            rowIndex: options.rowsIndex.findIndex((r) => r === rSelectionMap[rSelection as Selection][0]),
+          }
+        }
+      }
+    }
+    /** -----------------------------------------------------
+            *                     5:更新字体区间                     -
+            -------------------------------------------------------*/
+
+    font: for (const pOptions of Object.values(options.paragrahs)) {
+      for (const rOptions of Object.values(pOptions.rows)) {
+        for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
+          const fSeObj = SelectionManage.parseSelection(fSelection as Selection)
+
+          if (isSelectAll) {
+            options.paragrahs[options.paragrahsIndex[0]].rows[options.rowsIndex[0]].font = {
+              [SelectionManage.stringifySelection({ startIndex: 0, endIndex: inputCacheLength })]:
+                structuredClone(fOptions),
+            }
+            break font
+          }
+
+          if (fSeObj.endIndex >= oldSelection.startIndex) {
+            delete rOptions.font[fSelection as Selection]
+            const diffSelection = SelectionManage.difference(fSeObj, oldSelection)
+            if (oldSelection.startIndex === 0) {
+              if (diffSelection && diffSelection.length === 1) {
+                if (diffSelection[0].startIndex === oldSelection.endIndex) {
+                  rOptions.font[`${0}-${inputCacheLength}`] = structuredClone(fOptions)
+                  rOptions.font[
+                    SelectionManage.stringifySelection(
+                      SelectionManage.offsetSelection(diffSelection[0], [
+                        inputCacheLength - deleteLength,
+                        inputCacheLength - deleteLength,
+                      ]),
+                    )
+                  ] = structuredClone(fOptions)
+                } else {
+                  console.log(diffSelection[0])
+
+                  const newSelection = SelectionManage.stringifySelection(
+                    SelectionManage.offsetSelection(diffSelection[0], [
+                      inputCacheLength - deleteLength,
+                      inputCacheLength - deleteLength,
+                    ]),
+                  )
+                  rOptions.font[newSelection] = structuredClone(fOptions)
+                }
+              }
+            } else {
+              if (diffSelection && diffSelection.length === 2) {
+                const newSelection = SelectionManage.stringifySelection(
+                  SelectionManage.offsetSelection(SelectionManage.merge(...diffSelection), [0, inputCacheLength]),
+                )
+                rOptions.font[newSelection] = structuredClone(fOptions)
+              } else if (diffSelection && diffSelection.length === 1) {
+                if (diffSelection[0].endIndex === oldSelection.startIndex) {
+                  const newSelection = SelectionManage.stringifySelection(
+                    SelectionManage.offsetSelection(diffSelection[0], [0, inputCacheLength]),
+                  )
+                  rOptions.font[newSelection] = structuredClone(fOptions)
+                } else {
+                  const newSelection = SelectionManage.stringifySelection(
+                    SelectionManage.offsetSelection(diffSelection[0], [
+                      inputCacheLength - deleteLength,
+                      inputCacheLength - deleteLength,
+                    ]),
+                  )
+                  rOptions.font[newSelection] = structuredClone(fOptions)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
   relativeLocation2Index(locationInTC: Point): number {
     const options = this.node.options as RenderTextOptions
     const textContentBox = options.contentBox
@@ -507,10 +778,7 @@ class TextOptionManage implements ITextOptionManage {
               : pOptions.contentBox.size.height,
       }
       const diffusionPath = generateBoxPath(diffusionPLocation, diffusionPSize)
-      if (
-        isPointInPath(locationInTC, diffusionPath) ||
-        (isPointOnPath(locationInTC, diffusionPath) && locationInTC.y === diffusionPLocation.y)
-      ) {
+      if (isPointInPath(locationInTC, diffusionPath) || isPointOnPath(locationInTC, diffusionPath)) {
         pIndexofCursorLocation = options.paragrahsIndex.findIndex((p) => pSelection === p)
       }
     }
@@ -646,9 +914,8 @@ class TextOptionManage implements ITextOptionManage {
       }
     }
   }
-  isSelectAll(): boolean {
-    const selObj = SelectionManage.parseSelection((this.node.options as RenderTextOptions).selection)
-    return selObj.startIndex === 0 && selObj.endIndex === this.getLastFontIndex()
+  isSelectAll(selObj: SelectionObj): boolean {
+    return selObj.startIndex === 0 && selObj.endIndex >= this.getLastFontIndex()
   }
   getArrowCursorSelection(arrowKeys: ArrowKeys | ComposingArrowKeys, direction: number): SelectionObj {
     const options = this.node.options as RenderTextOptions
@@ -692,7 +959,7 @@ class TextOptionManage implements ITextOptionManage {
             const nextRowSelection = SelectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
             const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
             const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
-            nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+            nextTerminalIndex = nextRowSelection.startIndex + Math.floor(nextRowLength * terminalPercent)
           } else {
             nextTerminalIndex = curRowSelection.endIndex
           }
@@ -721,7 +988,7 @@ class TextOptionManage implements ITextOptionManage {
             const nextRowSelection = SelectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
             const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
             const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
-            nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+            nextTerminalIndex = nextRowSelection.startIndex + Math.floor(nextRowLength * terminalPercent)
           } else {
             nextTerminalIndex = curRowSelection.startIndex
           }
@@ -739,7 +1006,7 @@ class TextOptionManage implements ITextOptionManage {
           const nextRowSelection = SelectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
           const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
           const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
-          nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+          nextTerminalIndex = nextRowSelection.startIndex + Math.floor(nextRowLength * terminalPercent)
         } else {
           nextTerminalIndex = curRowSelection.startIndex
         }
@@ -757,7 +1024,7 @@ class TextOptionManage implements ITextOptionManage {
           const nextRowSelection = SelectionManage.parseSelection(options.rowsIndex[nextRowSelectionIndex])
           const nextRowLength = nextRowSelection.endIndex - nextRowSelection.startIndex
           const terminalPercent = (selectionTerminal - curRowSelection.startIndex) / curRowLength
-          nextTerminalIndex = nextRowSelection.startIndex + Math.round(nextRowLength * terminalPercent)
+          nextTerminalIndex = nextRowSelection.startIndex + Math.floor(nextRowLength * terminalPercent)
         } else {
           nextTerminalIndex = curRowSelection.endIndex
         }
