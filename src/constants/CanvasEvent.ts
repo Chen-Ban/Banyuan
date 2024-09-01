@@ -1,21 +1,13 @@
-//缩放块的实际尺寸和相应尺寸
-export const RESIZERECTSIZE = 7
+import { BOXMARGIN, BOXPADDING } from './CanvasRendering'
+
 export const RESIZERECTSIZE_RESPONSE = 15
-//节点盒的内边距
-export const BOXPADDING = 10
-//节点盒的外边距
-export const BOXMARGIN = 5
+export const BOX_RESPONSE = BOXPADDING + BOXMARGIN
 
-//鼠标移动周期
-export const MOUSEMOVEPERIOD = 1000 / 30
-
-export const SEARCH_PARAM_KEY = 'search'
-
-export enum CanvasNodeMouseEventOperation {
-  ISMOVING = 'isMoving', //移动位置
-  ISRESIZING = 'isResizing', //调整尺寸
-  ISSELECTION = 'isSelection', //文本框选择
-  ISSELECTING = 'isSelecting', //节点选择
+export enum MouseOperation {
+  ISMOVING = 'isMoving',
+  ISRESIZING = 'isResizing',
+  ISSELECTION = 'isSelection',
+  ISSELECTING = 'isSelecting',
   CLICK = 'click',
   NONE = 'none',
 }
@@ -54,6 +46,7 @@ export enum ComposingKeys {
   COPY = 'copy',
   PASTE = 'paste',
   CHECKALL = 'checkall',
+  SAVE = 'save',
   SELECTION_UP = ComposingArrowKeys.SELECTION_UP,
   SELECTION_DOWN = ComposingArrowKeys.SELECTION_DOWN,
   SELECTION_LEFT = ComposingArrowKeys.SELECTION_LEFT,
@@ -76,3 +69,5 @@ export const isComposingArrowKeys = (key: any): key is ComposingArrowKeys => {
 export const isComposingKeysPrefix = (key: any): key is ComposingKeysPrefix => {
   return (Object.values(ComposingKeysPrefix) as string[]).includes(key)
 }
+
+export const MOUSEMOVEPERIOD = 1000 / 30

@@ -1,5 +1,5 @@
 import { Point, Size, Path, ResizeDirection, Vector, zeroVector } from 'store/types/Template.type'
-import { RESIZERECTSIZE, BOXPADDING, RESIZERECTSIZE_RESPONSE } from 'constants/index'
+import { RESIZERECTSIZE, BOXPADDING } from 'constants/CanvasRendering'
 import { computeCentroidByPath, computePathByEdgeOffset } from './polygonUtils'
 import { isPointInPath } from './pointUtil'
 /**
@@ -10,7 +10,7 @@ import { isPointInPath } from './pointUtil'
  */
 export const generateBoxPath = (location: Point, size: Size): Path => {
   return [
-    location,
+    { ...location },
     {
       x: location.x + size.width,
       y: location.y,
@@ -30,14 +30,15 @@ export const generateBoxPath = (location: Point, size: Size): Path => {
 }
 
 //计算缩放块位置
-export const computeActiveResizeRectPos = (path: Path, resizeRectSize: number = RESIZERECTSIZE) => {
+export const computeActiveResizeRectPos = (path: Path, resizeRectSize: number = RESIZERECTSIZE): Point[] => {
   const halfResizeRectSize = resizeRectSize / 2
   const pathLength = path.length
-  const resizeRectPos: Path = Array.from({ length: pathLength * 2 }, () => ({
+  const resizeRectPos: Point[] = Array.from({ length: pathLength * 2 }, () => ({
     x: 0,
     y: 0,
     w: 1,
   }))
+
   for (const [i, location] of path.entries()) {
     const nextLocation = path[(i + 1) % pathLength]
     const midPoint: Point = {
@@ -60,20 +61,29 @@ export const computeActiveResizeRectPos = (path: Path, resizeRectSize: number = 
 }
 
 //获取resize方向
-export const getResizeDirection = (cursorLocation: Point, path: Path): ResizeDirection => {
-  switch (getResizeBlockIndex(cursorLocation, path)) {
+export const getResizeDirection = (
+  cursorLocation: Point,
+  path: Path,
+  padding: number = BOXPADDING,
+  resizeRectSize: number = RESIZERECTSIZE,
+): ResizeDirection => {
+  switch (getResizeBlockIndex(cursorLocation, path, padding, resizeRectSize)) {
+    //反斜线
     case 0:
       return ResizeDirection.BACKSLASH_NW
     case 4:
       return ResizeDirection.BACKSLASH_SE
+    //竖直线
     case 1:
       return ResizeDirection.VERTICAL_N
     case 5:
       return ResizeDirection.VERTICAL_S
+    //斜线
     case 2:
       return ResizeDirection.SLASH_NE
     case 6:
       return ResizeDirection.SLASH_SW
+    //水平线
     case 3:
       return ResizeDirection.HORIZONTAL_E
     case 7:
@@ -83,8 +93,13 @@ export const getResizeDirection = (cursorLocation: Point, path: Path): ResizeDir
   }
 }
 //获取resize的控制点,分别是选中的动点和对立的静止点
-export const getResizeControllLocation = (cursorLocation: Point, path: Path): [Point, Point] => {
-  switch (getResizeBlockIndex(cursorLocation, path)) {
+export const getResizeControllLocation = (
+  cursorLocation: Point,
+  path: Path,
+  padding: number = BOXPADDING,
+  resizeRectSize: number = RESIZERECTSIZE,
+): [Point, Point] => {
+  switch (getResizeBlockIndex(cursorLocation, path, padding, resizeRectSize)) {
     case 0:
       return [path[0], path[2]]
     case 4:
@@ -150,43 +165,37 @@ export const getResizeControllLocation = (cursorLocation: Point, path: Path): [P
   }
 }
 //获取当前resize block的序列号
-export const getResizeBlockIndex = (cursorLocation: Point, path: Path, padding: number = BOXPADDING) => {
+export const getResizeBlockIndex = (
+  cursorLocation: Point,
+  path: Path,
+  padding: number = BOXPADDING,
+  resizeRectSize: number = RESIZERECTSIZE,
+) => {
   const boundingBoxPath = computePathByEdgeOffset(path, padding)
-  const resizeRectPos = computeActiveResizeRectPos(boundingBoxPath)
+  const resizeRectPos = computeActiveResizeRectPos(boundingBoxPath, resizeRectSize)
   return resizeRectPos.findIndex((location) =>
-    isPointInPath(
-      cursorLocation,
-      generateBoxPath(location, { width: RESIZERECTSIZE_RESPONSE, height: RESIZERECTSIZE_RESPONSE }),
-    ),
+    isPointInPath(cursorLocation, generateBoxPath(location, { width: resizeRectSize, height: resizeRectSize })),
   )
 }
 
 export const computeLocAndSizeOffsetOnResizing = ({
   cursorLocation, //当前位置
   lastMousemoveLocation, //上次位置
-  mousedownLocation, //最开始位置
-  path, //最开始路径
+  resizeDirection, //最开始位置
+  referenceVec, //最开始节点contentBox路径
 }: {
   cursorLocation: Point
   lastMousemoveLocation: Point
-  mousedownLocation: Point
-  path: Path
+  resizeDirection: ResizeDirection
+  referenceVec: Vector
 }) => {
-  //根据包围框对立点缩放
+  //移动向量
   const moveVec: Vector = {
     x: cursorLocation.x - lastMousemoveLocation.x,
     y: cursorLocation.y - lastMousemoveLocation.y,
     w: 0,
   }
-  //获取缩放方向
-  const resizeDirection = getResizeDirection(mousedownLocation, path)
-  //计算质心点
-  const centroid = computeCentroidByPath(path)
-  //计算原始时的质心到动点的向量
-  const referenceVec = {
-    x: mousedownLocation.x - centroid.x,
-    y: mousedownLocation.y - centroid.y,
-  }
+
   //计算所有激活节点的location偏移量和size偏移量
   let locationOffset: Vector = zeroVector
   let sizeOffset: Vector = zeroVector
@@ -202,25 +211,22 @@ export const computeLocAndSizeOffsetOnResizing = ({
     case ResizeDirection.VERTICAL_N:
       locationOffset = {
         ...zeroVector,
-        x: 0,
         y: moveVec.y,
       }
       sizeOffset = {
         ...zeroVector,
-        x: 0,
         y: Math.abs(moveVec.y) * Math.sign(moveVec.y * referenceVec.y),
       }
       break
     case ResizeDirection.VERTICAL_S:
-      locationOffset = { ...zeroVector, x: 0, y: 0 }
+      locationOffset = zeroVector
       sizeOffset = {
         ...zeroVector,
-        x: 0,
         y: Math.abs(moveVec.y) * Math.sign(moveVec.y * referenceVec.y),
       }
       break
     case ResizeDirection.SLASH_NE:
-      locationOffset = { ...zeroVector, x: 0, y: moveVec.y }
+      locationOffset = zeroVector
       sizeOffset = {
         ...zeroVector,
         x: Math.abs(moveVec.x) * Math.sign(moveVec.x * referenceVec.x),
@@ -228,23 +234,21 @@ export const computeLocAndSizeOffsetOnResizing = ({
       }
       break
     case ResizeDirection.HORIZONTAL_E:
-      locationOffset = { ...zeroVector, x: 0, y: 0 }
+      locationOffset = zeroVector
       sizeOffset = {
         ...zeroVector,
         x: Math.abs(moveVec.x) * Math.sign(moveVec.x * referenceVec.x),
-        y: 0,
       }
       break
     case ResizeDirection.HORIZONTAL_W:
-      locationOffset = { ...zeroVector, x: moveVec.x, y: 0 }
+      locationOffset = { ...zeroVector, x: moveVec.x }
       sizeOffset = {
         ...zeroVector,
         x: Math.abs(moveVec.x) * Math.sign(moveVec.x * referenceVec.x),
-        y: 0,
       }
       break
     case ResizeDirection.BACKSLASH_SE:
-      locationOffset = { ...zeroVector, x: 0, y: 0 }
+      locationOffset = zeroVector
       sizeOffset = {
         ...zeroVector,
         x: Math.abs(moveVec.x) * Math.sign(moveVec.x * referenceVec.x),
@@ -252,7 +256,7 @@ export const computeLocAndSizeOffsetOnResizing = ({
       }
       break
     case ResizeDirection.SLASH_SW:
-      locationOffset = { ...zeroVector, x: moveVec.x, y: 0 }
+      locationOffset = { ...zeroVector, x: moveVec.x }
       sizeOffset = {
         ...zeroVector,
         x: Math.abs(moveVec.x) * Math.sign(moveVec.x * referenceVec.x),

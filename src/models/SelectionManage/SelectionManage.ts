@@ -1,9 +1,9 @@
 import { Selection } from 'store/types/Template.type'
 import ISelectionManage, { SelectionObj } from './ISelectionManage'
-import { selectionStr2Arr } from 'utils/utils'
+export type { SelectionObj } from './ISelectionManage'
 class SelectionManage implements ISelectionManage {
   parseSelection(sel: Selection): SelectionObj {
-    const [startIndex, endIndex] = selectionStr2Arr(sel)
+    const [startIndex, endIndex] = sel.split('-').map((item) => (item != 'Infinity' ? parseInt(item) : Number(item)))
     return {
       startIndex,
       endIndex,
@@ -119,6 +119,12 @@ class SelectionManage implements ISelectionManage {
       startIndex: Math.max(sel.startIndex + offset[0], 0),
       endIndex: sel.endIndex + offset[1],
     }
+  }
+  toSortedSelection = (selections: Selection[]) => {
+    return selections
+      .map((selection) => selection.split('-').map((item) => parseInt(item)))
+      .toSorted((pre, cur) => pre[0] - cur[0])
+      .map((selection) => selection.join('-'))
   }
 }
 

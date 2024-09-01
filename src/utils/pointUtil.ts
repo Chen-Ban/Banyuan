@@ -1,7 +1,5 @@
 import { Path, Point, Box } from 'store/types/Template.type'
 
-//TODO: 重构成类，方便加入坐标系信息（坐标的基向量和坐标系的偏移）来做相对位置计算
-
 /**
  * 点和相同坐标系下的路径的关系
  * @param cursorLocation 鼠标点
@@ -36,9 +34,9 @@ const pointCrossWithPath = (
 const inPath = (crossRes: number[]): boolean => {
   return crossRes.every((cro) => cro < 0)
 }
-const onPath = (crossRes: number[]): boolean => {
-  return crossRes.some((cro) => cro === 0)
-}
+// const onPath = (crossRes: number[]): boolean => {
+//   return crossRes.some((cro) => cro === 0)
+// }
 const outOath = (crossRes: number[]): boolean => {
   return crossRes.some((cro) => cro > 0)
 }
@@ -46,7 +44,7 @@ export const isPointInPath = (cursorLocation: Point, path: Path) => {
   return pointCrossWithPath(cursorLocation, path, inPath)
 }
 export const isPointOnPath = (cursorLocation: Point, path: Path) => {
-  return pointCrossWithPath(cursorLocation, path, onPath)
+  return !isPointInPath(cursorLocation, path) && !isPointOutPath(cursorLocation, path)
 }
 export const isPointOutPath = (cursorLocation: Point, path: Path) => {
   return pointCrossWithPath(cursorLocation, path, outOath)
@@ -58,10 +56,14 @@ export const isPointOutPath = (cursorLocation: Point, path: Path) => {
  * @param p2 点2
  * @returns 是否是同一点
  */
-export const isSamePoint = (p1: Point, p2: Point): boolean => {
-  return p1.x === p2.x && p1.y === p2.y
+export const isSamePoint = (...p: Point[]): boolean => {
+  if (p.length < 2) {
+    throw new TypeError('点的数量必须大于等于2')
+  }
+  const pointX = p.map((point) => point.x)
+  const pointY = p.map((point) => point.y)
+  return pointX.every((x) => x === pointX[0]) && pointY.every((y) => y === pointY[0])
 }
-
 /**
  * 点1相对于点2的相对坐标(要求为同一坐标系下)
  * @param p1 点1
@@ -71,7 +73,7 @@ export const isSamePoint = (p1: Point, p2: Point): boolean => {
 export const computeRelativePoint = (p1: Point, p2: Point): Point => {
   return {
     x: p1.x - p2.x,
-    y: p1.x - p2.x,
+    y: p1.y - p2.y,
     w: 1,
   }
 }

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { Input } from 'antd'
 import type { ChangeEvent } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
-import { SEARCH_PARAM_KEY } from '../../constants/index'
+import { SEARCH_PARAM_KEY } from 'constants/constant'
 const { Search: _Search } = Input
 
 export default function Search() {

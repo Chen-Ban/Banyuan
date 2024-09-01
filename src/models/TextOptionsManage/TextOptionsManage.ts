@@ -1,6 +1,5 @@
-import ITextOptionManage from './ITextOptionManage'
+import ITextOptionsManage from './ITextOptionsManage'
 import {
-  CanvasNode,
   Point,
   RenderTextOptions,
   Selection,
@@ -12,35 +11,30 @@ import {
   Box,
   Size,
   Path,
+  TextNode,
 } from 'src/store/types/Template.type'
-import { isPointInPath, isPointOnPath } from 'utils/pointUtil'
+import { computeRelativePoint, isPointInPath, isPointOnPath } from 'utils/pointUtil'
 import { generateBoxPath } from 'src/utils/boxUtils'
 import SelectionManage from '../SelectionManage/SelectionManage'
-import { mergeRange } from 'src/utils/utils'
-import { ArrowKeys, ComposingArrowKeys } from 'src/constants'
+import { ArrowKeys, ComposingArrowKeys } from 'src/constants/CanvasEvent'
 import { SelectionObj } from '../SelectionManage/ISelectionManage'
 
-class TextOptionManage implements ITextOptionManage {
-  node: CanvasNode
+export default class TextOptionsManage implements ITextOptionsManage {
   ctx: CanvasRenderingContext2D
-  content: string
 
-  constructor(node: CanvasNode, content: string, ctx: CanvasRenderingContext2D) {
-    this.node = node
+  constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx
-    this.content = content
-    if (!this.node.structure) {
-      this.node.structure = {
-        contentBox: {
-          location: { x: 0, y: 0, w: 1 },
-          size: { width: 0, height: 0 },
-          path: [],
-        },
-      }
-    }
   }
-  regulateOptions(): void {
-    const options = this.node.options as RenderTextOptions
+
+  getInputStartLocation(node: TextNode, mousdownPoint: Point, mouseupPoint: Point): Point {
+    const rmdp = computeRelativePoint(mousdownPoint, node.structure.contentBox.location)
+    const rmup = computeRelativePoint(mouseupPoint, node.structure.contentBox.location)
+    const direction = this.relativeLocation2Index(node, rmup) - this.relativeLocation2Index(node, rmdp)
+    return direction >= 0 ? mouseupPoint : mousdownPoint
+  }
+
+  regulateOptions(node: TextNode): RenderTextOptions {
+    const options = structuredClone(node.options)
     let rowOffset = 0
     /**---------------------------------------------------------
      *                     分离selection                        -
@@ -54,7 +48,7 @@ class TextOptionManage implements ITextOptionManage {
           const { startIndex, endIndex } = SelectionManage.parseSelection(fSelection as Selection)
           for (let i = startIndex; i < endIndex; i++) {
             const characterWidth = fOptions.characterWidth[i - startIndex]
-            const restWidth = this.node.structure.contentBox.size.width - walkedWidth
+            const restWidth = node.structure.contentBox.size.width - walkedWidth
             if (restWidth < characterWidth) {
               breakPoints.push(i)
               walkedWidth = characterWidth //如果为0，最终会多一个出来
@@ -166,23 +160,18 @@ class TextOptionManage implements ITextOptionManage {
         }
       }
     }
+
+    return options
   }
-  setNodeStructure({ location, size, path }: Partial<CanvasNode['structure']['contentBox']>): void {
-    this.node.structure.contentBox.location = location ? location : { ...this.node.options.contentBox.location }
-    this.node.structure.contentBox.size = size ? size : { ...this.node.options.contentBox.size }
-    this.node.structure.contentBox.path = path
-      ? path
-      : generateBoxPath(this.node.structure.contentBox.location, this.node.structure.contentBox.size)
-  }
-  modifySelectionBoxes(): void {
-    const options = this.node.options as RenderTextOptions
+  computeSelectionBoxes(_options: RenderTextOptions): Box[] {
+    const options = structuredClone(_options)
     const selection = SelectionManage.parseSelection(options.selection)
     //根据selection计算selectionBoxs
     const selectionBoxes: Box[] = []
 
     if (SelectionManage.isZeroSelection(selection)) {
-      const relativeLocation = this.selection2RelativeLocation(options.selection)[0]
-      const fOptions = this.getFontOptionByindex(selection.startIndex)!
+      const relativeLocation = this.selection2RelativeLocation(options, options.selection)[0]
+      const fOptions = this.getFontOptionByindex(options, selection.startIndex)!
 
       const interBoxLocation: Point = {
         ...relativeLocation,
@@ -207,6 +196,7 @@ class TextOptionManage implements ITextOptionManage {
             if (SelectionManage.isOverlap(selection, rSelObj)) {
               const interSelection = SelectionManage.intersect(selection, rSelObj)!
               const interSelectionLocation = this.selection2RelativeLocation(
+                options,
                 SelectionManage.stringifySelection(interSelection),
               )
               const interBoxLocation: Point = {
@@ -229,12 +219,12 @@ class TextOptionManage implements ITextOptionManage {
         }
       }
     }
-    options.selectionBoxes = selectionBoxes
+    return selectionBoxes
   }
-  modifyOptionsLocation(): void {
+  modifyTextContentLocation(node: TextNode): RenderTextOptions {
     //根据对齐方式计算文本内容的起点:相对节点内容盒的偏移
-    const contentSize = this.node.structure.contentBox.size
-    const options = this.node.options as RenderTextOptions
+    const contentSize = node.structure.contentBox.size
+    const options = structuredClone(node.options)
     const alignment = options.align
     //水平/垂直坐标(相对于父盒子的偏移)
     switch (alignment.horizontal) {
@@ -336,13 +326,15 @@ class TextOptionManage implements ITextOptionManage {
         }
         break
     }
+
+    return options
   }
-  combineRows(): void {
-    const options = this.node.options as RenderTextOptions
+  combineRows(_options: RenderTextOptions): RenderTextOptions {
+    const options = structuredClone(_options)
     for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
       let fRange: Range<FontOptions> | undefined
       for (const rOptions of Object.values(pOptions.rows)) {
-        fRange = fRange ? mergeRange(fRange, rOptions.font) : rOptions.font
+        fRange = fRange ? this.mergeRange(fRange, rOptions.font) : structuredClone(rOptions.font)
       }
       options.paragrahs[pSelection as Selection] = {
         contentBox: {
@@ -364,9 +356,10 @@ class TextOptionManage implements ITextOptionManage {
         },
       }
     }
+    return options
   }
-  modifyOptionsSize() {
-    const options = this.node.options as RenderTextOptions
+  modifyOptionsSize(_options: RenderTextOptions, content: string): RenderTextOptions {
+    const options = structuredClone(_options)
     const { paragrahs, Leading, rowsIndex, paragrahsIndex } = options
 
     const heightPerParagrah: number[] = Array.from({ length: paragrahsIndex.length }, () => 0)
@@ -387,7 +380,7 @@ class TextOptionManage implements ITextOptionManage {
           //获取每个字符的宽度（如果只计算一个字符宽度会造成英文和中文宽度不一致的情况还是用的统一宽度，导致文字坍塌）
           //考虑字符间距和空格的计算
           for (let i = startIndex; i < endIndex; i++) {
-            const characterWidth = this.computeCharacterWidth(this.content[i], fontOptions)
+            const characterWidth = this.computeCharacterWidth(content[i], fontOptions)
             fontOptions.characterWidth[i - startIndex] = characterWidth
             widthPerRow[rowIndex] += characterWidth
             maxCharacterWidth = Math.max(maxCharacterWidth, characterWidth)
@@ -405,12 +398,13 @@ class TextOptionManage implements ITextOptionManage {
     options.minContentWidth = maxCharacterWidth
     options.contentBox.size.height = heightPerParagrah.reduce((pre, cur) => pre + cur)
     options.contentBox.size.width = Math.max(...widthPerParagrah)
+    return options
   }
-  modifyOptions(oldSelection: SelectionObj, input: string): void {
-    const options = this.node.options as RenderTextOptions
+  modifyOptions(options: RenderTextOptions, oldSelection: SelectionObj, input: string): void {
     const inputCacheLength = input.length
     const deleteLength = oldSelection.endIndex - oldSelection.startIndex
-    const isSelectAll = this.isSelectAll(oldSelection)
+    const isSelectAll = oldSelection.startIndex === 0 && oldSelection.endIndex === this.getLastFontIndex(options)
+
     /** -----------------------------------------------------
      *                     1、删除后的映射表                 -
      -------------------------------------------------------*/
@@ -435,6 +429,7 @@ class TextOptionManage implements ITextOptionManage {
         pSelectionMap[pSelection] = [pSelection]
       }
     }
+
     for (const rSelection of options.rowsIndex) {
       const rsObj = SelectionManage.parseSelection(rSelection)
       if (SelectionManage.isOverlap(rsObj, oldSelection)) {
@@ -458,6 +453,7 @@ class TextOptionManage implements ITextOptionManage {
       (p) => pCombinedMap[p][0] != (`${Infinity}-${Infinity}` as Selection),
     ) as Selection[]
     const pCombinedSet: Selection[] = actKeys.length === 2 ? actKeys : []
+
     /** -----------------------------------------------------
     *                     1*:如果删除所有内容                -
     -------------------------------------------------------*/
@@ -477,7 +473,10 @@ class TextOptionManage implements ITextOptionManage {
         ),
       ]
       //如果当前序列收到了影响
-      if (pSelObj.endIndex >= oldSelection.startIndex) {
+      if (
+        pSelObj.endIndex >= oldSelection.startIndex &&
+        pSelectionMap[pSelection][0] != (`${Infinity}-${Infinity}` as Selection)
+      ) {
         let offset
         //选区和段落右相交或者右外切
         if (
@@ -500,7 +499,6 @@ class TextOptionManage implements ITextOptionManage {
         else {
           offset = [0, inputCacheLength]
         }
-
         pSelectionMap[pSelection] = [
           SelectionManage.stringifySelection(
             SelectionManage.offsetSelection(SelectionManage.parseSelection(pSelectionMap[pSelection][0]), offset),
@@ -616,8 +614,7 @@ class TextOptionManage implements ITextOptionManage {
 
           if (isSelectAll) {
             options.paragrahs[options.paragrahsIndex[0]].rows[options.rowsIndex[0]].font = {
-              [SelectionManage.stringifySelection({ startIndex: 0, endIndex: inputCacheLength })]:
-                structuredClone(fOptions),
+              [SelectionManage.stringifySelection({ startIndex: 0, endIndex: inputCacheLength })]: { ...fOptions },
             }
             break font
           }
@@ -628,7 +625,7 @@ class TextOptionManage implements ITextOptionManage {
             if (oldSelection.startIndex === 0) {
               if (diffSelection && diffSelection.length === 1) {
                 if (diffSelection[0].startIndex === oldSelection.endIndex) {
-                  rOptions.font[`${0}-${inputCacheLength}`] = structuredClone(fOptions)
+                  rOptions.font[`${0}-${inputCacheLength}`] = { ...fOptions }
                   rOptions.font[
                     SelectionManage.stringifySelection(
                       SelectionManage.offsetSelection(diffSelection[0], [
@@ -636,17 +633,15 @@ class TextOptionManage implements ITextOptionManage {
                         inputCacheLength - deleteLength,
                       ]),
                     )
-                  ] = structuredClone(fOptions)
+                  ] = { ...fOptions }
                 } else {
-                  console.log(diffSelection[0])
-
                   const newSelection = SelectionManage.stringifySelection(
                     SelectionManage.offsetSelection(diffSelection[0], [
                       inputCacheLength - deleteLength,
                       inputCacheLength - deleteLength,
                     ]),
                   )
-                  rOptions.font[newSelection] = structuredClone(fOptions)
+                  rOptions.font[newSelection] = { ...fOptions }
                 }
               }
             } else {
@@ -654,13 +649,13 @@ class TextOptionManage implements ITextOptionManage {
                 const newSelection = SelectionManage.stringifySelection(
                   SelectionManage.offsetSelection(SelectionManage.merge(...diffSelection), [0, inputCacheLength]),
                 )
-                rOptions.font[newSelection] = structuredClone(fOptions)
+                rOptions.font[newSelection] = { ...fOptions }
               } else if (diffSelection && diffSelection.length === 1) {
                 if (diffSelection[0].endIndex === oldSelection.startIndex) {
                   const newSelection = SelectionManage.stringifySelection(
                     SelectionManage.offsetSelection(diffSelection[0], [0, inputCacheLength]),
                   )
-                  rOptions.font[newSelection] = structuredClone(fOptions)
+                  rOptions.font[newSelection] = { ...fOptions }
                 } else {
                   const newSelection = SelectionManage.stringifySelection(
                     SelectionManage.offsetSelection(diffSelection[0], [
@@ -668,7 +663,7 @@ class TextOptionManage implements ITextOptionManage {
                       inputCacheLength - deleteLength,
                     ]),
                   )
-                  rOptions.font[newSelection] = structuredClone(fOptions)
+                  rOptions.font[newSelection] = { ...fOptions }
                 }
               }
             }
@@ -677,32 +672,38 @@ class TextOptionManage implements ITextOptionManage {
       }
     }
   }
-  relativeLocation2Index(locationInTC: Point): number {
-    const options = this.node.options as RenderTextOptions
+  /**
+   * @description 边框重叠处容易出错(根源在于计算叉乘时，是用向量计算而不是用线段计算，超出线段也会认为在线上)
+   */
+  relativeLocation2Index(node: TextNode, locationInTC: Point): number {
+    const options = node.options
     const textContentBox = options.contentBox
-    let indexOfCursorLocation: number = 0
+    const indexOfCursorLocation: number = 0
     const pLength = options.paragrahsIndex.length //文本段落数
     const rLength = options.rowsIndex.length // 文本行数
     for (const pOptions of Object.values(options.paragrahs)) {
       //将相应区域扩散到节点框边界
       const diffusionPLocation: Point = {
         x: 0,
-        y: pOptions.paragrahIndex == 0 ? 0 : textContentBox.location.y + pOptions.contentBox.location.y,
+        y: pOptions.paragrahIndex === 0 ? 0 : textContentBox.location.y + pOptions.contentBox.location.y,
         w: 1,
       }
       const diffusionPSize = {
-        width: this.node.structure.contentBox.size.width,
+        width: node.structure.contentBox.size.width,
         height:
-          pOptions.paragrahIndex == 0
+          pOptions.paragrahIndex === 0
             ? textContentBox.location.y + pOptions.contentBox.location.y + pOptions.contentBox.size.height
-            : pOptions.paragrahIndex == pLength - 1
-              ? this.node.structure.contentBox.size.height - textContentBox.location.y - pOptions.contentBox.location.y
+            : pOptions.paragrahIndex === pLength - 1
+              ? node.structure.contentBox.size.height - textContentBox.location.y - pOptions.contentBox.location.y
               : pOptions.contentBox.size.height,
       }
       const diffusionPPath = generateBoxPath(diffusionPLocation, diffusionPSize)
 
-      if (isPointInPath(locationInTC, diffusionPPath) || isPointOnPath(locationInTC, diffusionPPath)) {
-        for (const rOptions of Object.values(pOptions.rows)) {
+      if (
+        isPointInPath(locationInTC, diffusionPPath) ||
+        (isPointOnPath(locationInTC, diffusionPPath) && locationInTC.y != diffusionPLocation.y + diffusionPSize.height)
+      ) {
+        for (const [rSelection, rOptions] of Object.entries(pOptions.rows)) {
           const diffusionRLocation: Point = {
             x: 0,
             y:
@@ -712,7 +713,7 @@ class TextOptionManage implements ITextOptionManage {
             w: 1,
           }
           const diffusionRSize = {
-            width: this.node.structure.contentBox.size.width,
+            width: node.structure.contentBox.size.width,
             height:
               rOptions.rowIndex == 0
                 ? textContentBox.location.y +
@@ -720,32 +721,39 @@ class TextOptionManage implements ITextOptionManage {
                   rOptions.contentBox.location.y +
                   rOptions.contentBox.size.height
                 : rOptions.rowIndex == rLength - 1
-                  ? this.node.structure.contentBox.size.height -
+                  ? node.structure.contentBox.size.height -
                     textContentBox.location.y -
                     pOptions.contentBox.location.y -
                     rOptions.contentBox.location.y
                   : rOptions.contentBox.size.height,
           }
           const diffusionRPath = generateBoxPath(diffusionRLocation, diffusionRSize)
+
           if (
             isPointInPath(locationInTC, diffusionRPath) ||
-            (isPointOnPath(locationInTC, diffusionRPath) && locationInTC.y === diffusionRLocation.y)
+            (isPointOnPath(locationInTC, diffusionRPath) &&
+              locationInTC.y != diffusionRLocation.y + diffusionRSize.height)
           ) {
             //去除掉左侧空白部分（后续可能会再加上装饰节点宽度）
             let walkedWidth =
               textContentBox.location.x + pOptions.contentBox.location.x + rOptions.contentBox.location.x
 
-            seek: for (const [fselection, fOptions] of Object.entries(rOptions.font)) {
-              const { startIndex, endIndex } = SelectionManage.parseSelection(fselection as Selection)
+            //如果超过了实际行宽
+            if (locationInTC.x > walkedWidth + rOptions.contentBox.size.width) {
+              return SelectionManage.parseSelection(rSelection as Selection).endIndex
+            }
 
-              for (let i = startIndex; i <= endIndex; i++) {
+            //点击了行内
+            for (const [fselection, fOptions] of Object.entries(rOptions.font)) {
+              const { startIndex, endIndex } = SelectionManage.parseSelection(fselection as Selection)
+              for (let i = startIndex; i < endIndex; i++) {
                 const restWidth = locationInTC.x - walkedWidth
                 const characterWidth = fOptions.characterWidth[i - startIndex]
-                if (restWidth <= characterWidth) {
-                  indexOfCursorLocation = restWidth < characterWidth / 2 ? i : i + 1
-                  break seek
+
+                if (restWidth < characterWidth) {
+                  return restWidth <= characterWidth / 2 ? i : i + 1
                 } else {
-                  walkedWidth += fOptions.characterWidth[i - startIndex]
+                  walkedWidth += characterWidth
                 }
               }
             }
@@ -755,8 +763,8 @@ class TextOptionManage implements ITextOptionManage {
     }
     return indexOfCursorLocation
   }
-  relativeLocation2PIndex(locationInTC: Point): number {
-    const options = this.node.options as RenderTextOptions
+  relativeLocation2PIndex(node: TextNode, locationInTC: Point): number {
+    const options = node.options
     const textContentBox = options.contentBox
     let pIndexofCursorLocation: number = 0
     const pLength = options.paragrahsIndex.length
@@ -769,12 +777,12 @@ class TextOptionManage implements ITextOptionManage {
         w: 1,
       }
       const diffusionPSize = {
-        width: this.node.structure.contentBox.size.width,
+        width: node.structure.contentBox.size.width,
         height:
           pOptions.paragrahIndex == 0
             ? textContentBox.location.y + pOptions.contentBox.location.y + pOptions.contentBox.size.height
             : pOptions.paragrahIndex == pLength - 1
-              ? this.node.structure.contentBox.size.height - textContentBox.location.y - pOptions.contentBox.location.y
+              ? node.structure.contentBox.size.height - textContentBox.location.y - pOptions.contentBox.location.y
               : pOptions.contentBox.size.height,
       }
       const diffusionPath = generateBoxPath(diffusionPLocation, diffusionPSize)
@@ -784,8 +792,7 @@ class TextOptionManage implements ITextOptionManage {
     }
     return pIndexofCursorLocation
   }
-  selection2RelativeLocation(selection: Selection): Point[] {
-    const options = this.node.options as RenderTextOptions
+  selection2RelativeLocation(options: RenderTextOptions, selection: Selection): Point[] {
     const selectionObj = SelectionManage.parseSelection(selection)
 
     let startIndexRSelection
@@ -812,8 +819,6 @@ class TextOptionManage implements ITextOptionManage {
     }
 
     if (!startIndexRSelection || !endIndexRSelection) {
-      console.log(options, selectionObj)
-
       throw new Error(`selection:${selectionObj.startIndex}-${selectionObj.endIndex} 不在任何区间内`)
     }
 
@@ -875,6 +880,7 @@ class TextOptionManage implements ITextOptionManage {
       },
     ]
   }
+
   computeCharacterWidth(character: string, fontOptions: FontOptions): number {
     this.ctx.font = `${fontOptions.fontSize}px ${fontOptions.fontFamily} ${fontOptions.italicly ? 'italic' : 'normal'} ${fontOptions.fontWeight}`
     const { actualBoundingBoxRight: right, actualBoundingBoxLeft: left } = this.ctx.measureText(character)
@@ -884,14 +890,16 @@ class TextOptionManage implements ITextOptionManage {
       (right + left || fontOptions.fontSize * 0.3) + fontOptions.letterSpace + Math.floor(fontOptions.fontSize / 10)
     )
   }
-  getLastFontIndex(): number {
-    const options = this.node.options as RenderTextOptions
+  getLastFontIndex(options: RenderTextOptions): number {
     const pLength = options.paragrahsIndex.length
     const lastSelection = SelectionManage.parseSelection(options.paragrahsIndex[pLength - 1])
     return lastSelection.endIndex
   }
-  getFontOptionByindex(index: number): FontOptions | undefined {
-    const options = this.node.options as RenderTextOptions
+  getLastFont(options: RenderTextOptions): FontOptions {
+    const i = this.getLastFontIndex(options)
+    return this.getFontOptionByindex(options, i)!
+  }
+  getFontOptionByindex(options: RenderTextOptions, index: number): FontOptions | undefined {
     const selectionObj = SelectionManage.parseSelection(`${index}-${index}`)
 
     const pSelection = options.paragrahsIndex.find((ps) =>
@@ -914,11 +922,11 @@ class TextOptionManage implements ITextOptionManage {
       }
     }
   }
-  isSelectAll(selObj: SelectionObj): boolean {
-    return selObj.startIndex === 0 && selObj.endIndex >= this.getLastFontIndex()
-  }
-  getArrowCursorSelection(arrowKeys: ArrowKeys | ComposingArrowKeys, direction: number): SelectionObj {
-    const options = this.node.options as RenderTextOptions
+  getArrowCursorSelection(
+    options: RenderTextOptions,
+    arrowKeys: ArrowKeys | ComposingArrowKeys,
+    direction: number,
+  ): SelectionObj {
     const selectionObj = SelectionManage.parseSelection(options.selection)
     const isZeroSelection = SelectionManage.isZeroSelection(selectionObj)
     //当前选中区间需要变更的索引
@@ -1054,6 +1062,111 @@ class TextOptionManage implements ITextOptionManage {
     }
     return newSelection
   }
-}
+  mergeRange(preRange: Range<FontOptions>, _curRange: Range<FontOptions>): Range<FontOptions> {
+    const curRange = structuredClone(_curRange)
+    const preSelection = SelectionManage.toSortedSelection(Object.keys(preRange) as Selection[])
+    const preLastSelection = preSelection[preSelection.length - 1] as Selection
+    const curSelection = SelectionManage.toSortedSelection(Object.keys(curRange) as Selection[])
+    const curFirstSelection = curSelection[0] as Selection
 
-export default TextOptionManage
+    const preLastFontOptions = preRange[preLastSelection]
+    const curFirstFontOptions = curRange[curFirstSelection]
+
+    let newRange = {}
+    if (JSON.stringify(preLastFontOptions) == JSON.stringify(curFirstFontOptions)) {
+      const newSelection = SelectionManage.stringifySelection({
+        startIndex: SelectionManage.parseSelection(preLastSelection).startIndex,
+        endIndex: SelectionManage.parseSelection(curFirstSelection).endIndex,
+      })
+      const newOptions = preLastFontOptions
+      delete preRange[preLastSelection]
+      delete curRange[curFirstSelection]
+      newRange = {
+        [newSelection]: newOptions,
+      }
+    }
+    return {
+      ...preRange,
+      ...newRange,
+      ...curRange,
+    }
+  }
+  //由于数据结构设计和渲染问题，暂不处理空行分段
+  breakOptions(options: RenderTextOptions, index: number): void {
+    const pSelectionMap: { [sel: Selection]: SelectionObj[] } = {}
+    const rSelectionMap: { [sel: Selection]: SelectionObj[] } = {}
+
+    for (const pSelection of options.paragrahsIndex.values()) {
+      const psObj = SelectionManage.parseSelection(pSelection)
+      //如何标注这种情况？
+      if (psObj.startIndex < index && psObj.endIndex > index) {
+        pSelectionMap[pSelection] = SelectionManage.difference(psObj, { startIndex: index, endIndex: index })!
+      }
+    }
+    for (const rSelection of options.rowsIndex.values()) {
+      const rsObj = SelectionManage.parseSelection(rSelection)
+      //如何标注这种情况？
+      if (rsObj.startIndex < index && rsObj.endIndex > index) {
+        rSelectionMap[rSelection] = SelectionManage.difference(rsObj, { startIndex: index, endIndex: index })!
+      }
+    }
+
+    options.paragrahsIndex.map((p, i) => {
+      if (pSelectionMap[p] != null) {
+        options.paragrahsIndex.splice(i, 1, ...pSelectionMap[p].map((bp) => SelectionManage.stringifySelection(bp)))
+      }
+    })
+
+    options.rowsIndex.map((r, i) => {
+      if (rSelectionMap[r] != null) {
+        options.rowsIndex.splice(i, 1, ...rSelectionMap[r].map((br) => SelectionManage.stringifySelection(br)))
+      }
+    })
+
+    const breakPSelection = Object.values(pSelectionMap)[0]
+    const breakRSelection = Object.values(rSelectionMap)[0]
+    if (breakPSelection.length === 2) {
+      for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
+        const psObj = SelectionManage.parseSelection(pSelection as Selection)
+        if (psObj.startIndex < index && psObj.endIndex > index) {
+          delete options.paragrahs[pSelection as Selection]
+          options.paragrahs[SelectionManage.stringifySelection(breakPSelection[0])] = {
+            ...structuredClone(pOptions),
+            paragrahIndex: pOptions.paragrahIndex,
+          }
+          options.paragrahs[SelectionManage.stringifySelection(breakPSelection[1])] = {
+            ...structuredClone(pOptions),
+            paragrahIndex: pOptions.paragrahIndex + 1,
+          }
+        } else if (index < psObj.startIndex) {
+          pOptions.paragrahIndex += 1
+        }
+      }
+    }
+
+    for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
+      if (pSelection === SelectionManage.stringifySelection(breakPSelection[0])) {
+        for (const [rSelection, rOptions] of Object.entries(pOptions.rows)) {
+          const rsObj = SelectionManage.parseSelection(rSelection as Selection)
+          if (rsObj.startIndex < index && rsObj.endIndex > index) {
+            delete pOptions.rows[rSelection as Selection]
+            pOptions.rows[SelectionManage.stringifySelection(breakRSelection[0])] = structuredClone(rOptions)
+          } else if (rsObj.startIndex >= index) {
+            delete pOptions.rows[rSelection as Selection]
+          }
+        }
+      }
+      if (pSelection === SelectionManage.stringifySelection(breakPSelection[1])) {
+        for (const [rSelection, rOptions] of Object.entries(pOptions.rows)) {
+          const rsObj = SelectionManage.parseSelection(rSelection as Selection)
+          if (rsObj.startIndex < index && rsObj.endIndex > index) {
+            delete pOptions.rows[rSelection as Selection]
+            pOptions.rows[SelectionManage.stringifySelection(breakRSelection[1])] = structuredClone(rOptions)
+          } else if (rsObj.endIndex <= index) {
+            delete pOptions.rows[rSelection as Selection]
+          }
+        }
+      }
+    }
+  }
+}

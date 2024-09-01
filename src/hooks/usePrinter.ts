@@ -1,23 +1,32 @@
 import { useCallback, useEffect, useRef } from 'react'
 
-import { Template, CanvasNode, NodeType, RenderTextOptions, Path, Selection } from 'store/types/Template.type'
+import {
+  Template,
+  RenderTextOptions,
+  Path,
+  Selection,
+  TextNode,
+  isTextNode,
+  isEmptyNode,
+  EmptyNode,
+} from 'store/types/Template.type'
 
 import { TemplateData } from '../store/types/TemplateData.type'
 
-import {
-  computePathByEdgeOffset,
-  computeActiveResizeRectPos,
-  parseColor,
-  selectionStr2Arr,
-  getActiveNodes,
-} from 'utils/utils'
+import { parseColor, shouuldAnimation, computeActiveResizeRectPos, computePathByEdgeOffset } from 'utils/utils'
 
-import { BOXMARGIN, BOXPADDING, RESIZERECTSIZE } from 'constants/index'
+import { BOX_RESPONSE, RESIZERECTSIZE_RESPONSE } from 'src/constants/CanvasEvent'
+import { BOXMARGIN, BOXPADDING, RESIZERECTSIZE } from 'constants/CanvasRendering'
+
+import { CanvasEleProps } from 'models/CanvasManage/ICanvasManage'
 import SelectionManage from 'src/models/SelectionManage/SelectionManage'
 
-export default function usePrinter(ctx: CanvasRenderingContext2D | null, template: Template | undefined) {
+export default function usePrinter(
+  ctx: CanvasRenderingContext2D | undefined | null,
+  template: Template | undefined,
+  canvasEleProps: CanvasEleProps,
+) {
   const animationFrameIdRef = useRef<number | undefined>()
-
   /***
    * 绘制包含块缩放块
    * @param {Path} boundingBoxPath:包围盒路径
@@ -31,8 +40,15 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
         ctx.strokeStyle = 'black'
         ctx.setLineDash([])
         const resizeRectPositions = computeActiveResizeRectPos(boundingBoxPath, RESIZERECTSIZE)
+
         for (const resizeRectPos of resizeRectPositions) {
           ctx.strokeRect(resizeRectPos.x, resizeRectPos.y, RESIZERECTSIZE, RESIZERECTSIZE)
+        }
+
+        const responseResizeRectPositions = computeActiveResizeRectPos(boundingBoxPath, RESIZERECTSIZE_RESPONSE)
+
+        for (const resizeRectPos of responseResizeRectPositions) {
+          ctx.strokeRect(resizeRectPos.x, resizeRectPos.y, RESIZERECTSIZE_RESPONSE, RESIZERECTSIZE_RESPONSE)
         }
       }
     },
@@ -45,10 +61,9 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
   const blinkingCursorflag = useRef<boolean>(false)
   const lastBlinkingCursor = useRef<number>(Date.now())
   const renderSelection = useCallback(
-    (node: CanvasNode) => {
-      if (ctx) {
-        const { selection, selectionBoxes } = node.options as RenderTextOptions
-
+    (node: TextNode) => {
+      const { selection, selectionBoxes } = node.options
+      if (ctx && selectionBoxes.length != 0) {
         //渲染的是光标
         if (SelectionManage.isZeroSelection(SelectionManage.parseSelection(selection))) {
           const now = Date.now()
@@ -135,7 +150,7 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
    * @param {TemplateData[keyof TemplateData]}content:文本节点装填信息
    */
   const renderText = useCallback(
-    (node: CanvasNode, content: TemplateData[keyof TemplateData]) => {
+    (node: TextNode, content: TemplateData[keyof TemplateData]) => {
       if (ctx) {
         const options = node.options as RenderTextOptions
         //绘制文字
@@ -148,7 +163,7 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
               ctx.textBaseline = 'top'
               ctx.fillStyle = parseColor(fontOptions.color)
 
-              const [startIndex, endIndex] = selectionStr2Arr(subSelection as Selection)
+              const { startIndex, endIndex } = SelectionManage.parseSelection(subSelection as Selection)
               for (let i = startIndex; i < endIndex; i++) {
                 const character = content.toString().slice(i, i + 1)
 
@@ -198,8 +213,8 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
             ctx.strokeRect(
               node.structure.contentBox.location.x - BOXPADDING - BOXMARGIN,
               node.structure.contentBox.location.y - BOXPADDING - BOXMARGIN,
-              node.structure.contentBox.size.width + 2 * (BOXPADDING + BOXMARGIN),
-              node.structure.contentBox.size.height + 2 * (BOXPADDING + BOXMARGIN),
+              node.structure.contentBox.size.width + 2 * BOX_RESPONSE,
+              node.structure.contentBox.size.height + 2 * BOX_RESPONSE,
             )
           }
         }
@@ -215,70 +230,102 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
     [ctx],
   )
   /**
-   * 绘制模板
-   * @param {Template} template：模板信息
+   * 渲染空白节点
    */
-  const render = useCallback(
-    (template: Template) => {
-      //循环渲染模板中每个节点
+  const renderEmptyNode = useCallback(
+    (node: EmptyNode) => {
       if (ctx) {
-        ctx.reset()
-        for (const node of template.nodeList) {
-          ctx.save()
-          switch (node.type) {
-            case NodeType.TEXT:
-              renderText(node, template.templateData[node.propName])
-              break
-            case NodeType.BARCODE:
-              break
-            case NodeType.TABLE:
-              break
-            case NodeType.PICTURE:
-              break
-            case NodeType.POLYGON:
-              break
-          }
-          ctx.restore()
-        }
-      }
-
-      //动画
-      const activeNodes = getActiveNodes(template)
-      if (
-        activeNodes.length === 1 &&
-        activeNodes[0].type === NodeType.TEXT &&
-        new Set(selectionStr2Arr((activeNodes[0].options as RenderTextOptions).selection)).size === 1
-      ) {
-        animationFrameIdRef.current = requestAnimationFrame(() => {
-          render(template)
-        })
+        ctx.strokeStyle = 'rgba(106, 114, 124,1.0)'
+        ctx.lineJoin = 'round'
+        ctx.lineWidth = 1
+        ctx.setLineDash([10, 10])
+        ctx.strokeRect(
+          node.structure.contentBox.location.x,
+          node.structure.contentBox.location.y,
+          node.structure.contentBox.size.width,
+          node.structure.contentBox.size.height,
+        )
+        ctx.fillStyle = 'rgba(3, 28, 10,0.2)'
+        ctx.fillRect(
+          node.structure.contentBox.location.x + Math.sign(node.structure.contentBox.size.width) * 2,
+          node.structure.contentBox.location.y + Math.sign(node.structure.contentBox.size.height) * 2,
+          node.structure.contentBox.size.width - Math.sign(node.structure.contentBox.size.width) * 4,
+          node.structure.contentBox.size.height - Math.sign(node.structure.contentBox.size.height) * 4,
+        )
       }
     },
     [ctx],
   )
   /**
-   * 预览画布
-   * @description 将画布导出为图片
+   * 绘制背景
    */
-  const preview = useCallback(() => {
-    //计算缩小分辨率后的imageData，弹出模态框显示预览图片
-    if (ctx) {
-      return ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
-    }
-  }, [ctx])
+  const renderCanvasBackground = useCallback(
+    (canvasEleProps: CanvasEleProps) => {
+      if (canvasEleProps && ctx) {
+        const { referenceLine, width, height, backgroundColor } = canvasEleProps
+        const { lineWidth, color, gap } = referenceLine
+
+        ctx.fillStyle = backgroundColor
+        ctx.fillRect(0, 0, width, height)
+
+        ctx.lineWidth = lineWidth
+        ctx.lineCap = 'round'
+        ctx.lineJoin = 'round'
+        ctx.strokeStyle = color
+        const rowLineCount = Math.floor((height - gap) / (lineWidth + gap))
+        const colLineCount = Math.floor((width - gap) / (lineWidth + gap))
+        for (let j = 0; j < colLineCount; j++) {
+          ctx.beginPath()
+          ctx.moveTo(gap + (gap + lineWidth) * j, 0)
+          ctx.lineTo(gap + (gap + lineWidth) * j, height)
+          ctx.stroke()
+          ctx.closePath()
+        }
+        for (let i = 0; i < rowLineCount; i++) {
+          ctx.beginPath()
+          ctx.moveTo(0, gap + (gap + lineWidth) * i)
+          ctx.lineTo(width, gap + (gap + lineWidth) * i)
+          ctx.stroke()
+          ctx.closePath()
+        }
+      }
+    },
+    [ctx],
+  )
   /**
-   * 打印画布
-   * @description 将画布导出为imageData进行适应性缩放，灰度化
+   * 绘制模板
+   * @param {Template} template：模板信息
    */
-  const print = useCallback(() => {
-    if (ctx) {
-      return ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
-    }
-  }, [ctx])
+  const render = useCallback(
+    (template: Template, canvasEleProps: CanvasEleProps) => {
+      if (ctx) {
+        ctx.reset()
+        //渲染背景
+        renderCanvasBackground(canvasEleProps)
+        // 循环渲染模板中每个节点
+        for (const node of template.nodeList) {
+          ctx.save()
+          if (isTextNode(node)) {
+            renderText(node, template.templateData[node.propName])
+          } else if (isEmptyNode(node)) {
+            renderEmptyNode(node)
+          }
+          ctx.restore()
+        }
+      }
+
+      if (shouuldAnimation(template)) {
+        animationFrameIdRef.current = requestAnimationFrame(() => {
+          render(template, canvasEleProps)
+        })
+      }
+    },
+    [ctx],
+  )
 
   useEffect(() => {
-    if (ctx && template) {
-      render(template)
+    if (ctx && template && canvasEleProps) {
+      render(template, canvasEleProps)
     }
     return () => {
       if (animationFrameIdRef.current) {
@@ -286,10 +333,5 @@ export default function usePrinter(ctx: CanvasRenderingContext2D | null, templat
         animationFrameIdRef.current = undefined
       }
     }
-  }, [ctx, template])
-
-  return {
-    preview,
-    print,
-  }
+  }, [ctx, template?.nodeList, template?.templateData, canvasEleProps])
 }

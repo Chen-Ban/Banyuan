@@ -99,12 +99,6 @@ const generateLinesByOffset = (path: Path, offset: number): Path[] => {
       y: nextLocation.y + vdy * offset,
       w: 1,
     }
-    // console.log(
-    //   `第${i + 1}条边的两个点坐标,
-    //     p1:(${location.x},${location.y}),p2:(${nextLocation.x},${nextLocation.y})
-    //     p3:(${offsetLocation.x},${offsetLocation.y}),p4:(${offsetNexLocation.x},${offsetNexLocation.y})
-    //     `,
-    // )
     lines.push([offsetLocation, offsetNexLocation])
   }
   return lines
@@ -152,4 +146,20 @@ export const computeCentroidByPath = (path: Path): Point => {
   centroid.x /= 6 * S
   centroid.y /= 6 * S
   return centroid
+}
+
+/**
+ * 求一段路径的所有线段
+ * @param path 路径
+ * @returns 该路径的线段
+ */
+export const getLinesOfPath = (path: Path): Path[] => {
+  const len = path.length
+  const lines: Path[] = []
+  for (let i = 0; i < len; i++) {
+    const location = path[i]
+    const nextLocation = path[(i + 1) % len]
+    lines.push([location, nextLocation])
+  }
+  return lines
 }

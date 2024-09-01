@@ -14,20 +14,6 @@ const ArchivesSlice = createSlice({
     pathchArchives(archives: Archive[], action: PayloadAction<FormArchive>) {
       return [...archives, action.payload]
     },
-    //档案不可修改和删除
-    // updateArchive(
-    //   archives: SubmittedArchive[],
-    //   action: PayloadAction<Archive>,
-    // ) {
-    //   return archives.map((archive) =>
-    //     archive.archiveId == action.payload.archiveId
-    //       ? action.payload
-    //       : archive,
-    //   )
-    // },
-    // deleteArchive(archives: Archive[], action: PayloadAction<string>) {
-    //   return archives.filter((archive) => archive.archiveId != action.payload)
-    // },
   },
 })
 

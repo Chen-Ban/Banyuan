@@ -1,617 +1,570 @@
-import React from 'react'
-import { useEffect, useCallback, useRef, useState } from 'react'
-import { v4 as uuid } from 'uuid'
-import { useDispatch } from 'react-redux'
+import React, { useEffect, useCallback, useRef, useState } from 'react'
+import { useImmer } from 'use-immer'
 import { isEqual } from 'lodash'
 
 import {
-  computePathByEdgeOffset,
   throttle,
-  convertLocation2Path,
-  getResizeDirection,
   client2canvas,
-  cursorInPath,
-  cursorOnBoundingEdge,
-  cursorInResizeBlock,
-  computeLocAndSizeOffsetOnResizing,
-  isSameLocation,
-  getActiveNodes,
-  selectionStr2Arr,
-  getCursorLocation,
-  getRelativeLocBounding,
-  computeMagnitude,
-  hasOverlap,
   debounce,
+  computeRelativePoint,
+  isSamePoint,
+  computeLocAndSizeOffsetOnResizing,
+  generateBoxPath,
+  getResizeDirection,
+  isPointInPath,
+  computeCentroidByPath,
 } from 'utils/utils'
+
 import {
-  patchTemplateNodeList,
-  updateAllTextNodeSelection,
-  updateNodeActivation,
-  updateNodeStructure,
-  updateTemplate,
-  updateTextNodeSelection,
-  updateTextNodeHeightAdoptive,
-  updateTemplateData,
-  updateNodeOptions,
-} from 'store/Template'
-import {
-  Size,
   Point,
   Template,
   CanvasNode,
   NodeType,
   ResizeDirection,
   Vector,
-  VerAlign,
-  HorAlign,
-  RenderTextOptions,
-  Selection,
+  isTextNode,
+  unreachablePoint,
+  isEmptyNode,
+  TextNode,
+  Size,
+  isUnreachable,
 } from 'store/types/Template.type'
-import selectionManage from 'models/SelectionManage/SelectionManage'
-import { TemplateData } from 'store/types/TemplateData.type'
-import usePrinter from './usePrinter'
+
 import {
-  BOXMARGIN,
-  BOXPADDING,
   MOUSEMOVEPERIOD,
   ValidModifierKeys,
   ArrowKeys,
   ComposingKeys,
-  CanvasNodeMouseEventOperation,
+  MouseOperation,
   isArrowKeys,
   isComposingKeys,
   isValidModifier,
   ComposingArrowKeys,
   isComposingArrowKeys,
-} from '../constants'
-import { emptyBox } from 'components/PrintTemplate/TextTemplate/builtIn'
-import TextOptionManage from 'src/models/TextOptionManage/TextOptionManage'
-import { generateBoxPath } from 'src/utils/boxUtils'
+  RESIZERECTSIZE_RESPONSE,
+  isComposingKeysPrefix,
+} from '../constants/CanvasEvent'
 
-const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Template | undefined) => {
-  const dispatch = useDispatch()
+import TextOptionsManage from 'src/models/TextOptionsManage/TextOptionsManage'
+import CanvaseManage from 'src/models/CanvasManage/CanvasManage'
+import selectionManage, { SelectionObj } from 'models/SelectionManage/SelectionManage'
+import { CanvasEleProps } from 'src/models/CanvasManage/ICanvasManage'
 
-  //根据鼠标位置定义的鼠标操作
-  const mouseOperationRef = useRef<CanvasNodeMouseEventOperation>(CanvasNodeMouseEventOperation.NONE)
-  //鼠标落下和松开时的位置
-  const mousedownLocationRef = useRef<Point | null>(null)
-  const mouseupLocationRef = useRef<Point | null>(null)
-  //记录鼠标落下时的文本的索引，用于选择文本
-  const mousedownCursorIndexRef = useRef<number | undefined>()
-  //上一次鼠标位置
-  const lastMousemoveLocationRef = useRef<Point | null>(null)
-  //最近激活节点
-  const metaNodeRef = useRef<CanvasNode | null>(null)
+import usePrinter from './usePrinter'
+
+import { BOXPADDING } from 'src/constants/CanvasRendering'
+
+const useCanvas = (
+  canvasRef: React.RefObject<HTMLCanvasElement>,
+  template: Template | undefined,
+  canvasEleProps: CanvasEleProps,
+) => {
   //键盘转发元素ref
   const canvasProxy = useRef<HTMLInputElement | null>(null)
 
-  //画布上下文ref
-  const canvasContextRef = useRef<CanvasRenderingContext2D | null>(null)
+  //私有模板数据
+  const [_template, set_template] = useImmer(template)
 
-  //经过画布操作调整后的模板数据
-  const [adjustedTemplate, setAdjustedTemplate] = useState<Template | undefined>()
+  //最近激活节点
+  const [activeNode, setActiveNode] = useState<CanvasNode>()
 
-  //将画布引用和模板数据传入自定义hook，返回render，preview和print函数
-  const { preview, print } = usePrinter(canvasContextRef.current, adjustedTemplate)
+  //画布管理器ref
+  const canvasManageRef = useRef<CanvaseManage>()
 
-  const creatTextNode = useCallback(
-    ({ x, y, height = 24, width = 250 }: Point & Partial<Size>) => {
-      if (template) {
-        //获取顶层layer
-        const layer = template.nodeList.length + 1
+  //文本节点管理器ref
+  const textOptionsManageRef = useRef<TextOptionsManage>()
 
-        const path = convertLocation2Path({ x, y, w: 1 }, { height, width })
-        return {
-          componentId: '0001-002', //正文文本组件
-          instanceId: uuid(),
-          isActive: true,
-          structure: {
-            contentBox: {
-              location: { x, y, w: 1 },
-              size: { height: height * 1.2, width },
-              path,
-            },
-          },
-          layer,
-          type: NodeType.TEXT,
-          options: {
-            paragrahsIndex: ['0-0'],
-            rowsIndex: ['0-0'],
-            paragrahs: {
-              '0-0': {
-                rows: {
-                  '0-0': {
-                    font: {
-                      '0-0': {
-                        fontFamily: 'Arial',
-                        fontWeight: 'normal',
-                        fontSize: height,
-                        italicly: false,
-                        underLine: false,
-                        color: 0x000000,
-                        characterWidth: [],
-                        letterSpace: 0,
-                      },
-                    },
-                    contentBox: emptyBox(),
-                    rowIndex: 0,
-                  },
-                },
-                contentBox: emptyBox(),
-                preGap: 0,
-                paragrahIndex: 0,
-                postGap: 0,
-              },
-            },
-            isAdoptiveHeight: true,
-            selection: '0-0',
-            minContentWidth: Infinity,
-            selectionBoxes: [],
-            align: {
-              vertical: VerAlign.MIDDLE,
-              horizontal: HorAlign.LEFT,
-            },
-            contentBox: emptyBox(),
-            Leading: 1,
-          } as RenderTextOptions,
-          propName: `prop${layer}`,
-        }
-      }
-    },
-    [template],
-  )
+  //渲染模板数据
+  usePrinter(canvasManageRef.current?.ctx, _template, canvasEleProps)
 
-  // 双击事件处理
+  /** -----------------------------------------------------
+  *                     双击事件处                         -
+  -------------------------------------------------------*/
   const handleCanvasDoubleClick = useCallback(
     (e: MouseEvent) => {
-      if (template) {
-        //获取鼠标点位
+      if (canvasManageRef.current && _template) {
         const cursorLocation = client2canvas(e)
-        if (!metaNodeRef.current) {
-          //没有节点就创建文本节点,节点中数据使用模板默认（并且将当前文本节点放在最顶层）
-          const textNode = creatTextNode(cursorLocation) as CanvasNode
-
-          dispatch(
-            patchTemplateNodeList({
-              templateId: template.templateId,
-              node: textNode,
-              templateDataItem: '',
-            }),
-          )
+        const canCreateTextNode = _template.nodeList.every((node) => {
+          if (node.isActive) {
+            return (
+              !canvasManageRef.current?.pointInResponseArea(cursorLocation, node) &&
+              !canvasManageRef.current?.pointInNodeResizeBlock(cursorLocation, node)
+            )
+          } else {
+            return !canvasManageRef.current?.pointInNode(cursorLocation, node)
+          }
+        })
+        if (canCreateTextNode) {
+          const layer = _template.nodeList.length
+          const textNode = canvasManageRef.current.creatEmptyTextNode(cursorLocation, layer, 24)
+          set_template((_template) => {
+            _template?.nodeList.push(textNode)
+          })
+          setActiveNode(textNode)
         }
       }
     },
-    [canvasRef.current, template],
+    [canvasRef.current, _template],
   )
 
-  // 单击事件处理
+  /** -----------------------------------------------------
+  *                     单击事件                          -
+  -------------------------------------------------------*/
   const handleCanvasClick = useCallback(
     (e: MouseEvent) => {
-      if (mouseOperationRef.current == CanvasNodeMouseEventOperation.CLICK && template) {
-        let toActiveNodesId: CanvasNode['instanceId'][] = getActiveNodes(template).map((node) => node.instanceId)
+      if (canvasManageRef.current?.mouseOperation == MouseOperation.CLICK && _template) {
+        const cursorLocation = client2canvas(e)
+        const topLayer = Math.max(
+          ..._template.nodeList
+            .filter(
+              (node) =>
+                (node.isActive &&
+                  (canvasManageRef.current?.pointInResponseArea(cursorLocation, node) ||
+                    canvasManageRef.current?.pointInNodeResizeBlock(cursorLocation, node))) ||
+                canvasManageRef.current?.pointInNode(cursorLocation, node),
+            )
+            .map((node) => node.layer),
+        )
+        const topLayerNode = _template.nodeList.find((node) => node.layer === topLayer)
 
-        if (!metaNodeRef.current) {
-          toActiveNodesId = []
-        } else if (e.ctrlKey) {
-          toActiveNodesId.push(metaNodeRef.current.instanceId)
-          dispatch(
-            updateAllTextNodeSelection({
-              templateId: template.templateId,
-            }),
-          )
-        } else if (!e.ctrlKey) {
-          toActiveNodesId = [metaNodeRef.current.instanceId]
-          if (metaNodeRef.current.type === NodeType.TEXT) {
-            canvasProxy.current?.focus()
-          }
+        //能点击到节点
+        if (topLayerNode) {
+          set_template((_template) => {
+            _template?.nodeList.forEach((node) => {
+              if (node.instanceId === topLayerNode.instanceId) {
+                node.isActive = true
+              } else if (!e.ctrlKey) {
+                node.isActive = false
+              }
+            })
+          })
+          setActiveNode(topLayerNode)
+        }
+        //不能点击到节点
+        else {
+          set_template((_template) => {
+            if (_template)
+              _template.nodeList.map((node) => {
+                node.isActive = false
+              })
+          })
+          setActiveNode(undefined)
         }
 
-        //设置激活的节点
-        dispatch(
-          updateNodeActivation({
-            templateId: template.templateId,
-            toActiveNodesId,
-          }),
-        )
+        canvasManageRef.current.mouseOperation = MouseOperation.NONE
       }
-      mouseOperationRef.current == CanvasNodeMouseEventOperation.NONE
     },
-    [canvasRef.current, template, metaNodeRef.current],
+    [canvasRef.current, _template],
   )
 
-  // 鼠标按下事件处理
+  /** -----------------------------------------------------
+  *                     鼠标按下事件                      -
+  -------------------------------------------------------*/
   const handleCanvasMouseDown = useCallback(
     (e: MouseEvent) => {
-      //总共分三种情况
-      //1.点击了空白:在后续移动过程中绘制选择区域(目前只考虑矩形框选,笔刷和套索后续实现)
-      //2.点击了非激活元素
-      //2.1.点击了非文本元素->移动
-      //2.2.点击了文本元素->输入
-      //3.点击了激活元素:
-      //3.1.点击了激活元素的边框或者激活的非文本元素->移动
-      //3.2.点击了缩放块->缩放
-      //3.3.点击了激活的文本元素的内容区域->输入
-
       //将点击位置的元素按照层级从小到大排列
-      if (template) {
+      if (canvasManageRef.current && canvasManageRef.current && textOptionsManageRef.current && _template) {
         const cursorLocation = client2canvas(e)
-        mousedownLocationRef.current = cursorLocation //存储跨跨函数贡献的点位数据
-        lastMousemoveLocationRef.current = cursorLocation //存储跨跨函数贡献的点位数据
-        const choosedNodes = template.nodeList // 寻找到点击位置所在的节点们（包括缩放块和外边距）
-          .filter((node) => {
-            const responseBoxPath = computePathByEdgeOffset(node.structure.contentBox.path, BOXPADDING + BOXMARGIN) //响应区域
-            return (
-              cursorInPath(cursorLocation, responseBoxPath) ||
-              cursorInResizeBlock(cursorLocation, node.structure.contentBox.path)
-            )
-          })
+
+        //重新赋值鼠标位置
+        canvasManageRef.current.mousdownPoint = cursorLocation
+
+        canvasManageRef.current.lastMousePoint = cursorLocation
+
+        canvasManageRef.current.mouseupPoint = unreachablePoint
+
+        // 寻找到点击位置所在的节点集合（响应区域，无论是否激活）
+        const choosedNodes = _template.nodeList
+          .filter(
+            (node) =>
+              canvasManageRef.current?.pointInResponseArea(cursorLocation, node) ||
+              canvasManageRef.current?.pointInNodeResizeBlock(cursorLocation, node),
+          )
           .sort((pre, cur) => pre.layer - cur.layer)
         const choosedNodesLength = choosedNodes.length
 
         //如果点击到了空白,将鼠标移动操作改为框选
         if (choosedNodesLength == 0) {
-          metaNodeRef.current = null
-          mouseOperationRef.current = CanvasNodeMouseEventOperation.ISSELECTING
+          const emptyNode = canvasManageRef.current.createEmptyNode(cursorLocation)
+
+          set_template((_template) => {
+            _template?.nodeList.forEach((node) => (node.isActive = false))
+            _template?.nodeList.push(emptyNode)
+          })
+
+          canvasManageRef.current.mouseOperation = MouseOperation.ISSELECTING
           return
         }
+
         //找到最顶层的激活元素(如果元素未激活说明点击的地方没有激活元素)
         const topLayerChoosedNodeWithinActived = choosedNodes.reduce((pre, cur) => (cur.isActive ? cur : pre))
 
-        //实际层级最高的节点
-        const lastNode = choosedNodes[choosedNodesLength - 1]
         //点击了非激活元素,激活当前元素
         if (!topLayerChoosedNodeWithinActived.isActive) {
+          //实际层级最高的节点
+          const lastNode = choosedNodes[choosedNodesLength - 1]
+
+          setActiveNode(lastNode)
+          set_template((_template) => {
+            _template?.nodeList.map((node) => {
+              if (node.instanceId === lastNode.instanceId) node.isActive = true
+            })
+          })
+
           //如果点击到了非激活文本元素元素
-          if (lastNode.type == NodeType.TEXT) {
-            const relativeTCLocation: Point = getRelativeLocBounding(cursorLocation, lastNode)
-            //设置输入框选取状态
-            const cursorIndex = getCursorLocation(lastNode, relativeTCLocation)
-            mousedownCursorIndexRef.current = cursorIndex
-            dispatch(
-              updateTextNodeSelection({
-                templateId: template.templateId,
-                instanceId: lastNode.instanceId,
-                selection: `${cursorIndex}-${cursorIndex}`,
-              }),
+          if (isTextNode(lastNode)) {
+            const relativeTCLocation: Point = computeRelativePoint(
+              cursorLocation,
+              lastNode.structure.contentBox.location,
             )
-            //将最上层节点存储
-            metaNodeRef.current = {
-              ...lastNode,
-              options: {
-                ...lastNode.options,
-                selection: `${cursorIndex}-${cursorIndex}`,
-              },
-            }
-            mouseOperationRef.current = CanvasNodeMouseEventOperation.ISSELECTION
-          } else {
-            mouseOperationRef.current = CanvasNodeMouseEventOperation.ISMOVING
-            metaNodeRef.current = lastNode
+
+            //设置输入框选取状态
+            const cursorIndex = textOptionsManageRef.current.relativeLocation2Index(lastNode, relativeTCLocation)
+
+            set_template((_template) => {
+              _template?.nodeList.map((node) => {
+                if (node.instanceId === lastNode.instanceId && isTextNode(node)) {
+                  node.options.selection = `${cursorIndex}-${cursorIndex}`
+                }
+              })
+            })
+
+            canvasManageRef.current.mouseOperation = MouseOperation.ISSELECTION
           }
-        } else {
+          //选择了非激活的其他类型元素
+          else {
+            canvasManageRef.current.mouseOperation = MouseOperation.ISMOVING
+          }
+        }
+        //点击了激活元素
+        else {
           //选中了激活的文本元素的内容区域
           if (
-            topLayerChoosedNodeWithinActived.type == NodeType.TEXT &&
-            cursorInPath(cursorLocation, topLayerChoosedNodeWithinActived.structure.contentBox.path)
+            isTextNode(topLayerChoosedNodeWithinActived) &&
+            canvasManageRef.current.pointInNode(cursorLocation, topLayerChoosedNodeWithinActived)
           ) {
-            //设置输入框选择状态
-            mouseOperationRef.current = CanvasNodeMouseEventOperation.ISSELECTION
-            //将光标移动到对应的位置（修改对应节点的options）参考微信输入框（鼠标落下时确认光标位置，移动过程中不显示）
-            const relativeTCLocation: Point = getRelativeLocBounding(cursorLocation, topLayerChoosedNodeWithinActived)
-            const cursorIndex = getCursorLocation(topLayerChoosedNodeWithinActived, relativeTCLocation)
-            mousedownCursorIndexRef.current = cursorIndex
-            dispatch(
-              updateTextNodeSelection({
-                templateId: template.templateId,
-                instanceId: topLayerChoosedNodeWithinActived.instanceId,
-                selection: `${cursorIndex}-${cursorIndex}`,
-              }),
+            const relativeTCLocation: Point = computeRelativePoint(
+              cursorLocation,
+              topLayerChoosedNodeWithinActived.structure.contentBox.location,
             )
-            metaNodeRef.current = {
-              ...topLayerChoosedNodeWithinActived,
-              options: {
-                ...topLayerChoosedNodeWithinActived.options,
-                selection: `${cursorIndex}-${cursorIndex}`,
-              },
-            }
-            return
-          } else if (
-            cursorOnBoundingEdge(cursorLocation, topLayerChoosedNodeWithinActived.structure.contentBox.path) ||
-            (topLayerChoosedNodeWithinActived.type != NodeType.TEXT &&
-              !cursorInResizeBlock(cursorLocation, topLayerChoosedNodeWithinActived.structure.contentBox.path))
-          ) {
-            //点击了激活元素的边框或者激活的非文本元素
-            mouseOperationRef.current = CanvasNodeMouseEventOperation.ISMOVING
-          } else if (cursorInResizeBlock(cursorLocation, topLayerChoosedNodeWithinActived.structure.contentBox.path)) {
-            //点击了缩放块
-            mouseOperationRef.current = CanvasNodeMouseEventOperation.ISRESIZING
+            //设置输入框选取状态
+            const cursorIndex = textOptionsManageRef.current.relativeLocation2Index(
+              topLayerChoosedNodeWithinActived,
+              relativeTCLocation,
+            )
+
+            set_template((_template) => {
+              _template?.nodeList.forEach((node) => {
+                if (node.instanceId === topLayerChoosedNodeWithinActived.instanceId && isTextNode(node)) {
+                  node.options.selection = `${cursorIndex}-${cursorIndex}`
+                }
+              })
+            })
+
+            canvasManageRef.current.mouseOperation = MouseOperation.ISSELECTION
           }
-          metaNodeRef.current = topLayerChoosedNodeWithinActived
+          //点击了响应区域（除开resizeblock）
+          else if (
+            canvasManageRef.current.pointInResponseArea(cursorLocation, topLayerChoosedNodeWithinActived) &&
+            !canvasManageRef.current.pointInNodeResizeBlock(cursorLocation, topLayerChoosedNodeWithinActived)
+          ) {
+            canvasManageRef.current.mouseOperation = MouseOperation.ISMOVING
+          }
+          //点击了缩放块
+          else if (canvasManageRef.current.pointInNodeResizeBlock(cursorLocation, topLayerChoosedNodeWithinActived)) {
+            canvasManageRef.current.mouseOperation = MouseOperation.ISRESIZING
+          }
+
+          setActiveNode(topLayerChoosedNodeWithinActived)
         }
       }
     },
-    [
-      template,
-      canvasRef.current,
-      mouseOperationRef.current,
-      mousedownLocationRef.current,
-      lastMousemoveLocationRef.current,
-      metaNodeRef.current,
-    ],
+    [canvasRef.current, _template, activeNode],
   )
 
-  // 鼠标移动事件处理
+  /** -----------------------------------------------------
+  *                     鼠标移动事件                       -
+  -------------------------------------------------------*/
   const handleCanvasMouseMove = useCallback(
     throttle((e: MouseEvent) => {
-      if (canvasRef.current && template) {
-        const nodeList = template.nodeList
+      if (canvasManageRef.current?.canvasEle && _template) {
+        const nodeList = _template.nodeList
         //获取移动中的鼠标点位
         const cursorLocation = client2canvas(e)
 
-        //如果是普通的移动,则不断更新鼠标样式,
-        //如果是点击过后的移动则固定样式
-        //鼠标松开后会清楚鼠标落下位置信息
-
-        const movingWithoutMousedown = mouseOperationRef.current === CanvasNodeMouseEventOperation.NONE
-
-        if (movingWithoutMousedown) {
-          canvasRef.current.style.cursor = 'default'
+        if (canvasManageRef.current.mouseOperation === MouseOperation.NONE) {
+          canvasManageRef.current.canvasEle.style.cursor = 'default'
           for (const node of nodeList) {
-            //在未激活的边界框中时
-            if (cursorInPath(cursorLocation, computePathByEdgeOffset(node.structure.contentBox.path, BOXPADDING))) {
+            if (isTextNode(node)) {
+              if (
+                canvasManageRef.current.pointInTextContent(cursorLocation, node) ||
+                canvasManageRef.current.pointInNode(cursorLocation, node)
+              ) {
+                canvasManageRef.current.canvasEle.style.cursor = 'text'
+              }
+            }
+            //在节点内容框中
+            if (canvasManageRef.current.pointInNode(cursorLocation, node)) {
               switch (node.type) {
-                case NodeType.TEXT:
-                  canvasRef.current.style.cursor = 'text'
-                  break
                 case NodeType.TABLE:
                 case NodeType.PICTURE:
                 case NodeType.POLYGON:
-                  canvasRef.current.style.cursor = 'move'
+                  canvasManageRef.current.canvasEle.style.cursor = 'move'
                   break
               }
             } else if (
               //只有在节点激活的时候才显示移动和缩放
-              cursorInResizeBlock(cursorLocation, node.structure.contentBox.path) &&
+              canvasManageRef.current.pointInNodeResizeBlock(cursorLocation, node) &&
               node.isActive
             ) {
-              const direction = getResizeDirection(cursorLocation, node.structure.contentBox.path)
+              const direction = getResizeDirection(
+                cursorLocation,
+                node.structure.contentBox.path,
+                BOXPADDING,
+                RESIZERECTSIZE_RESPONSE,
+              )
               switch (direction) {
                 case ResizeDirection.VERTICAL_N:
                 case ResizeDirection.VERTICAL_S:
-                  canvasRef.current.style.cursor = 'ns-resize'
+                  canvasManageRef.current.canvasEle.style.cursor = 'ns-resize'
                   break
                 case ResizeDirection.HORIZONTAL_E:
                 case ResizeDirection.HORIZONTAL_W:
-                  canvasRef.current.style.cursor = 'ew-resize'
+                  canvasManageRef.current.canvasEle.style.cursor = 'ew-resize'
                   break
                 case ResizeDirection.SLASH_NE:
                 case ResizeDirection.SLASH_SW:
-                  canvasRef.current.style.cursor = 'nesw-resize'
+                  canvasManageRef.current.canvasEle.style.cursor = 'nesw-resize'
                   break
                 case ResizeDirection.BACKSLASH_NW:
                 case ResizeDirection.BACKSLASH_SE:
-                  canvasRef.current.style.cursor = 'nwse-resize'
+                  canvasManageRef.current.canvasEle.style.cursor = 'nwse-resize'
                   break
                 default:
-                  canvasRef.current.style.cursor = 'move'
+                  canvasManageRef.current.canvasEle.style.cursor = 'move'
               }
             } else if (
               //只有在节点激活的时候才显示移动和缩放
-              cursorOnBoundingEdge(cursorLocation, node.structure.contentBox.path) &&
+              canvasManageRef.current.pointOnNodeBounding(cursorLocation, node) &&
               node.isActive
             ) {
-              canvasRef.current.style.cursor = 'move'
+              canvasManageRef.current.canvasEle.style.cursor = 'move'
             }
           }
         } else {
-          const activeNodes = getActiveNodes(template)
-          switch (mouseOperationRef.current) {
-            case CanvasNodeMouseEventOperation.ISMOVING:
-              if (lastMousemoveLocationRef.current) {
-                const moveVec: Vector = {
-                  x: cursorLocation.x - lastMousemoveLocationRef.current.x,
-                  y: cursorLocation.y - lastMousemoveLocationRef.current.y,
-                  w: 0,
-                }
-                dispatch(
-                  updateNodeStructure({
-                    templateId: template.templateId,
-                    instanceIds: activeNodes.map((node) => node.instanceId),
-                    structures: activeNodes.map((node) => {
-                      let { location, path } = node.structure.contentBox
-                      const { size } = node.structure.contentBox
-                      location = {
-                        w: 1,
-                        x: location.x + moveVec.x,
-                        y: location.y + moveVec.y,
-                      }
-                      path = convertLocation2Path(location, size)
-                      return {
-                        ...node.structure,
-                        contentBox: {
-                          location,
-                          size,
-                          path,
-                        },
-                      }
-                    }),
-                  }),
-                )
-                lastMousemoveLocationRef.current = cursorLocation
+          const { mouseOperation, lastMousePoint, mousdownPoint } = canvasManageRef.current
+
+          switch (mouseOperation) {
+            case MouseOperation.ISMOVING: {
+              const moveVec: Vector = {
+                x: cursorLocation.x - lastMousePoint.x,
+                y: cursorLocation.y - lastMousePoint.y,
+                w: 0,
               }
-              break
-            case CanvasNodeMouseEventOperation.ISRESIZING:
-              if (lastMousemoveLocationRef.current && metaNodeRef.current && mousedownLocationRef.current) {
-                //计算每个元素的左上角坐标偏移和尺寸偏移
-                const { locationOffset, sizeOffset } = computeLocAndSizeOffsetOnResizing({
-                  cursorLocation,
-                  lastMousemoveLocation: lastMousemoveLocationRef.current,
-                  mousedownLocation: mousedownLocationRef.current,
-                  path: metaNodeRef.current.structure.contentBox.path,
+              set_template((_template) => {
+                _template?.nodeList.forEach((node) => {
+                  if (node.isActive) {
+                    node.structure.contentBox.location.x += moveVec.x
+                    node.structure.contentBox.location.y += moveVec.y
+                    node.structure.contentBox.path = generateBoxPath(
+                      node.structure.contentBox.location,
+                      node.structure.contentBox.size,
+                    )
+                  }
                 })
-                const activeTextNode = getActiveNodes(template).filter((node) => node.type === NodeType.TEXT)
-                const activeTextNodeIds = activeNodes.map((node) => node.instanceId)
-                //如果发生了高度的偏移，则取消所有激活的文本节点的高度适应
-                if (sizeOffset.y != 0) {
-                  dispatch(
-                    updateTextNodeHeightAdoptive({
-                      templateId: template.templateId,
-                      instanceIds: activeTextNodeIds,
-                      isAdoptive: false,
-                    }),
-                  )
-                } else if (
-                  sizeOffset.y === 0 &&
-                  activeTextNode.some(
-                    (node) =>
-                      !(node.options as RenderTextOptions).isAdoptiveHeight &&
-                      node.structure.contentBox.size.height >
-                        (node.options as RenderTextOptions).contentBox.size.height,
-                  )
-                ) {
-                  //如果高度没有偏移,但是不是自适应高度的情况下，文本区域还比节点区域小了，那么可以开启适应高度
-                  //文本区域比节点区域大了就无所谓
-                  // dispatch(
-                  //   updateTextNodeHeightAdoptive({
-                  //     templateId: template.templateId,
-                  //     instanceIds: activeTextNode
-                  //       .filter(
-                  //         (node) =>
-                  //           !(node.options as RenderTextOptions).isAdoptiveHeight &&
-                  //           node.structure.contentBox.size.height >
-                  //             (node.options as RenderTextOptions).contentBox.size.height,
-                  //       )
-                  //       .map((node) => node.instanceId),
-                  //   }),
-                  // )
-                }
-
-                //更新尺寸信息
-                dispatch(
-                  updateNodeStructure({
-                    templateId: template.templateId,
-                    instanceIds: activeNodes.map((node) => node.instanceId),
-                    structures: activeNodes.map((node) => {
-                      let { location, size, path } = node.structure.contentBox
-                      location = {
-                        w: 1,
-                        x: location.x + locationOffset.x,
-                        y: location.y + locationOffset.y,
-                      }
-                      //坐标会一直变，但是尺寸会有最小值，所以在尺寸最小值后会出现位移现象
-                      size = {
-                        width: Math.max(size.width + sizeOffset.x, node.options.minContentWidth, 5),
-                        height: Math.max(size.height + sizeOffset.y, 5),
-                      }
-                      path = convertLocation2Path(location, size)
-                      return {
-                        ...node.structure,
-                        contentBox: {
-                          location,
-                          size,
-                          path,
-                        },
-                      }
-                    }),
-                  }),
-                )
-                lastMousemoveLocationRef.current = cursorLocation
+              })
+              break
+            }
+            case MouseOperation.ISRESIZING: {
+              //获取缩放方向(根据缩放块响应区域)
+              const resizeDirection = getResizeDirection(
+                mousdownPoint,
+                activeNode!.structure.contentBox.path,
+                BOXPADDING,
+                RESIZERECTSIZE_RESPONSE,
+              )
+              //计算质心点
+              const centroid = computeCentroidByPath(activeNode!.structure.contentBox.path)
+              //计算原始时的质心到动点的向量（当移动向量的分量和参考向量分量同向时才尺寸增加）
+              const referenceVec: Vector = {
+                x: mousdownPoint.x - centroid.x,
+                y: mousdownPoint.y - centroid.y,
+                w: 0,
               }
-              break
-            case CanvasNodeMouseEventOperation.ISSELECTING:
-              //加入一个临时的空节点，并不断修改，空节点只有盒模型没有内容和装填数据
 
-              //遍历判断所有节点是否和空节点盒模型相交（参考blender的框选工具）小票内容区域小，类似ppt要全部选中不好操作
+              //计算最近激活元素的尺寸和位置的变化
+              const { locationOffset, sizeOffset } = computeLocAndSizeOffsetOnResizing({
+                cursorLocation,
+                lastMousemoveLocation: lastMousePoint,
+                resizeDirection,
+                referenceVec,
+              })
 
-              //将选中节点激活
+              set_template((_template) => {
+                _template?.nodeList.map((node) => {
+                  if (node.isActive) {
+                    const minWidth = isTextNode(node) ? node.options.minContentWidth : 10
+                    const minHeight = 10
+                    const size: Size = {
+                      width: Math.max(minWidth, node.structure.contentBox.size.width + sizeOffset.x),
+                      height: Math.max(minHeight, node.structure.contentBox.size.height + sizeOffset.y),
+                    }
+                    const location: Point = {
+                      x:
+                        size.width === minWidth
+                          ? node.structure.contentBox.location.x
+                          : node.structure.contentBox.location.x + locationOffset.x,
+                      y:
+                        size.height === minHeight
+                          ? node.structure.contentBox.location.y
+                          : node.structure.contentBox.location.y + locationOffset.y,
+                      w: 1,
+                    }
+                    const path = generateBoxPath(location, size)
+                    node.structure.contentBox = {
+                      location,
+                      size,
+                      path,
+                    }
+
+                    //如果发生了高度的偏移，则取消所有激活的文本节点的高度适应
+                    if (sizeOffset.y != 0 && isTextNode(node)) {
+                      node.options.isAdoptiveHeight = false
+                    }
+                  }
+                })
+              })
+
               break
-            case CanvasNodeMouseEventOperation.ISSELECTION:
+            }
+            case MouseOperation.ISSELECTING: {
+              set_template((_template) => {
+                if (_template) {
+                  const emptyNode = _template.nodeList.find((node) => isEmptyNode(node))!
+                  const moveVec: Vector = {
+                    x: cursorLocation.x - mousdownPoint.x,
+                    y: cursorLocation.y - mousdownPoint.y,
+                    w: 0,
+                  }
+
+                  emptyNode.structure.contentBox.size = {
+                    width: moveVec.x,
+                    height: moveVec.y,
+                  }
+
+                  emptyNode.structure.contentBox.path = generateBoxPath(
+                    emptyNode.structure.contentBox.location,
+                    emptyNode.structure.contentBox.size,
+                  )
+                  //遍历判断所有节点是否和空节点盒模型相交（参考blender的框选工具）小票内容区域小，类似ppt要全部选中不好操作
+                  //根据emptynode和每个节点的盒模型边是否有交点判断，只要有交点就激活
+                  _template.nodeList.forEach((node) => {
+                    if (canvasManageRef.current && !isEmptyNode(node)) {
+                      const interpoint = canvasManageRef.current.computeInterpointBetweenNodes(emptyNode, node)
+                      node.isActive =
+                        !isUnreachable(interpoint) ||
+                        node.structure.contentBox.path.some((point) =>
+                          isPointInPath(point, emptyNode.structure.contentBox.path),
+                        )
+                    }
+                  })
+                }
+              })
+              break
+            }
+            case MouseOperation.ISSELECTION: {
               //鼠标落下时就已经将光标数据修改至对应character后
-              if (lastMousemoveLocationRef.current && metaNodeRef.current && mousedownCursorIndexRef.current! >= 0) {
-                //将鼠标坐标约束在文本框内
-                //光标相对于节点框的位置
-                const curRelativeTCLocation: Point = getRelativeLocBounding(cursorLocation, metaNodeRef.current)
-                const moveVec: Vector = {
-                  x: cursorLocation.x - lastMousemoveLocationRef.current.x,
-                  y: cursorLocation.y - lastMousemoveLocationRef.current.y,
-                  w: 0,
-                }
-                const moveLength = computeMagnitude(moveVec)
-                if (moveLength < 10) {
-                  return
-                }
-                const cursorIndex = getCursorLocation(metaNodeRef.current, curRelativeTCLocation)
-                dispatch(
-                  updateNodeActivation({
-                    templateId: template.templateId,
-                    toActiveNodesId: [metaNodeRef.current.instanceId],
-                  }),
-                )
-                const selection = [
-                  Math.min(mousedownCursorIndexRef.current!, cursorIndex),
-                  Math.max(mousedownCursorIndexRef.current!, cursorIndex),
-                ].join('-') as Selection
-                dispatch(
-                  updateTextNodeSelection({
-                    templateId: template.templateId,
-                    instanceId: metaNodeRef.current?.instanceId,
-                    selection,
-                  }),
-                )
-                metaNodeRef.current = {
-                  ...metaNodeRef.current,
-                  options: {
-                    ...metaNodeRef.current.options,
-                    selection,
-                  } as RenderTextOptions,
-                }
-              }
+              if (isTextNode(activeNode) && textOptionsManageRef.current) {
+                //将相对坐标进一步约束到节点内
+                const mousedownRelative = computeRelativePoint(mousdownPoint, activeNode.structure.contentBox.location)
 
+                const cursorLocationRelative = computeRelativePoint(
+                  cursorLocation,
+                  activeNode.structure.contentBox.location,
+                )
+                cursorLocationRelative.x = Math.max(
+                  1,
+                  Math.min(activeNode.structure.contentBox.size.width - 1, cursorLocationRelative.x),
+                )
+                cursorLocationRelative.y = Math.max(
+                  1,
+                  Math.min(activeNode.structure.contentBox.size.height - 1, cursorLocationRelative.y),
+                )
+
+                const dynamicIndex = textOptionsManageRef.current.relativeLocation2Index(
+                  activeNode,
+                  cursorLocationRelative,
+                )
+
+                const staticIndex = textOptionsManageRef.current.relativeLocation2Index(activeNode, mousedownRelative)
+
+                const newSelection = selectionManage.stringifySelection({
+                  startIndex: Math.min(staticIndex, dynamicIndex),
+                  endIndex: Math.max(staticIndex, dynamicIndex),
+                })
+
+                set_template((_template) => {
+                  _template?.nodeList.map((node) => {
+                    if (node.instanceId === activeNode.instanceId && isTextNode(node)) {
+                      node.options.selection = newSelection
+                    }
+                  })
+                })
+
+                setActiveNode({
+                  ...activeNode,
+                  options: { ...activeNode.options, selection: newSelection },
+                } as TextNode)
+              }
               break
-            case CanvasNodeMouseEventOperation.NONE:
+            }
           }
+
+          canvasManageRef.current.lastMousePoint = cursorLocation
         }
       }
     }, MOUSEMOVEPERIOD),
-    [
-      template,
-      canvasRef.current,
-      mouseOperationRef.current,
-      mousedownLocationRef.current,
-      lastMousemoveLocationRef.current,
-      metaNodeRef.current,
-      mousedownCursorIndexRef.current,
-    ],
+    [canvasManageRef.current, _template, activeNode],
   )
 
-  // 鼠标松开事件处理
+  /** -----------------------------------------------------
+  *                     鼠标松开事件处理                   -
+  -------------------------------------------------------*/
   const handleCanvasMouseUp = useCallback(
     (e: MouseEvent) => {
       const cursorLocation = client2canvas(e)
-      if (mousedownLocationRef.current) {
-        if (isSameLocation(cursorLocation, mousedownLocationRef.current)) {
-          mouseOperationRef.current = CanvasNodeMouseEventOperation.CLICK
-        } else {
-          mouseOperationRef.current = CanvasNodeMouseEventOperation.NONE
+
+      if (canvasManageRef.current) {
+        //记录鼠标松开位置
+        canvasManageRef.current.mouseupPoint = cursorLocation
+        const { mousdownPoint, mouseupPoint, lastMousePoint } = canvasManageRef.current
+
+        //点位置相同,且未移动：单击事件
+        if (isSamePoint(mousdownPoint, mouseupPoint) && isUnreachable(lastMousePoint)) {
+          canvasManageRef.current.mouseOperation = MouseOperation.CLICK
         }
-      }
-      //将坐标恢复
-      // mousedownLocationRef.current = null
-      lastMousemoveLocationRef.current = null
+        //发生了移动：在鼠标移动中同步处理，框选也一样，所有直接置为空
+        else {
+          canvasManageRef.current.mouseOperation = MouseOperation.NONE
 
-      if (metaNodeRef.current?.type == NodeType.TEXT) {
-        //将输入框状态和文本节点同步(setSelectionRange:要求元素聚焦且限制类型)
-        canvasProxy.current?.focus()
-      }
+          //擦除痕迹(后续输入仍然需要鼠标位置，需要判断选择方向和图形起止点)
+          canvasManageRef.current.lastMousePoint = unreachablePoint
+          // canvasManageRef.current.mousdownPoint = unreachablePoint
+          // canvasManageRef.current.mouseupPoint = unreachablePoint
+        }
 
-      mouseupLocationRef.current = cursorLocation
+        //将空节点移除（不需要移动就会创建）
+        set_template((_template) => {
+          if (_template) {
+            const i = _template.nodeList.findIndex((node) => isEmptyNode(node))
+            if (i != -1) {
+              _template.nodeList.splice(i, 1)
+            }
+          }
+        })
+      }
     },
-    [
-      template,
-      mouseOperationRef.current,
-      mousedownLocationRef.current,
-      lastMousemoveLocationRef.current,
-      metaNodeRef.current,
-    ],
+    [canvasManageRef.current, _template],
   )
 
   const onDragOver = useCallback((e: DragEvent) => {
@@ -620,80 +573,102 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
 
   const onDrop = useCallback(
     (e: DragEvent) => {
-      if (e.dataTransfer && template && canvasProxy.current && canvasContextRef.current) {
+      if (
+        e.dataTransfer &&
+        canvasProxy.current &&
+        canvasManageRef.current &&
+        textOptionsManageRef.current &&
+        _template
+      ) {
         const cursorLocation = client2canvas(e)
+
         const node = JSON.parse(e.dataTransfer.getData('application/json:node')) as CanvasNode
         const data = e.dataTransfer.getData('text/plain:name')
-        switch (node.type) {
-          case NodeType.TEXT: {
-            canvasProxy.current.focus()
+        if (isTextNode(node)) {
+          canvasProxy.current.focus()
 
-            const textOptionManage = new TextOptionManage(node, data, canvasContextRef.current)
-            //拖拽时没有样式结构
-            textOptionManage.modifyOptionsSize()
-            //节点结构依赖样式结构和鼠标位置(节点结构使用样式结构)
-            textOptionManage.setNodeStructure({ location: cursorLocation })
+          //拖拽时没有样式结构
+          node.options = textOptionsManageRef.current.modifyOptionsSize(node.options, data)
 
-            const selectionLocation = textOptionManage.selection2RelativeLocation(
-              (textOptionManage.node.options as RenderTextOptions).selection,
-            )
+          //节点结构位置在此确定，尺寸信息在调整时确定
+          const location = cursorLocation
+          const size = { ...node.options.contentBox.size }
+          node.structure = {
+            contentBox: {
+              location,
+              size,
+              path: generateBoxPath(location, size),
+            },
+          }
 
-            mousedownLocationRef.current = selectionLocation[0]
-            mouseupLocationRef.current = selectionLocation[1]
+          node.options = textOptionsManageRef.current.modifyTextContentLocation(node)
+          //计算光标的相对位置
+          const [startIndexLocation, endIndexLocation] = textOptionsManageRef.current.selection2RelativeLocation(
+            node.options,
+            node.options.selection,
+          )
+
+          //保存鼠标绝对位置
+          canvasManageRef.current.mousdownPoint = {
+            x: startIndexLocation.x + cursorLocation.x,
+            y: startIndexLocation.y + cursorLocation.y,
+            w: 1,
+          }
+          canvasManageRef.current.mouseupPoint = {
+            x: endIndexLocation.x + cursorLocation.x,
+            y: endIndexLocation.y + cursorLocation.y,
+            w: 1,
+          }
+          canvasManageRef.current.lastMousePoint = {
+            x: endIndexLocation.x + cursorLocation.x,
+            y: endIndexLocation.y + cursorLocation.y,
+            w: 1,
           }
         }
 
-        node.layer = template.nodeList.length
+        node.layer = _template.nodeList.length
+        node.isActive = true
 
-        metaNodeRef.current = node
-
-        dispatch(
-          patchTemplateNodeList({
-            templateId: template.templateId,
-            node,
-            templateDataItem: data,
-          }),
-        )
+        set_template((_template) => {
+          if (_template) {
+            _template.nodeList.forEach((node) => (node.isActive = false))
+            _template.nodeList.push(node)
+            _template.templateData[node.propName] = data
+          }
+        })
+        setActiveNode(node)
       }
     },
-    [template, canvasProxy.current, canvasContextRef.current],
+    [canvasProxy.current, canvasManageRef.current, _template],
   )
 
   //输入法拦截合成输入后完成合成事件会同时触发两相同事件(第一次为合成事件，第二次为非合成事件)
   //TODO：feat: 支持持续的输入
   //TODO: fix: Electron中输入法合成事件再拼音中不会出现第二次的非合成事件，只会有一次合成事件
-  //TODO: feat: 支持按键修饰符和组合按键
   const inputWithouFocus = useCallback(
     debounce(async (e: Event) => {
       const { isComposing, inputCache } = (e as CustomEvent).detail
-      if (
-        template &&
-        metaNodeRef.current &&
-        mousedownLocationRef.current &&
-        mouseupLocationRef.current &&
-        canvasProxy.current &&
-        canvasContextRef.current
-      ) {
-        const activeNodes = getActiveNodes(template)
 
-        if (activeNodes.length == 1 && activeNodes[0].type == NodeType.TEXT) {
-          const activeNode = structuredClone(activeNodes[0])
-          let composeData: string = template.templateData[activeNode.propName].toString()
+      if (canvasProxy.current && canvasManageRef.current && textOptionsManageRef.current && _template) {
+        const { mousdownPoint, mouseupPoint } = canvasManageRef.current
 
-          const textOptionManage = new TextOptionManage(activeNode, composeData, canvasContextRef.current)
+        const activeNodes = _template.nodeList.filter((node) => node.isActive)
 
+        if (activeNodes && activeNodes.length === 1 && isTextNode(activeNodes[0])) {
+          const activeNode = activeNodes[0]
+          let composeData: string = _template.templateData[activeNode.propName].toString()
+
+          let newSelection: SelectionObj
           //上一次选择区间
-          const oldSelection = selectionManage.parseSelection(
-            (metaNodeRef.current.options as RenderTextOptions).selection,
-          )
-
+          const oldSelection = selectionManage.parseSelection(activeNode.options.selection)
+          const deleteLength = oldSelection.endIndex - oldSelection.startIndex
           if (
             isValidModifier(inputCache) ||
             isComposingKeys(inputCache) ||
             isArrowKeys(inputCache) ||
             isComposingArrowKeys(inputCache)
           ) {
-            let newSelection = oldSelection
+            newSelection = selectionManage.offsetSelection(oldSelection, [deleteLength, 0])
             switch (inputCache) {
               case ArrowKeys.ARROWRIGHT:
               case ArrowKeys.ARROWDOWN:
@@ -703,34 +678,123 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               case ComposingArrowKeys.SELECTION_UP:
               case ComposingArrowKeys.SELECTION_LEFT:
               case ComposingArrowKeys.SELECTION_RIGHT: {
-                const mousedownIndex = textOptionManage.relativeLocation2Index(mousedownLocationRef.current)
-                const mouseupIndex = textOptionManage.relativeLocation2Index(mouseupLocationRef.current)
+                const mousedownIndex = textOptionsManageRef.current.relativeLocation2Index(
+                  activeNode,
+                  computeRelativePoint(mousdownPoint, activeNode.structure.contentBox.location),
+                )
+                const mouseupIndex = textOptionsManageRef.current.relativeLocation2Index(
+                  activeNode,
+                  computeRelativePoint(mouseupPoint, activeNode.structure.contentBox.location),
+                )
                 //selection方向，主要用于按住shift时的多选情况
                 const originDirection = mouseupIndex - mousedownIndex
 
-                newSelection = textOptionManage.getArrowCursorSelection(inputCache, originDirection)
-                const [startLocation, endLocation] = textOptionManage.selection2RelativeLocation(
+                newSelection = textOptionsManageRef.current.getArrowCursorSelection(
+                  activeNode.options,
+                  inputCache,
+                  originDirection,
+                )
+
+                let [startLocation, endLocation] = textOptionsManageRef.current.selection2RelativeLocation(
+                  activeNode.options,
                   selectionManage.stringifySelection(newSelection),
                 )
+                startLocation = computeRelativePoint(startLocation, {
+                  x: -activeNode.structure.contentBox.location.x,
+                  y: -1 - activeNode.structure.contentBox.location.y,
+                  w: 1,
+                })
+                endLocation = computeRelativePoint(endLocation, {
+                  x: -activeNode.structure.contentBox.location.x,
+                  y: -1 - activeNode.structure.contentBox.location.y,
+                  w: 1,
+                })
+
                 //只有在原方向为0时才可能发生转向(新索引为空区间也可以走这个判断)
                 if (originDirection === 0) {
-                  mousedownLocationRef.current =
-                    Math.max(...Object.values(newSelection)) > oldSelection.endIndex ? startLocation : endLocation
-                  mouseupLocationRef.current =
-                    Math.max(...Object.values(newSelection)) > oldSelection.endIndex ? endLocation : startLocation
+                  canvasManageRef.current.mousdownPoint =
+                    newSelection.endIndex === mousedownIndex ? endLocation : startLocation
+                  canvasManageRef.current.mouseupPoint =
+                    newSelection.endIndex === mousedownIndex ? startLocation : endLocation
                 } else {
-                  mousedownLocationRef.current = originDirection > 0 ? startLocation : endLocation
-                  mouseupLocationRef.current = originDirection > 0 ? endLocation : startLocation
+                  canvasManageRef.current.mousdownPoint = originDirection > 0 ? startLocation : endLocation
+                  canvasManageRef.current.mouseupPoint = originDirection > 0 ? endLocation : startLocation
                 }
-                break
-              }
-              case ValidModifierKeys.TAB: {
+
                 break
               }
               case ValidModifierKeys.BACKSPACE: {
+                set_template((_template) => {
+                  if (_template && textOptionsManageRef.current) {
+                    //修改字符串数据和区间
+                    if (selectionManage.isZeroSelection(oldSelection) && oldSelection.startIndex != 0) {
+                      newSelection = selectionManage.offsetSelection(oldSelection, [-1, -1])
+                      _template.templateData[activeNode.propName] =
+                        composeData.substring(0, oldSelection.startIndex - 1) +
+                        composeData.substring(oldSelection.endIndex)
+                    } else {
+                      newSelection = selectionManage.offsetSelection(oldSelection, [0, -deleteLength])
+                      _template.templateData[activeNode.propName] =
+                        composeData.substring(0, oldSelection.startIndex) + composeData.substring(oldSelection.endIndex)
+                    }
+                    //修改options
+                    _template.nodeList.forEach((node) => {
+                      if (
+                        node.instanceId === activeNode.instanceId &&
+                        textOptionsManageRef.current &&
+                        isTextNode(node)
+                      ) {
+                        if (selectionManage.isZeroSelection(oldSelection) && oldSelection.startIndex != 0) {
+                          textOptionsManageRef.current.modifyOptions(
+                            node.options,
+                            selectionManage.offsetSelection(oldSelection, [-1, 0]), //如果是光标就删除前一个
+                            '',
+                          )
+                        } else {
+                          textOptionsManageRef.current.modifyOptions(node.options, oldSelection, '')
+                        }
+                      }
+                    })
+                  }
+                })
+
                 break
               }
               case ValidModifierKeys.DELETE: {
+                set_template((_template) => {
+                  if (_template && textOptionsManageRef.current) {
+                    const lastFontIndex = textOptionsManageRef.current.getLastFontIndex(activeNode.options)
+                    //修改字符串数据和区间
+                    if (selectionManage.isZeroSelection(oldSelection) && oldSelection.endIndex != lastFontIndex) {
+                      newSelection = selectionManage.offsetSelection(oldSelection, [0, 0])
+                      _template.templateData[activeNode.propName] =
+                        composeData.substring(0, oldSelection.startIndex) +
+                        composeData.substring(oldSelection.endIndex + 1)
+                    } else {
+                      newSelection = selectionManage.offsetSelection(oldSelection, [0, -deleteLength])
+                      _template.templateData[activeNode.propName] =
+                        composeData.substring(0, oldSelection.startIndex) + composeData.substring(oldSelection.endIndex)
+                    }
+                    //修改options
+                    _template.nodeList.forEach((node) => {
+                      if (
+                        node.instanceId === activeNode.instanceId &&
+                        textOptionsManageRef.current &&
+                        isTextNode(node)
+                      ) {
+                        if (selectionManage.isZeroSelection(oldSelection) && oldSelection.endIndex != lastFontIndex) {
+                          textOptionsManageRef.current.modifyOptions(
+                            node.options,
+                            selectionManage.offsetSelection(oldSelection, [0, 1]), //如果是光标就删除后一个
+                            '',
+                          )
+                        } else {
+                          textOptionsManageRef.current.modifyOptions(node.options, oldSelection, '')
+                        }
+                      }
+                    })
+                  }
+                })
                 break
               }
               case ValidModifierKeys.ENTER: {
@@ -742,17 +806,26 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               }
               case ComposingKeys.PASTE: {
                 const copyStr = await navigator.clipboard.readText()
-                textOptionManage.modifyOptions(oldSelection, copyStr)
-                dispatch(
-                  updateTemplateData({
-                    templateId: template.templateId,
-                    propName: textOptionManage.node.propName,
-                    propData:
-                      composeData.slice(0, oldSelection.startIndex) +
-                      copyStr +
-                      composeData.slice(oldSelection.endIndex),
-                  }),
-                )
+
+                composeData = composeData
+                  .split('')
+                  .toSpliced(oldSelection.startIndex, deleteLength, copyStr.toString())
+                  .join('')
+
+                set_template((_template) => {
+                  if (_template) {
+                    _template.templateData[activeNode.propName] = composeData
+                    _template.nodeList.forEach((node) => {
+                      if (
+                        node.instanceId === activeNode.instanceId &&
+                        isTextNode(node) &&
+                        textOptionsManageRef.current
+                      ) {
+                        textOptionsManageRef.current.modifyOptions(node.options, oldSelection, copyStr)
+                      }
+                    })
+                  }
+                })
                 newSelection = selectionManage.offsetSelection(oldSelection, [
                   copyStr.length,
                   copyStr.length - oldSelection.endIndex + oldSelection.startIndex,
@@ -762,33 +835,18 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               case ComposingKeys.CHECKALL: {
                 newSelection = {
                   startIndex: 0,
-                  endIndex: textOptionManage.getLastFontIndex(),
+                  endIndex: textOptionsManageRef.current.getLastFontIndex(activeNode.options),
                 }
                 break
               }
             }
-            ;(textOptionManage.node.options as RenderTextOptions).selection =
-              selectionManage.stringifySelection(newSelection)
-            metaNodeRef.current = {
-              ...metaNodeRef.current,
-              options: textOptionManage.node.options as RenderTextOptions,
-            }
-            //更新node
-            dispatch(
-              updateNodeOptions({
-                templateId: template.templateId,
-                instanceId: activeNode.instanceId,
-                options: textOptionManage.node.options as RenderTextOptions,
-              }),
-            )
           } else {
-            const { startIndex, endIndex } = oldSelection
             //拼接字符串,修改所有的selection
             const inputCacheLength = inputCache.toString().length
-            const deleteLength = endIndex - startIndex
+
             //如果是合成事件（被输入法拦截了，每次的cache是这次输入的缓存）
             //如果是合成事件那么selection不能改成光标位置而是开始位置到开始位置加合成长度
-            let newSelection = oldSelection
+            newSelection = oldSelection
             if (isComposing) {
               newSelection = selectionManage.offsetSelection(oldSelection, [0, inputCacheLength - deleteLength])
             } else {
@@ -798,175 +856,252 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
               ])
               canvasProxy.current.value = ''
             }
-
             //组装新的装填数据
-            composeData = composeData.slice(0, startIndex) + inputCache + composeData.slice(endIndex)
+            composeData = composeData
+              .split('')
+              .toSpliced(oldSelection.startIndex, deleteLength, inputCache.toString())
+              .join('')
 
-            textOptionManage.modifyOptions(oldSelection, inputCache.toString())
-            ;(textOptionManage.node.options as RenderTextOptions).selection =
-              selectionManage.stringifySelection(newSelection)
+            set_template((_template) => {
+              if (_template) {
+                _template.templateData[activeNode.propName] = composeData
+                _template.nodeList.forEach((node) => {
+                  if (
+                    node.instanceId === activeNode.instanceId &&
+                    isTextNode(node) &&
+                    textOptionsManageRef.current &&
+                    canvasManageRef.current
+                  ) {
+                    textOptionsManageRef.current.modifyOptions(node.options, oldSelection, inputCache.toString())
 
-            metaNodeRef.current = {
-              ...metaNodeRef.current,
-              options: textOptionManage.node.options as RenderTextOptions,
-            }
-            dispatch(
-              updateTemplateData({
-                templateId: template.templateId,
-                propName: activeNode.propName,
-                propData: composeData,
-              }),
-            )
-            dispatch(
-              updateNodeOptions({
-                templateId: template.templateId,
-                instanceId: activeNode.instanceId,
-                options: textOptionManage.node.options as RenderTextOptions,
-              }),
-            )
+                    const [startLocation, endLocation] = textOptionsManageRef.current.selection2RelativeLocation(
+                      node.options,
+                      selectionManage.stringifySelection(newSelection),
+                    )
+                    canvasManageRef.current.mousdownPoint = computeRelativePoint(startLocation, {
+                      x: -node.structure.contentBox.location.x,
+                      y: -node.structure.contentBox.location.y,
+                      w: 1,
+                    })
+                    canvasManageRef.current.mouseupPoint = computeRelativePoint(endLocation, {
+                      x: -node.structure.contentBox.location.x,
+                      y: -node.structure.contentBox.location.y,
+                      w: 1,
+                    })
+                  }
+                })
+              }
+            })
           }
+          set_template((_template) => {
+            if (_template) {
+              _template.nodeList.map((node) => {
+                if (node.instanceId === activeNode.instanceId && isTextNode(node)) {
+                  node.options.selection = selectionManage.stringifySelection(newSelection)
+                }
+              })
+            }
+          })
         }
       }
     }, 50),
-
-    [
-      template,
-      metaNodeRef.current,
-      mousedownLocationRef.current,
-      mouseupLocationRef.current,
-      canvasProxy.current,
-      canvasContextRef.current,
-    ],
+    [_template, canvasProxy.current],
   )
 
   const focusProxy = useCallback(
     (e: MouseEvent) => {
-      if (canvasProxy.current && canvasRef.current && template) {
-        if (e.target != canvasRef.current) {
+      if (canvasProxy.current && canvasRef.current && canvasManageRef.current && _template) {
+        const activeNodes = _template.nodeList.filter((node) => node.isActive)
+        if (e.target != canvasManageRef.current.canvasEle) {
           canvasProxy.current.blur()
-          dispatch(
-            updateNodeActivation({
-              templateId: template.templateId,
-              toActiveNodesId: [],
-            }),
-          )
-        }
-      }
-    },
-    [canvasProxy.current, canvasRef.current, template],
-  )
-
-  /**
-   * 调整文本节点
-   */
-
-  const adjustTextNode = useCallback(
-    (node: CanvasNode, content: TemplateData[keyof TemplateData]) => {
-      if (canvasContextRef.current) {
-        const textOptionManage = new TextOptionManage(node, content, canvasContextRef.current)
-        const options = node.options as RenderTextOptions
-        options.rowsIndex = Array.from({ length: options.paragrahsIndex.length }, () => '0-0')
-
-        //将所有段落合并成一行
-        textOptionManage.combineRows()
-
-        //重新计算样式结构
-        textOptionManage.modifyOptionsSize()
-        /** ------------------------------------------------------------------------
-         *              //根据节点宽度调整options
-         --------------------------------------------------------------------------*/
-        textOptionManage.regulateOptions()
-
-        //重新计算样式结构
-        textOptionManage.modifyOptionsSize()
-
-        //调整节点行高，随输入的变化而变化
-        //当用户resize高度时isAdoptiveHeight会为false
-        //当用户输入时如果节点高大于等于文本高度会为true
-        if (options.isAdoptiveHeight) {
-          textOptionManage.setNodeStructure({
-            location: textOptionManage.node.structure.contentBox.location,
-            size: { ...textOptionManage.node.structure.contentBox.size, height: options.contentBox.size.height },
-            path: generateBoxPath(node.structure.contentBox.location, node.structure.contentBox.size),
+          setActiveNode(undefined)
+          set_template((template) => {
+            if (template) template.nodeList.forEach((node) => (node.isActive = false))
           })
+        } else if (activeNode && isTextNode(activeNode) && activeNodes.length === 1) {
+          canvasProxy.current.focus()
         }
-
-        /** ------------------------------------------------------------------------
-         *              修改文本样式结构（根据节点尺寸，对齐方式）
-         --------------------------------------------------------------------------*/
-        textOptionManage.modifyOptionsLocation()
-
-        /** ------------------------------------------------------------------------
-         *              修改文本选择盒结构
-         --------------------------------------------------------------------------*/
-
-        textOptionManage.modifySelectionBoxes()
       }
     },
-    [canvasContextRef.current],
+    [canvasProxy.current, canvasManageRef.current, _template],
   )
 
   /**
-   * adjustTemplate 调整模板，根据节点信息和样式信息做适应性变化
+   * 代理元素键盘事件
    */
-  const adjustTemplate = useCallback((template: Template) => {
-    const adjustedTemplate = structuredClone(template)
-    for (const node of adjustedTemplate.nodeList) {
-      switch (node.type) {
-        case NodeType.TEXT: {
-          //空白内容加没激活（双击过后没输入或者已有内容删除完后失活了）
-          if (!template.templateData[node.propName] && !node.isActive) {
-            //删除节点
-            adjustedTemplate.nodeList = adjustedTemplate.nodeList.filter((n) => n != node)
-            //加入操作栈
-
-            //不调整当前节点
-            continue
+  interface CustomEvent extends Event {
+    detail: {
+      type: string
+      value: string
+      inputCache: string | number
+      isComposing: boolean
+    }
+  }
+  const keydownProxy = useCallback(
+    (e: KeyboardEvent) => {
+      //只要不是组合键前缀则都可通过
+      if (canvasRef.current && canvasProxy.current && activeNode && isTextNode(activeNode)) {
+        let inputCache = e.key
+        if ((e.ctrlKey || e.shiftKey) && !isValidModifier(e.key)) {
+          e.preventDefault()
+          switch (e.key) {
+            case 'a':
+            case 'A': {
+              inputCache = ComposingKeys.CHECKALL
+              break
+            }
+            case 's':
+            case 'S': {
+              inputCache = ComposingKeys.SAVE
+              break
+            }
+            case 'c':
+            case 'C': {
+              inputCache = ComposingKeys.COPY
+              break
+            }
+            case 'v':
+            case 'V': {
+              inputCache = ComposingKeys.PASTE
+              break
+            }
+            case ArrowKeys.ARROWDOWN: {
+              inputCache = ComposingKeys.SELECTION_DOWN
+              break
+            }
+            case ArrowKeys.ARROWLEFT: {
+              inputCache = ComposingKeys.SELECTION_LEFT
+              break
+            }
+            case ArrowKeys.ARROWRIGHT: {
+              inputCache = ComposingKeys.SELECTION_RIGHT
+              break
+            }
+            case ArrowKeys.ARROWUP: {
+              inputCache = ComposingKeys.SELECTION_UP
+              break
+            }
           }
-          //要调整的条件过多，宽度，对齐方式等
-          adjustTextNode(node, template.templateData[node.propName])
-
-          break
         }
-        case NodeType.BARCODE: {
-          break
-        }
-        case NodeType.PICTURE: {
-          break
-        }
-        case NodeType.POLYGON: {
-          break
-        }
-        case NodeType.TABLE: {
-          break
+        if (
+          isComposingKeys(inputCache) ||
+          isArrowKeys(inputCache) ||
+          (isValidModifier(inputCache) && !isComposingKeysPrefix(inputCache))
+        ) {
+          const cusInputEnvent = new CustomEvent('inputWithouFocus', {
+            detail: {
+              type: e.type,
+              value: (e.target as HTMLInputElement).value,
+              inputCache,
+              isComposing: e.isComposing,
+            },
+          })
+          canvasRef.current.dispatchEvent(cusInputEnvent)
         }
       }
-    }
+    },
+    [canvasProxy.current, activeNode],
+  )
 
-    return adjustedTemplate
-  }, [])
+  const inputProxy = useCallback(
+    (e: Event) => {
+      if (
+        canvasProxy.current &&
+        canvasRef.current &&
+        _template &&
+        canvasManageRef.current &&
+        textOptionsManageRef.current
+      ) {
+        const { mousdownPoint, mouseupPoint } = canvasManageRef.current
 
-  /**
-   *  监听template数据变化并调整
-   */
-  useEffect(() => {
-    if (template) {
-      const adjustedTemplate = adjustTemplate(template)
-      if (!isEqual(adjustedTemplate, template)) {
-        dispatch(updateTemplate(adjustedTemplate))
-      } else {
-        setAdjustedTemplate(adjustedTemplate)
+        //只有一个激活节点且是文本
+        if (isTextNode(activeNode) && (e as InputEvent).data != null) {
+          /** -----------------------------------------------------
+          *                     1:转发事件                         -
+          -------------------------------------------------------*/
+          const cusInputEnvent = new CustomEvent('inputWithouFocus', {
+            detail: {
+              type: (e as InputEvent).inputType,
+              value: (e.target as HTMLInputElement).value,
+              inputCache: (e as InputEvent).data,
+              isComposing: (e as InputEvent).isComposing,
+            },
+          })
+
+          canvasRef.current.dispatchEvent(cusInputEnvent)
+
+          /** -----------------------------------------------------
+          *           2:修改代理元素位置(定位到鼠标松开位置)         -
+          -------------------------------------------------------*/
+          //TODO:fix: 获取所在行行高，参与顶部偏移计算,直接根据mouseup的位置进行计算
+          const inputStartLocation = textOptionsManageRef.current.getInputStartLocation(
+            activeNode,
+            mousdownPoint,
+            mouseupPoint,
+          )
+          const fOptions = textOptionsManageRef.current.getLastFont(activeNode.options)
+          canvasProxy.current.style.left = `${Math.max(422, inputStartLocation.x + fOptions.characterWidth[fOptions.characterWidth.length - 1])}px`
+          canvasProxy.current.style.top = `${inputStartLocation.y}px`
+        }
       }
+    },
+    [canvasProxy.current, _template],
+  )
+
+  //针对chrome内核的合成事件结束
+  const composingend = useCallback(
+    throttle((e: CompositionEvent) => {
+      if (canvasProxy.current && canvasRef.current) {
+        //只有一个激活节点且是文本
+        if (isTextNode(activeNode) && e.data != null) {
+          /** -----------------------------------------------------
+          *                     1:转发事件                         -
+          -------------------------------------------------------*/
+          const cusInputEnvent = new CustomEvent('inputWithouFocus', {
+            detail: {
+              type: 'compositionend',
+              value: (e.target as HTMLInputElement).value,
+              inputCache: e.data,
+              isComposing: false,
+            },
+          })
+
+          canvasRef.current.dispatchEvent(cusInputEnvent)
+        }
+      }
+    }, 50),
+    [canvasProxy.current, _template],
+  )
+  const blurProxy = useCallback(() => {
+    if (canvasProxy.current) {
+      canvasProxy.current.value = ''
     }
-  }, [template])
+  }, [canvasProxy.current, activeNode])
+
   /***
-   * 获取画布上下文
+   * 创建画布管理器
+   * 监听用户保存或者自动保存后的数据变化
    */
   useEffect(() => {
-    if (canvasRef.current) {
-      canvasContextRef.current = canvasRef.current.getContext('2d')
+    if (canvasRef.current && template) {
+      try {
+        canvasManageRef.current = new CanvaseManage(canvasRef.current)
+        textOptionsManageRef.current = new TextOptionsManage(canvasManageRef.current.ctx!)
+        set_template(canvasManageRef.current.adjustTemplate(template))
+      } catch (error) {
+        console.log(error)
+      }
     }
-  }, [canvasRef.current])
+  }, [canvasRef.current, template])
+
+  useEffect(() => {
+    if (canvasManageRef.current && _template) {
+      const adjustedTemplate = canvasManageRef.current.adjustTemplate(_template)
+      if (!isEqual(adjustedTemplate, _template)) {
+        set_template(adjustedTemplate)
+      }
+    }
+  }, [_template])
 
   /**
    * 画布事件绑定与解绑
@@ -1004,7 +1139,7 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
         }
       }
     }
-  }, [canvasRef.current, template]) //template也要作为依赖项,不然canvas绑定的事件仍然是老的事件（因为事件依赖template）
+  }, [canvasRef.current, template, _template, activeNode])
 
   /**
    * 画布初始化样式信息
@@ -1020,163 +1155,13 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
     }
   }, [canvasRef.current])
 
-  /**
-   * 代理元素键盘事件
-   */
-  interface CustomEvent extends Event {
-    detail: {
-      type: string
-      value: string
-      inputCache: string | number
-      isComposing: boolean
-    }
-  }
-  const keydownProxy = useCallback(
-    (e: KeyboardEvent) => {
-      //阻止焦点切换和其他的事件
-      if (e.key === ValidModifierKeys.TAB) {
-        e.preventDefault()
-      }
-
-      if (
-        canvasRef.current &&
-        canvasProxy.current &&
-        (e.ctrlKey || e.shiftKey || isValidModifier(e.key) || isArrowKeys(e.key))
-      ) {
-        let inputCache = e.key
-
-        if ((e.ctrlKey || e.shiftKey) && !isValidModifier(e.key)) {
-          e.preventDefault()
-          switch (e.key) {
-            case 'a':
-            case 'A': {
-              inputCache = ComposingKeys.CHECKALL
-              break
-            }
-            case 'c':
-            case 'C': {
-              inputCache = ComposingKeys.COPY
-              break
-            }
-            case 'v':
-            case 'V': {
-              inputCache = ComposingKeys.PASTE
-              break
-            }
-            case ArrowKeys.ARROWDOWN: {
-              inputCache = ComposingKeys.SELECTION_DOWN
-              break
-            }
-            case ArrowKeys.ARROWLEFT: {
-              inputCache = ComposingKeys.SELECTION_LEFT
-              break
-            }
-            case ArrowKeys.ARROWRIGHT: {
-              inputCache = ComposingKeys.SELECTION_RIGHT
-              break
-            }
-            case ArrowKeys.ARROWUP: {
-              inputCache = ComposingKeys.SELECTION_UP
-              break
-            }
-          }
-        }
-        const cusInputEnvent = new CustomEvent('inputWithouFocus', {
-          detail: {
-            type: e.type,
-            value: (e.target as HTMLInputElement).value,
-            inputCache,
-            isComposing: e.isComposing,
-          },
-        })
-
-        canvasRef.current.dispatchEvent(cusInputEnvent)
-      }
-    },
-    [canvasProxy.current, canvasRef.current],
-  )
-
-  const inputProxy = useCallback(
-    (e: Event) => {
-      if (canvasProxy.current && template && canvasRef.current) {
-        const activeNodes = getActiveNodes(template).filter((node) => node.type === NodeType.TEXT)
-        //只有一个激活节点且是文本
-        if (activeNodes.length === 1 && (e as InputEvent).data != null) {
-          const node = activeNodes[0]
-          //转发事件
-          const cusInputEnvent = new CustomEvent('inputWithouFocus', {
-            detail: {
-              type: (e as InputEvent).inputType,
-              value: (e.target as HTMLInputElement).value,
-              inputCache: (e as InputEvent).data,
-              isComposing: (e as InputEvent).isComposing,
-            },
-          })
-
-          canvasRef.current.dispatchEvent(cusInputEnvent)
-          //修改代理元素位置(定位到selection末尾)
-          //根据selection定位到（不新增ref，增加事件间耦合了）
-          const options = node.options as RenderTextOptions
-          const endIndex = selectionStr2Arr(options.selection)[0]
-          const selection = [endIndex, endIndex].join('-') as Selection
-          for (const [pSelection, paragrahOptions] of Object.entries(options.paragrahs)) {
-            //如果当前段落存在交集
-            if (hasOverlap(pSelection as Selection, selection)) {
-              for (const [rSelection, rowOptions] of Object.entries(paragrahOptions.rows)) {
-                //如果当前行存在交集
-                if (hasOverlap(rSelection as Selection, selection)) {
-                  let walkedWidth =
-                    node.structure.contentBox.location.x +
-                    options.contentBox.location.x +
-                    paragrahOptions.contentBox.location.x +
-                    rowOptions.contentBox.location.x
-
-                  for (const [fSelection, fontOptions] of Object.entries(rowOptions.font)) {
-                    const [fStart, fEnd] = selectionStr2Arr(fSelection as Selection)
-                    if (endIndex > fEnd) {
-                      for (let i = fStart; i < fEnd; i++) {
-                        walkedWidth += fontOptions.characterWidth[i - fStart]
-                      }
-                      // walkedWidth += (fEnd - fStart) * fontOptions.characterWidth
-                    } else if (endIndex >= fStart && endIndex <= fEnd) {
-                      for (let i = fStart; i < endIndex; i++) {
-                        walkedWidth += fontOptions.characterWidth[i - fStart]
-                      }
-                      // walkedWidth += (endIndex - fStart) * fontOptions.characterWidth
-                    }
-                  }
-                  //未知原因会闪烁:FIX
-                  canvasProxy.current.style.left = `${walkedWidth}px`
-                  canvasProxy.current.style.top = `${
-                    node.structure.contentBox.location.y +
-                    options.contentBox.location.y +
-                    paragrahOptions.contentBox.location.y +
-                    rowOptions.contentBox.location.y +
-                    (rowOptions.contentBox.size.height * 1.1) / 1.2 -
-                    rowOptions.contentBox.size.height / 1.2 / options.Leading
-                  }px`
-                  canvasProxy.current.style.height = `${rowOptions.contentBox.size.height / options.Leading}px`
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    [canvasProxy.current, template, canvasRef.current],
-  )
-  const blurProxy = useCallback(() => {
-    if (canvasProxy.current) {
-      ;(canvasProxy.current as HTMLInputElement).value = ''
-    }
-  }, [canvasProxy.current])
   /***
    * 代理元素初始化样式
    */
   useEffect(() => {
     if (canvasRef.current) {
       const proxyEle: HTMLInputElement = document.createElement('input')
-      proxyEle.style.width = `200px` //设置大一点，放置页面闪烁
+      proxyEle.style.width = `100px` //设置大一点，防止网页中输入框闪烁
       proxyEle.style.height = `10px`
       proxyEle.style.position = 'absolute'
       proxyEle.style.left = '0'
@@ -1200,16 +1185,17 @@ const useCanvas = (canvasRef: React.RefObject<HTMLCanvasElement>, template: Temp
     if (canvasProxy.current) {
       canvasProxy.current.addEventListener('keydown', keydownProxy)
       canvasProxy.current.addEventListener('input', inputProxy)
+      canvasProxy.current.addEventListener('compositionend', composingend)
       canvasProxy.current.addEventListener('blur', blurProxy)
+      return () => {
+        canvasProxy.current?.removeEventListener('keydown', keydownProxy)
+        canvasProxy.current?.removeEventListener('input', inputProxy)
+        canvasProxy.current?.removeEventListener('blur', blurProxy)
+      }
     }
-    return () => {
-      canvasProxy.current?.removeEventListener('keydown', keydownProxy)
-      canvasProxy.current?.removeEventListener('input', inputProxy)
-      canvasProxy.current?.removeEventListener('blur', blurProxy)
-    }
-  }, [canvasProxy.current, template])
+  }, [canvasProxy.current, _template])
 
-  return { preview, print }
+  return { activeNode: isEmptyNode(activeNode) ? undefined : activeNode }
 }
 
 export default useCanvas
