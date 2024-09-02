@@ -1111,6 +1111,12 @@ export default class TextOptionsManage implements ITextOptionsManage {
       }
     }
 
+    const breakPSelection = Object.values(pSelectionMap)[0] || []
+    const breakRSelection = Object.values(rSelectionMap)[0] || []
+    if (breakPSelection.length != 2) {
+      return
+    }
+
     options.paragrahsIndex.map((p, i) => {
       if (pSelectionMap[p] != null) {
         options.paragrahsIndex.splice(i, 1, ...pSelectionMap[p].map((bp) => SelectionManage.stringifySelection(bp)))
@@ -1123,24 +1129,20 @@ export default class TextOptionsManage implements ITextOptionsManage {
       }
     })
 
-    const breakPSelection = Object.values(pSelectionMap)[0]
-    const breakRSelection = Object.values(rSelectionMap)[0]
-    if (breakPSelection.length === 2) {
-      for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
-        const psObj = SelectionManage.parseSelection(pSelection as Selection)
-        if (psObj.startIndex < index && psObj.endIndex > index) {
-          delete options.paragrahs[pSelection as Selection]
-          options.paragrahs[SelectionManage.stringifySelection(breakPSelection[0])] = {
-            ...structuredClone(pOptions),
-            paragrahIndex: pOptions.paragrahIndex,
-          }
-          options.paragrahs[SelectionManage.stringifySelection(breakPSelection[1])] = {
-            ...structuredClone(pOptions),
-            paragrahIndex: pOptions.paragrahIndex + 1,
-          }
-        } else if (index < psObj.startIndex) {
-          pOptions.paragrahIndex += 1
+    for (const [pSelection, pOptions] of Object.entries(options.paragrahs)) {
+      const psObj = SelectionManage.parseSelection(pSelection as Selection)
+      if (psObj.startIndex < index && psObj.endIndex > index) {
+        delete options.paragrahs[pSelection as Selection]
+        options.paragrahs[SelectionManage.stringifySelection(breakPSelection[0])] = {
+          ...JSON.parse(JSON.stringify(pOptions)),
+          paragrahIndex: pOptions.paragrahIndex,
         }
+        options.paragrahs[SelectionManage.stringifySelection(breakPSelection[1])] = {
+          ...JSON.parse(JSON.stringify(pOptions)),
+          paragrahIndex: pOptions.paragrahIndex + 1,
+        }
+      } else if (index < psObj.startIndex) {
+        pOptions.paragrahIndex += 1
       }
     }
 
@@ -1150,7 +1152,19 @@ export default class TextOptionsManage implements ITextOptionsManage {
           const rsObj = SelectionManage.parseSelection(rSelection as Selection)
           if (rsObj.startIndex < index && rsObj.endIndex > index) {
             delete pOptions.rows[rSelection as Selection]
-            pOptions.rows[SelectionManage.stringifySelection(breakRSelection[0])] = structuredClone(rOptions)
+            pOptions.rows[SelectionManage.stringifySelection(breakRSelection[0])] = rOptions
+
+            for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
+              const fsObj = SelectionManage.parseSelection(rSelection as Selection)
+              if (fsObj.startIndex < index && fsObj.endIndex > index) {
+                delete rOptions.font[fSelection as Selection]
+                rOptions.font[SelectionManage.stringifySelection({ startIndex: fsObj.startIndex, endIndex: index })] = {
+                  ...fOptions,
+                }
+              } else if (fsObj.startIndex > index) {
+                delete rOptions.font[fSelection as Selection]
+              }
+            }
           } else if (rsObj.startIndex >= index) {
             delete pOptions.rows[rSelection as Selection]
           }
@@ -1161,9 +1175,25 @@ export default class TextOptionsManage implements ITextOptionsManage {
           const rsObj = SelectionManage.parseSelection(rSelection as Selection)
           if (rsObj.startIndex < index && rsObj.endIndex > index) {
             delete pOptions.rows[rSelection as Selection]
-            pOptions.rows[SelectionManage.stringifySelection(breakRSelection[1])] = structuredClone(rOptions)
+            pOptions.rows[SelectionManage.stringifySelection(breakRSelection[1])] = {
+              ...rOptions,
+              rowIndex: ++rOptions.rowIndex,
+            }
+
+            for (const [fSelection, fOptions] of Object.entries(rOptions.font)) {
+              const fsObj = SelectionManage.parseSelection(rSelection as Selection)
+              if (fsObj.startIndex < index && fsObj.endIndex > index) {
+                delete rOptions.font[fSelection as Selection]
+                rOptions.font[SelectionManage.stringifySelection({ startIndex: index, endIndex: fsObj.endIndex })] =
+                  fOptions
+              } else if (fsObj.endIndex < index) {
+                delete rOptions.font[fSelection as Selection]
+              }
+            }
           } else if (rsObj.endIndex <= index) {
             delete pOptions.rows[rSelection as Selection]
+          } else {
+            pOptions.rows[rSelection as Selection] = { ...rOptions, rowIndex: ++rOptions.rowIndex }
           }
         }
       }

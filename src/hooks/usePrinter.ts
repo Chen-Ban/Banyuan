@@ -297,11 +297,11 @@ export default function usePrinter(
    * @param {Template} template：模板信息
    */
   const render = useCallback(
-    (template: Template, canvasEleProps: CanvasEleProps) => {
-      if (ctx) {
+    (ctx: CanvasRenderingContext2D, template: Template, canvasEleProps?: CanvasEleProps) => {
+      if (ctx && template) {
         ctx.reset()
         //渲染背景
-        renderCanvasBackground(canvasEleProps)
+        canvasEleProps && renderCanvasBackground(canvasEleProps)
         // 循环渲染模板中每个节点
         for (const node of template.nodeList) {
           ctx.save()
@@ -316,7 +316,7 @@ export default function usePrinter(
 
       if (shouuldAnimation(template)) {
         animationFrameIdRef.current = requestAnimationFrame(() => {
-          render(template, canvasEleProps)
+          render(ctx, template, canvasEleProps)
         })
       }
     },
@@ -325,7 +325,7 @@ export default function usePrinter(
 
   useEffect(() => {
     if (ctx && template && canvasEleProps) {
-      render(template, canvasEleProps)
+      render(ctx, template, canvasEleProps)
     }
     return () => {
       if (animationFrameIdRef.current) {
@@ -334,4 +334,6 @@ export default function usePrinter(
       }
     }
   }, [ctx, template?.nodeList, template?.templateData, canvasEleProps])
+
+  return { render }
 }

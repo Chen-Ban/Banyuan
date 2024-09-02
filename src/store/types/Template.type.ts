@@ -1,4 +1,7 @@
 import { TemplateData } from './TemplateData.type'
+
+//TODO：几何类型和工具函数合并成类
+
 //点
 export type Point = {
   x: number
@@ -97,6 +100,9 @@ export type FontOptions = {
 
 export type Range<T> = Record<Selection, T>
 
+//TODO: 优化掉这一层级，行的属性合并到段中，比如行间距等
+//深层次的层级难以操作，并且这相当于一个中间结果
+//尽量设计一个扁平的数据结构
 export type RowOptions = {
   font: Range<FontOptions>
   //每一行的文本区域

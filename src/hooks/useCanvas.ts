@@ -53,12 +53,15 @@ import { CanvasEleProps } from 'src/models/CanvasManage/ICanvasManage'
 import usePrinter from './usePrinter'
 
 import { BOXPADDING } from 'src/constants/CanvasRendering'
+import { TemplateData } from 'src/store/types/TemplateData.type'
 
 const useCanvas = (
   canvasRef: React.RefObject<HTMLCanvasElement>,
   template: Template | undefined,
   canvasEleProps: CanvasEleProps,
+  save: (template: Template) => void,
 ) => {
+  save
   //键盘转发元素ref
   const canvasProxy = useRef<HTMLInputElement | null>(null)
 
@@ -75,7 +78,7 @@ const useCanvas = (
   const textOptionsManageRef = useRef<TextOptionsManage>()
 
   //渲染模板数据
-  usePrinter(canvasManageRef.current?.ctx, _template, canvasEleProps)
+  const { render } = usePrinter(canvasManageRef.current?.ctx, _template, canvasEleProps)
 
   /** -----------------------------------------------------
   *                     双击事件处                         -
@@ -798,6 +801,20 @@ const useCanvas = (
                 break
               }
               case ValidModifierKeys.ENTER: {
+                set_template((_template) => {
+                  if (_template && textOptionsManageRef.current) {
+                    _template.nodeList.forEach((node) => {
+                      if (
+                        node.instanceId === activeNode.instanceId &&
+                        textOptionsManageRef.current &&
+                        isTextNode(node)
+                      ) {
+                        textOptionsManageRef.current.modifyOptions(node.options, oldSelection, '')
+                        textOptionsManageRef.current.breakOptions(node.options, oldSelection.startIndex)
+                      }
+                    })
+                  }
+                })
                 break
               }
               case ComposingKeys.COPY: {
@@ -1195,7 +1212,98 @@ const useCanvas = (
     }
   }, [canvasProxy.current, _template])
 
-  return { activeNode: isEmptyNode(activeNode) ? undefined : activeNode }
+  const getTemplate = () => {
+    return _template!
+  }
+
+  const getImage = (templateData?: TemplateData) => {
+    if (canvasManageRef.current?.ctx && canvasManageRef.current?.canvasEle && _template) {
+      if (templateData) {
+        render(canvasManageRef.current.ctx, Object.assign(_template, { templateData }))
+      } else {
+        render(canvasManageRef.current.ctx, _template)
+        console.log('重新渲染')
+      }
+
+      console.log(canvasManageRef.current.ctx, canvasManageRef.current.canvasEle)
+
+      const imgData = canvasManageRef.current.ctx.getImageData(
+        0,
+        0,
+        canvasManageRef.current.canvasEle.width,
+        canvasManageRef.current.canvasEle.height,
+      )
+      console.log(imgData)
+
+      // canvasManageRef.current.ctx.reset()
+      // canvasManageRef.current.ctx.putImageData(resizeImageData(imgData, 200, 300), 0, 0)
+      // return canvasManageRef.current.canvasEle.toDataURL('image/png')
+    }
+  }
+  const getImageData = (templateData?: TemplateData) => {
+    if (canvasManageRef.current?.ctx && canvasManageRef.current?.canvasEle && _template) {
+      if (templateData) {
+        render(canvasManageRef.current?.ctx, Object.assign(_template, { templateData }))
+      } else {
+        render(canvasManageRef.current?.ctx, _template)
+      }
+      const imgdata = canvasManageRef.current.ctx.getImageData(
+        0,
+        0,
+        canvasManageRef.current.canvasEle.width,
+        canvasManageRef.current.canvasEle.height,
+      )
+
+      return imageDataToBitmap(resizeImageData(imgdata, 50, 100))
+    }
+  }
+  const resizeImageData = (originalImageData: ImageData, newWidth: number, newHeight: number) => {
+    const originalWidth = originalImageData.width
+    const originalHeight = originalImageData.height
+    const newData = new Uint8ClampedArray(newWidth * newHeight * 4)
+    let index = 0
+    for (let y = 0; y < newHeight; y++) {
+      for (let x = 0; x < newWidth; x++) {
+        const ox = Math.floor((x * originalWidth) / newWidth)
+        const oy = Math.floor((y * originalHeight) / newHeight)
+        const sourceIndex = (oy * originalWidth + ox) * 4
+        // 复制原始像素到新数组
+        newData[index++] = originalImageData.data[sourceIndex] // R
+        newData[index++] = originalImageData.data[sourceIndex + 1] // G
+        newData[index++] = originalImageData.data[sourceIndex + 2] // B
+        newData[index++] = originalImageData.data[sourceIndex + 3] // A
+      }
+    }
+    // 创建一个新的ImageData对象
+    const resizedImageData = new ImageData(newData, newWidth, newHeight)
+
+    return resizedImageData
+  }
+
+  const imageDataToBitmap = (imageData: ImageData) => {
+    const width = imageData.width
+    const height = imageData.height
+    const data = imageData.data
+    const bitmap = []
+    // 遍历每个像素
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        // 计算当前像素的索引
+        const index = (y * width + x) * 4 // 因为每个像素包含4个值（RGBA）
+        // 检查该像素是否为白色
+        // 假设白色为RGB值都为255的像素
+        if (data[index] === 255 && data[index + 1] === 255 && data[index + 2] === 255) {
+          bitmap.push(0) // 是白色，加入0
+        } else {
+          bitmap.push(1) // 不是白色，加入1
+        }
+      }
+    }
+
+    return bitmap
+  }
+
+  return { activeNode: isEmptyNode(activeNode) ? undefined : activeNode, getTemplate, getImage, getImageData }
 }
 
 export default useCanvas

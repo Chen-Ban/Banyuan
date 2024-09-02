@@ -9,7 +9,6 @@ class ArchiveController {
   async getSingleArchive(ctx, next) {
     const archiveId = ctx.params.archiveId
 
-    console.log(archiveId)
     const archive = await ArchiveServices.getSingleArchive(archiveId)
     ctx.status = 200
     ctx.body = {

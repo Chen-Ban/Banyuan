@@ -18,6 +18,7 @@
     "koa-static": "^5.0.0",
     "mongoose": "^8.4.4",
     "printer": "^0.4.0",
+    "usb": "^2.13.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
