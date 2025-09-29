@@ -14,11 +14,6 @@ export class LinkNode<T> {
         this.next = node
         node.prev = this
     }
-
-    prepend(node: LinkNode<T>) {
-        this.prev = node
-        node.next = this
-    }
 }
 
 export class Diff{
