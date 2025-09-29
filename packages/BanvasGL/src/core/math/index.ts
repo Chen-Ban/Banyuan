@@ -1,0 +1,4 @@
+export {default as Point3} from './Point3'
+export {default as Vector3} from './Vector3'
+export {default as Matrix4} from './Matrix4'
+export {default as MathUtils} from './MathUtils'
