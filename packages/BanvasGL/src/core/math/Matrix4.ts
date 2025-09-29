@@ -1,0 +1,461 @@
+export default class Matrix4 {
+    private data: Float32Array
+    
+    constructor(data?: number[][] | Float32Array) {
+        this.data = new Float32Array(16)
+        if (data) {
+            if (data instanceof Float32Array) {
+                this.data.set(data)
+            } else {
+                this.data.set(data.flat())
+            }
+        }
+    }
+
+    // 获取元素 (行主序)
+    get(row: number, col: number): number {
+        return this.data[row * 4 + col]
+    }
+
+    // 设置元素 (行主序)
+    set(row: number, col: number, value: number): void {
+        this.data[row * 4 + col] = value
+    }
+
+    // 获取原始数据
+    get transform(): number[] {
+        return Array.from(this.data)
+    }
+
+    // 复制矩阵
+    copy(): Matrix4 {
+        return new Matrix4([[...this.data]])
+    }
+
+    // 矩阵乘法
+    multiply(matrix: Matrix4): Matrix4 {
+        const result = new Matrix4()
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 4; j++) {
+                let sum = 0
+                for (let k = 0; k < 4; k++) {
+                    sum += this.data[i * 4 + k] * matrix.data[k * 4 + j]
+                }
+                result.data[i * 4 + j] = sum
+            }
+        }
+        this.data = result.data
+        return this
+    }
+
+    // 平移变换 (行主序，平移分量在位置3、7、11)
+    translate(x: number, y: number, z: number): Matrix4 {
+        const result = this.copy()
+        result.data[3] += x
+        result.data[7] += y
+        result.data[11] += z
+        this.data = result.data
+        return this
+    }
+
+    // 缩放变换
+    scale(x: number, y: number, z: number): Matrix4 {
+        const result = this.copy()
+        result.data[0] *= x
+        result.data[5] *= y
+        result.data[10] *= z
+        this.data = result.data
+        return this
+    }
+
+    // 绕X轴旋转 (行主序)
+    rotateX(angle: number): Matrix4 {
+        const cos = Math.cos(angle)
+        const sin = Math.sin(angle)
+        const result = this.copy()
+        
+        // 第二行 (索引4-7)
+        const temp1 = result.data[4]
+        const temp2 = result.data[5]
+        result.data[4] = temp1 * cos + temp2 * sin
+        result.data[5] = temp2 * cos - temp1 * sin
+        
+        // 第三行 (索引8-11)
+        const temp3 = result.data[8]
+        const temp4 = result.data[9]
+        result.data[8] = temp3 * cos + temp4 * sin
+        result.data[9] = temp4 * cos - temp3 * sin
+        
+        // 第四行 (索引12-15)
+        const temp5 = result.data[12]
+        const temp6 = result.data[13]
+        result.data[12] = temp5 * cos + temp6 * sin
+        result.data[13] = temp6 * cos - temp5 * sin
+        this.data = result.data
+        return this
+    }
+
+    // 绕Y轴旋转 (行主序)
+    rotateY(angle: number): Matrix4 {
+        const cos = Math.cos(angle)
+        const sin = Math.sin(angle)
+        const result = this.copy()
+        
+        // 第一行 (索引0-3)
+        const temp1 = result.data[0]
+        const temp2 = result.data[2]
+        result.data[0] = temp1 * cos - temp2 * sin
+        result.data[2] = temp1 * sin + temp2 * cos
+        
+        // 第二行 (索引4-7)
+        const temp3 = result.data[4]
+        const temp4 = result.data[6]
+        result.data[4] = temp3 * cos - temp4 * sin
+        result.data[6] = temp3 * sin + temp4 * cos
+        
+        // 第三行 (索引8-11)
+        const temp5 = result.data[8]
+        const temp6 = result.data[10]
+        result.data[8] = temp5 * cos - temp6 * sin
+        result.data[10] = temp5 * sin + temp6 * cos
+        
+        // 第四行 (索引12-15)
+        const temp7 = result.data[12]
+        const temp8 = result.data[14]
+        result.data[12] = temp7 * cos - temp8 * sin
+        result.data[14] = temp7 * sin + temp8 * cos
+        this.data = result.data
+        return this
+    }
+
+    // 绕Z轴旋转 (行主序)
+    rotateZ(angle: number): Matrix4 {
+        const cos = Math.cos(angle)
+        const sin = Math.sin(angle)
+        const result = this.copy()
+        
+        // 第一行 (索引0-3)
+        const temp1 = result.data[0]
+        const temp2 = result.data[1]
+        result.data[0] = temp1 * cos + temp2 * sin
+        result.data[1] = temp2 * cos - temp1 * sin
+        
+        // 第二行 (索引4-7)
+        const temp3 = result.data[4]
+        const temp4 = result.data[5]
+        result.data[4] = temp3 * cos + temp4 * sin
+        result.data[5] = temp4 * cos - temp3 * sin
+        
+        // 第三行 (索引8-11)
+        const temp5 = result.data[8]
+        const temp6 = result.data[9]
+        result.data[8] = temp5 * cos + temp6 * sin
+        result.data[9] = temp6 * cos - temp5 * sin
+        
+        // 第四行 (索引12-15)
+        const temp7 = result.data[12]
+        const temp8 = result.data[13]
+        result.data[12] = temp7 * cos + temp8 * sin
+        result.data[13] = temp8 * cos - temp7 * sin
+        this.data = result.data
+        return this
+    }
+
+    // 组合旋转
+    rotate(x: number = 0, y: number = 0, z: number = 0): Matrix4 {
+        let result = this.copy()
+        if (x !== 0) result = result.rotateX(x)
+        if (y !== 0) result = result.rotateY(y)
+        if (z !== 0) result = result.rotateZ(z)
+        this.data = result.data
+        return this
+    }
+
+    // 矩阵转置
+    transpose(): Matrix4 {
+        const result = new Matrix4()
+        for (let i = 0; i < 4; i++) {
+            for (let j = 0; j < 4; j++) {
+                result.data[j * 4 + i] = this.data[i * 4 + j]
+            }
+        }
+        return result
+    }
+
+    // 计算行列式
+    get determinant(): number {
+        const a00 = this.data[0], a01 = this.data[1], a02 = this.data[2], a03 = this.data[3]
+        const a10 = this.data[4], a11 = this.data[5], a12 = this.data[6], a13 = this.data[7]
+        const a20 = this.data[8], a21 = this.data[9], a22 = this.data[10], a23 = this.data[11]
+        const a30 = this.data[12], a31 = this.data[13], a32 = this.data[14], a33 = this.data[15]
+
+        return a00 * (a11 * (a22 * a33 - a23 * a32) - a12 * (a21 * a33 - a23 * a31) + a13 * (a21 * a32 - a22 * a31)) -
+               a01 * (a10 * (a22 * a33 - a23 * a32) - a12 * (a20 * a33 - a23 * a30) + a13 * (a20 * a32 - a22 * a30)) +
+               a02 * (a10 * (a21 * a33 - a23 * a31) - a11 * (a20 * a33 - a23 * a30) + a13 * (a20 * a31 - a21 * a30)) -
+               a03 * (a10 * (a21 * a32 - a22 * a31) - a11 * (a20 * a32 - a22 * a30) + a12 * (a20 * a31 - a21 * a30))
+    }
+
+    // 矩阵逆 (行主序)
+    inverse(): Matrix4 {
+        const det = this.determinant
+        if (Math.abs(det) < 1e-10) {
+            throw new Error('Matrix is singular (determinant is zero)')
+        }
+
+        const result = new Matrix4()
+        const invDet = 1 / det
+
+        // 使用伴随矩阵方法计算逆矩阵 (行主序)
+        result.data[0] = (this.data[5] * (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
+                         this.data[6] * (this.data[9] * this.data[15] - this.data[11] * this.data[13]) +
+                         this.data[7] * (this.data[9] * this.data[14] - this.data[10] * this.data[13])) * invDet
+
+        result.data[1] = -(this.data[1] * (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
+                          this.data[2] * (this.data[9] * this.data[15] - this.data[11] * this.data[13]) +
+                          this.data[3] * (this.data[9] * this.data[14] - this.data[10] * this.data[13])) * invDet
+
+        result.data[2] = (this.data[1] * (this.data[6] * this.data[15] - this.data[7] * this.data[14]) -
+                         this.data[2] * (this.data[5] * this.data[15] - this.data[7] * this.data[13]) +
+                         this.data[3] * (this.data[5] * this.data[14] - this.data[6] * this.data[13])) * invDet
+
+        result.data[3] = -(this.data[1] * (this.data[6] * this.data[11] - this.data[7] * this.data[10]) -
+                          this.data[2] * (this.data[5] * this.data[11] - this.data[7] * this.data[9]) +
+                          this.data[3] * (this.data[5] * this.data[10] - this.data[6] * this.data[9])) * invDet
+
+        result.data[4] = -(this.data[4] * (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
+                          this.data[6] * (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
+                          this.data[7] * (this.data[8] * this.data[14] - this.data[10] * this.data[12])) * invDet
+
+        result.data[5] = (this.data[0] * (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
+                         this.data[2] * (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
+                         this.data[3] * (this.data[8] * this.data[14] - this.data[10] * this.data[12])) * invDet
+
+        result.data[6] = -(this.data[0] * (this.data[6] * this.data[15] - this.data[7] * this.data[14]) -
+                          this.data[2] * (this.data[4] * this.data[15] - this.data[7] * this.data[12]) +
+                          this.data[3] * (this.data[4] * this.data[14] - this.data[6] * this.data[12])) * invDet
+
+        result.data[7] = (this.data[0] * (this.data[6] * this.data[11] - this.data[7] * this.data[10]) -
+                         this.data[2] * (this.data[4] * this.data[11] - this.data[7] * this.data[8]) +
+                         this.data[3] * (this.data[4] * this.data[10] - this.data[6] * this.data[8])) * invDet
+
+        result.data[8] = (this.data[4] * (this.data[9] * this.data[15] - this.data[11] * this.data[13]) -
+                         this.data[5] * (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
+                         this.data[7] * (this.data[8] * this.data[13] - this.data[9] * this.data[12])) * invDet
+
+        result.data[9] = -(this.data[0] * (this.data[9] * this.data[15] - this.data[11] * this.data[13]) -
+                          this.data[1] * (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
+                          this.data[3] * (this.data[8] * this.data[13] - this.data[9] * this.data[12])) * invDet
+
+        result.data[10] = (this.data[0] * (this.data[5] * this.data[15] - this.data[7] * this.data[13]) -
+                          this.data[1] * (this.data[4] * this.data[15] - this.data[7] * this.data[12]) +
+                          this.data[3] * (this.data[4] * this.data[13] - this.data[5] * this.data[12])) * invDet
+
+        result.data[11] = -(this.data[0] * (this.data[5] * this.data[11] - this.data[7] * this.data[9]) -
+                           this.data[1] * (this.data[4] * this.data[11] - this.data[7] * this.data[8]) +
+                           this.data[3] * (this.data[4] * this.data[9] - this.data[5] * this.data[8])) * invDet
+
+        result.data[12] = -(this.data[4] * (this.data[9] * this.data[14] - this.data[10] * this.data[13]) -
+                           this.data[5] * (this.data[8] * this.data[14] - this.data[10] * this.data[12]) +
+                           this.data[6] * (this.data[8] * this.data[13] - this.data[9] * this.data[12])) * invDet
+
+        result.data[13] = (this.data[0] * (this.data[9] * this.data[14] - this.data[10] * this.data[13]) -
+                          this.data[1] * (this.data[8] * this.data[14] - this.data[10] * this.data[12]) +
+                          this.data[2] * (this.data[8] * this.data[13] - this.data[9] * this.data[12])) * invDet
+
+        result.data[14] = -(this.data[0] * (this.data[5] * this.data[14] - this.data[6] * this.data[13]) -
+                           this.data[1] * (this.data[4] * this.data[14] - this.data[6] * this.data[12]) +
+                           this.data[2] * (this.data[4] * this.data[13] - this.data[5] * this.data[12])) * invDet
+
+        result.data[15] = (this.data[0] * (this.data[5] * this.data[10] - this.data[6] * this.data[9]) -
+                          this.data[1] * (this.data[4] * this.data[10] - this.data[6] * this.data[8]) +
+                          this.data[2] * (this.data[4] * this.data[9] - this.data[5] * this.data[8])) * invDet
+
+        return result
+    }
+
+    // 静态方法：创建单位矩阵
+    static identity(): Matrix4 {
+        const matrix = new Matrix4()
+        matrix.data[0] = 1
+        matrix.data[5] = 1
+        matrix.data[10] = 1
+        matrix.data[15] = 1
+        return matrix
+    }
+
+    // 静态方法：创建零矩阵
+    static zeros(): Matrix4 {
+        return new Matrix4()
+    }
+
+    // 静态方法：创建平移矩阵 (行主序，平移分量在位置3、7、11)
+    static translation(x: number, y: number, z: number): Matrix4 {
+        const matrix = Matrix4.identity()
+        matrix.data[3] = x
+        matrix.data[7] = y
+        matrix.data[11] = z
+        return matrix
+    }
+
+    // 静态方法：创建缩放矩阵
+    static scaling(x: number, y: number, z: number): Matrix4 {
+        const matrix = Matrix4.identity()
+        matrix.data[0] = x
+        matrix.data[5] = y
+        matrix.data[10] = z
+        return matrix
+    }
+
+    // 静态方法：创建绕X轴旋转矩阵 (行主序)
+    static rotationX(angle: number): Matrix4 {
+        const cos = Math.cos(angle)
+        const sin = Math.sin(angle)
+        const matrix = Matrix4.identity()
+        // 第二行 (索引4-7)
+        matrix.data[4] = 1
+        matrix.data[5] = cos
+        matrix.data[6] = sin
+        matrix.data[7] = 0
+        // 第三行 (索引8-11)
+        matrix.data[8] = 0
+        matrix.data[9] = -sin
+        matrix.data[10] = cos
+        matrix.data[11] = 0
+        return matrix
+    }
+
+    // 静态方法：创建绕Y轴旋转矩阵 (行主序)
+    static rotationY(angle: number): Matrix4 {
+        const cos = Math.cos(angle)
+        const sin = Math.sin(angle)
+        const matrix = Matrix4.identity()
+        // 第一行 (索引0-3)
+        matrix.data[0] = cos
+        matrix.data[1] = 0
+        matrix.data[2] = -sin
+        matrix.data[3] = 0
+        // 第三行 (索引8-11)
+        matrix.data[8] = sin
+        matrix.data[9] = 0
+        matrix.data[10] = cos
+        matrix.data[11] = 0
+        return matrix
+    }
+
+    // 静态方法：创建绕Z轴旋转矩阵 (行主序)
+    static rotationZ(angle: number): Matrix4 {
+        const cos = Math.cos(angle)
+        const sin = Math.sin(angle)
+        const matrix = Matrix4.identity()
+        // 第一行 (索引0-3)
+        matrix.data[0] = cos
+        matrix.data[1] = sin
+        matrix.data[2] = 0
+        matrix.data[3] = 0
+        // 第二行 (索引4-7)
+        matrix.data[4] = -sin
+        matrix.data[5] = cos
+        matrix.data[6] = 0
+        matrix.data[7] = 0
+        return matrix
+    }
+
+    // 静态方法：创建透视投影矩阵 (行主序)
+    static perspective(fov: number, aspect: number, near: number, far: number): Matrix4 {
+        const f = 1.0 / Math.tan(fov / 2)
+        const rangeInv = 1 / (near - far)
+        
+        const matrix = new Matrix4()
+        // 第一行 (索引0-3)
+        matrix.data[0] = f / aspect
+        matrix.data[1] = 0
+        matrix.data[2] = 0
+        matrix.data[3] = 0
+        // 第二行 (索引4-7)
+        matrix.data[4] = 0
+        matrix.data[5] = f
+        matrix.data[6] = 0
+        matrix.data[7] = 0
+        // 第三行 (索引8-11)
+        matrix.data[8] = 0
+        matrix.data[9] = 0
+        matrix.data[10] = (near + far) * rangeInv
+        matrix.data[11] = -1
+        // 第四行 (索引12-15)
+        matrix.data[12] = 0
+        matrix.data[13] = 0
+        matrix.data[14] = near * far * rangeInv * 2
+        matrix.data[15] = 0
+        
+        return matrix
+    }
+
+    // 静态方法：创建正交投影矩阵 (行主序)
+    static orthographic(left: number, right: number, bottom: number, top: number, near: number, far: number): Matrix4 {
+        const matrix = Matrix4.identity()
+        // 第一行 (索引0-3)
+        matrix.data[0] = 2 / (right - left)
+        matrix.data[1] = 0
+        matrix.data[2] = 0
+        matrix.data[3] = -(right + left) / (right - left)
+        // 第二行 (索引4-7)
+        matrix.data[4] = 0
+        matrix.data[5] = 2 / (top - bottom)
+        matrix.data[6] = 0
+        matrix.data[7] = -(top + bottom) / (top - bottom)
+        // 第三行 (索引8-11)
+        matrix.data[8] = 0
+        matrix.data[9] = 0
+        matrix.data[10] = -2 / (far - near)
+        matrix.data[11] = -(far + near) / (far - near)
+        return matrix
+    }
+
+    // 静态方法：创建视图矩阵
+    static lookAt(eye: [number, number, number], target: [number, number, number], up: [number, number, number]): Matrix4 {
+        const zAxis = [
+            eye[0] - target[0],
+            eye[1] - target[1],
+            eye[2] - target[2]
+        ]
+        const zLength = Math.sqrt(zAxis[0] * zAxis[0] + zAxis[1] * zAxis[1] + zAxis[2] * zAxis[2])
+        zAxis[0] /= zLength
+        zAxis[1] /= zLength
+        zAxis[2] /= zLength
+
+        const xAxis = [
+            up[1] * zAxis[2] - up[2] * zAxis[1],
+            up[2] * zAxis[0] - up[0] * zAxis[2],
+            up[0] * zAxis[1] - up[1] * zAxis[0]
+        ]
+        const xLength = Math.sqrt(xAxis[0] * xAxis[0] + xAxis[1] * xAxis[1] + xAxis[2] * xAxis[2])
+        xAxis[0] /= xLength
+        xAxis[1] /= xLength
+        xAxis[2] /= xLength
+
+        const yAxis = [
+            zAxis[1] * xAxis[2] - zAxis[2] * xAxis[1],
+            zAxis[2] * xAxis[0] - zAxis[0] * xAxis[2],
+            zAxis[0] * xAxis[1] - zAxis[1] * xAxis[0]
+        ]
+
+        const matrix = Matrix4.identity()
+        // 第一行 (索引0-3)
+        matrix.data[0] = xAxis[0]
+        matrix.data[1] = yAxis[0]
+        matrix.data[2] = zAxis[0]
+        matrix.data[3] = -(xAxis[0] * eye[0] + xAxis[1] * eye[1] + xAxis[2] * eye[2])
+        // 第二行 (索引4-7)
+        matrix.data[4] = xAxis[1]
+        matrix.data[5] = yAxis[1]
+        matrix.data[6] = zAxis[1]
+        matrix.data[7] = -(yAxis[0] * eye[0] + yAxis[1] * eye[1] + yAxis[2] * eye[2])
+        // 第三行 (索引8-11)
+        matrix.data[8] = xAxis[2]
+        matrix.data[9] = yAxis[2]
+        matrix.data[10] = zAxis[2]
+        matrix.data[11] = -(zAxis[0] * eye[0] + zAxis[1] * eye[1] + zAxis[2] * eye[2])
+
+        return matrix
+    }
+}
