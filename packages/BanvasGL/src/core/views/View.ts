@@ -36,7 +36,7 @@ type ViewContent = Graph | ImageElement | VideoElement | Texts | View[] | null
 
 export default abstract class View<T extends object = any> {
     // 基本属性
-    public readonly type: VIEWTYPE.VIEW = VIEWTYPE.VIEW
+    public readonly type: VIEWTYPE = VIEWTYPE.VIEW
     public layer: number = 0
     public id: string = ''
     public properties: T = {} as T
@@ -110,10 +110,12 @@ export default abstract class View<T extends object = any> {
 
         // 获取内容边界框
         const contentBounds = this.getContentBounds()
+        
         if(!contentBounds)throw new Error('Content bounds is not set')
 
         const viewWidth = Math.max(0, contentBounds.x + contentBounds.width)
         const viewHeight = Math.max(0, contentBounds.y + contentBounds.height)
+        
 
         // 先初始化包围盒插件，使用计算出的view尺寸
         this.boundingBox = vo.boundingBox || new BoundingBoxAddonImpl(
@@ -652,39 +654,6 @@ export default abstract class View<T extends object = any> {
         return this.content
     }
 
-    // 查找方法
-    public findById(id: string): View | null {
-        if (this.id === id) {
-            return this
-        }
-        return null
-    }
-
-    public findByType(type: VIEWTYPE): View[] {
-        if (this.type === type) {
-            return [this]
-        }
-        return []
-    }
-
-    // 遍历方法
-    public traverse(callback: (view: View) => void): void {
-        callback(this)
-    }
-
-    public traverseReverse(callback: (view: View) => void): void {
-        callback(this)
-    }
-
-    // 获取根视图
-    public getRoot(): View {
-        let current: View = this
-        while (current.parent && current.parent instanceof View) {
-            current = current.parent
-        }
-        return current
-    }
-
     // 获取深度
     public getDepth(): number {
         let depth = 0
@@ -695,42 +664,6 @@ export default abstract class View<T extends object = any> {
         }
         return depth
     }
-
-    // 检查是否包含指定视图
-    public contains(view: View): boolean {
-        return this === view
-    }
-
-    // 获取所有后代视图
-    public getDescendants(): View[] {
-        const descendants: View[] = []
-        this.traverse(view => {
-            if (view !== this) {
-                descendants.push(view)
-            }
-        })
-        return descendants
-    }
-
-    // 获取兄弟视图
-    public getSiblings(): View[] {
-        return []
-    }
-
-    // 获取下一个兄弟视图
-    public getNextSibling(): View | null {
-        const siblings = this.getSiblings()
-        const currentIndex = siblings.findIndex(sibling => sibling === this)
-        return currentIndex < siblings.length - 1 ? siblings[currentIndex + 1] : null
-    }
-
-    // 获取上一个兄弟视图
-    public getPreviousSibling(): View | null {
-        const siblings = this.getSiblings()
-        const currentIndex = siblings.findIndex(sibling => sibling === this)
-        return currentIndex > 0 ? siblings[currentIndex - 1] : null
-    }
-
 
     // 销毁视图
     public destroy(): void {

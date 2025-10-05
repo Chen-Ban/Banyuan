@@ -5,7 +5,7 @@ import Matrix4 from '../math/Matrix4'
 import { Point3, Vector3 } from '../math'
 import Style from '../style/Style'
 import { Graph } from '../graph'
-import { Operation, SceneSnapshot } from '../scene/operationStack/OperationStack'
+import { Operation,Diff } from '../scene/utils/OperationStack'
 
 // 导入可实例化图形类型
 import CombinedGraph from '../graph/combined/CombinedGraph'
@@ -13,7 +13,6 @@ import ComplexGraph from '../graph/combined/ComplexGraph/ComplexGraph'
 import Line from '../graph/analytic/Line'
 import Circle from '../graph/analytic/Circle'
 import Arc from '../graph/analytic/Arc'
-import Bezier from '../graph/analytic/Bezier'
 import QuadraticBezier from '../graph/analytic/QuadraticBezier'
 import CubicBezier from '../graph/analytic/CubicBezier'
 
@@ -83,7 +82,7 @@ export default class Serializer {
     includeFunctions: false,
     includePrivate: false,
     handleCircularRefs: true,
-    maxDepth: 10
+    maxDepth: 29
   }
 
   private constructor() {
@@ -137,15 +136,14 @@ export default class Serializer {
 
 
     // 注册Operation类型
-    this.registerType('Operation', Object, {
+    this.registerType('Operation', Operation, {
       serialize: (operation: Operation) => this.serializeOperation(operation),
       deserialize: (data: any) => this.deserializeOperation(data)
     })
 
-    // 注册SceneSnapshot类型
-    this.registerType('SceneSnapshot', Object, {
-      serialize: (snapshot: SceneSnapshot) => this.serializeSceneSnapshot(snapshot),
-      deserialize: (data: any) => this.deserializeSceneSnapshot(data)
+    this.registerType("Diff",Diff,{
+      serialize:(diffs:Diff[])=> this.serializeDiffs(diffs),
+      deserialize:(data:any)=>this.deserializeDiffs(data)
     })
 
     // 注册可实例化图形类型
@@ -418,58 +416,28 @@ export default class Serializer {
    * 序列化View对象
    */
   private serializeView(view: View): any {
-    const result: any = {
-      id: view.id,
-      type: view.type,
-      layer: view.layer,
-      properties: this.serializeValue(view.properties, this.defaultOptions, 0),
-      data: this.serializeValue(view.data, this.defaultOptions, 0),
-      style: this.serializeValue(view.style, this.defaultOptions, 0),
-      selected: view.selected,
-      actived: view.actived,
-      freezed: view.freezed,
-      visible: view.visible,
-      matrix: this.serializeValue(view.matrix, this.defaultOptions, 0),
-      viewport: view.viewport,
-      controlPoints: view.controlPoints,
-      boundingBox: view.boundingBox,
-      content: this.serializeValue(view.content, this.defaultOptions, 0)
-    }
-
-    // 序列化自定义函数（包括生命周期回调）
-    const customFunctions: any = {}
-    Object.keys(view).forEach(key => {
-      if (typeof (view as any)[key] === 'function' && 
-          !['onCreated', 'onDestroy', 'onAttach'].includes(key) &&
-          !key.startsWith('_')) {
-        customFunctions[key] = (view as any)[key].toString()
+    switch(view.type){
+      case VIEWTYPE.VIEW :{
+        break
       }
-    })
-
-    // 序列化生命周期回调函数
-    if (view.onCreate) {
-      customFunctions.onCreate = view.onCreate.toString()
+      default:{
+        throw new Error("unknown view type")
+      }
     }
-    if (view.onAttach) {
-      customFunctions.onAttach = view.onAttach.toString()
-    }
-    if (view.onDestroy) {
-      customFunctions.onDestroy = view.onDestroy.toString()
-    }
-
-    if (Object.keys(customFunctions).length > 0) {
-      result.customFunctions = customFunctions
-    }
-
-    return result
   }
 
   /**
    * 反序列化View对象
    */
   private deserializeView(data: any): any {
-    // 不能直接实例化抽象类View，返回null
-    return null
+    switch(data.$type){
+      case VIEWTYPE.VIEW :{
+        break
+      }
+      default:{
+        throw new Error("unknown view type")
+      }
+    }
   }
 
   /**
@@ -478,7 +446,7 @@ export default class Serializer {
   private serializeScene(scene: Scene): any {
     const result: any = {
       id: scene.id,
-      children: scene.children.map(child => this.serializeValue(child, this.defaultOptions, 0)),
+      children: scene.children.map(child => this.serializeView(child)),
       data: this.serializeValue(scene.data, this.defaultOptions, 0),
       camera: this.serializeValue(scene.camera, this.defaultOptions, 0)
     }
@@ -525,16 +493,16 @@ export default class Serializer {
             const callback = new Function('return ' + callbackString)()
             switch (callbackName) {
               case 'onLoad':
-                scene.setOnLoad(callback)
+                scene.onLoad = callback
                 break
               case 'onUnload':
-                scene.setOnUnload(callback)
+                scene.onUnload = callback
                 break
               case 'onShow':
-                scene.setOnShow(callback)
+                scene.onShow = callback
                 break
               case 'onHide':
-                scene.setOnHide(callback)
+                scene.onHide = callback
                 break
             }
           }
@@ -669,13 +637,8 @@ export default class Serializer {
    */
   private serializeOperation(operation: Operation): any {
     return {
-      sceneSnapshot: {
-        old: this.serializeValue(operation.sceneSnapshot.old, this.defaultOptions, 0),
-        new: this.serializeValue(operation.sceneSnapshot.new, this.defaultOptions, 0)
-      },
-      type: operation.type,
-      timestamp: operation.timestamp,
-      description: operation.description
+      diffs:this.serializeDiffs(operation.diffs),
+      timestamp:operation.timestamp
     }
   }
 
@@ -684,34 +647,27 @@ export default class Serializer {
    */
   private deserializeOperation(data: any): Operation {
     return {
-      sceneSnapshot: {
-        old: this.deserializeValue(data.sceneSnapshot.old, this.defaultOptions),
-        new: this.deserializeValue(data.sceneSnapshot.new, this.defaultOptions)
-      },
-      type: data.type,
-      timestamp: data.timestamp,
-      description: data.description
+      diffs:this.deserializeDiffs(data.diffs),
+      timestamp:data.timestamp
     }
   }
 
-  /**
-   * 序列化SceneSnapshot对象
-   */
-  private serializeSceneSnapshot(snapshot: SceneSnapshot): any {
-    return {
-      sceneJson: snapshot.sceneJson,
-      description: snapshot.description
-    }
+  private serializeDiffs(diffs:Diff[]):any{
+    return diffs.map(diff =>({
+      parentId: diff.parentId,
+      id: diff.id,
+      type: diff.type,
+      content:this.serializeView(diff.content)
+    }))
   }
 
-  /**
-   * 反序列化SceneSnapshot对象
-   */
-  private deserializeSceneSnapshot(data: any): SceneSnapshot {
-    return {
-      sceneJson: data.sceneJson,
-      description: data.description
-    }
+  private deserializeDiffs(data:any[]):Diff[]{
+    return data.map(diffJson=>({
+      parentId:diffJson.parentId,
+      id:diffJson.id,
+      type:diffJson.type,
+      content:this.deserializeView(diffJson.content)
+    }))
   }
 
   // ========== 便捷方法 ==========
@@ -842,36 +798,8 @@ export default class Serializer {
     return Serializer.getInstance().deserialize<GraphView>(json, options)
   }
 
-  /**
-   * 验证序列化数据格式
-   */
-  public static validateSerializedData(json: string): boolean {
-    try {
-      const data: SerializedData = JSON.parse(json)
-      return !!(data.type && data.version && data.data)
-    } catch {
-      return false
-    }
-  }
 
-  /**
-   * 获取序列化数据信息
-   */
-  public static getSerializedDataInfo(json: string): { type: string; version: string; timestamp?: number } | null {
-    try {
-      const data: SerializedData = JSON.parse(json)
-      return {
-        type: data.type,
-        version: data.version,
-        timestamp: data.metadata?.timestamp
-      }
-    } catch {
-      return null
-    }
-  }
-
-  // ========== 可实例化图形的序列化方法 ==========
-
+  // ========== 可实例化图形的序列化方法 =========
   /**
    * 序列化CombinedGraph对象
    */

@@ -26,6 +26,7 @@ export const enum GRAPHTYPE  {
 // 视图类型枚举
 export const enum VIEWTYPE {
     VIEW = 'VIEW',
+    TEXSTVIEW = "TEXTVIEW"
 }
 
 // 文字对齐方式枚举

@@ -1,13 +1,13 @@
 import View from '../views/View'
 import { BaseCamera } from '../camera'
-import { OperationStack, Operation, SnapshotApplier, SceneSnapshot } from './operationStack'
+import { OperationStack, Operation, LayerManager,} from './utils'
 import CanvasContext from '../renderer/CanvasContext'
 import Matrix4 from '../math/Matrix4'
 import Style from '../style/Style'
 import { v4 as uuidv4 } from 'uuid'
-import { GraphView, ImageView, VideoView, TextView, CombinedView, GraphViewOptions, ImageViewOptions, VideoViewOptions, TextViewOptions, CombinedViewOptions } from '../views'
+import { CombinedView} from '../views'
 
-export interface SceneOptions {
+export interface SceneOptions{
     camera?: BaseCamera
     style?: Style
     data?: any
@@ -31,7 +31,7 @@ export default class Scene {
     private _isVisible: boolean = false
     private _loadParams: any = null
     
-    // 生命周期回调函数
+    // 传入的生命周期回调函数
     private _onLoad?: (params: any) => void
     private _onUnload?: () => void
     private _onShow?: () => void
@@ -40,10 +40,7 @@ export default class Scene {
     constructor(camera: BaseCamera, options: SceneOptions = {}) {
         this.camera = camera
         this.style = options.style || new Style()
-        this.operationStack = new OperationStack()
-        
-        // 设置快照应用器
-        this.operationStack.setSnapshotApplier(this.applySnapshot.bind(this))
+        this.operationStack = new OperationStack(this.applyOperation.bind(this))
         
         // 设置选项
         if (options.data) {
@@ -158,22 +155,6 @@ export default class Scene {
         return worldMatrix.copy()
     }
 
-    // 计算MVP矩阵 (Model-View-Projection) - 旧方法保留用于兼容
-    private calculateMVPMatrix(view: View): Matrix4 {
-        // Model矩阵：view的变换矩阵
-        const modelMatrix = view.matrix
-        
-        // View-Projection矩阵：相机的VP矩阵
-        if (this.camera) {
-            const viewProjectionMatrix = this.camera.viewProjectionMatrix
-            // MVP = VP * M
-            return viewProjectionMatrix.copy().multiply(modelMatrix)
-        }
-        
-        // 如果没有相机，只返回Model矩阵
-        return modelMatrix.copy()
-    }
-
     // 获取视口信息
     private getViewport(): { x: number, y: number, width: number, height: number } {
         if (this.camera) {
@@ -261,26 +242,11 @@ export default class Scene {
     // 子视图管理
     public addChild(child: View): Scene {
         if (!this.children.includes(child)) {
-            // 创建操作前的快照
-            const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before add child')
-            
             // 设置子视图的层级
             this.setChildLayer(child)
-            
             this.children.push(child)
             child.parent = this
             child.onAttach()
-            
-            // 创建操作后的快照
-            const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After add child')
-            
-            // 记录操作
-            const operation = OperationStack.createOperation(
-                { old: oldSceneSnapshot, new: newSceneSnapshot },
-                'add',
-                `Add child: ${child.id || 'unknown'}`
-            )
-            this.recordOperation(operation)
         }
         return this
     }
@@ -288,117 +254,31 @@ export default class Scene {
     public removeChild(child: View): Scene {
         const index = this.children.indexOf(child)
         if (index > -1) {
-            // 创建操作前的快照
-            const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before remove child')
-            
             this.children.splice(index, 1)
             child.parent = null
-            
-            // 创建操作后的快照
-            const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After remove child')
-            
-            // 记录操作
-            const operation = OperationStack.createOperation(
-                { old: oldSceneSnapshot, new: newSceneSnapshot },
-                'remove',
-                `Remove child: ${child.id || 'unknown'}`
-            )
-            this.recordOperation(operation)
-        }
-        return this
-    }
-
-    public insertChild(child: View, index: number): Scene {
-        if (index >= 0 && index <= this.children.length) {
-            // 创建操作前的快照
-            const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before insert child')
-            
-            this.children.splice(index, 0, child)
-            child.parent = this
-            child.onAttach()
-            
-            // 创建操作后的快照
-            const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After insert child')
-            
-            // 记录操作
-            const operation = OperationStack.createOperation(
-                { old: oldSceneSnapshot, new: newSceneSnapshot },
-                'add',
-                `Insert child: ${child.id || 'unknown'} at index ${index}`
-            )
-            this.recordOperation(operation)
         }
         return this
     }
 
     public clearChildren(): Scene {
-        // 创建操作前的快照
-        const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before clear children')
-        
-        const children = [...this.children]
         this.children.forEach(child => {
             child.parent = null
         })
         this.children = []
-        
-        // 创建操作后的快照
-        const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After clear children')
-        
-        // 记录操作
-        const operation = OperationStack.createOperation(
-            { old: oldSceneSnapshot, new: newSceneSnapshot },
-            'remove',
-            `Clear all children (${children.length} items)`
-        )
-        this.recordOperation(operation)
-        
         return this
     }
 
-    public getChildCount(): number {
-        return this.children.length
-    }
+    private applyOperation(operation: Operation): void {
+        //将operation应用到scene上
+        for(let diff of operation.diffs){
 
-    public getChild(index: number): View | null {
-        return this.children[index] || null
-    }
+        }
 
-    public findChildById(id: string): View | null {
-        for (const child of this.children) {
-            if (child.id === id) {
-                return child
-            }
-            const found = child.findById(id)
-            if (found) {
-                return found
-            }
-        }
-        return null
-    }
-
-    // 快照应用器
-    private applySnapshot(snapshot: SceneSnapshot | null): void {
-        if (!snapshot) {
-            return
-        }
-        
-        try {
-            // 从快照恢复Scene状态
-            const restoredScene = OperationStack.restoreSceneFromSnapshot(snapshot)
-            if (restoredScene) {
-                // 更新当前Scene的状态
-                this.children = restoredScene.children
-                this.data = restoredScene.data
-                this.camera = restoredScene.camera
-            }
-        } catch (error) {
-            console.error('Failed to apply snapshot:', error)
-        }
     }
 
     // 操作栈管理
-    public recordOperation(operation: Operation): void {
-        this.operationStack.push(operation)
+    public recordOperation(operation:Operation):boolean{
+        return this.operationStack.do(operation)
     }
 
     public undo(): boolean {
@@ -408,79 +288,16 @@ export default class Scene {
     public redo(): boolean {
         return this.operationStack.redo()
     }
-
-    public canUndo(): boolean {
-        return this.operationStack.canUndo()
-    }
-
-    public canRedo(): boolean {
-        return this.operationStack.canRedo()
-    }
-
-    public clearHistory(): void {
-        this.operationStack.clear()
-    }
-
-    // 相机管理
-    public setCamera(camera: BaseCamera): Scene {
-        this.camera = camera
-        return this
-    }
-
-    public getCamera(): BaseCamera {
-        return this.camera
-    }
-
     // 数据管理
     public setData(data: any): Scene {
         this.data = data
         return this
     }
-
-    public getData(): any {
-        return this.data
-    }
-
-    // 生命周期回调管理
-    public setOnLoad(callback: (params: any) => void): Scene {
-        this._onLoad = callback
-        return this
-    }
-
-    public setOnUnload(callback: () => void): Scene {
-        this._onUnload = callback
-        return this
-    }
-
-    public setOnShow(callback: () => void): Scene {
-        this._onShow = callback
-        return this
-    }
-
-    public setOnHide(callback: () => void): Scene {
-        this._onHide = callback
-        return this
-    }
-
-    // 状态查询
-    public isLoaded(): boolean {
-        return this._isLoaded
-    }
-
-    public isVisible(): boolean {
-        return this._isVisible
-    }
-
-    public getLoadParams(): any {
-        return this._loadParams
-    }
-
     // 场景管理
     public load(params: any = {}): Scene {
         this.onLoad(params)
         return this
     }
-
     public unload(): Scene {
         this.onUnload()
         return this
@@ -495,16 +312,6 @@ export default class Scene {
         this.onHide()
         return this
     }
-
-    // 遍历方法
-    public traverse(callback: (view: View) => void): void {
-        this.children.forEach(child => child.traverse(callback))
-    }
-
-    public traverseReverse(callback: (view: View) => void): void {
-        this.children.forEach(child => child.traverseReverse(callback))
-    }
-
     // 后序遍历方法 - 用于渲染顺序
     private getPostOrderTraversal(): View[] {
         const result: View[] = []
@@ -531,25 +338,8 @@ export default class Scene {
         return result
     }
 
-    // 查找方法
-    public findByType(type: string): View[] {
-        const results: View[] = []
-        
-        this.children.forEach(child => {
-            if (child.type === type) {
-                results.push(child)
-            }
-            // 注意：这里需要根据View类的实际findByType方法签名来调整
-            // 如果View的findByType接受VIEWTYPE，需要转换类型
-            try {
-                results.push(...child.findByType(type as any))
-            } catch (e) {
-                // 如果类型不匹配，跳过递归查找
-            }
-        })
-        
-        return results
-    }
+
+
 
     // 复制场景
     public copy(): Scene {
@@ -572,10 +362,6 @@ export default class Scene {
         return uuidv4()
     }
 
-    // 获取子视图
-    public getChildren(): View[] {
-        return [...this.children]
-    }
 
     // 层级管理方法
     /**
@@ -604,34 +390,7 @@ export default class Scene {
      * 将视图移到最前面（置顶）
      */
     public bringToFront(view: View): Scene {
-        if (!this.children.includes(view)) {
-            return this
-        }
-
-        // 创建操作前的快照
-        const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before bring to front')
-        
-        // 获取当前最大层级
-        const maxLayer = Math.max(...this.children.map(c => c.layer))
-        const newLayer = maxLayer + 1
-        
-        // 更新视图及其子视图的层级
-        this.updateViewLayer(view, newLayer)
-        
-        // 检查是否需要更新父视图层级
-        this.updateParentLayerIfNeeded(view)
-        
-        // 创建操作后的快照
-        const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After bring to front')
-        
-        // 记录操作
-        const operation = OperationStack.createOperation(
-            { old: oldSceneSnapshot, new: newSceneSnapshot },
-            'layer',
-            `Bring to front: ${view.id || 'unknown'}`
-        )
-        this.recordOperation(operation)
-        
+        LayerManager.bringToFront(this.children,view)
         return this
     }
 
@@ -639,88 +398,16 @@ export default class Scene {
      * 将视图移到最后面（置底）
      */
     public sendToBack(view: View): Scene {
-        if (!this.children.includes(view)) {
-            return this
-        }
-
-        // 创建操作前的快照
-        const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before send to back')
-        
-        // 获取当前最小层级
-        const minLayer = Math.min(...this.children.map(c => c.layer))
-        const newLayer = minLayer - 1
-        
-        // 更新视图及其子视图的层级
-        this.updateViewLayer(view, newLayer)
-        
-        // 检查是否需要更新父视图层级
-        this.updateParentLayerIfNeeded(view)
-        
-        // 创建操作后的快照
-        const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After send to back')
-        
-        // 记录操作
-        const operation = OperationStack.createOperation(
-            { old: oldSceneSnapshot, new: newSceneSnapshot },
-            'layer',
-            `Send to back: ${view.id || 'unknown'}`
-        )
-        this.recordOperation(operation)
-        
+        LayerManager.sendToBack(this.children,view)
         return this
+       
     }
 
     /**
      * 将视图上移一层
      */
     public bringForward(view: View): Scene {
-        if (!this.children.includes(view)) {
-            return this
-        }
-
-        // 创建操作前的快照
-        const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before bring forward')
-        
-        // 获取当前层级
-        const currentLayer = view.layer
-        
-        // 找到比当前层级大的最小层级
-        const higherLayers = this.children
-            .filter(c => c.layer > currentLayer)
-            .map(c => c.layer)
-            .sort((a, b) => a - b)
-        
-        if (higherLayers.length > 0) {
-            // 交换层级
-            const targetLayer = higherLayers[0]
-            const targetView = this.children.find(c => c.layer === targetLayer)
-            
-            if (targetView) {
-                // 交换两个视图的层级
-                this.updateViewLayer(view, targetLayer)
-                this.updateViewLayer(targetView, currentLayer)
-                
-                // 检查是否需要更新父视图层级
-                this.updateParentLayerIfNeeded(view)
-                this.updateParentLayerIfNeeded(targetView)
-            }
-        } else {
-            // 没有更高的层级，直接增加层级
-            this.updateViewLayer(view, currentLayer + 1)
-            this.updateParentLayerIfNeeded(view)
-        }
-        
-        // 创建操作后的快照
-        const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After bring forward')
-        
-        // 记录操作
-        const operation = OperationStack.createOperation(
-            { old: oldSceneSnapshot, new: newSceneSnapshot },
-            'layer',
-            `Bring forward: ${view.id || 'unknown'}`
-        )
-        this.recordOperation(operation)
-        
+        LayerManager.bringForward(this.children,view)
         return this
     }
 
@@ -728,53 +415,7 @@ export default class Scene {
      * 将视图下移一层
      */
     public sendBackward(view: View): Scene {
-        if (!this.children.includes(view)) {
-            return this
-        }
-
-        // 创建操作前的快照
-        const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before send backward')
-        
-        // 获取当前层级
-        const currentLayer = view.layer
-        
-        // 找到比当前层级小的最大层级
-        const lowerLayers = this.children
-            .filter(c => c.layer < currentLayer)
-            .map(c => c.layer)
-            .sort((a, b) => b - a)
-        
-        if (lowerLayers.length > 0) {
-            // 交换层级
-            const targetLayer = lowerLayers[0]
-            const targetView = this.children.find(c => c.layer === targetLayer)
-            
-            if (targetView) {
-                // 交换两个视图的层级
-                this.updateViewLayer(view, targetLayer)
-                this.updateViewLayer(targetView, currentLayer)
-                
-                // 检查是否需要更新父视图层级
-                this.updateParentLayerIfNeeded(view)
-                this.updateParentLayerIfNeeded(targetView)
-            }
-        } else {
-            // 没有更低的层级，直接减少层级
-            this.updateViewLayer(view, currentLayer - 1)
-            this.updateParentLayerIfNeeded(view)
-        }
-        
-        // 创建操作后的快照
-        const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After send backward')
-        
-        // 记录操作
-        const operation = OperationStack.createOperation(
-            { old: oldSceneSnapshot, new: newSceneSnapshot },
-            'layer',
-            `Send backward: ${view.id || 'unknown'}`
-        )
-        this.recordOperation(operation)
-        
+        LayerManager.sendBackward(this.children,view)
         return this
     }
 
@@ -782,129 +423,8 @@ export default class Scene {
      * 设置视图到指定层级
      */
     public setLayer(view: View, layer: number): Scene {
-        if (!this.children.includes(view)) {
-            return this
-        }
-
-        // 创建操作前的快照
-        const oldSceneSnapshot = OperationStack.createSceneSnapshot(this, 'Before set layer')
-        
-        // 更新视图及其子视图的层级
-        this.updateViewLayer(view, layer)
-        
-        // 检查是否需要更新父视图层级
-        this.updateParentLayerIfNeeded(view)
-        
-        // 创建操作后的快照
-        const newSceneSnapshot = OperationStack.createSceneSnapshot(this, 'After set layer')
-        
-        // 记录操作
-        const operation = OperationStack.createOperation(
-            { old: oldSceneSnapshot, new: newSceneSnapshot },
-            'layer',
-            `Set layer: ${view.id || 'unknown'} to ${layer}`
-        )
-        this.recordOperation(operation)
-        
+        LayerManager.setLayer(this.children,view,layer)
         return this
-    }
-
-    /**
-     * 更新视图及其所有子视图的层级
-     */
-    private updateViewLayer(view: View, newLayer: number): void {
-        const layerDiff = newLayer - view.layer
-        view.layer = newLayer
-        
-        // 递归更新所有子视图的层级
-        view.traverse(child => {
-            if (child !== view) {
-                child.layer += layerDiff
-            }
-        })
-    }
-
-    /**
-     * 检查并更新父视图的层级（如果需要）
-     */
-    private updateParentLayerIfNeeded(view: View): void {
-        if (!view.parent || !(view.parent instanceof View)) {
-            return
-        }
-        
-        const parent = view.parent as View
-        const siblings = parent.getChildren()
-        
-        if (siblings.length === 0) {
-            return
-        }
-        
-        // 检查当前视图是否为父视图直接子元素中最大层级的元素
-        const maxSiblingLayer = Math.max(...siblings.map((s: View) => s.layer))
-        if (view.layer === maxSiblingLayer) {
-            // 更新父视图层级为子视图最大层级
-            parent.layer = maxSiblingLayer
-        }
-        
-        // 检查当前视图是否为父视图直接子元素中最小层级的元素
-        const minSiblingLayer = Math.min(...siblings.map((s: View) => s.layer))
-        if (view.layer === minSiblingLayer) {
-            // 更新父视图层级为子视图最小层级
-            parent.layer = minSiblingLayer
-        }
-    }
-
-    /**
-     * 获取指定视图的层级
-     */
-    public getLayer(view: View): number {
-        return view.layer
-    }
-
-    /**
-     * 获取所有子视图的层级信息
-     */
-    public getLayerInfo(): Array<{ view: View, layer: number }> {
-        return this.children.map(view => ({
-            view,
-            layer: view.layer
-        })).sort((a, b) => a.layer - b.layer)
-    }
-
-    // 静态方法：创建和合并View
-    /**
-     * 创建图形视图
-     */
-    public static createGraphView(graph: any, options: GraphViewOptions = {}): GraphView {
-        return new GraphView(graph, options)
-    }
-
-    /**
-     * 创建图像视图
-     */
-    public static createImageView(image: any, options: ImageViewOptions = {}): ImageView {
-        return new ImageView(image, options)
-    }
-
-    /**
-     * 创建视频视图
-     */
-    public static createVideoView(video: any, options: VideoViewOptions = {}): VideoView {
-        return new VideoView(video, options)
-    }
-
-    /**
-     * 创建文本视图
-     */
-    public static createTextView(text: any, options: TextViewOptions = {}): TextView {
-        return new TextView(text, options)
-    }
-
-    /**
-     * 创建组合视图
-     */
-    public static createCombinedView(views: View[] = [], options: CombinedViewOptions = {}): CombinedView {
-        return new CombinedView(views, options)
     }
 
     /**
