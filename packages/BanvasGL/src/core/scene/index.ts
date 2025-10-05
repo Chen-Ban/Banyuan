@@ -1,4 +1,4 @@
 export { default as Scene } from './Scene'
-export { OperationStack } from './operationStack'
+export { OperationStack } from './utils'
 export type { SceneOptions } from './Scene'
-export type { Operation } from './operationStack'
+export type { Operation } from './utils'

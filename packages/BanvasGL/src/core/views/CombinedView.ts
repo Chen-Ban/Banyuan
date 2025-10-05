@@ -1,6 +1,4 @@
 import View, { ViewOptions } from './View'
-import CanvasContext from '../renderer/CanvasContext'
-import Matrix4 from '../math/Matrix4'
 
 // 组合视图选项接口
 export interface CombinedViewOptions extends Omit<ViewOptions, 'content'> {
@@ -21,6 +19,7 @@ export default class CombinedView extends View {
         this.content.forEach(view => {
             view.parent = this as any
         })
+        
     }
 
     public renderContent(ctx: CanvasRenderingContext2D): void {
@@ -147,45 +146,8 @@ export default class CombinedView extends View {
         this.invalidateCache()
     }
 
-    // 重写查找方法以支持子View
-    public findById(id: string): View | null {
-        if (this.id === id) {
-            return this
-        }
-        
-        for (const child of this.content) {
-            const found = child.findById(id)
-            if (found) {
-                return found
-            }
-        }
-        
-        return null
-    }
-
-    public findByType(type: any): View[] {
-        const results: View[] = []
-        
-        if (this.type === type) {
-            results.push(this)
-        }
-        
-        for (const child of this.content) {
-            results.push(...child.findByType(type))
-        }
-        
-        return results
-    }
-
-    // 重写遍历方法以支持子View
-    public traverse(callback: (view: View) => void): void {
-        callback(this)
-        this.content.forEach(child => child.traverse(callback))
-    }
-
-    public traverseReverse(callback: (view: View) => void): void {
-        this.content.forEach(child => child.traverseReverse(callback))
-        callback(this)
+    public isCombinedView(){
+        return true
     }
 
     // 重写contains方法以支持子View

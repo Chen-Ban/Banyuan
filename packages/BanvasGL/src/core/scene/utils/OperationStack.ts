@@ -15,13 +15,18 @@ export class LinkNode<T> {
         node.prev = this
     }
 }
-
+// 最小粒度为view
 export class Diff{
-    parentId: string
-    view: View
-    constructor(parentId: string, view: View) {
+    parentId: string 
+    id:string 
+    content:View
+    // 操作类型
+    type: OperationType
+    constructor(parentId: string, id: string, content: View, type: OperationType) {
         this.parentId = parentId
-        this.view = view
+        this.id = id
+        this.content = content
+        this.type = type
     }
 }
 
@@ -35,22 +40,19 @@ export enum OperationType {
 
 export class Operation {
     // 操作前后的差异, 一次操作可能包含多个差异
-    diff: Diff[]
-    // 操作类型
-    type: OperationType
+    diffs: Diff[]
     // 时间戳
     timestamp: number
-    constructor(diff: Diff[], type: OperationType, timestamp: number) {
-        this.diff = diff
-        this.type = type
-        this.timestamp = timestamp
+    constructor(diffs: Diff[]) {
+        this.diffs = diffs
+        this.timestamp = Date.now()
     }
 }
 
-const noneOperation: Operation = new Operation([], OperationType.NONE, 0)
+const noneOperation: Operation = new Operation([])
 
 // 快照应用器类型
-export type OperationApplier = (operation: Operation | null) => void
+export type OperationApplier = (operation: Operation ) => void
 
 // 操作栈类
 export default class OperationStack {
@@ -95,10 +97,6 @@ export default class OperationStack {
         this.tail.append(node)
         this.tail = node
 
-        if(this.OperationApplier){
-            this.OperationApplier(node.value)
-        }
-
         if(this.length >= this.maxSize && this.head.next) {
             this.head = this.head.next
             this.head.prev = null
@@ -130,5 +128,12 @@ export default class OperationStack {
             return true
         }
         return false
+    }
+
+    clear():void{
+        const noneOperationNode = new LinkNode<Operation>(noneOperation)
+        this.head = noneOperationNode
+        this.tail = noneOperationNode
+        this.OperationApplier = undefined
     }
 }

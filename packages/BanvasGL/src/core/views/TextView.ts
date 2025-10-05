@@ -6,6 +6,7 @@ import CanvasContext from '../renderer/CanvasContext'
 import { Rectangle } from '../graph/combined/Polygon'
 import { Point3 } from '../math'
 import Selection from './Selection'
+import { VIEWTYPE } from '@/constants'
 
 // 文本视图选项接口
 export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
@@ -22,6 +23,7 @@ export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
  * 文本视图 - 专门处理Texts类型内容
  */
 export default class TextView extends View {
+    public readonly type: VIEWTYPE = VIEWTYPE.TEXSTVIEW
     public content: Texts
     public layoutArea: Rectangle | undefined
     public underLine: Rectangle | undefined
@@ -374,14 +376,19 @@ export default class TextView extends View {
     private updateBoundsFromLayoutArea(): void {
         if (this.layoutArea && this.boundingBox && this.viewport) {
             const bounds = this.layoutArea.getBounds()
+            console.log(bounds);
             
+            
+            const viewWidth = Math.max(0, bounds.x + bounds.width)
+            const viewHeight = Math.max(0, bounds.y + bounds.height)
+        
             // 更新boundingBox的尺寸
-            this.boundingBox.width = bounds.width
-            this.boundingBox.height = bounds.height
+            this.boundingBox.width = viewWidth
+            this.boundingBox.height = viewHeight
             
             // 更新视口插件的尺寸
-            this.viewport.width = bounds.width
-            this.viewport.height = bounds.height
+            this.viewport.width = viewWidth
+            this.viewport.height = viewHeight
         }
     }
 
