@@ -6,6 +6,7 @@ import Matrix4 from '../math/Matrix4'
 import Style from '../style/Style'
 import { v4 as uuidv4 } from 'uuid'
 import { CombinedView} from '../views'
+import { Point3 } from '../math'
 
 export interface SceneOptions{
     camera?: BaseCamera
@@ -115,16 +116,22 @@ export default class Scene {
         
         
         // 使用后序遍历渲染子视图，确保子节点优先渲染
-        const renderOrder = this.getPostOrderTraversal()
-        renderOrder.forEach(view => {
+        this.children.forEach(view => {
             if (view instanceof View) {
                 // 使用View的getWorldMatrix方法获取世界矩阵
                 const worldMatrix = view.getWorldMatrix()
                 const mvpMatrix = this.calculateMVPMatrixFromWorld(worldMatrix)
                 // 判断view是否在视口内
                 if (this.isViewInViewport(view, mvpMatrix, viewport)) {
-                    // 在视口内，直接调用view的render方法，传递MVP矩阵
-                    view.render(canvasContext, mvpMatrix)
+                    canvasContext.save()
+                    const transform = mvpMatrix.transform
+                    canvasContext.setTransform([transform[0], transform[4], transform[1], transform[5],transform[3], transform[7]])
+                    if(view.style){
+                        view.style.applyToContext(canvasContext.mainCtx)
+                        canvasContext.bufferCtx && view.style.applyToContext(canvasContext.bufferCtx)
+                    }
+                    view.render(canvasContext)
+                    canvasContext.restore()
                 }
                 // 不在视口内，跳过渲染
             }
@@ -147,6 +154,7 @@ export default class Scene {
         // View-Projection矩阵：相机的VP矩阵
         if (this.camera) {
             const viewProjectionMatrix = this.camera.viewProjectionMatrix
+            
             // MVP = VP * WorldMatrix
             return viewProjectionMatrix.copy().multiply(worldMatrix)
         }
@@ -181,36 +189,27 @@ export default class Scene {
     private isViewInViewport(view: View, mvpMatrix: Matrix4, viewport: { x: number, y: number, width: number, height: number }): boolean {
         // 获取view的边界框（使用BoundingBoxAddon计算，包含内容大小和内边距）
         const bounds = view.getBounds()
+        
         if (!bounds) {
             return false
         }
 
         // 将边界框的四个角点通过MVP矩阵变换到屏幕空间
         const corners = [
-            { x: bounds.x, y: bounds.y },                    // 左上
-            { x: bounds.x + bounds.width, y: bounds.y },     // 右上
-            { x: bounds.x, y: bounds.y + bounds.height },    // 左下
-            { x: bounds.x + bounds.width, y: bounds.y + bounds.height } // 右下
+            new Point3(bounds.x, bounds.y, 0),
+            new Point3(bounds.x + bounds.width, bounds.y, 0),
+            new Point3(bounds.x, bounds.y + bounds.height, 0),
+            new Point3(bounds.x + bounds.width, bounds.y + bounds.height, 0)
         ]
 
         // 变换所有角点到屏幕空间
         const transformedCorners = corners.map(corner => {
-            // 将2D点转换为齐次坐标，创建4x1列向量矩阵
-            const pointMatrix = new Matrix4([
-                [corner.x],
-                [corner.y],
-                [0],
-                [1]
-            ])
 
             // 使用矩阵左乘列向量
-            const transformedPoint = mvpMatrix.copy().multiply(pointMatrix)
-            const transform = transformedPoint.transform
-
-            // 提取变换后的坐标 (行主序)
-            const screenX = transform[0]  // 第一行第一列
-            const screenY = transform[4]  // 第二行第一列
-            const screenW = transform[12] // 第四行第一列
+            const transformedPoint = mvpMatrix.multiply(corner)
+            const screenX = transformedPoint.x
+            const screenY = transformedPoint.y
+            const screenW = transformedPoint.z
 
             // 透视除法
             if (screenW !== 0) {
@@ -228,6 +227,7 @@ export default class Scene {
         const maxX = Math.max(...transformedCorners.map(c => c.x))
         const minY = Math.min(...transformedCorners.map(c => c.y))
         const maxY = Math.max(...transformedCorners.map(c => c.y))
+        
 
         // 检查是否与视口相交
         return !(
@@ -312,34 +312,6 @@ export default class Scene {
         this.onHide()
         return this
     }
-    // 后序遍历方法 - 用于渲染顺序
-    private getPostOrderTraversal(): View[] {
-        const result: View[] = []
-        
-        // 递归后序遍历函数
-        const postOrderTraverse = (views: View[]) => {
-            views.forEach(view => {
-                // 先遍历子节点（只有CombinedView有子节点）
-                if (view instanceof CombinedView) {
-                    const children = view.getChildren()
-                    if (children && children.length > 0) {
-                        postOrderTraverse(children)
-                    }
-                }
-                // 再处理当前节点
-                result.push(view)
-            })
-        }
-        
-        // 按层级排序后开始后序遍历
-        const sortedChildren = this.getChildrenSortedByLayer()
-        postOrderTraverse(sortedChildren)
-        
-        return result
-    }
-
-
-
 
     // 复制场景
     public copy(): Scene {
@@ -514,7 +486,7 @@ export default class Scene {
         }
 
         const combinedView = view as CombinedView
-        const childViews = [...combinedView.content]
+        const childViews = [...combinedView.children]
         
         // 获取父view的世界矩阵
         const parentWorldMatrix = combinedView.getWorldMatrix()

@@ -1006,7 +1006,8 @@ export default class Serializer {
       viewport: view.viewport,
       controlPoints: view.controlPoints,
       boundingBox: view.boundingBox,
-      content: view.content.map(child => this.serializeValue(child, this.defaultOptions, 0))
+      content:this.serializeValue(view.content,this.defaultOptions,0),
+      children: view.children.map(child => this.serializeValue(child, this.defaultOptions, 0))
     }
 
     // 序列化生命周期回调函数

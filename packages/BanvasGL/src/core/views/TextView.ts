@@ -24,6 +24,8 @@ export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
  */
 export default class TextView extends View {
     public readonly type: VIEWTYPE = VIEWTYPE.TEXSTVIEW
+    public children: View<any>[] | null = null
+
     public content: Texts
     public layoutArea: Rectangle | undefined
     public underLine: Rectangle | undefined
@@ -52,6 +54,9 @@ export default class TextView extends View {
             this.updateBoundsFromLayoutArea()
             // 执行布局
             this.layout()
+            //计算包围盒
+            this.initBoundingBox()
+            this.initBoundingBox()
         }
     }
 

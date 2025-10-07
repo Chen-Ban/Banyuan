@@ -1,6 +1,6 @@
 import View, { ViewOptions } from './View'
 import { Graph } from '../graph'
-import CanvasContext from '../renderer/CanvasContext'
+import { VIEWTYPE } from '@/constants'
 
 // 图形视图选项接口
 export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
@@ -11,12 +11,16 @@ export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
  * 图形视图 - 专门处理Graph类型内容
  */
 export default class GraphView extends View {
+    public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW
     public content: Graph
+    public children:View[] | null = null
 
     constructor(graph: Graph, options: GraphViewOptions = {}) {
         // 将graph作为content传递给父类构造函数
-        super({ ...options, content: graph })
+        super({ ...options})
         this.content = graph
+        this.initBoundingBox()
+        this.initViewport()
     }
 
     public renderContent(ctx: CanvasRenderingContext2D): void {
@@ -25,13 +29,8 @@ export default class GraphView extends View {
         }
     }
 
-    
-
     public getContentBounds(): { x: number, y: number, width: number, height: number } {
-        if (this.content && typeof this.content.getBounds === 'function') {
-            return this.content.getBounds()
-        }
-        return { x: 0, y: 0, width: 0, height: 0 }
+        return this.content.getBounds()
     }
 
     public copy(): GraphView {
@@ -62,6 +61,4 @@ export default class GraphView extends View {
 
         return newView
     }
-
-
 }

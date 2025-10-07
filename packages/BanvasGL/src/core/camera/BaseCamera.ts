@@ -26,7 +26,7 @@ export default class BaseCamera {
         this._position = new Vector3(
             options.position?.[0] ?? 0,
             options.position?.[1] ?? 0,
-            options.position?.[2] ?? 5
+            options.position?.[2] ?? 0
         )
         this._target = new Vector3(
             options.target?.[0] ?? 0,

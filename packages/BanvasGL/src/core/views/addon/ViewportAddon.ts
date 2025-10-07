@@ -1,3 +1,5 @@
+import Bounds from "@/core/graph/base/Bounds"
+
 /**
  * 视口插件
  * 定义视图的视口区域，支持独立的位置和尺寸设置
@@ -77,13 +79,8 @@ export default class ViewportAddonImpl implements ViewportAddon {
     /**
      * 获取视口边界
      */
-    getBounds(): { x: number, y: number, width: number, height: number } {
-        return {
-            x: this.x,
-            y: this.y,
-            width: this.width,
-            height: this.height
-        }
+    getBounds(): Bounds {
+        return new Bounds(this.x,this.y,this.width,this.height)
     }
 
     /**

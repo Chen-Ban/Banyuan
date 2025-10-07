@@ -20,11 +20,12 @@ export default class CanvasContext {
 
     constructor(mainCanvas: HTMLCanvasElement, options: CanvasContextOptions = {}) {
         this.mainCanvas = mainCanvas
-        this.mainCtx = mainCanvas.getContext('2d')!
+        const ctx= mainCanvas.getContext('2d')
         
-        if (!this.mainCtx) {
+        if (!ctx) {
             throw new Error('Failed to get 2D rendering context from main canvas')
         }
+        this.mainCtx = ctx
 
         this.options = {
             enableOffscreen: true,
@@ -40,13 +41,36 @@ export default class CanvasContext {
             this.bufferCanvas = this.createCanvas()
             this.bufferCanvas.width = this.mainCanvas.width
             this.bufferCanvas.height = this.mainCanvas.height
-            this.bufferCtx = this.bufferCanvas.getContext('2d')!
+            this.bufferCtx = this.bufferCanvas.getContext('2d')
+            if(!this.bufferCtx)throw new Error('缓冲区上下文初始化失败')
         } else {
             this.bufferCanvas = null
             this.bufferCtx = null
         }
 
         this.initializeContexts()
+    }
+
+    public save(){
+        this.mainCtx.save()
+        this.bufferCtx?.save()
+    }
+
+    public restore(){
+        this.mainCtx.restore()
+        this.bufferCtx?.restore()
+    }
+
+    public setTransform(transform:number[]){
+        const [a,b,c,d,e,f] = transform
+        this.mainCtx.setTransform(a,b,c,d,e,f)
+        this.bufferCtx?.setTransform(a,b,c,d,e,f)
+    }
+
+    public transform(transform:number[]){
+        const [a,b,c,d,e,f] = transform
+        this.mainCtx.transform(a,b,c,d,e,f)
+        this.bufferCtx?.transform(a,b,c,d,e,f) 
     }
 
     // 初始化上下文
@@ -94,16 +118,6 @@ export default class CanvasContext {
             } catch (e) {
                 console.warn('Canvas package not found. Install with: npm install canvas')
             }
-        }
-        
-        // 小程序环境
-        if (typeof (globalThis as any).wx !== 'undefined' && (globalThis as any).wx.createCanvas) {
-            return (globalThis as any).wx.createCanvas()
-        }
-        
-        // 其他小程序环境
-        if (typeof (globalThis as any).my !== 'undefined' && (globalThis as any).my.createCanvas) {
-            return (globalThis as any).my.createCanvas()
         }
         
         // 如果都不支持，抛出错误

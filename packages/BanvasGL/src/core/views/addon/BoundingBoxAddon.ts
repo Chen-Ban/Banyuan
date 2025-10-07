@@ -1,4 +1,4 @@
-import { Point3, Matrix4 } from '../../math'
+import Bounds from "@/core/graph/base/Bounds"
 
 /**
  * 边界框插件
@@ -101,13 +101,8 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
      * 获取边界框（内容大小 + 内边距）
      * 相对定位：左上角 = -paddingLeft, -paddingTop
      */
-    getBounds(): { x: number, y: number, width: number, height: number } {
-        return {
-            x: -this.padding.left,
-            y: -this.padding.top,
-            width: this.width + this.padding.left + this.padding.right,
-            height: this.height + this.padding.top + this.padding.bottom
-        }
+    getBounds(): Bounds {
+        return new Bounds(-this.padding.left,-this.padding.top,this.width + this.padding.left + this.padding.right,this.height + this.padding.top + this.padding.bottom)
     }
 
     /**
