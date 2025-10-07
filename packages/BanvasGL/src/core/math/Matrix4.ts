@@ -1,3 +1,6 @@
+import Point3 from "./Point3"
+import Vector3 from "./Vector3"
+
 export default class Matrix4 {
     private data: Float32Array
     
@@ -29,11 +32,42 @@ export default class Matrix4 {
 
     // 复制矩阵
     copy(): Matrix4 {
-        return new Matrix4([[...this.data]])
+        return new Matrix4(new Float32Array(this.data))
     }
 
     // 矩阵乘法
-    multiply(matrix: Matrix4): Matrix4 {
+    multiply<T extends Matrix4 | Point3 | Vector3>(factor: T): T {
+        if(factor instanceof Matrix4) {
+            return this.multiplyMatrix(factor) as T
+        } else if(factor instanceof Point3) {
+            return this.multiplyPoint(factor) as T
+        } else if(factor instanceof Vector3) {
+            return this.multiplyVector(factor) as T
+        }
+        throw new Error('Invalid factor type')
+    }
+
+    multiplyPoint(point: Point3): Point3 {
+        const x = this.data[0] * point.x + this.data[1] * point.y + this.data[2] * point.z + this.data[3]
+        const y = this.data[4] * point.x + this.data[5] * point.y + this.data[6] * point.z + this.data[7]
+        const z = this.data[8] * point.x + this.data[9] * point.y + this.data[10] * point.z + this.data[11]
+        const w = this.data[12] * point.x + this.data[13] * point.y + this.data[14] * point.z + this.data[15]
+        
+        // 齐次坐标归一化
+        if (w !== 1 && w !== 0) {
+            return new Point3(x / w, y / w, z / w)
+        }
+        return new Point3(x, y, z)
+    }
+
+    multiplyVector(vector: Vector3): Vector3 {
+        const x = this.data[0] * vector.x + this.data[1] * vector.y + this.data[2] * vector.z 
+        const y = this.data[4] * vector.x + this.data[5] * vector.y + this.data[6] * vector.z 
+        const z = this.data[8] * vector.x + this.data[9] * vector.y + this.data[10] * vector.z
+        return new Vector3(x, y, z)
+    }
+
+    multiplyMatrix(matrix: Matrix4): Matrix4 {
         const result = new Matrix4()
         for (let i = 0; i < 4; i++) {
             for (let j = 0; j < 4; j++) {
@@ -44,119 +78,45 @@ export default class Matrix4 {
                 result.data[i * 4 + j] = sum
             }
         }
-        this.data = result.data
-        return this
+        return result
     }
 
-    // 平移变换 (行主序，平移分量在位置3、7、11)
+    // 平移变换 (变换矩阵左乘当前矩阵)
     translate(x: number, y: number, z: number): Matrix4 {
-        const result = this.copy()
-        result.data[3] += x
-        result.data[7] += y
-        result.data[11] += z
+        const translationMatrix = Matrix4.translation(x, y, z)
+        const result = translationMatrix.multiplyMatrix(this)
         this.data = result.data
         return this
     }
 
-    // 缩放变换
+    // 缩放变换 (变换矩阵左乘当前矩阵)
     scale(x: number, y: number, z: number): Matrix4 {
-        const result = this.copy()
-        result.data[0] *= x
-        result.data[5] *= y
-        result.data[10] *= z
+        const scalingMatrix = Matrix4.scaling(x, y, z)
+        const result = scalingMatrix.multiplyMatrix(this)
         this.data = result.data
         return this
     }
 
-    // 绕X轴旋转 (行主序)
-    rotateX(angle: number): Matrix4 {
-        const cos = Math.cos(angle)
-        const sin = Math.sin(angle)
-        const result = this.copy()
-        
-        // 第二行 (索引4-7)
-        const temp1 = result.data[4]
-        const temp2 = result.data[5]
-        result.data[4] = temp1 * cos + temp2 * sin
-        result.data[5] = temp2 * cos - temp1 * sin
-        
-        // 第三行 (索引8-11)
-        const temp3 = result.data[8]
-        const temp4 = result.data[9]
-        result.data[8] = temp3 * cos + temp4 * sin
-        result.data[9] = temp4 * cos - temp3 * sin
-        
-        // 第四行 (索引12-15)
-        const temp5 = result.data[12]
-        const temp6 = result.data[13]
-        result.data[12] = temp5 * cos + temp6 * sin
-        result.data[13] = temp6 * cos - temp5 * sin
+     // 绕X轴旋转 (变换矩阵左乘当前矩阵)
+     rotateX(angle: number): Matrix4 {
+        const rotationMatrix = Matrix4.rotationX(angle)
+        const result = rotationMatrix.multiplyMatrix(this)
         this.data = result.data
         return this
     }
 
-    // 绕Y轴旋转 (行主序)
+    // 绕Y轴旋转 (变换矩阵左乘当前矩阵)
     rotateY(angle: number): Matrix4 {
-        const cos = Math.cos(angle)
-        const sin = Math.sin(angle)
-        const result = this.copy()
-        
-        // 第一行 (索引0-3)
-        const temp1 = result.data[0]
-        const temp2 = result.data[2]
-        result.data[0] = temp1 * cos - temp2 * sin
-        result.data[2] = temp1 * sin + temp2 * cos
-        
-        // 第二行 (索引4-7)
-        const temp3 = result.data[4]
-        const temp4 = result.data[6]
-        result.data[4] = temp3 * cos - temp4 * sin
-        result.data[6] = temp3 * sin + temp4 * cos
-        
-        // 第三行 (索引8-11)
-        const temp5 = result.data[8]
-        const temp6 = result.data[10]
-        result.data[8] = temp5 * cos - temp6 * sin
-        result.data[10] = temp5 * sin + temp6 * cos
-        
-        // 第四行 (索引12-15)
-        const temp7 = result.data[12]
-        const temp8 = result.data[14]
-        result.data[12] = temp7 * cos - temp8 * sin
-        result.data[14] = temp7 * sin + temp8 * cos
+        const rotationMatrix = Matrix4.rotationY(angle)
+        const result = rotationMatrix.multiplyMatrix(this)
         this.data = result.data
         return this
     }
 
-    // 绕Z轴旋转 (行主序)
+    // 绕Z轴旋转 (变换矩阵左乘当前矩阵)
     rotateZ(angle: number): Matrix4 {
-        const cos = Math.cos(angle)
-        const sin = Math.sin(angle)
-        const result = this.copy()
-        
-        // 第一行 (索引0-3)
-        const temp1 = result.data[0]
-        const temp2 = result.data[1]
-        result.data[0] = temp1 * cos + temp2 * sin
-        result.data[1] = temp2 * cos - temp1 * sin
-        
-        // 第二行 (索引4-7)
-        const temp3 = result.data[4]
-        const temp4 = result.data[5]
-        result.data[4] = temp3 * cos + temp4 * sin
-        result.data[5] = temp4 * cos - temp3 * sin
-        
-        // 第三行 (索引8-11)
-        const temp5 = result.data[8]
-        const temp6 = result.data[9]
-        result.data[8] = temp5 * cos + temp6 * sin
-        result.data[9] = temp6 * cos - temp5 * sin
-        
-        // 第四行 (索引12-15)
-        const temp7 = result.data[12]
-        const temp8 = result.data[13]
-        result.data[12] = temp7 * cos + temp8 * sin
-        result.data[13] = temp8 * cos - temp7 * sin
+        const rotationMatrix = Matrix4.rotationZ(angle)
+        const result = rotationMatrix.multiplyMatrix(this)
         this.data = result.data
         return this
     }
@@ -312,7 +272,7 @@ export default class Matrix4 {
         const sin = Math.sin(angle)
         const matrix = Matrix4.identity()
         // 第二行 (索引4-7)
-        matrix.data[4] = 1
+        matrix.data[4] = 0
         matrix.data[5] = cos
         matrix.data[6] = sin
         matrix.data[7] = 0

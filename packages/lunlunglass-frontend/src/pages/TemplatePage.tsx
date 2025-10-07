@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState, useCallback } from 'react'
 import { useBanvas } from '../hooks/useBanvas'
-import { Scene, BaseCamera, Color, GraphView, Rectangle, TextView, Texts, CombinedView } from 'banvasgl'
+import { Scene, BaseCamera, Color, GraphView, Rectangle, TextView, Texts, CombinedView, Circle, Style, FillStyle, Point3, Matrix4 } from 'banvasgl'
 import './TemplatePage.css'
 
 const TemplatePage = () => {
@@ -40,12 +40,12 @@ const TemplatePage = () => {
       })
       text.translate(100,100)
 
+
+      const anchor = new GraphView(new Circle(new Point3(5,5,0),5,new Style(new FillStyle("color",new Color(255,0,0,1))))).translate(250,50)
+
       const combinedView = new CombinedView([rect,text])
-      combinedView.translate(300,300)
-      combinedView.rotate(0,0,30/180)
-      // scene.addChild(text)
-      // scene.addChild(rect)
       scene.addChild(combinedView)
+      scene.addChild(anchor)
 
       // 添加场景到应用
       app.addScene(scene)
@@ -53,8 +53,12 @@ const TemplatePage = () => {
       // 导航到新页面
       app.navigateTo(scene) 
       
+      combinedView.translate(50,50).scale(1.25,1.25,1,new Point3(200,0,0)).rotate(0,0,-Math.PI / 4,new Point3(100,100,0))
+      
       // 延迟渲染，确保场景完全设置好
       app.render()
+
+
 
       
 

@@ -13,11 +13,12 @@ import { Texts } from '../graph/text'
 
 // 导入addon类型
 import { ViewportAddon, BoundingBoxAddon, VertexAddon, BoundingBoxAddonImpl, ViewportAddonImpl } from './addon'
+import { Point3 } from '../math'
 
 // 视图选项接口
 export interface ViewOptions<T extends object = any> {
     id?: string
-    content: ViewContent  // 必填字段：视图内容
+    content?: ViewContent
     data?: T
     properties?: T
     style?: Style
@@ -25,14 +26,14 @@ export interface ViewOptions<T extends object = any> {
     viewport?: ViewportAddon
     controlPoints?: VertexAddon
     boundingBox?: BoundingBoxAddon
-    onCreate?: () => void
+    onCreated?: () => void
     onAttach?: () => void
     onDestroy?: () => void
     [funcName: string]: any
 }
 
 // 内容类型联合
-type ViewContent = Graph | ImageElement | VideoElement | Texts | View[] | null
+type ViewContent = Graph | ImageElement | VideoElement | Texts | null
 
 export default abstract class View<T extends object = any> {
     // 基本属性
@@ -44,6 +45,7 @@ export default abstract class View<T extends object = any> {
     
     // 抽象内容属性 - 子类必须实现
     public abstract content: ViewContent
+    public abstract children:View[] | null
     
     // 层级关系
     public parent: Scene | View | null = null
@@ -67,11 +69,11 @@ export default abstract class View<T extends object = any> {
     // 私有属性
     private _isConstructed: boolean = false
     private _isDestroyed: boolean = false
-    
-    // 缓存相关属性
-    private _cacheDirty: boolean = true
-    private _lastRenderTime: number = 0
-    private _cacheValid: boolean = false
+
+    //抽象方法
+    public abstract renderContent(ctx: CanvasRenderingContext2D): void
+    public abstract copy(): View
+    public abstract getContentBounds(): { x: number, y: number, width: number, height: number } 
 
     constructor(options: ViewOptions<T>) {
         this.construct(options)
@@ -105,40 +107,9 @@ export default abstract class View<T extends object = any> {
             this.matrix = vo.matrix
         }
 
-        // 设置内容（必须在视口插件初始化之前）
-        this.content = vo.content
-
-        // 获取内容边界框
-        const contentBounds = this.getContentBounds()
-        
-        if(!contentBounds)throw new Error('Content bounds is not set')
-
-        const viewWidth = Math.max(0, contentBounds.x + contentBounds.width)
-        const viewHeight = Math.max(0, contentBounds.y + contentBounds.height)
-        
-
-        // 先初始化包围盒插件，使用计算出的view尺寸
-        this.boundingBox = vo.boundingBox || new BoundingBoxAddonImpl(
-            viewWidth, 
-            viewHeight,
-            this.style.padding,
-            this.style.margin
-        )
-
-        // 用包围盒信息初始化视口插件
-        const boundingBoxBounds = this.boundingBox.getBounds()
-        this.viewport = vo.viewport || new ViewportAddonImpl(
-            boundingBoxBounds.x,
-            boundingBoxBounds.y,
-            boundingBoxBounds.width, 
-            boundingBoxBounds.height
-        )
-        
-        this.controlPoints = vo.controlPoints || null
-
         // 设置回调函数
-        if (vo.onCreate) {
-            this.onCreate = vo.onCreate
+        if (vo.onCreated) {
+            this.onCreated = vo.onCreated
         }
         if (vo.onAttach) {
             this.onAttach = vo.onAttach
@@ -149,7 +120,7 @@ export default abstract class View<T extends object = any> {
 
         // 设置其他自定义方法
         Object.keys(vo).forEach(key => {
-            if (typeof vo[key] === 'function' && !['onCreate', 'onAttach', 'onDestroy'].includes(key)) {
+            if (typeof vo[key] === 'function' && !['onCreated', 'onAttach', 'onDestroy'].includes(key)) {
                 (this as any)[key] = vo[key]
             }
         })
@@ -161,16 +132,10 @@ export default abstract class View<T extends object = any> {
     // 设置数据
     public setData(data: Partial<T>): void {
         this.data = { ...this.data, ...data }
-        if (!this._batchUpdating) {
-            this.invalidateCache()
-        }
     }
-
-
 
     // 生命周期回调
     public onCreated(): void {
-        // 子类可以重写此方法
     }
 
     public onDestroy(): void {
@@ -186,7 +151,6 @@ export default abstract class View<T extends object = any> {
     }
 
     public onAttach(): void {
-        // 子类可以重写此方法
     }
 
     // 自定义方法（索引签名）
@@ -198,7 +162,7 @@ export default abstract class View<T extends object = any> {
     }
 
     // 渲染方法
-    public render(canvasContext: CanvasContext, mvpMatrix: Matrix4): void {
+    public render(canvasContext: CanvasContext): void {
         if (!this.visible || this._isDestroyed) {
             return
         }
@@ -208,102 +172,62 @@ export default abstract class View<T extends object = any> {
         
         if (needsViewportCulling) {
             // 使用离屏画布渲染
-            this.renderWithOffscreen(canvasContext, mvpMatrix)
+            this.renderWithOffscreen(canvasContext)
         } else {
             // 直接在主画布渲染
-            this.renderDirectly(canvasContext, mvpMatrix)
+            this.renderDirectly(canvasContext)
         }
     }
 
-    // 直接渲染到主画布
-    private renderDirectly(canvasContext: CanvasContext, mvpMatrix: Matrix4): void {
-        // 保存主画布状态
-        canvasContext.mainCtx.save()
-        
-        // 应用MVP矩阵变换
-        const transform = mvpMatrix.transform
-        
-        canvasContext.mainCtx.setTransform(
-            transform[0], transform[4], transform[1], transform[5],
-            transform[3], transform[7]
-        )
-        
-        // 应用样式
-        if (this.style) {
-            this.style.applyToContext(canvasContext.mainCtx)
-        }
 
+    // 直接渲染到主画布
+    private renderDirectly(canvasContext: CanvasContext): void {
         // 渲染插件（如果是激活状态并且有对应插件）
         this.renderPlugins(canvasContext.mainCtx)
         // 渲染内容
         this.renderContent(canvasContext.mainCtx)
+        // 渲染子节点
+        this.renderChildren(canvasContext)
+    }
 
-        // 恢复主画布状态
-        canvasContext.mainCtx.restore()
+    private renderChildren(ctx: CanvasContext){
+        if(!this.children || this.children?.length === 0)return
+        console.log("render children");
+        
+        this.children.forEach(view=>{
+            ctx.save()
+            const transform = view.matrix.transform
+            ctx.transform([transform[0],transform[4],transform[1],transform[5],transform[3],transform[7]])
+            view.render(ctx)
+            ctx.restore()
+        })
     }
 
     // 使用离屏画布渲染
-    private renderWithOffscreen(canvasContext: CanvasContext, mvpMatrix: Matrix4): void {
+    private renderWithOffscreen(canvasContext: CanvasContext): void {
         const offscreenCtx = canvasContext.bufferCtx
-        if (!offscreenCtx) {
+        if (!offscreenCtx || ! this.viewport) {
             // 如果没有离屏画布，回退到直接渲染
-            this.renderDirectly(canvasContext, mvpMatrix)
+            this.renderDirectly(canvasContext)
             return
         }   
 
-        // 获取视口信息
-        const viewport = this.getViewport()
-        if (!viewport) {
-            this.renderDirectly(canvasContext, mvpMatrix)
-            return
-        }
-
-        // 检查缓存是否有效
-        if (this._cacheValid && !this._cacheDirty) {
-            // 使用缓存渲染
-            this.renderFromCache(canvasContext, mvpMatrix)
-            return
-        }
-
         // 重新渲染到离屏画布
-        this.renderToOffscreen(canvasContext, viewport, mvpMatrix)
+        this.renderToOffscreen(canvasContext)
         
-        // 标记缓存为有效
-        this._cacheValid = true
-        this._cacheDirty = false
-        this._lastRenderTime = Date.now()
-
         // 从离屏画布渲染到主画布
-        this.renderFromCache(canvasContext, mvpMatrix)
+        this.renderFromCache(canvasContext)
     }
 
     // 渲染到离屏画布
-    private renderToOffscreen(canvasContext: CanvasContext, viewport: ViewportAddon, mvpMatrix: Matrix4): void {
+    private renderToOffscreen(canvasContext: CanvasContext): void {
         const offscreenCtx = canvasContext.bufferCtx
-        if (!offscreenCtx) return
+        const viewport = this.viewport
+        if (!offscreenCtx || !viewport) return
         
-        // 获取主画布尺寸，让缓冲区与主画布一样大
-        const mainCanvas = canvasContext.mainCtx.canvas
-        offscreenCtx.canvas.width = mainCanvas.width
-        offscreenCtx.canvas.height = mainCanvas.height
 
         // 清空离屏画布
-        offscreenCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height)
-
-        // 保存离屏画布状态
-        offscreenCtx.save()
-
-        // 应用MVP矩阵变换
-        const transform = mvpMatrix.transform
-        offscreenCtx.setTransform(
-            transform[0], transform[4], transform[1], transform[5],
-            transform[3], transform[7]
-        )
-
-        // 应用样式到离屏画布
-        if (this.style) {
-            this.style.applyToContext(offscreenCtx)
-        }
+        offscreenCtx.clearRect(0, 0, offscreenCtx.canvas.width, offscreenCtx.canvas.height)
 
         // 先设置视口裁剪区域
         offscreenCtx.beginPath()
@@ -316,33 +240,26 @@ export default abstract class View<T extends object = any> {
         // 渲染内容到离屏画布
         this.renderContent(offscreenCtx)
 
-
-
-        // 恢复离屏画布状态
-        offscreenCtx.restore()
+        // 渲染子节点
+        this.renderChildren(canvasContext)
     }
 
     // 从缓存渲染到主画布
-    private renderFromCache(canvasContext: CanvasContext, mvpMatrix: Matrix4): void {
+    private renderFromCache(canvasContext: CanvasContext): void {
         const mainCtx = canvasContext.mainCtx
         const offscreenCtx = canvasContext.bufferCtx
         if (!offscreenCtx) return
-        
-        // 保存主画布状态
-        mainCtx.save()
-        
-        // 应用MVP矩阵变换
-        const transform = mvpMatrix.transform
-        mainCtx.setTransform(
-            transform[0], transform[4], transform[1], transform[5],
-            transform[3], transform[7]
-        )
-        
-        // 将离屏画布内容绘制到主画布（缓冲区与主画布一样大）
+        // 将离屏画布内容绘制到主画布
+        /**
+         * 注意
+         * 需要将两个画布的变换都清零
+         * 让缓冲区内容能够绘制到正确的地方
+         */
+        canvasContext.save()
+        canvasContext.setTransform([0,0,0,0,0,0])
         mainCtx.drawImage(offscreenCtx.canvas, 0, 0)
+        canvasContext.restore()
         
-        // 恢复主画布状态
-        mainCtx.restore()
     }
 
 
@@ -423,7 +340,7 @@ export default abstract class View<T extends object = any> {
 
     // 检查是否需要视口裁剪
     private needsViewportCulling(): boolean {
-        const viewport = this.getViewport()
+        const viewport = this.viewport
         
         if (!viewport) {
             return false
@@ -438,85 +355,36 @@ export default abstract class View<T extends object = any> {
     private hasContentOutsideViewport(viewport: ViewportAddon): boolean {
         // 获取内容的边界框
         const contentBounds = this.getContentBounds()
-        const bounds = this.boundingBox?.getBounds()
-        if (!contentBounds || !bounds) {
+        if (!contentBounds) {
             return false
         }
 
         // 检查边界框是否与视口相交
-        // 视口始终基于(0,0)，所以直接比较尺寸
-        return contentBounds.x < bounds.x || 
-               contentBounds.y < bounds.y || 
+        return contentBounds.x < viewport.x || 
+               contentBounds.y < viewport.y || 
                contentBounds.x + contentBounds.width > viewport.width || 
                contentBounds.y + contentBounds.height > viewport.height
     }
 
-    // 获取内容边界框
-    // 抽象方法 - 子类必须实现
-    public abstract getContentBounds(): { x: number, y: number, width: number, height: number } 
+    public initBoundingBox(): void {
+        const bounds = this.getContentBounds()
+        const width = Math.max(0, bounds.x + bounds.width)
+        const height = Math.max(0, bounds.y + bounds.height)
 
-
-
-
-    // 缓存管理方法
-    public invalidateCache(): void {
-        this._cacheDirty = true
-        this._cacheValid = false
+        this.boundingBox = new BoundingBoxAddonImpl(width, height)
     }
 
-    public isCacheValid(): boolean {
-        return this._cacheValid && !this._cacheDirty
+    public initViewport(): void {
+        const bounds = this.boundingBox?.getBounds()
+        if(!bounds)throw new Error('Bounding box is not set')
+        
+        this.viewport = new ViewportAddonImpl(bounds.x, bounds.y, bounds.width, bounds.height)
     }
+
 
     public getLastRenderTime(): number {
         return this._lastRenderTime
     }
-
-    // 设置合成模式
-    public setCompositeMode(mode: GlobalCompositeOperation): View {
-        if (!this.style) {
-            this.style = new Style()
-        }
-        
-        // 扩展Style类以支持合成模式
-        ;(this.style as any).compositeMode = mode
-        this.invalidateCache()
-        return this
-    }
-
-    public getCompositeMode(): GlobalCompositeOperation | null {
-        return (this.style as any)?.compositeMode || null
-    }
-
-    // 视口裁剪优化
-    public setViewportClipping(enabled: boolean): View {
-        if (!this.viewport) {
-            this.viewport = { x: 0, y: 0, width: 0, height: 0 }
-        }
-        ;(this.viewport as any).clippingEnabled = enabled
-        this.invalidateCache()
-        return this
-    }
-
-    public isViewportClippingEnabled(): boolean {
-        return (this.viewport as any)?.clippingEnabled || false
-    }
-
-    // 性能优化：批量更新
-    public beginBatchUpdate(): void {
-        // 暂停缓存失效
-        this._batchUpdating = true
-    }
-
-    public endBatchUpdate(): void {
-        this._batchUpdating = false
-        // 批量更新结束后统一失效缓存
-        this.invalidateCache()
-    }
-
-    // 私有属性：批量更新状态
-    private _batchUpdating: boolean = false
-
 
 
     // 获取世界矩阵（考虑父view的matrix）
@@ -531,35 +399,25 @@ export default abstract class View<T extends object = any> {
     }
 
     // 变换方法
-    public translate(x: number, y: number, z: number = 0): View {
+    public translate(x: number, y: number, z: number=0): View {
         this.matrix.translate(x, y, z)
-        if (!this._batchUpdating) {
-            this.invalidateCache()
-        }
         return this
     }
 
-    public scale(x: number, y: number, z: number = 1): View {
+    public scale(x: number, y: number, z: number = 1,origin:Point3 = new Point3(0,0,0)): View {
+        const _o = this.matrix.multiply(origin)
+        this.matrix.translate(-_o.x,-_o.y,-_o.z)
         this.matrix.scale(x, y, z)
-        if (!this._batchUpdating) {
-            this.invalidateCache()
-        }
+        this.matrix.translate(_o.x,_o.y,_o.z)
         return this
     }
 
-    public rotate(x: number, y: number, z: number): View {
+    public rotate(x: number, y: number, z: number,origin:Point3 = new Point3(0,0,0)): View {
+        const _o = this.matrix.multiply(origin)
+
+        this.matrix.translate(-_o.x,-_o.y,-_o.z)
         this.matrix.rotate(x, y, z)
-        if (!this._batchUpdating) {
-            this.invalidateCache()
-        }
-        return this
-    }
-
-    public setTransform(matrix: Matrix4): View {
-        this.matrix = matrix.copy()
-        if (!this._batchUpdating) {
-            this.invalidateCache()
-        }
+        this.matrix.translate(_o.x,_o.y,_o.z)
         return this
     }
 
@@ -592,40 +450,7 @@ export default abstract class View<T extends object = any> {
     // 样式管理
     public setStyle(style: Style): View {
         this.style = style.copy()
-        if (!this._batchUpdating) {
-            this.invalidateCache()
-        }
         return this
-    }
-
-    // 视口管理
-    public setViewport(viewport: ViewportAddon): View {
-        this.viewport = { ...viewport }
-        return this
-    }
-
-    public getViewport(): ViewportAddon | null {
-        return this.viewport ? { ...this.viewport } : null
-    }
-
-    // 控制点管理
-    public setControlPoints(controlPoints: VertexAddon): View {
-        this.controlPoints = { ...controlPoints }
-        return this
-    }
-
-    public getControlPoints(): VertexAddon | null {
-        return this.controlPoints ? { ...this.controlPoints } : null
-    }
-
-    // 边界框管理
-    public setBoundingBox(boundingBox: BoundingBoxAddon): View {
-        this.boundingBox = { ...boundingBox }
-        return this
-    }
-
-    public getBoundingBox(): BoundingBoxAddon | null {
-        return this.boundingBox ? { ...this.boundingBox } : null
     }
 
     /**
@@ -644,9 +469,6 @@ export default abstract class View<T extends object = any> {
     // 内容管理
     public setContent(content: ViewContent): View {
         this.content = content
-        if (!this._batchUpdating) {
-            this.invalidateCache()
-        }
         return this
     }
 
@@ -654,30 +476,9 @@ export default abstract class View<T extends object = any> {
         return this.content
     }
 
-    // 获取深度
-    public getDepth(): number {
-        let depth = 0
-        let current: View | null = this.parent as View
-        while (current) {
-            depth++
-            current = current.parent as View
-        }
-        return depth
-    }
-
     // 销毁视图
     public destroy(): void {
         this.onDestroy()
-    }
-
-    // 检查是否已销毁
-    public isDestroyed(): boolean {
-        return this._isDestroyed
-    }
-
-    // 检查是否已构造
-    public isConstructed(): boolean {
-        return this._isConstructed
     }
 
     // 生成唯一ID
@@ -685,7 +486,5 @@ export default abstract class View<T extends object = any> {
         return uuidv4()
     }
 
-    // 抽象方法 - 子类必须实现
-    public abstract renderContent(ctx: CanvasRenderingContext2D): void
-    public abstract copy(): View
+
 }
