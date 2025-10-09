@@ -10,7 +10,7 @@ export interface ViewportAddon {
     y: number
     width: number
     height: number
-    [key: string]: any
+    render(ctx: CanvasRenderingContext2D): void
 }
 
 export default class ViewportAddonImpl implements ViewportAddon {
@@ -26,56 +26,6 @@ export default class ViewportAddonImpl implements ViewportAddon {
         this.height = height
         
     }
-
-    /**
-     * 设置视口位置
-     */
-    setPosition(x: number, y: number): ViewportAddonImpl {
-        this.x = x
-        this.y = y
-        return this
-    }
-
-    /**
-     * 设置视口尺寸
-     */
-    setSize(width: number, height: number): ViewportAddonImpl {
-        this.width = width
-        this.height = height
-        return this
-    }
-
-    /**
-     * 设置视口位置和尺寸
-     */
-    setBounds(x: number, y: number, width: number, height: number): ViewportAddonImpl {
-        this.x = x
-        this.y = y
-        this.width = width
-        this.height = height
-        return this
-    }
-
-    /**
-     * 获取视口尺寸
-     */
-    getSize(): { width: number, height: number } {
-        return {
-            width: this.width,
-            height: this.height
-        }
-    }
-
-    /**
-     * 获取视口位置
-     */
-    getPosition(): { x: number, y: number } {
-        return {
-            x: this.x,
-            y: this.y
-        }
-    }
-
     /**
      * 获取视口边界
      */
@@ -95,12 +45,13 @@ export default class ViewportAddonImpl implements ViewportAddon {
      * 复制视口插件
      */
     copy(): ViewportAddonImpl {
-        const additionalProps: Record<string, any> = {}
-        for (const key in this) {
-            if (key !== 'x' && key !== 'y' && key !== 'width' && key !== 'height') {
-                additionalProps[key] = this[key]
-            }
-        }
         return new ViewportAddonImpl(this.x, this.y, this.width, this.height)
+    }
+
+    /**
+     * 视口渲染（默认不渲染，可由上层裁剪逻辑使用）
+     */
+    render(ctx: CanvasRenderingContext2D): void {
+        // no-op by default
     }
 }

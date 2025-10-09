@@ -23,9 +23,6 @@ export interface ViewOptions<T extends object = any> {
     properties?: T
     style?: Style
     matrix?: Matrix4  // 变换矩阵
-    viewport?: ViewportAddon
-    controlPoints?: VertexAddon
-    boundingBox?: BoundingBoxAddon
     onCreated?: () => void
     onAttach?: () => void
     onDestroy?: () => void
@@ -265,77 +262,16 @@ export default abstract class View<T extends object = any> {
 
     // 渲染插件
     private renderPlugins(ctx: CanvasRenderingContext2D): void {
-        // 只有在激活状态时才渲染插件
-        // if (!this.actived) {
-        //     return
-        // }
-
-        // 保存画布状态
-        ctx.save()
-
-        try {
-            // 渲染控制点插件
-            if (this.controlPoints) {
-                this.renderControlPoints(ctx)
-            }
-
-            // 渲染边界框插件
-            if (this.boundingBox) {
-                this.renderBoundingBox(ctx)
-            }
-        } finally {
-            // 恢复画布状态
-            ctx.restore()
+        // if (!this.actived) return
+        if (this.controlPoints && typeof (this.controlPoints as any).render === 'function') {
+            ;(this.controlPoints as any).render(ctx)
         }
-    }
-
-    // 渲染控制点
-    private renderControlPoints(ctx: CanvasRenderingContext2D): void {
-        if (!this.controlPoints || this.controlPoints.vertices.length === 0) {
-            return
+        if (this.boundingBox && typeof (this.boundingBox as any).render === 'function') {
+            ;(this.boundingBox as any).render(ctx)
         }
-
-        // 设置控制点样式
-        ctx.fillStyle = '#ff0000' // 红色填充
-        ctx.strokeStyle = '#ffffff' // 白色描边
-        ctx.lineWidth = 2
-
-        // 渲染每个控制点
-        this.controlPoints.vertices.forEach(vertex => {
-            ctx.beginPath()
-            ctx.arc(vertex.x, vertex.y, 4, 0, 2 * Math.PI) // 半径为4的圆
-            ctx.fill()
-            ctx.stroke()
-        })
-    }
-
-    // 渲染边界框
-    private renderBoundingBox(ctx: CanvasRenderingContext2D): void {
-        if (!this.boundingBox) {
-            return
+        if (this.viewport && typeof (this.viewport as any).render === 'function') {
+            ;(this.viewport as any).render(ctx)
         }
-
-        // 获取边界框信息
-        const bounds = this.boundingBox.getBounds()
-        console.log(bounds);
-        
-        
-        if (!bounds) {
-            return
-        }
-
-        // 设置边界框样式
-        ctx.strokeStyle = '#00ff00' // 绿色描边
-        ctx.lineWidth = 1
-        ctx.setLineDash([5, 5]) // 虚线
-
-        // 绘制边界框
-        ctx.beginPath()
-        ctx.rect(bounds.x, bounds.y, bounds.width, bounds.height)
-        ctx.stroke()
-
-        // 重置虚线
-        ctx.setLineDash([])
     }
 
     // 检查是否需要视口裁剪

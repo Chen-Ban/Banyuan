@@ -151,9 +151,6 @@ export default class CanvasContext {
             this.bufferCanvas.width = width
             this.bufferCanvas.height = height
         }
-
-        // 重新设置画布样式
-        this.initializeContexts()
     }
 
     // 获取画布尺寸
