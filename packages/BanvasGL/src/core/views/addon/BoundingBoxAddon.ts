@@ -21,6 +21,7 @@ export interface BoundingBoxAddon {
         left: number
     }
     getBounds(): { x: number, y: number, width: number, height: number }
+    render(ctx: CanvasRenderingContext2D): void
 }
 
 export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
@@ -78,31 +79,33 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
     }
 
     /**
-     * 获取内容区域尺寸（减去padding）
-     */
-    getContentSize(): { width: number, height: number } {
-        return {
-            width: this.width - this.padding.left - this.padding.right,
-            height: this.height - this.padding.top - this.padding.bottom
-        }
-    }
-
-    /**
-     * 获取总尺寸（包含margin）
-     */
-    getTotalSize(): { width: number, height: number } {
-        return {
-            width: this.width + this.margin.left + this.margin.right,
-            height: this.height + this.margin.top + this.margin.bottom
-        }
-    }
-
-    /**
      * 获取边界框（内容大小 + 内边距）
      * 相对定位：左上角 = -paddingLeft, -paddingTop
      */
     getBounds(): Bounds {
         return new Bounds(-this.padding.left,-this.padding.top,this.width + this.padding.left + this.padding.right,this.height + this.padding.top + this.padding.bottom)
+    }
+
+    /**
+     * 在给定的上下文中渲染边界框
+     */
+    render(ctx: CanvasRenderingContext2D): void {
+        const bounds = this.getBounds()
+        if (!bounds) {
+            return
+        }
+        ctx.save()
+        try {
+            ctx.strokeStyle = '#00ff00'
+            ctx.lineWidth = 1
+            ctx.setLineDash([5, 5])
+            ctx.beginPath()
+            ctx.rect(bounds.x, bounds.y, bounds.width, bounds.height)
+            ctx.stroke()
+            ctx.setLineDash([])
+        } finally {
+            ctx.restore()
+        }
     }
 
     /**

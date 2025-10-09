@@ -1,5 +1,6 @@
 import Scene from '../scene/Scene'
-import Renderer from '../renderer/Renderer'
+import Serializer from '../utils/Serializer'
+import Renderer, { RendererOptions } from '../renderer/Renderer'
 import Style from '../style/Style'
 
 // 页面类型
@@ -369,6 +370,20 @@ export default class App {
         return this
     }
 
+    // 从序列化的 Scene JSON 初始化
+    public initFromSerializedScenes(serializedScenes: string[]): App {
+        try {
+            const scenes = (serializedScenes || []).map(json => Serializer.deserializeScene(json))
+            scenes.forEach(scene => this.addScene(scene))
+            if (scenes.length > 0) {
+                this.setCurrentScene(scenes[0])
+            }
+        } catch (e) {
+            console.warn('Failed to init scenes from serialized JSON:', e)
+        }
+        return this
+    }
+
     // 应用App级别的样式
     private applyAppStyle(): void {
         const canvasContext = this.renderer.canvasContext
@@ -499,8 +514,8 @@ export default class App {
     }
 
     // 静态方法：创建应用
-    public static create(canvas: HTMLCanvasElement, options: AppOptions = {}): App {
-        const renderer = new Renderer(canvas)
+    public static create(canvas: HTMLCanvasElement, options: AppOptions = {}, rendererOptions: RendererOptions = {}): App {
+        const renderer = new Renderer(canvas, rendererOptions)
         return new App(renderer, options)
     }
 }
