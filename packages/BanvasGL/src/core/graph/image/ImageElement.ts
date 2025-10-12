@@ -18,10 +18,8 @@ export default class ImageElement extends Graph {
     public imageSrc: string = ""
     public x: number
     public y: number
-    public sourceWidth?: number  // 源图片宽度（用于裁剪）
-    public sourceHeight?: number // 源图片高度（用于裁剪）
-    public sourceX: number = 0   // 源图片裁剪起始X坐标
-    public sourceY: number = 0   // 源图片裁剪起始Y坐标
+    public width:number = 100
+    public height:number = 100
     public opacity: number = 1   // 透明度
     public loaded: boolean = false
 
@@ -74,6 +72,8 @@ export default class ImageElement extends Graph {
             
             img.onload = () => {
                 this.image = img
+                this.width = img.naturalWidth
+                this.height = img.naturalHeight
                 this.loaded = true
                 resolve()
             }
@@ -107,6 +107,13 @@ export default class ImageElement extends Graph {
         return this
     }
 
+    setSize(width:number,height:number):ImageElement{
+        this.width = width
+        this.height = height
+        this.updateControlPoints()
+        return this
+    }
+
 
     /**
      * 设置透明度
@@ -115,20 +122,6 @@ export default class ImageElement extends Graph {
         this.opacity = Math.max(0, Math.min(1, opacity))
         return this
     }
-
-    /**
-     * 设置裁剪区域
-     */
-    setCrop(sourceX: number, sourceY: number, sourceWidth: number, sourceHeight: number): ImageElement {
-        this.sourceX = sourceX
-        this.sourceY = sourceY
-        this.sourceWidth = sourceWidth
-        this.sourceHeight = sourceHeight
-        this.updateControlPoints()
-        this.invalidateBounds()
-        return this
-    }
-
     /**
      * 计算裁剪区域的控制点（八个点）
      */
@@ -137,22 +130,10 @@ export default class ImageElement extends Graph {
             // 如果图片未加载，返回默认控制点
             return [new Point3(this.x, this.y, 0)]
         }
-        
-        // 使用裁剪区域或整个图片区域
-        const cropX = this.sourceX
-        const cropY = this.sourceY
-        const cropWidth = this.sourceWidth || this.image.naturalWidth
-        const cropHeight = this.sourceHeight || this.image.naturalHeight
-        
-        // 计算裁剪区域在画布上的实际位置和尺寸
-        const scaleX = (this.sourceWidth || this.image.naturalWidth) / this.image.naturalWidth
-        const scaleY = (this.sourceHeight || this.image.naturalHeight) / this.image.naturalHeight
-        
-        const actualX = this.x + (cropX / this.image.naturalWidth) * this.image.naturalWidth * scaleX
-        const actualY = this.y + (cropY / this.image.naturalHeight) * this.image.naturalHeight * scaleY
-        const actualWidth = cropWidth * scaleX
-        const actualHeight = cropHeight * scaleY
-        
+        const actualX = this.x
+        const actualY= this.y
+        const actualWidth = this.width
+        const actualHeight = this.height
         // 返回裁剪区域的八个控制点
         return [
             new Point3(actualX, actualY, 0),                           // 左上角
@@ -173,10 +154,24 @@ export default class ImageElement extends Graph {
         this.controlPoints = this.calculateCropControlPoints()
     }
 
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+        dependent && ctx.beginPath()
+        const x = this.x
+        const y = this.y
+        const width = this.width
+        const height  = this.height
+        ctx.moveTo(x,y)
+        ctx.lineTo(x+width,y)
+        ctx.lineTo(x+width,y+height)
+        ctx.lineTo(x,y+height)
+        ctx.lineTo(x,y)
+    }
+
     /**
      * 渲染图片
      */
     public render(ctx: CanvasRenderingContext2D): void {
+        ctx.save()
         if (!this.image || !this.loaded) {
             // 如果图片未加载，绘制占位符
             this.renderPlaceholder(ctx)
@@ -190,33 +185,20 @@ export default class ImageElement extends Graph {
         // 设置透明度
         ctx.globalAlpha = this.opacity
         
-        // 绘制图片（使用原始尺寸）
-        if (this.sourceWidth && this.sourceHeight) {
-            // 绘制裁剪后的图片
-            ctx.drawImage(
-                this.image,
-                this.sourceX, this.sourceY, this.sourceWidth, this.sourceHeight,
-                this.x, this.y, this.sourceWidth, this.sourceHeight
-            )
-        } else {
-            // 绘制完整图片
-            ctx.drawImage(
-                this.image,
-                this.x, this.y, this.image.naturalWidth, this.image.naturalHeight
-            )
-        }
+        ctx.drawImage(
+            this.image,
+            this.x, this.y, this.image.naturalWidth, this.image.naturalHeight
+        )
+        ctx.restore()
     }
 
     /**
      * 渲染占位符（当图片未加载时）
      */
     private renderPlaceholder(ctx: CanvasRenderingContext2D): void {
-        // 绘制边框（使用默认尺寸）
-        const defaultWidth = 100
-        const defaultHeight = 100
         ctx.strokeStyle = '#cccccc'
         ctx.lineWidth = 1
-        ctx.strokeRect(this.x, this.y, defaultWidth, defaultHeight)
+        ctx.strokeRect(this.x, this.y, this.width, this.height)
         
         // 绘制加载中文字
         ctx.fillStyle = '#999999'
@@ -225,23 +207,9 @@ export default class ImageElement extends Graph {
         ctx.textBaseline = 'middle'
         ctx.fillText(
             'Loading...',
-            this.x + defaultWidth / 2,
-            this.y + defaultHeight / 2
+            this.x + this.width / 2,
+            this.y + this.height / 2
         )
-    }
-
-    /**
-     * 检查点是否在图片内
-     */
-    containsPoint(point: Point3): boolean {
-        if (!this.image || !this.loaded) {
-            return false
-        }
-        
-        return point.x >= this.x && 
-               point.x <= this.x + this.image.naturalWidth &&
-               point.y >= this.y && 
-               point.y <= this.y + this.image.naturalHeight
     }
 
     /**
@@ -257,15 +225,7 @@ export default class ImageElement extends Graph {
         canvas.width = this.image.naturalWidth
         canvas.height = this.image.naturalHeight
         
-        if (this.sourceWidth && this.sourceHeight) {
-            ctx.drawImage(
-                this.image,
-                this.sourceX, this.sourceY, this.sourceWidth, this.sourceHeight,
-                0, 0, this.sourceWidth, this.sourceHeight
-            )
-        } else {
-            ctx.drawImage(this.image, 0, 0, this.image.naturalWidth, this.image.naturalHeight)
-        }
+        ctx.drawImage(this.image, 0, 0, this.image.naturalWidth, this.image.naturalHeight)
         
         return ctx.getImageData(0, 0, canvas.width, canvas.height)
     }
@@ -278,10 +238,6 @@ export default class ImageElement extends Graph {
             this.x, this.y, this.imageSrc, this.style
         )
         copy.opacity = this.opacity
-        copy.sourceX = this.sourceX
-        copy.sourceY = this.sourceY
-        copy.sourceWidth = this.sourceWidth
-        copy.sourceHeight = this.sourceHeight
         return copy
     }
 

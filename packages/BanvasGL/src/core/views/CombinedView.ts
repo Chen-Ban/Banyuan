@@ -42,6 +42,10 @@ export default class CombinedView extends View {
         this.initViewport()
     }
 
+    public interact(p: Point3):Graph | View {
+        return this.content
+    }
+
     public renderContent(ctx: CanvasRenderingContext2D): void {
         if (this.content && typeof this.content.render === 'function') {
             this.content.render(ctx)

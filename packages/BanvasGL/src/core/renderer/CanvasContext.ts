@@ -6,7 +6,7 @@ export interface CanvasContextOptions {
     clearColor?: string
 }
 
-export default class CanvasContext {
+class CanvasContext {
     // 画布上下文
     public readonly mainCtx: CanvasRenderingContext2D
     public bufferCtx: CanvasRenderingContext2D | null
@@ -250,3 +250,51 @@ export default class CanvasContext {
         }
     }
 }
+
+// 全局单例实例
+let globalCanvasContext: CanvasContext | null = null
+
+/**
+ * 初始化全局 CanvasContext 实例
+ * @param mainCanvas 主画布元素
+ * @param options 配置选项
+ * @returns CanvasContext 实例
+ */
+export function initGlobalCanvasContext(mainCanvas: HTMLCanvasElement, options: CanvasContextOptions = {}): CanvasContext {
+    if (globalCanvasContext) {
+        console.warn('Global CanvasContext already initialized. Destroying previous instance.')
+        globalCanvasContext.destroy()
+    }
+    
+    globalCanvasContext = new CanvasContext(mainCanvas, options)
+    return globalCanvasContext
+}
+
+/**
+ * 获取全局 CanvasContext 实例
+ * @returns CanvasContext 实例，如果未初始化则返回 null
+ */
+export function getGlobalCanvasContext(): CanvasContext | null {
+    return globalCanvasContext
+}
+
+/**
+ * 销毁全局 CanvasContext 实例
+ */
+export function destroyGlobalCanvasContext(): void {
+    if (globalCanvasContext) {
+        globalCanvasContext.destroy()
+        globalCanvasContext = null
+    }
+}
+
+/**
+ * 检查全局 CanvasContext 是否已初始化
+ * @returns 是否已初始化
+ */
+export function isGlobalCanvasContextInitialized(): boolean {
+    return globalCanvasContext !== null
+}
+
+// 导出类定义
+export default CanvasContext

@@ -12,7 +12,7 @@ import Bounds from "../base/Bounds"
  */
 export default class Texts extends Graph {
     public type: GRAPHTYPE = GRAPHTYPE.TEXTS
-    public controlPoints: Point3[] | Float32Array
+    public controlPoints: Point3[] 
     public style: Style
     public options: TextsOptions
     public paragraphs: TextParagraph[]
@@ -147,10 +147,19 @@ export default class Texts extends Graph {
         return paragraph
     }
 
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+        dependent && ctx.beginPath()
+        ctx.moveTo(this.controlPoints[0].x, this.controlPoints[1].y);
+        for (let i = 1; i < this.controlPoints.length; i++) {
+            ctx.lineTo(this.controlPoints[i].x, this.controlPoints[i].y);
+        }
+    }
+
     /**
      * 渲染文字集合
      */
     public render(ctx: CanvasRenderingContext2D): void {
+        ctx.save()
         // 应用样式
         this.style.applyToContext(ctx)
         
@@ -158,6 +167,7 @@ export default class Texts extends Graph {
         for (const paragraph of this.paragraphs) {
             paragraph.render(ctx)
         }
+        ctx.restore()
     }
 
     /**

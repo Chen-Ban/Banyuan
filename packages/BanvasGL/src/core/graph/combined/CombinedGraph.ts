@@ -40,7 +40,6 @@ export default class CombinedGraph extends Graph {
      */
     public addGraph(graph: Graph): CombinedGraph {
         this.graphs.push(graph)
-        this.invalidateBounds()
         return this
     }
 
@@ -49,7 +48,6 @@ export default class CombinedGraph extends Graph {
      */
     public removeGraph(graphId: string): CombinedGraph {
         this.graphs = this.graphs.filter(graph => graph.id !== graphId)
-        this.invalidateBounds()
         return this
     }
 
@@ -65,7 +63,6 @@ export default class CombinedGraph extends Graph {
      */
     public clearGraphs(): CombinedGraph {
         this.graphs = []
-        this.invalidateBounds()
         return this
     }
 
@@ -100,18 +97,25 @@ export default class CombinedGraph extends Graph {
         return allPoints
     }
 
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+        dependent && ctx.beginPath()
+        for (const graph of this.graphs) {
+            graph.renderPath(ctx,false)
+        }
+    }
+
     /**
      * 渲染组合图形
      */
     public render(ctx: CanvasRenderingContext2D): void {
         // 应用组合图形的样式
+        ctx.save()
         const bounds = this.getBounds()
         this.style.applyToContext(ctx, bounds.width, bounds.height)
-        
-        // 渲染所有子图形
         for (const graph of this.graphs) {
             graph.render(ctx)
         }
+        ctx.restore()
     }
 
     /**
@@ -135,7 +139,6 @@ export default class CombinedGraph extends Graph {
      */
     public addGraphs(graphs: Graph[]): CombinedGraph {
         this.graphs.push(...graphs)
-        this.invalidateBounds()
         return this
     }
 

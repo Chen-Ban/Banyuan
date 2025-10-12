@@ -70,6 +70,10 @@ export default class TextView extends View {
         this.selection.render(ctx)
     }
 
+    public interact(p: Point3):TextElement {
+        return this.content.paragraphs[0].texts[0]
+    }
+
     /**
      * 处理输入事件
      */

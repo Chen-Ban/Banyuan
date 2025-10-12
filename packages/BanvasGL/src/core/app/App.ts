@@ -2,6 +2,7 @@ import Scene from '../scene/Scene'
 import Serializer from '../utils/Serializer'
 import Renderer, { RendererOptions } from '../renderer/Renderer'
 import Style from '../style/Style'
+import { getGlobalCanvasContext } from '../renderer/CanvasContext'
 
 // 页面类型
 export type Page = Scene
@@ -386,10 +387,14 @@ export default class App {
 
     // 应用App级别的样式
     private applyAppStyle(): void {
-        const canvasContext = this.renderer.canvasContext
+        const canvasContext = getGlobalCanvasContext()
+        if (!canvasContext) {
+            console.warn('Global CanvasContext not initialized')
+            return
+        }
         
         // 应用样式到主画布上下文
-        this.style.applyToContext(canvasContext.mainCtx)
+        this.style.applyToContext(canvasContext.getMainContext())
         
         // 如果有离屏画布上下文，也应用样式
         if (canvasContext.bufferCtx) {

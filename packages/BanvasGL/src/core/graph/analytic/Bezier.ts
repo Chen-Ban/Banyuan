@@ -56,7 +56,6 @@ export default abstract class Bezier extends AnalyticGraph {
     // 设置控制点
     setControlPoints(controlPoints: Point3[]): Bezier {
         this.controlPoints = controlPoints
-        this.invalidateBounds()
         return this
     }
 
@@ -72,7 +71,6 @@ export default abstract class Bezier extends AnalyticGraph {
     setControlPoint(index: number, point: Point3): Bezier {
         if (index >= 0 && index < this.controlPoints.length) {
             this.controlPoints[index] = point
-            this.invalidateBounds()
         }
         return this
     }
@@ -189,12 +187,8 @@ export default abstract class Bezier extends AnalyticGraph {
         }
     }
 
-    // 渲染贝塞尔曲线
-    public render(ctx: CanvasRenderingContext2D): void {
-        const bounds = this.getBounds()
-        this.style.applyToContext(ctx, bounds.width, bounds.height)
-        
-        ctx.beginPath()
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+        dependent && ctx.beginPath()
         ctx.moveTo(this.startPoint.x, this.startPoint.y)
         
         // 使用二次贝塞尔曲线或三次贝塞尔曲线
@@ -212,8 +206,16 @@ export default abstract class Bezier extends AnalyticGraph {
                 this.endPoint.x, this.endPoint.y
             )
         }
-        
+    }
+
+    // 渲染贝塞尔曲线
+    public render(ctx: CanvasRenderingContext2D): void {
+        ctx.save()
+        const bounds = this.getBounds()
+        this.style.applyToContext(ctx, bounds.width, bounds.height)
+        this.renderPath(ctx,true)
         ctx.stroke()
+        ctx.restore()
     }
 
     // 复制贝塞尔曲线

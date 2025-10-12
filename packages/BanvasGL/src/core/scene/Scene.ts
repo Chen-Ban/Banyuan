@@ -1,7 +1,7 @@
 import View from '../views/View'
 import { BaseCamera } from '../camera'
 import { OperationStack, Operation, LayerManager,} from './utils'
-import CanvasContext from '../renderer/CanvasContext'
+import CanvasContext, { getGlobalCanvasContext } from '../renderer/CanvasContext'
 import Matrix4 from '../math/Matrix4'
 import Style from '../style/Style'
 import { v4 as uuidv4 } from 'uuid'
@@ -103,8 +103,14 @@ export default class Scene {
     }
 
     // 渲染方法
-    public render(canvasContext: CanvasContext): void {
+    public render(): void {
         if (!this._isVisible) {
+            return
+        }
+
+        const canvasContext = getGlobalCanvasContext()
+        if (!canvasContext) {
+            console.warn('Global CanvasContext not initialized')
             return
         }
 
@@ -127,10 +133,13 @@ export default class Scene {
                     const transform = mvpMatrix.transform
                     canvasContext.setTransform([transform[0], transform[4], transform[1], transform[5],transform[3], transform[7]])
                     if(view.style){
-                        view.style.applyToContext(canvasContext.mainCtx)
-                        canvasContext.bufferCtx && view.style.applyToContext(canvasContext.bufferCtx)
+                        view.style.applyToContext(canvasContext.getMainContext())
+                        const bufferCtx = canvasContext.getBufferContext()
+                        if (bufferCtx) {
+                            view.style.applyToContext(bufferCtx)
+                        }
                     }
-                    view.render(canvasContext)
+                    view.render()
                     canvasContext.restore()
                 }
                 // 不在视口内，跳过渲染
@@ -141,11 +150,12 @@ export default class Scene {
     // 应用Scene级别的样式
     private applySceneStyle(canvasContext: CanvasContext): void {
         // 应用样式到主画布上下文
-        this.style.applyToContext(canvasContext.mainCtx)
+        this.style.applyToContext(canvasContext.getMainContext())
         
         // 如果有离屏画布上下文，也应用样式
-        if (canvasContext.bufferCtx) {
-            this.style.applyToContext(canvasContext.bufferCtx)
+        const bufferCtx = canvasContext.getBufferContext()
+        if (bufferCtx) {
+            this.style.applyToContext(bufferCtx)
         }
     }
 

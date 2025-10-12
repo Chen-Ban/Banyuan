@@ -1,14 +1,11 @@
 import Scene from '../scene/Scene'
-import CanvasContext, { CanvasContextOptions } from './CanvasContext'
+import CanvasContext, { CanvasContextOptions, initGlobalCanvasContext, getGlobalCanvasContext, destroyGlobalCanvasContext } from './CanvasContext'
 
 export interface RendererOptions extends CanvasContextOptions {
     // 渲染器选项可以在这里添加
 }
 
 export default class Renderer {
-    // 画布上下文管理器
-    public canvasContext: CanvasContext
-    
     // 渲染状态
     private isRendering: boolean = false
     private lastRenderTime: number = 0
@@ -16,7 +13,17 @@ export default class Renderer {
     private fps: number = 0
 
     constructor(canvas: HTMLCanvasElement, options: RendererOptions = {}) {
-        this.canvasContext = new CanvasContext(canvas, options)
+        // 初始化全局 CanvasContext
+        initGlobalCanvasContext(canvas, options)
+    }
+
+    // 获取全局 CanvasContext 实例
+    private get canvasContext(): CanvasContext {
+        const context = getGlobalCanvasContext()
+        if (!context) {
+            throw new Error('Global CanvasContext not initialized. Call initGlobalCanvasContext first.')
+        }
+        return context
     }
 
     // 渲染场景
@@ -29,8 +36,11 @@ export default class Renderer {
 
         try {
             // 清空画布并渲染场景
-                this.canvasContext.clear()
-                scene.render(this.canvasContext)
+            const canvasContext = getGlobalCanvasContext()
+            if (canvasContext) {
+                canvasContext.clear()
+                scene.render()
+            }
 
             // 更新FPS
             this.updateFPS()
@@ -137,7 +147,7 @@ export default class Renderer {
     // 销毁渲染器
     public destroy(): void {
         // 清理资源
-        this.canvasContext.destroy()
+        destroyGlobalCanvasContext()
         this.isRendering = false
     }
 

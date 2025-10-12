@@ -33,14 +33,12 @@ export default class CubicBezier extends Bezier {
     // 设置第一个控制点
     setControlPoint1(controlPoint1: Point3): CubicBezier {
         this.controlPoints[1] = controlPoint1
-        this.invalidateBounds()
         return this
     }
 
     // 设置第二个控制点
     setControlPoint2(controlPoint2: Point3): CubicBezier {
         this.controlPoints[2] = controlPoint2
-        this.invalidateBounds()
         return this
     }
 
@@ -54,7 +52,6 @@ export default class CubicBezier extends Bezier {
     setControlPoint(index: number, point: Point3): CubicBezier {
         if (index >= 0 && index < this.controlPoints.length) {
             this.controlPoints[index] = point
-            this.invalidateBounds()
         }
         return this
     }

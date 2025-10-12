@@ -145,12 +145,9 @@ export default class Arc extends AnalyticGraph {
         return new Point3(x, y, this.center.z)
     }
 
-    // 渲染圆弧
-    public render(ctx: CanvasRenderingContext2D): void {
-        const bounds = this.getBounds()
-        this.style.applyToContext(ctx, bounds.width, bounds.height)
-        
-        ctx.beginPath()
+
+    public renderPath(ctx: CanvasRenderingContext2D, dependent:Boolean): void {
+        dependent && ctx.beginPath()
         ctx.arc(
             this.center.x, 
             this.center.y, 
@@ -159,7 +156,16 @@ export default class Arc extends AnalyticGraph {
             this.endAngle, 
             this.clockwise
         )
+    }
+
+    // 渲染圆弧
+    public render(ctx: CanvasRenderingContext2D): void {
+        ctx.save()
+        const bounds = this.getBounds()
+        this.style.applyToContext(ctx, bounds.width, bounds.height)
+       this.renderPath(ctx,true)
         ctx.stroke()
+        ctx.restore()
     }
 
     // 复制圆弧
