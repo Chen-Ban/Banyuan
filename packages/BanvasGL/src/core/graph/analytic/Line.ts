@@ -51,14 +51,12 @@ export default class Line extends AnalyticGraph {
     // 设置起始点
     setStartPoint(point: Point3): Line {
         this.controlPoints[0] = point
-        this.invalidateBounds()
         return this
     }
 
     // 设置结束点
     setEndPoint(point: Point3): Line {
         this.controlPoints[1] = point
-        this.invalidateBounds()
         return this
     }
 
@@ -91,18 +89,20 @@ export default class Line extends AnalyticGraph {
         )
     }
 
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+        dependent && ctx.beginPath()
+        ctx.moveTo(this.startPoint.x, this.startPoint.y)
+        ctx.lineTo(this.endPoint.x, this.endPoint.y)
+    }
+
     // 渲染线条
     public render(ctx: CanvasRenderingContext2D): void {
+        ctx.save()
         const bounds = this.getBounds()
         this.style.applyToContext(ctx, bounds.width, bounds.height)
-        
-        const start = this.startPoint
-        const end = this.endPoint
-        
-        ctx.beginPath()
-        ctx.moveTo(start.x, start.y)
-        ctx.lineTo(end.x, end.y)
+        this.renderPath(ctx,true)
         ctx.stroke()
+        ctx.restore()
     }
 
     // 复制线条
@@ -360,8 +360,8 @@ export default class Line extends AnalyticGraph {
      */
     public transform(matrix: Matrix4): AnalyticGraph {
         // 简单的变换实现，实际应用中需要更完整的矩阵变换
-        const transformedStart = this.startPoint.copy()
-        const transformedEnd = this.endPoint.copy()
+        const transformedStart =matrix.multiply(this.startPoint.copy()) 
+        const transformedEnd = matrix.multiply(this.endPoint.copy())
         return new Line(transformedStart, transformedEnd, this.style)
     }
 

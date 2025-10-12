@@ -1,6 +1,9 @@
 import View, { ViewOptions } from './View'
 import { Graph } from '../graph'
 import { VIEWTYPE } from '@/constants'
+import { Point3 } from '../math'
+import { ViewAddonImpl } from './addon'
+import { world2Relative } from '@/utils/utils'
 
 // 图形视图选项接口
 export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
@@ -31,6 +34,18 @@ export default class GraphView extends View {
 
     public getContentBounds(): { x: number, y: number, width: number, height: number } {
         return this.content.getBounds()
+    }
+
+    public interact(p: Point3):Graph | ViewAddonImpl | null {
+        const relativePoint = world2Relative(p,this.matrix)
+        if(this.actived && this.controlPoints){
+            this.controlPoints.vertices.some(v=>v.subtract(relativePoint).length < 5) && this.controlPoints
+        }
+
+        if(this.content){
+            return null
+        }
+        return this.content
     }
 
     public copy(): GraphView {

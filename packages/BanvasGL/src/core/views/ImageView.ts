@@ -1,6 +1,7 @@
 import View, { ViewOptions } from './View'
 import { ImageElement } from '../graph/image'
 import CanvasContext from '../renderer/CanvasContext'
+import { Point3 } from '../math'
 
 // 图像视图选项接口
 export interface ImageViewOptions extends Omit<ViewOptions, 'content'> {
@@ -31,6 +32,10 @@ export default class ImageView extends View {
             return this.content.getBounds()
         }
         return { x: 0, y: 0, width: 0, height: 0 }
+    }
+
+    public interact(p: Point3):ImageElement {
+        return this.content
     }
 
     public copy(): ImageView {

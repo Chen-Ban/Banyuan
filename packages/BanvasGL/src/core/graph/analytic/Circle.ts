@@ -28,7 +28,6 @@ export default class Circle extends Arc {
     setRadius(radius: number): Circle {
         this.radius = Math.max(0, radius)
         this.controlPoints = this.calculateControlPoints()
-        this.invalidateBounds()
         return this
     }
 
@@ -46,22 +45,6 @@ export default class Circle extends Arc {
     // 获取面积
     get area(): number {
         return Math.PI * this.radius * this.radius
-    }
-
-    // 检查点是否在圆内
-    containsPoint(point: Point3): boolean {
-        const dx = point.x - this.center.x
-        const dy = point.y - this.center.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        return distance <= this.radius
-    }
-
-    // 检查点是否在圆上（考虑容差）
-    isPointOnCircle(point: Point3, tolerance: number = 1): boolean {
-        const dx = point.x - this.center.x
-        const dy = point.y - this.center.y
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        return Math.abs(distance - this.radius) <= tolerance
     }
 
     // 获取圆上的点（根据角度）
@@ -115,28 +98,23 @@ export default class Circle extends Arc {
 
     // 渲染圆形（重写父类方法以支持填充）
     public render(ctx: CanvasRenderingContext2D): void {
+        ctx.save()
         const bounds = this.getBounds()
         this.style.applyToContext(ctx, bounds.width, bounds.height)
         
         ctx.beginPath()
-        ctx.arc(
-            this.center.x, 
-            this.center.y, 
-            this.radius, 
-            0, 
-            2 * Math.PI, 
-            false
-        )
+        this.renderPath(ctx,true)
         
         // 如果有填充样式，先填充
-        if (this.style.fillStyle && this.style.fillStyle.type === 'color' && this.style.fillStyle.color.a > 0) {
+        if (this.style.fillStyle) {
             ctx.fill()
         }
         
         // 如果有描边样式，再描边
-        if (this.style.strokeStyle && this.style.strokeStyle.type === 'color' && this.style.strokeStyle.width > 0) {
+        if (this.style.strokeStyle) {
             ctx.stroke()
         }
+        ctx.restore()
     }
 
     // 复制圆形

@@ -18,10 +18,8 @@ export default class VideoElement extends Graph {
     public videoSrc: string = ""
     public x: number
     public y: number
-    public sourceWidth?: number  // 源视频宽度（用于裁剪）
-    public sourceHeight?: number // 源视频高度（用于裁剪）
-    public sourceX: number = 0   // 源视频裁剪起始X坐标
-    public sourceY: number = 0   // 源视频裁剪起始Y坐标
+    public width: number = 100
+    public height: number = 100
     public opacity: number = 1   // 透明度
     public loaded: boolean = false
     public autoplay: boolean = false
@@ -73,6 +71,8 @@ export default class VideoElement extends Graph {
             
             video.onloadedmetadata = () => {
                 this.video = video
+                this.width = video.videoWidth
+                this.height = video.videoHeight
                 this.loaded = true
                 resolve()
             }
@@ -91,14 +91,14 @@ export default class VideoElement extends Graph {
      */
     protected calculateBounds(): Bounds {
         if (!this.video || !this.loaded) {
-            return new Bounds(this.x, this.y, 0, 0)
+            return new Bounds(this.x, this.y, this.width, this.height)
         }
         
         return new Bounds(
             this.x,
             this.y,
-            this.video.videoWidth,
-            this.video.videoHeight
+            this.width,
+            this.height
         )
     }
 
@@ -122,25 +122,19 @@ export default class VideoElement extends Graph {
         return this
     }
 
+    setSize(width: number, height: number): VideoElement {
+        this.width = width
+        this.height = height
+        this.updateControlPoints()
+        return this
+    }
+
 
     /**
      * 设置透明度
      */
     setOpacity(opacity: number): VideoElement {
         this.opacity = Math.max(0, Math.min(1, opacity))
-        return this
-    }
-
-    /**
-     * 设置裁剪区域
-     */
-    setCrop(sourceX: number, sourceY: number, sourceWidth: number, sourceHeight: number): VideoElement {
-        this.sourceX = sourceX
-        this.sourceY = sourceY
-        this.sourceWidth = sourceWidth
-        this.sourceHeight = sourceHeight
-        this.updateControlPoints()
-        this.invalidateBounds()
         return this
     }
 
@@ -174,20 +168,10 @@ export default class VideoElement extends Graph {
             return [new Point3(this.x, this.y, 0)]
         }
         
-        // 使用裁剪区域或整个视频区域
-        const cropX = this.sourceX
-        const cropY = this.sourceY
-        const cropWidth = this.sourceWidth || this.video.videoWidth
-        const cropHeight = this.sourceHeight || this.video.videoHeight
-        
-        // 计算裁剪区域在画布上的实际位置和尺寸
-        const scaleX = (this.sourceWidth || this.video.videoWidth) / this.video.videoWidth
-        const scaleY = (this.sourceHeight || this.video.videoHeight) / this.video.videoHeight
-        
-        const actualX = this.x + (cropX / this.video.videoWidth) * this.video.videoWidth * scaleX
-        const actualY = this.y + (cropY / this.video.videoHeight) * this.video.videoHeight * scaleY
-        const actualWidth = cropWidth * scaleX
-        const actualHeight = cropHeight * scaleY
+        const actualX = this.x
+        const actualY = this.y
+        const actualWidth = this.width
+        const actualHeight = this.height
         
         // 返回裁剪区域的八个控制点
         return [
@@ -207,6 +191,19 @@ export default class VideoElement extends Graph {
      */
     private updateControlPoints(): void {
         this.controlPoints = this.calculateCropControlPoints()
+    }
+
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+        dependent && ctx.beginPath()
+        const x = this.x
+        const y = this.y
+        const width = this.width
+        const height = this.height
+        ctx.moveTo(x, y)
+        ctx.lineTo(x + width, y)
+        ctx.lineTo(x + width, y + height)
+        ctx.lineTo(x, y + height)
+        ctx.lineTo(x, y)
     }
 
     /**
@@ -298,38 +295,25 @@ export default class VideoElement extends Graph {
         // 设置透明度
         ctx.globalAlpha = this.opacity
         
-        // 绘制视频（使用原始尺寸）
-        if (this.sourceWidth && this.sourceHeight) {
-            // 绘制裁剪后的视频
-            ctx.drawImage(
-                this.video,
-                this.sourceX, this.sourceY, this.sourceWidth, this.sourceHeight,
-                this.x, this.y, this.sourceWidth, this.sourceHeight
-            )
-        } else {
-            // 绘制完整视频
-            ctx.drawImage(
-                this.video,
-                this.x, this.y, this.video.videoWidth, this.video.videoHeight
-            )
-        }
+        // 绘制视频（使用设置的尺寸）
+        ctx.drawImage(
+            this.video,
+            this.x, this.y, this.width, this.height
+        )
     }
 
     /**
      * 渲染占位符（当视频未加载时）
      */
     private renderPlaceholder(ctx: CanvasRenderingContext2D): void {
-        // 绘制边框（使用默认尺寸）
-        const defaultWidth = 100
-        const defaultHeight = 100
         ctx.strokeStyle = '#cccccc'
         ctx.lineWidth = 1
-        ctx.strokeRect(this.x, this.y, defaultWidth, defaultHeight)
+        ctx.strokeRect(this.x, this.y, this.width, this.height)
         
         // 绘制播放按钮图标
-        const centerX = this.x + defaultWidth / 2
-        const centerY = this.y + defaultHeight / 2
-        const iconSize = Math.min(defaultWidth, defaultHeight) * 0.3
+        const centerX = this.x + this.width / 2
+        const centerY = this.y + this.height / 2
+        const iconSize = Math.min(this.width, this.height) * 0.3
         
         ctx.fillStyle = '#999999'
         ctx.beginPath()
@@ -360,9 +344,9 @@ export default class VideoElement extends Graph {
         }
         
         return point.x >= this.x && 
-               point.x <= this.x + this.video.videoWidth &&
+               point.x <= this.x + this.width &&
                point.y >= this.y && 
-               point.y <= this.y + this.video.videoHeight
+               point.y <= this.y + this.height
     }
 
     /**
@@ -378,15 +362,7 @@ export default class VideoElement extends Graph {
         canvas.width = this.video.videoWidth
         canvas.height = this.video.videoHeight
         
-        if (this.sourceWidth && this.sourceHeight) {
-            ctx.drawImage(
-                this.video,
-                this.sourceX, this.sourceY, this.sourceWidth, this.sourceHeight,
-                0, 0, this.sourceWidth, this.sourceHeight
-            )
-        } else {
-            ctx.drawImage(this.video, 0, 0, this.video.videoWidth, this.video.videoHeight)
-        }
+        ctx.drawImage(this.video, 0, 0, this.video.videoWidth, this.video.videoHeight)
         
         return ctx.getImageData(0, 0, canvas.width, canvas.height)
     }
@@ -398,11 +374,9 @@ export default class VideoElement extends Graph {
         const copy = new VideoElement(
             this.x, this.y, this.videoSrc, this.style
         )
+        copy.width = this.width
+        copy.height = this.height
         copy.opacity = this.opacity
-        copy.sourceX = this.sourceX
-        copy.sourceY = this.sourceY
-        copy.sourceWidth = this.sourceWidth
-        copy.sourceHeight = this.sourceHeight
         copy.autoplay = this.autoplay
         copy.loop = this.loop
         copy.muted = this.muted

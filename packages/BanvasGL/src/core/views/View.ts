@@ -1,7 +1,7 @@
 import { VIEWTYPE } from '../../constants'
 import Style from '../style/Style'
 import Matrix4 from '../math/Matrix4'
-import CanvasContext from '../renderer/CanvasContext'
+import CanvasContext, { getGlobalCanvasContext } from '../renderer/CanvasContext'
 import { v4 as uuidv4 } from 'uuid'
 import Scene from '../scene/Scene'
 
@@ -71,6 +71,7 @@ export default abstract class View<T extends object = any> {
     public abstract renderContent(ctx: CanvasRenderingContext2D): void
     public abstract copy(): View
     public abstract getContentBounds(): { x: number, y: number, width: number, height: number } 
+    public abstract interact(p:Point3):any
 
     constructor(options: ViewOptions<T>) {
         this.construct(options)
@@ -159,8 +160,14 @@ export default abstract class View<T extends object = any> {
     }
 
     // 渲染方法
-    public render(canvasContext: CanvasContext): void {
+    public render(): void {
         if (!this.visible || this._isDestroyed) {
+            return
+        }
+
+        const canvasContext = getGlobalCanvasContext()
+        if (!canvasContext) {
+            console.warn('Global CanvasContext not initialized')
             return
         }
 
@@ -180,9 +187,9 @@ export default abstract class View<T extends object = any> {
     // 直接渲染到主画布
     private renderDirectly(canvasContext: CanvasContext): void {
         // 渲染插件（如果是激活状态并且有对应插件）
-        this.renderPlugins(canvasContext.mainCtx)
+        this.renderPlugins(canvasContext.getMainContext())
         // 渲染内容
-        this.renderContent(canvasContext.mainCtx)
+        this.renderContent(canvasContext.getMainContext())
         // 渲染子节点
         this.renderChildren(canvasContext)
     }
@@ -195,14 +202,14 @@ export default abstract class View<T extends object = any> {
             ctx.save()
             const transform = view.matrix.transform
             ctx.transform([transform[0],transform[4],transform[1],transform[5],transform[3],transform[7]])
-            view.render(ctx)
+            view.render()
             ctx.restore()
         })
     }
 
     // 使用离屏画布渲染
     private renderWithOffscreen(canvasContext: CanvasContext): void {
-        const offscreenCtx = canvasContext.bufferCtx
+        const offscreenCtx = canvasContext.getBufferContext()
         if (!offscreenCtx || ! this.viewport) {
             // 如果没有离屏画布，回退到直接渲染
             this.renderDirectly(canvasContext)
@@ -218,7 +225,7 @@ export default abstract class View<T extends object = any> {
 
     // 渲染到离屏画布
     private renderToOffscreen(canvasContext: CanvasContext): void {
-        const offscreenCtx = canvasContext.bufferCtx
+        const offscreenCtx = canvasContext.getBufferContext()
         const viewport = this.viewport
         if (!offscreenCtx || !viewport) return
         
@@ -243,8 +250,8 @@ export default abstract class View<T extends object = any> {
 
     // 从缓存渲染到主画布
     private renderFromCache(canvasContext: CanvasContext): void {
-        const mainCtx = canvasContext.mainCtx
-        const offscreenCtx = canvasContext.bufferCtx
+        const mainCtx = canvasContext.getMainContext()
+        const offscreenCtx = canvasContext.getBufferContext()
         if (!offscreenCtx) return
         // 将离屏画布内容绘制到主画布
         /**

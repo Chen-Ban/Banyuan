@@ -29,13 +29,22 @@ export default class DenseTrajectory extends Graph{
 
         this.style = style
     }
-    public render(ctx: CanvasRenderingContext2D): void {
-        this.style.applyToContext(ctx, this.width, this.height)
+    
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+        dependent && ctx.beginPath()
         ctx.moveTo(this.controlPoints[0],this.controlPoints[1])
         const length = this.controlPoints.length / 3
         for(let i = 1; i < length; i++){
             ctx.lineTo(this.controlPoints[i * 3],this.controlPoints[i * 3 + 1])
         }
+    }
+
+    public render(ctx: CanvasRenderingContext2D): void {
+        ctx.save()
+        this.style.applyToContext(ctx, this.width, this.height)
+        this.renderPath(ctx,true)
+        ctx.stroke()
+        ctx.restore()
     }
     public copy(): DenseTrajectory {
         return new DenseTrajectory(Float32Array.from(this.controlPoints), this.style.copy())

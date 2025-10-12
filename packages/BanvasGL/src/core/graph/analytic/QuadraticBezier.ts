@@ -27,7 +27,6 @@ export default class QuadraticBezier extends Bezier {
     // 设置控制点
     setQuadraticControlPoint(controlPoint: Point3): QuadraticBezier {
         this.controlPoints[1] = controlPoint
-        this.invalidateBounds()
         return this
     }
 
