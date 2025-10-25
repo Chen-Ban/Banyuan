@@ -173,13 +173,13 @@ export default class QuadraticBezier extends Bezier {
     }
 
     // 复制二次贝塞尔曲线
-    public copy(): QuadraticBezier {
+    public copy(): this {
         return new QuadraticBezier(
             this.controlPoints[0].copy(),
             this.controlPoints[1].copy(),
             this.controlPoints[2].copy(),
             this.style.copy()
-        )
+        ) as this
     }
 
     // 创建副本

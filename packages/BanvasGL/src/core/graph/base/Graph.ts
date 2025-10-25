@@ -20,7 +20,7 @@ export default abstract class Graph{
 
     public abstract renderPath(ctx: CanvasRenderingContext2D,dependent:Boolean): void
     public abstract render(ctx: CanvasRenderingContext2D): void
-    public abstract copy(): Graph
+    public abstract copy(): this
     protected abstract calculateBounds(): Bounds
 
     public isGraph(): boolean {
@@ -35,6 +35,8 @@ export default abstract class Graph{
         ctx.save()
         this.renderPath(ctx,true)
         const isIn = ctx.isPointInPath(p.x,p.y,"nonzero")
+        ctx.strokeStyle = "#F00"
+        ctx.stroke()
         ctx.restore()
         return isIn
     }

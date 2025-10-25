@@ -173,7 +173,7 @@ export default class Texts extends Graph {
     /**
      * 复制文字集合
      */
-    public copy(): Texts {
+    public copy(): this {
         // 复制所有段落
         const copiedParagraphs = this.paragraphs.map(paragraph => paragraph.copy())
         
@@ -190,7 +190,7 @@ export default class Texts extends Graph {
             newTexts.setBounds(newTexts.calculateBounds())
         }
         
-        return newTexts
+        return newTexts as this
     }
 
     /**

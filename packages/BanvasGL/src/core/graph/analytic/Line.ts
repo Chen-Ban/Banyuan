@@ -106,12 +106,12 @@ export default class Line extends AnalyticGraph {
     }
 
     // 复制线条
-    public copy(): Line {
+    public copy(): this {
         return new Line(
             this.startPoint.copy(),
             this.endPoint.copy(),
             this.style.copy()
-        )
+        ) as this
     }
 
     // 检查是否是线条

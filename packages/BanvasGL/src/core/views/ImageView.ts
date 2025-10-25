@@ -55,13 +55,13 @@ export default class ImageView extends View {
 
         // 复制插件
         if (this.viewport) {
-            newView.viewport = { ...this.viewport }
+            newView.viewport = this.viewport.copy()
         }
         if (this.controlPoints) {
-            newView.controlPoints = { ...this.controlPoints }
+            newView.controlPoints = this.controlPoints.copy()
         }
         if (this.boundingBox) {
-            newView.boundingBox = { ...this.boundingBox }
+            newView.boundingBox =this.boundingBox.copy()
         }
 
         return newView

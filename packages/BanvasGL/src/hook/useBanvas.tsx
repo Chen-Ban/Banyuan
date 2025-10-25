@@ -83,7 +83,7 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
             // 导航到新页面
             _app.navigateTo(scene) 
             
-            combinedView.translate(50,50).scale(1.25,1.25,1,new Point3(200,0,0)).rotate(0,0,-Math.PI / 4,new Point3(100,100,0))
+            combinedView.translate(50,50)
             
             // 延迟渲染，确保场景完全设置好
             _app.render()
@@ -92,7 +92,19 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
             console.error('Failed to create page and draw content:', error)
           }
 
-	}, [applyCanvasSize])
+		return () => {
+			// 清理函数
+			if (_app) {
+				try {
+					_app.destroy()
+				} catch (error) {
+					console.warn('Failed to destroy app in cleanup:', error)
+				}
+			}
+			setApp(null)
+			initializedRef.current = false
+		}
+	}, []) // 空依赖数组，只在组件挂载时执行一次
 
 	// 当尺寸参数变化时，更新画布尺寸与渲染器
 	useEffect(() => {
@@ -110,11 +122,6 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 
 		return () => {
 			unbind && unbind()
-			try {
-				app.destroy()
-			} catch {}
-			setApp(null)
-			initializedRef.current = false
 		}
     },[app])
 
@@ -122,10 +129,15 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 	const bindEvents = useCallback((canvas: HTMLCanvasElement) => {
 		// 鼠标事件
 		const onMouseDown = (e: MouseEvent) => {
+			
             if(!app) return
             const point = event2Point(e)
             const scene = app.getCurrentScene()
-            console.log("scene",scene?.children);
+            scene?.children.forEach(view=>{
+				const res = view.interact(point)
+				console.log('交互结果',res);
+				
+			})
             
             
 		}

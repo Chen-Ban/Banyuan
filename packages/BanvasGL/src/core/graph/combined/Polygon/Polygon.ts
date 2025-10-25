@@ -9,7 +9,7 @@ import Line from "../../analytic/Line"
  * Polygon类 - 多边形图形基类
  * 基于CombinedGraph，专门用于创建和管理多边形
  */
-export default class Polygon extends CombinedGraph {
+export default class Polygon extends CombinedGraph<Line> {
     public type: GRAPHTYPE = GRAPHTYPE.POLYGON
     public vertices: Point3[] = []
     public isClosed: boolean = true
@@ -233,7 +233,7 @@ export default class Polygon extends CombinedGraph {
     /**
      * 复制多边形
      */
-    public copy(): Polygon {
-        return new Polygon(this.vertices, this.style.copy(), this.isClosed)
+    public copy(): this {
+        return new Polygon(this.vertices, this.style.copy(), this.isClosed) as this
     }
 }

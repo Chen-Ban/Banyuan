@@ -219,9 +219,9 @@ export default abstract class Bezier extends AnalyticGraph {
     }
 
     // 复制贝塞尔曲线
-    public copy(): Bezier {
+    public copy(): this {
         const copiedControlPoints = this.controlPoints.map(point => point.copy())
-        return this.createCopy(copiedControlPoints, this.style.copy())
+        return this.createCopy(copiedControlPoints, this.style.copy()) as this
     }
 
     // 抽象方法：创建副本

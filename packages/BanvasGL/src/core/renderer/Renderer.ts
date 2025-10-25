@@ -36,7 +36,7 @@ export default class Renderer {
 
         try {
             // 清空画布并渲染场景
-            const canvasContext = getGlobalCanvasContext()
+            const canvasContext = this.canvasContext
             if (canvasContext) {
                 canvasContext.clear()
                 scene.render()

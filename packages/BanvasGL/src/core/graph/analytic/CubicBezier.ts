@@ -282,14 +282,14 @@ export default class CubicBezier extends Bezier {
     }
 
     // 复制三次贝塞尔曲线
-    public copy(): CubicBezier {
+    public copy(): this {
         return new CubicBezier(
             this.controlPoints[0].copy(),
             this.controlPoints[1].copy(),
             this.controlPoints[2].copy(),
             this.controlPoints[3].copy(),
             this.style.copy()
-        )
+        ) as this
     }
 
     // 创建副本

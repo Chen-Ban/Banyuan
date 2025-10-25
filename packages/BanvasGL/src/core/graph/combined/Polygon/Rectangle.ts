@@ -141,9 +141,9 @@ export default class Rectangle extends Polygon {
     /**
      * 复制矩形
      */
-    public copy(): Rectangle {
+    public copy(): this {
         const topLeft = this.getTopLeft()
-        return new Rectangle(topLeft.x, topLeft.y, this.width, this.height, this.style.copy())
+        return new Rectangle(topLeft.x, topLeft.y, this.width, this.height, this.style.copy()) as this
     }
 
     /**

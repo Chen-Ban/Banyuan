@@ -144,8 +144,8 @@ export default class RegularPolygon extends Polygon {
     /**
      * 复制正多边形
      */
-    public copy(): RegularPolygon {
-        return new RegularPolygon(this.center, this.radius, this.sides, this.rotation, this.style.copy())
+    public copy(): this {
+        return new RegularPolygon(this.center, this.radius, this.sides, this.rotation, this.style.copy()) as this
     }
 
     /**

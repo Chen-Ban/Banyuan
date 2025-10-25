@@ -12,7 +12,7 @@ import { VideoElement } from '../graph/video'
 import { Texts } from '../graph/text'
 
 // 导入addon类型
-import { ViewportAddon, BoundingBoxAddon, VertexAddon, BoundingBoxAddonImpl, ViewportAddonImpl } from './addon'
+import { ViewportAddon, BoundingBoxAddon, VertexAddon, BoundingBoxAddonImpl, ViewportAddonImpl, VertexAddonImpl } from './addon'
 import { Point3 } from '../math'
 
 // 视图选项接口
@@ -59,9 +59,9 @@ export default abstract class View<T extends object = any> {
     public matrix: Matrix4 = Matrix4.identity()
     
     // 插件
-    public viewport: ViewportAddon | null = null
-    public controlPoints: VertexAddon | null = null
-    public boundingBox: BoundingBoxAddon | null = null
+    public viewport: ViewportAddonImpl | null = null
+    public controlPoints: VertexAddonImpl | null = null
+    public boundingBox: BoundingBoxAddonImpl | null = null
 
     // 私有属性
     private _isConstructed: boolean = false
@@ -313,7 +313,6 @@ export default abstract class View<T extends object = any> {
         const bounds = this.getContentBounds()
         const width = Math.max(0, bounds.x + bounds.width)
         const height = Math.max(0, bounds.y + bounds.height)
-
         this.boundingBox = new BoundingBoxAddonImpl(width, height)
     }
 
