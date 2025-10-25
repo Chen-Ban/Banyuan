@@ -169,7 +169,7 @@ export default class Arc extends AnalyticGraph {
     }
 
     // 复制圆弧
-    public copy(): Arc {
+    public copy(): this {
         return new Arc(
             this.center.copy(),
             this.radius,
@@ -177,7 +177,7 @@ export default class Arc extends AnalyticGraph {
             this.endAngle,
             this.clockwise,
             this.style.copy()
-        )
+        ) as this
     }
 
     // 检查是否是圆弧

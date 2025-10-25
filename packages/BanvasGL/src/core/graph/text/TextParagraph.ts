@@ -156,8 +156,9 @@ export default class TextParagraph extends Graph {
     public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
         dependent && ctx.beginPath()
         ctx.moveTo(this.controlPoints[0].x, this.controlPoints[1].y);
-        for (let i = 1; i < this.controlPoints.length; i++) {
-            ctx.lineTo(this.controlPoints[i].x, this.controlPoints[i].y);
+        const len = this.controlPoints.length
+        for (let i = 1; i < len + 1; i++) {
+            ctx.lineTo(this.controlPoints[i % len].x, this.controlPoints[i % len].y);
         }
     }
     /**
@@ -168,6 +169,8 @@ export default class TextParagraph extends Graph {
         // 应用样式
         const bounds = this.getBounds()
         this.style.applyToContext(ctx, bounds.width, bounds.height)
+        this.renderPath(ctx,true)
+        ctx.stroke()
         
         // 渲染所有文字元素
         for (const textElement of this.texts) {
@@ -179,7 +182,7 @@ export default class TextParagraph extends Graph {
     /**
      * 复制段落
      */
-    public copy(): TextParagraph {
+    public copy(): this {
         const newParagraph = new TextParagraph(
             this.options.copy(),
             this.style.copy()
@@ -197,7 +200,7 @@ export default class TextParagraph extends Graph {
             newParagraph.setBounds(newParagraph.calculateBounds())
         }
         
-        return newParagraph
+        return newParagraph as this
     }
 
     /**

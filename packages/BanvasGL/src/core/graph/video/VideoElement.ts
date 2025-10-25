@@ -370,7 +370,7 @@ export default class VideoElement extends Graph {
     /**
      * 复制视频元素
      */
-    public copy(): VideoElement {
+    public copy(): this {
         const copy = new VideoElement(
             this.x, this.y, this.videoSrc, this.style
         )
@@ -380,7 +380,7 @@ export default class VideoElement extends Graph {
         copy.autoplay = this.autoplay
         copy.loop = this.loop
         copy.muted = this.muted
-        return copy
+        return copy as this
     }
 
     /**

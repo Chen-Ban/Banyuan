@@ -46,8 +46,8 @@ export default class DenseTrajectory extends Graph{
         ctx.stroke()
         ctx.restore()
     }
-    public copy(): DenseTrajectory {
-        return new DenseTrajectory(Float32Array.from(this.controlPoints), this.style.copy())
+    public copy(): this {
+        return new DenseTrajectory(Float32Array.from(this.controlPoints), this.style.copy()) as this
     }
 
     public isDenseTrajectory():boolean{

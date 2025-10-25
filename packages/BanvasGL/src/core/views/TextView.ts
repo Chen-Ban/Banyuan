@@ -5,6 +5,9 @@ import TextElement from '../graph/text/TextElement'
 import CanvasContext from '../renderer/CanvasContext'
 import { Rectangle } from '../graph/combined/Polygon'
 import { Point3 } from '../math'
+import { world2Relative } from '@/utils/utils'
+import { getGlobalCanvasContext } from '../renderer/CanvasContext'
+import { ViewAddonImpl } from './addon'
 import Selection from './Selection'
 import { VIEWTYPE } from '@/constants'
 
@@ -70,8 +73,46 @@ export default class TextView extends View {
         this.selection.render(ctx)
     }
 
-    public interact(p: Point3):TextElement {
-        return this.content.paragraphs[0].texts[0]
+    public interact(p: Point3): TextView | ViewAddonImpl | null {
+        const relativePoint = world2Relative(p, this.matrix)
+        const ctx = getGlobalCanvasContext()?.getBufferContext()
+        if (!ctx) throw new Error('交互失败')
+        
+
+        // 命中控制点
+        if (this.actived && this.controlPoints) {
+            const hitCP = this.controlPoints.vertices.some(v => v.subtract(relativePoint).length < 5)
+            if (hitCP) return this.controlPoints
+        }
+
+        // 命中文本内容（按段落元素检测）
+        for (const paragraph of this.content.paragraphs) {
+            const paraBounds = paragraph.getBounds()
+            
+            if (!paraBounds) continue
+            const hitPara = paragraph.isPointInPath(ctx, relativePoint)
+            console.log(hitPara);
+            
+            if (hitPara) {
+                // 深入到文字元素
+                for (const t of paragraph.texts) {
+                    const tb = t.getBounds()
+                    const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height)
+                    const hitText = tRect.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5)
+                    if (hitText) return this
+                }
+                return this
+            }
+        }
+
+        // 命中边界框（移动/缩放）
+        if (this.actived && this.boundingBox) {
+            const isMoving = this.boundingBox.region.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5)
+            const isResizing = this.boundingBox.handles.some(rec => rec.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5))
+            if (isMoving || isResizing) return this.boundingBox
+        }
+
+        return null
     }
 
     /**
@@ -392,8 +433,7 @@ export default class TextView extends View {
             const viewHeight = Math.max(0, bounds.y + bounds.height)
         
             // 更新boundingBox的尺寸
-            this.boundingBox.width = viewWidth
-            this.boundingBox.height = viewHeight
+            this.boundingBox.setSize(viewWidth, viewHeight)
             
             // 更新视口插件的尺寸
             this.viewport.width = viewWidth
@@ -430,13 +470,13 @@ export default class TextView extends View {
 
         // 复制插件
         if (this.viewport) {
-            newView.viewport = { ...this.viewport }
+            newView.viewport = this.viewport.copy()
         }
         if (this.controlPoints) {
-            newView.controlPoints = { ...this.controlPoints }
+            newView.controlPoints = this.controlPoints.copy()
         }
         if (this.boundingBox) {
-            newView.boundingBox = { ...this.boundingBox }
+            newView.boundingBox = this.boundingBox.copy()
         }
 
         return newView

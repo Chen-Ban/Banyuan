@@ -118,12 +118,12 @@ export default class Circle extends Arc {
     }
 
     // 复制圆形
-    public copy(): Circle {
+    public copy(): this {
         return new Circle(
             this.center.copy(),
             this.radius,
             this.style.copy()
-        )
+        ) as this
     }
 
     // 检查是否是圆形

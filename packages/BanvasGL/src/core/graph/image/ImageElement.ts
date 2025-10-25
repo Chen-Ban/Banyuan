@@ -233,12 +233,12 @@ export default class ImageElement extends Graph {
     /**
      * 复制图片元素
      */
-    public copy(): ImageElement {
+    public copy(): this {
         const copy = new ImageElement(
             this.x, this.y, this.imageSrc, this.style
         )
         copy.opacity = this.opacity
-        return copy
+        return copy as this
     }
 
     /**

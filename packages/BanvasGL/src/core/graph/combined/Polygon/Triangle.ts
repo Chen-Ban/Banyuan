@@ -117,9 +117,9 @@ export default class Triangle extends Polygon {
     /**
      * 复制三角形
      */
-    public copy(): Triangle {
+    public copy(): this {
         const { p1, p2, p3 } = this.getVertices()
-        return new Triangle(p1, p2, p3, this.style.copy())
+        return new Triangle(p1, p2, p3, this.style.copy()) as this
     }
 
     /**

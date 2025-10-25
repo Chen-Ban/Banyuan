@@ -147,8 +147,8 @@ export default class Serializer {
     })
 
     // 注册可实例化图形类型
-    this.registerType('CombinedGraph', CombinedGraph, {
-      serialize: (graph: CombinedGraph) => this.serializeCombinedGraph(graph),
+    this.registerType('CombinedGraph', CombinedGraph as unknown as new (...args: any[]) => CombinedGraph<any>, {
+      serialize: (graph: CombinedGraph<any>) => this.serializeCombinedGraph(graph),
       deserialize: (data: any) => this.deserializeCombinedGraph(data)
     })
 
@@ -717,15 +717,15 @@ export default class Serializer {
   /**
    * 序列化CombinedGraph为JSON字符串
    */
-  public static serializeCombinedGraph(graph: CombinedGraph, options?: Partial<SerializerOptions>): string {
+  public static serializeCombinedGraph(graph: CombinedGraph<any>, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(graph, options)
   }
 
   /**
    * 反序列化JSON字符串为CombinedGraph
    */
-  public static deserializeCombinedGraph(json: string, options?: Partial<SerializerOptions>): CombinedGraph {
-    return Serializer.getInstance().deserialize<CombinedGraph>(json, options)
+  public static deserializeCombinedGraph(json: string, options?: Partial<SerializerOptions>): CombinedGraph<any> {
+    return Serializer.getInstance().deserialize<CombinedGraph<any>>(json, options)
   }
 
   /**
@@ -803,11 +803,11 @@ export default class Serializer {
   /**
    * 序列化CombinedGraph对象
    */
-  private serializeCombinedGraph(graph: CombinedGraph): any {
+  private serializeCombinedGraph(graph: CombinedGraph<any>): any {
     return {
       id: graph.id,
       type: graph.type,
-      graphs: graph.graphs.map(g => this.serializeValue(g, this.defaultOptions, 0)),
+      graphs: graph.graphs.map((g: Graph) => this.serializeValue(g, this.defaultOptions, 0)),
       style: this.serializeValue(graph.style, this.defaultOptions, 0),
       controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
       bounds: graph.getBounds() ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0) : null
@@ -817,12 +817,12 @@ export default class Serializer {
   /**
    * 反序列化CombinedGraph对象
    */
-  private deserializeCombinedGraph(data: any): CombinedGraph {
+  private deserializeCombinedGraph(data: any): CombinedGraph<any> {
     const graphs = data.graphs.map((graphData: any) => 
       this.deserializeValue(graphData, this.defaultOptions)
     )
     const style = this.deserializeValue(data.style, this.defaultOptions)
-    const graph = new CombinedGraph(graphs, style)
+    const graph = new CombinedGraph<any>(graphs, style)
     graph.id = data.id
     return graph
   }

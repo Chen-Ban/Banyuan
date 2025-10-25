@@ -252,15 +252,14 @@ export default class MagnifyingGlass extends ComplexGraph {
     /**
      * 复制放大镜
      */
-    public copy(): MagnifyingGlass {
+    public copy(): this {
         return new MagnifyingGlass(
             this.center,
             this.radius,
             this.handleLength,
             this.handleAngle,
             this.lensThickness,
-            this.style.copy()
-        )
+        ) as this
     }
 
     /**

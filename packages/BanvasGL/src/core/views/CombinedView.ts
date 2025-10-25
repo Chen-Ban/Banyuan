@@ -3,6 +3,9 @@ import { Graph, Rectangle } from '../graph'
 import View, { ViewOptions } from './View'
 import { Point3 } from '../math'
 import Bounds from '../graph/base/Bounds'
+import { world2Relative } from '@/utils/utils'
+import { getGlobalCanvasContext } from '../renderer/CanvasContext'
+import { ViewAddonImpl } from './addon'
 
 type Extreme = {
     minX:number,
@@ -42,8 +45,37 @@ export default class CombinedView extends View {
         this.initViewport()
     }
 
-    public interact(p: Point3):Graph | View {
-        return this.content
+    public interact(p: Point3): Graph | View | ViewAddonImpl | null {
+        const relativePoint = world2Relative(p, this.matrix)
+        const ctx = getGlobalCanvasContext()?.getBufferContext()
+        if (!ctx) throw new Error('交互失败')
+        
+        // 优先命中子视图（从前到后或根据需要调整顺序）
+        for (const child of this.children) {
+            const hit = child.interact(relativePoint)
+            if (hit) return hit
+        }
+
+        // 命中控制点
+        if (this.actived && this.controlPoints) {
+            const hitCP = this.controlPoints.vertices.some(v => v.subtract(relativePoint).length < 5)
+            if (hitCP) return this.controlPoints
+        }
+
+        // 命中自身内容（如有）
+        if (this.content) {
+            const hitContent = this.content.isPointInPath(ctx, relativePoint)
+            if (hitContent) return this.content
+        }
+
+        // 命中边界框（移动/缩放）
+        if (this.actived && this.boundingBox) {
+            const isMoving = this.boundingBox.region.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5)
+            const isResizing = this.boundingBox.handles.some(rec => rec.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5))
+            if (isMoving || isResizing) return this.boundingBox
+        }
+
+        return null
     }
 
     public renderContent(ctx: CanvasRenderingContext2D): void {
@@ -122,13 +154,13 @@ export default class CombinedView extends View {
 
         // 复制插件
         if (this.viewport) {
-            newView.viewport = { ...this.viewport }
+            newView.viewport = this.viewport.copy()
         }
         if (this.controlPoints) {
-            newView.controlPoints = { ...this.controlPoints }
+            newView.controlPoints = this.controlPoints.copy()
         }
         if (this.boundingBox) {
-            newView.boundingBox = { ...this.boundingBox }
+            newView.boundingBox =this.boundingBox.copy()
         }
 
         return newView

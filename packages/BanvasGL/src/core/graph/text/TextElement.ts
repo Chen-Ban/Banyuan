@@ -4,6 +4,7 @@ import { Point3 } from "@/core/math";
 import { Style, Color } from "@/core/style";
 import TextOptions from "./TextOptions";
 import Bounds from "../base/Bounds";
+import { getGlobalCanvasContext } from "@/core/renderer/CanvasContext";
 
 /**
  * 文字元素类
@@ -48,15 +49,9 @@ export default class TextElement extends Graph {
    */
   private calculateActualDimensions(): void {
     // 创建临时Canvas上下文来测量文字尺寸
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      // 如果无法创建上下文，使用估算值
-      this.width = this.options.size * 0.6; // 估算宽度
-      this.height = this.options.size; // 估算高度
-      return;
-    }
-
+    const ctx = getGlobalCanvasContext()?.getBufferContext()
+    if (!ctx) throw new Error("无法获取真实字体尺寸")
+    ctx.save()
     // 设置字体样式
     ctx.font = this.options.fontString;
 
@@ -64,6 +59,7 @@ export default class TextElement extends Graph {
     const metrics = ctx.measureText(this.content);
     this.width = metrics.width;
     this.height = this.options.size;
+    ctx.restore()
   }
 
   protected calculateBounds(): Bounds {
@@ -177,7 +173,7 @@ export default class TextElement extends Graph {
   /**
    * 复制文字元素
    */
-  public copy(): TextElement {
+  public copy(): this {
     const newElement = new TextElement(
       this.content,
       this.options.copy(),
@@ -190,8 +186,7 @@ export default class TextElement extends Graph {
       newElement.isLayouted = true;
       newElement.setBounds(newElement.calculateBounds());
     }
-
-    return newElement;
+    return newElement as this;
   }
 
   /**
