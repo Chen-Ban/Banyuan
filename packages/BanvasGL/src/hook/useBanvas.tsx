@@ -2,9 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { App } from '@/core/app'
 import type { AppOptions } from '@/core/app'
 import type { RendererOptions } from '@/core/renderer/Renderer'
-import { BaseCamera, Circle, Color, CombinedView, FillStyle, GraphView, Point3, Rectangle, Scene, Style, TextElement, Texts, TextView, View } from '@/core'
+import { BaseCamera, Circle, Color, CombinedView, FillStyle, Graph, GraphView, Point3, Rectangle, Scene, Style, TextElement, Texts, TextView, View } from '@/core'
 import { event2Point } from '@/utils/utils'
 import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
+import { TextIndex } from '@/core/views/TextView'
+import { BoundingBoxAddonImpl, ViewAddonImpl, ViewportAddonImpl } from '@/core/views/addon'
+import { ViewContent } from '@/core/views/View'
+import { Action, Cursor, ExtraData } from '@/core/views/addon/InteractionMapBuilder'
 
 export interface UseBanvasOptions {
     width?: number
@@ -145,34 +149,60 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 
     	// 事件绑定与卸载
 	const bindEvents = useCallback((canvas: HTMLCanvasElement) => {
+		let hasMouseDown: boolean
+		let selectedView: View | null 
+		let selectedContent: ViewContent | ViewAddonImpl | null
+		let action: Action
+		let extraData: ExtraData | null
+
+		const scene = app?.getCurrentScene()
+
+		if(!scene || !app ) return
+
 		// 鼠标事件
 		const onMouseDown = (e: MouseEvent) => {
-			
-            if(!app) return
-            const point = event2Point(e)
-            const scene = app.getCurrentScene()
-			let selected = false
-			if(!scene) return
-            scene.children.forEach(view=>{
-				const {view:_view,content} = view.interact(point)
-				if(_view && content){
-					scene.select(_view,e.ctrlKey)
-					if(_view instanceof TextView){
-						if(content instanceof TextElement){
-							console.log(content.content);
-						}
-						
-					}
-					selected = true
+			const point = event2Point(e)
+			hasMouseDown = true
+            if(selectedView && selectedContent){
+				scene.select(selectedView,e.ctrlKey)
+				if(selectedView instanceof TextView && selectedContent instanceof TextElement){
+					const fixedIndex = selectedView.element2Index(selectedContent,point)
+					const dynamicIndex = [...fixedIndex] as TextIndex
+					selectedView.setSelection(fixedIndex,dynamicIndex)
 				}
-			})
-			selected || ViewTreeUtils.clearAllStates(scene)
-			
-            
+				return
+			}
+			ViewTreeUtils.clearAllStates(scene)
 		}
+
 		const onMouseMove = (e: MouseEvent) => {
+			if(!canvasRef.current)return
+			const point = event2Point(e)
+
+			if(hasMouseDown){
+
+			}else{
+				let selected = false
+				for (const view of scene.children) {
+					const {view:_view,content,extraData} = view.interact(point)
+					if(_view && content && extraData){
+						selectedView = _view
+						selectedContent = content
+						action = extraData.action
+						canvasRef.current.style.cursor = extraData.cursorStyle
+						selected = true
+					}
+				}
+				if(!selected){
+					selectedView = selectedContent = extraData = null
+					action = Action.NONE
+					canvasRef.current.style.cursor = Cursor.Default
+				}
+			}
+			
 		}
 		const onMouseUp = (e: MouseEvent) => {
+			hasMouseDown = false
 		}
 		const onWheel = (e: WheelEvent) => {
 			// 阻止页面滚动

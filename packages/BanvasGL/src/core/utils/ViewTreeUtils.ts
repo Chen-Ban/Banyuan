@@ -1,5 +1,6 @@
 import View from "@/core/views/View"
 import Scene from "@/core/scene/Scene"
+import { TextView } from "../views"
 
 /**
  * 视图树工具类
@@ -159,6 +160,9 @@ export class ViewTreeUtils {
         views.forEach(view => {
             view.setActived(false)
             view.setSelected(false)
+            if(view instanceof TextView){
+                view.setSelection()
+            }
         })
     }
 }
