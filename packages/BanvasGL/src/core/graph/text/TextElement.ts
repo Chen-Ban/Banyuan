@@ -185,7 +185,10 @@ export default class TextElement extends Graph {
     if (this.isLayouted) {
       newElement.position = this.position.copy();
       newElement.isLayouted = true;
+      newElement.width = this.width
+      newElement.height = this.height
       newElement.setBounds(newElement.calculateBounds());
+
     }
     return newElement as this;
   }
