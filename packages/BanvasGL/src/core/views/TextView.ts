@@ -1,15 +1,18 @@
-import View, { ViewOptions } from './View'
+import View, { ViewOptions, ViewContent } from './View'
 import { Texts } from '../graph/text'
 import TextParagraph from '../graph/text/TextParagraph'
 import TextElement from '../graph/text/TextElement'
 import CanvasContext from '../renderer/CanvasContext'
 import { Rectangle } from '../graph/combined/Polygon'
-import { Point3 } from '../math'
+import { MathUtils, Point3 } from '../math'
 import { world2Relative } from '@/utils/utils'
 import { getGlobalCanvasContext } from '../renderer/CanvasContext'
-import { ViewAddonImpl } from './addon'
+import { ViewAddonImpl, InteractionResult, InteractionResultBuilder } from './addon'
 import Selection from './Selection'
 import { VIEWTYPE } from '@/constants'
+import { PointUtils } from '../utils/PointUtils'
+import { Color, StrokeStyle, Style } from '../style'
+import { Line } from '../graph'
 
 // 文本视图选项接口
 export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
@@ -20,7 +23,11 @@ export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
     fixedHeight?: Boolean
     fixedWidth?: Boolean
     shouldLayout?: Boolean
+    fixedIndex?: TextIndex
+    dynamicIndex?: TextIndex
 }
+
+export type TextIndex = [number,number]
 
 /**
  * 文本视图 - 专门处理Texts类型内容
@@ -37,6 +44,8 @@ export default class TextView extends View {
     public fixedHeight: Boolean
     public fixedWidth: Boolean
     public shouldLayout: Boolean
+    public fixedIndex: TextIndex | undefined
+    public dynamicIndex: TextIndex | undefined
 
     constructor(text: Texts, options: TextViewOptions = {}) {
         // 将text作为content传递给父类构造函数
@@ -51,6 +60,8 @@ export default class TextView extends View {
         this.fixedHeight = !!options?.fixedHeight
         this.fixedWidth = !!options?.fixedWidth
         this.shouldLayout = !!options?.shouldLayout
+        this.fixedIndex = options?.fixedIndex 
+        this.dynamicIndex = options?.dynamicIndex
         
         // 如果设置了layoutArea，更新bounds
         if (this.layoutArea) {
@@ -60,12 +71,15 @@ export default class TextView extends View {
             //计算包围盒
             this.initBoundingBox()
             this.initBoundingBox()
+
+            this.setSelection(this.fixedIndex,this.dynamicIndex)
         }
     }
 
     public renderContent(ctx: CanvasRenderingContext2D): void {
         // 渲染文本内容
-        if (this.content && typeof this.content.render === 'function') {
+        if (this.content && typeof this.content.render === 'function' && this.layoutArea) {
+            this.layoutArea.render(ctx)
             this.content.render(ctx)
         }
         
@@ -73,65 +87,122 @@ export default class TextView extends View {
         this.selection.render(ctx)
     }
 
-    public interact(p: Point3): TextView | ViewAddonImpl | null {
+    public interact(p: Point3): { view: View | null, content: ViewContent | ViewAddonImpl | null } {
+        if(!this.layoutArea)throw new Error('请在布局后交互')
         const relativePoint = world2Relative(p, this.matrix)
         const ctx = getGlobalCanvasContext()?.getBufferContext()
         if (!ctx) throw new Error('交互失败')
         
+        const builder = new InteractionResultBuilder()
 
         // 命中控制点
         if (this.actived && this.controlPoints) {
             const hitCP = this.controlPoints.vertices.some(v => v.subtract(relativePoint).length < 5)
-            if (hitCP) return this.controlPoints
+            if (hitCP) {
+                return builder.add(this, this.controlPoints).build()
+            }
         }
 
-        // 命中文本内容（按段落元素检测）
-        for (const paragraph of this.content.paragraphs) {
-            const paraBounds = paragraph.getBounds()
-            
-            if (!paraBounds) continue
-            const hitPara = paragraph.isPointInPath(ctx, relativePoint)
-            console.log(hitPara);
-            
-            if (hitPara) {
-                // 深入到文字元素
-                for (const t of paragraph.texts) {
-                    const tb = t.getBounds()
-                    const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height)
-                    const hitText = tRect.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5)
-                    if (hitText) return this
+        // 命中文本内容 
+        const hitTexts = this.content.isPointInPath(ctx,relativePoint)
+        const hitLayout = this.layoutArea?.isPointInPath(ctx,relativePoint)
+        if(hitLayout || hitTexts){
+            for (const paragraph of this.content.paragraphs) {
+                const hitPara = paragraph.isPointInPath(ctx, relativePoint)
+                if (hitPara) {
+                    // 深入到文字元素
+                    for (const t of paragraph.texts) {
+                        const tb = t.getBounds()
+                        const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height)
+                        const hitText = tRect.isPointInPath(ctx,relativePoint)
+                        if (hitText) {
+                            return builder.add(this, t).build()
+                        }
+                    }
+                    // 行前行后的空隙中，探测左右
+                    const ts = paragraph.texts
+                    const len = ts.length
+                    const [s,_,__,e] = ts[0].controlPoints
+                    const t = MathUtils.distancePointToLineSegment(relativePoint,s,e,false) !== Infinity ?ts[0]:ts[len-1]
+                    return builder.add(this, t).build()
                 }
-                return this
             }
+            // 如果鼠标落在了段落之间探测上下
+            
+            const pIndex = this.content.paragraphs.findIndex(p=>p.controlPoints[0].y > relativePoint.y) - 1
+            const p = this.content.paragraphs[pIndex]
+            const ts = p.texts.filter(t=>t.controlPoints[0].y === p.texts[p.texts.length - 1].controlPoints[0].y)
+            let tIndex = ts.findIndex(t=>t.controlPoints[0].x > relativePoint.x)
+            tIndex = tIndex === -1 ? ts.length - 1 : tIndex - 1
+            const t = ts[tIndex]
+            return builder.add(this,t).build()
         }
 
         // 命中边界框（移动/缩放）
         if (this.actived && this.boundingBox) {
             const isMoving = this.boundingBox.region.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5)
             const isResizing = this.boundingBox.handles.some(rec => rec.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5))
-            if (isMoving || isResizing) return this.boundingBox
+            if (isMoving || isResizing) {
+                return builder.add(this, this.boundingBox).build()
+            }
         }
 
-        return null
+        return builder.build()
     }
 
     /**
      * 处理输入事件
      */
     public input(e: InputEvent): void {
-        // TODO: 实现输入处理逻辑
-        console.log('TextView input event:', e)
+
     }
 
     /**
-     * 将点坐标转换为文本索引
-     * @param p 点坐标
-     * @returns [行索引, 字符索引]
+     * 设置选择框
      */
-    private point2Index(p: Point3): [number, number] {
-        // TODO: 实现点坐标到文本索引的转换
-        // 这里需要根据文本布局计算点击位置对应的行和字符索引
-        return [0, 0]
+    public setSelection(fixedIndex:TextIndex | undefined,dynamicIndex?:TextIndex): void {
+        const fixed = dynamicIndex ? fixedIndex : this.fixedIndex
+        const dynamic = dynamicIndex ?? fixedIndex
+        // 如果为undefined则表示未选中某一个序列，不出现光标
+        if(!fixed || !dynamic){
+            this.selection.setSelectionBoxs([])
+            return
+        }
+
+        const start = fixed[0] < dynamic[0] ? fixed : fixed[0] > dynamic[0] ? dynamic : fixed[1] < dynamic[1] ? fixed : dynamic
+        const end = start === fixed ? dynamic : fixed
+        
+        // 获取范围内所有rect
+        const boxs = []
+        for(let i = start[0]; i <= end[0]; i++){
+            const _start = i === start[0] ? start[1] : 0
+            const length = this.content.paragraphs[i].texts.length
+            const _end = i === end[0] ? Math.min(end[1],length) : length
+            for(let j = _start; j < _end; j++){
+                const ps = this.content.paragraphs[i].texts[j].controlPoints 
+                const p = ps[0]
+                const width = PointUtils.distance(ps[0],ps[1])
+                const height = PointUtils.distance(ps[1],ps[2])
+                const box = new Rectangle(p.x,p.y,width,height)
+                boxs.push(box)
+            }
+        }
+
+        if(boxs.length === 0 ){
+            const [i,j] = start
+            const length = this.content.paragraphs[i].texts.length
+            const _j = length <= j ? length - 1 : j
+            const ps = this.content.paragraphs[i].texts[_j].controlPoints 
+            const p = ps[1]
+            const width = 2
+            const height = PointUtils.distance(ps[1],ps[2])
+            const box = new Rectangle(p.x,p.y,width,height)
+            boxs.push(box)
+        }
+
+        
+
+        this.selection.setSelectionBoxs(boxs)
     }
 
     /**
@@ -165,13 +236,14 @@ export default class TextView extends View {
         for (const paragraph of texts.paragraphs) {
             this.layoutParagraph(paragraph, layoutArea.getTopLeft().x, currentY, layoutArea.width)
             const paragraphBounds = paragraph.getBounds()
+            
             if (paragraphBounds) {
-                currentY += paragraphBounds.height + paragraph.options.postHeight
+                currentY += paragraphBounds.height +paragraph.options.preHeight+ paragraph.options.postHeight
             }
         }
+        
         // 设置Texts的布局状态（先设置位置，再调整对齐）
         texts.layout(new Point3(layoutArea.getTopLeft().x, layoutArea.getTopLeft().y, 0))
-        
         // 根据Texts的垂直对齐方式调整整体位置
         this.adjustTextsVerticalAlignment(texts, layoutArea)
         
@@ -187,12 +259,15 @@ export default class TextView extends View {
         // 考虑段落的前宽度，但不在这里加缩进
         const actualStartX = startX + paragraph.options.preWidth
         const actualMaxWidth = maxWidth - paragraph.options.preWidth
+
+        const actualStartY = startY + paragraph.options.preHeight
+        
         
         // 布局段落内的所有TextElement，传递缩进信息
-        this.layoutTextElementsInParagraph(paragraph, actualStartX, startY, actualMaxWidth, indentationWidth)
+        this.layoutTextElementsInParagraph(paragraph, actualStartX, actualStartY, actualMaxWidth, indentationWidth)
         
         // 设置段落的布局状态（先设置位置，再调整对齐）
-        paragraph.layout(new Point3(actualStartX, startY, 0))
+        paragraph.layout(new Point3(actualStartX, actualStartY, 0))
         
         // 根据段落的水平对齐方式调整段落内元素位置
         this.adjustParagraphHorizontalAlignment(paragraph, actualStartX, actualMaxWidth)
@@ -205,7 +280,7 @@ export default class TextView extends View {
         // 第一步：根据字体宽度进行分行
         const lines = this.breakTextIntoLines(paragraph, startX, maxWidth, indentationWidth)
         // 第二步：计算每行的行高和位置
-        let currentY = startY + paragraph.options.preHeight
+        let currentY = startY 
         
         for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
             const line = lines[lineIndex]
@@ -213,18 +288,14 @@ export default class TextView extends View {
             // 计算当前行的行高（基于leading）
             const lineHeight = this.calculateLineHeight(line, paragraph.options.leading)
             
-            // 计算当前行的基线位置（文字基于行底部对齐）
-            const baselineY = currentY + lineHeight
-            
             // 第三步：设置该行所有TextElement的位置
             let currentX = line.startX
             
             for (const textElement of line.elements) {
-                // 文字基于行底部对齐：基线位置 - 文字高度
-                const y = baselineY - textElement.getActualHeight()
                 
-                const position = new Point3(currentX, y, 0)
+                const position = new Point3(currentX, currentY, 0)
                 textElement.layout(position)
+                textElement.height = lineHeight
                 
                 // 更新X位置
                 currentX += textElement.getActualWidth() + paragraph.options.letterSpacing
@@ -382,14 +453,7 @@ export default class TextView extends View {
         return firstCharWidth * paragraph.options.indentation
     }
 
-    /**
-     * 设置选择框
-     */
-    public setSelectionBoxs(): void {
-        // TODO: 根据当前选择状态设置选择框
-        // 这里需要根据文本选择范围计算选择框的位置和大小
-        this.selection.setSelectionBoxs([])
-    }
+
 
     /**
      * 检查是否为文本视图
@@ -426,8 +490,6 @@ export default class TextView extends View {
     private updateBoundsFromLayoutArea(): void {
         if (this.layoutArea && this.boundingBox && this.viewport) {
             const bounds = this.layoutArea.getBounds()
-            console.log(bounds);
-            
             
             const viewWidth = Math.max(0, bounds.x + bounds.width)
             const viewHeight = Math.max(0, bounds.y + bounds.height)

@@ -41,6 +41,18 @@ export default class App {
     private _maxPageStackSize: number = 50
     private _enablePageStack: boolean = true
     private _pageStackHistory: Set<string> = new Set() // 记录已经在栈中的页面ID
+    
+    // 循环渲染相关属性
+    private _animationFrameId: number | null = null
+    private _isRendering: boolean = false
+    private _renderLoop: boolean = false
+    private _lastRenderTime: number = 0
+    private _targetFPS: number = 60
+    private _frameInterval: number = 1000 / 60 // 16.67ms for 60fps
+    
+    // 用户自定义生命周期回调函数
+    private _userOnLaunch?: (params: any) => void
+    private _userOnUnlaunch?: () => void
 
     constructor(renderer: Renderer, options: AppOptions = {}) {
         this.renderer = renderer
@@ -48,25 +60,41 @@ export default class App {
         this._enablePageStack = options.enablePageStack !== false
         this._maxPageStackSize = options.maxPageStackSize || 50
         
-        // 设置回调函数
+        // 保存用户自定义的生命周期回调函数
         if (options.onLaunch) {
-            this.onLaunch = options.onLaunch
+            this._userOnLaunch = options.onLaunch
         }
         if (options.onUnlaunch) {
-            this.onUnlaunch = options.onUnlaunch
+            this._userOnUnlaunch = options.onUnlaunch
         }
     }
 
-    // 生命周期方法
+    // 内置生命周期方法
     public onLaunch(params: any): void {
+        // 内置逻辑
         this._launchParams = params
         this._isLaunched = true
-        // 子类可以重写此方法
+        
+        // 自动启动循环渲染
+        this.startRenderLoop()
+        console.log('App已启动，自动开始循环渲染')
+        
+        // 调用用户自定义的生命周期回调函数
+        if (this._userOnLaunch) {
+            try {
+                this._userOnLaunch(params)
+            } catch (error) {
+                console.error('用户onLaunch回调函数执行失败:', error)
+            }
+        }
     }
 
     public onUnlaunch(): void {
         this._isLaunched = false
         this._launchParams = null
+        
+        // 停止渲染循环
+        this.stopRenderLoop()
         
         // 清理所有场景
         this.scenes.forEach(scene => {
@@ -81,7 +109,14 @@ export default class App {
         // 清空页面栈历史记录
         this._pageStackHistory.clear()
         
-        // 子类可以重写此方法
+        // 调用用户自定义的生命周期回调函数
+        if (this._userOnUnlaunch) {
+            try {
+                this._userOnUnlaunch()
+            } catch (error) {
+                console.error('用户onUnlaunch回调函数执行失败:', error)
+            }
+        }
     }
 
     // 启动应用
@@ -315,10 +350,6 @@ export default class App {
         this._pageStackHistory.delete(page.id)
     }
 
-    private getTopPage(): Page | null {
-        // 获取栈顶页面
-        return this.pageStack.length > 0 ? this.pageStack[this.pageStack.length - 1] : null
-    }
 
     // 检查页面是否在栈中
     private isPageInStack(page: Page): boolean {
@@ -363,12 +394,179 @@ export default class App {
         this.applyAppStyle()
         
         if (this._currentScene) {
-            console.log('开始渲染页面', this._currentScene.id);
             this.renderer.render(this._currentScene)
         } else {
             this.renderer.clear()
         }
         return this
+    }
+
+    /**
+     * 开始循环渲染
+     * @param fps 目标帧率，默认为60fps
+     */
+    public startRenderLoop(fps: number = 60): App {
+        if (this._renderLoop) {
+            console.warn('渲染循环已经在运行中')
+            return this
+        }
+
+        this._targetFPS = fps
+        this._frameInterval = 1000 / fps
+        this._renderLoop = true
+        this._lastRenderTime = 0
+
+        this._requestAnimationFrame()
+        
+        return this
+    }
+
+    /**
+     * 停止循环渲染
+     */
+    public stopRenderLoop(): App {
+        if (!this._renderLoop) {
+            console.warn('渲染循环未在运行')
+            return this
+        }
+
+        this._renderLoop = false
+        
+        if (this._animationFrameId !== null) {
+            cancelAnimationFrame(this._animationFrameId)
+            this._animationFrameId = null
+        }
+
+        console.log('停止循环渲染')
+        return this
+    }
+
+    /**
+     * 暂停循环渲染
+     */
+    public pauseRenderLoop(): App {
+        if (this._animationFrameId !== null) {
+            cancelAnimationFrame(this._animationFrameId)
+            this._animationFrameId = null
+        }
+        this._isRendering = false
+        console.log('暂停循环渲染')
+        return this
+    }
+
+    /**
+     * 恢复循环渲染
+     */
+    public resumeRenderLoop(): App {
+        if (this._renderLoop && !this._isRendering) {
+            this._requestAnimationFrame()
+            console.log('恢复循环渲染')
+        }
+        return this
+    }
+
+    /**
+     * 设置目标帧率
+     * @param fps 目标帧率
+     */
+    public setTargetFPS(fps: number): App {
+        this._targetFPS = Math.max(1, Math.min(120, fps)) // 限制在1-120fps之间
+        this._frameInterval = 1000 / this._targetFPS
+        console.log(`设置目标帧率为: ${this._targetFPS}fps`)
+        return this
+    }
+
+    /**
+     * 获取当前渲染状态
+     */
+    public getRenderStatus(): {
+        isRendering: boolean
+        renderLoop: boolean
+        targetFPS: number
+        frameInterval: number
+    } {
+        return {
+            isRendering: this._isRendering,
+            renderLoop: this._renderLoop,
+            targetFPS: this._targetFPS,
+            frameInterval: this._frameInterval
+        }
+    }
+
+    /**
+     * 内部方法：请求动画帧
+     */
+    private _requestAnimationFrame(): void {
+        if (!this._renderLoop) return
+
+        this._animationFrameId = requestAnimationFrame((timestamp) => {
+            this._renderFrame(timestamp)
+        })
+    }
+
+    /**
+     * 内部方法：渲染帧
+     */
+    private _renderFrame(timestamp: number): void {
+        if (!this._renderLoop) return
+
+        // 检查是否应该渲染这一帧（基于目标FPS）
+        if (timestamp - this._lastRenderTime >= this._frameInterval) {
+            this._isRendering = true
+            this.render()
+            this._lastRenderTime = timestamp
+            this._isRendering = false
+        }
+
+        // 继续下一帧
+        this._requestAnimationFrame()
+    }
+
+    /**
+     * 设置用户自定义的onLaunch回调函数
+     * @param callback 用户自定义的onLaunch回调函数
+     */
+    public setUserOnLaunch(callback: (params: any) => void): App {
+        this._userOnLaunch = callback
+        return this
+    }
+
+    /**
+     * 设置用户自定义的onUnlaunch回调函数
+     * @param callback 用户自定义的onUnlaunch回调函数
+     */
+    public setUserOnUnlaunch(callback: () => void): App {
+        this._userOnUnlaunch = callback
+        return this
+    }
+
+    /**
+     * 移除用户自定义的onLaunch回调函数
+     */
+    public removeUserOnLaunch(): App {
+        this._userOnLaunch = undefined
+        return this
+    }
+
+    /**
+     * 移除用户自定义的onUnlaunch回调函数
+     */
+    public removeUserOnUnlaunch(): App {
+        this._userOnUnlaunch = undefined
+        return this
+    }
+
+    /**
+     * 获取用户自定义的生命周期回调函数状态
+     */
+    public getUserLifecycleStatus(): {
+        hasUserOnLaunch: boolean
+        hasUserOnUnlaunch: boolean
+    } {
+        return {
+            hasUserOnLaunch: !!this._userOnLaunch,
+            hasUserOnUnlaunch: !!this._userOnUnlaunch
+        }
     }
 
     // 从序列化的 Scene JSON 初始化

@@ -69,6 +69,7 @@ export default class Texts extends Graph {
         
         for (const paragraph of this.paragraphs) {
             const bounds = paragraph.getBounds()
+            
             if (bounds) {
                 minX = Math.min(minX, bounds.x)
                 minY = Math.min(minY, bounds.y)
@@ -76,9 +77,10 @@ export default class Texts extends Graph {
                 maxY = Math.max(maxY, bounds.y + bounds.height)
             }
         }
+        
 
         const resultBounds = new Bounds(minX, minY, maxX - minX, maxY - minY)
-        
+                
         if (this.isLayouted) {
             // 设置控制点（四个角点）
             this.controlPoints = [
@@ -150,8 +152,9 @@ export default class Texts extends Graph {
     public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
         dependent && ctx.beginPath()
         ctx.moveTo(this.controlPoints[0].x, this.controlPoints[1].y);
-        for (let i = 1; i < this.controlPoints.length; i++) {
-            ctx.lineTo(this.controlPoints[i].x, this.controlPoints[i].y);
+        const len = this.controlPoints.length
+        for (let i = 1; i < len + 1; i++) {
+            ctx.lineTo(this.controlPoints[i % len].x, this.controlPoints[i % len].y);
         }
     }
 
@@ -162,7 +165,10 @@ export default class Texts extends Graph {
         ctx.save()
         // 应用样式
         this.style.applyToContext(ctx)
-        
+        this.renderPath(ctx,true)
+        ctx.strokeStyle = '#f00'
+        ctx.lineWidth = 3
+        ctx.stroke()
         // 渲染所有段落
         for (const paragraph of this.paragraphs) {
             paragraph.render(ctx)

@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { App } from '@/core/app'
 import type { AppOptions } from '@/core/app'
 import type { RendererOptions } from '@/core/renderer/Renderer'
-import { BaseCamera, Circle, Color, CombinedView, FillStyle, GraphView, Point3, Rectangle, Scene, Style, Texts, TextView } from '@/core'
+import { BaseCamera, Circle, Color, CombinedView, FillStyle, GraphView, Point3, Rectangle, Scene, Style, TextElement, Texts, TextView, View } from '@/core'
 import { event2Point } from '@/utils/utils'
+import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
 
 export interface UseBanvasOptions {
     width?: number
@@ -65,8 +66,26 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
             const scene = new Scene(camera)
       
             const rect = new GraphView(new Rectangle(50,50,50,50))
-            const text =  new TextView(Texts.simple("123456789101112131415"),{
-              layoutArea:new Rectangle(50,50,50,50)
+			const p = Texts.simple('123456789')
+			p.paragraphs[0].options.leading = 1.7
+			p.paragraphs[0].options.indentation = 2
+			p.paragraphs[0].options.preHeight = 10
+			p.paragraphs[0].options.postHeight = 5
+			p.paragraphs[0].options.preWidth = 10
+
+			const p2 = Texts.simple('abcdefghijklmnopqrstuvwxyz')
+			p.paragraphs[0].options.leading = 1.7
+			p.paragraphs[0].options.indentation = 2
+			p.paragraphs[0].options.preHeight = 10
+			p.paragraphs[0].options.postHeight = 5
+			p.paragraphs[0].options.preWidth = 10
+
+			const texts = new Texts([...p.paragraphs,...p2.paragraphs])
+			
+            const text =  new TextView(texts,{
+              layoutArea:new Rectangle(50,50,50,50),
+			  fixedIndex:[0,0],
+			  dynamicIndex:[1,21]
             })
             text.translate(100,100)
       
@@ -85,8 +104,7 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
             
             combinedView.translate(50,50)
             
-            // 延迟渲染，确保场景完全设置好
-            _app.render()
+            // 循环渲染会自动处理渲染，无需手动调用
       
           } catch (error) {
             console.error('Failed to create page and draw content:', error)
@@ -133,12 +151,23 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
             if(!app) return
             const point = event2Point(e)
             const scene = app.getCurrentScene()
-            scene?.children.forEach(view=>{
-				const res = view.interact(point)
-				console.log('交互结果',res);
-				
+			let selected = false
+			if(!scene) return
+            scene.children.forEach(view=>{
+				const {view:_view,content} = view.interact(point)
+				if(_view && content){
+					scene.select(_view,e.ctrlKey)
+					if(_view instanceof TextView){
+						if(content instanceof TextElement){
+							console.log(content.content);
+						}
+						
+					}
+					selected = true
+				}
 			})
-            
+			selected || ViewTreeUtils.clearAllStates(scene)
+			
             
 		}
 		const onMouseMove = (e: MouseEvent) => {

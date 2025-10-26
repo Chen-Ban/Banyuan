@@ -6,6 +6,9 @@ export { default as BoundingBoxAddonImpl } from './BoundingBoxAddon'
 export type { VertexAddon } from './VertexAddon'
 export { default as VertexAddonImpl } from './VertexAddon'
 
+// 导出交互结果构建器
+export { InteractionResultBuilder, type InteractionResult } from './InteractionResultBuilder'
+
 // 导出类型联合
 import type { ViewportAddon } from './ViewportAddon'
 import type { BoundingBoxAddon } from './BoundingBoxAddon'

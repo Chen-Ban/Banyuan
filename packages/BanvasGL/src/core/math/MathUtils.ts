@@ -122,7 +122,7 @@ export class MathUtils {
     /**
      * 计算点到线段的距离
      */
-    public static distancePointToLineSegment(point: Point3, lineStart: Point3, lineEnd: Point3): number {
+    public static distancePointToLineSegment(point: Point3, lineStart: Point3, lineEnd: Point3,restraint: boolean = true): number {
         const lineVector = lineEnd.subtract(lineStart)
         const pointVector = point.subtract(lineStart)
         
@@ -130,8 +130,11 @@ export class MathUtils {
         if (MathUtils.isZero(lineLengthSquared)) {
             return MathUtils.distance(point, lineStart)
         }
-        
-        const t = Math.max(0, Math.min(1, pointVector.dot(lineVector) / lineLengthSquared))
+        let t = pointVector.dot(lineVector) / lineLengthSquared
+        if(restraint){
+            t = Math.max(0, Math.min(1, t))
+        }
+        if(t < 0 || t > 1) return Infinity
         const projection = new Point3(
             lineStart.x + t * lineVector.x,
             lineStart.y + t * lineVector.y,

@@ -170,6 +170,9 @@ export default class TextParagraph extends Graph {
         const bounds = this.getBounds()
         this.style.applyToContext(ctx, bounds.width, bounds.height)
         this.renderPath(ctx,true)
+        ctx.strokeStyle = '#bfa'
+        ctx.setLineDash([2,2])
+        ctx.lineWidth = 5
         ctx.stroke()
         
         // 渲染所有文字元素

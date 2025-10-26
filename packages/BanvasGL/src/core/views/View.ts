@@ -7,12 +7,9 @@ import Scene from '../scene/Scene'
 
 // 导入图形相关类型
 import { Graph } from '../graph'
-import { ImageElement } from '../graph/image'
-import { VideoElement } from '../graph/video'
-import { Texts } from '../graph/text'
 
 // 导入addon类型
-import { ViewportAddon, BoundingBoxAddon, VertexAddon, BoundingBoxAddonImpl, ViewportAddonImpl, VertexAddonImpl } from './addon'
+import { BoundingBoxAddonImpl, ViewportAddonImpl, VertexAddonImpl, ViewAddonImpl } from './addon'
 import { Point3 } from '../math'
 
 // 视图选项接口
@@ -30,7 +27,7 @@ export interface ViewOptions<T extends object = any> {
 }
 
 // 内容类型联合
-type ViewContent = Graph | ImageElement | VideoElement | Texts | null
+export type ViewContent = Graph | null
 
 export default abstract class View<T extends object = any> {
     // 基本属性
@@ -71,7 +68,7 @@ export default abstract class View<T extends object = any> {
     public abstract renderContent(ctx: CanvasRenderingContext2D): void
     public abstract copy(): View
     public abstract getContentBounds(): { x: number, y: number, width: number, height: number } 
-    public abstract interact(p:Point3):any
+    public abstract interact(p:Point3):{ view: View | null, content: ViewContent | ViewAddonImpl | null }
 
     constructor(options: ViewOptions<T>) {
         this.construct(options)
@@ -196,7 +193,6 @@ export default abstract class View<T extends object = any> {
 
     private renderChildren(ctx: CanvasContext){
         if(!this.children || this.children?.length === 0)return
-        console.log("render children");
         
         this.children.forEach(view=>{
             ctx.save()
@@ -269,7 +265,7 @@ export default abstract class View<T extends object = any> {
 
     // 渲染插件
     private renderPlugins(ctx: CanvasRenderingContext2D): void {
-        // if (!this.actived) return
+        if (!this.actived) return
         if (this.controlPoints && typeof (this.controlPoints as any).render === 'function') {
             ;(this.controlPoints as any).render(ctx)
         }
@@ -295,7 +291,7 @@ export default abstract class View<T extends object = any> {
 
 
     // 检查内容是否在视口外
-    private hasContentOutsideViewport(viewport: ViewportAddon): boolean {
+    private hasContentOutsideViewport(viewport: ViewportAddonImpl): boolean {
         // 获取内容的边界框
         const contentBounds = this.getContentBounds()
         if (!contentBounds) {
