@@ -219,7 +219,7 @@ export default class Line extends AnalyticGraph {
      * 计算点到线条的最短距离
      */
     public distanceToPoint(point: Point3): number {
-        return MathUtils.distancePointToLine(point, this.startPoint, this.endPoint)
+        return MathUtils.distancePointToLineSegment(point, this.startPoint, this.endPoint)
     }
 
     /**

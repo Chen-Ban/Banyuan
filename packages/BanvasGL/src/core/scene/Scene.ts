@@ -7,6 +7,7 @@ import Style from '../style/Style'
 import { v4 as uuidv4 } from 'uuid'
 import { CombinedView} from '../views'
 import { Point3 } from '../math'
+import { ViewTreeUtils } from '../utils/ViewTreeUtils'
 
 export interface SceneOptions{
     camera?: BaseCamera
@@ -100,6 +101,25 @@ export default class Scene {
         if (this._onHide) {
             this._onHide()
         }
+    }
+
+    public select(view: View, multiple: boolean = false) {
+        // 查看传入的view是不是在这个列表中
+        if (!ViewTreeUtils.isViewInTree(this, view)) {
+            console.warn('指定的视图不在当前场景中')
+            return
+        }
+
+        if (multiple) {
+            ViewTreeUtils.clearSelectedStates(this)
+        } else {
+            ViewTreeUtils.clearAllStates(this)
+        }
+
+        // 然后将view选中，actived和selected属性置为true
+        view.setActived(true)
+        view.setSelected(true)
+        
     }
 
     // 渲染方法

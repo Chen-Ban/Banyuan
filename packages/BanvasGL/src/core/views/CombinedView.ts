@@ -1,11 +1,12 @@
 import { VIEWTYPE } from '@/constants'
-import { Graph, Rectangle } from '../graph'
-import View, { ViewOptions } from './View'
+import { Graph, Rectangle, TextElement } from '../graph'
+import View, { ViewOptions, ViewContent } from './View'
 import { Point3 } from '../math'
 import Bounds from '../graph/base/Bounds'
 import { world2Relative } from '@/utils/utils'
 import { getGlobalCanvasContext } from '../renderer/CanvasContext'
 import { ViewAddonImpl } from './addon'
+import { InteractionResult, InteractionResultBuilder } from './addon'
 
 type Extreme = {
     minX:number,
@@ -45,37 +46,52 @@ export default class CombinedView extends View {
         this.initViewport()
     }
 
-    public interact(p: Point3): Graph | View | ViewAddonImpl | null {
+    public interact(p: Point3): { view: View | null, content: ViewContent | ViewAddonImpl | null } {
         const relativePoint = world2Relative(p, this.matrix)
+        const builder = new InteractionResultBuilder()
+        
         const ctx = getGlobalCanvasContext()?.getBufferContext()
         if (!ctx) throw new Error('交互失败')
         
         // 优先命中子视图（从前到后或根据需要调整顺序）
         for (const child of this.children) {
-            const hit = child.interact(relativePoint)
-            if (hit) return hit
+            const childResult = child.interact(relativePoint)
+            if (childResult.view && childResult.content) {
+                // 添加子视图的交互结果
+                builder.add(childResult.view, childResult.content)
+                
+            }
+        }
+        if(builder.size > 0){
+            return builder.build()
         }
 
         // 命中控制点
         if (this.actived && this.controlPoints) {
             const hitCP = this.controlPoints.vertices.some(v => v.subtract(relativePoint).length < 5)
-            if (hitCP) return this.controlPoints
+            if (hitCP) {
+                return builder.add(this, this.controlPoints).build()
+            }
         }
 
         // 命中自身内容（如有）
         if (this.content) {
             const hitContent = this.content.isPointInPath(ctx, relativePoint)
-            if (hitContent) return this.content
+            if (hitContent) {
+                return builder.add(this, this.content).build()
+            }
         }
 
         // 命中边界框（移动/缩放）
         if (this.actived && this.boundingBox) {
             const isMoving = this.boundingBox.region.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5)
             const isResizing = this.boundingBox.handles.some(rec => rec.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5))
-            if (isMoving || isResizing) return this.boundingBox
+            if (isMoving || isResizing) {
+                return builder.add(this, this.boundingBox).build()
+            }
         }
 
-        return null
+        return builder.build()
     }
 
     public renderContent(ctx: CanvasRenderingContext2D): void {

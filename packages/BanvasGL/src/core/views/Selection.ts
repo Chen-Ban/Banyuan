@@ -26,14 +26,12 @@ export default class Selection {
         }
 
         ctx.save()
-        ctx.fillStyle = 'rgba(0, 123, 255, 0.3)' // 半透明蓝色
-        ctx.strokeStyle = 'rgba(0, 123, 255, 0.8)' // 蓝色边框
+        ctx.fillStyle = 'rgba(0, 123, 255, .5)' // 半透明蓝色
         ctx.lineWidth = 1
 
         this.selectionBoxs.forEach(box => {
             const topLeft = box.getTopLeft()
             ctx.fillRect(topLeft.x, topLeft.y, box.width, box.height)
-            ctx.strokeRect(topLeft.x, topLeft.y, box.width, box.height)
         })
 
         ctx.restore()

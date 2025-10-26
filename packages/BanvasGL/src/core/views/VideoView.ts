@@ -1,7 +1,8 @@
-import View, { ViewOptions } from './View'
+import View, { ViewContent, ViewOptions } from './View'
 import { VideoElement } from '../graph/video'
 import CanvasContext from '../renderer/CanvasContext'
 import { Point3 } from '../math'
+import { InteractionResultBuilder, ViewAddonImpl } from './addon'
 
 // 视频视图选项接口
 export interface VideoViewOptions extends Omit<ViewOptions, 'content'> {
@@ -35,8 +36,8 @@ export default class VideoView extends View {
         return { x: 0, y: 0, width: 0, height: 0 }
     }
 
-    public interact(p: Point3):VideoElement {
-        return this.content
+    public interact(p: Point3): { view: View | null, content: ViewContent | ViewAddonImpl | null }  {
+        return new InteractionResultBuilder().build()
     }
 
     public copy(): VideoView {

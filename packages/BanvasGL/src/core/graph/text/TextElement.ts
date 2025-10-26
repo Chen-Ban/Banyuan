@@ -166,7 +166,8 @@ export default class TextElement extends Graph {
     // 设置文字颜色（在应用样式后设置，确保不被覆盖）
     ctx.fillStyle = this.options.color.rgba;
     // 绘制文字
-    ctx.fillText(this.content, this.position.x, this.position.y);
+    
+    ctx.fillText(this.content, this.position.x, this.position.y + this.height - this.options.size);
     ctx.restore()
   }
 

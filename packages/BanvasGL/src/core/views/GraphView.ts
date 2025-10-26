@@ -1,10 +1,11 @@
-import View, { ViewOptions } from './View'
+import View, { ViewOptions, ViewContent } from './View'
 import { Graph, Line, Rectangle } from '../graph'
 import { VIEWTYPE } from '@/constants'
 import { Point3 } from '../math'
 import { ViewAddonImpl } from './addon'
 import { world2Relative } from '@/utils/utils'
 import { getGlobalCanvasContext } from '../renderer/CanvasContext'
+import { InteractionResult, InteractionResultBuilder } from './addon'
 
 // 图形视图选项接口
 export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
@@ -37,25 +38,41 @@ export default class GraphView extends View {
         return this.content.getBounds()
     }
 
-    public interact(p: Point3):Graph | ViewAddonImpl | null {
-        const relativePoint = world2Relative(p,this.matrix)
+    public interact(p: Point3): { view: View | null, content: ViewContent | ViewAddonImpl | null } {
+        const relativePoint = world2Relative(p, this.matrix)
+        const builder = new InteractionResultBuilder()
+        
         
         const ctx = getGlobalCanvasContext()?.getBufferContext()
-        if(!ctx)throw new Error("交互失败")
-        if(this.actived && this.controlPoints){
-           const hitCP = this.controlPoints.vertices.some(v=>v.subtract(relativePoint).length < 5)
-           if (hitCP) return this.controlPoints
+        if (!ctx) throw new Error("交互失败")
+        
+        // 检查控制点
+        if (this.actived && this.controlPoints) {
+            const hitCP = this.controlPoints.vertices.some(v => v.subtract(relativePoint).length < 5)
+            if (hitCP) {
+                
+                return builder.add(this, this.controlPoints).build()
+            }
         }
-        if(this.content){
-            const hitContent = this.content.isPointInPath(ctx,relativePoint)
-            if (hitContent) return this.content
+        
+        // 检查内容
+        if (this.content) {
+            const hitContent = this.content.isPointInPath(ctx, relativePoint)
+            if (hitContent) {
+                return builder.add(this, this.content).build()
+            }
         }
-        if(this.actived && this.boundingBox){
+        
+        // 检查边界框
+        if (this.actived && this.boundingBox) {
             const isMoving = this.boundingBox.region.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5)
-            const isResizing = this.boundingBox.handles.some(rec => rec.graphs.some(edge => edge.distanceToPoint(relativePoint) < 5))
-            if (isMoving || isResizing) return this.boundingBox
+            const isResizing = this.boundingBox.handles.some(rec => rec.graphs.some(edge =>edge.distanceToPoint(relativePoint) < 5))
+            if (isMoving || isResizing) {
+                return builder.add(this, this.boundingBox).build()
+            }
         }
-        return null
+        
+        return builder.build()
     }
 
     public copy(): GraphView {

@@ -199,6 +199,7 @@ export default class Polygon extends CombinedGraph<Line> {
         return this.vertices.map(v => v.copy())
     }
 
+
     /**
      * 渲染多边形
      */
