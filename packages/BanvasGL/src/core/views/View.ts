@@ -47,7 +47,7 @@ export default abstract class View<T extends object = any> {
 
   // 抽象内容属性 - 子类必须实现
   public abstract content: ViewContent;
-  public abstract children: View[] | null;
+  public abstract children: View[];
 
   // 层级关系
   public parent: Scene | View | null = null;
@@ -206,10 +206,16 @@ export default abstract class View<T extends object = any> {
     this.renderContent(canvasContext.getMainContext());
     // 渲染子节点
     this.renderChildren(canvasContext);
+    const ctx = canvasContext.getMainContext();
+    ctx.save();
+    ctx.fillStyle = "#000";
+    ctx.textBaseline = "top";
+    ctx.fillText(this.id, 0, 0);
+    ctx.restore();
   }
 
   private renderChildren(ctx: CanvasContext) {
-    if (!this.children || this.children?.length === 0) return;
+    if (this.children.length === 0) return;
 
     this.children.forEach((view) => {
       ctx.save();
@@ -340,6 +346,7 @@ export default abstract class View<T extends object = any> {
 
   public initBoundingBox(): void {
     const bounds = this.getContentBounds();
+
     const width = Math.max(0, bounds.x + bounds.width);
     const height = Math.max(0, bounds.y + bounds.height);
     this.boundingBox = new BoundingBoxAddonImpl(width, height);

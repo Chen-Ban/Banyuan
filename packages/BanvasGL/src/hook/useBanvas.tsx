@@ -2,13 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { App } from '@/core/app'
 import type { AppOptions } from '@/core/app'
 import type { RendererOptions } from '@/core/renderer/Renderer'
-import { BaseCamera, Circle, Color, CombinedView, FillStyle, Graph, GraphView, Point3, Rectangle, Scene, Style, TextElement, Texts, TextView, View } from '@/core'
+import { BaseCamera, Circle, Color, CombinedView, FillStyle, Graph, GraphView, MathUtils, Point3, Rectangle, Scene, Style, TextElement, Texts, TextView, View } from '@/core'
 import { event2Point } from '@/utils/utils'
 import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
 import { TextIndex } from '@/core/views/TextView'
 import { BoundingBoxAddonImpl, ViewAddonImpl, ViewportAddonImpl } from '@/core/views/addon'
 import { ViewContent } from '@/core/views/View'
 import { Action, Cursor, ExtraData } from '@/core/views/addon/InteractionMapBuilder'
+import { PointUtils } from '@/core/utils/PointUtils'
 
 export interface UseBanvasOptions {
     width?: number
@@ -47,6 +48,29 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 		return { logicWidth, logicHeight }
 	}, [_options.width, _options.height])
 
+	// 单击判定：按下/抬起位置距离和时间阈值
+	const isSingleClick = useCallback(
+		(
+			downPoint: Point3,
+			upPoint: Point3,
+		) => PointUtils.isSamePoint(downPoint,upPoint)
+		,[]
+	)
+
+	// 双击判定：两次点击的时间与空间阈值
+	const isDoubleClick = useCallback(
+		(
+			downPoint: Point3 ,
+			upPoint: Point3,
+			lastClickTime: number | undefined,
+			tolerance: number = 300
+		) => {
+			return isSingleClick(downPoint,upPoint) && lastClickTime && Date.now() - lastClickTime < tolerance
+		},
+		[isSingleClick]
+	)
+
+
 	useEffect(() => {
 		const canvas = canvasRef.current
 		if (!canvas || initializedRef.current) return
@@ -69,7 +93,8 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
             // 创建新页面（场景）
             const scene = new Scene(camera)
       
-            const rect = new GraphView(new Rectangle(50,50,50,50))
+            const rect = new GraphView(new Rectangle(50,50,50,50)).translate(20,20)
+			
 			const p = Texts.simple('123456789')
 			p.paragraphs[0].options.leading = 1.7
 			p.paragraphs[0].options.indentation = 2
@@ -86,7 +111,7 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 
 			const texts = new Texts([...p.paragraphs,...p2.paragraphs])
 			
-            const text =  new TextView(texts,{
+            const text = new TextView(texts,{
               layoutArea:new Rectangle(50,50,50,50),
 			  fixedIndex:[0,0],
 			  dynamicIndex:[1,21]
@@ -149,11 +174,14 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 
     	// 事件绑定与卸载
 	const bindEvents = useCallback((canvas: HTMLCanvasElement) => {
-		let hasMouseDown: boolean
-		let selectedView: View | null 
-		let selectedContent: ViewContent | ViewAddonImpl | null
+		let mousDownPoint: Point3 | null
+		let lastPoint:Point3 | null
+		let mouseUpPoint: Point3 | null
+		let indicateView: View | null 
+		let indicateContent: ViewContent | ViewAddonImpl | null
 		let action: Action
 		let extraData: ExtraData | null
+		let lastClickTime: number | undefined
 
 		const scene = app?.getCurrentScene()
 
@@ -161,40 +189,49 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 
 		// 鼠标事件
 		const onMouseDown = (e: MouseEvent) => {
-			const point = event2Point(e)
-			hasMouseDown = true
-            if(selectedView && selectedContent){
-				scene.select(selectedView,e.ctrlKey)
-				if(selectedView instanceof TextView && selectedContent instanceof TextElement){
-					const fixedIndex = selectedView.element2Index(selectedContent,point)
-					const dynamicIndex = [...fixedIndex] as TextIndex
-					selectedView.setSelection(fixedIndex,dynamicIndex)
-				}
-				return
-			}
-			ViewTreeUtils.clearAllStates(scene)
+			mousDownPoint = event2Point(e)
 		}
 
 		const onMouseMove = (e: MouseEvent) => {
 			if(!canvasRef.current)return
 			const point = event2Point(e)
-
-			if(hasMouseDown){
-
+			
+			if(mousDownPoint){
+				switch(action){
+					case Action.MOVE:
+						const moveVector = point.subtract(lastPoint || mousDownPoint)
+						if(indicateView && !indicateView?.actived){
+							scene.select(indicateView)
+							indicateView.translate(moveVector.x,moveVector.y,0)
+						}else{
+							for (const activeView of scene.getAllActived()) {
+								activeView.translate(moveVector.x,moveVector.y,0)
+							}
+						}
+						
+						break
+					case Action.SELECTION:
+						if(indicateView instanceof TextView && indicateContent instanceof TextElement){
+							const dynamicIndex = indicateView.point2Index(point)
+							indicateView.setSelection(dynamicIndex)
+						}
+				}
+				lastPoint = point
 			}else{
+				// 普通移动事件，用于选定候选容器和改变鼠标样式
 				let selected = false
 				for (const view of scene.children) {
 					const {view:_view,content,extraData} = view.interact(point)
 					if(_view && content && extraData){
-						selectedView = _view
-						selectedContent = content
+						indicateView = _view
+						indicateContent = content
 						action = extraData.action
 						canvasRef.current.style.cursor = extraData.cursorStyle
 						selected = true
 					}
 				}
 				if(!selected){
-					selectedView = selectedContent = extraData = null
+					indicateView = indicateContent = extraData = null
 					action = Action.NONE
 					canvasRef.current.style.cursor = Cursor.Default
 				}
@@ -202,8 +239,36 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 			
 		}
 		const onMouseUp = (e: MouseEvent) => {
-			hasMouseDown = false
+			mouseUpPoint = event2Point(e)
 		}
+
+		const onClick = (e: MouseEvent) => {
+			if (!mousDownPoint || !mouseUpPoint) return;
+			// 单击事件
+			if(isDoubleClick(mousDownPoint,mouseUpPoint,lastClickTime)){
+				if(indicateView instanceof TextView && indicateContent instanceof TextElement){
+					console.log('选中一整行');
+				}
+			}else if(isSingleClick(mousDownPoint,mouseUpPoint)){
+				if(indicateView){
+					scene.select(indicateView,e.ctrlKey)
+					if(indicateView instanceof TextView && indicateContent instanceof TextElement){
+						const fixedIndex = indicateView.element2Index(indicateContent,mousDownPoint)
+						const dynamicIndex = [...fixedIndex] as TextIndex
+						indicateView.setSelection(fixedIndex,dynamicIndex)
+					}
+				}else{
+					ViewTreeUtils.clearAllStates(scene)
+				}
+				lastClickTime = Date.now()
+			} else{
+				console.log('非单击事件')
+			}
+			mousDownPoint = null
+			lastPoint = null
+			mouseUpPoint = null
+		}
+
 		const onWheel = (e: WheelEvent) => {
 			// 阻止页面滚动
 			e.preventDefault()
@@ -222,6 +287,7 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 
 		canvas.addEventListener('mousedown', onMouseDown, { passive: true })
 		canvas.addEventListener('mousemove', onMouseMove, { passive: true })
+		canvas.addEventListener('click',onClick,{passive:true})
 		canvas.addEventListener('mouseup', onMouseUp, { passive: true })
 		canvas.addEventListener('wheel', onWheel, { passive: false })
 		canvas.addEventListener('contextmenu', onContextMenu, { passive: false })
@@ -256,6 +322,7 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 			canvas.removeEventListener('mousedown', onMouseDown as any)
 			canvas.removeEventListener('mousemove', onMouseMove as any)
 			canvas.removeEventListener('mouseup', onMouseUp as any)
+			canvas.removeEventListener('click', onClick as any)
 			canvas.removeEventListener('wheel', onWheel as any)
 			canvas.removeEventListener('contextmenu', onContextMenu as any)
 			canvas.removeEventListener('dragover', onDragOver as any)

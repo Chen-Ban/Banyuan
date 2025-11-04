@@ -15,7 +15,7 @@ export interface VideoViewOptions extends Omit<ViewOptions, "content"> {
  */
 export default class VideoView extends View {
   public content: VideoElement;
-  public children: View<any>[] | null = null;
+  public children: View<any>[] = [];
 
   constructor(video: VideoElement, options: VideoViewOptions = {}) {
     // 将video作为content传递给父类构造函数

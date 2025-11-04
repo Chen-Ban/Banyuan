@@ -138,7 +138,6 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
       ctx.beginPath();
       ctx.rect(bounds.x, bounds.y, bounds.width, bounds.height);
       ctx.stroke();
-      ctx.setLineDash([]);
 
       // draw handles
       ctx.fillStyle = "#00ff00";
@@ -188,7 +187,7 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
     if (isMoving) {
       return {
         cursorStyle: Cursor.Move,
-        action: Action.EDIT_POINT,
+        action: Action.MOVE,
       };
     }
     return null;
