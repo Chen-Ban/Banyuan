@@ -4,12 +4,9 @@ import { Point3 } from "@/core/math";
 import Graph, { GraphOptions } from "../base/Graph";
 import Bounds from "../base/Bounds";
 import { Line } from "../analytic";
+import { isLine } from "../utils/typeGuards";
 import { PointUtils } from "@/core/utils/PointUtils";
-import AnalyticGraph from "../analytic/AnalyticGraph";
-
-function isAnalyticGraphInstance(graph: Graph): graph is AnalyticGraph {
-  return typeof (graph as any).getPointAt === "function";
-}
+import { isAnalyticGraph } from "../utils/typeGuards";
 
 /**
  * CombinedGraph类 - 组合多个图形元素的复合图形
@@ -45,7 +42,7 @@ export default class CombinedGraph<T extends Graph> extends Graph {
       maxY = -Infinity;
 
     for (const graph of this.graphs) {
-      if (isAnalyticGraphInstance(graph)) {
+      if (isAnalyticGraph(graph)) {
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
           const p = graph.getPointAt(t);
@@ -190,10 +187,9 @@ export default class CombinedGraph<T extends Graph> extends Graph {
     ctx: CanvasRenderingContext2D,
     graph: Graph
   ): void {
-    if ((graph as Line).isLine()) {
+    if (isLine(graph)) {
       // 对于线段，只使用lineTo
-      const line = graph as any;
-      ctx.lineTo(line.endPoint.x, line.endPoint.y);
+      ctx.lineTo(graph.endPoint.x, graph.endPoint.y);
     } else if (graph.type === GRAPHTYPE.BEZIER) {
       // 对于贝塞尔曲线，需要特殊处理
       const bezier = graph as any;

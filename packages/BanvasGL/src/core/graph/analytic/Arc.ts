@@ -57,24 +57,9 @@ export default class Arc extends AnalyticGraph {
     points.push(new Point3(endX, endY, this.center.z));
 
     // 添加中心点
-    points.push(this.center.copy());
+    points.push(this.center);
 
     return points;
-  }
-
-  // 检查角度是否在圆弧范围内
-  private isAngleInRange(angle: number): boolean {
-    if (this.clockwise) {
-      return (
-        this.normalizeAngle(angle) >= this.normalizeAngle(this.endAngle) &&
-        this.normalizeAngle(angle) <= this.normalizeAngle(this.startAngle)
-      );
-    } else {
-      return (
-        this.normalizeAngle(angle) >= this.normalizeAngle(this.startAngle) &&
-        this.normalizeAngle(angle) <= this.normalizeAngle(this.endAngle)
-      );
-    }
   }
 
   // 标准化角度到0-2π范围
@@ -140,14 +125,6 @@ export default class Arc extends AnalyticGraph {
     return this.controlPoints[1];
   }
 
-  // 获取中点
-  get midPoint(): Point3 {
-    const midAngle = (this.startAngle + this.endAngle) / 2;
-    const x = this.center.x + this.radius * Math.cos(midAngle);
-    const y = this.center.y + this.radius * Math.sin(midAngle);
-    return new Point3(x, y, this.center.z);
-  }
-
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
     dependent && ctx.beginPath();
     ctx.arc(
@@ -182,11 +159,6 @@ export default class Arc extends AnalyticGraph {
     ) as this;
   }
 
-  // 检查是否是圆弧
-  public isArc(): boolean {
-    return true;
-  }
-
   // 计算圆弧的包围盒：使用所属圆的外接矩形
   protected calculateBounds(): Bounds {
     const x = this.center.x - this.radius;
@@ -195,119 +167,23 @@ export default class Arc extends AnalyticGraph {
     return new Bounds(x, y, size, size);
   }
 
-  // 检查角度是否在圆弧范围内
-  private isAngleInArc(angle: number): boolean {
-    // 标准化角度到 [0, 2π)
-    const normalizedAngle =
-      ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const normalizedStart =
-      ((this.startAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const normalizedEnd =
-      ((this.endAngle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  private getParameterFromAngle(angle: number): number {
+    const startNorm = this.normalizeAngle(this.startAngle);
+    const endNorm = this.normalizeAngle(this.endAngle);
+    const angleNorm = this.normalizeAngle(angle);
 
     if (this.clockwise) {
-      // 顺时针：从startAngle到endAngle
-      if (normalizedStart > normalizedEnd) {
-        // 跨越0度的情况
-        return (
-          normalizedAngle >= normalizedStart || normalizedAngle <= normalizedEnd
-        );
-      } else {
-        return (
-          normalizedAngle >= normalizedStart && normalizedAngle <= normalizedEnd
-        );
+      if (angleNorm <= startNorm && angleNorm >= endNorm) {
+        return (startNorm - angleNorm) / (startNorm - endNorm);
       }
     } else {
-      // 逆时针：从startAngle到endAngle
-      if (normalizedStart < normalizedEnd) {
-        // 跨越0度的情况
-        return (
-          normalizedAngle <= normalizedStart || normalizedAngle >= normalizedEnd
-        );
-      } else {
-        return (
-          normalizedAngle <= normalizedStart && normalizedAngle >= normalizedEnd
-        );
+      if (angleNorm >= startNorm && angleNorm <= endNorm) {
+        return (angleNorm - startNorm) / (endNorm - startNorm);
       }
     }
-  }
 
-  // 静态工厂方法
-  static fromCenterAndRadius(
-    centerX: number,
-    centerY: number,
-    radius: number,
-    startAngle: number,
-    endAngle: number,
-    clockwise: boolean = false,
-    style: Style = Style.DEFAULT
-  ): Arc {
-    return new Arc(
-      new Point3(centerX, centerY, 0),
-      radius,
-      startAngle,
-      endAngle,
-      clockwise,
-      style
-    );
+    return 0;
   }
-
-  static semicircle(
-    centerX: number,
-    centerY: number,
-    radius: number,
-    startAngle: number = 0,
-    clockwise: boolean = false,
-    style: Style = Style.DEFAULT
-  ): Arc {
-    return new Arc(
-      new Point3(centerX, centerY, 0),
-      radius,
-      startAngle,
-      startAngle + Math.PI,
-      clockwise,
-      style
-    );
-  }
-
-  static quarterCircle(
-    centerX: number,
-    centerY: number,
-    radius: number,
-    startAngle: number = 0,
-    clockwise: boolean = false,
-    style: Style = Style.DEFAULT
-  ): Arc {
-    return new Arc(
-      new Point3(centerX, centerY, 0),
-      radius,
-      startAngle,
-      startAngle + Math.PI / 2,
-      clockwise,
-      style
-    );
-  }
-
-  static fullCircle(
-    centerX: number,
-    centerY: number,
-    radius: number,
-    style: Style = Style.DEFAULT
-  ): Arc {
-    return new Arc(
-      new Point3(centerX, centerY, 0),
-      radius,
-      0,
-      2 * Math.PI,
-      false,
-      style
-    );
-  }
-
-  // 预定义圆弧
-  static readonly UNIT_SEMICIRCLE = Arc.semicircle(0, 0, 1, 0);
-  static readonly UNIT_QUARTER_CIRCLE = Arc.quarterCircle(0, 0, 1, 0);
-  static readonly UNIT_FULL_CIRCLE = Arc.fullCircle(0, 0, 1);
 
   // ========== AnalyticGraph 抽象方法实现 ==========
 
@@ -328,11 +204,6 @@ export default class Arc extends AnalyticGraph {
   public getNormalAt(t: number): Vector3 {
     const angle = this.startAngle + t * (this.endAngle - this.startAngle);
     return new Vector3(Math.cos(angle), Math.sin(angle), 0);
-  }
-
-  public distanceToPoint(point: Point3): number {
-    const distanceToCenter = MathUtils.distance(point, this.center);
-    return Math.abs(distanceToCenter - this.radius);
   }
 
   public getClosestPoint(point: Point3): {
@@ -358,25 +229,11 @@ export default class Arc extends AnalyticGraph {
     return [];
   }
 
-  public getArcLength(tStart: number, tEnd: number): number {
+  public getLength(tStart: number, tEnd: number): number {
     const angleDiff = Math.abs(
       (tEnd - tStart) * (this.endAngle - this.startAngle)
     );
     return this.radius * angleDiff;
-  }
-
-  public getTotalLength(): number {
-    return this.arcLength;
-  }
-
-  public getParameterFromArcLength(arcLength: number): number {
-    const totalLength = this.getTotalLength();
-    if (MathUtils.isZero(totalLength)) return 0;
-    return Math.max(0, Math.min(1, arcLength / totalLength));
-  }
-
-  public getCurvature(t: number): number {
-    return 1 / this.radius;
   }
 
   public getArea(): number {
@@ -385,52 +242,20 @@ export default class Arc extends AnalyticGraph {
   }
 
   public getCentroid(): Point3 {
-    return this.midPoint;
-  }
-
-  public getMomentOfInertia(): number {
-    const angleDiff = Math.abs(this.endAngle - this.startAngle);
-    return (this.radius * this.radius * this.radius * angleDiff) / 3;
+    return this.controlPoints[2];
   }
 
   public transform(matrix: Matrix4): AnalyticGraph {
-    const transformedCenter = this.center.copy();
-    return new Arc(
-      transformedCenter,
-      this.radius,
-      this.startAngle,
-      this.endAngle,
-      this.clockwise,
-      this.style
-    );
-  }
-
-  public getDerivative(t: number, order?: number): Vector3 {
-    if (order === 1) {
-      return this.getTangentAt(t);
-    }
-    return new Vector3(0, 0, 0);
-  }
-
-  public getIntegral(tStart: number, tEnd: number): number {
-    return this.getArcLength(tStart, tEnd);
-  }
-
-  private getParameterFromAngle(angle: number): number {
-    const startNorm = this.normalizeAngle(this.startAngle);
-    const endNorm = this.normalizeAngle(this.endAngle);
-    const angleNorm = this.normalizeAngle(angle);
-
-    if (this.clockwise) {
-      if (angleNorm <= startNorm && angleNorm >= endNorm) {
-        return (startNorm - angleNorm) / (startNorm - endNorm);
-      }
-    } else {
-      if (angleNorm >= startNorm && angleNorm <= endNorm) {
-        return (angleNorm - startNorm) / (endNorm - startNorm);
-      }
-    }
-
-    return 0;
+    const newCenter = matrix.multiply(this.center);
+    const ts = matrix.multiply(this.getPointAt(0));
+    const te = matrix.multiply(this.getPointAt(1));
+    const startAngle = Math.atan2(ts.y - newCenter.y, ts.x - newCenter.x);
+    const endAngle = Math.atan2(te.y - newCenter.y, te.x - newCenter.x);
+    this.center = newCenter;
+    this.startAngle = startAngle;
+    this.endAngle = endAngle;
+    this.controlPoints = this.calculateControlPoints();
+    this.setBounds(this.calculateBounds());
+    return this;
   }
 }

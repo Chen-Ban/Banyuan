@@ -84,24 +84,6 @@ export default abstract class Bezier extends AnalyticGraph {
     return this;
   }
 
-  // 抽象方法：计算贝塞尔曲线上的点
-  abstract getPointAt(t: number): Point3;
-
-  // 抽象方法：计算贝塞尔曲线的切线方向
-  abstract getTangentAt(t: number): Vector3;
-
-  // 抽象方法：计算贝塞尔曲线的法线方向
-  abstract getNormalAt(t: number): Vector3;
-
-  // 抽象方法：计算贝塞尔曲线的曲率
-  abstract getCurvatureAt(t: number): number;
-
-  // 抽象方法：获取贝塞尔曲线的长度
-  abstract get length(): number;
-
-  // 抽象方法：根据弧长参数获取点
-  abstract getPointAtArcLength(arcLength: number): Point3;
-
   // 计算贝塞尔曲线的近似长度（使用数值积分）
   protected calculateApproximateLength(steps: number = 100): number {
     let length = 0;
@@ -119,50 +101,7 @@ export default abstract class Bezier extends AnalyticGraph {
     return length;
   }
 
-  // 计算贝塞尔曲线的边界框（考虑曲线本身）
-  protected calculateCurveBounds(steps: number = 50): {
-    width: number;
-    height: number;
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-  } {
-    let minX = Infinity,
-      maxX = -Infinity;
-    let minY = Infinity,
-      maxY = -Infinity;
-
-    // 检查控制点
-    this.controlPoints.forEach((point) => {
-      minX = Math.min(minX, point.x);
-      maxX = Math.max(maxX, point.x);
-      minY = Math.min(minY, point.y);
-      maxY = Math.max(maxY, point.y);
-    });
-
-    // 检查曲线上的点
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const point = this.getPointAt(t);
-      minX = Math.min(minX, point.x);
-      maxX = Math.max(maxX, point.x);
-      minY = Math.min(minY, point.y);
-      maxY = Math.max(maxY, point.y);
-    }
-
-    return {
-      width: maxX - minX,
-      height: maxY - minY,
-      minX,
-      maxX,
-      minY,
-      maxY,
-    };
-  }
-
-  // 检查点是否在贝塞尔曲线附近（考虑容差）
-  isPointNearCurve(point: Point3, tolerance: number = 5): boolean {
+  public isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
     const steps = 100;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -177,14 +116,15 @@ export default abstract class Bezier extends AnalyticGraph {
     return false;
   }
 
-  // 获取贝塞尔曲线上最近的点
-  getClosestPointOnCurve(
-    point: Point3,
-    steps: number = 100
-  ): { point: Point3; t: number; distance: number } {
+  public getClosestPoint(point: Point3): {
+    distance: number;
+    closestPoint: Point3;
+    parameter: number;
+  } {
     let closestPoint = this.getPointAt(0);
     let closestT = 0;
     let minDistance = Infinity;
+    const steps = 100;
 
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
@@ -201,8 +141,8 @@ export default abstract class Bezier extends AnalyticGraph {
     }
 
     return {
-      point: closestPoint,
-      t: closestT,
+      closestPoint: closestPoint,
+      parameter: closestT,
       distance: minDistance,
     };
   }
@@ -243,20 +183,6 @@ export default abstract class Bezier extends AnalyticGraph {
     ctx.restore();
   }
 
-  // 复制贝塞尔曲线
-  public copy(): this {
-    const copiedControlPoints = this.controlPoints.map((point) => point.copy());
-    return this.createCopy(copiedControlPoints, this.style.copy()) as this;
-  }
-
-  // 抽象方法：创建副本
-  protected abstract createCopy(controlPoints: Point3[], style: Style): Bezier;
-
-  // 检查是否是贝塞尔曲线
-  public isBezier(): boolean {
-    return true;
-  }
-
   // 获取贝塞尔曲线的类型
   public getBezierType(): string {
     return this.controlPoints.length === 3
@@ -264,5 +190,20 @@ export default abstract class Bezier extends AnalyticGraph {
       : this.controlPoints.length === 4
       ? "cubic"
       : "unknown";
+  }
+
+  // 质心（对 t∈[0,1] 的均匀平均）：等于控制点的算术平均
+  public getCentroid(): Point3 {
+    if (this.controlPoints.length === 0) return new Point3(0, 0, 0);
+    let sumX = 0,
+      sumY = 0,
+      sumZ = 0;
+    for (const p of this.controlPoints) {
+      sumX += p.x;
+      sumY += p.y;
+      sumZ += p.z;
+    }
+    const n = this.controlPoints.length;
+    return new Point3(sumX / n, sumY / n, sumZ / n);
   }
 }

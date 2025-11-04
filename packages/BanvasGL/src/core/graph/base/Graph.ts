@@ -26,10 +26,6 @@ export default abstract class Graph {
   public abstract copy(): this;
   protected abstract calculateBounds(): Bounds;
 
-  public isGraph(): boolean {
-    return true;
-  }
-
   constructor(options?: GraphOptions) {
     this.id = options?.id || uuid();
   }
