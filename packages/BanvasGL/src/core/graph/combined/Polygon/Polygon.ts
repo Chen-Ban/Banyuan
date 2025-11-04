@@ -2,7 +2,7 @@ import { GRAPHTYPE } from "@/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import CombinedGraph from "../CombinedGraph";
-import Graph, { GraphOptions } from "../../base/Graph";
+import { GraphOptions } from "../../base/Graph";
 import Line from "../../analytic/Line";
 
 /**

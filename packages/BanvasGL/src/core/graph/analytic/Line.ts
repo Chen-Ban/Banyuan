@@ -60,34 +60,6 @@ export default class Line extends AnalyticGraph {
     return this;
   }
 
-  // 获取线条长度
-  get length(): number {
-    const start = this.startPoint;
-    const end = this.endPoint;
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const dz = end.z - start.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
-
-  // 获取线条角度（相对于X轴）
-  get angle(): number {
-    const start = this.startPoint;
-    const end = this.endPoint;
-    return Math.atan2(end.y - start.y, end.x - start.x);
-  }
-
-  // 获取线条中点
-  get midPoint(): Point3 {
-    const start = this.startPoint;
-    const end = this.endPoint;
-    return new Point3(
-      (start.x + end.x) / 2,
-      (start.y + end.y) / 2,
-      (start.z + end.z) / 2
-    );
-  }
-
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
     dependent && ctx.beginPath();
     ctx.moveTo(this.startPoint.x, this.startPoint.y);
@@ -112,68 +84,6 @@ export default class Line extends AnalyticGraph {
       this.style.copy()
     ) as this;
   }
-
-  // 检查是否是线条
-  public isLine(): boolean {
-    return true;
-  }
-
-  // 静态工厂方法
-  static fromCoordinates(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    z1: number = 0,
-    z2: number = 0,
-    style: Style = Style.DEFAULT
-  ): Line {
-    return new Line(new Point3(x1, y1, z1), new Point3(x2, y2, z2), style);
-  }
-
-  static horizontal(
-    x1: number,
-    x2: number,
-    y: number,
-    style: Style = Style.DEFAULT
-  ): Line {
-    return new Line(new Point3(x1, y, 0), new Point3(x2, y, 0), style);
-  }
-
-  static vertical(
-    x: number,
-    y1: number,
-    y2: number,
-    style: Style = Style.DEFAULT
-  ): Line {
-    return new Line(new Point3(x, y1, 0), new Point3(x, y2, 0), style);
-  }
-
-  static diagonal(
-    startX: number,
-    startY: number,
-    length: number,
-    angle: number,
-    style: Style = Style.DEFAULT
-  ): Line {
-    const endX = startX + length * Math.cos(angle);
-    const endY = startY + length * Math.sin(angle);
-    return new Line(
-      new Point3(startX, startY, 0),
-      new Point3(endX, endY, 0),
-      style
-    );
-  }
-
-  // 预定义线条
-  static readonly HORIZONTAL_UNIT = Line.horizontal(0, 1, 0);
-  static readonly VERTICAL_UNIT = Line.vertical(0, 0, 1);
-  static readonly DIAGONAL_UNIT = Line.diagonal(
-    0,
-    0,
-    Math.sqrt(2),
-    Math.PI / 4
-  );
 
   // ========== AnalyticGraph 抽象方法实现 ==========
 
@@ -205,18 +115,6 @@ export default class Line extends AnalyticGraph {
   public getNormalAt(t: number): Vector3 {
     const tangent = this.getTangentAt(t);
     return new Vector3(-tangent.y, tangent.x, 0).normalized;
-  }
-
-  /**
-   * 计算点到线条的最短距离
-   */
-  public distanceToPoint(point: Point3, restraint: boolean = true): number {
-    return MathUtils.distancePointToLineSegment(
-      point,
-      this.startPoint,
-      this.endPoint,
-      restraint
-    );
   }
 
   /**
@@ -271,7 +169,7 @@ export default class Line extends AnalyticGraph {
     for (let i = 0; i < numSamples; i++) {
       const t = i / (numSamples - 1);
       const point = this.getPointAt(t);
-      const distance = other.distanceToPoint(point);
+      const distance = other.getClosestPoint(point).distance;
 
       if (distance < 1e-6) {
         intersections.push(point);
@@ -284,33 +182,10 @@ export default class Line extends AnalyticGraph {
   /**
    * 计算线条在指定参数范围内的长度
    */
-  public getArcLength(tStart: number, tEnd: number): number {
+  public getLength(tStart: number, tEnd: number): number {
     const startPoint = this.getPointAt(tStart);
     const endPoint = this.getPointAt(tEnd);
     return MathUtils.distance(startPoint, endPoint);
-  }
-
-  /**
-   * 计算线条的总长度
-   */
-  public getTotalLength(): number {
-    return this.length;
-  }
-
-  /**
-   * 根据弧长获取参数值
-   */
-  public getParameterFromArcLength(arcLength: number): number {
-    const totalLength = this.getTotalLength();
-    if (MathUtils.isZero(totalLength)) return 0;
-    return Math.max(0, Math.min(1, arcLength / totalLength));
-  }
-
-  /**
-   * 计算线条的曲率（直线曲率为0）
-   */
-  public getCurvature(t: number): number {
-    return 0;
   }
 
   /**
@@ -343,44 +218,22 @@ export default class Line extends AnalyticGraph {
    * 计算线条的质心
    */
   public getCentroid(): Point3 {
-    return this.midPoint;
-  }
-
-  /**
-   * 计算线条的惯性矩
-   */
-  public getMomentOfInertia(): number {
-    const length = this.getTotalLength();
-    return (length * length * length) / 12;
+    return new Point3(
+      (this.startPoint.x + this.endPoint.x) / 2,
+      (this.startPoint.y + this.endPoint.y) / 2,
+      (this.startPoint.z + this.endPoint.z) / 2
+    );
   }
 
   /**
    * 应用变换矩阵到线条
    */
   public transform(matrix: Matrix4): AnalyticGraph {
-    // 简单的变换实现，实际应用中需要更完整的矩阵变换
-    const transformedStart = matrix.multiply(this.startPoint.copy());
-    const transformedEnd = matrix.multiply(this.endPoint.copy());
-    return new Line(transformedStart, transformedEnd, this.style);
-  }
-
-  /**
-   * 计算线条的导数
-   */
-  public getDerivative(t: number, order: number = 1): Vector3 {
-    if (order === 1) {
-      return this.getTangentAt(t);
-    } else if (order > 1) {
-      return new Vector3(0, 0, 0); // 直线的二阶及以上导数为零
-    }
-    return new Vector3(0, 0, 0);
-  }
-
-  /**
-   * 计算线条的积分
-   */
-  public getIntegral(tStart: number, tEnd: number): number {
-    // 对于直线，积分就是长度
-    return this.getArcLength(tStart, tEnd);
+    const transformedStart = matrix.multiply(this.startPoint);
+    const transformedEnd = matrix.multiply(this.endPoint);
+    this.controlPoints[0] = transformedStart;
+    this.controlPoints[1] = transformedEnd;
+    this.setBounds(this.calculateBounds());
+    return this;
   }
 }
