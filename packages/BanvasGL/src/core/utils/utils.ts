@@ -9,7 +9,7 @@ function findByType(view:View,type: VIEWTYPE): View[] {
         results.push(view)
     }
     if((view as CombinedView).isCombinedView()){
-        results.push(...(view as CombinedView).content.map(v=>findByType(v,type)).flat())
+        results.push(...(view as CombinedView).children.map(v=>findByType(v,type)).flat())
     }
     
     return results
@@ -21,7 +21,7 @@ function findChildById(view:View,id: string): View | null {
         return view
     }
     if((view as CombinedView).isCombinedView()){
-        result = (view as CombinedView).content.filter(v=>findChildById(v,id))[0]
+        result = (view as CombinedView).children.filter(v=>findChildById(v,id))[0]
     }
     return result
 }

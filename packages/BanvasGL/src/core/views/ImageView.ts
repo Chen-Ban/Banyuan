@@ -14,7 +14,7 @@ export interface ImageViewOptions extends Omit<ViewOptions, "content"> {
  */
 export default class ImageView extends View {
   public content: ImageElement;
-  public children: View<any>[] | null = null;
+  public children: View<any>[] = [];
 
   constructor(image: ImageElement, options: ImageViewOptions = {}) {
     // 将image作为content传递给父类构造函数

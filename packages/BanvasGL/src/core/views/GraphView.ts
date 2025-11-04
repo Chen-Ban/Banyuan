@@ -19,7 +19,7 @@ export interface GraphViewOptions extends Omit<ViewOptions, "content"> {
 export default class GraphView extends View {
   public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW;
   public content: Graph;
-  public children: View[] | null = null;
+  public children: View[] = [];
 
   constructor(graph: Graph, options: GraphViewOptions = {}) {
     // 将graph作为content传递给父类构造函数
