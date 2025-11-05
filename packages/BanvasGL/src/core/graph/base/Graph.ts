@@ -4,11 +4,6 @@ import { Point3 } from "@/core/math";
 import Bounds from "./Bounds";
 import { v4 as uuid } from "uuid";
 
-export interface GraphOptions {
-  id?: string;
-  [key: string]: any;
-}
-
 export default abstract class Graph {
   public id: string;
   public abstract type: GRAPHTYPE;
@@ -26,8 +21,8 @@ export default abstract class Graph {
   public abstract copy(): this;
   protected abstract calculateBounds(): Bounds;
 
-  constructor(options?: GraphOptions) {
-    this.id = options?.id || uuid();
+  constructor() {
+    this.id = uuid();
   }
 
   public isPointInPath(ctx: CanvasRenderingContext2D, p: Point3): Boolean {

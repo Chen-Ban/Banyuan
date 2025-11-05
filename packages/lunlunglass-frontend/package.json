@@ -22,7 +22,6 @@
     "@vitejs/plugin-react": "^4.3.4",
     "banvasgl": "workspace:*",
     "chokidar": "^4.0.3",
-    "concurrently": "^9.2.1",
     "eslint": "^9.22.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",

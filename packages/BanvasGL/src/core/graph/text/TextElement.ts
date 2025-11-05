@@ -1,5 +1,5 @@
 import { GRAPHTYPE } from "@/constants";
-import Graph, { GraphOptions } from "@/core/graph/base/Graph";
+import Graph from "@/core/graph/base/Graph";
 import { Point3 } from "@/core/math";
 import { Style, Color } from "@/core/style";
 import TextOptions from "./TextOptions";
@@ -13,129 +13,107 @@ import { getGlobalCanvasContext } from "@/core/renderer/CanvasContext";
 export default class TextElement extends Graph {
   public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT;
   public controlPoints: Point3[];
-  public style: Style;
-  public options: TextOptions;
-  public content: string;
-  public position: Point3;
+  public _style: Style;
+  public _options: TextOptions;
+  public _content: string;
   public isLayouted: boolean = false;
   public width: number = 0;
   public height: number = 0;
+  public lineHeight: number = 0;
 
   constructor(
     content: string,
     options: TextOptions = TextOptions.DEFAULT,
-    style: Style = Style.DEFAULT,
-    graphOptions?: GraphOptions
+    style: Style = Style.DEFAULT
   ) {
-    super(graphOptions);
+    super();
 
     if (content.length > 1)
       throw new Error("TextElement content must be a single character");
-    this.content = content;
-    this.position = new Point3(0, 0, 0); // 初始位置设为原点，等待布局时设置
-    this.options = options;
-    this.style = style;
+    this._content = content;
+    this._options = options;
+    this._style = style;
 
-    // 在初始化时计算并缓存实际的宽高
     this.calculateActualDimensions();
 
-    // 初始化时不设置控制点，等待布局时设置
+    // 初始化时不设置控制点,包围盒和具体行高，等待布局时设置
     this.controlPoints = [];
-    // 不计算包围盒，等待布局时计算
   }
 
   /**
-   * 计算并缓存文字的实际宽高
+   * 计算文字的实际宽高
    */
   private calculateActualDimensions(): void {
-    // 创建临时Canvas上下文来测量文字尺寸
-    const ctx = getGlobalCanvasContext()?.getBufferContext()
-    if (!ctx) throw new Error("无法获取真实字体尺寸")
-    ctx.save()
+    const ctx = getGlobalCanvasContext()?.getBufferContext();
+    if (!ctx) throw new Error("无法获取真实字体尺寸");
+    ctx.save();
     // 设置字体样式
     ctx.font = this.options.fontString;
 
     // 测量文字尺寸
-    const metrics = ctx.measureText(this.content);
+    const metrics = ctx.measureText(this._content);
     this.width = metrics.width;
     this.height = this.options.size;
-    ctx.restore()
+    ctx.restore();
   }
 
   protected calculateBounds(): Bounds {
-    if (this.isLayouted) {
-      // 设置四个角点作为controlPoints
-      this.controlPoints = [
-        new Point3(this.position.x, this.position.y, 0), // 左上角
-        new Point3(this.position.x + this.width, this.position.y, 0), // 右上角
-        new Point3(
-          this.position.x + this.width,
-          this.position.y + this.height,
-          0
-        ), // 右下角
-        new Point3(this.position.x, this.position.y + this.height, 0), // 左下角
-      ];
+    if (this.isLayouted && this.controlPoints.length > 0) {
       return new Bounds(
-        this.position.x,
-        this.position.y,
-        this.width,
-        this.height
+        this.controlPoints[0].x,
+        this.controlPoints[0].y - this.lineHeight + this.height,
+        this.width + this.options.letterSpacing,
+        this.lineHeight
       );
     } else {
-      return new Bounds(0, 0, this.width || 0, this.height || 0);
+      return Bounds.empty();
     }
-  }
-
-  /**
-   * 获取选项
-   */
-  getOptions(): TextOptions {
-    return this.options;
   }
 
   /**
    * 设置选项
    */
-  setOptions(options: TextOptions): TextElement {
-    this.options = options;
+  set options(options: TextOptions) {
+    this._options = options;
     // 重新计算尺寸，因为字体选项可能已改变
     this.calculateActualDimensions();
-    return this;
   }
 
-  /**
-   * 获取文字内容
-   */
-  getContent(): string {
-    return this.content;
+  get options() {
+    return this._options;
   }
 
   /**
    * 设置文字内容
    */
-  setContent(content: string): TextElement {
+  set content(content: string) {
     if (content.length > 1)
       throw new Error("TextElement content must be a single character");
-    this.content = content;
+    this._content = content;
     // 重新计算尺寸，因为文字内容已改变
     this.calculateActualDimensions();
-    return this;
   }
 
-  /**
-   * 获取位置
-   */
-  getPosition(): Point3 {
-    return this.position;
+  get content() {
+    return this._content;
+  }
+
+  set style(style: Style) {
+    this._style = style;
+    // 重新计算尺寸，因为文字内容已改变
+    this.calculateActualDimensions();
+  }
+  get style() {
+    return this._style;
   }
 
   /**
    * 布局方法 - 在TextView中调用时设置位置和计算包围盒
    */
-  public layout(position: Point3): TextElement {
-    this.position = position;
+  public layout(position: Point3, lineHeight: number): TextElement {
     this.isLayouted = true;
-
+    this.controlPoints = [position.copy()];
+    this.lineHeight = lineHeight;
     // 计算包围盒并设置正确的controlPoints
     this.setBounds(this.calculateBounds());
     return this;
@@ -143,17 +121,19 @@ export default class TextElement extends Graph {
 
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
     dependent && ctx.beginPath();
-    ctx.moveTo(this.controlPoints[0].x, this.controlPoints[1].y);
-    for (let i = 1; i < this.controlPoints.length; i++) {
-      ctx.lineTo(this.controlPoints[i].x, this.controlPoints[i].y);
-    }
+    const bounds = this.getBounds();
+    ctx.moveTo(bounds.x, bounds.y);
+    ctx.lineTo(bounds.x + bounds.width, bounds.y);
+    ctx.lineTo(bounds.x + bounds.width, bounds.y + bounds.height);
+    ctx.lineTo(bounds.x, bounds.y + bounds.height);
+    ctx.lineTo(bounds.x, bounds.y);
   }
 
   /**
    * 渲染文字元素
    */
   public render(ctx: CanvasRenderingContext2D): void {
-    ctx.save()
+    ctx.save();
     // 设置字体样式
     ctx.font = this.options.fontString;
     //字体基线
@@ -166,9 +146,13 @@ export default class TextElement extends Graph {
     // 设置文字颜色（在应用样式后设置，确保不被覆盖）
     ctx.fillStyle = this.options.color.rgba;
     // 绘制文字
-    
-    ctx.fillText(this.content, this.position.x, this.position.y + this.height - this.options.size);
-    ctx.restore()
+
+    ctx.fillText(
+      this.content,
+      this.controlPoints[0].x,
+      this.controlPoints[0].y
+    );
+    ctx.restore();
   }
 
   /**
@@ -181,37 +165,10 @@ export default class TextElement extends Graph {
       this.style.copy()
     );
 
-    // 如果原对象已经布局，则设置position
     if (this.isLayouted) {
-      newElement.position = this.position.copy();
-      newElement.isLayouted = true;
-      newElement.width = this.width
-      newElement.height = this.height
-      newElement.setBounds(newElement.calculateBounds());
-
+      newElement.layout(this.controlPoints[0].copy(), this.lineHeight);
     }
     return newElement as this;
-  }
-
-  /**
-   * 检查是否是文字元素
-   */
-  public isTextElement(): boolean {
-    return true;
-  }
-
-  /**
-   * 获取文字的实际宽度（返回缓存的宽度）
-   */
-  public getActualWidth(): number {
-    return this.width;
-  }
-
-  /**
-   * 获取文字的实际高度（返回缓存的高度）
-   */
-  public getActualHeight(): number {
-    return this.height;
   }
 
   /**
@@ -223,10 +180,10 @@ export default class TextElement extends Graph {
     color: string = "#000000"
   ): TextElement {
     const options = new TextOptions();
-    options.setSize(size);
+    options.size = size;
     // 从字符串创建Color对象
     const colorObj = Color.fromHex(color);
-    options.setColor(colorObj);
+    options.color = colorObj;
 
     return new TextElement(content, options);
   }
@@ -236,7 +193,7 @@ export default class TextElement extends Graph {
    */
   static title(content: string, size: number = 24): TextElement {
     const options = TextOptions.title();
-    options.setSize(size);
+    options.size = size;
 
     return new TextElement(content, options);
   }
@@ -246,7 +203,7 @@ export default class TextElement extends Graph {
    */
   static bold(content: string, size: number = 16): TextElement {
     const options = TextOptions.bold();
-    options.setSize(size);
+    options.size = size;
 
     return new TextElement(content, options);
   }
@@ -256,7 +213,7 @@ export default class TextElement extends Graph {
    */
   static italic(content: string, size: number = 16): TextElement {
     const options = TextOptions.italic();
-    options.setSize(size);
+    options.size = size;
 
     return new TextElement(content, options);
   }

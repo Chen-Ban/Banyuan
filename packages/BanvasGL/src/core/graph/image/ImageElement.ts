@@ -1,5 +1,5 @@
 import { GRAPHTYPE } from "@/constants";
-import Graph, { GraphOptions } from "../base/Graph";
+import Graph from "../base/Graph";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
 import Bounds from "../base/Bounds";
@@ -27,10 +27,9 @@ export default class ImageElement extends Graph {
     x: number,
     y: number,
     imageSrc: string,
-    style: Style = Style.DEFAULT,
-    options?: GraphOptions
+    style: Style = Style.DEFAULT
   ) {
-    super(options);
+    super();
     this.x = x;
     this.y = y;
     this.imageSrc = imageSrc;

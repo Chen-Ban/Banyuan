@@ -167,10 +167,10 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
    */
   interact(ctx: CanvasRenderingContext2D, p: Point3): ExtraData | null {
     const isMoving = this.region.graphs.some(
-      (edge) => edge.distanceToPoint(p) < 5
+      (edge) => edge.getClosestPoint(p).distance < 5
     );
     const handler = this.handles.find((rec) =>
-      rec.graphs.some((edge) => edge.distanceToPoint(p, false) < 5)
+      rec.graphs.some((edge) => edge.getClosestPoint(p).distance < 5)
     );
 
     if (handler) {

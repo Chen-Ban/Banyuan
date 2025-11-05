@@ -1,11 +1,10 @@
 import { GRAPHTYPE } from "@/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
-import Graph, { GraphOptions } from "../base/Graph";
+import Graph from "../base/Graph";
 import Bounds from "../base/Bounds";
-import { Line } from "../analytic";
 import { isLine } from "../utils/typeGuards";
-import { PointUtils } from "@/core/utils/PointUtils";
+import { PointUtils } from "@/core/graph/utils/PointUtils";
 import { isAnalyticGraph } from "../utils/typeGuards";
 
 /**
@@ -17,8 +16,8 @@ export default class CombinedGraph<T extends Graph> extends Graph {
   public graphs: T[] = [];
   public style: Style;
 
-  constructor(graphs: T[] = [], style?: Style, options?: GraphOptions) {
-    super(options);
+  constructor(graphs: T[] = [], style?: Style) {
+    super();
     this.graphs = [...graphs];
     this.style = style || new Style();
 

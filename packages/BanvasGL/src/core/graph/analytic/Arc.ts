@@ -4,7 +4,6 @@ import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
 import MathUtils from "@/core/math/MathUtils";
 import Bounds from "../base/Bounds";
-import { GraphOptions } from "../base/Graph";
 
 export default class Arc extends AnalyticGraph {
   public type: GRAPHTYPE = GRAPHTYPE.ARC;
@@ -24,10 +23,9 @@ export default class Arc extends AnalyticGraph {
     startAngle: number,
     endAngle: number,
     clockwise: boolean = false,
-    style: Style = Style.DEFAULT,
-    options?: GraphOptions
+    style: Style = Style.DEFAULT
   ) {
-    super(options);
+    super();
     this.center = center;
     this.radius = radius;
     this.startAngle = startAngle;

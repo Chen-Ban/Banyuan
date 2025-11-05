@@ -4,7 +4,6 @@ import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
 import MathUtils from "@/core/math/MathUtils";
 import Bounds from "../base/Bounds";
-import { GraphOptions } from "../base/Graph";
 
 export default class Line extends AnalyticGraph {
   public type: GRAPHTYPE = GRAPHTYPE.LINE;
@@ -14,10 +13,9 @@ export default class Line extends AnalyticGraph {
   constructor(
     startPoint: Point3,
     endPoint: Point3,
-    style: Style = Style.DEFAULT,
-    options?: GraphOptions
+    style: Style = Style.DEFAULT
   ) {
-    super(options);
+    super();
     this.controlPoints = [startPoint, endPoint];
     this.style = style;
 

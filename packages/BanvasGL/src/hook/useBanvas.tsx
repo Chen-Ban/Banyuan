@@ -2,14 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { App } from '@/core/app'
 import type { AppOptions } from '@/core/app'
 import type { RendererOptions } from '@/core/renderer/Renderer'
-import { BaseCamera, Circle, Color, CombinedView, FillStyle, Graph, GraphView, MathUtils, Point3, Rectangle, Scene, Style, TextElement, Texts, TextView, View } from '@/core'
+import { BaseCamera, Circle, Color, CombinedView, FillStyle, GraphView, Point3, Rectangle, Scene, Style, TextElement, TextParagraph, TextView, View } from '@/core'
 import { event2Point } from '@/utils/utils'
 import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
 import { TextIndex } from '@/core/views/TextView'
-import { BoundingBoxAddonImpl, ViewAddonImpl, ViewportAddonImpl } from '@/core/views/addon'
+import {  ViewAddonImpl } from '@/core/views/addon'
 import { ViewContent } from '@/core/views/View'
 import { Action, Cursor, ExtraData } from '@/core/views/addon/InteractionMapBuilder'
-import { PointUtils } from '@/core/utils/PointUtils'
+import { PointUtils } from '@/core/graph/utils/PointUtils'
 
 export interface UseBanvasOptions {
     width?: number
@@ -95,23 +95,21 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
       
             const rect = new GraphView(new Rectangle(50,50,50,50)).translate(20,20)
 			
-			const p = Texts.simple('123456789')
-			p.paragraphs[0].options.leading = 1.7
-			p.paragraphs[0].options.indentation = 2
-			p.paragraphs[0].options.preHeight = 10
-			p.paragraphs[0].options.postHeight = 5
-			p.paragraphs[0].options.preWidth = 10
+			const p1 = TextParagraph.simple('123456789')
+			p1.options.leading = 1.7
+			p1.options.indentation = 2
+			p1.options.preHeight = 10
+			p1.options.postHeight = 5
+			p1.options.preWidth = 10
 
-			const p2 = Texts.simple('abcdefghijklmnopqrstuvwxyz')
-			p.paragraphs[0].options.leading = 1.7
-			p.paragraphs[0].options.indentation = 2
-			p.paragraphs[0].options.preHeight = 10
-			p.paragraphs[0].options.postHeight = 5
-			p.paragraphs[0].options.preWidth = 10
-
-			const texts = new Texts([...p.paragraphs,...p2.paragraphs])
+			const p2 = TextParagraph.simple('abcdefghijklmnopqrstuvwxyz')
+			p2.options.leading = 1.7
+			p2.options.indentation = 2
+			p2.options.preHeight = 10
+			p2.options.postHeight = 5
+			p2.options.preWidth = 10
 			
-            const text = new TextView(texts,{
+            const text = new TextView([p1,p2],{
               layoutArea:new Rectangle(50,50,50,50),
 			  fixedIndex:[0,0],
 			  dynamicIndex:[1,21]

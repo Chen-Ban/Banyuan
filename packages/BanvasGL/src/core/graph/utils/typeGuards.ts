@@ -13,7 +13,7 @@ import type RegularPolygon from "../combined/Polygon/RegularPolygon";
 import type Triangle from "../combined/Polygon/Triangle";
 import type CombinedGraph from "../combined/CombinedGraph";
 import type { ComplexGraph, MagnifyingGlass } from "../combined/ComplexGraph";
-import type { Texts, TextParagraph, TextElement } from "../text";
+import type { TextParagraph, TextElement } from "../text";
 import type { DenseTrajectory, Sketch } from "../trajectory";
 import type ImageElement from "../image/ImageElement";
 import type VideoElement from "../video/VideoElement";
@@ -72,10 +72,6 @@ export function isComplexGraph(graph: Graph): graph is ComplexGraph<any> {
 
 export function isMagnifyingGlass(graph: Graph): graph is MagnifyingGlass {
   return graph.type === GRAPHTYPE.MAGNIFYING_GLASS;
-}
-
-export function isTexts(graph: Graph): graph is Texts {
-  return graph.type === GRAPHTYPE.TEXTS;
 }
 
 export function isTextParagraph(graph: Graph): graph is TextParagraph {

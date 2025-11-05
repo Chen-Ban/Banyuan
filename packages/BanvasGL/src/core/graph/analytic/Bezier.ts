@@ -3,19 +3,14 @@ import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3 } from "@/core/math";
 import { Style } from "@/core/style";
 import Bounds from "../base/Bounds";
-import { GraphOptions } from "../base/Graph";
 
 export default abstract class Bezier extends AnalyticGraph {
   public type: GRAPHTYPE = GRAPHTYPE.BEZIER;
   public controlPoints: Point3[];
   public style: Style;
 
-  constructor(
-    controlPoints: Point3[],
-    style: Style = Style.DEFAULT,
-    options?: GraphOptions
-  ) {
-    super(options);
+  constructor(controlPoints: Point3[], style: Style = Style.DEFAULT) {
+    super();
     this.controlPoints = controlPoints;
     this.style = style;
 
