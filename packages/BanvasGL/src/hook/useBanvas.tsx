@@ -98,21 +98,12 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 			const p1 = TextParagraph.simple('123456789')
 			p1.options.leading = 1.7
 			p1.options.indentation = 2
-			p1.options.preHeight = 10
-			p1.options.postHeight = 5
-			p1.options.preWidth = 10
+			p1.texts.forEach(text=>text.options.letterSpacing = 10)
 
 			const p2 = TextParagraph.simple('abcdefghijklmnopqrstuvwxyz')
-			p2.options.leading = 1.7
-			p2.options.indentation = 2
-			p2.options.preHeight = 10
-			p2.options.postHeight = 5
-			p2.options.preWidth = 10
 			
             const text = new TextView([p1,p2],{
               layoutArea:new Rectangle(50,50,50,50),
-			  fixedIndex:[0,0],
-			  dynamicIndex:[1,21]
             })
             text.translate(100,100)
       
@@ -175,10 +166,13 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 		let mousDownPoint: Point3 | null
 		let lastPoint:Point3 | null
 		let mouseUpPoint: Point3 | null
+
 		let indicateView: View | null 
 		let indicateContent: ViewContent | ViewAddonImpl | null
+
 		let action: Action
 		let extraData: ExtraData | null
+
 		let lastClickTime: number | undefined
 
 		const scene = app?.getCurrentScene()
@@ -265,6 +259,7 @@ export default function useBanvas(serializedScenes: SerializedSceneJSON[] = [], 
 			mousDownPoint = null
 			lastPoint = null
 			mouseUpPoint = null
+			lastClickTime = 0
 		}
 
 		const onWheel = (e: WheelEvent) => {
