@@ -124,9 +124,9 @@ export default class TextView extends View {
                 .build();
             }
           }
-          //找到所在行
+          // 找到所在行（基于bounds.y）
           let anchorTextIndex = paragraph.texts.findIndex(
-            (t: TextElement) => t.controlPoints[0].y > relativePoint.y
+            (t: TextElement) => t.getBounds().y > relativePoint.y
           );
           if (anchorTextIndex === -1) {
             anchorTextIndex = paragraph.texts.length;
@@ -134,13 +134,16 @@ export default class TextView extends View {
           if (anchorTextIndex > 0) anchorTextIndex--;
           const anchor = paragraph.texts[anchorTextIndex];
           const ts = paragraph.texts.filter(
-            (t: TextElement) =>
-              t.controlPoints[0].y === anchor.controlPoints[0].y
+            (t: TextElement) => t.getBounds().y === anchor.getBounds().y
           );
           const len = ts.length;
-          // 行前行后的空隙中，探测左右
-          const [s1, _, __, e1] = ts[0].controlPoints;
-          const [s2, ___, ____, e2] = ts[len - 1].controlPoints;
+          // 行前行后的空隙中，探测左右（基于行首/行尾文本的水平中线段）
+          const b0 = ts[0].getBounds();
+          const bN = ts[len - 1].getBounds();
+          const s1 = new Point3(b0.x, b0.y + b0.height / 2, 0);
+          const e1 = new Point3(b0.x + b0.width, b0.y + b0.height / 2, 0);
+          const s2 = new Point3(bN.x, bN.y + bN.height / 2, 0);
+          const e2 = new Point3(bN.x + bN.width, bN.y + bN.height / 2, 0);
           const d1 = MathUtils.distancePointToLineSegment(
             relativePoint,
             s1,
@@ -166,19 +169,18 @@ export default class TextView extends View {
       // 如果鼠标落在了段落之间探测上下
       let pIndex =
         this.content.findIndex(
-          (p: TextParagraph) => p.controlPoints[0].y > relativePoint.y
+          (p: TextParagraph) => p.getBounds().y > relativePoint.y
         ) - 1;
       if (pIndex === -1) {
         pIndex = 0;
       }
       const p = this.content[pIndex];
+      const lastLineY = p.texts[p.texts.length - 1].getBounds().y;
       const ts = p.texts.filter(
-        (t: TextElement) =>
-          t.controlPoints[0].y ===
-          p.texts[p.texts.length - 1].controlPoints[0].y
+        (t: TextElement) => t.getBounds().y === lastLineY
       );
       let tIndex = ts.findIndex(
-        (t: TextElement) => t.controlPoints[0].x > relativePoint.x
+        (t: TextElement) => t.getBounds().x > relativePoint.x
       );
       tIndex = tIndex === -1 ? ts.length - 1 : tIndex - 1;
       const t = ts[tIndex];
@@ -298,8 +300,10 @@ export default class TextView extends View {
           const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height);
           const hitText = tRect.isPointInPath(ctx, rp);
           if (hitText) {
-            const midPoint = t.controlPoints.reduce(
-              (pre: Point3, cur: Point3) => PointUtils.midpoint(pre, cur)
+            const midPoint = new Point3(
+              tb.x + tb.width / 2,
+              tb.y + tb.height / 2,
+              0
             );
             return rp.x >= midPoint.x ? [pi, ti + 1] : [pi, ti];
           }
@@ -307,27 +311,35 @@ export default class TextView extends View {
 
         // 未命中文本元素：根据所在行选择最近的文本
         let anchorTextIndex = paragraph.texts.findIndex(
-          (t: TextElement) => t.controlPoints[0].y > rp.y
+          (t: TextElement) => t.getBounds().y > rp.y
         );
         if (anchorTextIndex === -1) anchorTextIndex = paragraph.texts.length;
         if (anchorTextIndex > 0) anchorTextIndex--;
         const anchor = paragraph.texts[anchorTextIndex];
+        const ay = anchor.getBounds().y;
         const ts = paragraph.texts.filter(
-          (t: TextElement) => t.controlPoints[0].y === anchor.controlPoints[0].y
+          (t: TextElement) => t.getBounds().y === ay
         );
         const len = ts.length;
         if (len === 0) return [pi, 0];
 
         // 行前行后的空隙中，探测左右，选择首或尾文本
-        const [s1, _, __, e1] = ts[0].controlPoints;
-        const [s2, ___, ____, e2] = ts[len - 1].controlPoints;
+        const b0 = ts[0].getBounds();
+        const bN = ts[len - 1].getBounds();
+        const s1 = new Point3(b0.x, b0.y + b0.height / 2, 0);
+        const e1 = new Point3(b0.x + b0.width, b0.y + b0.height / 2, 0);
+        const s2 = new Point3(bN.x, bN.y + bN.height / 2, 0);
+        const e2 = new Point3(bN.x + bN.width, bN.y + bN.height / 2, 0);
         const d1 = MathUtils.distancePointToLineSegment(rp, s1, e1, false);
         const d2 = MathUtils.distancePointToLineSegment(rp, s2, e2, false);
         const chosen = d1 < d2 ? ts[0] : ts[len - 1];
 
         // 像 element2Index 一样，基于中点判断左右
-        const midPoint = chosen.controlPoints.reduce(
-          (pre: Point3, cur: Point3) => PointUtils.midpoint(pre, cur)
+        const cb = chosen.getBounds();
+        const midPoint = new Point3(
+          cb.x + cb.width / 2,
+          cb.y + cb.height / 2,
+          0
         );
         // 找到 chosen 的索引
         const tj = paragraph.texts.findIndex((t: TextElement) => t === chosen);
@@ -339,25 +351,27 @@ export default class TextView extends View {
     // 如果鼠标落在了段落之间探测上下
     let pIndex =
       this.content.findIndex(
-        (para: TextParagraph) => para.controlPoints[0].y > rp.y
+        (para: TextParagraph) => para.getBounds().y > rp.y
       ) - 1;
     if (pIndex === -1) pIndex = 0;
     pIndex = Math.max(0, Math.min(pIndex, this.content.length - 1));
     const paragraph = this.content[pIndex];
     if (!paragraph || paragraph.texts.length === 0) return [pIndex, 0];
 
+    const lastLineY = paragraph.texts[paragraph.texts.length - 1].getBounds().y;
     const ts = paragraph.texts.filter(
-      (t) =>
-        t.controlPoints[0].y ===
-        paragraph.texts[paragraph.texts.length - 1].controlPoints[0].y
+      (t: TextElement) => t.getBounds().y === lastLineY
     );
     if (ts.length === 0) return [pIndex, 0];
-    let tIndex = ts.findIndex((t: TextElement) => t.controlPoints[0].x > rp.x);
+    let tIndex = ts.findIndex((t: TextElement) => t.getBounds().x > rp.x);
     tIndex = tIndex === -1 ? ts.length - 1 : Math.max(0, tIndex - 1);
     const t = ts[tIndex];
 
-    const midPoint = t.controlPoints.reduce((pre: Point3, cur: Point3) =>
-      PointUtils.midpoint(pre, cur)
+    const tb2 = t.getBounds();
+    const midPoint = new Point3(
+      tb2.x + tb2.width / 2,
+      tb2.y + tb2.height / 2,
+      0
     );
     const jInPara = paragraph.texts.findIndex((e: TextElement) => e === t);
     if (jInPara === -1) return [pIndex, 0];
@@ -425,18 +439,15 @@ export default class TextView extends View {
         preText &&
         preText.controlPoints[0].y !== curText.controlPoints[0].y
       ) {
-        const ps = preText.controlPoints;
-        const p = ps[1];
+        const bounds = preText.getBounds();
+        const p = new Point3(bounds.x + bounds.width, bounds.y, 0);
         const width = 2;
-        const height = PointUtils.distance(ps[1], ps[2]);
-        const box = new Rectangle(p.x, p.y, width, height);
+        const box = new Rectangle(p.x, p.y, width, bounds.height);
         boxs.push(box);
       } else {
-        const ps = curText.controlPoints;
-        const p = ps[0];
+        const bounds = preText.getBounds();
         const width = 2;
-        const height = PointUtils.distance(ps[0], ps[3]);
-        const box = new Rectangle(p.x, p.y, width, height);
+        const box = new Rectangle(bounds.x, bounds.y, width, bounds.height);
         boxs.push(box);
       }
     }
