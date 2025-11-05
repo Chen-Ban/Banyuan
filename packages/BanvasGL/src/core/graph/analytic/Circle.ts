@@ -2,19 +2,13 @@ import { GRAPHTYPE } from "@/constants";
 import Arc from "./Arc";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
-import { GraphOptions } from "../base/Graph";
 
 export default class Circle extends Arc {
   public type: GRAPHTYPE = GRAPHTYPE.CIRCLE;
 
-  constructor(
-    center: Point3,
-    radius: number,
-    style: Style = Style.DEFAULT,
-    options?: GraphOptions
-  ) {
+  constructor(center: Point3, radius: number, style: Style = Style.DEFAULT) {
     // 调用父类构造函数，创建完整圆（0 到 2π）
-    super(center, radius, 0, 2 * Math.PI, false, style, options);
+    super(center, radius, 0, 2 * Math.PI, false, style);
   }
 
   // 设置中心点

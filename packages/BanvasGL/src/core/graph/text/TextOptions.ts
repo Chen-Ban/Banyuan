@@ -1,152 +1,146 @@
-import { Color } from "@/core/style"
-import { FontStyle, FontWeight } from "@/constants"
+import { Color } from "@/core/style";
+import { FontStyle, FontWeight } from "@/constants";
 
 /**
  * 文字元素选项类
  * 包含单个文字元素的样式配置
  */
 export default class TextOptions {
-    public color: Color
-    public family: string
-    public size: number
-    public style: FontStyle
-    public weight: FontWeight
+  public color: Color;
+  public family: string;
+  public size: number;
+  public letterSpacing: number;
+  public style: FontStyle;
+  public weight: FontWeight;
 
-    constructor(
-        color: Color = Color.BLACK,
-        family: string = "Arial",
-        size: number = 16,
-        style: FontStyle = FontStyle.NORMAL,
-        weight: FontWeight = FontWeight.NORMAL
-    ) {
-        this.color = color
-        this.family = family
-        this.size = size
-        this.style = style
-        this.weight = weight
-    }
+  constructor(
+    color: Color = Color.BLACK,
+    family: string = "Arial",
+    size: number = 16,
+    letterSpacing: number = 0,
+    style: FontStyle = FontStyle.NORMAL,
+    weight: FontWeight = FontWeight.NORMAL
+  ) {
+    this.color = color;
+    this.family = family;
+    this.letterSpacing = letterSpacing;
+    this.size = size;
+    this.style = style;
+    this.weight = weight;
+  }
 
-    /**
-     * 获取完整的字体字符串
-     */
-    get fontString(): string {
-        return `${this.style} ${this.weight} ${this.size}px ${this.family}`
-    }
+  /**
+   * 获取完整的字体字符串
+   */
+  get fontString(): string {
+    return `${this.style} ${this.weight} ${this.size}px ${this.family}`;
+  }
 
-    /**
-     * 复制选项
-     */
-    copy(): TextOptions {
-        return new TextOptions(
-            this.color.copy(),
-            this.family,
-            this.size,
-            this.style,
-            this.weight
-        )
-    }
+  /**
+   * 复制选项
+   */
+  copy(): TextOptions {
+    return new TextOptions(
+      this.color.copy(),
+      this.family,
+      this.size,
+      this.letterSpacing,
+      this.style,
+      this.weight
+    );
+  }
 
-    /**
-     * 比较两个选项是否相等
-     */
-    equals(other: TextOptions): boolean {
-        return this.color.equals(other.color) &&
-               this.family === other.family &&
-               this.size === other.size &&
-               this.style === other.style &&
-               this.weight === other.weight
-    }
+  /**
+   * 比较两个选项是否相等
+   */
+  equals(other: TextOptions): boolean {
+    return (
+      this.color.equals(other.color) &&
+      this.family === other.family &&
+      this.size === other.size &&
+      this.style === other.style &&
+      this.weight === other.weight
+    );
+  }
 
-    /**
-     * 设置颜色
-     */
-    setColor(color: Color): TextOptions {
-        this.color = color
-        return this
-    }
+  /**
+   * 静态工厂方法 - 创建粗体文字选项
+   */
+  static bold(
+    color: Color = Color.BLACK,
+    family: string = "Arial",
+    size: number = 16
+  ): TextOptions {
+    return new TextOptions(
+      color,
+      family,
+      size,
+      0,
+      FontStyle.NORMAL,
+      FontWeight.BOLD
+    );
+  }
 
-    /**
-     * 设置字体族
-     */
-    setFamily(family: string): TextOptions {
-        this.family = family
-        return this
-    }
+  /**
+   * 静态工厂方法 - 创建斜体文字选项
+   */
+  static italic(
+    color: Color = Color.BLACK,
+    family: string = "Arial",
+    size: number = 16
+  ): TextOptions {
+    return new TextOptions(
+      color,
+      family,
+      size,
+      0,
+      FontStyle.ITALIC,
+      FontWeight.NORMAL
+    );
+  }
 
-    /**
-     * 设置字体大小
-     */
-    setSize(size: number): TextOptions {
-        this.size = Math.max(1, size)
-        return this
-    }
+  /**
+   * 静态工厂方法 - 创建标题文字选项
+   */
+  static title(
+    color: Color = Color.BLACK,
+    family: string = "Arial",
+    size: number = 24
+  ): TextOptions {
+    return new TextOptions(
+      color,
+      family,
+      size,
+      0,
+      FontStyle.NORMAL,
+      FontWeight.BOLD
+    );
+  }
 
-    /**
-     * 设置字体样式
-     */
-    setStyle(style: FontStyle): TextOptions {
-        this.style = style
-        return this
-    }
+  /**
+   * 静态工厂方法 - 创建小号文字选项
+   */
+  static small(
+    color: Color = Color.BLACK,
+    family: string = "Arial",
+    size: number = 12
+  ): TextOptions {
+    return new TextOptions(
+      color,
+      family,
+      size,
+      0,
+      FontStyle.NORMAL,
+      FontWeight.NORMAL
+    );
+  }
 
-    /**
-     * 设置字体粗细
-     */
-    setWeight(weight: FontWeight): TextOptions {
-        this.weight = weight
-        return this
-    }
-
-    /**
-     * 静态工厂方法 - 创建粗体文字选项
-     */
-    static bold(
-        color: Color = Color.BLACK,
-        family: string = "Arial",
-        size: number = 16
-    ): TextOptions {
-        return new TextOptions(color, family, size, FontStyle.NORMAL, FontWeight.BOLD)
-    }
-
-    /**
-     * 静态工厂方法 - 创建斜体文字选项
-     */
-    static italic(
-        color: Color = Color.BLACK,
-        family: string = "Arial",
-        size: number = 16
-    ): TextOptions {
-        return new TextOptions(color, family, size, FontStyle.ITALIC, FontWeight.NORMAL)
-    }
-
-    /**
-     * 静态工厂方法 - 创建标题文字选项
-     */
-    static title(
-        color: Color = Color.BLACK,
-        family: string = "Arial",
-        size: number = 24
-    ): TextOptions {
-        return new TextOptions(color, family, size, FontStyle.NORMAL, FontWeight.BOLD)
-    }
-
-    /**
-     * 静态工厂方法 - 创建小号文字选项
-     */
-    static small(
-        color: Color = Color.BLACK,
-        family: string = "Arial",
-        size: number = 12
-    ): TextOptions {
-        return new TextOptions(color, family, size, FontStyle.NORMAL, FontWeight.NORMAL)
-    }
-
-    /**
-     * 预定义文字选项
-     */
-    static readonly DEFAULT = new TextOptions()
-    static readonly BOLD = TextOptions.bold()
-    static readonly ITALIC = TextOptions.italic()
-    static readonly TITLE = TextOptions.title()
-    static readonly SMALL = TextOptions.small()
+  /**
+   * 预定义文字选项
+   */
+  static readonly DEFAULT = new TextOptions();
+  static readonly BOLD = TextOptions.bold();
+  static readonly ITALIC = TextOptions.italic();
+  static readonly TITLE = TextOptions.title();
+  static readonly SMALL = TextOptions.small();
 }

@@ -35,7 +35,7 @@ export interface ViewOptions<T extends object = any> {
 }
 
 // 内容类型联合
-export type ViewContent = Graph | null;
+export type ViewContent = Graph | Graph[] | null;
 
 export default abstract class View<T extends object = any> {
   // 基本属性

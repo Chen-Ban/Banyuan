@@ -3,8 +3,6 @@ import Bezier from "./Bezier";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
-import { GraphOptions } from "../base/Graph";
-import Bounds from "../base/Bounds";
 
 export default class CubicBezier extends Bezier {
   public type: GRAPHTYPE = GRAPHTYPE.CUBIC_BEZIER;
@@ -14,10 +12,9 @@ export default class CubicBezier extends Bezier {
     controlPoint1: Point3,
     controlPoint2: Point3,
     endPoint: Point3,
-    style: Style = Style.DEFAULT,
-    options?: GraphOptions
+    style: Style = Style.DEFAULT
   ) {
-    super([startPoint, controlPoint1, controlPoint2, endPoint], style, options);
+    super([startPoint, controlPoint1, controlPoint2, endPoint], style);
   }
 
   // 获取第一个控制点

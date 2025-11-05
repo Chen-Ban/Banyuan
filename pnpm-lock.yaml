@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      concurrently:
+        specifier: ^9.2.1
+        version: 9.2.1
       typescript:
         specifier: ~5.7.3
         version: 5.7.3
@@ -73,9 +76,6 @@ importers:
       chokidar:
         specifier: ^4.0.3
         version: 4.0.3
-      concurrently:
-        specifier: ^9.2.1
-        version: 9.2.1
       eslint:
         specifier: ^9.22.0
         version: 9.26.0

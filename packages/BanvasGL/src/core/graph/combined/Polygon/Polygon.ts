@@ -2,7 +2,6 @@ import { GRAPHTYPE } from "@/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import CombinedGraph from "../CombinedGraph";
-import { GraphOptions } from "../../base/Graph";
 import Line from "../../analytic/Line";
 
 /**
@@ -18,8 +17,7 @@ export default class Polygon extends CombinedGraph<Line> {
   constructor(
     vertices: Point3[] = [],
     style?: Style,
-    isClosed: boolean = true,
-    options?: GraphOptions
+    isClosed: boolean = true
   ) {
     // 先根据传入顶点临时构建线段，避免初始bounds为空
     const vs = vertices.map((v) => v.copy());
@@ -32,7 +30,7 @@ export default class Polygon extends CombinedGraph<Line> {
         lines.push(new Line(current, next, style));
       }
     }
-    super(lines, style, options);
+    super(lines, style);
     this.vertices = vs;
     this.isClosed = isClosed;
   }

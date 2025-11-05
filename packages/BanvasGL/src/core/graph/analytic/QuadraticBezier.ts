@@ -2,9 +2,6 @@ import { GRAPHTYPE } from "@/constants";
 import Bezier from "./Bezier";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
-import MathUtils from "@/core/math/MathUtils";
-import { GraphOptions } from "../base/Graph";
-import Bounds from "../base/Bounds";
 import AnalyticGraph from "./AnalyticGraph";
 
 export default class QuadraticBezier extends Bezier {
@@ -14,10 +11,9 @@ export default class QuadraticBezier extends Bezier {
     startPoint: Point3,
     controlPoint: Point3,
     endPoint: Point3,
-    style: Style = Style.DEFAULT,
-    options?: GraphOptions
+    style: Style = Style.DEFAULT
   ) {
-    super([startPoint, controlPoint, endPoint], style, options);
+    super([startPoint, controlPoint, endPoint], style);
   }
 
   // 获取控制点

@@ -2,7 +2,6 @@ import { GRAPHTYPE } from "@/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
-import { GraphOptions } from "../../base/Graph";
 
 /**
  * Rectangle类 - 矩形
@@ -18,8 +17,7 @@ export default class Rectangle extends Polygon {
     y: number,
     width: number,
     height: number,
-    style?: Style,
-    options?: GraphOptions
+    style?: Style
   ) {
     const vertices = [
       new Point3(x, y, 0),
@@ -27,7 +25,7 @@ export default class Rectangle extends Polygon {
       new Point3(x + width, y + height, 0),
       new Point3(x, y + height, 0),
     ];
-    super(vertices, style, true, options);
+    super(vertices, style, true);
     this.width = width;
     this.height = height;
   }
