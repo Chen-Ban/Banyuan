@@ -3,6 +3,7 @@ import Rectangle from "@/core/graph/combined/Polygon/Rectangle";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import { Action, Cursor, cursorMap, ExtraData } from "./InteractionMapBuilder";
+import { Circle, Line } from "@/index.backend";
 
 /**
  * 边界框插件
@@ -12,12 +13,14 @@ import { Action, Cursor, cursorMap, ExtraData } from "./InteractionMapBuilder";
 export interface BoundingBoxAddon {
   region: Rectangle;
   handles: Rectangle[];
+  rotate: [Line, Circle];
   getBounds(): { x: number; y: number; width: number; height: number };
 }
 
 export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
   public region: Rectangle;
   public handles: Rectangle[];
+  public rotate: [Line, Circle];
 
   // 基础参数（用于推导 region）
   private width: number;
@@ -48,6 +51,7 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
     this.margin = { ...margin };
     this.region = this.computeRegion();
     this.handles = this.createHandles(this.region);
+    this.rotate = this.createRotate();
   }
 
   private createHandles(region: Rectangle): Rectangle[] {
@@ -69,9 +73,19 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
     ];
 
     const handleStyle = new Style().setStrokeWidth(1);
-    return points.map(
-      (p) => new Rectangle(p.x - half, p.y - half, size, size, handleStyle)
+    return points.map((p) => new Rectangle(p.x - half, p.y - half, size, size, handleStyle));
+  }
+
+  private createRotate(): [Line, Circle] {
+    const center = this.region.getCenter();
+    const halfHeight = this.region.getBounds().height / 2;
+    const line = new Line(
+      new Point3(center.x, center.y - halfHeight, 0),
+      new Point3(center.x, center.y - halfHeight - 8, 0),
+      new Style().setStrokeWidth(1)
     );
+    const circle = new Circle(new Point3(center.x, center.y - halfHeight - 10, 0), 2, new Style().setStrokeWidth(1));
+    return [line, circle];
   }
 
   private computeRegion(): Rectangle {
@@ -91,24 +105,14 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
     return this;
   }
 
-  public setPadding(
-    top: number,
-    right: number,
-    bottom: number,
-    left: number
-  ): BoundingBoxAddonImpl {
+  public setPadding(top: number, right: number, bottom: number, left: number): BoundingBoxAddonImpl {
     this.padding = { top, right, bottom, left };
     this.region = this.computeRegion();
     this.handles = this.createHandles(this.region);
     return this;
   }
 
-  public setMargin(
-    top: number,
-    right: number,
-    bottom: number,
-    left: number
-  ): BoundingBoxAddonImpl {
+  public setMargin(top: number, right: number, bottom: number, left: number): BoundingBoxAddonImpl {
     this.margin = { top, right, bottom, left };
     this.region = this.computeRegion();
     this.handles = this.createHandles(this.region);
@@ -154,32 +158,28 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
    * 复制边界框插件
    */
   copy(): BoundingBoxAddonImpl {
-    return new BoundingBoxAddonImpl(
-      this.width,
-      this.height,
-      { ...this.padding },
-      { ...this.margin }
-    );
+    return new BoundingBoxAddonImpl(this.width, this.height, { ...this.padding }, { ...this.margin });
   }
 
   /**
    * 交互接口
    */
-  interact(ctx: CanvasRenderingContext2D, p: Point3): ExtraData | null {
-    const isMoving = this.region.graphs.some(
-      (edge) => edge.getClosestPoint(p).distance < 5
-    );
-    const handler = this.handles.find((rec) =>
-      rec.graphs.some((edge) => edge.getClosestPoint(p).distance < 5)
-    );
-
-    if (handler) {
+  interact(p: Point3): ExtraData | null {
+    const isMoving = this.region.isPointOnCurve(p, 5) || this.rotate[0].isPointOnCurve(p, 5);
+    const isRotate = this.rotate[1].isPointOnCurve(p, 2);
+    const handler = this.handles.find((rec) => rec.isPointInPath(p) || rec.isPointOnCurve(p, 2));
+    if (isRotate) {
+      return {
+        cursorStyle: Cursor.Grab,
+        action: Action.ROTATE,
+      };
+    } else if (handler) {
       const dynamicIndex = this.handles.findIndex((h) => h === handler);
       const fixedIndex = (dynamicIndex + 4) % 8;
       const fixed = this.handles[fixedIndex];
       return {
         cursorStyle: cursorMap[dynamicIndex] || Cursor.Default,
-        action: Action.EDIT_POINT,
+        action: Action.RESIZE,
         resizeFixedPoint: fixed.getCenter(),
         resizeDynamicPoint: handler.getCenter(),
       };

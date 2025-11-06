@@ -83,6 +83,10 @@ export default class CombinedGraph<T extends Graph> extends Graph {
     return new Bounds(minX, minY, maxX - minX, maxY - minY);
   }
 
+  isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
+    return this.graphs.some((graph) => graph.isPointOnCurve(point, tolerance));
+  }
+
   /**
    * 添加图形到组合中
    */

@@ -145,6 +145,10 @@ export default class TextElement extends Graph {
     ctx.restore();
   }
 
+  isPointOnCurve(point: Point3, tolerance: number): boolean {
+    return false;
+  }
+
   /**
    * 复制文字元素
    */

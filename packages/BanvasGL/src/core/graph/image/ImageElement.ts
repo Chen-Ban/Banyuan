@@ -110,6 +110,10 @@ export default class ImageElement extends Graph {
     this.opacity = Math.max(0, Math.min(1, opacity));
     return this;
   }
+
+  isPointOnCurve(point: Point3, tolerance: number): boolean {
+    return false;
+  }
   /**
    * 计算裁剪区域的控制点（八个点）
    */
