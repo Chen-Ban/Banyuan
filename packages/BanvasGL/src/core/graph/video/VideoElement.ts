@@ -43,7 +43,9 @@ export default class VideoElement extends Graph {
     // 异步加载视频
     this.loadVideo();
   }
-
+  isPointOnCurve(point: Point3, tolerance: number): boolean {
+    return false;
+  }
   /**
    * 加载视频
    */

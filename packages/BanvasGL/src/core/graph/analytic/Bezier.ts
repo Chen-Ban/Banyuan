@@ -96,21 +96,6 @@ export default abstract class Bezier extends AnalyticGraph {
     return length;
   }
 
-  public isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
-    const steps = 100;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const curvePoint = this.getPointAt(t);
-      const dx = point.x - curvePoint.x;
-      const dy = point.y - curvePoint.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance <= tolerance) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   public getClosestPoint(point: Point3): {
     distance: number;
     closestPoint: Point3;

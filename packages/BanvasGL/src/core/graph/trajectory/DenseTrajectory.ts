@@ -67,4 +67,8 @@ export default class DenseTrajectory extends Graph {
 
     return new Bounds(minX, minY, maxX - minX, maxY - minY);
   }
+
+  public isPointOnCurve(p: Point3, tolerance: number = 1e-6): boolean {
+    return false;
+  }
 }

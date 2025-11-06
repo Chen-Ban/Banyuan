@@ -71,7 +71,7 @@ export default class CombinedView extends View {
 
     // 命中自身内容（如有）
     if (this.content) {
-      const hitContent = this.content.isPointInPath(ctx, relativePoint);
+      const hitContent = this.content.isPointInPath(relativePoint);
       if (hitContent) {
         return builder
           .add(this, this.content, {
@@ -84,7 +84,7 @@ export default class CombinedView extends View {
 
     // 命中边界框（移动/缩放）
     if (this.actived && this.boundingBox) {
-      const extraData = this.boundingBox.interact(ctx, relativePoint);
+      const extraData = this.boundingBox.interact(relativePoint);
       if (extraData) {
         return builder.add(this, this.boundingBox, extraData).build();
       }

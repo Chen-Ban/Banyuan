@@ -101,56 +101,14 @@ export default class TextView extends View {
 
     const builder = new InteractionMapBuilder();
 
-    // 准确命中了某个段落
-    const hitedParagraph = this.content.find((p: TextParagraph) => p.isPointInPath(ctx, relativePoint));
-    if (hitedParagraph) {
-      // 准确命中某个文字
-      for (const t of hitedParagraph.texts) {
-        const tb = t.getBounds();
-        const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height);
-        const hitText = tRect.isPointInPath(ctx, relativePoint);
-        if (hitText) {
-          return builder
-            .add(this, t, {
-              cursorStyle: Cursor.Text,
-              action: Action.SELECTION,
-            })
-            .build();
-        }
-      }
-    }
-    const hitedLayout = this.layoutArea.isPointInPath(ctx, relativePoint);
-    // 在命中（段落或者定位区域）的空白
-    if (hitedParagraph || hitedLayout) {
-      const texts = this.content.map((p) => p.texts).flat();
-      const leftTop = texts.filter((b) => b.getBounds().x < relativePoint.x && b.getBounds().y < relativePoint.y);
-      const rightBottom = texts.filter((b) => b.getBounds().x > relativePoint.x && b.getBounds().y > relativePoint.y);
-      const leftBottom = texts.filter((b) => b.getBounds().x < relativePoint.x && b.getBounds().y > relativePoint.y);
-      const rightTop = texts.filter((b) => b.getBounds().x > relativePoint.x && b.getBounds().y < relativePoint.y);
-      // 找到leftBottom和rightTop中离relativePoint最近的textElement
-      const leftBottomDistance = leftBottom.map((b) => {
-        const center = b.getBounds().center;
-        return PointUtils.distance(relativePoint, new Point3(center.x, center.y, 0));
-      });
-      const rightTopDistance = rightTop.map((b) => {
-        const center = b.getBounds().center;
-        return PointUtils.distance(relativePoint, new Point3(center.x, center.y, 0));
-      });
-      const minLeftBottomDistance = Math.min(...leftBottomDistance);
-      const minRightTopDistance = Math.min(...rightTopDistance);
-      const minLeftBottomIndex = leftBottomDistance.indexOf(minLeftBottomDistance);
-      const minRightTopIndex = rightTopDistance.indexOf(minRightTopDistance);
-      // 优先级左上、右下、左下、右上
-      const hitedTextElement =
-        leftTop[leftTop.length - 1] || rightBottom[0] || leftBottom[minLeftBottomIndex] || rightTop[minRightTopIndex];
-      if (hitedTextElement) {
-        return builder.add(this, hitedTextElement, { action: Action.SELECTION, cursorStyle: Cursor.Text }).build();
-      }
+    const textElement = this.point2TextElement(p);
+    if (textElement) {
+      return builder.add(this, textElement, { action: Action.SELECT, cursorStyle: Cursor.Text }).build();
     }
 
     // 命中边界框（移动/缩放）
     if (this.actived && this.boundingBox) {
-      const extraData = this.boundingBox.interact(ctx, relativePoint);
+      const extraData = this.boundingBox.interact(relativePoint);
       if (extraData) {
         return builder.add(this, this.boundingBox, extraData).build();
       }
@@ -187,124 +145,56 @@ export default class TextView extends View {
   }
 
   /**
-   * 根据点选中index
+   * 根据点选中TextElement
    */
-  public point2Index(p: Point3): TextIndex {
+  private point2TextElement(p: Point3): TextElement | null {
     const relativePoint = world2Relative(p, this.getWorldMatrix());
-    if (!this.layoutArea) return [0, 0];
+    if (!this.layoutArea) return null;
 
-    const ctx = getGlobalCanvasContext()?.getBufferContext();
-    if (!ctx) return [0, 0];
-
-    // 如果relativePoint在layoutArea以及texts的外面，则将点约束到这两个区域的边界上
-    // 保证我们的点在这两个区域上
-    const hitTextsInBounds = this.content.some((p: TextParagraph) => p.isPointInPath(ctx, relativePoint));
-    const hitLayoutInBounds = this.layoutArea.isPointInPath(ctx, relativePoint);
-    let rp = relativePoint;
-    if (!hitTextsInBounds && !hitLayoutInBounds) {
-      const lb = this.layoutArea.getBounds();
-      const tb = Bounds.union(...this.content.map((p: TextParagraph) => p.getBounds()));
-
-      const rectEdges = (b: { x: number; y: number; width: number; height: number }) => {
-        const p1 = new Point3(b.x, b.y, 0);
-        const p2 = new Point3(b.x + b.width, b.y, 0);
-        const p3 = new Point3(b.x + b.width, b.y + b.height, 0);
-        const p4 = new Point3(b.x, b.y + b.height, 0);
-        return [
-          [p1, p2],
-          [p2, p3],
-          [p3, p4],
-          [p4, p1],
-        ] as Array<[Point3, Point3]>;
-      };
-
-      const edges = [...rectEdges(lb), ...rectEdges(tb)];
-      let minD = Infinity;
-      let best: [Point3, Point3] | null = null;
-      for (const [a, b] of edges) {
-        const d = MathUtils.distancePointToLine(relativePoint, a, b);
-        if (d < minD) {
-          minD = d;
-          best = [a, b];
+    // 准确命中了某个段落
+    const hitedParagraph = this.content.find((p: TextParagraph) => p.isPointInPath(relativePoint));
+    if (hitedParagraph) {
+      // 准确命中某个文字
+      for (const t of hitedParagraph.texts) {
+        const tb = t.getBounds();
+        const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height);
+        const hitText = tRect.isPointInPath(relativePoint);
+        if (hitText) {
+          return t;
         }
       }
-
-      if (best) {
-        const [a, b] = best;
-        const ab = b.subtract(a);
-        const ap = relativePoint.subtract(a);
-        const abLen2 = ab.dot(ab);
-        let t = abLen2 === 0 ? 0 : ap.dot(ab) / abLen2;
-        t = Math.max(0, Math.min(1, t));
-        rp = new Point3(a.x + t * ab.x, a.y + t * ab.y, a.z + t * ab.z);
-      }
     }
-
-    // 和interact一样，找到点所在行最近的textElement
-    for (const [pi, paragraph] of this.content.entries()) {
-      const hitPara = paragraph.isPointInPath(ctx, rp);
-      if (hitPara) {
-        // 命中文本元素则直接用中点判断左右
-        for (const [ti, t] of paragraph.texts.entries()) {
-          const tb = t.getBounds();
-          const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height);
-          const hitText = tRect.isPointInPath(ctx, rp);
-          if (hitText) {
-            const midPoint = new Point3(tb.x + tb.width / 2, tb.y + tb.height / 2, 0);
-            return rp.x >= midPoint.x ? [pi, ti + 1] : [pi, ti];
-          }
-        }
-
-        // 未命中文本元素：根据所在行选择最近的文本
-        let anchorTextIndex = paragraph.texts.findIndex((t: TextElement) => t.getBounds().y > rp.y);
-        if (anchorTextIndex === -1) anchorTextIndex = paragraph.texts.length;
-        if (anchorTextIndex > 0) anchorTextIndex--;
-        const anchor = paragraph.texts[anchorTextIndex];
-        const ay = anchor.getBounds().y;
-        const ts = paragraph.texts.filter((t: TextElement) => t.getBounds().y === ay);
-        const len = ts.length;
-        if (len === 0) return [pi, 0];
-
-        // 行前行后的空隙中，探测左右，选择首或尾文本
-        const b0 = ts[0].getBounds();
-        const bN = ts[len - 1].getBounds();
-        const s1 = new Point3(b0.x, b0.y + b0.height / 2, 0);
-        const e1 = new Point3(b0.x + b0.width, b0.y + b0.height / 2, 0);
-        const s2 = new Point3(bN.x, bN.y + bN.height / 2, 0);
-        const e2 = new Point3(bN.x + bN.width, bN.y + bN.height / 2, 0);
-        const d1 = MathUtils.distancePointToLineSegment(rp, s1, e1, false);
-        const d2 = MathUtils.distancePointToLineSegment(rp, s2, e2, false);
-        const chosen = d1 < d2 ? ts[0] : ts[len - 1];
-
-        // 像 element2Index 一样，基于中点判断左右
-        const cb = chosen.getBounds();
-        const midPoint = new Point3(cb.x + cb.width / 2, cb.y + cb.height / 2, 0);
-        // 找到 chosen 的索引
-        const tj = paragraph.texts.findIndex((t: TextElement) => t === chosen);
-        if (tj === -1) return [pi, 0];
-        return rp.x >= midPoint.x ? [pi, tj + 1] : [pi, tj];
-      }
+    const hitedLayout = this.layoutArea.isPointInPath(relativePoint);
+    // 在命中（段落或者定位区域）的空白
+    if (hitedParagraph || hitedLayout) {
+      const texts = this.content.map((p) => p.texts).flat();
+      const leftTop = texts.filter((b) => b.getBounds().x < relativePoint.x && b.getBounds().y < relativePoint.y);
+      const rightBottom = texts.filter((b) => b.getBounds().x > relativePoint.x && b.getBounds().y > relativePoint.y);
+      const leftBottom = texts.filter((b) => b.getBounds().x < relativePoint.x && b.getBounds().y > relativePoint.y);
+      const rightTop = texts.filter((b) => b.getBounds().x > relativePoint.x && b.getBounds().y < relativePoint.y);
+      // 找到leftBottom和rightTop中离relativePoint最近的textElement
+      const leftBottomDistance = leftBottom.map((b) => {
+        const center = b.getBounds().center;
+        return PointUtils.distance(relativePoint, new Point3(center.x, center.y, 0));
+      });
+      const rightTopDistance = rightTop.map((b) => {
+        const center = b.getBounds().center;
+        return PointUtils.distance(relativePoint, new Point3(center.x, center.y, 0));
+      });
+      const minLeftBottomDistance = Math.min(...leftBottomDistance);
+      const minRightTopDistance = Math.min(...rightTopDistance);
+      const minLeftBottomIndex = leftBottomDistance.indexOf(minLeftBottomDistance);
+      const minRightTopIndex = rightTopDistance.indexOf(minRightTopDistance);
+      // 优先级左上、右下、左下、右上
+      const hitedTextElement =
+        leftTop[leftTop.length - 1] ||
+        rightBottom[0] ||
+        leftBottom[minLeftBottomIndex] ||
+        rightTop[minRightTopIndex] ||
+        null;
+      return hitedTextElement;
     }
-
-    // 如果鼠标落在了段落之间探测上下
-    let pIndex = this.content.findIndex((para: TextParagraph) => para.getBounds().y > rp.y) - 1;
-    if (pIndex === -1) pIndex = 0;
-    pIndex = Math.max(0, Math.min(pIndex, this.content.length - 1));
-    const paragraph = this.content[pIndex];
-    if (!paragraph || paragraph.texts.length === 0) return [pIndex, 0];
-
-    const lastLineY = paragraph.texts[paragraph.texts.length - 1].getBounds().y;
-    const ts = paragraph.texts.filter((t: TextElement) => t.getBounds().y === lastLineY);
-    if (ts.length === 0) return [pIndex, 0];
-    let tIndex = ts.findIndex((t: TextElement) => t.getBounds().x > rp.x);
-    tIndex = tIndex === -1 ? ts.length - 1 : Math.max(0, tIndex - 1);
-    const t = ts[tIndex];
-
-    const tb2 = t.getBounds();
-    const midPoint = new Point3(tb2.x + tb2.width / 2, tb2.y + tb2.height / 2, 0);
-    const jInPara = paragraph.texts.findIndex((e: TextElement) => e === t);
-    if (jInPara === -1) return [pIndex, 0];
-    return rp.x >= midPoint.x ? [pIndex, jInPara + 1] : [pIndex, jInPara];
+    return null;
   }
 
   /**
@@ -609,13 +499,6 @@ export default class TextView extends View {
     return firstCharWidth * paragraph.options.indentation;
   }
 
-  /**
-   * 检查是否为文本视图
-   */
-  public isTextView(): Boolean {
-    return true;
-  }
-
   // 1、供view初始化调用，再textView初始化最后会根据layoutArea更新包围盒和视口插件
   // 2、供视口裁剪判断调用
   public getContentBounds(): {
@@ -627,12 +510,7 @@ export default class TextView extends View {
     if (this.layoutArea) {
       return this.layoutArea.getBounds();
     }
-    return {
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-    };
+    return Bounds.empty();
   }
 
   /**

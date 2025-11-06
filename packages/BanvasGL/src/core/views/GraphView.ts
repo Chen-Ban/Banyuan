@@ -57,7 +57,7 @@ export default class GraphView extends View {
 
     // 检查控制点
     if (this.actived && this.controlPoints) {
-      const extraData = this.controlPoints.interact(ctx, relativePoint);
+      const extraData = this.controlPoints.interact(relativePoint);
       if (extraData) {
         return builder.add(this, this.controlPoints, extraData).build();
       }
@@ -65,7 +65,7 @@ export default class GraphView extends View {
 
     // 检查内容
     if (this.content) {
-      const hitContent = this.content.isPointInPath(ctx, relativePoint);
+      const hitContent = this.content.isPointInPath(relativePoint) || this.content.isPointOnCurve(relativePoint, 2);
       if (hitContent) {
         return builder
           .add(this, this.content, {
@@ -78,7 +78,7 @@ export default class GraphView extends View {
 
     // 检查边界框
     if (this.actived && this.boundingBox) {
-      const extraData = this.boundingBox.interact(ctx, relativePoint);
+      const extraData = this.boundingBox.interact(relativePoint);
       if (extraData) {
         return builder.add(this, this.boundingBox, extraData).build();
       }

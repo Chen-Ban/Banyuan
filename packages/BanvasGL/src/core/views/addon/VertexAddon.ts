@@ -78,7 +78,7 @@ export default class VertexAddonImpl implements VertexAddon {
   /**
    * 交互接口
    */
-  interact(ctx: CanvasRenderingContext2D, p: Point3): ExtraData | null {
+  interact(p: Point3): ExtraData | null {
     const v = this.vertices.find((v) => v.subtract(p).length < 5);
     if (!v) return null;
     return {

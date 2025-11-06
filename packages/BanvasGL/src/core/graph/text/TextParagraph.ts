@@ -94,6 +94,10 @@ export default class TextParagraph extends Graph {
     ctx.lineTo(bounds.x, bounds.y + bounds.height);
     ctx.lineTo(bounds.x, bounds.y);
   }
+
+  isPointOnCurve(point: Point3, tolerance: number): boolean {
+    return false;
+  }
   /**
    * 渲染段落
    */

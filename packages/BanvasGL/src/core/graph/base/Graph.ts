@@ -3,6 +3,7 @@ import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Bounds from "./Bounds";
 import { v4 as uuid } from "uuid";
+import { getGlobalCanvasContext } from "@/core/renderer/CanvasContext";
 
 export default abstract class Graph {
   public id: string;
@@ -17,12 +18,15 @@ export default abstract class Graph {
   public abstract render(ctx: CanvasRenderingContext2D): void;
   public abstract copy(): this;
   protected abstract calculateBounds(): Bounds;
+  abstract isPointOnCurve(point: Point3, tolerance: number): boolean;
 
   constructor() {
     this.id = uuid();
   }
 
-  public isPointInPath(ctx: CanvasRenderingContext2D, p: Point3): Boolean {
+  public isPointInPath(p: Point3): Boolean {
+    const ctx = getGlobalCanvasContext()?.bufferCtx;
+    if (!ctx) return false;
     ctx.save();
     this.renderPath(ctx, true);
     const isIn = ctx.isPointInPath(p.x, p.y, "nonzero");

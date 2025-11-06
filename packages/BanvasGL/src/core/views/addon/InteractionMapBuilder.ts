@@ -68,16 +68,12 @@ export const cursorMap: Record<number, Cursor> = {
  * 交互结果类型
  * 键值对类型，键是View，值是ViewContent或ViewAddonImpl
  */
-export type InteractionMap = Map<
-  View,
-  { content: ViewContent | ViewAddonImpl; extraData: ExtraData }
->;
+export type InteractionMap = Map<View, { content: ViewContent | ViewAddonImpl; extraData: ExtraData }>;
 
 export enum Action {
   MOVE,
   RESIZE,
   ROTATE,
-  INPUT,
   EDIT_POINT,
   EDIT_VIEWPORT,
   SELECT,
@@ -111,11 +107,7 @@ export class InteractionMapBuilder {
    * @param view 视图
    * @param content 内容（ViewContent或ViewAddonImpl）
    */
-  public add(
-    view: View,
-    content: ViewContent | ViewAddonImpl,
-    extraData: ExtraData
-  ): InteractionMapBuilder {
+  public add(view: View, content: ViewContent | ViewAddonImpl, extraData: ExtraData): InteractionMapBuilder {
     this.result.set(view, { content, extraData });
     return this;
   }
@@ -136,8 +128,7 @@ export class InteractionMapBuilder {
     let content: ViewContent | ViewAddonImpl | null = null;
     let extraData: ExtraData | null = null;
 
-    for (const [view, { content: _content, extraData: _extraData }] of this
-      .result) {
+    for (const [view, { content: _content, extraData: _extraData }] of this.result) {
       if (view.layer > highestLayer) {
         highestLayer = view.layer;
         highestView = view;

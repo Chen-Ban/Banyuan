@@ -192,6 +192,9 @@ export default function useBanvas(
       // 鼠标事件
       const onMouseDown = (e: MouseEvent) => {
         mousDownPoint = event2Point(e);
+        if (!indicateView && !indicateContent) {
+          action = Action.SELECT;
+        }
       };
 
       const onMouseMove = (e: MouseEvent) => {
@@ -213,9 +216,25 @@ export default function useBanvas(
               break;
             case Action.SELECTION:
               if (indicateView instanceof TextView && indicateContent instanceof TextElement) {
-                const dynamicIndex = indicateView.point2Index(point);
+                const dynamicIndex = indicateView.element2Index(indicateContent, point);
                 indicateView.setSelection(dynamicIndex);
               }
+              break;
+            case Action.EDIT_POINT:
+              canvasRef.current.style.cursor = Cursor.Grabbing;
+              break;
+            case Action.RESIZE:
+              break;
+            case Action.ROTATE:
+              canvasRef.current.style.cursor = Cursor.Grabbing;
+              break;
+            case Action.SELECT:
+              canvasRef.current.style.cursor = Cursor.Crosshair;
+              break;
+            case Action.EDIT_VIEWPORT:
+              break;
+            case Action.NONE:
+            default:
           }
           lastPoint = point;
         } else {
