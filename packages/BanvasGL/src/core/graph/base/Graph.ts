@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Bounds from "./Bounds";
@@ -13,10 +13,7 @@ export default abstract class Graph {
   // 私有包围盒缓存
   private _bounds: Bounds | null = null;
 
-  public abstract renderPath(
-    ctx: CanvasRenderingContext2D,
-    dependent: Boolean
-  ): void;
+  public abstract renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void;
   public abstract render(ctx: CanvasRenderingContext2D): void;
   public abstract copy(): this;
   protected abstract calculateBounds(): Bounds;

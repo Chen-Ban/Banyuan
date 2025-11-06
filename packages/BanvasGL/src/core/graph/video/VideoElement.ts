@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Graph from "../base/Graph";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
@@ -27,12 +27,7 @@ export default class VideoElement extends Graph {
   public muted: boolean = false;
   public playing: boolean = false;
 
-  constructor(
-    x: number,
-    y: number,
-    videoSrc: string,
-    style: Style = Style.DEFAULT
-  ) {
+  constructor(x: number, y: number, videoSrc: string, style: Style = Style.DEFAULT) {
     super();
     this.x = x;
     this.y = y;
@@ -134,11 +129,7 @@ export default class VideoElement extends Graph {
   /**
    * 设置视频播放选项
    */
-  setPlayOptions(options: {
-    autoplay?: boolean;
-    loop?: boolean;
-    muted?: boolean;
-  }): VideoElement {
+  setPlayOptions(options: { autoplay?: boolean; loop?: boolean; muted?: boolean }): VideoElement {
     if (options.autoplay !== undefined) this.autoplay = options.autoplay;
     if (options.loop !== undefined) this.loop = options.loop;
     if (options.muted !== undefined) this.muted = options.muted;
@@ -329,12 +320,7 @@ export default class VideoElement extends Graph {
       return false;
     }
 
-    return (
-      point.x >= this.x &&
-      point.x <= this.x + this.width &&
-      point.y >= this.y &&
-      point.y <= this.y + this.height
-    );
+    return point.x >= this.x && point.x <= this.x + this.width && point.y >= this.y && point.y <= this.y + this.height;
   }
 
   /**
@@ -350,13 +336,7 @@ export default class VideoElement extends Graph {
     canvas.width = this.video.videoWidth;
     canvas.height = this.video.videoHeight;
 
-    ctx.drawImage(
-      this.video,
-      0,
-      0,
-      this.video.videoWidth,
-      this.video.videoHeight
-    );
+    ctx.drawImage(this.video, 0, 0, this.video.videoWidth, this.video.videoHeight);
 
     return ctx.getImageData(0, 0, canvas.width, canvas.height);
   }
@@ -385,12 +365,7 @@ export default class VideoElement extends Graph {
   /**
    * 静态工厂方法
    */
-  static fromVideoElement(
-    video: HTMLVideoElement,
-    x: number,
-    y: number,
-    style: Style = Style.DEFAULT
-  ): VideoElement {
+  static fromVideoElement(video: HTMLVideoElement, x: number, y: number, style: Style = Style.DEFAULT): VideoElement {
     const element = new VideoElement(x, y, "", style);
     element.video = video;
     element.loaded = true;

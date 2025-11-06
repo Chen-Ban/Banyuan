@@ -1,9 +1,7 @@
-import { VIEWTYPE } from "../../constants";
+import { VIEWTYPE } from "../constants";
 import Style from "../style/Style";
 import Matrix4 from "../math/Matrix4";
-import CanvasContext, {
-  getGlobalCanvasContext,
-} from "../renderer/CanvasContext";
+import CanvasContext, { getGlobalCanvasContext } from "../renderer/CanvasContext";
 import { v4 as uuidv4 } from "uuid";
 import Scene from "../scene/Scene";
 
@@ -11,12 +9,7 @@ import Scene from "../scene/Scene";
 import { Graph } from "../graph";
 
 // 导入addon类型
-import {
-  BoundingBoxAddonImpl,
-  ViewportAddonImpl,
-  VertexAddonImpl,
-  ViewAddonImpl,
-} from "./addon";
+import { BoundingBoxAddonImpl, ViewportAddonImpl, VertexAddonImpl, ViewAddonImpl } from "./addon";
 import { Point3 } from "../math";
 import { ExtraData } from "./addon/InteractionMapBuilder";
 
@@ -132,10 +125,7 @@ export default abstract class View<T extends object = any> {
 
     // 设置其他自定义方法
     Object.keys(vo).forEach((key) => {
-      if (
-        typeof vo[key] === "function" &&
-        !["onCreated", "onAttach", "onDestroy"].includes(key)
-      ) {
+      if (typeof vo[key] === "function" && !["onCreated", "onAttach", "onDestroy"].includes(key)) {
         (this as any)[key] = vo[key];
       }
     });
@@ -220,14 +210,7 @@ export default abstract class View<T extends object = any> {
     this.children.forEach((view) => {
       ctx.save();
       const transform = view.matrix.transform;
-      ctx.transform([
-        transform[0],
-        transform[4],
-        transform[1],
-        transform[5],
-        transform[3],
-        transform[7],
-      ]);
+      ctx.transform([transform[0], transform[4], transform[1], transform[5], transform[3], transform[7]]);
       view.render();
       ctx.restore();
     });
@@ -256,12 +239,7 @@ export default abstract class View<T extends object = any> {
     if (!offscreenCtx || !viewport) return;
 
     // 清空离屏画布
-    offscreenCtx.clearRect(
-      0,
-      0,
-      offscreenCtx.canvas.width,
-      offscreenCtx.canvas.height
-    );
+    offscreenCtx.clearRect(0, 0, offscreenCtx.canvas.width, offscreenCtx.canvas.height);
 
     // 先设置视口裁剪区域
     offscreenCtx.beginPath();
@@ -298,16 +276,10 @@ export default abstract class View<T extends object = any> {
   // 渲染插件
   private renderPlugins(ctx: CanvasRenderingContext2D): void {
     if (!this.actived) return;
-    if (
-      this.controlPoints &&
-      typeof (this.controlPoints as any).render === "function"
-    ) {
+    if (this.controlPoints && typeof (this.controlPoints as any).render === "function") {
       (this.controlPoints as any).render(ctx);
     }
-    if (
-      this.boundingBox &&
-      typeof (this.boundingBox as any).render === "function"
-    ) {
+    if (this.boundingBox && typeof (this.boundingBox as any).render === "function") {
       (this.boundingBox as any).render(ctx);
     }
     if (this.viewport && typeof (this.viewport as any).render === "function") {
@@ -356,12 +328,7 @@ export default abstract class View<T extends object = any> {
     const bounds = this.boundingBox?.getBounds();
     if (!bounds) throw new Error("Bounding box is not set");
 
-    this.viewport = new ViewportAddonImpl(
-      bounds.x,
-      bounds.y,
-      bounds.width,
-      bounds.height
-    );
+    this.viewport = new ViewportAddonImpl(bounds.x, bounds.y, bounds.width, bounds.height);
   }
 
   public getLastRenderTime(): number {
@@ -385,12 +352,7 @@ export default abstract class View<T extends object = any> {
     return this;
   }
 
-  public scale(
-    x: number,
-    y: number,
-    z: number = 1,
-    origin: Point3 = new Point3(0, 0, 0)
-  ): View {
+  public scale(x: number, y: number, z: number = 1, origin: Point3 = new Point3(0, 0, 0)): View {
     const _o = this.matrix.multiply(origin);
     this.matrix.translate(-_o.x, -_o.y, -_o.z);
     this.matrix.scale(x, y, z);
@@ -398,12 +360,7 @@ export default abstract class View<T extends object = any> {
     return this;
   }
 
-  public rotate(
-    x: number,
-    y: number,
-    z: number,
-    origin: Point3 = new Point3(0, 0, 0)
-  ): View {
+  public rotate(x: number, y: number, z: number, origin: Point3 = new Point3(0, 0, 0)): View {
     const _o = this.matrix.multiply(origin);
 
     this.matrix.translate(-_o.x, -_o.y, -_o.z);

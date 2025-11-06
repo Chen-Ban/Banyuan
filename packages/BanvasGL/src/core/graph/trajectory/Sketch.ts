@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import DenseTrajectory from "./DenseTrajectory";
 
 export default class Sketch extends DenseTrajectory {

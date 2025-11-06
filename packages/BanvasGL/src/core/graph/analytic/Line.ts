@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
@@ -10,11 +10,7 @@ export default class Line extends AnalyticGraph {
   public controlPoints: Point3[];
   public style: Style;
 
-  constructor(
-    startPoint: Point3,
-    endPoint: Point3,
-    style: Style = Style.DEFAULT
-  ) {
+  constructor(startPoint: Point3, endPoint: Point3, style: Style = Style.DEFAULT) {
     super();
     this.controlPoints = [startPoint, endPoint];
     this.style = style;
@@ -76,11 +72,7 @@ export default class Line extends AnalyticGraph {
 
   // 复制线条
   public copy(): this {
-    return new Line(
-      this.startPoint.copy(),
-      this.endPoint.copy(),
-      this.style.copy()
-    ) as this;
+    return new Line(this.startPoint.copy(), this.endPoint.copy(), this.style.copy()) as this;
   }
 
   // ========== AnalyticGraph 抽象方法实现 ==========
@@ -151,12 +143,7 @@ export default class Line extends AnalyticGraph {
    */
   public getIntersections(other: AnalyticGraph): Point3[] {
     if (other instanceof Line) {
-      const intersection = MathUtils.lineIntersection(
-        this.startPoint,
-        this.endPoint,
-        other.startPoint,
-        other.endPoint
-      );
+      const intersection = MathUtils.lineIntersection(this.startPoint, this.endPoint, other.startPoint, other.endPoint);
       return intersection ? [intersection] : [];
     }
 

@@ -1,4 +1,4 @@
-import { HORIZONTALALIGN } from "@/constants";
+import { HORIZONTALALIGN } from "@/core/constants";
 import Graph from "@/core/graph/base/Graph";
 import TextElement from "./TextElement";
 
@@ -65,20 +65,14 @@ export default class ParagraphOptions {
   /**
    * 静态工厂方法 - 创建居中对齐段落选项
    */
-  static center(
-    leading: number = 1.2,
-    letterSpacing: number = 0
-  ): ParagraphOptions {
+  static center(leading: number = 1.2, letterSpacing: number = 0): ParagraphOptions {
     return new ParagraphOptions(HORIZONTALALIGN.CENTER, leading, letterSpacing);
   }
 
   /**
    * 静态工厂方法 - 创建右对齐段落选项
    */
-  static right(
-    leading: number = 1.2,
-    letterSpacing: number = 0
-  ): ParagraphOptions {
+  static right(leading: number = 1.2, letterSpacing: number = 0): ParagraphOptions {
     return new ParagraphOptions(HORIZONTALALIGN.RIGHT, leading, letterSpacing);
   }
 

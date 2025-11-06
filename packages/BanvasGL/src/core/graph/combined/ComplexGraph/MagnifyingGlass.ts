@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import ComplexGraph from "./ComplexGraph";
@@ -87,29 +87,17 @@ export default class MagnifyingGlass extends ComplexGraph {
    */
   private addDecorativeDetails(): void {
     // 在镜片中心添加一个小圆点表示焦点
-    const focusPoint = new Circle(
-      this.center,
-      2,
-      this.style || new Style().setFillColor(Color.BLACK)
-    );
+    const focusPoint = new Circle(this.center, 2, this.style || new Style().setFillColor(Color.BLACK));
     this.addGraph(focusPoint);
 
     // 在手柄末端添加一个小圆点
     const handleEnd = new Point3(
-      this.center.x +
-        this.radius * Math.cos(this.handleAngle) +
-        this.handleLength * Math.cos(this.handleAngle),
-      this.center.y +
-        this.radius * Math.sin(this.handleAngle) +
-        this.handleLength * Math.sin(this.handleAngle),
+      this.center.x + this.radius * Math.cos(this.handleAngle) + this.handleLength * Math.cos(this.handleAngle),
+      this.center.y + this.radius * Math.sin(this.handleAngle) + this.handleLength * Math.sin(this.handleAngle),
       this.center.z
     );
 
-    const handleEndPoint = new Circle(
-      handleEnd,
-      3,
-      this.style || new Style().setFillColor(Color.BLACK)
-    );
+    const handleEndPoint = new Circle(handleEnd, 3, this.style || new Style().setFillColor(Color.BLACK));
     this.addGraph(handleEndPoint);
   }
 
@@ -287,10 +275,7 @@ export default class MagnifyingGlass extends ComplexGraph {
   /**
    * 创建水平放大镜
    */
-  public static createHorizontal(
-    center: Point3,
-    style?: Style
-  ): MagnifyingGlass {
+  public static createHorizontal(center: Point3, style?: Style): MagnifyingGlass {
     return new MagnifyingGlass(center, 30, 60, 0, 3, style);
   }
 
@@ -304,11 +289,7 @@ export default class MagnifyingGlass extends ComplexGraph {
   /**
    * 创建彩色放大镜
    */
-  public static createColored(
-    center: Point3,
-    color: Color,
-    style?: Style
-  ): MagnifyingGlass {
+  public static createColored(center: Point3, color: Color, style?: Style): MagnifyingGlass {
     const coloredStyle = style || new Style();
     coloredStyle.setStrokeColor(color).setFillColor(color);
     return new MagnifyingGlass(center, 30, 60, Math.PI / 4, 3, coloredStyle);

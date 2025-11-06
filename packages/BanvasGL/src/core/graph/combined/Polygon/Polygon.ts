@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import CombinedGraph from "../CombinedGraph";
@@ -14,11 +14,7 @@ export default class Polygon extends CombinedGraph<Line> {
   public isClosed: boolean = true;
   public fillMode: "fill" | "stroke" | "both" = "both";
 
-  constructor(
-    vertices: Point3[] = [],
-    style?: Style,
-    isClosed: boolean = true
-  ) {
+  constructor(vertices: Point3[] = [], style?: Style, isClosed: boolean = true) {
     // 先根据传入顶点临时构建线段，避免初始bounds为空
     const vs = vertices.map((v) => v.copy());
     const lines: Line[] = [];
@@ -143,11 +139,7 @@ export default class Polygon extends CombinedGraph<Line> {
     const sumY = this.vertices.reduce((sum, vertex) => sum + vertex.y, 0);
     const sumZ = this.vertices.reduce((sum, vertex) => sum + vertex.z, 0);
 
-    return new Point3(
-      sumX / this.vertices.length,
-      sumY / this.vertices.length,
-      sumZ / this.vertices.length
-    );
+    return new Point3(sumX / this.vertices.length, sumY / this.vertices.length, sumZ / this.vertices.length);
   }
 
   /**
@@ -195,18 +187,11 @@ export default class Polygon extends CombinedGraph<Line> {
     }
 
     let inside = false;
-    for (
-      let i = 0, j = this.vertices.length - 1;
-      i < this.vertices.length;
-      j = i++
-    ) {
+    for (let i = 0, j = this.vertices.length - 1; i < this.vertices.length; j = i++) {
       const vi = this.vertices[i];
       const vj = this.vertices[j];
 
-      if (
-        vi.y > point.y !== vj.y > point.y &&
-        point.x < ((vj.x - vi.x) * (point.y - vi.y)) / (vj.y - vi.y) + vi.x
-      ) {
+      if (vi.y > point.y !== vj.y > point.y && point.x < ((vj.x - vi.x) * (point.y - vi.y)) / (vj.y - vi.y) + vi.x) {
         inside = !inside;
       }
     }

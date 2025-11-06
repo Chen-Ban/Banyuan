@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
@@ -12,13 +12,7 @@ export default class Rectangle extends Polygon {
   public width: number;
   public height: number;
 
-  constructor(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    style?: Style
-  ) {
+  constructor(x: number, y: number, width: number, height: number, style?: Style) {
     const vertices = [
       new Point3(x, y, 0),
       new Point3(x + width, y, 0),
@@ -49,11 +43,7 @@ export default class Rectangle extends Polygon {
    */
   public getCenter(): Point3 {
     const topLeft = this.getTopLeft();
-    return new Point3(
-      topLeft.x + this.width / 2,
-      topLeft.y + this.height / 2,
-      topLeft.z
-    );
+    return new Point3(topLeft.x + this.width / 2, topLeft.y + this.height / 2, topLeft.z);
   }
 
   /**
@@ -151,24 +141,13 @@ export default class Rectangle extends Polygon {
    */
   public copy(): this {
     const topLeft = this.getTopLeft();
-    return new Rectangle(
-      topLeft.x,
-      topLeft.y,
-      this.width,
-      this.height,
-      this.style.copy()
-    ) as this;
+    return new Rectangle(topLeft.x, topLeft.y, this.width, this.height, this.style.copy()) as this;
   }
 
   /**
    * 创建正方形
    */
-  public static createSquare(
-    x: number,
-    y: number,
-    size: number,
-    style?: Style
-  ): Rectangle {
+  public static createSquare(x: number, y: number, size: number, style?: Style): Rectangle {
     return new Rectangle(x, y, size, size, style);
   }
 
@@ -182,24 +161,13 @@ export default class Rectangle extends Polygon {
     height: number,
     style?: Style
   ): Rectangle {
-    return new Rectangle(
-      centerX - width / 2,
-      centerY - height / 2,
-      width,
-      height,
-      style
-    );
+    return new Rectangle(centerX - width / 2, centerY - height / 2, width, height, style);
   }
 
   /**
    * 创建黄金比例矩形
    */
-  public static createGoldenRatio(
-    x: number,
-    y: number,
-    width: number,
-    style?: Style
-  ): Rectangle {
+  public static createGoldenRatio(x: number, y: number, width: number, style?: Style): Rectangle {
     const goldenRatio = (1 + Math.sqrt(5)) / 2;
     const height = width / goldenRatio;
     return new Rectangle(x, y, width, height, style);

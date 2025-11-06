@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3 } from "@/core/math";
 import { Style } from "@/core/style";
@@ -149,12 +149,7 @@ export default abstract class Bezier extends AnalyticGraph {
     // 使用二次贝塞尔曲线或三次贝塞尔曲线
     if (this.controlPoints.length === 3) {
       // 二次贝塞尔曲线
-      ctx.quadraticCurveTo(
-        this.controlPoints[1].x,
-        this.controlPoints[1].y,
-        this.endPoint.x,
-        this.endPoint.y
-      );
+      ctx.quadraticCurveTo(this.controlPoints[1].x, this.controlPoints[1].y, this.endPoint.x, this.endPoint.y);
     } else if (this.controlPoints.length === 4) {
       // 三次贝塞尔曲线
       ctx.bezierCurveTo(
@@ -180,11 +175,7 @@ export default abstract class Bezier extends AnalyticGraph {
 
   // 获取贝塞尔曲线的类型
   public getBezierType(): string {
-    return this.controlPoints.length === 3
-      ? "quadratic"
-      : this.controlPoints.length === 4
-      ? "cubic"
-      : "unknown";
+    return this.controlPoints.length === 3 ? "quadratic" : this.controlPoints.length === 4 ? "cubic" : "unknown";
   }
 
   // 质心（对 t∈[0,1] 的均匀平均）：等于控制点的算术平均

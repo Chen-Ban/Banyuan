@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Arc from "./Arc";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
@@ -68,10 +68,7 @@ export default class Circle extends Arc {
     const dx = other.center.x - this.center.x;
     const dy = other.center.y - this.center.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    return (
-      distance <= this.radius + other.radius &&
-      distance >= Math.abs(this.radius - other.radius)
-    );
+    return distance <= this.radius + other.radius && distance >= Math.abs(this.radius - other.radius);
   }
 
   // 检查两个圆是否相切
@@ -81,10 +78,7 @@ export default class Circle extends Arc {
     const distance = Math.sqrt(dx * dx + dy * dy);
     const sumRadii = this.radius + other.radius;
     const diffRadii = Math.abs(this.radius - other.radius);
-    return (
-      Math.abs(distance - sumRadii) <= tolerance ||
-      Math.abs(distance - diffRadii) <= tolerance
-    );
+    return Math.abs(distance - sumRadii) <= tolerance || Math.abs(distance - diffRadii) <= tolerance;
   }
 
   // 检查一个圆是否包含另一个圆
@@ -118,11 +112,7 @@ export default class Circle extends Arc {
 
   // 复制圆形
   public copy(): this {
-    return new Circle(
-      this.center.copy(),
-      this.radius,
-      this.style.copy()
-    ) as this;
+    return new Circle(this.center.copy(), this.radius, this.style.copy()) as this;
   }
 
   // 静态工厂方法
@@ -138,12 +128,7 @@ export default class Circle extends Arc {
     return new Circle(new Point3(centerX, centerY, 0), radius, style);
   }
 
-  static fromDiameter(
-    centerX: number,
-    centerY: number,
-    diameter: number,
-    style: Style = Style.DEFAULT
-  ): Circle {
+  static fromDiameter(centerX: number, centerY: number, diameter: number, style: Style = Style.DEFAULT): Circle {
     return new Circle(new Point3(centerX, centerY, 0), diameter / 2, style);
   }
 
@@ -157,39 +142,18 @@ export default class Circle extends Arc {
     return new Circle(new Point3(centerX, centerY, 0), radius, style);
   }
 
-  static fromArea(
-    centerX: number,
-    centerY: number,
-    area: number,
-    style: Style = Style.DEFAULT
-  ): Circle {
+  static fromArea(centerX: number, centerY: number, area: number, style: Style = Style.DEFAULT): Circle {
     const radius = Math.sqrt(area / Math.PI);
     return new Circle(new Point3(centerX, centerY, 0), radius, style);
   }
 
-  static fromTwoPoints(
-    point1: Point3,
-    point2: Point3,
-    style: Style = Style.DEFAULT
-  ): Circle {
-    const center = new Point3(
-      (point1.x + point2.x) / 2,
-      (point1.y + point2.y) / 2,
-      (point1.z + point2.z) / 2
-    );
-    const radius =
-      Math.sqrt(
-        Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)
-      ) / 2;
+  static fromTwoPoints(point1: Point3, point2: Point3, style: Style = Style.DEFAULT): Circle {
+    const center = new Point3((point1.x + point2.x) / 2, (point1.y + point2.y) / 2, (point1.z + point2.z) / 2);
+    const radius = Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)) / 2;
     return new Circle(center, radius, style);
   }
 
-  static fromThreePoints(
-    point1: Point3,
-    point2: Point3,
-    point3: Point3,
-    style: Style = Style.DEFAULT
-  ): Circle {
+  static fromThreePoints(point1: Point3, point2: Point3, point3: Point3, style: Style = Style.DEFAULT): Circle {
     // 计算三点确定的圆的中心点和半径
     const x1 = point1.x,
       y1 = point1.y;
@@ -199,14 +163,8 @@ export default class Circle extends Arc {
       y3 = point3.y;
 
     const a = x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2);
-    const b =
-      (x1 * x1 + y1 * y1) * (y3 - y2) +
-      (x2 * x2 + y2 * y2) * (y1 - y3) +
-      (x3 * x3 + y3 * y3) * (y2 - y1);
-    const c =
-      (x1 * x1 + y1 * y1) * (x2 - x3) +
-      (x2 * x2 + y2 * y2) * (x3 - x1) +
-      (x3 * x3 + y3 * y3) * (x1 - x2);
+    const b = (x1 * x1 + y1 * y1) * (y3 - y2) + (x2 * x2 + y2 * y2) * (y1 - y3) + (x3 * x3 + y3 * y3) * (y2 - y1);
+    const c = (x1 * x1 + y1 * y1) * (x2 - x3) + (x2 * x2 + y2 * y2) * (x3 - x1) + (x3 * x3 + y3 * y3) * (x1 - x2);
 
     if (Math.abs(a) < 1e-10) {
       // 三点共线，返回一个很小的圆
@@ -215,9 +173,7 @@ export default class Circle extends Arc {
 
     const centerX = -b / (2 * a);
     const centerY = -c / (2 * a);
-    const radius = Math.sqrt(
-      Math.pow(x1 - centerX, 2) + Math.pow(y1 - centerY, 2)
-    );
+    const radius = Math.sqrt(Math.pow(x1 - centerX, 2) + Math.pow(y1 - centerY, 2));
 
     return new Circle(new Point3(centerX, centerY, 0), radius, style);
   }

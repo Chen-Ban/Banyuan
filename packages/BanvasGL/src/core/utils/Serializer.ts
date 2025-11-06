@@ -1,4 +1,4 @@
-import { VIEWTYPE, GRAPHTYPE } from "../../constants";
+import { VIEWTYPE, GRAPHTYPE } from "../constants";
 import View, { ViewOptions } from "../views/View";
 import Scene from "../scene/Scene";
 import Matrix4 from "../math/Matrix4";
@@ -145,15 +145,10 @@ export default class Serializer {
     });
 
     // 注册可实例化图形类型
-    this.registerType(
-      "CombinedGraph",
-      CombinedGraph as unknown as new (...args: any[]) => CombinedGraph<any>,
-      {
-        serialize: (graph: CombinedGraph<any>) =>
-          this.serializeCombinedGraph(graph),
-        deserialize: (data: any) => this.deserializeCombinedGraph(data),
-      }
-    );
+    this.registerType("CombinedGraph", CombinedGraph as unknown as new (...args: any[]) => CombinedGraph<any>, {
+      serialize: (graph: CombinedGraph<any>) => this.serializeCombinedGraph(graph),
+      deserialize: (data: any) => this.deserializeCombinedGraph(data),
+    });
 
     this.registerType("ComplexGraph", ComplexGraph, {
       serialize: (graph: ComplexGraph) => this.serializeComplexGraph(graph),
@@ -176,8 +171,7 @@ export default class Serializer {
     });
 
     this.registerType("QuadraticBezier", QuadraticBezier, {
-      serialize: (bezier: QuadraticBezier) =>
-        this.serializeQuadraticBezier(bezier),
+      serialize: (bezier: QuadraticBezier) => this.serializeQuadraticBezier(bezier),
       deserialize: (data: any) => this.deserializeQuadraticBezier(data),
     });
 
@@ -256,10 +250,7 @@ export default class Serializer {
   /**
    * 反序列化JSON为对象
    */
-  public deserialize<T = any>(
-    json: string,
-    options: Partial<SerializerOptions> = {}
-  ): T {
+  public deserialize<T = any>(json: string, options: Partial<SerializerOptions> = {}): T {
     const opts = { ...this.defaultOptions, ...options };
     const serializedData: SerializedData = JSON.parse(json);
 
@@ -273,11 +264,7 @@ export default class Serializer {
   /**
    * 序列化值
    */
-  private serializeValue(
-    value: any,
-    options: SerializerOptions,
-    depth: number
-  ): any {
+  private serializeValue(value: any, options: SerializerOptions, depth: number): any {
     if (depth > options.maxDepth!) {
       return "[Max Depth Reached]";
     }
@@ -292,11 +279,7 @@ export default class Serializer {
     }
 
     // 处理基本类型
-    if (
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-    ) {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       return value;
     }
 
@@ -491,14 +474,10 @@ export default class Serializer {
    * 反序列化Scene对象
    */
   private deserializeScene(data: any): Scene {
-    const scene = new Scene(
-      this.deserializeValue(data.camera, this.defaultOptions)
-    );
+    const scene = new Scene(this.deserializeValue(data.camera, this.defaultOptions));
     scene.id = data.id;
     scene.data = this.deserializeValue(data.data, this.defaultOptions);
-    scene.children = data.children.map((childData: any) =>
-      this.deserializeValue(childData, this.defaultOptions)
-    );
+    scene.children = data.children.map((childData: any) => this.deserializeValue(childData, this.defaultOptions));
 
     // 反序列化生命周期回调函数
     if (data.lifecycleCallbacks) {
@@ -523,10 +502,7 @@ export default class Serializer {
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to deserialize lifecycle callback ${callbackName}:`,
-            error
-          );
+          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
         }
       });
     }
@@ -592,16 +568,8 @@ export default class Serializer {
   private serializeStyle(style: Style): any {
     return {
       fillStyle: this.serializeValue(style.fillStyle, this.defaultOptions, 0),
-      strokeStyle: this.serializeValue(
-        style.strokeStyle,
-        this.defaultOptions,
-        0
-      ),
-      shadowStyle: this.serializeValue(
-        style.shadowStyle,
-        this.defaultOptions,
-        0
-      ),
+      strokeStyle: this.serializeValue(style.strokeStyle, this.defaultOptions, 0),
+      shadowStyle: this.serializeValue(style.shadowStyle, this.defaultOptions, 0),
     };
   }
 
@@ -610,18 +578,9 @@ export default class Serializer {
    */
   private deserializeStyle(data: any): Style {
     const style = new Style();
-    style.fillStyle = this.deserializeValue(
-      data.fillStyle,
-      this.defaultOptions
-    );
-    style.strokeStyle = this.deserializeValue(
-      data.strokeStyle,
-      this.defaultOptions
-    );
-    style.shadowStyle = this.deserializeValue(
-      data.shadowStyle,
-      this.defaultOptions
-    );
+    style.fillStyle = this.deserializeValue(data.fillStyle, this.defaultOptions);
+    style.strokeStyle = this.deserializeValue(data.strokeStyle, this.defaultOptions);
+    style.shadowStyle = this.deserializeValue(data.shadowStyle, this.defaultOptions);
     return style;
   }
 
@@ -632,15 +591,9 @@ export default class Serializer {
     return {
       id: graph.id,
       type: graph.type,
-      controlPoints: this.serializeValue(
-        graph.controlPoints,
-        this.defaultOptions,
-        0
-      ),
+      controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(graph.style, this.defaultOptions, 0),
-      bounds: graph.getBounds()
-        ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0)
-        : null,
+      bounds: graph.getBounds() ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -658,9 +611,7 @@ export default class Serializer {
         return this.deserializeArc(data);
       case GRAPHTYPE.BEZIER:
         // Bezier是抽象类，根据具体类型处理
-        console.warn(
-          "Bezier is abstract class, use specific subclasses instead"
-        );
+        console.warn("Bezier is abstract class, use specific subclasses instead");
         return null;
       case GRAPHTYPE.QUADRATIC_BEZIER:
         return this.deserializeQuadraticBezier(data);
@@ -719,183 +670,126 @@ export default class Serializer {
   /**
    * 序列化View为JSON字符串
    */
-  public static serializeView(
-    view: View,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serializeView(view: View, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(view, options);
   }
 
   /**
    * 反序列化JSON字符串为View
    */
-  public static deserializeView(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): View {
+  public static deserializeView(json: string, options?: Partial<SerializerOptions>): View {
     return Serializer.getInstance().deserialize<View>(json, options);
   }
 
   /**
    * 序列化Scene为JSON字符串
    */
-  public static serializeScene(
-    scene: Scene,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serializeScene(scene: Scene, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(scene, options);
   }
 
   /**
    * 反序列化JSON字符串为Scene
    */
-  public static deserializeScene(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): Scene {
+  public static deserializeScene(json: string, options?: Partial<SerializerOptions>): Scene {
     return Serializer.getInstance().deserialize<Scene>(json, options);
   }
 
   /**
    * 序列化任意对象为JSON字符串
    */
-  public static serialize(
-    obj: any,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serialize(obj: any, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(obj, options);
   }
 
   /**
    * 反序列化JSON字符串为任意对象
    */
-  public static deserialize<T = any>(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): T {
+  public static deserialize<T = any>(json: string, options?: Partial<SerializerOptions>): T {
     return Serializer.getInstance().deserialize<T>(json, options);
   }
 
   /**
    * 序列化CombinedGraph为JSON字符串
    */
-  public static serializeCombinedGraph(
-    graph: CombinedGraph<any>,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serializeCombinedGraph(graph: CombinedGraph<any>, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(graph, options);
   }
 
   /**
    * 反序列化JSON字符串为CombinedGraph
    */
-  public static deserializeCombinedGraph(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): CombinedGraph<any> {
-    return Serializer.getInstance().deserialize<CombinedGraph<any>>(
-      json,
-      options
-    );
+  public static deserializeCombinedGraph(json: string, options?: Partial<SerializerOptions>): CombinedGraph<any> {
+    return Serializer.getInstance().deserialize<CombinedGraph<any>>(json, options);
   }
 
   /**
    * 序列化ComplexGraph为JSON字符串
    */
-  public static serializeComplexGraph(
-    graph: ComplexGraph,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serializeComplexGraph(graph: ComplexGraph, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(graph, options);
   }
 
   /**
    * 反序列化JSON字符串为ComplexGraph
    */
-  public static deserializeComplexGraph(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): ComplexGraph {
+  public static deserializeComplexGraph(json: string, options?: Partial<SerializerOptions>): ComplexGraph {
     return Serializer.getInstance().deserialize<ComplexGraph>(json, options);
   }
 
   /**
    * 序列化Line为JSON字符串
    */
-  public static serializeLine(
-    line: Line,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serializeLine(line: Line, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(line, options);
   }
 
   /**
    * 反序列化JSON字符串为Line
    */
-  public static deserializeLine(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): Line {
+  public static deserializeLine(json: string, options?: Partial<SerializerOptions>): Line {
     return Serializer.getInstance().deserialize<Line>(json, options);
   }
 
   /**
    * 序列化Circle为JSON字符串
    */
-  public static serializeCircle(
-    circle: Circle,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serializeCircle(circle: Circle, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(circle, options);
   }
 
   /**
    * 反序列化JSON字符串为Circle
    */
-  public static deserializeCircle(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): Circle {
+  public static deserializeCircle(json: string, options?: Partial<SerializerOptions>): Circle {
     return Serializer.getInstance().deserialize<Circle>(json, options);
   }
 
   /**
    * 序列化CombinedView为JSON字符串
    */
-  public static serializeCombinedView(
-    view: CombinedView,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serializeCombinedView(view: CombinedView, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(view, options);
   }
 
   /**
    * 反序列化JSON字符串为CombinedView
    */
-  public static deserializeCombinedView(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): CombinedView {
+  public static deserializeCombinedView(json: string, options?: Partial<SerializerOptions>): CombinedView {
     return Serializer.getInstance().deserialize<CombinedView>(json, options);
   }
 
   /**
    * 序列化GraphView为JSON字符串
    */
-  public static serializeGraphView(
-    view: GraphView,
-    options?: Partial<SerializerOptions>
-  ): string {
+  public static serializeGraphView(view: GraphView, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(view, options);
   }
 
   /**
    * 反序列化JSON字符串为GraphView
    */
-  public static deserializeGraphView(
-    json: string,
-    options?: Partial<SerializerOptions>
-  ): GraphView {
+  public static deserializeGraphView(json: string, options?: Partial<SerializerOptions>): GraphView {
     return Serializer.getInstance().deserialize<GraphView>(json, options);
   }
 
@@ -907,18 +801,10 @@ export default class Serializer {
     return {
       id: graph.id,
       type: graph.type,
-      graphs: graph.graphs.map((g: Graph) =>
-        this.serializeValue(g, this.defaultOptions, 0)
-      ),
+      graphs: graph.graphs.map((g: Graph) => this.serializeValue(g, this.defaultOptions, 0)),
       style: this.serializeValue(graph.style, this.defaultOptions, 0),
-      controlPoints: this.serializeValue(
-        graph.controlPoints,
-        this.defaultOptions,
-        0
-      ),
-      bounds: graph.getBounds()
-        ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0)
-        : null,
+      controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
+      bounds: graph.getBounds() ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -926,9 +812,7 @@ export default class Serializer {
    * 反序列化CombinedGraph对象
    */
   private deserializeCombinedGraph(data: any): CombinedGraph<any> {
-    const graphs = data.graphs.map((graphData: any) =>
-      this.deserializeValue(graphData, this.defaultOptions)
-    );
+    const graphs = data.graphs.map((graphData: any) => this.deserializeValue(graphData, this.defaultOptions));
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const graph = new CombinedGraph<any>(graphs, style);
     graph.id = data.id;
@@ -942,18 +826,10 @@ export default class Serializer {
     return {
       id: graph.id,
       type: graph.type,
-      graphs: graph.graphs.map((g) =>
-        this.serializeValue(g, this.defaultOptions, 0)
-      ),
+      graphs: graph.graphs.map((g) => this.serializeValue(g, this.defaultOptions, 0)),
       style: this.serializeValue(graph.style, this.defaultOptions, 0),
-      controlPoints: this.serializeValue(
-        graph.controlPoints,
-        this.defaultOptions,
-        0
-      ),
-      bounds: graph.getBounds()
-        ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0)
-        : null,
+      controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
+      bounds: graph.getBounds() ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -961,9 +837,7 @@ export default class Serializer {
    * 反序列化ComplexGraph对象
    */
   private deserializeComplexGraph(data: any): ComplexGraph {
-    const graphs = data.graphs.map((graphData: any) =>
-      this.deserializeValue(graphData, this.defaultOptions)
-    );
+    const graphs = data.graphs.map((graphData: any) => this.deserializeValue(graphData, this.defaultOptions));
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const graph = new ComplexGraph();
     graph.graphs = graphs;
@@ -979,15 +853,9 @@ export default class Serializer {
     return {
       id: line.id,
       type: line.type,
-      controlPoints: this.serializeValue(
-        line.controlPoints,
-        this.defaultOptions,
-        0
-      ),
+      controlPoints: this.serializeValue(line.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(line.style, this.defaultOptions, 0),
-      bounds: line.getBounds()
-        ? this.serializeValue(line.getBounds(), this.defaultOptions, 0)
-        : null,
+      bounds: line.getBounds() ? this.serializeValue(line.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -995,10 +863,7 @@ export default class Serializer {
    * 反序列化Line对象
    */
   private deserializeLine(data: any): Line {
-    const controlPoints = this.deserializeValue(
-      data.controlPoints,
-      this.defaultOptions
-    );
+    const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const line = new Line(controlPoints[0], controlPoints[1], style);
     line.id = data.id;
@@ -1015,14 +880,8 @@ export default class Serializer {
       center: this.serializeValue(circle.center, this.defaultOptions, 0),
       radius: circle.radius,
       style: this.serializeValue(circle.style, this.defaultOptions, 0),
-      controlPoints: this.serializeValue(
-        circle.controlPoints,
-        this.defaultOptions,
-        0
-      ),
-      bounds: circle.getBounds()
-        ? this.serializeValue(circle.getBounds(), this.defaultOptions, 0)
-        : null,
+      controlPoints: this.serializeValue(circle.controlPoints, this.defaultOptions, 0),
+      bounds: circle.getBounds() ? this.serializeValue(circle.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -1050,14 +909,8 @@ export default class Serializer {
       endAngle: arc.endAngle,
       clockwise: arc.clockwise,
       style: this.serializeValue(arc.style, this.defaultOptions, 0),
-      controlPoints: this.serializeValue(
-        arc.controlPoints,
-        this.defaultOptions,
-        0
-      ),
-      bounds: arc.getBounds()
-        ? this.serializeValue(arc.getBounds(), this.defaultOptions, 0)
-        : null,
+      controlPoints: this.serializeValue(arc.controlPoints, this.defaultOptions, 0),
+      bounds: arc.getBounds() ? this.serializeValue(arc.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -1067,14 +920,7 @@ export default class Serializer {
   private deserializeArc(data: any): Arc {
     const center = this.deserializeValue(data.center, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
-    const arc = new Arc(
-      center,
-      data.radius,
-      data.startAngle,
-      data.endAngle,
-      data.clockwise,
-      style
-    );
+    const arc = new Arc(center, data.radius, data.startAngle, data.endAngle, data.clockwise, style);
     arc.id = data.id;
     return arc;
   }
@@ -1088,15 +934,9 @@ export default class Serializer {
     return {
       id: bezier.id,
       type: bezier.type,
-      controlPoints: this.serializeValue(
-        bezier.controlPoints,
-        this.defaultOptions,
-        0
-      ),
+      controlPoints: this.serializeValue(bezier.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(bezier.style, this.defaultOptions, 0),
-      bounds: bezier.getBounds()
-        ? this.serializeValue(bezier.getBounds(), this.defaultOptions, 0)
-        : null,
+      bounds: bezier.getBounds() ? this.serializeValue(bezier.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -1104,17 +944,9 @@ export default class Serializer {
    * 反序列化QuadraticBezier对象
    */
   private deserializeQuadraticBezier(data: any): QuadraticBezier {
-    const controlPoints = this.deserializeValue(
-      data.controlPoints,
-      this.defaultOptions
-    );
+    const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
-    const bezier = new QuadraticBezier(
-      controlPoints[0],
-      controlPoints[1],
-      controlPoints[2],
-      style
-    );
+    const bezier = new QuadraticBezier(controlPoints[0], controlPoints[1], controlPoints[2], style);
     bezier.id = data.id;
     return bezier;
   }
@@ -1126,15 +958,9 @@ export default class Serializer {
     return {
       id: bezier.id,
       type: bezier.type,
-      controlPoints: this.serializeValue(
-        bezier.controlPoints,
-        this.defaultOptions,
-        0
-      ),
+      controlPoints: this.serializeValue(bezier.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(bezier.style, this.defaultOptions, 0),
-      bounds: bezier.getBounds()
-        ? this.serializeValue(bezier.getBounds(), this.defaultOptions, 0)
-        : null,
+      bounds: bezier.getBounds() ? this.serializeValue(bezier.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -1142,18 +968,9 @@ export default class Serializer {
    * 反序列化CubicBezier对象
    */
   private deserializeCubicBezier(data: any): CubicBezier {
-    const controlPoints = this.deserializeValue(
-      data.controlPoints,
-      this.defaultOptions
-    );
+    const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
-    const bezier = new CubicBezier(
-      controlPoints[0],
-      controlPoints[1],
-      controlPoints[2],
-      controlPoints[3],
-      style
-    );
+    const bezier = new CubicBezier(controlPoints[0], controlPoints[1], controlPoints[2], controlPoints[3], style);
     bezier.id = data.id;
     return bezier;
   }
@@ -1180,9 +997,7 @@ export default class Serializer {
       controlPoints: view.controlPoints,
       boundingBox: view.boundingBox,
       content: this.serializeValue(view.content, this.defaultOptions, 0),
-      children: view.children.map((child) =>
-        this.serializeValue(child, this.defaultOptions, 0)
-      ),
+      children: view.children.map((child) => this.serializeValue(child, this.defaultOptions, 0)),
     };
 
     // 序列化生命周期回调函数
@@ -1208,18 +1023,13 @@ export default class Serializer {
    * 反序列化CombinedView对象
    */
   private deserializeCombinedView(data: any): CombinedView {
-    const content = data.content.map((childData: any) =>
-      this.deserializeValue(childData, this.defaultOptions)
-    );
+    const content = data.content.map((childData: any) => this.deserializeValue(childData, this.defaultOptions));
     const view = new CombinedView(content);
 
     // 设置基本属性
     view.id = data.id;
     view.layer = data.layer;
-    view.properties = this.deserializeValue(
-      data.properties,
-      this.defaultOptions
-    );
+    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
     view.data = this.deserializeValue(data.data, this.defaultOptions);
     view.style = this.deserializeValue(data.style, this.defaultOptions);
     view.selected = data.selected;
@@ -1251,10 +1061,7 @@ export default class Serializer {
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to deserialize lifecycle callback ${callbackName}:`,
-            error
-          );
+          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
         }
       });
     }
@@ -1313,10 +1120,7 @@ export default class Serializer {
     // 设置基本属性
     view.id = data.id;
     view.layer = data.layer;
-    view.properties = this.deserializeValue(
-      data.properties,
-      this.defaultOptions
-    );
+    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
     view.data = this.deserializeValue(data.data, this.defaultOptions);
     view.style = this.deserializeValue(data.style, this.defaultOptions);
     view.selected = data.selected;
@@ -1348,10 +1152,7 @@ export default class Serializer {
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to deserialize lifecycle callback ${callbackName}:`,
-            error
-          );
+          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
         }
       });
     }
@@ -1410,10 +1211,7 @@ export default class Serializer {
     // 设置基本属性
     view.id = data.id;
     view.layer = data.layer;
-    view.properties = this.deserializeValue(
-      data.properties,
-      this.defaultOptions
-    );
+    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
     view.data = this.deserializeValue(data.data, this.defaultOptions);
     view.style = this.deserializeValue(data.style, this.defaultOptions);
     view.selected = data.selected;
@@ -1445,10 +1243,7 @@ export default class Serializer {
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to deserialize lifecycle callback ${callbackName}:`,
-            error
-          );
+          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
         }
       });
     }
@@ -1507,10 +1302,7 @@ export default class Serializer {
     // 设置基本属性
     view.id = data.id;
     view.layer = data.layer;
-    view.properties = this.deserializeValue(
-      data.properties,
-      this.defaultOptions
-    );
+    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
     view.data = this.deserializeValue(data.data, this.defaultOptions);
     view.style = this.deserializeValue(data.style, this.defaultOptions);
     view.selected = data.selected;
@@ -1542,10 +1334,7 @@ export default class Serializer {
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to deserialize lifecycle callback ${callbackName}:`,
-            error
-          );
+          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
         }
       });
     }
@@ -1604,10 +1393,7 @@ export default class Serializer {
     // 设置基本属性
     view.id = data.id;
     view.layer = data.layer;
-    view.properties = this.deserializeValue(
-      data.properties,
-      this.defaultOptions
-    );
+    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
     view.data = this.deserializeValue(data.data, this.defaultOptions);
     view.style = this.deserializeValue(data.style, this.defaultOptions);
     view.selected = data.selected;
@@ -1639,10 +1425,7 @@ export default class Serializer {
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to deserialize lifecycle callback ${callbackName}:`,
-            error
-          );
+          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
         }
       });
     }

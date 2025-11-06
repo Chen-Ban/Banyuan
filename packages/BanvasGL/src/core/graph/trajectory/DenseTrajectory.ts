@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Graph from "../base/Graph";
 import { Point3 } from "@/index.backend";
 import Style from "@/core/style/Style";
@@ -15,9 +15,7 @@ export default class DenseTrajectory extends Graph {
     if (points instanceof Float32Array) {
       this.controlPoints = Float32Array.from(points);
     } else {
-      this.controlPoints = Float32Array.from(
-        points.map((p) => [p.x, p.y, p.z]).flat()
-      );
+      this.controlPoints = Float32Array.from(points.map((p) => [p.x, p.y, p.z]).flat());
     }
     const xs = this.controlPoints.filter((_, i) => i % 3 === 0);
     const ys = this.controlPoints.filter((_, i) => (i + 1) % 3 === 0);
@@ -48,10 +46,7 @@ export default class DenseTrajectory extends Graph {
     ctx.restore();
   }
   public copy(): this {
-    return new DenseTrajectory(
-      Float32Array.from(this.controlPoints),
-      this.style.copy()
-    ) as this;
+    return new DenseTrajectory(Float32Array.from(this.controlPoints), this.style.copy()) as this;
   }
 
   public isDenseTrajectory(): boolean {

@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
@@ -14,19 +14,8 @@ export default class RegularPolygon extends Polygon {
   public sides: number;
   public rotation: number;
 
-  constructor(
-    center: Point3,
-    radius: number,
-    sides: number,
-    rotation: number = 0,
-    style?: Style
-  ) {
-    const vertices = RegularPolygon.generateVertices(
-      center,
-      radius,
-      sides,
-      rotation
-    );
+  constructor(center: Point3, radius: number, sides: number, rotation: number = 0, style?: Style) {
+    const vertices = RegularPolygon.generateVertices(center, radius, sides, rotation);
     super(vertices, style, true);
     this.center = center.copy();
     this.radius = radius;
@@ -37,12 +26,7 @@ export default class RegularPolygon extends Polygon {
   /**
    * 生成正多边形的顶点
    */
-  private static generateVertices(
-    center: Point3,
-    radius: number,
-    sides: number,
-    rotation: number
-  ): Point3[] {
+  private static generateVertices(center: Point3, radius: number, sides: number, rotation: number): Point3[] {
     const vertices: Point3[] = [];
     const angleStep = (2 * Math.PI) / sides;
 
@@ -61,12 +45,7 @@ export default class RegularPolygon extends Polygon {
    */
   public setCenter(center: Point3): RegularPolygon {
     this.center = center.copy();
-    this.vertices = RegularPolygon.generateVertices(
-      this.center,
-      this.radius,
-      this.sides,
-      this.rotation
-    );
+    this.vertices = RegularPolygon.generateVertices(this.center, this.radius, this.sides, this.rotation);
     this.buildPolygonFromVertices();
     return this;
   }
@@ -76,12 +55,7 @@ export default class RegularPolygon extends Polygon {
    */
   public setRadius(radius: number): RegularPolygon {
     this.radius = radius;
-    this.vertices = RegularPolygon.generateVertices(
-      this.center,
-      this.radius,
-      this.sides,
-      this.rotation
-    );
+    this.vertices = RegularPolygon.generateVertices(this.center, this.radius, this.sides, this.rotation);
     this.buildPolygonFromVertices();
     return this;
   }
@@ -94,12 +68,7 @@ export default class RegularPolygon extends Polygon {
       throw new Error("Regular polygon must have at least 3 sides");
     }
     this.sides = sides;
-    this.vertices = RegularPolygon.generateVertices(
-      this.center,
-      this.radius,
-      this.sides,
-      this.rotation
-    );
+    this.vertices = RegularPolygon.generateVertices(this.center, this.radius, this.sides, this.rotation);
     this.buildPolygonFromVertices();
     return this;
   }
@@ -140,13 +109,7 @@ export default class RegularPolygon extends Polygon {
    * 获取面积
    */
   public getArea(): number {
-    return (
-      (this.sides *
-        this.radius *
-        this.radius *
-        Math.sin((2 * Math.PI) / this.sides)) /
-      2
-    );
+    return (this.sides * this.radius * this.radius * Math.sin((2 * Math.PI) / this.sides)) / 2;
   }
 
   /**
@@ -170,84 +133,48 @@ export default class RegularPolygon extends Polygon {
    * 复制正多边形
    */
   public copy(): this {
-    return new RegularPolygon(
-      this.center,
-      this.radius,
-      this.sides,
-      this.rotation,
-      this.style.copy()
-    ) as this;
+    return new RegularPolygon(this.center, this.radius, this.sides, this.rotation, this.style.copy()) as this;
   }
 
   /**
    * 创建正三角形
    */
-  public static createTriangle(
-    center: Point3,
-    radius: number,
-    rotation: number = 0,
-    style?: Style
-  ): RegularPolygon {
+  public static createTriangle(center: Point3, radius: number, rotation: number = 0, style?: Style): RegularPolygon {
     return new RegularPolygon(center, radius, 3, rotation, style);
   }
 
   /**
    * 创建正方形
    */
-  public static createSquare(
-    center: Point3,
-    radius: number,
-    rotation: number = 0,
-    style?: Style
-  ): RegularPolygon {
+  public static createSquare(center: Point3, radius: number, rotation: number = 0, style?: Style): RegularPolygon {
     return new RegularPolygon(center, radius, 4, rotation, style);
   }
 
   /**
    * 创建正五边形
    */
-  public static createPentagon(
-    center: Point3,
-    radius: number,
-    rotation: number = 0,
-    style?: Style
-  ): RegularPolygon {
+  public static createPentagon(center: Point3, radius: number, rotation: number = 0, style?: Style): RegularPolygon {
     return new RegularPolygon(center, radius, 5, rotation, style);
   }
 
   /**
    * 创建正六边形
    */
-  public static createHexagon(
-    center: Point3,
-    radius: number,
-    rotation: number = 0,
-    style?: Style
-  ): RegularPolygon {
+  public static createHexagon(center: Point3, radius: number, rotation: number = 0, style?: Style): RegularPolygon {
     return new RegularPolygon(center, radius, 6, rotation, style);
   }
 
   /**
    * 创建正八边形
    */
-  public static createOctagon(
-    center: Point3,
-    radius: number,
-    rotation: number = 0,
-    style?: Style
-  ): RegularPolygon {
+  public static createOctagon(center: Point3, radius: number, rotation: number = 0, style?: Style): RegularPolygon {
     return new RegularPolygon(center, radius, 8, rotation, style);
   }
 
   /**
    * 创建正十二边形
    */
-  public static createDodecagon(
-    center: Point3,
-    radius: number,
-    rotation: number = 0,
-    style?: Style
-  ): RegularPolygon {
+  public static createDodecagon(center: Point3, radius: number, rotation: number = 0, style?: Style): RegularPolygon {
     return new RegularPolygon(center, radius, 12, rotation, style);
   }
 

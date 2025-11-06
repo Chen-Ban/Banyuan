@@ -1,4 +1,4 @@
-import { GRAPHTYPE, HORIZONTALALIGN } from "@/constants";
+import { GRAPHTYPE, HORIZONTALALIGN } from "@/core/constants";
 import Graph from "@/core/graph/base/Graph";
 import { Point3 } from "@/core/math";
 import { Style, Color } from "@/core/style";
@@ -19,10 +19,7 @@ export default class TextParagraph extends Graph {
   public texts: TextElement[];
   public isLayouted: boolean = false;
 
-  constructor(
-    options: ParagraphOptions = ParagraphOptions.DEFAULT,
-    style: Style = Style.DEFAULT
-  ) {
+  constructor(options: ParagraphOptions = ParagraphOptions.DEFAULT, style: Style = Style.DEFAULT) {
     super();
     this.options = options;
     this.style = style;
@@ -77,11 +74,7 @@ export default class TextParagraph extends Graph {
   /**
    * 添加文字内容（创建新的TextElement）
    */
-  addText(
-    content: string,
-    index: number = this.texts.length,
-    options?: TextOptions
-  ): this {
+  addText(content: string, index: number = this.texts.length, options?: TextOptions): this {
     const textOptions = options || this.texts[Math.max(0, index - 1)].options;
 
     for (let i = 0; i < content.length; i++) {
@@ -126,10 +119,7 @@ export default class TextParagraph extends Graph {
    * 复制段落
    */
   public copy(): this {
-    const newParagraph = new TextParagraph(
-      this.options.copy(),
-      this.style.copy()
-    );
+    const newParagraph = new TextParagraph(this.options.copy(), this.style.copy());
 
     // 复制所有文字元素
     for (const textElement of this.texts) {
