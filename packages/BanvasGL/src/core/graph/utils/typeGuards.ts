@@ -1,5 +1,5 @@
 import Graph from "../base/Graph";
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import type AnalyticGraph from "../analytic/AnalyticGraph";
 import type Line from "../analytic/Line";
 import type Arc from "../analytic/Arc";

@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Graph from "../base/Graph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 
@@ -60,9 +60,9 @@ export default abstract class AnalyticGraph extends Graph {
    * 计算图形的总长度
    * @returns 总长度
    */
-  public getTotalLength(): number{
+  public getTotalLength(): number {
     return this.getLength(0, 1);
-  };
+  }
 
   /**
    * 检查点是否在图形上（考虑容差）

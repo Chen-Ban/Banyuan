@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
@@ -50,15 +50,9 @@ export default class Triangle extends Polygon {
   public getTriangleType(): "equilateral" | "isosceles" | "scalene" | "right" {
     const { p1, p2, p3 } = this.getVertices();
 
-    const side1 = Math.sqrt(
-      Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2)
-    );
-    const side2 = Math.sqrt(
-      Math.pow(p3.x - p2.x, 2) + Math.pow(p3.y - p2.y, 2)
-    );
-    const side3 = Math.sqrt(
-      Math.pow(p1.x - p3.x, 2) + Math.pow(p1.y - p3.y, 2)
-    );
+    const side1 = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    const side2 = Math.sqrt(Math.pow(p3.x - p2.x, 2) + Math.pow(p3.y - p2.y, 2));
+    const side3 = Math.sqrt(Math.pow(p1.x - p3.x, 2) + Math.pow(p1.y - p3.y, 2));
 
     const sides = [side1, side2, side3].sort((a, b) => a - b);
     const [a, b, c] = sides;
@@ -74,11 +68,7 @@ export default class Triangle extends Polygon {
     }
 
     // 检查是否为等腰三角形
-    if (
-      Math.abs(side1 - side2) < 0.001 ||
-      Math.abs(side2 - side3) < 0.001 ||
-      Math.abs(side1 - side3) < 0.001
-    ) {
+    if (Math.abs(side1 - side2) < 0.001 || Math.abs(side2 - side3) < 0.001 || Math.abs(side1 - side3) < 0.001) {
       return "isosceles";
     }
 
@@ -90,11 +80,7 @@ export default class Triangle extends Polygon {
    */
   public getCentroid(): Point3 {
     const { p1, p2, p3 } = this.getVertices();
-    return new Point3(
-      (p1.x + p2.x + p3.x) / 3,
-      (p1.y + p2.y + p3.y) / 3,
-      (p1.z + p2.z + p3.z) / 3
-    );
+    return new Point3((p1.x + p2.x + p3.x) / 3, (p1.y + p2.y + p3.y) / 3, (p1.z + p2.z + p3.z) / 3);
   }
 
   /**
@@ -118,15 +104,9 @@ export default class Triangle extends Polygon {
     }
 
     const ux =
-      ((ax * ax + ay * ay) * (by - cy) +
-        (bx * bx + by * by) * (cy - ay) +
-        (cx * cx + cy * cy) * (ay - by)) /
-      d;
+      ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
     const uy =
-      ((ax * ax + ay * ay) * (cx - bx) +
-        (bx * bx + by * by) * (ax - cx) +
-        (cx * cx + cy * cy) * (bx - ax)) /
-      d;
+      ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
 
     return new Point3(ux, uy, (p1.z + p2.z + p3.z) / 3);
   }
@@ -142,35 +122,18 @@ export default class Triangle extends Polygon {
   /**
    * 创建等边三角形
    */
-  public static createEquilateral(
-    center: Point3,
-    sideLength: number,
-    style?: Style
-  ): Triangle {
+  public static createEquilateral(center: Point3, sideLength: number, style?: Style): Triangle {
     const height = (sideLength * Math.sqrt(3)) / 2;
     const p1 = new Point3(center.x, center.y - (height * 2) / 3, center.z);
-    const p2 = new Point3(
-      center.x - sideLength / 2,
-      center.y + (height * 1) / 3,
-      center.z
-    );
-    const p3 = new Point3(
-      center.x + sideLength / 2,
-      center.y + (height * 1) / 3,
-      center.z
-    );
+    const p2 = new Point3(center.x - sideLength / 2, center.y + (height * 1) / 3, center.z);
+    const p3 = new Point3(center.x + sideLength / 2, center.y + (height * 1) / 3, center.z);
     return new Triangle(p1, p2, p3, style);
   }
 
   /**
    * 创建等腰三角形
    */
-  public static createIsosceles(
-    center: Point3,
-    base: number,
-    height: number,
-    style?: Style
-  ): Triangle {
+  public static createIsosceles(center: Point3, base: number, height: number, style?: Style): Triangle {
     const p1 = new Point3(center.x, center.y - height / 2, center.z);
     const p2 = new Point3(center.x - base / 2, center.y + height / 2, center.z);
     const p3 = new Point3(center.x + base / 2, center.y + height / 2, center.z);
@@ -180,27 +143,10 @@ export default class Triangle extends Polygon {
   /**
    * 创建直角三角形
    */
-  public static createRight(
-    center: Point3,
-    width: number,
-    height: number,
-    style?: Style
-  ): Triangle {
-    const p1 = new Point3(
-      center.x - width / 2,
-      center.y - height / 2,
-      center.z
-    );
-    const p2 = new Point3(
-      center.x + width / 2,
-      center.y - height / 2,
-      center.z
-    );
-    const p3 = new Point3(
-      center.x - width / 2,
-      center.y + height / 2,
-      center.z
-    );
+  public static createRight(center: Point3, width: number, height: number, style?: Style): Triangle {
+    const p1 = new Point3(center.x - width / 2, center.y - height / 2, center.z);
+    const p2 = new Point3(center.x + width / 2, center.y - height / 2, center.z);
+    const p3 = new Point3(center.x - width / 2, center.y + height / 2, center.z);
     return new Triangle(p1, p2, p3, style);
   }
 }

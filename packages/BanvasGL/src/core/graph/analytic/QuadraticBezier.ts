@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Bezier from "./Bezier";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
@@ -7,12 +7,7 @@ import AnalyticGraph from "./AnalyticGraph";
 export default class QuadraticBezier extends Bezier {
   public type: GRAPHTYPE = GRAPHTYPE.QUADRATIC_BEZIER;
 
-  constructor(
-    startPoint: Point3,
-    controlPoint: Point3,
-    endPoint: Point3,
-    style: Style = Style.DEFAULT
-  ) {
+  constructor(startPoint: Point3, controlPoint: Point3, endPoint: Point3, style: Style = Style.DEFAULT) {
     super([startPoint, controlPoint, endPoint], style);
   }
 
@@ -40,12 +35,9 @@ export default class QuadraticBezier extends Bezier {
     const twoTOneMinusT = 2 * clampedT * oneMinusT;
     const tSquared = clampedT * clampedT;
 
-    const x =
-      oneMinusTSquared * start.x + twoTOneMinusT * control.x + tSquared * end.x;
-    const y =
-      oneMinusTSquared * start.y + twoTOneMinusT * control.y + tSquared * end.y;
-    const z =
-      oneMinusTSquared * start.z + twoTOneMinusT * control.z + tSquared * end.z;
+    const x = oneMinusTSquared * start.x + twoTOneMinusT * control.x + tSquared * end.x;
+    const y = oneMinusTSquared * start.y + twoTOneMinusT * control.y + tSquared * end.y;
+    const z = oneMinusTSquared * start.z + twoTOneMinusT * control.z + tSquared * end.z;
 
     return new Point3(x, y, z);
   }
@@ -59,15 +51,9 @@ export default class QuadraticBezier extends Bezier {
 
     // 切线公式: B'(t) = 2(1-t)(P₁-P₀) + 2t(P₂-P₁)
     const oneMinusT = 1 - clampedT;
-    const dx =
-      2 * oneMinusT * (control.x - start.x) +
-      2 * clampedT * (end.x - control.x);
-    const dy =
-      2 * oneMinusT * (control.y - start.y) +
-      2 * clampedT * (end.y - control.y);
-    const dz =
-      2 * oneMinusT * (control.z - start.z) +
-      2 * clampedT * (end.z - control.z);
+    const dx = 2 * oneMinusT * (control.x - start.x) + 2 * clampedT * (end.x - control.x);
+    const dy = 2 * oneMinusT * (control.y - start.y) + 2 * clampedT * (end.y - control.y);
+    const dz = 2 * oneMinusT * (control.z - start.z) + 2 * clampedT * (end.z - control.z);
 
     return new Vector3(dx, dy, dz);
   }
@@ -86,9 +72,7 @@ export default class QuadraticBezier extends Bezier {
     const end = this.controlPoints[2];
 
     // 检查控制点是否在起始点和结束点的连线上
-    const crossProduct =
-      (control.x - start.x) * (end.y - start.y) -
-      (control.y - start.y) * (end.x - start.x);
+    const crossProduct = (control.x - start.x) * (end.y - start.y) - (control.y - start.y) * (end.x - start.x);
     return Math.abs(crossProduct) < 1e-10;
   }
 

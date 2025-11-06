@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Graph from "@/core/graph/base/Graph";
 import { Point3 } from "@/core/math";
 import { Style, Color } from "@/core/style";
@@ -21,15 +21,10 @@ export default class TextElement extends Graph {
   public height: number = 0;
   public lineHeight: number = 0;
 
-  constructor(
-    content: string,
-    options: TextOptions = TextOptions.DEFAULT,
-    style: Style = Style.DEFAULT
-  ) {
+  constructor(content: string, options: TextOptions = TextOptions.DEFAULT, style: Style = Style.DEFAULT) {
     super();
 
-    if (content.length > 1)
-      throw new Error("TextElement content must be a single character");
+    if (content.length > 1) throw new Error("TextElement content must be a single character");
     this._content = content;
     this._options = options;
     this._style = style;
@@ -87,8 +82,7 @@ export default class TextElement extends Graph {
    * 设置文字内容
    */
   set content(content: string) {
-    if (content.length > 1)
-      throw new Error("TextElement content must be a single character");
+    if (content.length > 1) throw new Error("TextElement content must be a single character");
     this._content = content;
     // 重新计算尺寸，因为文字内容已改变
     this.calculateActualDimensions();
@@ -147,11 +141,7 @@ export default class TextElement extends Graph {
     ctx.fillStyle = this.options.color.rgba;
     // 绘制文字
 
-    ctx.fillText(
-      this.content,
-      this.controlPoints[0].x,
-      this.controlPoints[0].y
-    );
+    ctx.fillText(this.content, this.controlPoints[0].x, this.controlPoints[0].y);
     ctx.restore();
   }
 
@@ -159,11 +149,7 @@ export default class TextElement extends Graph {
    * 复制文字元素
    */
   public copy(): this {
-    const newElement = new TextElement(
-      this.content,
-      this.options.copy(),
-      this.style.copy()
-    );
+    const newElement = new TextElement(this.content, this.options.copy(), this.style.copy());
 
     if (this.isLayouted) {
       newElement.layout(this.controlPoints[0].copy(), this.lineHeight);
@@ -174,11 +160,7 @@ export default class TextElement extends Graph {
   /**
    * 静态工厂方法 - 创建简单文字元素
    */
-  static simple(
-    content: string,
-    size: number = 16,
-    color: string = "#000000"
-  ): TextElement {
+  static simple(content: string, size: number = 16, color: string = "#000000"): TextElement {
     const options = new TextOptions();
     options.size = size;
     // 从字符串创建Color对象

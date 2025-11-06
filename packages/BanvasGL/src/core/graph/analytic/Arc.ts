@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
@@ -125,14 +125,7 @@ export default class Arc extends AnalyticGraph {
 
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
     dependent && ctx.beginPath();
-    ctx.arc(
-      this.center.x,
-      this.center.y,
-      this.radius,
-      this.startAngle,
-      this.endAngle,
-      this.clockwise
-    );
+    ctx.arc(this.center.x, this.center.y, this.radius, this.startAngle, this.endAngle, this.clockwise);
   }
 
   // 渲染圆弧
@@ -228,9 +221,7 @@ export default class Arc extends AnalyticGraph {
   }
 
   public getLength(tStart: number, tEnd: number): number {
-    const angleDiff = Math.abs(
-      (tEnd - tStart) * (this.endAngle - this.startAngle)
-    );
+    const angleDiff = Math.abs((tEnd - tStart) * (this.endAngle - this.startAngle));
     return this.radius * angleDiff;
   }
 

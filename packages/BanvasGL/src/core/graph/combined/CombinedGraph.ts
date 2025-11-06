@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Graph from "../base/Graph";
@@ -130,13 +130,7 @@ export default class CombinedGraph<T extends Graph> extends Graph {
     for (const graph of this.graphs) {
       if (graph.controlPoints instanceof Float32Array) {
         for (let i = 0; i < graph.controlPoints.length; i += 3) {
-          allPoints.push(
-            new Point3(
-              graph.controlPoints[i],
-              graph.controlPoints[i + 1],
-              graph.controlPoints[i + 2]
-            )
-          );
+          allPoints.push(new Point3(graph.controlPoints[i], graph.controlPoints[i + 1], graph.controlPoints[i + 2]));
         }
       } else {
         allPoints.push(...graph.controlPoints.map((p) => p.copy()));
@@ -167,11 +161,7 @@ export default class CombinedGraph<T extends Graph> extends Graph {
         // 获取当前图形的起始点
         const currentStartPoint = this.getGraphStartPoint(currentGraph);
 
-        if (
-          !lastEndPoint ||
-          !PointUtils.isSamePoint(lastEndPoint, currentStartPoint)
-        )
-          return;
+        if (!lastEndPoint || !PointUtils.isSamePoint(lastEndPoint, currentStartPoint)) return;
 
         // 渲染当前图形的路径（不包含moveTo）
         this.renderGraphPathWithoutMoveTo(ctx, currentGraph);
@@ -182,10 +172,7 @@ export default class CombinedGraph<T extends Graph> extends Graph {
   /**
    * 渲染图形路径但不包含moveTo（避免路径分离）
    */
-  private renderGraphPathWithoutMoveTo(
-    ctx: CanvasRenderingContext2D,
-    graph: Graph
-  ): void {
+  private renderGraphPathWithoutMoveTo(ctx: CanvasRenderingContext2D, graph: Graph): void {
     if (isLine(graph)) {
       // 对于线段，只使用lineTo
       ctx.lineTo(graph.endPoint.x, graph.endPoint.y);
@@ -220,11 +207,7 @@ export default class CombinedGraph<T extends Graph> extends Graph {
    */
   private getGraphStartPoint(graph: Graph): Point3 {
     if (graph.controlPoints instanceof Float32Array) {
-      return new Point3(
-        graph.controlPoints[0],
-        graph.controlPoints[1],
-        graph.controlPoints[2]
-      );
+      return new Point3(graph.controlPoints[0], graph.controlPoints[1], graph.controlPoints[2]);
     } else {
       return graph.controlPoints[0].copy();
     }
@@ -324,10 +307,6 @@ export default class CombinedGraph<T extends Graph> extends Graph {
     const sumY = allPoints.reduce((sum, point) => sum + point.y, 0);
     const sumZ = allPoints.reduce((sum, point) => sum + point.z, 0);
 
-    return new Point3(
-      sumX / allPoints.length,
-      sumY / allPoints.length,
-      sumZ / allPoints.length
-    );
+    return new Point3(sumX / allPoints.length, sumY / allPoints.length, sumZ / allPoints.length);
   }
 }

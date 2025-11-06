@@ -1,4 +1,4 @@
-import { VIEWTYPE } from "@/constants";
+import { VIEWTYPE } from "@/core/constants";
 import { Graph, Rectangle, TextElement } from "../graph";
 import View, { ViewOptions, ViewContent } from "./View";
 import { Point3 } from "../math";
@@ -114,12 +114,7 @@ export default class CombinedView extends View {
     for (const child of this.children) {
       const childBounds = child.boundingBox?.getBounds();
       if (!childBounds) throw new Error("Child bounding box is not set");
-      const points = new Rectangle(
-        childBounds.x,
-        childBounds.y,
-        childBounds.width,
-        childBounds.height
-      ).controlPoints;
+      const points = new Rectangle(childBounds.x, childBounds.y, childBounds.width, childBounds.height).controlPoints;
       const transformedPoint = points.map((p) => child.matrix.multiply(p));
 
       minX = Math.min(...[minX, ...transformedPoint.map((p) => p.x)]);
@@ -128,12 +123,7 @@ export default class CombinedView extends View {
       maxY = Math.max(...[maxY, ...transformedPoint.map((p) => p.y)]);
     }
 
-    if (
-      minX === Infinity ||
-      minY === Infinity ||
-      maxX === -Infinity ||
-      maxY === -Infinity
-    ) {
+    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
       throw new Error("initContentBox error");
     }
     return {

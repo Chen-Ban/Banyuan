@@ -1,5 +1,5 @@
 import { Color } from "@/core/style";
-import { FontStyle, FontWeight } from "@/constants";
+import { FontStyle, FontWeight } from "@/core/constants";
 
 /**
  * 文字元素选项类
@@ -40,14 +40,7 @@ export default class TextOptions {
    * 复制选项
    */
   copy(): TextOptions {
-    return new TextOptions(
-      this.color.copy(),
-      this.family,
-      this.size,
-      this.letterSpacing,
-      this.style,
-      this.weight
-    );
+    return new TextOptions(this.color.copy(), this.family, this.size, this.letterSpacing, this.style, this.weight);
   }
 
   /**
@@ -66,73 +59,29 @@ export default class TextOptions {
   /**
    * 静态工厂方法 - 创建粗体文字选项
    */
-  static bold(
-    color: Color = Color.BLACK,
-    family: string = "Arial",
-    size: number = 16
-  ): TextOptions {
-    return new TextOptions(
-      color,
-      family,
-      size,
-      0,
-      FontStyle.NORMAL,
-      FontWeight.BOLD
-    );
+  static bold(color: Color = Color.BLACK, family: string = "Arial", size: number = 16): TextOptions {
+    return new TextOptions(color, family, size, 0, FontStyle.NORMAL, FontWeight.BOLD);
   }
 
   /**
    * 静态工厂方法 - 创建斜体文字选项
    */
-  static italic(
-    color: Color = Color.BLACK,
-    family: string = "Arial",
-    size: number = 16
-  ): TextOptions {
-    return new TextOptions(
-      color,
-      family,
-      size,
-      0,
-      FontStyle.ITALIC,
-      FontWeight.NORMAL
-    );
+  static italic(color: Color = Color.BLACK, family: string = "Arial", size: number = 16): TextOptions {
+    return new TextOptions(color, family, size, 0, FontStyle.ITALIC, FontWeight.NORMAL);
   }
 
   /**
    * 静态工厂方法 - 创建标题文字选项
    */
-  static title(
-    color: Color = Color.BLACK,
-    family: string = "Arial",
-    size: number = 24
-  ): TextOptions {
-    return new TextOptions(
-      color,
-      family,
-      size,
-      0,
-      FontStyle.NORMAL,
-      FontWeight.BOLD
-    );
+  static title(color: Color = Color.BLACK, family: string = "Arial", size: number = 24): TextOptions {
+    return new TextOptions(color, family, size, 0, FontStyle.NORMAL, FontWeight.BOLD);
   }
 
   /**
    * 静态工厂方法 - 创建小号文字选项
    */
-  static small(
-    color: Color = Color.BLACK,
-    family: string = "Arial",
-    size: number = 12
-  ): TextOptions {
-    return new TextOptions(
-      color,
-      family,
-      size,
-      0,
-      FontStyle.NORMAL,
-      FontWeight.NORMAL
-    );
+  static small(color: Color = Color.BLACK, family: string = "Arial", size: number = 12): TextOptions {
+    return new TextOptions(color, family, size, 0, FontStyle.NORMAL, FontWeight.NORMAL);
   }
 
   /**

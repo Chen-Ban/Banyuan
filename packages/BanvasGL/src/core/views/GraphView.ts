@@ -1,6 +1,6 @@
 import View, { ViewOptions, ViewContent } from "./View";
 import { Graph, Line, Rectangle } from "../graph";
-import { VIEWTYPE } from "@/constants";
+import { VIEWTYPE } from "@/core/constants";
 import { Point3 } from "../math";
 import { ViewAddonImpl } from "./addon";
 import { world2Relative } from "@/utils/utils";

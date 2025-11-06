@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Bezier from "./Bezier";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
@@ -192,12 +192,8 @@ export default class CubicBezier extends Bezier {
     const end = this.controlPoints[3];
 
     // 检查所有控制点是否在起始点和结束点的连线上
-    const crossProduct1 =
-      (control1.x - start.x) * (end.y - start.y) -
-      (control1.y - start.y) * (end.x - start.x);
-    const crossProduct2 =
-      (control2.x - start.x) * (end.y - start.y) -
-      (control2.y - start.y) * (end.x - start.x);
+    const crossProduct1 = (control1.x - start.x) * (end.y - start.y) - (control1.y - start.y) * (end.x - start.x);
+    const crossProduct2 = (control2.x - start.x) * (end.y - start.y) - (control2.y - start.y) * (end.x - start.x);
 
     return Math.abs(crossProduct1) < 1e-10 && Math.abs(crossProduct2) < 1e-10;
   }

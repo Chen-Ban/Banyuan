@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Graph from "../base/Graph";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
@@ -23,12 +23,7 @@ export default class ImageElement extends Graph {
   public opacity: number = 1; // 透明度
   public loaded: boolean = false;
 
-  constructor(
-    x: number,
-    y: number,
-    imageSrc: string,
-    style: Style = Style.DEFAULT
-  ) {
+  constructor(x: number, y: number, imageSrc: string, style: Style = Style.DEFAULT) {
     super();
     this.x = x;
     this.y = y;
@@ -53,12 +48,7 @@ export default class ImageElement extends Graph {
       return new Bounds(this.x, this.y, 0, 0);
     }
 
-    return new Bounds(
-      this.x,
-      this.y,
-      this.image.naturalWidth,
-      this.image.naturalHeight
-    );
+    return new Bounds(this.x, this.y, this.image.naturalWidth, this.image.naturalHeight);
   }
 
   /**
@@ -183,13 +173,7 @@ export default class ImageElement extends Graph {
     // 设置透明度
     ctx.globalAlpha = this.opacity;
 
-    ctx.drawImage(
-      this.image,
-      this.x,
-      this.y,
-      this.image.naturalWidth,
-      this.image.naturalHeight
-    );
+    ctx.drawImage(this.image, this.x, this.y, this.image.naturalWidth, this.image.naturalHeight);
     ctx.restore();
   }
 
@@ -206,11 +190,7 @@ export default class ImageElement extends Graph {
     ctx.font = "12px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(
-      "Loading...",
-      this.x + this.width / 2,
-      this.y + this.height / 2
-    );
+    ctx.fillText("Loading...", this.x + this.width / 2, this.y + this.height / 2);
   }
 
   /**
@@ -226,13 +206,7 @@ export default class ImageElement extends Graph {
     canvas.width = this.image.naturalWidth;
     canvas.height = this.image.naturalHeight;
 
-    ctx.drawImage(
-      this.image,
-      0,
-      0,
-      this.image.naturalWidth,
-      this.image.naturalHeight
-    );
+    ctx.drawImage(this.image, 0, 0, this.image.naturalWidth, this.image.naturalHeight);
 
     return ctx.getImageData(0, 0, canvas.width, canvas.height);
   }
@@ -249,24 +223,14 @@ export default class ImageElement extends Graph {
   /**
    * 静态工厂方法
    */
-  static fromImageElement(
-    image: HTMLImageElement,
-    x: number,
-    y: number,
-    style: Style = Style.DEFAULT
-  ): ImageElement {
+  static fromImageElement(image: HTMLImageElement, x: number, y: number, style: Style = Style.DEFAULT): ImageElement {
     const element = new ImageElement(x, y, "", style);
     element.image = image;
     element.loaded = true;
     return element;
   }
 
-  static fromCanvas(
-    canvas: HTMLCanvasElement,
-    x: number,
-    y: number,
-    style: Style = Style.DEFAULT
-  ): ImageElement {
+  static fromCanvas(canvas: HTMLCanvasElement, x: number, y: number, style: Style = Style.DEFAULT): ImageElement {
     const element = new ImageElement(x, y, "", style);
     // 将 canvas 转换为图片
     const img = new Image();
