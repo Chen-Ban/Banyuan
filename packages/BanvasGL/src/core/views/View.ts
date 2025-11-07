@@ -275,7 +275,7 @@ export default abstract class View<T extends object = any> {
 
   // 渲染插件
   private renderPlugins(ctx: CanvasRenderingContext2D): void {
-    if (!this.actived) return;
+    // if (!this.actived) return;
     if (this.controlPoints && typeof (this.controlPoints as any).render === "function") {
       (this.controlPoints as any).render(ctx);
     }

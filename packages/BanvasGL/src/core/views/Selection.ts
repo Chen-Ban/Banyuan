@@ -1,60 +1,60 @@
-import { Rectangle } from '../graph/combined/Polygon'
+import { Rectangle } from "../graph/combined/Polygon";
 
 /**
  * 选择区域类 - 管理文本选择状态
  */
 export default class Selection {
-    private selectionBoxs: Rectangle[]
+  private selectionBoxs: Rectangle[];
 
-    constructor() {
-        this.selectionBoxs = []
+  constructor() {
+    this.selectionBoxs = [];
+  }
+
+  /**
+   * 设置选择框
+   */
+  public setSelectionBoxs(boxes: Rectangle[]): void {
+    this.selectionBoxs = [...boxes];
+  }
+
+  /**
+   * 渲染选择区域
+   */
+  public render(ctx: CanvasRenderingContext2D): void {
+    if (this.selectionBoxs.length === 0) {
+      return;
     }
 
-    /**
-     * 设置选择框
-     */
-    public setSelectionBoxs(boxes: Rectangle[]): void {
-        this.selectionBoxs = [...boxes]
-    }
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 123, 255, .5)"; // 半透明蓝色
+    ctx.lineWidth = 1;
 
-    /**
-     * 渲染选择区域
-     */
-    public render(ctx: CanvasRenderingContext2D): void {
-        if (this.selectionBoxs.length === 0) {
-            return
-        }
+    this.selectionBoxs.forEach((box) => {
+      const topLeft = box.getTopLeft();
+      ctx.fillRect(topLeft.x, topLeft.y, box.width, box.height);
+    });
 
-        ctx.save()
-        ctx.fillStyle = 'rgba(0, 123, 255, .5)' // 半透明蓝色
-        ctx.lineWidth = 1
+    ctx.restore();
+  }
 
-        this.selectionBoxs.forEach(box => {
-            const topLeft = box.getTopLeft()
-            ctx.fillRect(topLeft.x, topLeft.y, box.width, box.height)
-        })
+  /**
+   * 获取选择框数组
+   */
+  public getSelectionBoxs(): Rectangle[] {
+    return [...this.selectionBoxs];
+  }
 
-        ctx.restore()
-    }
+  /**
+   * 清空选择
+   */
+  public clear(): void {
+    this.selectionBoxs = [];
+  }
 
-    /**
-     * 获取选择框数组
-     */
-    public getSelectionBoxs(): Rectangle[] {
-        return [...this.selectionBoxs]
-    }
-
-    /**
-     * 清空选择
-     */
-    public clear(): void {
-        this.selectionBoxs = []
-    }
-
-    /**
-     * 检查是否有选择
-     */
-    public hasSelection(): boolean {
-        return this.selectionBoxs.length > 0
-    }
+  /**
+   * 检查是否有选择
+   */
+  public hasSelection(): boolean {
+    return this.selectionBoxs.length > 0;
+  }
 }

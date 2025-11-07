@@ -49,7 +49,7 @@ export default class GraphView extends View {
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   } {
-    const relativePoint = world2Relative(p, this.matrix);
+    const relativePoint = world2Relative(p, this.getWorldMatrix());
     const builder = new InteractionMapBuilder();
 
     const ctx = getGlobalCanvasContext()?.getBufferContext();

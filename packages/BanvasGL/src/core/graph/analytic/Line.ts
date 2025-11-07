@@ -127,7 +127,7 @@ export default class Line extends AnalyticGraph {
       };
     }
 
-    const t = pointVector.dot(lineVector) / lineLengthSquared;
+    const t = Math.max(0, Math.min(1, pointVector.dot(lineVector) / lineLengthSquared));
     const closestPoint = this.getPointAt(t);
     const distance = MathUtils.distance(point, closestPoint);
 

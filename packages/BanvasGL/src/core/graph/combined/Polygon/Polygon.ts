@@ -178,6 +178,16 @@ export default class Polygon extends CombinedGraph<Line> {
     return perimeter;
   }
 
+  public getClosestPoint(point: Point3): {
+    distance: number;
+    closestPoint: Point3;
+    parameter: number;
+  } {
+    const closets = this.graphs.map((line) => line.getClosestPoint(point));
+    const minDistance = Math.min(...closets.map((item) => item.distance));
+    return closets.find((item) => item.distance === minDistance)!;
+  }
+
   /**
    * 检查点是否在多边形内部（射线法）
    */

@@ -5,6 +5,7 @@ import { Style, Color } from "@/core/style";
 import TextOptions from "./TextOptions";
 import Bounds from "../base/Bounds";
 import { getGlobalCanvasContext } from "@/core/renderer/CanvasContext";
+import { Rectangle } from "../combined";
 
 /**
  * 文字元素类
@@ -128,6 +129,13 @@ export default class TextElement extends Graph {
    */
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
+    ctx.save();
+    this.renderPath(ctx, true);
+    ctx.strokeStyle = "#000000";
+    ctx.setLineDash([]);
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
     // 设置字体样式
     ctx.font = this.options.fontString;
     //字体基线
@@ -145,8 +153,9 @@ export default class TextElement extends Graph {
     ctx.restore();
   }
 
-  isPointOnCurve(point: Point3, tolerance: number): boolean {
-    return false;
+  isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
+    const bounds = this.getBounds();
+    return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).isPointOnCurve(point, tolerance);
   }
 
   /**

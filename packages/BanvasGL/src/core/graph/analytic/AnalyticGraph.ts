@@ -71,7 +71,9 @@ export default abstract class AnalyticGraph extends Graph {
    * @returns 是否在图形上
    */
   public isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
-    const { distance } = this.getClosestPoint(point);
+    const { distance, closestPoint } = this.getClosestPoint(point);
+    // console.log(`目标点:${point.x},${point.y}; 最近点:${closestPoint.x},${closestPoint.y},距离:${distance}`);
+
     return distance <= tolerance;
   }
 
