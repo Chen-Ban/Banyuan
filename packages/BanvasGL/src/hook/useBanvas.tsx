@@ -18,7 +18,7 @@ import {
   TextView,
   View,
 } from "@/core";
-import { event2Point } from "@/utils/utils";
+import { event2Point, world2Relative } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { TextIndex } from "@/core/views/TextView";
 import { ViewAddonImpl } from "@/core/views/addon";
@@ -102,7 +102,7 @@ export default function useBanvas(
       // 创建新页面（场景）
       const scene = new Scene(camera);
 
-      const rect = new GraphView(new Rectangle(50, 50, 50, 50)).translate(20, 20);
+      const rect = new GraphView(new Rectangle(50, 50, 50, 50));
 
       const p1 = TextParagraph.simple("123456789");
       p1.options.leading = 1.7;
@@ -216,12 +216,25 @@ export default function useBanvas(
               break;
             case Action.SELECTION:
               if (indicateView instanceof TextView && indicateContent instanceof TextElement) {
-                const dynamicIndex = indicateView.element2Index(indicateContent, point);
+                const { content } = indicateView.interact(point, true);
+                if (!indicateView.actived) {
+                  scene.select(indicateView);
+                  const fixedIndex = indicateView.element2Index(indicateContent, point);
+                  indicateView.setSelection(fixedIndex, [...fixedIndex]);
+                }
+                const dynamicIndex = indicateView.element2Index((content as TextElement) || indicateContent, point);
+
                 indicateView.setSelection(dynamicIndex);
               }
               break;
             case Action.EDIT_POINT:
               canvasRef.current.style.cursor = Cursor.Grabbing;
+              if (extraData) {
+                const { editPoint } = extraData;
+                if (editPoint) {
+                  editPoint.add(point.subtract(lastPoint || mousDownPoint));
+                }
+              }
               break;
             case Action.RESIZE:
               break;
@@ -241,12 +254,13 @@ export default function useBanvas(
           // 普通移动事件，用于选定候选容器和改变鼠标样式
           let selected = false;
           for (const view of scene.children) {
-            const { view: _view, content, extraData } = view.interact(point);
-            if (_view && content && extraData) {
+            const { view: _view, content, extraData: _extraData } = view.interact(point);
+            if (_view && content && _extraData) {
               indicateView = _view;
               indicateContent = content;
-              action = extraData.action;
-              canvasRef.current.style.cursor = extraData.cursorStyle;
+              action = _extraData.action;
+              extraData = _extraData;
+              canvasRef.current.style.cursor = _extraData.cursorStyle;
               selected = true;
             }
           }
@@ -257,12 +271,14 @@ export default function useBanvas(
           }
         }
       };
+
       const onMouseUp = (e: MouseEvent) => {
         mouseUpPoint = event2Point(e);
       };
 
       const onClick = (e: MouseEvent) => {
-        if (!mousDownPoint || !mouseUpPoint || lastPoint) return;
+        if (!mousDownPoint || !mouseUpPoint || !canvasRef.current) return;
+
         // 单击事件
         if (isDoubleClick(mousDownPoint, mouseUpPoint, lastClickTime)) {
           if (indicateView instanceof TextView && indicateContent instanceof TextElement) {
@@ -281,12 +297,14 @@ export default function useBanvas(
           }
           lastClickTime = Date.now();
         } else {
-          console.log("非单击事件");
         }
         mousDownPoint = null;
         lastPoint = null;
         mouseUpPoint = null;
         lastClickTime = 0;
+        if (action === Action.SELECT) {
+          canvasRef.current.style.cursor = Cursor.Default;
+        }
         action = Action.NONE;
       };
 

@@ -6,6 +6,7 @@ import TextElement from "./TextElement";
 import ParagraphOptions from "./ParagraphOptions";
 import Bounds from "../base/Bounds";
 import TextOptions from "./TextOptions";
+import { Rectangle } from "../combined";
 
 /**
  * 文字段落类
@@ -95,8 +96,9 @@ export default class TextParagraph extends Graph {
     ctx.lineTo(bounds.x, bounds.y);
   }
 
-  isPointOnCurve(point: Point3, tolerance: number): boolean {
-    return false;
+  isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
+    const bounds = this.getBounds();
+    return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).isPointOnCurve(point, tolerance);
   }
   /**
    * 渲染段落

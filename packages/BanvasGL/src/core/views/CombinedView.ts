@@ -51,15 +51,15 @@ export default class CombinedView extends View {
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   } {
-    const relativePoint = world2Relative(p, this.matrix);
+    const relativePoint = world2Relative(p, this.getWorldMatrix());
     const builder = new InteractionMapBuilder();
 
     const ctx = getGlobalCanvasContext()?.getBufferContext();
     if (!ctx) throw new Error("交互失败");
-
+    // console.log("combinedView", `世界坐标：${p.x},${p.y};相对坐标:${relativePoint.x},${relativePoint.y}`);
     // 优先命中子视图（从前到后或根据需要调整顺序）
     for (const child of this.children) {
-      const { view, content, extraData } = child.interact(relativePoint);
+      const { view, content, extraData } = child.interact(p);
       if (view && content && extraData) {
         // 添加子视图的交互结果
         builder.add(view, content, extraData);

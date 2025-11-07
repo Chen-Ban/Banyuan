@@ -12,6 +12,7 @@ export interface VertexAddon {
 
 export default class VertexAddonImpl implements VertexAddon {
   public vertices: Point3[];
+  public activeVertex: Point3 | null = null;
 
   constructor(vertices: Point3[] = []) {
     this.vertices = [...vertices];
@@ -64,9 +65,15 @@ export default class VertexAddonImpl implements VertexAddon {
       ctx.fillStyle = "#ff0000";
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
+      const radius = 4;
+      const activeRadius = 6;
       this.vertices.forEach((vertex) => {
         ctx.beginPath();
-        ctx.arc(vertex.x, vertex.y, 4, 0, 2 * Math.PI);
+        if (vertex === this.activeVertex) {
+          ctx.arc(vertex.x, vertex.y, activeRadius, 0, 2 * Math.PI);
+        } else {
+          ctx.arc(vertex.x, vertex.y, radius, 0, 2 * Math.PI);
+        }
         ctx.fill();
         ctx.stroke();
       });
@@ -80,7 +87,11 @@ export default class VertexAddonImpl implements VertexAddon {
    */
   interact(p: Point3): ExtraData | null {
     const v = this.vertices.find((v) => v.subtract(p).length < 5);
-    if (!v) return null;
+    if (!v) {
+      this.activeVertex = null;
+      return null;
+    }
+    this.activeVertex = v;
     return {
       cursorStyle: Cursor.Grab,
       action: Action.EDIT_POINT,

@@ -89,21 +89,36 @@ export default class TextView extends View {
     this.selection.render(ctx);
   }
 
-  public interact(p: Point3): {
+  public constraintPoint(p: Point3): Point3 {
+    if (!this.layoutArea) return p;
+    console.log(p.x, p.y);
+
+    const paragraRects = this.content
+      .map((paragraph) => paragraph.getBounds())
+      .map((bounds) => new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height));
+    const closets = [...paragraRects, this.layoutArea].map((rect) => rect.getClosestPoint(p));
+    const minDistance = Math.min(...closets.map((closet) => closet.distance));
+    return closets.find((closet) => closet.distance === minDistance)!.closestPoint;
+  }
+
+  public interact(
+    p: Point3,
+    needConstraint: boolean = false
+  ): {
     view: View | null;
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   } {
     if (!this.layoutArea) throw new Error("请在布局后交互");
-    const relativePoint = world2Relative(p, this.matrix);
+    const relativePoint = world2Relative(p, this.getWorldMatrix());
     const ctx = getGlobalCanvasContext()?.getBufferContext();
     if (!ctx) throw new Error("交互失败");
 
     const builder = new InteractionMapBuilder();
 
-    const textElement = this.point2TextElement(p);
+    const textElement = this.point2TextElement(relativePoint, needConstraint);
     if (textElement) {
-      return builder.add(this, textElement, { action: Action.SELECT, cursorStyle: Cursor.Text }).build();
+      return builder.add(this, textElement, { action: Action.SELECTION, cursorStyle: Cursor.Text }).build();
     }
 
     // 命中边界框（移动/缩放）
@@ -124,15 +139,17 @@ export default class TextView extends View {
 
   /**
    * 文本转换为TextIndex,p作为辅助判断是下一个还是当前
+   * @param textElement 文本元素
+   * @param p 世界坐标点
    */
   public element2Index(textElement: TextElement, p: Point3): TextIndex {
     const relativePoint = world2Relative(p, this.getWorldMatrix());
+    const bounds = textElement.getBounds();
+
     for (const [i, p] of this.content.entries()) {
       for (const [j, t] of p.texts.entries()) {
         if (t === textElement) {
-          const midPoint = textElement.controlPoints.reduce((pre: Point3, cur: Point3) =>
-            PointUtils.midpoint(pre, cur)
-          );
+          const midPoint = new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
           const index: TextIndex = [i, j];
           if (relativePoint.x >= midPoint.x) {
             index[1]++;
@@ -146,13 +163,17 @@ export default class TextView extends View {
 
   /**
    * 根据点选中TextElement
+   * @param p 父级坐标点
+   * @param needConstraint 是否需要约束到段落或者布局区域的边界上
    */
-  private point2TextElement(p: Point3): TextElement | null {
-    const relativePoint = world2Relative(p, this.getWorldMatrix());
+  private point2TextElement(p: Point3, needConstraint: boolean = false): TextElement | null {
     if (!this.layoutArea) return null;
+    const relativePoint = needConstraint ? this.constraintPoint(p) : p;
 
     // 准确命中了某个段落
-    const hitedParagraph = this.content.find((p: TextParagraph) => p.isPointInPath(relativePoint));
+    const hitedParagraph = this.content.find(
+      (paragraph: TextParagraph) => paragraph.isPointInPath(relativePoint) || paragraph.isPointOnCurve(relativePoint)
+    );
     if (hitedParagraph) {
       // 准确命中某个文字
       for (const t of hitedParagraph.texts) {
@@ -163,51 +184,79 @@ export default class TextView extends View {
           return t;
         }
       }
-    }
-    const hitedLayout = this.layoutArea.isPointInPath(relativePoint);
-    // 在命中（段落或者定位区域）的空白
-    if (hitedParagraph || hitedLayout) {
-      const texts = this.content.map((p) => p.texts).flat();
-      const leftTop = texts.filter((b) => b.getBounds().x < relativePoint.x && b.getBounds().y < relativePoint.y);
-      const rightBottom = texts.filter((b) => b.getBounds().x > relativePoint.x && b.getBounds().y > relativePoint.y);
-      const leftBottom = texts.filter((b) => b.getBounds().x < relativePoint.x && b.getBounds().y > relativePoint.y);
-      const rightTop = texts.filter((b) => b.getBounds().x > relativePoint.x && b.getBounds().y < relativePoint.y);
-      // 找到leftBottom和rightTop中离relativePoint最近的textElement
-      const leftBottomDistance = leftBottom.map((b) => {
-        const center = b.getBounds().center;
-        return PointUtils.distance(relativePoint, new Point3(center.x, center.y, 0));
-      });
-      const rightTopDistance = rightTop.map((b) => {
-        const center = b.getBounds().center;
-        return PointUtils.distance(relativePoint, new Point3(center.x, center.y, 0));
-      });
-      const minLeftBottomDistance = Math.min(...leftBottomDistance);
-      const minRightTopDistance = Math.min(...rightTopDistance);
-      const minLeftBottomIndex = leftBottomDistance.indexOf(minLeftBottomDistance);
-      const minRightTopIndex = rightTopDistance.indexOf(minRightTopDistance);
-      // 优先级左上、右下、左下、右上
-      const hitedTextElement =
-        leftTop[leftTop.length - 1] ||
-        rightBottom[0] ||
-        leftBottom[minLeftBottomIndex] ||
-        rightTop[minRightTopIndex] ||
-        null;
+      const hitedTextElement = this.probeTextElement(hitedParagraph.texts, relativePoint);
       return hitedTextElement;
     }
+    const hitedLayout = this.layoutArea.isPointInPath(relativePoint) || this.layoutArea.isPointOnCurve(relativePoint);
+    // 在命中（段落或者定位区域）的空白
+    if (hitedLayout) {
+      const hitedTextElement = this.probeTextElement(this.content.map((p) => p.texts).flat(), relativePoint);
+      return hitedTextElement;
+    }
+
     return null;
+  }
+
+  private probeTextElement(textElements: TextElement[], p: Point3): TextElement {
+    const leftTop = textElements.filter((b) => {
+      const bounds = b.getBounds();
+      return bounds.x < p.x && bounds.y < p.y;
+    });
+    const rightTop = textElements.filter((b) => {
+      const bounds = b.getBounds();
+      return bounds.x + bounds.width > p.x && bounds.y + bounds.height < p.y;
+    });
+
+    const rightBottom = textElements.filter((b) => {
+      const bounds = b.getBounds();
+      return bounds.x + bounds.width > p.x && bounds.y + bounds.height > p.y;
+    });
+    const leftBottom = textElements.filter((b) => {
+      const bounds = b.getBounds();
+      return bounds.x < p.x && bounds.y + bounds.height > p.y;
+    });
+
+    // 找到leftBottom和rightTop中离relativePoint最近的textElement
+    const leftBottomDistance = leftBottom.map((b) => {
+      const center = b.getBounds().center;
+      return PointUtils.distance(p, new Point3(center.x, center.y, 0));
+    });
+    const rightTopDistance = rightTop.map((b) => {
+      const center = b.getBounds().center;
+      return PointUtils.distance(p, new Point3(center.x, center.y, 0));
+    });
+    const minLeftBottomDistance = Math.min(...leftBottomDistance);
+    const minRightTopDistance = Math.min(...rightTopDistance);
+    const minLeftBottomIndex = leftBottomDistance.indexOf(minLeftBottomDistance);
+    const minRightTopIndex = rightTopDistance.indexOf(minRightTopDistance);
+    // 优先级左上、右下、左下、右上
+    const hitedTextElement =
+      leftTop[leftTop.length - 1] ||
+      rightBottom[0] ||
+      leftBottom[minLeftBottomIndex] ||
+      rightTop[minRightTopIndex] ||
+      null;
+    return hitedTextElement;
   }
 
   /**
    * 设置选择框
+   * @param fixedIndex 固定光标,当第二个为undefined时，代表动态光标
+   * @param dynamicIndex 动态光标
+   * @description 两个都为undefined时，不出现光标
    */
   public setSelection(fixedIndex?: TextIndex | undefined, dynamicIndex?: TextIndex): void {
-    const fixed = dynamicIndex ? fixedIndex : this.fixedIndex;
+    const fixed = dynamicIndex ?? this.fixedIndex;
     const dynamic = dynamicIndex ?? fixedIndex;
-    // 如果为undefined则表示未选中某一个序列，不出现光标
+
     if (!fixed || !dynamic) {
       this.selection.setSelectionBoxs([]);
+      this.fixedIndex = undefined;
+      this.dynamicIndex = undefined;
       return;
     }
+    this.fixedIndex = fixed;
+    this.dynamicIndex = dynamic;
 
     const start =
       fixed[0] < dynamic[0] ? fixed : fixed[0] > dynamic[0] ? dynamic : fixed[1] < dynamic[1] ? fixed : dynamic;

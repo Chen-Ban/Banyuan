@@ -1,6 +1,8 @@
 import { Matrix4, Point3, View } from "../core";
 export const event2Point = (e: MouseEvent): Point3 => {
-  return new Point3(e.offsetX, e.offsetY, 0);
+  const ratio = window.devicePixelRatio;
+  const { offsetX, offsetY } = e;
+  return new Point3(offsetX * ratio, offsetY * ratio, 0);
 };
 
 export const world2Relative = (p: Point3, matrix: Matrix4): Point3 => {
