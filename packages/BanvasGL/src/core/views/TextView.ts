@@ -25,8 +25,8 @@ export interface TextViewOptions extends Omit<ViewOptions, "content"> {
   fixedIndex?: TextIndex;
   dynamicIndex?: TextIndex;
 }
-
-export type TextIndex = [number, number];
+// 段落号，字序号，字前｜字后
+export type TextIndex = [number, number, 0 | 1];
 
 /**
  * 文本视图 - 专门处理Texts类型内容
@@ -91,8 +91,6 @@ export default class TextView extends View {
 
   public constraintPoint(p: Point3): Point3 {
     if (!this.layoutArea) return p;
-    console.log(p.x, p.y);
-
     const paragraRects = this.content
       .map((paragraph) => paragraph.getBounds())
       .map((bounds) => new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height));
@@ -116,7 +114,14 @@ export default class TextView extends View {
 
     const builder = new InteractionMapBuilder();
 
-    const textElement = this.point2TextElement(relativePoint, needConstraint);
+    // 是否命中段落
+    const hitedParagraph = this.content.some(
+      (paragraph) => paragraph.isPointInPath(relativePoint) || paragraph.isPointOnCurve(relativePoint)
+    );
+    // 是否命中布局区域
+    const hitedLayout = this.layoutArea.isPointInPath(relativePoint) || this.layoutArea.isPointOnCurve(relativePoint);
+    // 只有命中外部且需要约束时才约束
+    const textElement = this.point2TextElement(relativePoint, needConstraint && !hitedParagraph && !hitedLayout);
     if (textElement) {
       return builder.add(this, textElement, { action: Action.SELECTION, cursorStyle: Cursor.Text }).build();
     }
@@ -150,27 +155,28 @@ export default class TextView extends View {
       for (const [j, t] of p.texts.entries()) {
         if (t === textElement) {
           const midPoint = new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
-          const index: TextIndex = [i, j];
+          const index: TextIndex = [i, j, 0];
           if (relativePoint.x >= midPoint.x) {
-            index[1]++;
+            index[2] = 1;
           }
           return index;
         }
       }
     }
-    return [0, 0];
+    return [0, 0, 0];
   }
 
   /**
    * 根据点选中TextElement
-   * @param p 父级坐标点
+   * @param p 相对坐标
    * @param needConstraint 是否需要约束到段落或者布局区域的边界上
    */
-  private point2TextElement(p: Point3, needConstraint: boolean = false): TextElement | null {
+  private point2TextElement(p: Point3, needConstraint: Boolean = false): TextElement | null {
     if (!this.layoutArea) return null;
+
+    // 需不需要约束点
     const relativePoint = needConstraint ? this.constraintPoint(p) : p;
 
-    // 准确命中了某个段落
     const hitedParagraph = this.content.find(
       (paragraph: TextParagraph) => paragraph.isPointInPath(relativePoint) || paragraph.isPointOnCurve(relativePoint)
     );
@@ -187,6 +193,7 @@ export default class TextView extends View {
       const hitedTextElement = this.probeTextElement(hitedParagraph.texts, relativePoint);
       return hitedTextElement;
     }
+    // 命中布局区域
     const hitedLayout = this.layoutArea.isPointInPath(relativePoint) || this.layoutArea.isPointOnCurve(relativePoint);
     // 在命中（段落或者定位区域）的空白
     if (hitedLayout) {
@@ -245,59 +252,44 @@ export default class TextView extends View {
    * @param dynamicIndex 动态光标
    * @description 两个都为undefined时，不出现光标
    */
-  public setSelection(fixedIndex?: TextIndex | undefined, dynamicIndex?: TextIndex): void {
-    const fixed = dynamicIndex ?? this.fixedIndex;
-    const dynamic = dynamicIndex ?? fixedIndex;
+  public setSelection(fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void {
+    if (!fixedIndex || !dynamicIndex) return;
+    const fixedPriorityNum = Number(fixedIndex.join(""));
+    const dynamicPriorityNum = Number(dynamicIndex.join(""));
+    const start = fixedPriorityNum > dynamicPriorityNum ? dynamicIndex : fixedIndex;
+    const end = start === fixedIndex ? dynamicIndex : fixedIndex;
 
-    if (!fixed || !dynamic) {
-      this.selection.setSelectionBoxs([]);
-      this.fixedIndex = undefined;
-      this.dynamicIndex = undefined;
-      return;
-    }
-    this.fixedIndex = fixed;
-    this.dynamicIndex = dynamic;
-
-    const start =
-      fixed[0] < dynamic[0] ? fixed : fixed[0] > dynamic[0] ? dynamic : fixed[1] < dynamic[1] ? fixed : dynamic;
-    const end = start === fixed ? dynamic : fixed;
-
-    // 获取范围内所有rect
+    this.fixedIndex = fixedIndex;
+    this.dynamicIndex = dynamicIndex;
     const boxs = [];
-    for (let i = start[0]; i <= end[0]; i++) {
-      const _start = i === start[0] ? start[1] : 0;
-      const length = this.content[i].texts.length;
-      const _end = i === end[0] ? Math.min(end[1], length) : length;
-      for (let j = _start; j < _end; j++) {
-        const bounds = this.content[i].texts[j].getBounds();
-        const box = new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height);
-        boxs.push(box);
-      }
-    }
 
-    if (boxs.length === 0) {
-      const [i, j] = start;
-      const ts = this.content[i].texts;
-      const len = ts.length;
-      const lastText = ts[len - 1];
-      const _text = lastText.copy();
-      _text.controlPoints.forEach((p) => p.add(new Vector3(lastText.width, 0, 0)));
-      const _texts = ts.map((t) => t.copy());
-      _texts.push(_text);
-      const preText = _texts[j - 1];
-      const curText = _texts[j];
-      //出现了换行，将光标放到上一行末尾
-      if (preText && preText.controlPoints[0].y !== curText.controlPoints[0].y) {
-        const bounds = preText.getBounds();
-        const p = new Point3(bounds.x + bounds.width, bounds.y, 0);
-        const width = 2;
-        const box = new Rectangle(p.x, p.y, width, bounds.height);
-        boxs.push(box);
-      } else {
-        const bounds = preText.getBounds();
-        const width = 2;
-        const box = new Rectangle(bounds.x, bounds.y, width, bounds.height);
-        boxs.push(box);
+    // 选中光标
+    if (start[0] === end[0] && start[1] == end[1] && start[2] === end[2]) {
+      const textElement = this.content[start[0]].texts[start[1]];
+      const bounds = textElement.getBounds();
+      const x = start[2] === 0 ? bounds.x - 2 : bounds.x + bounds.width;
+      boxs.push(new Rectangle(x, bounds.y, 2, bounds.height));
+    } else {
+      if (start[2] === 1) {
+        start[1]++;
+        start[2] = 0;
+      }
+      if (end[2] === 1) {
+        end[1]++;
+        end[2] = 0;
+      }
+      const startPriorityNum = Number(start.join(""));
+      const endPriorityNum = Number(end.join(""));
+
+      // 获取范围内所有rect(范围选中)
+      for (const [i, paragraph] of this.content.entries()) {
+        for (const [j, textElement] of paragraph.texts.entries()) {
+          const curPriorityNum = Number([i, j, 0].join(""));
+          if (curPriorityNum >= startPriorityNum && curPriorityNum < endPriorityNum) {
+            const bounds = textElement.getBounds();
+            boxs.push(new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height));
+          }
+        }
       }
     }
     this.selection.setSelectionBoxs(boxs);

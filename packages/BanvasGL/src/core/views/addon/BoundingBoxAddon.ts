@@ -81,10 +81,10 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
     const halfHeight = this.region.getBounds().height / 2;
     const line = new Line(
       new Point3(center.x, center.y - halfHeight, 0),
-      new Point3(center.x, center.y - halfHeight - 8, 0),
+      new Point3(center.x, center.y - halfHeight - 15, 0),
       new Style().setStrokeWidth(1)
     );
-    const circle = new Circle(new Point3(center.x, center.y - halfHeight - 10, 0), 2, new Style().setStrokeWidth(1));
+    const circle = new Circle(new Point3(center.x, center.y - halfHeight - 20, 0), 5, new Style().setStrokeWidth(1));
     return [line, circle];
   }
 
@@ -143,11 +143,13 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
       ctx.rect(bounds.x, bounds.y, bounds.width, bounds.height);
       ctx.stroke();
 
-      // draw handles
       ctx.fillStyle = "#00ff00";
       this.handles.forEach((h) => {
         const tl = h.getTopLeft();
         ctx.fillRect(tl.x, tl.y, h.width, h.height);
+      });
+      this.rotate.forEach((r) => {
+        r.render(ctx);
       });
     } finally {
       ctx.restore();
@@ -166,8 +168,9 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
    */
   interact(p: Point3): ExtraData | null {
     const isMoving = this.region.isPointOnCurve(p, 5) || this.rotate[0].isPointOnCurve(p, 5);
-    const isRotate = this.rotate[1].isPointOnCurve(p, 2);
+    const isRotate = this.rotate[1].isPointOnCurve(p, 2) || this.rotate[1].isPointInPath(p);
     const handler = this.handles.find((rec) => rec.isPointInPath(p) || rec.isPointOnCurve(p, 2));
+
     if (isRotate) {
       return {
         cursorStyle: Cursor.Grab,

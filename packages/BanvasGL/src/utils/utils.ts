@@ -31,3 +31,15 @@ export const tree2List = (views: View[]): View[] => {
 
   return res.sort((a, b) => b.layer - a.layer);
 };
+
+export const debounce = (fn: Function, delay: number) => {
+  let timer: number | null = null;
+  return (...args: any[]) => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    timer = setTimeout(() => {
+      fn(...args);
+    }, delay);
+  };
+};
