@@ -18,7 +18,7 @@ import {
   TextView,
   View,
 } from "@/core";
-import { event2Point, world2Relative } from "@/utils/utils";
+import { debounce, event2Point, world2Relative } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { TextIndex } from "@/core/views/TextView";
 import { ViewAddonImpl } from "@/core/views/addon";
@@ -113,6 +113,8 @@ export default function useBanvas(
 
       const text = new TextView([p1, p2], {
         layoutArea: new Rectangle(50, 50, 50, 50),
+        fixedIndex: [0, 0, 0],
+        dynamicIndex: [1, 1, 1],
       });
       text.translate(100, 100);
 
@@ -198,8 +200,8 @@ export default function useBanvas(
       };
 
       const onMouseMove = (e: MouseEvent) => {
-        if (!canvasRef.current) return;
         const point = event2Point(e);
+        if (!canvasRef.current) return;
 
         if (mousDownPoint) {
           switch (action) {
@@ -223,9 +225,9 @@ export default function useBanvas(
                   indicateView.setSelection(fixedIndex, [...fixedIndex]);
                 }
                 const dynamicIndex = indicateView.element2Index((content as TextElement) || indicateContent, point);
-
-                indicateView.setSelection(dynamicIndex);
+                indicateView.setSelection(indicateView.fixedIndex, dynamicIndex);
               }
+
               break;
             case Action.EDIT_POINT:
               canvasRef.current.style.cursor = Cursor.Grabbing;
@@ -240,6 +242,14 @@ export default function useBanvas(
               break;
             case Action.ROTATE:
               canvasRef.current.style.cursor = Cursor.Grabbing;
+              const bounds = indicateView?.getBounds();
+              if (bounds) {
+                const center = new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
+                const startVector = mousDownPoint.subtract(center);
+                const endVector = point.subtract(center);
+                const angle = -Math.acos(startVector.dot(endVector) / (startVector.length * endVector.length));
+                indicateView?.rotate(0, 0, angle, center);
+              }
               break;
             case Action.SELECT:
               canvasRef.current.style.cursor = Cursor.Crosshair;
@@ -287,10 +297,10 @@ export default function useBanvas(
         } else if (isSingleClick(mousDownPoint, mouseUpPoint)) {
           if (indicateView) {
             scene.select(indicateView, e.ctrlKey);
+
             if (indicateView instanceof TextView && indicateContent instanceof TextElement) {
               const fixedIndex = indicateView.element2Index(indicateContent, mousDownPoint);
-              const dynamicIndex = [...fixedIndex] as TextIndex;
-              indicateView.setSelection(fixedIndex, dynamicIndex);
+              indicateView.setSelection(fixedIndex, [...fixedIndex]);
             }
           } else {
             ViewTreeUtils.clearAllStates(scene);

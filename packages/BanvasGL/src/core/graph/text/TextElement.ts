@@ -129,13 +129,7 @@ export default class TextElement extends Graph {
    */
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    ctx.save();
-    this.renderPath(ctx, true);
-    ctx.strokeStyle = "#000000";
-    ctx.setLineDash([]);
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.restore();
+
     // 设置字体样式
     ctx.font = this.options.fontString;
     //字体基线
@@ -148,7 +142,10 @@ export default class TextElement extends Graph {
     // 设置文字颜色（在应用样式后设置，确保不被覆盖）
     ctx.fillStyle = this.options.color.rgba;
     // 绘制文字
-
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.1)";
+    ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    ctx.restore();
     ctx.fillText(this.content, this.controlPoints[0].x, this.controlPoints[0].y);
     ctx.restore();
   }

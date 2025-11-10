@@ -1,9 +1,7 @@
 import View from "../views/View";
 import { BaseCamera } from "../camera";
 import { OperationStack, Operation, LayerManager } from "./utils";
-import CanvasContext, {
-  getGlobalCanvasContext,
-} from "../renderer/CanvasContext";
+import CanvasContext, { getGlobalCanvasContext } from "../renderer/CanvasContext";
 import Matrix4 from "../math/Matrix4";
 import Style from "../style/Style";
 import { v4 as uuidv4 } from "uuid";
@@ -35,6 +33,7 @@ export default class Scene {
   private _isLoaded: boolean = false;
   private _isVisible: boolean = false;
   private _loadParams: any = null;
+  private _selectedHistory: View[] = [];
 
   // 传入的生命周期回调函数
   private _onLoad?: (params: any) => void;
@@ -113,22 +112,33 @@ export default class Scene {
     return tree2List(this.children).filter((v) => v.selected);
   }
 
-  public select(view: View, multiple: boolean = false) {
+  public select(view: View | undefined = undefined, multiple: boolean = false) {
+    if (!view) {
+      ViewTreeUtils.clearAllStates(this);
+      return;
+    }
     // 查看传入的view是不是在这个列表中
     if (!ViewTreeUtils.isViewInTree(this, view)) {
       console.warn("指定的视图不在当前场景中");
       return;
     }
 
+    // 多选时反选
     if (multiple) {
-      ViewTreeUtils.clearSelectedStates(this);
+      ViewTreeUtils.clearSelectedStates(this, view);
+      // 选中->未选中，恢复上一个选中
+      if (view.actived === true) {
+        view.setActived(false).setSelected(false);
+        this._selectedHistory.pop();
+        this._selectedHistory[this._selectedHistory.length - 1].setSelected(true);
+      } else {
+        view.setActived(true).setSelected(true);
+        this._selectedHistory.push(view);
+      }
     } else {
-      ViewTreeUtils.clearAllStates(this);
+      ViewTreeUtils.clearAllStates(this, view);
+      view.setActived(true).setSelected(true);
     }
-
-    // 然后将view选中，actived和selected属性置为true
-    view.setActived(true);
-    view.setSelected(true);
   }
 
   // 渲染方法

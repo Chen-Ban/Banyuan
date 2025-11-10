@@ -44,10 +44,7 @@ export class ViewTreeUtils {
    * @param targetView 目标视图
    * @returns 从根节点到目标视图的路径，如果未找到返回null
    */
-  public static findViewPath(
-    root: Scene | View,
-    targetView: View
-  ): View[] | null {
+  public static findViewPath(root: Scene | View, targetView: View): View[] | null {
     const path: View[] = [];
 
     const findPath = (node: Scene | View, target: View): boolean => {
@@ -146,10 +143,11 @@ export class ViewTreeUtils {
    * 清除树中所有视图的选中状态
    * @param root 根节点
    */
-  public static clearSelectedStates(root: Scene | View): void {
+  public static clearSelectedStates(root: Scene | View, view: View | undefined = undefined): void {
     const views = this.flattenViewTree(root);
-    views.forEach((view) => {
-      view.setSelected(false);
+    views.forEach((v) => {
+      if (v === view) return;
+      v.setSelected(false);
     });
   }
 
@@ -157,13 +155,14 @@ export class ViewTreeUtils {
    * 清除树中所有视图的状态（激活和选中）
    * @param root 根节点
    */
-  public static clearAllStates(root: Scene | View): void {
+  public static clearAllStates(root: Scene | View, view: View | undefined = undefined): void {
     const views = this.flattenViewTree(root);
-    views.forEach((view) => {
-      view.setActived(false);
-      view.setSelected(false);
-      if (view instanceof TextView) {
-        view.setSelection();
+    views.forEach((v) => {
+      if (v === view) return;
+      v.setActived(false);
+      v.setSelected(false);
+      if (v instanceof TextView) {
+        v.setSelection(undefined, undefined);
       }
     });
   }
