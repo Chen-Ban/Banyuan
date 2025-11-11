@@ -32,7 +32,7 @@ export type TextIndex = [number, number, 0 | 1];
  * 文本视图 - 专门处理Texts类型内容
  */
 export default class TextView extends View {
-  public readonly type: VIEWTYPE = VIEWTYPE.TEXSTVIEW;
+  public readonly type: VIEWTYPE = VIEWTYPE.TEXTVIEW;
   public children: View<any>[] = [];
 
   public content: TextParagraph[];

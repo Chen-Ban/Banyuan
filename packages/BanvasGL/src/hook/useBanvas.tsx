@@ -24,6 +24,8 @@ import { ViewAddonImpl } from "@/core/views/addon";
 import { ViewContent } from "@/core/views/View";
 import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
 import { PointUtils } from "@/core/graph/utils/PointUtils";
+import { isTextView } from "@/core/views/utils/typeGuards";
+import { isTextElement } from "@/core/graph/utils/typeGuards";
 
 export interface UseBanvasOptions {
   width?: number;
@@ -174,30 +176,42 @@ export default function useBanvas(
   // 事件绑定与卸载
   const bindEvents = useCallback(
     (canvas: HTMLCanvasElement) => {
+      // 鼠标事件点缓存
       let mousDownPoint: Point3 | null;
       let lastPoint: Point3 | null;
       let mouseUpPoint: Point3 | null;
-
+      // 候选容器与内容
       let indicateView: View | null;
       let indicateContent: ViewContent | ViewAddonImpl | null;
-
+      // 操作类型与数据
       let action: Action;
       let extraData: ExtraData | null;
-
+      // 上次点击时间
       let lastClickTime: number | undefined;
 
       const scene = app?.getCurrentScene();
 
       if (!scene || !app) return;
 
-      // 鼠标事件
+      // 鼠标落下，判定操作类型
       const onMouseDown = (e: MouseEvent) => {
         mousDownPoint = event2Point(e);
+        // 如果在普通移动过程中未找到候选节点，则设置操作类型为框选
         if (!indicateView && !indicateContent) {
           action = Action.SELECT;
         }
       };
 
+      // 鼠标移动，分为：
+      // 1、鼠标按下后移动
+      //    1.1 容器位置移动
+      //    1.2 文本容器选择选区
+      //    1.3 图形控制点编辑
+      //    1.4 容器缩放（非应用缩放算子的缩放，而是对不同容器的不同内容做对应的修改，e.g 图像容器的缩放就是整体修改图形的控制点）
+      //    1.5 容器旋转
+      //    1.6 框选（多选容器）
+      //    1.7 编辑容器视口
+      // 2、鼠标未按下移动（普通移动），调用容器交互接口判断是否需要交互，交互则设置为候选容器，是鼠标事件流的起点
       const onMouseMove = (e: MouseEvent) => {
         const point = event2Point(e);
         if (!canvasRef.current) return;
@@ -216,7 +230,7 @@ export default function useBanvas(
               }
               break;
             case Action.SELECTION:
-              if (indicateView instanceof TextView && indicateContent instanceof TextElement) {
+              if (isTextView(indicateView) && isTextElement(indicateContent)) {
                 const { content } = indicateView.interact(point, true);
                 if (!indicateView.actived) {
                   scene.select(indicateView);
@@ -267,6 +281,7 @@ export default function useBanvas(
             case Action.NONE:
             default:
           }
+          // 记录过程点
           lastPoint = point;
         } else {
           // 普通移动事件，用于选定候选容器和改变鼠标样式
@@ -290,6 +305,7 @@ export default function useBanvas(
         }
       };
 
+      // 鼠标抬起，记录抬起点
       const onMouseUp = (e: MouseEvent) => {
         mouseUpPoint = event2Point(e);
       };
@@ -299,14 +315,14 @@ export default function useBanvas(
 
         // 单击事件
         if (isDoubleClick(mousDownPoint, mouseUpPoint, lastClickTime)) {
-          if (indicateView instanceof TextView && indicateContent instanceof TextElement) {
+          if (isTextView(indicateView) && isTextElement(indicateContent)) {
             console.log("选中一整行");
           }
         } else if (isSingleClick(mousDownPoint, mouseUpPoint)) {
           if (indicateView) {
             scene.select(indicateView, e.ctrlKey);
 
-            if (indicateView instanceof TextView && indicateContent instanceof TextElement) {
+            if (isTextView(indicateView) && isTextElement(indicateContent)) {
               const fixedIndex = indicateView.element2Index(indicateContent, mousDownPoint);
               indicateView.setSelection(fixedIndex, [...fixedIndex]);
             }
