@@ -18,9 +18,8 @@ import {
   TextView,
   View,
 } from "@/core";
-import { debounce, event2Point, world2Relative } from "@/utils/utils";
+import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
-import { TextIndex } from "@/core/views/TextView";
 import { ViewAddonImpl } from "@/core/views/addon";
 import { ViewContent } from "@/core/views/View";
 import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
@@ -243,12 +242,21 @@ export default function useBanvas(
             case Action.ROTATE:
               canvasRef.current.style.cursor = Cursor.Grabbing;
               const bounds = indicateView?.getBounds();
-              if (bounds) {
+              if (bounds && lastPoint) {
                 const center = new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
-                const startVector = mousDownPoint.subtract(center);
-                const endVector = point.subtract(center);
-                const angle = -Math.acos(startVector.dot(endVector) / (startVector.length * endVector.length));
-                indicateView?.rotate(0, 0, angle, center);
+                // 计算上一个点相对于旋转中心的角度
+                const lastVector = lastPoint.subtract(center);
+                const lastAngle = Math.atan2(lastVector.y, lastVector.x);
+
+                // 计算当前点相对于旋转中心的角度
+                const currentVector = point.subtract(center);
+                const currentAngle = Math.atan2(currentVector.y, currentVector.x);
+
+                // 计算增量角度（带方向）
+                const deltaAngle = currentAngle - lastAngle;
+
+                // 应用增量旋转
+                indicateView?.rotate(0, 0, deltaAngle, center);
               }
               break;
             case Action.SELECT:
