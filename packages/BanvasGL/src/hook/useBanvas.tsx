@@ -255,22 +255,18 @@ export default function useBanvas(
               break;
             case Action.ROTATE:
               canvasRef.current.style.cursor = Cursor.Grabbing;
-              const bounds = indicateView?.getBounds();
-              if (bounds && lastPoint) {
-                const center = new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
-                // 计算上一个点相对于旋转中心的角度
-                const lastVector = lastPoint.subtract(center);
-                const lastAngle = Math.atan2(lastVector.y, lastVector.x);
-
-                // 计算当前点相对于旋转中心的角度
-                const currentVector = point.subtract(center);
-                const currentAngle = Math.atan2(currentVector.y, currentVector.x);
-
-                // 计算增量角度（带方向）
-                const deltaAngle = currentAngle - lastAngle;
-
-                // 应用增量旋转
-                indicateView?.rotate(0, 0, deltaAngle, center);
+				const bounds = indicateView?.getBounds();
+			  
+              if (bounds && lastPoint && indicateView) {
+				const center = new Rectangle(bounds.x,bounds.y,bounds.width,bounds.height).getCenter()
+				const inverseMatrix = indicateView.matrix.inverse()
+                const lastVector = inverseMatrix.multiply(lastPoint).subtract(center)
+                const currentVector = inverseMatrix.multiply(point).subtract(center)
+				const dot = currentVector.dot(lastVector) / (currentVector.length * lastVector.length);
+				const clampedDot = Math.max(-1, Math.min(1, dot));
+				const sign = Math.sign(currentVector.cross(lastVector).z);
+				const angle = Math.acos(clampedDot) * sign;
+				indicateView?.rotate(0, 0, angle, center);
               }
               break;
             case Action.SELECT:
@@ -340,6 +336,9 @@ export default function useBanvas(
           canvasRef.current.style.cursor = Cursor.Default;
         }
         action = Action.NONE;
+
+		console.log('一次鼠标事件结束');
+		
       };
 
       const onWheel = (e: WheelEvent) => {
