@@ -259,14 +259,14 @@ export default function useBanvas(
 			  
               if (bounds && lastPoint && indicateView) {
 				const center = new Rectangle(bounds.x,bounds.y,bounds.width,bounds.height).getCenter()
-				const inverseMatrix = indicateView.matrix.inverse()
+				const inverseMatrix = indicateView.getWorldMatrix().inverse()
                 const lastVector = inverseMatrix.multiply(lastPoint).subtract(center)
                 const currentVector = inverseMatrix.multiply(point).subtract(center)
 				const dot = currentVector.dot(lastVector) / (currentVector.length * lastVector.length);
 				const clampedDot = Math.max(-1, Math.min(1, dot));
 				const sign = Math.sign(currentVector.cross(lastVector).z);
 				const angle = Math.acos(clampedDot) * sign;
-				indicateView?.rotate(0, 0, angle, center);
+				indicateView.rotate(0, 0, angle, center);
               }
               break;
             case Action.SELECT:
