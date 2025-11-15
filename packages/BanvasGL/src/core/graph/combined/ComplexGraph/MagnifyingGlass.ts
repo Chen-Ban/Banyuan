@@ -40,7 +40,7 @@ export default class MagnifyingGlass extends ComplexGraph {
    * 构建放大镜图形
    */
   private buildMagnifyingGlass(): void {
-    this.clearGraphs();
+    this.graphs = [];
 
     // 创建镜片外圈
     const lensOuter = new Circle(
@@ -179,7 +179,7 @@ export default class MagnifyingGlass extends ComplexGraph {
   /**
    * 获取放大镜的边界框
    */
-  protected calculateBounds(): Bounds {
+  public calculateBounds(): Bounds {
     const handleEnd = this.getHandleEnd();
     const minX = Math.min(this.center.x - this.radius, handleEnd.x);
     const maxX = Math.max(this.center.x + this.radius, handleEnd.x);

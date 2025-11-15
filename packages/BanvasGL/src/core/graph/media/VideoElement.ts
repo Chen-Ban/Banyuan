@@ -1,51 +1,38 @@
 import { GRAPHTYPE } from "@/core/constants";
-import Graph from "../base/Graph";
+import MediaElement from "./MediaElement";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
 import Bounds from "../base/Bounds";
 
 /**
  * VideoElement 类 - 视频元素
- * 继承自 Graph，用于在画布中绘制视频
+ * 继承自 MediaElement，用于在画布中绘制视频
  */
-export default class VideoElement extends Graph {
+export default class VideoElement extends MediaElement {
   public type: GRAPHTYPE = GRAPHTYPE.VIDEO;
-  public controlPoints: Point3[];
-  public style: Style;
 
   // 视频相关属性
   public video: HTMLVideoElement | null = null;
   public videoSrc: string = "";
-  public x: number;
-  public y: number;
-  public width: number = 100;
-  public height: number = 100;
-  public opacity: number = 1; // 透明度
-  public loaded: boolean = false;
   public autoplay: boolean = false;
   public loop: boolean = false;
   public muted: boolean = false;
   public playing: boolean = false;
 
   constructor(x: number, y: number, videoSrc: string, style: Style = Style.DEFAULT) {
-    super();
-    this.x = x;
-    this.y = y;
+    super(x, y, style);
     this.videoSrc = videoSrc;
-    this.style = style;
-
-    // 初始化控制点（裁剪区域的八个点）
-    this.controlPoints = this.calculateCropControlPoints();
-
-    // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
-    this.setBounds(this.calculateBounds());
 
     // 异步加载视频
     this.loadVideo();
   }
-  isPointOnCurve(point: Point3, tolerance: number): boolean {
-    return false;
+  /**
+   * 加载视频
+   */
+  protected async loadMedia(): Promise<void> {
+    return this.loadVideo();
   }
+
   /**
    * 加载视频
    */
@@ -70,6 +57,8 @@ export default class VideoElement extends Graph {
         this.width = video.videoWidth;
         this.height = video.videoHeight;
         this.loaded = true;
+        // 媒体加载完成后，更新控制点和边界框
+        this.updateControlPoints();
         resolve();
       };
 
@@ -85,11 +74,8 @@ export default class VideoElement extends Graph {
   /**
    * 计算边界框
    */
-  protected calculateBounds(): Bounds {
-    if (!this.video || !this.loaded) {
-      return new Bounds(this.x, this.y, this.width, this.height);
-    }
-
+  public calculateBounds(): Bounds {
+    // 如果视频已加载，使用实际尺寸；否则使用当前设置的尺寸
     return new Bounds(this.x, this.y, this.width, this.height);
   }
 
@@ -98,33 +84,11 @@ export default class VideoElement extends Graph {
    */
   setVideoSrc(src: string): VideoElement {
     this.videoSrc = src;
+    this.video = null;
     this.loaded = false;
+    // 重置为未加载状态时，更新控制点和边界框
+    this.updateControlPoints();
     this.loadVideo();
-    return this;
-  }
-
-  /**
-   * 设置位置
-   */
-  setPosition(x: number, y: number): VideoElement {
-    this.x = x;
-    this.y = y;
-    this.updateControlPoints();
-    return this;
-  }
-
-  setSize(width: number, height: number): VideoElement {
-    this.width = width;
-    this.height = height;
-    this.updateControlPoints();
-    return this;
-  }
-
-  /**
-   * 设置透明度
-   */
-  setOpacity(opacity: number): VideoElement {
-    this.opacity = Math.max(0, Math.min(1, opacity));
     return this;
   }
 
@@ -143,53 +107,6 @@ export default class VideoElement extends Graph {
     }
 
     return this;
-  }
-
-  /**
-   * 计算裁剪区域的控制点（八个点）
-   */
-  private calculateCropControlPoints(): Point3[] {
-    if (!this.video || !this.loaded) {
-      // 如果视频未加载，返回默认控制点
-      return [new Point3(this.x, this.y, 0)];
-    }
-
-    const actualX = this.x;
-    const actualY = this.y;
-    const actualWidth = this.width;
-    const actualHeight = this.height;
-
-    // 返回裁剪区域的八个控制点
-    return [
-      new Point3(actualX, actualY, 0), // 左上角
-      new Point3(actualX + actualWidth / 2, actualY, 0), // 上中
-      new Point3(actualX + actualWidth, actualY, 0), // 右上角
-      new Point3(actualX + actualWidth, actualY + actualHeight / 2, 0), // 右中
-      new Point3(actualX + actualWidth, actualY + actualHeight, 0), // 右下角
-      new Point3(actualX + actualWidth / 2, actualY + actualHeight, 0), // 下中
-      new Point3(actualX, actualY + actualHeight, 0), // 左下角
-      new Point3(actualX, actualY + actualHeight / 2, 0), // 左中
-    ];
-  }
-
-  /**
-   * 更新控制点
-   */
-  private updateControlPoints(): void {
-    this.controlPoints = this.calculateCropControlPoints();
-  }
-
-  public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
-    dependent && ctx.beginPath();
-    const x = this.x;
-    const y = this.y;
-    const width = this.width;
-    const height = this.height;
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + width, y);
-    ctx.lineTo(x + width, y + height);
-    ctx.lineTo(x, y + height);
-    ctx.lineTo(x, y);
   }
 
   /**
@@ -288,7 +205,7 @@ export default class VideoElement extends Graph {
   /**
    * 渲染占位符（当视频未加载时）
    */
-  private renderPlaceholder(ctx: CanvasRenderingContext2D): void {
+  protected renderPlaceholder(ctx: CanvasRenderingContext2D): void {
     ctx.strokeStyle = "#cccccc";
     ctx.lineWidth = 1;
     ctx.strokeRect(this.x, this.y, this.width, this.height);

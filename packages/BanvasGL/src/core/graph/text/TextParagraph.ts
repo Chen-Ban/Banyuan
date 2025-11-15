@@ -30,7 +30,7 @@ export default class TextParagraph extends Graph {
   }
 
   // 计算文字段落的包围盒
-  protected calculateBounds(): Bounds {
+  public calculateBounds(): Bounds {
     // 计算所有文字元素的包围盒
     const bounds = this.texts.map((text) => text.getBounds());
     if (bounds.length === 0) {

@@ -1,7 +1,6 @@
 import { GRAPHTYPE } from "@/core/constants";
 import CombinedGraph from "../CombinedGraph";
-import Graph from "../../base/Graph";
 
-export default class ComplexGraph<T extends Graph = Graph> extends CombinedGraph<T> {
+export default class ComplexGraph extends CombinedGraph {
   public type: GRAPHTYPE = GRAPHTYPE.COMPLEX_GRAPH;
 }

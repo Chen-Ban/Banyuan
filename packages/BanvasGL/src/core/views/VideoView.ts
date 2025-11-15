@@ -1,5 +1,5 @@
 import View, { ViewContent, ViewOptions } from "./View";
-import { VideoElement } from "../graph/video";
+import { VideoElement } from "../graph/media";
 import CanvasContext from "../renderer/CanvasContext";
 import { Point3 } from "../math";
 import { InteractionMapBuilder, ViewAddonImpl } from "./addon";

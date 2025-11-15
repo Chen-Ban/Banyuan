@@ -12,6 +12,7 @@ import {
   Point3,
   Rectangle,
   Scene,
+  StrokeStyle,
   Style,
   TextElement,
   TextParagraph,
@@ -188,6 +189,8 @@ export default function useBanvas(
       let extraData: ExtraData | null;
       // 上次点击时间
       let lastClickTime: number | undefined;
+      // 临时框选矩形容器
+      let selectionRectView: GraphView | null = null;
 
       const scene = app?.getCurrentScene();
 
@@ -199,6 +202,14 @@ export default function useBanvas(
         // 如果在普通移动过程中未找到候选节点，则设置操作类型为框选
         if (!indicateView && !indicateContent) {
           action = Action.SELECT;
+          // 创建临时框选矩形容器
+          const selectionColor = new Color(100, 150, 255, 0.8);
+          const selectionStrokeStyle = StrokeStyle.dashed(selectionColor, 1, [5, 5]);
+          const selectionFillStyle = FillStyle.fromRGBA(0, 0, 144, 0.1);
+          const selectionStyle = new Style(selectionFillStyle, selectionStrokeStyle);
+          const selectionRect = new Rectangle(0, 0, 0, 0, selectionStyle);
+          selectionRectView = new GraphView(selectionRect);
+          scene.addChild(selectionRectView);
         }
       };
 
@@ -255,22 +266,39 @@ export default function useBanvas(
               break;
             case Action.ROTATE:
               canvasRef.current.style.cursor = Cursor.Grabbing;
-				const bounds = indicateView?.getBounds();
-			  
+              const bounds = indicateView?.getBounds();
+
               if (bounds && lastPoint && indicateView) {
-				const center = new Rectangle(bounds.x,bounds.y,bounds.width,bounds.height).getCenter()
-				const inverseMatrix = indicateView.getWorldMatrix().inverse()
-                const lastVector = inverseMatrix.multiply(lastPoint).subtract(center)
-                const currentVector = inverseMatrix.multiply(point).subtract(center)
-				const dot = currentVector.dot(lastVector) / (currentVector.length * lastVector.length);
-				const clampedDot = Math.max(-1, Math.min(1, dot));
-				const sign = Math.sign(currentVector.cross(lastVector).z);
-				const angle = Math.acos(clampedDot) * sign;
-				indicateView.rotate(0, 0, angle, center);
+                const center = new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).getCenter();
+                const inverseMatrix = indicateView.getWorldMatrix().inverse();
+                const lastVector = inverseMatrix.multiply(lastPoint).subtract(center);
+                const currentVector = inverseMatrix.multiply(point).subtract(center);
+                const dot = currentVector.dot(lastVector) / (currentVector.length * lastVector.length);
+                const clampedDot = Math.max(-1, Math.min(1, dot));
+                const sign = Math.sign(currentVector.cross(lastVector).z);
+                const angle = Math.acos(clampedDot) * sign;
+                indicateView.rotate(0, 0, angle, center);
               }
               break;
             case Action.SELECT:
               canvasRef.current.style.cursor = Cursor.Crosshair;
+              // 更新框选矩形的位置和大小
+              if (selectionRectView && mousDownPoint) {
+                const minX = Math.min(mousDownPoint.x, point.x);
+                const minY = Math.min(mousDownPoint.y, point.y);
+                const maxX = Math.max(mousDownPoint.x, point.x);
+                const maxY = Math.max(mousDownPoint.y, point.y);
+                const width = maxX - minX;
+                const height = maxY - minY;
+
+                // 更新矩形图形
+                const rectGraph = selectionRectView.content as Rectangle;
+
+                rectGraph.setPosition(minX, minY);
+                rectGraph.setSize(width, height);
+                selectionRectView.initBoundingBox();
+                selectionRectView.initViewport();
+              }
               break;
             case Action.EDIT_VIEWPORT:
               break;
@@ -304,6 +332,13 @@ export default function useBanvas(
       // 鼠标抬起，记录抬起点
       const onMouseUp = (e: MouseEvent) => {
         mouseUpPoint = event2Point(e);
+        // 如果是在SELECT模式下，删除临时框选矩形容器
+        if (action === Action.SELECT && selectionRectView) {
+          if (scene && app) {
+            scene.removeChild(selectionRectView);
+            selectionRectView = null;
+          }
+        }
       };
 
       const onClick = (e: MouseEvent) => {
@@ -328,6 +363,12 @@ export default function useBanvas(
           lastClickTime = Date.now();
         } else {
         }
+        // 删除临时框选矩形容器（如果onMouseUp中未删除）
+        if (selectionRectView) {
+          scene.removeChild(selectionRectView);
+          selectionRectView = null;
+        }
+
         mousDownPoint = null;
         lastPoint = null;
         mouseUpPoint = null;
@@ -336,9 +377,6 @@ export default function useBanvas(
           canvasRef.current.style.cursor = Cursor.Default;
         }
         action = Action.NONE;
-
-		console.log('一次鼠标事件结束');
-		
       };
 
       const onWheel = (e: WheelEvent) => {

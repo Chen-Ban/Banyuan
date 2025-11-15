@@ -19,7 +19,7 @@ export default abstract class Bezier extends AnalyticGraph {
   }
 
   // 计算贝塞尔曲线的包围盒（等参数采样）
-  protected calculateBounds(): Bounds {
+  public calculateBounds(): Bounds {
     if (this.controlPoints.length === 0) {
       return Bounds.empty();
     }

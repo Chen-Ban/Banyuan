@@ -1,5 +1,5 @@
 import View, { ViewOptions, ViewContent } from "./View";
-import { ImageElement } from "../graph/image";
+import { ImageElement } from "../graph/media";
 import { Point3 } from "../math";
 import { InteractionMapBuilder, ViewAddonImpl } from "./addon";
 import { Action, Cursor, ExtraData } from "./addon/InteractionMapBuilder";
