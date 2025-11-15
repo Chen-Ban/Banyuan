@@ -53,7 +53,7 @@ export default class TextElement extends Graph {
     ctx.restore();
   }
 
-  protected calculateBounds(): Bounds {
+  public calculateBounds(): Bounds {
     if (this.isLayouted && this.controlPoints.length > 0) {
       return new Bounds(
         this.controlPoints[0].x,

@@ -8,7 +8,7 @@ import Line from "../../analytic/Line";
  * Polygon类 - 多边形图形基类
  * 基于CombinedGraph，专门用于创建和管理多边形
  */
-export default class Polygon extends CombinedGraph<Line> {
+export default class Polygon extends CombinedGraph {
   public type: GRAPHTYPE = GRAPHTYPE.POLYGON;
   public vertices: Point3[] = [];
   public isClosed: boolean = true;
@@ -35,8 +35,7 @@ export default class Polygon extends CombinedGraph<Line> {
    * 从顶点构建多边形
    */
   protected buildPolygonFromVertices(): void {
-    this.clearGraphs();
-
+    this.graphs = [];
     if (this.vertices.length < 2) {
       return;
     }
@@ -56,67 +55,6 @@ export default class Polygon extends CombinedGraph<Line> {
     }
     // 重建后刷新组合bounds
     this.setBounds(this.calculateBounds());
-  }
-
-  /**
-   * 添加顶点
-   */
-  public addVertex(vertex: Point3): Polygon {
-    this.vertices.push(vertex.copy());
-    this.buildPolygonFromVertices();
-    return this;
-  }
-
-  /**
-   * 插入顶点到指定位置
-   */
-  public insertVertex(index: number, vertex: Point3): Polygon {
-    if (index < 0 || index > this.vertices.length) {
-      throw new Error("Index out of bounds");
-    }
-    this.vertices.splice(index, 0, vertex.copy());
-    this.buildPolygonFromVertices();
-    return this;
-  }
-
-  /**
-   * 移除指定索引的顶点
-   */
-  public removeVertex(index: number): Polygon {
-    if (index < 0 || index >= this.vertices.length) {
-      throw new Error("Index out of bounds");
-    }
-    this.vertices.splice(index, 1);
-    this.buildPolygonFromVertices();
-    return this;
-  }
-
-  /**
-   * 更新指定索引的顶点
-   */
-  public updateVertex(index: number, vertex: Point3): Polygon {
-    if (index < 0 || index >= this.vertices.length) {
-      throw new Error("Index out of bounds");
-    }
-    this.vertices[index] = vertex.copy();
-    this.buildPolygonFromVertices();
-    return this;
-  }
-
-  /**
-   * 获取顶点数量
-   */
-  public getVertexCount(): number {
-    return this.vertices.length;
-  }
-
-  /**
-   * 设置是否闭合
-   */
-  public setClosed(closed: boolean): Polygon {
-    this.isClosed = closed;
-    this.buildPolygonFromVertices();
-    return this;
   }
 
   /**

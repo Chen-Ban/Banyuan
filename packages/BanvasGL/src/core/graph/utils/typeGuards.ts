@@ -14,86 +14,99 @@ import type Triangle from "../combined/Polygon/Triangle";
 import type CombinedGraph from "../combined/CombinedGraph";
 import type { ComplexGraph, MagnifyingGlass } from "../combined/ComplexGraph";
 import type { TextParagraph, TextElement } from "../text";
-import type { DenseTrajectory, Sketch } from "../trajectory";
-import type ImageElement from "../image/ImageElement";
-import type VideoElement from "../video/VideoElement";
+import type { DenseTrajectory } from "../trajectory";
+import type ImageElement from "../media/ImageElement";
+import type VideoElement from "../media/VideoElement";
 
-export function isAnalyticGraph(graph: any): graph is AnalyticGraph {
-  return graph !== null && graph.type === GRAPHTYPE.ANALYTICGRAPH;
+export function isAnalyticGraph(graph: Graph): graph is Line | Arc | Circle | QuadraticBezier | CubicBezier {
+  return (
+    graph !== null &&
+    graph !== undefined &&
+    (isLine(graph) || isArc(graph) || isCircle(graph) || isQuadraticBezier(graph) || isCubicBezier(graph))
+  );
 }
 
-export function isLine(graph: any): graph is Line {
-  return graph !== null && graph.type === GRAPHTYPE.LINE;
+export function isLine(graph: Graph): graph is Line {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.LINE;
 }
 
-export function isArc(graph: any): graph is Arc {
-  return graph !== null && graph.type === GRAPHTYPE.ARC;
+export function isArc(graph: Graph): graph is Arc {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.ARC;
 }
 
-export function isCircle(graph: any): graph is Circle {
-  return graph !== null && graph.type === GRAPHTYPE.CIRCLE;
+export function isCircle(graph: Graph): graph is Circle {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.CIRCLE;
 }
 
-export function isBezier(graph: any): graph is Bezier {
-  return graph !== null && graph.type === GRAPHTYPE.BEZIER;
+export function isBezier(graph: Graph): graph is Bezier {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.BEZIER;
 }
 
-export function isQuadraticBezier(graph: any): graph is QuadraticBezier {
-  return graph !== null && graph.type === GRAPHTYPE.QUADRATIC_BEZIER;
+export function isQuadraticBezier(graph: Graph): graph is QuadraticBezier {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.QUADRATIC_BEZIER;
 }
 
-export function isCubicBezier(graph: any): graph is CubicBezier {
-  return graph !== null && graph.type === GRAPHTYPE.CUBIC_BEZIER;
+export function isCubicBezier(graph: Graph): graph is CubicBezier {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.CUBIC_BEZIER;
 }
 
-export function isPolygon(graph: any): graph is Polygon {
-  return graph !== null && graph.type === GRAPHTYPE.POLYGON;
+export function isPolygon(graph: Graph): graph is Polygon {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.POLYGON;
 }
 
-export function isRectangle(graph: any): graph is Rectangle {
-  return graph !== null && graph.type === GRAPHTYPE.RECTANGLE;
+export function isRectangle(graph: Graph): graph is Rectangle {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.RECTANGLE;
 }
 
-export function isRegularPolygon(graph: any): graph is RegularPolygon {
-  return graph !== null && graph.type === GRAPHTYPE.REGULAR_POLYGON;
+export function isRegularPolygon(graph: Graph): graph is RegularPolygon {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.REGULAR_POLYGON;
 }
 
-export function isTriangle(graph: any): graph is Triangle {
-  return graph !== null && graph.type === GRAPHTYPE.TRIANGLE;
+export function isTriangle(graph: Graph): graph is Triangle {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.TRIANGLE;
 }
 
-export function isCombinedGraph(graph: any): graph is CombinedGraph<Graph> {
-  return graph !== null && graph.type === GRAPHTYPE.COMBINED_GRAPH;
+export function isCombinedGraph(graph: Graph): graph is CombinedGraph {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.COMBINED_GRAPH;
 }
 
-export function isComplexGraph(graph: any): graph is ComplexGraph<any> {
-  return graph !== null && graph.type === GRAPHTYPE.COMPLEX_GRAPH;
+export function isComplexGraph(graph: Graph): graph is ComplexGraph {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.COMPLEX_GRAPH;
 }
 
-export function isMagnifyingGlass(graph: any): graph is MagnifyingGlass {
-  return graph !== null && graph.type === GRAPHTYPE.MAGNIFYING_GLASS;
+export function isMagnifyingGlass(graph: Graph): graph is MagnifyingGlass {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.MAGNIFYING_GLASS;
 }
 
-export function isTextParagraph(graph: any): graph is TextParagraph {
-  return graph !== null && graph.type === GRAPHTYPE.TEXTPARAGRAPH;
+export function isTextParagraph(graph: Graph): graph is TextParagraph {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.TEXTPARAGRAPH;
 }
 
-export function isTextElement(graph: any): graph is TextElement {
-  return graph !== null && graph.type === GRAPHTYPE.TEXTELEMENT;
+export function isTextElement(graph: Graph): graph is TextElement {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.TEXTELEMENT;
 }
 
-export function isDenseTrajectory(graph: any): graph is DenseTrajectory {
-  return graph !== null && graph.type === GRAPHTYPE.DENSETRAJECTORY;
+export function isDenseTrajectory(graph: Graph): graph is DenseTrajectory {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.DENSETRAJECTORY;
 }
 
-export function isSketch(graph: any): graph is Sketch {
-  return graph !== null && graph.type === GRAPHTYPE.SKETCH;
+export function isImageElement(graph: Graph): graph is ImageElement {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.IMAGE;
 }
 
-export function isImageElement(graph: any): graph is ImageElement {
-  return graph !== null && graph.type === GRAPHTYPE.IMAGE;
+export function isVideoElement(graph: Graph): graph is VideoElement {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.VIDEO;
 }
 
-export function isVideoElement(graph: any): graph is VideoElement {
-  return graph !== null && graph.type === GRAPHTYPE.VIDEO;
+// 联合类型的类型守卫
+export function isMediaElement(graph: Graph): graph is ImageElement | VideoElement {
+  return isImageElement(graph) || isVideoElement(graph);
+}
+
+export function isTextGraph(graph: Graph): graph is TextElement | TextParagraph {
+  return isTextElement(graph) || isTextParagraph(graph);
+}
+
+export function isCombinedGraphType(graph: Graph): graph is CombinedGraph | ComplexGraph {
+  return isCombinedGraph(graph) || isComplexGraph(graph);
 }

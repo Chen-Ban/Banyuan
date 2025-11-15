@@ -30,7 +30,7 @@ export default class Line extends AnalyticGraph {
   }
 
   // 计算线条的包围盒
-  protected calculateBounds(): Bounds {
+  public calculateBounds(): Bounds {
     const startPoint = this.controlPoints[0];
     const endPoint = this.controlPoints[1];
 

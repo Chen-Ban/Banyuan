@@ -151,7 +151,7 @@ export default class Arc extends AnalyticGraph {
   }
 
   // 计算圆弧的包围盒：使用所属圆的外接矩形
-  protected calculateBounds(): Bounds {
+  public calculateBounds(): Bounds {
     const x = this.center.x - this.radius;
     const y = this.center.y - this.radius;
     const size = this.radius * 2;
