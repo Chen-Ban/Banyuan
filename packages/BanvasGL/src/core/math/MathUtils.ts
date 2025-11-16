@@ -16,21 +16,14 @@ export class MathUtils {
   /**
    * 检查两个数是否相等（考虑浮点精度）
    */
-  public static isEqual(
-    a: number,
-    b: number,
-    epsilon: number = MathUtils.EPSILON
-  ): boolean {
+  public static isEqual(a: number, b: number, epsilon: number = MathUtils.EPSILON): boolean {
     return Math.abs(a - b) < epsilon;
   }
 
   /**
    * 检查数是否为零
    */
-  public static isZero(
-    value: number,
-    epsilon: number = MathUtils.EPSILON
-  ): boolean {
+  public static isZero(value: number, epsilon: number = MathUtils.EPSILON): boolean {
     return Math.abs(value) < epsilon;
   }
 
@@ -78,13 +71,7 @@ export class MathUtils {
   /**
    * 三次贝塞尔插值
    */
-  public static cubicBezier(
-    p0: number,
-    p1: number,
-    p2: number,
-    p3: number,
-    t: number
-  ): number {
+  public static cubicBezier(p0: number, p1: number, p2: number, p3: number, t: number): number {
     const u = 1 - t;
     const tt = t * t;
     const uu = u * u;
@@ -117,11 +104,7 @@ export class MathUtils {
   /**
    * 计算点到直线的距离
    */
-  public static distancePointToLine(
-    point: Point3,
-    lineStart: Point3,
-    lineEnd: Point3
-  ): number {
+  public static distancePointToLine(point: Point3, lineStart: Point3, lineEnd: Point3): number {
     const lineVector = lineEnd.subtract(lineStart);
     const pointVector = point.subtract(lineStart);
 
@@ -197,15 +180,12 @@ export class MathUtils {
     const t1 = (d1d2 * wd2 - d2d2 * wd1) / denominator;
     const t2 = (d1d1 * wd2 - d1d2 * wd1) / denominator;
 
-    return new Point3(
-      line1Start.x + t1 * d1.x,
-      line1Start.y + t1 * d1.y,
-      line1Start.z + t1 * d1.z
-    );
+    return new Point3(line1Start.x + t1 * d1.x, line1Start.y + t1 * d1.y, line1Start.z + t1 * d1.z);
   }
 
   /**
    * 计算两条线段的交点
+   * 利用 lineIntersection 的计算逻辑，但检查交点是否在两个线段上
    */
   public static lineSegmentIntersection(
     seg1Start: Point3,
@@ -213,41 +193,36 @@ export class MathUtils {
     seg2Start: Point3,
     seg2End: Point3
   ): Point3 | null {
-    const intersection = MathUtils.lineIntersection(
-      seg1Start,
-      seg1End,
-      seg2Start,
-      seg2End
-    );
-    if (!intersection) return null;
+    const d1 = seg1End.subtract(seg1Start);
+    const d2 = seg2End.subtract(seg2Start);
+    const w = seg1Start.subtract(seg2Start);
 
-    // 检查交点是否在两个线段上
-    const t1 = MathUtils.getParameterOnLineSegment(
-      intersection,
-      seg1Start,
-      seg1End
-    );
-    const t2 = MathUtils.getParameterOnLineSegment(
-      intersection,
-      seg2Start,
-      seg2End
-    );
+    const d1d2 = d1.dot(d2);
+    const d1d1 = d1.dot(d1);
+    const d2d2 = d2.dot(d2);
+    const wd1 = w.dot(d1);
+    const wd2 = w.dot(d2);
 
-    if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
-      return intersection;
+    const denominator = d1d1 * d2d2 - d1d2 * d1d2;
+    if (MathUtils.isZero(denominator)) {
+      return null; // 平行线
     }
 
-    return null;
+    const t1 = (d1d2 * wd2 - d2d2 * wd1) / denominator;
+    const t2 = (d1d1 * wd2 - d1d2 * wd1) / denominator;
+
+    // 检查交点是否在两个线段上（参数 t1 和 t2 必须在 [0, 1] 范围内）
+    if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
+      return new Point3(seg1Start.x + t1 * d1.x, seg1Start.y + t1 * d1.y, seg1Start.z + t1 * d1.z);
+    }
+
+    return null; // 交点不在线段上
   }
 
   /**
    * 获取点在线段上的参数值
    */
-  public static getParameterOnLineSegment(
-    point: Point3,
-    lineStart: Point3,
-    lineEnd: Point3
-  ): number {
+  public static getParameterOnLineSegment(point: Point3, lineStart: Point3, lineEnd: Point3): number {
     const lineVector = lineEnd.subtract(lineStart);
     const pointVector = point.subtract(lineStart);
 
@@ -299,20 +274,13 @@ export class MathUtils {
       sumZ += point.z;
     }
 
-    return new Point3(
-      sumX / points.length,
-      sumY / points.length,
-      sumZ / points.length
-    );
+    return new Point3(sumX / points.length, sumY / points.length, sumZ / points.length);
   }
 
   /**
    * 计算点到多边形的距离
    */
-  public static distancePointToPolygon(
-    point: Point3,
-    polygon: Point3[]
-  ): number {
+  public static distancePointToPolygon(point: Point3, polygon: Point3[]): number {
     if (polygon.length < 3) return Infinity;
 
     let minDistance = Infinity;
@@ -320,11 +288,7 @@ export class MathUtils {
     for (let i = 0; i < polygon.length; i++) {
       const current = polygon[i];
       const next = polygon[(i + 1) % polygon.length];
-      const distance = MathUtils.distancePointToLineSegment(
-        point,
-        current,
-        next
-      );
+      const distance = MathUtils.distancePointToLineSegment(point, current, next);
       minDistance = Math.min(minDistance, distance);
     }
 
@@ -342,10 +306,7 @@ export class MathUtils {
       const vi = polygon[i];
       const vj = polygon[j];
 
-      if (
-        vi.y > point.y !== vj.y > point.y &&
-        point.x < ((vj.x - vi.x) * (point.y - vi.y)) / (vj.y - vi.y) + vi.x
-      ) {
+      if (vi.y > point.y !== vj.y > point.y && point.x < ((vj.x - vi.x) * (point.y - vi.y)) / (vj.y - vi.y) + vi.x) {
         inside = !inside;
       }
     }
@@ -369,11 +330,7 @@ export class MathUtils {
   /**
    * 计算点到圆的距离
    */
-  public static distancePointToCircle(
-    point: Point3,
-    center: Point3,
-    radius: number
-  ): number {
+  public static distancePointToCircle(point: Point3, center: Point3, radius: number): number {
     const distance = MathUtils.distance(point, center);
     return Math.abs(distance - radius);
   }
@@ -381,12 +338,7 @@ export class MathUtils {
   /**
    * 计算两个圆的交点
    */
-  public static circleIntersection(
-    center1: Point3,
-    radius1: number,
-    center2: Point3,
-    radius2: number
-  ): Point3[] {
+  public static circleIntersection(center1: Point3, radius1: number, center2: Point3, radius2: number): Point3[] {
     const d = MathUtils.distance(center1, center2);
 
     if (d > radius1 + radius2 || d < Math.abs(radius1 - radius2)) {
@@ -424,12 +376,7 @@ export class MathUtils {
   /**
    * 数值积分（梯形法则）
    */
-  public static integrateTrapezoidal(
-    func: (x: number) => number,
-    a: number,
-    b: number,
-    n: number = 1000
-  ): number {
+  public static integrateTrapezoidal(func: (x: number) => number, a: number, b: number, n: number = 1000): number {
     const h = (b - a) / n;
     let sum = (func(a) + func(b)) / 2;
 
@@ -443,12 +390,7 @@ export class MathUtils {
   /**
    * 数值积分（辛普森法则）
    */
-  public static integrateSimpson(
-    func: (x: number) => number,
-    a: number,
-    b: number,
-    n: number = 1000
-  ): number {
+  public static integrateSimpson(func: (x: number) => number, a: number, b: number, n: number = 1000): number {
     if (n % 2 !== 0) n++; // 确保n为偶数
 
     const h = (b - a) / n;
@@ -654,9 +596,7 @@ export class MathUtils {
         m[2] * (m[4] * m[13] - m[5] * m[12])
       ) / det;
     inv[15] =
-      (m[0] * (m[5] * m[10] - m[6] * m[9]) -
-        m[1] * (m[4] * m[10] - m[6] * m[8]) +
-        m[2] * (m[4] * m[9] - m[5] * m[8])) /
+      (m[0] * (m[5] * m[10] - m[6] * m[9]) - m[1] * (m[4] * m[10] - m[6] * m[8]) + m[2] * (m[4] * m[9] - m[5] * m[8])) /
       det;
 
     return new Matrix4(inv);

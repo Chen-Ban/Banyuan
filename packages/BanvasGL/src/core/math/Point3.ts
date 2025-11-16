@@ -29,4 +29,7 @@ export default class Point3 {
   copy(): Point3 {
     return new Point3(this.x, this.y, this.z);
   }
+  toString(): string {
+    return `(${this.x},${this.y})`;
+  }
 }

@@ -2,6 +2,7 @@ import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
+import Bounds from "../../base/Bounds";
 
 /**
  * Rectangle类 - 矩形
@@ -171,5 +172,15 @@ export default class Rectangle extends Polygon {
     const goldenRatio = (1 + Math.sqrt(5)) / 2;
     const height = width / goldenRatio;
     return new Rectangle(x, y, width, height, style);
+  }
+
+  /**
+   * 从Bounds对象创建矩形
+   * @param bounds 边界框对象
+   * @param style 可选的样式对象
+   * @returns 对应的Rectangle对象
+   */
+  public static fromBounds(bounds: Bounds, style?: Style): Rectangle {
+    return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height, style);
   }
 }

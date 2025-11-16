@@ -145,8 +145,8 @@ export default class Serializer {
     });
 
     // 注册可实例化图形类型
-    this.registerType("CombinedGraph", CombinedGraph as unknown as new (...args: any[]) => CombinedGraph<any>, {
-      serialize: (graph: CombinedGraph<any>) => this.serializeCombinedGraph(graph),
+    this.registerType("CombinedGraph", CombinedGraph, {
+      serialize: (graph: CombinedGraph) => this.serializeCombinedGraph(graph),
       deserialize: (data: any) => this.deserializeCombinedGraph(data),
     });
 
@@ -589,7 +589,7 @@ export default class Serializer {
    */
   private serializeGraph(graph: Graph): any {
     return {
-      id: graph.id,
+      id: graph._id,
       type: graph.type,
       controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(graph.style, this.defaultOptions, 0),
@@ -712,15 +712,15 @@ export default class Serializer {
   /**
    * 序列化CombinedGraph为JSON字符串
    */
-  public static serializeCombinedGraph(graph: CombinedGraph<any>, options?: Partial<SerializerOptions>): string {
+  public static serializeCombinedGraph(graph: CombinedGraph, options?: Partial<SerializerOptions>): string {
     return Serializer.getInstance().serialize(graph, options);
   }
 
   /**
    * 反序列化JSON字符串为CombinedGraph
    */
-  public static deserializeCombinedGraph(json: string, options?: Partial<SerializerOptions>): CombinedGraph<any> {
-    return Serializer.getInstance().deserialize<CombinedGraph<any>>(json, options);
+  public static deserializeCombinedGraph(json: string, options?: Partial<SerializerOptions>): CombinedGraph {
+    return Serializer.getInstance().deserialize<CombinedGraph>(json, options);
   }
 
   /**
@@ -797,9 +797,9 @@ export default class Serializer {
   /**
    * 序列化CombinedGraph对象
    */
-  private serializeCombinedGraph(graph: CombinedGraph<any>): any {
+  private serializeCombinedGraph(graph: CombinedGraph): any {
     return {
-      id: graph.id,
+      id: graph._id,
       type: graph.type,
       graphs: graph.graphs.map((g: Graph) => this.serializeValue(g, this.defaultOptions, 0)),
       style: this.serializeValue(graph.style, this.defaultOptions, 0),
@@ -811,11 +811,11 @@ export default class Serializer {
   /**
    * 反序列化CombinedGraph对象
    */
-  private deserializeCombinedGraph(data: any): CombinedGraph<any> {
+  private deserializeCombinedGraph(data: any): CombinedGraph {
     const graphs = data.graphs.map((graphData: any) => this.deserializeValue(graphData, this.defaultOptions));
     const style = this.deserializeValue(data.style, this.defaultOptions);
-    const graph = new CombinedGraph<any>(graphs, style);
-    graph.id = data.id;
+    const graph = new CombinedGraph(graphs, style);
+    graph._id = data.id;
     return graph;
   }
 
@@ -824,7 +824,7 @@ export default class Serializer {
    */
   private serializeComplexGraph(graph: ComplexGraph): any {
     return {
-      id: graph.id,
+      id: graph._id,
       type: graph.type,
       graphs: graph.graphs.map((g) => this.serializeValue(g, this.defaultOptions, 0)),
       style: this.serializeValue(graph.style, this.defaultOptions, 0),
@@ -842,7 +842,7 @@ export default class Serializer {
     const graph = new ComplexGraph();
     graph.graphs = graphs;
     graph.style = style;
-    graph.id = data.id;
+    graph._id = data.id;
     return graph;
   }
 
@@ -851,7 +851,7 @@ export default class Serializer {
    */
   private serializeLine(line: Line): any {
     return {
-      id: line.id,
+      id: line._id,
       type: line.type,
       controlPoints: this.serializeValue(line.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(line.style, this.defaultOptions, 0),
@@ -866,7 +866,7 @@ export default class Serializer {
     const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const line = new Line(controlPoints[0], controlPoints[1], style);
-    line.id = data.id;
+    line._id = data.id;
     return line;
   }
 
@@ -875,7 +875,7 @@ export default class Serializer {
    */
   private serializeCircle(circle: Circle): any {
     return {
-      id: circle.id,
+      id: circle._id,
       type: circle.type,
       center: this.serializeValue(circle.center, this.defaultOptions, 0),
       radius: circle.radius,
@@ -892,7 +892,7 @@ export default class Serializer {
     const center = this.deserializeValue(data.center, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const circle = new Circle(center, data.radius, style);
-    circle.id = data.id;
+    circle._id = data.id;
     return circle;
   }
 
@@ -901,7 +901,7 @@ export default class Serializer {
    */
   private serializeArc(arc: Arc): any {
     return {
-      id: arc.id,
+      id: arc._id,
       type: arc.type,
       center: this.serializeValue(arc.center, this.defaultOptions, 0),
       radius: arc.radius,
@@ -921,7 +921,7 @@ export default class Serializer {
     const center = this.deserializeValue(data.center, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const arc = new Arc(center, data.radius, data.startAngle, data.endAngle, data.clockwise, style);
-    arc.id = data.id;
+    arc._id = data.id;
     return arc;
   }
 
@@ -932,7 +932,7 @@ export default class Serializer {
    */
   private serializeQuadraticBezier(bezier: QuadraticBezier): any {
     return {
-      id: bezier.id,
+      id: bezier._id,
       type: bezier.type,
       controlPoints: this.serializeValue(bezier.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(bezier.style, this.defaultOptions, 0),
@@ -947,7 +947,7 @@ export default class Serializer {
     const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const bezier = new QuadraticBezier(controlPoints[0], controlPoints[1], controlPoints[2], style);
-    bezier.id = data.id;
+    bezier._id = data.id;
     return bezier;
   }
 
@@ -956,7 +956,7 @@ export default class Serializer {
    */
   private serializeCubicBezier(bezier: CubicBezier): any {
     return {
-      id: bezier.id,
+      id: bezier._id,
       type: bezier.type,
       controlPoints: this.serializeValue(bezier.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(bezier.style, this.defaultOptions, 0),
@@ -971,7 +971,7 @@ export default class Serializer {
     const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const bezier = new CubicBezier(controlPoints[0], controlPoints[1], controlPoints[2], controlPoints[3], style);
-    bezier.id = data.id;
+    bezier._id = data.id;
     return bezier;
   }
 

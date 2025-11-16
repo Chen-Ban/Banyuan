@@ -161,6 +161,7 @@ export class ViewTreeUtils {
       if (v === view) return;
       v.setActived(false);
       v.setSelected(false);
+
       if (v instanceof TextView) {
         v.setSelection(undefined, undefined);
       }
