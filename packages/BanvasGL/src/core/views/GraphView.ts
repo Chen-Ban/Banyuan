@@ -11,6 +11,7 @@ import { Action, Cursor, ExtraData } from "./addon/InteractionMapBuilder";
 // 图形视图选项接口
 export interface GraphViewOptions extends Omit<ViewOptions, "content"> {
   // 图形视图特有的选项可以在这里添加
+  isSelectBox?: boolean;
 }
 
 /**
@@ -20,11 +21,13 @@ export default class GraphView extends View {
   public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW;
   public content: Graph;
   public children: View[] = [];
+  public isSelectBox: boolean = false;
 
   constructor(graph: Graph, options: GraphViewOptions = {}) {
     // 将graph作为content传递给父类构造函数
     super({ ...options });
     this.content = graph;
+    this.isSelectBox = options.isSelectBox ?? false;
     this.initBoundingBox();
     this.initViewport();
   }

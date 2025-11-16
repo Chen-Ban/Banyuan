@@ -1,6 +1,9 @@
 import View, { ViewOptions, ViewContent } from "./View";
 import TextParagraph from "../graph/text/TextParagraph";
 import TextElement from "../graph/text/TextElement";
+import TextOptions from "../graph/text/TextOptions";
+import ParagraphOptions from "../graph/text/ParagraphOptions";
+import { Style } from "../style";
 import { Rectangle } from "../graph/combined/Polygon";
 import { MathUtils, Point3, Vector3 } from "../math";
 import { world2Relative } from "@/utils/utils";
@@ -76,6 +79,10 @@ export default class TextView extends View {
     }
   }
 
+  public getContentText(): string[] {
+    return this.content.map((paragraph) => paragraph.texts.map((text) => text.content).join(""));
+  }
+
   public renderContent(ctx: CanvasRenderingContext2D): void {
     // 渲染文本内容
     if (this.layoutArea) {
@@ -139,8 +146,244 @@ export default class TextView extends View {
 
   /**
    * 处理输入事件
+   * @param content 输入的文本内容
+   * @param isComposition 是否是合成输入（中文输入法等）
    */
-  public input(e: InputEvent): void {}
+  public input(content: string, isComposition: boolean): void {
+    if (!this.fixedIndex || !this.dynamicIndex) return;
+
+    const [paragraphIndex, fixedTextIndex, fixedPosition] = this.fixedIndex;
+    const [_, dynamicTextIndex, dynamicPosition] = this.dynamicIndex;
+
+    const paragraph = this.content[paragraphIndex];
+    if (!paragraph) return;
+
+    // 确定插入/替换的起始和结束位置
+    const fixedPriorityNum = Number(this.fixedIndex.join(""));
+    const dynamicPriorityNum = Number(this.dynamicIndex.join(""));
+    const startIndex =
+      fixedPriorityNum > dynamicPriorityNum ? dynamicTextIndex + dynamicPosition : fixedTextIndex + fixedPosition;
+    const endIndex =
+      fixedPriorityNum > dynamicPriorityNum ? fixedTextIndex + fixedPosition : dynamicTextIndex + dynamicPosition;
+
+    // 删除选中范围的文本
+    if (startIndex !== endIndex) {
+      const deleteCount = endIndex - startIndex;
+      paragraph.texts.splice(startIndex, deleteCount);
+    }
+
+    // 在插入位置添加新文本
+    if (content.length > 0) {
+      // 获取插入位置的文本选项（如果存在）
+      const insertIndex = startIndex;
+      let textOptions: TextOptions;
+
+      if (insertIndex > 0 && paragraph.texts[insertIndex - 1]) {
+        // 使用前一个文本元素的选项
+        textOptions = paragraph.texts[insertIndex - 1].options.copy();
+      } else if (paragraph.texts.length > 0 && paragraph.texts[0]) {
+        // 使用第一个文本元素的选项
+        textOptions = paragraph.texts[0].options.copy();
+      } else {
+        // 使用默认选项
+        textOptions = TextOptions.DEFAULT;
+      }
+
+      // 插入新文本
+      for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+        const textElement = new TextElement(char, textOptions);
+        paragraph.texts.splice(insertIndex + i, 0, textElement);
+      }
+    }
+
+    // 更新光标位置
+    if (isComposition) {
+      // 合成输入时：fixedIndex 保持不变，dynamicIndex 根据输入长度动态更新
+      const newDynamicIndex: TextIndex = [paragraphIndex, startIndex + content.length, 0];
+      this.setSelection(this.fixedIndex, newDynamicIndex);
+    } else {
+      // 非合成输入时：fixedIndex 和 dynamicIndex 都更新到插入文本的末尾
+      const newCursorIndex = startIndex + content.length;
+      const newIndex: TextIndex = [paragraphIndex, newCursorIndex, 0];
+      this.setSelection(newIndex, newIndex);
+    }
+
+    // 重新布局
+    this.shouldLayout = true;
+    this.layout();
+    this.initBoundingBox();
+    this.initViewport();
+  }
+
+  /**
+   * 删除文本
+   * @param isBackspace true 表示 Backspace（删除光标前），false 表示 Delete（删除光标后）
+   */
+  public delete(isBackspace: boolean): void {
+    if (!this.fixedIndex || !this.dynamicIndex) return;
+
+    const [paragraphIndex, fixedTextIndex, fixedPosition] = this.fixedIndex;
+    const [_, dynamicTextIndex, dynamicPosition] = this.dynamicIndex;
+
+    const paragraph = this.content[paragraphIndex];
+    if (!paragraph) return;
+
+    // 确定删除的起始和结束位置
+    const fixedPriorityNum = Number(this.fixedIndex.join(""));
+    const dynamicPriorityNum = Number(this.dynamicIndex.join(""));
+    let startIndex: number;
+    let endIndex: number;
+
+    if (fixedPriorityNum !== dynamicPriorityNum) {
+      // 有选中范围，删除选中范围
+      startIndex =
+        fixedPriorityNum > dynamicPriorityNum ? dynamicTextIndex + dynamicPosition : fixedTextIndex + fixedPosition;
+      endIndex =
+        fixedPriorityNum > dynamicPriorityNum ? fixedTextIndex + fixedPosition : dynamicTextIndex + dynamicPosition;
+    } else {
+      // 没有选中范围，根据按键类型删除
+      const cursorIndex = fixedTextIndex + fixedPosition;
+      if (isBackspace) {
+        // Backspace：删除光标前的字符
+        if (cursorIndex > 0) {
+          startIndex = cursorIndex - 1;
+          endIndex = cursorIndex;
+        } else {
+          // 光标在段落开头，尝试合并到上一个段落
+          if (paragraphIndex > 0) {
+            const prevParagraph = this.content[paragraphIndex - 1];
+            const currentParagraph = paragraph;
+            const prevTextCount = prevParagraph.texts.length;
+
+            // 将当前段落的内容合并到上一个段落
+            prevParagraph.texts.push(...currentParagraph.texts);
+
+            // 删除当前段落
+            this.content.splice(paragraphIndex, 1);
+
+            // 更新光标位置到上一个段落的末尾
+            const newIndex: TextIndex = [paragraphIndex - 1, prevTextCount, 0];
+            this.setSelection(newIndex, newIndex);
+
+            // 重新布局
+            this.shouldLayout = true;
+            this.layout();
+            this.initBoundingBox();
+            this.initViewport();
+            return;
+          } else {
+            // 已经是第一个段落，无法删除
+            return;
+          }
+        }
+      } else {
+        // Delete：删除光标后的字符
+        if (cursorIndex < paragraph.texts.length) {
+          startIndex = cursorIndex;
+          endIndex = cursorIndex + 1;
+        } else {
+          // 光标在段落末尾，尝试合并下一个段落
+          if (paragraphIndex < this.content.length - 1) {
+            const currentParagraph = paragraph;
+            const nextParagraph = this.content[paragraphIndex + 1];
+            const currentTextCount = currentParagraph.texts.length;
+
+            // 将下一个段落的内容合并到当前段落
+            currentParagraph.texts.push(...nextParagraph.texts);
+
+            // 删除下一个段落
+            this.content.splice(paragraphIndex + 1, 1);
+
+            // 光标位置保持不变
+            const newIndex: TextIndex = [paragraphIndex, currentTextCount, 0];
+            this.setSelection(newIndex, newIndex);
+
+            // 重新布局
+            this.shouldLayout = true;
+            this.layout();
+            this.initBoundingBox();
+            this.initViewport();
+            return;
+          } else {
+            // 已经是最后一个段落，无法删除
+            return;
+          }
+        }
+      }
+    }
+
+    // 删除指定范围的文本
+    const deleteCount = endIndex - startIndex;
+    paragraph.texts.splice(startIndex, deleteCount);
+
+    // 更新光标位置到删除位置
+    const newIndex: TextIndex = [paragraphIndex, startIndex, 0];
+    this.setSelection(newIndex, newIndex);
+
+    // 重新布局
+    this.shouldLayout = true;
+    this.layout();
+    this.initBoundingBox();
+    this.initViewport();
+  }
+
+  /**
+   * 换行（创建新段落）
+   */
+  public newLine(): void {
+    if (!this.fixedIndex || !this.dynamicIndex) return;
+
+    const [paragraphIndex, fixedTextIndex, fixedPosition] = this.fixedIndex;
+    const [_, dynamicTextIndex, dynamicPosition] = this.dynamicIndex;
+
+    const paragraph = this.content[paragraphIndex];
+    if (!paragraph) return;
+
+    // 确定分割位置
+    const fixedPriorityNum = Number(this.fixedIndex.join(""));
+    const dynamicPriorityNum = Number(this.dynamicIndex.join(""));
+    const splitIndex =
+      fixedPriorityNum > dynamicPriorityNum ? dynamicTextIndex + dynamicPosition : fixedTextIndex + fixedPosition;
+
+    // 获取当前段落的选项和样式
+    const paragraphOptions = paragraph.options.copy();
+    const paragraphStyle = paragraph.style;
+
+    // 创建新段落，包含分割点后的内容
+    const newParagraph = new TextParagraph(paragraphOptions, paragraphStyle);
+    if (splitIndex < paragraph.texts.length) {
+      // 将分割点后的文本移动到新段落
+      const textsToMove = paragraph.texts.splice(splitIndex);
+      newParagraph.texts = textsToMove;
+    }
+
+    // 获取文本选项（用于新段落，如果有文本的话）
+    let textOptions: TextOptions;
+    if (paragraph.texts.length > 0 && paragraph.texts[paragraph.texts.length - 1]) {
+      textOptions = paragraph.texts[paragraph.texts.length - 1].options.copy();
+    } else if (newParagraph.texts.length > 0 && newParagraph.texts[0]) {
+      textOptions = newParagraph.texts[0].options.copy();
+    } else {
+      textOptions = TextOptions.DEFAULT;
+    }
+
+    // 在新段落开头插入一个空字符（如果需要保持样式）
+    // 这里不插入，让新段落保持为空或使用已有文本
+
+    // 插入新段落到内容数组
+    this.content.splice(paragraphIndex + 1, 0, newParagraph);
+
+    // 更新光标位置到新段落的开头
+    const newIndex: TextIndex = [paragraphIndex + 1, 0, 0];
+    this.setSelection(newIndex, newIndex);
+
+    // 重新布局
+    this.shouldLayout = true;
+    this.layout();
+    this.initBoundingBox();
+    this.initViewport();
+  }
 
   /**
    * 文本转换为TextIndex,p作为辅助判断是下一个还是当前
@@ -253,7 +496,10 @@ export default class TextView extends View {
    * @description 两个都为undefined时，不出现光标
    */
   public setSelection(fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void {
-    if (!fixedIndex || !dynamicIndex) return;
+    if (!fixedIndex || !dynamicIndex) {
+      this.selection.setSelectionBoxs([]);
+      return;
+    }
     const fixedPriorityNum = Number(fixedIndex.join(""));
     const dynamicPriorityNum = Number(dynamicIndex.join(""));
     const start = fixedPriorityNum > dynamicPriorityNum ? dynamicIndex : fixedIndex;

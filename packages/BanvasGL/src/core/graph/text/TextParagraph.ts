@@ -1,6 +1,6 @@
 import { GRAPHTYPE, HORIZONTALALIGN } from "@/core/constants";
 import Graph from "@/core/graph/base/Graph";
-import { Point3 } from "@/core/math";
+import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style, Color } from "@/core/style";
 import TextElement from "./TextElement";
 import ParagraphOptions from "./ParagraphOptions";
@@ -100,6 +100,128 @@ export default class TextParagraph extends Graph {
     const bounds = this.getBounds();
     return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).isPointOnCurve(point, tolerance);
   }
+
+  public getPointAt(t: number): Point3 {
+    const bounds = this.getBounds();
+    const perimeter = 2 * (bounds.width + bounds.height);
+    const clampedT = Math.max(0, Math.min(1, t));
+    let currentLength = clampedT * perimeter;
+
+    // 上边
+    if (currentLength <= bounds.width) {
+      return new Point3(bounds.x + currentLength, bounds.y, 0);
+    }
+    currentLength -= bounds.width;
+
+    // 右边
+    if (currentLength <= bounds.height) {
+      return new Point3(bounds.x + bounds.width, bounds.y + currentLength, 0);
+    }
+    currentLength -= bounds.height;
+
+    // 下边
+    if (currentLength <= bounds.width) {
+      return new Point3(bounds.x + bounds.width - currentLength, bounds.y + bounds.height, 0);
+    }
+    currentLength -= bounds.width;
+
+    // 左边
+    return new Point3(bounds.x, bounds.y + bounds.height - currentLength, 0);
+  }
+
+  public getLength(tStart: number, tEnd: number): number {
+    const bounds = this.getBounds();
+    return 2 * (bounds.width + bounds.height) * Math.abs(tEnd - tStart);
+  }
+
+  public getTangentAt(t: number): Vector3 {
+    const bounds = this.getBounds();
+    const perimeter = 2 * (bounds.width + bounds.height);
+    let currentLength = 0;
+
+    // 上边：向右
+    if (t * perimeter <= bounds.width) {
+      return new Vector3(1, 0, 0);
+    }
+    currentLength += bounds.width;
+
+    // 右边：向下
+    if (t * perimeter <= currentLength + bounds.height) {
+      return new Vector3(0, 1, 0);
+    }
+    currentLength += bounds.height;
+
+    // 下边：向左
+    if (t * perimeter <= currentLength + bounds.width) {
+      return new Vector3(-1, 0, 0);
+    }
+
+    // 左边：向上
+    return new Vector3(0, -1, 0);
+  }
+
+  public getNormalAt(t: number): Vector3 {
+    const tangent = this.getTangentAt(t);
+    return new Vector3(-tangent.y, tangent.x, 0);
+  }
+
+  public getClosestPoint(point: Point3): {
+    distance: number;
+    closestPoint: Point3;
+    parameter: number;
+  } {
+    const bounds = this.getBounds();
+    const closestX = Math.max(bounds.x, Math.min(point.x, bounds.x + bounds.width));
+    const closestY = Math.max(bounds.y, Math.min(point.y, bounds.y + bounds.height));
+    const closestPoint = new Point3(closestX, closestY, 0);
+    const distance = Math.sqrt(Math.pow(point.x - closestPoint.x, 2) + Math.pow(point.y - closestPoint.y, 2));
+
+    // 计算参数t（基于周长）
+    const perimeter = 2 * (bounds.width + bounds.height);
+    let t = 0;
+    if (closestX === bounds.x + bounds.width && closestY === bounds.y) {
+      t = bounds.width / perimeter;
+    } else if (closestX === bounds.x + bounds.width && closestY === bounds.y + bounds.height) {
+      t = (bounds.width + bounds.height) / perimeter;
+    } else if (closestX === bounds.x && closestY === bounds.y + bounds.height) {
+      t = (2 * bounds.width + bounds.height) / perimeter;
+    } else if (closestX === bounds.x && closestY === bounds.y) {
+      t = 0;
+    } else if (closestY === bounds.y) {
+      t = (closestX - bounds.x) / perimeter;
+    } else if (closestX === bounds.x + bounds.width) {
+      t = (bounds.width + closestY - bounds.y) / perimeter;
+    } else if (closestY === bounds.y + bounds.height) {
+      t = (bounds.width + bounds.height + bounds.width - (closestX - bounds.x)) / perimeter;
+    } else {
+      t = (2 * bounds.width + bounds.height + bounds.height - (closestY - bounds.y)) / perimeter;
+    }
+
+    return { distance, closestPoint, parameter: t };
+  }
+
+  public getArea(): number {
+    const bounds = this.getBounds();
+    return bounds.width * bounds.height;
+  }
+
+  public getCentroid(): Point3 {
+    const bounds = this.getBounds();
+    return new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
+  }
+
+  public transform(matrix: Matrix4): Graph {
+    if (this.controlPoints.length > 0) {
+      this.controlPoints[0] = matrix.multiply(this.controlPoints[0]);
+      // 变换所有文字元素
+      for (const textElement of this.texts) {
+        textElement.transform(matrix);
+      }
+      this.setBounds(this.calculateBounds());
+    }
+    return this;
+  }
+
   /**
    * 渲染段落
    */

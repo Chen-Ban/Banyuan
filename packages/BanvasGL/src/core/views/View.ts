@@ -12,6 +12,7 @@ import { Graph } from "../graph";
 import { BoundingBoxAddonImpl, ViewportAddonImpl, VertexAddonImpl, ViewAddonImpl } from "./addon";
 import { Point3 } from "../math";
 import { ExtraData } from "./addon/InteractionMapBuilder";
+import Bounds from "../graph/base/Bounds";
 
 // 视图选项接口
 export interface ViewOptions<T extends object = any> {
@@ -275,7 +276,7 @@ export default abstract class View<T extends object = any> {
 
   // 渲染插件
   private renderPlugins(ctx: CanvasRenderingContext2D): void {
-    // if (!this.actived) return;
+    if (!this.actived) return;
     if (this.controlPoints && typeof (this.controlPoints as any).render === "function") {
       (this.controlPoints as any).render(ctx);
     }
@@ -405,12 +406,7 @@ export default abstract class View<T extends object = any> {
    * 获取View的边界框（使用BoundingBoxAddon计算）
    * 返回包含内容大小和内边距的边界框
    */
-  public getBounds(): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null {
+  public getBounds(): Bounds | null {
     if (!this.boundingBox) {
       return null;
     }

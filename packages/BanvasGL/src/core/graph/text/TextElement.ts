@@ -1,6 +1,6 @@
 import { GRAPHTYPE } from "@/core/constants";
 import Graph from "@/core/graph/base/Graph";
-import { Point3 } from "@/core/math";
+import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style, Color } from "@/core/style";
 import TextOptions from "./TextOptions";
 import Bounds from "../base/Bounds";
@@ -34,6 +34,14 @@ export default class TextElement extends Graph {
 
     // 初始化时不设置控制点,包围盒和具体行高，等待布局时设置
     this.controlPoints = [];
+  }
+
+  public getLength(tStart: number, tEnd: number): number {
+    return 1;
+  }
+
+  public getPointAt(t: number): Point3 {
+    return this.controlPoints[0];
   }
 
   /**
@@ -153,6 +161,98 @@ export default class TextElement extends Graph {
   isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
     const bounds = this.getBounds();
     return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).isPointOnCurve(point, tolerance);
+  }
+
+  public getTangentAt(t: number): Vector3 {
+    const bounds = this.getBounds();
+    const perimeter = 2 * (bounds.width + bounds.height);
+    let currentLength = 0;
+
+    // 上边：向右
+    if (t * perimeter <= bounds.width) {
+      return new Vector3(1, 0, 0);
+    }
+    currentLength += bounds.width;
+
+    // 右边：向下
+    if (t * perimeter <= currentLength + bounds.height) {
+      return new Vector3(0, 1, 0);
+    }
+    currentLength += bounds.height;
+
+    // 下边：向左
+    if (t * perimeter <= currentLength + bounds.width) {
+      return new Vector3(-1, 0, 0);
+    }
+
+    // 左边：向上
+    return new Vector3(0, -1, 0);
+  }
+
+  public getNormalAt(t: number): Vector3 {
+    const tangent = this.getTangentAt(t);
+    return new Vector3(-tangent.y, tangent.x, 0);
+  }
+
+  public getClosestPoint(point: Point3): {
+    distance: number;
+    closestPoint: Point3;
+    parameter: number;
+  } {
+    const bounds = this.getBounds();
+    const closestX = Math.max(bounds.x, Math.min(point.x, bounds.x + bounds.width));
+    const closestY = Math.max(bounds.y, Math.min(point.y, bounds.y + bounds.height));
+    const closestPoint = new Point3(closestX, closestY, 0);
+    const distance = Math.sqrt(Math.pow(point.x - closestPoint.x, 2) + Math.pow(point.y - closestPoint.y, 2));
+
+    // 计算参数t（基于周长）
+    const perimeter = 2 * (bounds.width + bounds.height);
+    let t = 0;
+    if (closestX === bounds.x + bounds.width && closestY === bounds.y) {
+      // 右上角
+      t = bounds.width / perimeter;
+    } else if (closestX === bounds.x + bounds.width && closestY === bounds.y + bounds.height) {
+      // 右下角
+      t = (bounds.width + bounds.height) / perimeter;
+    } else if (closestX === bounds.x && closestY === bounds.y + bounds.height) {
+      // 左下角
+      t = (2 * bounds.width + bounds.height) / perimeter;
+    } else if (closestX === bounds.x && closestY === bounds.y) {
+      // 左上角
+      t = 0;
+    } else if (closestY === bounds.y) {
+      // 上边
+      t = (closestX - bounds.x) / perimeter;
+    } else if (closestX === bounds.x + bounds.width) {
+      // 右边
+      t = (bounds.width + closestY - bounds.y) / perimeter;
+    } else if (closestY === bounds.y + bounds.height) {
+      // 下边
+      t = (bounds.width + bounds.height + bounds.width - (closestX - bounds.x)) / perimeter;
+    } else {
+      // 左边
+      t = (2 * bounds.width + bounds.height + bounds.height - (closestY - bounds.y)) / perimeter;
+    }
+
+    return { distance, closestPoint, parameter: t };
+  }
+
+  public getArea(): number {
+    const bounds = this.getBounds();
+    return bounds.width * bounds.height;
+  }
+
+  public getCentroid(): Point3 {
+    const bounds = this.getBounds();
+    return new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
+  }
+
+  public transform(matrix: Matrix4): Graph {
+    if (this.controlPoints.length > 0) {
+      this.controlPoints[0] = matrix.multiply(this.controlPoints[0]);
+      this.setBounds(this.calculateBounds());
+    }
+    return this;
   }
 
   /**
