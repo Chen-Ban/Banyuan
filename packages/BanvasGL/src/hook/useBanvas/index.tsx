@@ -1,6 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
-import { App } from "@/core/app";
-import { View } from "@/core";
+import React, { useMemo, useRef } from "react";
 import { useCanvasInit } from "./useCanvasInit";
 import { useCanvasEvents } from "./useCanvasEvents";
 import { useInputEvents } from "./useInputEvents";
@@ -12,7 +10,6 @@ export default function useBanvas(
 ): UseBanvasResult {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [selectedView, setSelectedView] = useState<View | null>(null);
 
   // Canvas 初始化
   const { app, canvasRef } = useCanvasInit(serializedScenes, _options);
@@ -22,13 +19,12 @@ export default function useBanvas(
     app,
     canvasRef,
     inputRef,
-    setSelectedView,
   });
 
   // Input 事件绑定
   useInputEvents({
+    app,
     inputRef,
-    selectedView,
   });
 
   const canvasEl = useMemo(

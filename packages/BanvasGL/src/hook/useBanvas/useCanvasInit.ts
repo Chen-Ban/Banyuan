@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App } from "@/core/app";
-import type { AppOptions } from "@/core/app";
-import type { RendererOptions } from "@/core/renderer/Renderer";
 import {
   BaseCamera,
   Circle,
@@ -12,17 +10,64 @@ import {
   Point3,
   Rectangle,
   Scene,
-  StrokeStyle,
   Style,
   TextParagraph,
   TextView,
+  Line,
+  Arc,
+  Triangle,
+  RegularPolygon,
+  QuadraticBezier,
+  CubicBezier,
+  StrokeStyle,
 } from "@/core";
 import type { UseBanvasOptions, SerializedSceneJSON } from "./types";
 
 export interface UseCanvasInitResult {
   app: App | null;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  initializedRef: React.MutableRefObject<boolean>;
+}
+
+/**
+ * 生成随机数
+ */
+function random(min: number, max: number): number {
+  return Math.random() * (max - min) + min;
+}
+
+/**
+ * 生成随机整数
+ */
+function randomInt(min: number, max: number): number {
+  return Math.floor(random(min, max));
+}
+
+/**
+ * 生成随机颜色
+ */
+function randomColor(): Color {
+  return new Color(randomInt(0, 256), randomInt(0, 256), randomInt(0, 256), random(0.5, 1));
+}
+
+/**
+ * 生成随机样式
+ */
+function randomStyle(): Style {
+  const hasFill = Math.random() > 0.3;
+  const hasStroke = Math.random() > 0.3;
+
+  const style = new Style();
+
+  if (hasFill) {
+    style.fillStyle = new FillStyle("color", randomColor());
+  }
+
+  if (hasStroke) {
+    style.strokeStyle = new StrokeStyle("color", randomColor());
+    style.strokeStyle.width = random(1, 5);
+  }
+
+  return style;
 }
 
 /**
@@ -95,13 +140,110 @@ export function useCanvasInit(serializedScenes: SerializedSceneJSON[], options: 
       scene.addChild(combinedView);
       scene.addChild(anchor);
 
+      combinedView.translate(50, 50);
+
+      // ========== 随机图形 ==========
+      const allViews: GraphView[] = [];
+
+      // 1. 创建多个 Line（直线）
+      for (let i = 0; i < 3; i++) {
+        const startX = random(0, 100);
+        const startY = random(0, 100);
+        const endX = random(0, 100);
+        const endY = random(0, 100);
+        const line = new Line(new Point3(startX, startY, 0), new Point3(endX, endY, 0), randomStyle());
+        const lineView = new GraphView(line);
+        lineView.translate(random(0, 400), random(0, 400));
+        allViews.push(lineView);
+      }
+
+      // 2. 创建多个 Circle（圆形）
+      for (let i = 0; i < 3; i++) {
+        const radius = random(20, 60);
+        const circle = new Circle(new Point3(0, 0, 0), radius, randomStyle());
+        const circleView = new GraphView(circle);
+        circleView.translate(random(50, 450), random(50, 450));
+        allViews.push(circleView);
+      }
+
+      // 3. 创建多个 Arc（圆弧）
+      for (let i = 0; i < 3; i++) {
+        const radius = random(20, 60);
+        const startAngle = random(0, Math.PI);
+        const endAngle = random(Math.PI, Math.PI * 2);
+        const clockwise = Math.random() > 0.5;
+        const arc = new Arc(new Point3(0, 0, 0), radius, startAngle, endAngle, clockwise, randomStyle());
+        const arcView = new GraphView(arc);
+        arcView.translate(random(50, 450), random(50, 450));
+        allViews.push(arcView);
+      }
+
+      // 4. 创建多个 Rectangle（矩形）
+      for (let i = 0; i < 3; i++) {
+        const width = random(30, 100);
+        const height = random(30, 100);
+        const randomRect = new Rectangle(0, 0, width, height, randomStyle());
+        const rectView = new GraphView(randomRect);
+        rectView.translate(random(0, 400), random(0, 400));
+        allViews.push(rectView);
+      }
+
+      // 5. 创建多个 Triangle（三角形）
+      for (let i = 0; i < 3; i++) {
+        const pt1 = new Point3(random(0, 50), random(0, 50), 0);
+        const pt2 = new Point3(random(0, 50), random(50, 100), 0);
+        const pt3 = new Point3(random(50, 100), random(25, 75), 0);
+        const triangle = new Triangle(pt1, pt2, pt3, randomStyle());
+        const triangleView = new GraphView(triangle);
+        triangleView.translate(random(0, 400), random(0, 400));
+        allViews.push(triangleView);
+      }
+
+      // 6. 创建多个 RegularPolygon（正多边形）
+      for (let i = 0; i < 3; i++) {
+        const radius = random(20, 60);
+        const sides = randomInt(5, 9); // 5-8边形
+        const rotation = random(0, Math.PI * 2);
+        const polygon = new RegularPolygon(new Point3(0, 0, 0), radius, sides, rotation, randomStyle());
+        const polygonView = new GraphView(polygon);
+        polygonView.translate(random(50, 450), random(50, 450));
+        allViews.push(polygonView);
+      }
+
+      // 7. 创建多个 QuadraticBezier（二次贝塞尔曲线）
+      for (let i = 0; i < 3; i++) {
+        const start = new Point3(0, 0, 0);
+        const control = new Point3(random(20, 80), random(20, 80), 0);
+        const end = new Point3(random(40, 100), random(40, 100), 0);
+        const bezier = new QuadraticBezier(start, control, end, randomStyle());
+        const bezierView = new GraphView(bezier);
+        bezierView.translate(random(0, 400), random(0, 400));
+        allViews.push(bezierView);
+      }
+
+      // 8. 创建多个 CubicBezier（三次贝塞尔曲线）
+      for (let i = 0; i < 3; i++) {
+        const start = new Point3(0, 0, 0);
+        const control1 = new Point3(random(20, 60), random(20, 60), 0);
+        const control2 = new Point3(random(40, 80), random(40, 80), 0);
+        const end = new Point3(random(60, 100), random(60, 100), 0);
+        const cubicBezier = new CubicBezier(start, control1, control2, end, randomStyle());
+        const cubicBezierView = new GraphView(cubicBezier);
+        cubicBezierView.translate(random(0, 400), random(0, 400));
+        allViews.push(cubicBezierView);
+      }
+
+      // 将所有随机图形添加到场景
+      allViews.forEach((view) => {
+        scene.addChild(view);
+      });
+
       // 添加场景到应用
       _app.addScene(scene);
 
       // 导航到新页面
       _app.navigateTo(scene);
-
-      combinedView.translate(50, 50);
+      console.log(scene);
 
       // 循环渲染会自动处理渲染，无需手动调用
     } catch (error) {
@@ -129,5 +271,5 @@ export function useCanvasInit(serializedScenes: SerializedSceneJSON[], options: 
     applyCanvasSize();
   }, [app, applyCanvasSize]);
 
-  return { app, canvasRef, initializedRef };
+  return { app, canvasRef };
 }

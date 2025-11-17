@@ -15,13 +15,12 @@ export interface UseCanvasEventsOptions {
   app: App | null;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   inputRef: React.RefObject<HTMLInputElement | null>;
-  setSelectedView: (view: View | null) => void;
 }
 
 /**
  * Canvas 事件绑定
  */
-export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: UseCanvasEventsOptions) {
+export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOptions) {
   // 状态移动到副作用外层
   const mouseDownPointRef = useRef<Point3 | null>(null);
   const lastPointRef = useRef<Point3 | null>(null);
@@ -238,9 +237,6 @@ export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: U
             const fixedIndex = indicateView.element2Index(indicateContentRef.current, mousDownPoint);
             indicateView.setSelection(fixedIndex, fixedIndex);
 
-            // 保存当前选中的视图
-            setSelectedView(indicateView);
-
             // 将输入框移动到选中的 textElement 下方
             const bounds = indicateContentRef.current.getBounds();
 
@@ -263,14 +259,9 @@ export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: U
               input.selectionStart = fixedIndex[1] + fixedIndex[2];
               input.selectionEnd = fixedIndex[1] + fixedIndex[2];
             }
-          } else {
-            // 如果不是文本视图，保存选中的视图
-            setSelectedView(indicateView);
           }
         } else {
           ViewTreeUtils.clearAllStates(scene);
-          // 清除选中状态
-          setSelectedView(null);
           // 隐藏输入框
           const input = inputRef.current;
           if (input) {
@@ -291,7 +282,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: U
       }
       actionRef.current = Action.NONE;
     },
-    [app, canvasRef, inputRef, setSelectedView, onMouseLeave]
+    [app, canvasRef, inputRef, onMouseLeave]
   );
 
   // 双击事件处理
