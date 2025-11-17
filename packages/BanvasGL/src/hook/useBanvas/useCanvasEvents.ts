@@ -8,8 +8,8 @@ import { ViewContent } from "@/core/views/View";
 import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
 import { isTextView, isGraphView } from "@/core/views/utils/typeGuards";
 import { isRectangle, isTextElement } from "@/core/graph/utils/typeGuards";
-import { isSingleClick, isDoubleClick } from "./utils/clickUtils";
 import { checkViewIntersection } from "./utils/intersectionUtils";
+import { PointUtils } from "@/core/graph/utils/PointUtils";
 
 export interface UseCanvasEventsOptions {
   app: App | null;
@@ -228,12 +228,8 @@ export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: U
       const mouseUpPoint = mouseUpPointRef.current;
       if (!mousDownPoint || !mouseUpPoint) return;
 
-      // 单击事件
-      if (isDoubleClick(mousDownPoint, mouseUpPoint, lastClickTimeRef.current)) {
-        if (isTextView(indicateViewRef.current) && isTextElement(indicateContentRef.current)) {
-          console.log("选中一整行");
-        }
-      } else if (isSingleClick(mousDownPoint, mouseUpPoint)) {
+      // 只有单击时才处理
+      if (PointUtils.isSamePoint(mousDownPoint, mouseUpPoint)) {
         const indicateView = indicateViewRef.current;
         if (indicateView) {
           scene.select(indicateView, e.ctrlKey);
@@ -298,6 +294,28 @@ export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: U
     [app, canvasRef, inputRef, setSelectedView, onMouseLeave]
   );
 
+  // 双击事件处理
+  const onDoubleClick = useCallback(
+    (e: MouseEvent) => {
+      if (!app || !canvasRef.current) return;
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+
+      const mousDownPoint = mouseDownPointRef.current;
+      const mouseUpPoint = mouseUpPointRef.current;
+      if (!mousDownPoint || !mouseUpPoint) return;
+
+      // 双击事件处理
+      if (PointUtils.isSamePoint(mousDownPoint, mouseUpPoint, lastClickTimeRef.current)) {
+        if (isTextView(indicateViewRef.current) && isTextElement(indicateContentRef.current)) {
+          console.log("选中一整行");
+          // 这里可以添加更多双击相关的逻辑
+        }
+      }
+    },
+    [app, canvasRef]
+  );
+
   const onWheel = useCallback((e: WheelEvent) => {
     // 阻止页面滚动
     e.preventDefault();
@@ -323,6 +341,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: U
     canvas.addEventListener("mousedown", onMouseDown, { passive: true });
     canvas.addEventListener("mousemove", onMouseMove, { passive: true });
     canvas.addEventListener("click", onClick, { passive: true });
+    canvas.addEventListener("dblclick", onDoubleClick, { passive: true });
     canvas.addEventListener("mouseup", onMouseUp, { passive: true });
     canvas.addEventListener("mouseleave", onMouseLeave, { passive: true });
     canvas.addEventListener("wheel", onWheel, { passive: false });
@@ -335,6 +354,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: U
       canvas.removeEventListener("mousemove", onMouseMove as any);
       canvas.removeEventListener("mouseup", onMouseUp as any);
       canvas.removeEventListener("click", onClick as any);
+      canvas.removeEventListener("dblclick", onDoubleClick as any);
       canvas.removeEventListener("wheel", onWheel as any);
       canvas.removeEventListener("contextmenu", onContextMenu as any);
       canvas.removeEventListener("dragover", onDragOver as any);
@@ -348,6 +368,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef, setSelectedView }: U
     onMouseUp,
     onMouseLeave,
     onClick,
+    onDoubleClick,
     onWheel,
     onContextMenu,
     onDragOver,

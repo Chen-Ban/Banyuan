@@ -1,5 +1,5 @@
 import type { TextIndex } from "@/core/views/TextView";
-import { TextView } from "@/core/views/TextView";
+import TextView from "@/core/views/TextView";
 
 /**
  * 更新文本并重新布局
