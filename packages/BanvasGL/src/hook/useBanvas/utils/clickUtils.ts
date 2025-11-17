@@ -17,5 +17,5 @@ export const isDoubleClick = (
   lastClickTime: number | undefined,
   tolerance: number = 300
 ): boolean => {
-  return isSingleClick(downPoint, upPoint) && lastClickTime && Date.now() - lastClickTime < tolerance;
+  return isSingleClick(downPoint, upPoint) && !!lastClickTime && Date.now() - lastClickTime < tolerance;
 };
