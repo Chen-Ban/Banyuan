@@ -70,6 +70,11 @@ function randomStyle(): Style {
   return style;
 }
 
+const defaultCanvasSize = {
+  width: 800,
+  height: 600,
+};
+
 /**
  * Canvas 初始化逻辑
  */
@@ -81,17 +86,17 @@ export function useCanvasInit(serializedScenes: SerializedSceneJSON[], options: 
   // 统一设置画布逻辑尺寸与样式尺寸
   const applyCanvasSize = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return { logicWidth: 0, logicHeight: 0 };
-    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    const cssWidth = options.width ?? (canvas.clientWidth || 300);
-    const cssHeight = options.height ?? (canvas.clientHeight || 150);
-    canvas.style.width = `${cssWidth}px`;
-    canvas.style.height = `${cssHeight}px`;
-    const logicWidth = Math.round(cssWidth * dpr);
-    const logicHeight = Math.round(cssHeight * dpr);
-    if (canvas.width !== logicWidth) canvas.width = logicWidth;
-    if (canvas.height !== logicHeight) canvas.height = logicHeight;
-    return { logicWidth, logicHeight };
+    if (!canvas) return;
+    // 传入的尺寸是逻辑尺寸
+    const dpr = window?.devicePixelRatio ?? 1;
+    const logicalWidth = options.width ?? defaultCanvasSize.width;
+    const logicalHeight = options.height ?? defaultCanvasSize.height;
+    // 样式尺寸 = 逻辑尺寸
+    canvas.style.width = `${logicalWidth}px`;
+    canvas.style.height = `${logicalHeight}px`;
+    // 实际像素尺寸 = 逻辑尺寸 * dpr
+    canvas.width = Math.round(logicalWidth * dpr);
+    canvas.height = Math.round(logicalHeight * dpr);
   }, [options.width, options.height]);
 
   useEffect(() => {

@@ -40,8 +40,6 @@ export default function useBanvas(
         <canvas
           ref={canvasRef}
           style={{
-            width: _options.width ? `${_options.width}px` : "100%",
-            height: _options.height ? `${_options.height}px` : "100%",
             display: "block",
           }}
         />
