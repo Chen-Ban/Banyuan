@@ -91,7 +91,7 @@ export function useCanvasInit(serializedScenes: SerializedSceneJSON[], options: 
     const dpr = window?.devicePixelRatio ?? 1;
     const logicalWidth = options.width ?? defaultCanvasSize.width;
     const logicalHeight = options.height ?? defaultCanvasSize.height;
-    // 样式尺寸 = 逻辑尺寸
+    // 样式尺寸 
     canvas.style.width = `${logicalWidth}px`;
     canvas.style.height = `${logicalHeight}px`;
     // 实际像素尺寸 = 逻辑尺寸 * dpr
