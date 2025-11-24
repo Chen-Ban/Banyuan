@@ -68,11 +68,9 @@ app.whenReady().then(() => {
   });
 });
 
-// 当所有窗口都被关闭时退出应用（除了 macOS）
+// 当所有窗口都被关闭时退出应用
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  app.quit();
 });
 
 // 安全设置：防止导航到外部 URL
