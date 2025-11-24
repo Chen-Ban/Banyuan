@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "concurrently --raw -c \"yellow.bold,green.bold\" -n tsc:watch,electron \"tsc --watch\" \"wait-on http://localhost:5173 && electron .\""
+    "dev": "concurrently -c \"yellow.bold,green.bold\" -n tsc,electron \"tsc --watch\" \"wait-on http://localhost:5173 && electron .\""
   },
   "keywords": [],
   "author": "",
