@@ -1,16 +1,13 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import Layout from './layouts/Layout'
-import TemplatePage from "./pages/TemplatePage"
+import { BrowserRouter as Router } from 'react-router-dom'
+import Layout from '@/layouts/Layout'
+import { AppRoutes } from '@/routes'
 import './App.css'
 
 function App() {
   return (
     <Router>
       <Layout>
-        <Routes>
-          <Route path="/" element={<div>Home</div>} />
-          <Route path="/template" element={<TemplatePage />} />
-        </Routes>
+        <AppRoutes />
       </Layout>
     </Router>
   )

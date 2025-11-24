@@ -1,24 +1,34 @@
 import { ReactNode } from 'react'
-import './Layout.css'
+import { Link, useLocation } from 'react-router-dom'
+import styles from './Layout.module.scss'
 
 interface LayoutProps {
   children: ReactNode
 }
 
 const Layout = ({ children }: LayoutProps) => {
+  const location = useLocation()
+
   return (
-    <div className="layout">
-      <header className="layout-header">
+    <div className={styles.layout}>
+      <header className={styles.layoutHeader}>
         <h1>LunLunGlass</h1>
-        <nav className="layout-nav">
-          <a href="/" className="nav-link">首页</a>
-          <a href="/template" className="nav-link">模板</a>
+        <nav className={styles.layoutNav}>
+          <Link to="/" className={`${styles.navLink} ${location.pathname === '/' ? styles.active : ''}`}>
+            首页
+          </Link>
+          <Link to="/list" className={`${styles.navLink} ${location.pathname === '/list' ? styles.active : ''}`}>
+            列表
+          </Link>
+          <Link to="/template" className={`${styles.navLink} ${location.pathname.startsWith('/template') ? styles.active : ''}`}>
+            模板
+          </Link>
         </nav>
       </header>
-      <main className="layout-main">
+      <main className={styles.layoutMain}>
         {children}
       </main>
-      <footer className="layout-footer">
+      <footer className={styles.layoutFooter}>
         <p>&copy; 2024 LunLunGlass. All rights reserved.</p>
       </footer>
     </div>

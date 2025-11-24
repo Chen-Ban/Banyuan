@@ -1,16 +1,22 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import type { PluginOption } from 'vite'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react()] as PluginOption[],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   server: {
     port: 5173,
-    strictPort: true, // 严格使用 5173 端口，如果被占用会报错
-    // 允许 Electron 访问
+    strictPort: true,
     cors: true,
   },
-  base: './', // 使用相对路径，便于 Electron 加载
+  base: './',
   build: {
     outDir: 'dist',
     emptyOutDir: true,
