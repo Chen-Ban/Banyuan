@@ -1,0 +1,24 @@
+# 编译输出
+dist/
+*.js
+*.js.map
+*.d.ts
+
+# 依赖
+node_modules/
+
+# 日志
+*.log
+npm-debug.log*
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+

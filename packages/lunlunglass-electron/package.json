@@ -1,17 +1,23 @@
 {
   "name": "lunlunglass-electron",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Lunlunglass Electron Application",
+  "main": "dist/main.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "dev": "concurrently --raw -c \"yellow.bold,green.bold\" -n tsc:watch,electron \"tsc --watch\" \"wait-on http://localhost:5173 && electron .\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.10.0",
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "banvasgl": "workspace:*",
-    "electron": "^36.1.0"
+    "concurrently": "^9.2.1",
+    "electron": "^36.1.0",
+    "typescript": "~5.7.2",
+    "wait-on": "^8.0.1"
   }
 }

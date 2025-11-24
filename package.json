@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently -c \"magenta.bold,cyan.bold\" -n banvasgl,frontend \"pnpm --filter banvasgl dev\" \"pnpm --filter lunlunglass-frontend dev\"",
+    "dev": "concurrently --raw -c \"magenta.bold,cyan.bold,green.bold\" -n banvasgl,frontend,electron \"pnpm --filter banvasgl dev\" \"pnpm --filter lunlunglass-frontend dev\" \"pnpm --filter lunlunglass-electron dev\"",
     "build": "pnpm --filter banvasgl build",
     "build:all": "pnpm --recursive build"
   },
