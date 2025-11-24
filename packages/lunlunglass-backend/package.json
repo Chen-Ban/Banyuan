@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "seed": "tsx src/utils/seedDatabase.ts",
+    "seed:clear": "tsx src/utils/seedDatabase.ts --clear"
   },
   "keywords": [],
   "author": "",

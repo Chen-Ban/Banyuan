@@ -3,6 +3,7 @@ import statisticsRoutes from './statistics'
 import userRoutes from './users'
 import orderRoutes from './orders'
 import templateRoutes from './templates'
+import productRoutes from './products'
 
 const router = new Router()
 
@@ -20,6 +21,7 @@ router.use(statisticsRoutes.routes())
 router.use(userRoutes.routes())
 router.use(orderRoutes.routes())
 router.use(templateRoutes.routes())
+router.use(productRoutes.routes())
 
 export default router
 
