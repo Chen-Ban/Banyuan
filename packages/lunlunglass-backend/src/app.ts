@@ -4,10 +4,13 @@ import json from 'koa-json'
 import logger from 'koa-logger'
 import cors from '@koa/cors'
 import router from './routes'
+import localOnly from './middleware/localOnly'
 
 const app = new Koa()
 
 // 中间件
+// 本地请求校验（必须在最前面，优先检查）
+app.use(localOnly)
 app.use(cors())
 app.use(logger())
 app.use(json())
