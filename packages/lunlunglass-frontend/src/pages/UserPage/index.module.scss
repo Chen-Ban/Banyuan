@@ -1,0 +1,55 @@
+.userPage {
+  width: 100%;
+  padding: 1.5rem;
+}
+
+.userPageHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+  }
+}
+
+.userPageForm {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.formSectionCard {
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  :global(.ant-card-head) {
+    background: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+  }
+
+  :global(.ant-card-head-title) {
+    font-weight: 600;
+    color: #2c3e50;
+  }
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e9ecef;
+}
+
+// 响应式设计
+@media (max-width: 992px) {
+  .userPageForm {
+    padding: 0;
+  }
+}
+
