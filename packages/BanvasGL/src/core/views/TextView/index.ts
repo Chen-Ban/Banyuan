@@ -1,19 +1,19 @@
-import View, { ViewOptions, ViewContent } from "./View";
-import TextParagraph from "../graph/text/TextParagraph";
-import TextElement from "../graph/text/TextElement";
-import TextOptions from "../graph/text/TextOptions";
-import ParagraphOptions from "../graph/text/ParagraphOptions";
-import { Style } from "../style";
-import { Rectangle } from "../graph/combined/Polygon";
-import { MathUtils, Point3, Vector3 } from "../math";
+import View, { ViewOptions, ViewContent } from "../View";
+import TextParagraph from "../../graph/text/TextParagraph";
+import TextElement from "../../graph/text/TextElement";
+import TextOptions from "../../graph/text/TextOptions";
+import ParagraphOptions from "../../graph/text/ParagraphOptions";
+import { Style } from "../../style";
+import { Rectangle } from "../../graph/combined/Polygon";
+import { MathUtils, Point3, Vector3 } from "../../math";
 import { world2Relative } from "@/utils/utils";
-import { getGlobalCanvasContext } from "../renderer/CanvasContext";
-import { ViewAddonImpl, InteractionMapBuilder } from "./addon";
-import Selection from "./Selection";
+import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
+import { ViewAddonImpl, InteractionMapBuilder } from "../addon";
+import Selection from "../Selection";
 import { HORIZONTALALIGN, VERTICALALIGN, VIEWTYPE } from "@/core/constants";
-import { PointUtils } from "../graph/utils/PointUtils";
-import { Action, Cursor, ExtraData } from "./addon/InteractionMapBuilder";
-import Bounds from "../graph/base/Bounds";
+import { PointUtils } from "../../graph/utils/PointUtils";
+import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
+import Bounds from "../../graph/base/Bounds";
 
 // 文本视图选项接口
 export interface TextViewOptions extends Omit<ViewOptions, "content"> {
@@ -28,7 +28,7 @@ export interface TextViewOptions extends Omit<ViewOptions, "content"> {
   fixedIndex?: TextIndex;
   dynamicIndex?: TextIndex;
 }
-// 段落号，字序号，字前｜字后
+//文本选区三元组： 段落号，字序号，字前｜字后
 export type TextIndex = [number, number, 0 | 1];
 
 /**
@@ -96,6 +96,12 @@ export default class TextView extends View {
     this.selection.render(ctx);
   }
 
+
+  /**
+   * 将超出布局区域的点约束到布局区域内 或 将超出段落区域的点约束到段落区域内
+   * @param p 相对坐标点
+   * @returns 约束后的相对坐标点
+   */
   public constraintPoint(p: Point3): Point3 {
     if (!this.layoutArea) return p;
     const paragraRects = this.content
@@ -106,6 +112,16 @@ export default class TextView extends View {
     return closets.find((closet) => closet.distance === minDistance)!.closestPoint;
   }
 
+  /**
+   * 容器交互接口
+   * @param p 世界坐标点
+   * @param needConstraint 是否需要约束
+   * @returns {
+   *   view: View | null;
+   *   content: ViewContent | ViewAddonImpl | null;
+   *   extraData: ExtraData | null;
+   * }
+   */
   public interact(
     p: Point3,
     needConstraint: boolean = false
@@ -447,6 +463,12 @@ export default class TextView extends View {
     return null;
   }
 
+  /**
+   * 探测文本元素（优先级：左上、右下、左下、右上）
+   * @param textElements 需要探测的文本元素数组
+   * @param p 相对坐标点
+   * @returns 命中文本元素
+   */
   private probeTextElement(textElements: TextElement[], p: Point3): TextElement {
     const leftTop = textElements.filter((b) => {
       const bounds = b.getBounds();
@@ -541,6 +563,9 @@ export default class TextView extends View {
     this.selection.setSelectionBoxs(boxs);
   }
 
+  //--------------------------------------------------------------------//
+  //--------------------------------布局--------------------------------//
+  //--------------------------------------------------------------------//
   /**
    * 执行文本布局
    */

@@ -1,9 +1,9 @@
-import View, { ViewContent, ViewOptions } from "./View";
-import { VideoElement } from "../graph/media";
-import CanvasContext from "../renderer/CanvasContext";
-import { Point3 } from "../math";
-import { InteractionMapBuilder, ViewAddonImpl } from "./addon";
-import { ExtraData } from "./addon/InteractionMapBuilder";
+import View, { ViewContent, ViewOptions } from "../View";
+import { VideoElement } from "../../graph/media";
+import CanvasContext from "../../renderer/CanvasContext";
+import { Point3 } from "../../math";
+import { InteractionMapBuilder, ViewAddonImpl } from "../addon";
+import { ExtraData } from "../addon/InteractionMapBuilder";
 
 // 视频视图选项接口
 export interface VideoViewOptions extends Omit<ViewOptions, "content"> {

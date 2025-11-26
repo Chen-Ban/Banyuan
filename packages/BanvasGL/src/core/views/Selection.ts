@@ -1,7 +1,8 @@
 import { Rectangle } from "../graph/combined/Polygon";
 
 /**
- * 选择区域类 - 管理文本选择状态
+ * 选择区域类 - 管理选择状态（目前仅文本容器选择文字时支持）
+ * 后续文本容器嵌套图形、媒体、组合容器时支持选择这些容器
  */
 export default class Selection {
   private selectionBoxs: Rectangle[];
