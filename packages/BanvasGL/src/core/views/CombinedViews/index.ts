@@ -1,13 +1,13 @@
 import { VIEWTYPE } from "@/core/constants";
-import { Graph, Rectangle, TextElement } from "../graph";
-import View, { ViewOptions, ViewContent } from "./View";
-import { Point3 } from "../math";
-import Bounds from "../graph/base/Bounds";
+import { Graph, Rectangle, TextElement } from "../../graph";
+import View, { ViewOptions, ViewContent } from "../View";
+import { Point3 } from "../../math";
+import Bounds from "../../graph/base/Bounds";
 import { world2Relative } from "@/utils/utils";
-import { getGlobalCanvasContext } from "../renderer/CanvasContext";
-import { ViewAddonImpl } from "./addon";
-import { InteractionMapBuilder } from "./addon";
-import { Action, Cursor, ExtraData } from "./addon/InteractionMapBuilder";
+import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
+import { ViewAddonImpl } from "../addon";
+import { InteractionMapBuilder } from "../addon";
+import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
 
 type Extreme = {
   minX: number;

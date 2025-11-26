@@ -75,6 +75,10 @@ export default abstract class View<T extends object = any> {
     width: number;
     height: number;
   };
+  /**
+   * @description 容器和鼠标交互事件的起点
+   * 完整流程：传入世界坐标点->转换到容器坐标系下->判断和内容或者插件的交互情况->返回交互结果->后续通过交互结果进一步处理
+   */
   public abstract interact(p: Point3): {
     view: View | null;
     content: ViewContent | ViewAddonImpl | null;

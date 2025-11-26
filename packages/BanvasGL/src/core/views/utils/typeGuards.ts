@@ -1,10 +1,10 @@
 import View from "../View";
 import { VIEWTYPE } from "@/core/constants";
-import type GraphView from "../GraphView";
-import type ImageView from "../ImageView";
-import type VideoView from "../VideoView";
+import type GraphView from "../GraphViews";
+import type ImageView from "../MediaViews/ImageView";
+import type VideoView from "../MediaViews/VideoView";
 import type TextView from "../TextView";
-import type CombinedView from "../CombinedView";
+import type CombinedView from "../CombinedViews";
 
 export function isView(view: any): view is View {
   return view instanceof View || view?.type === VIEWTYPE.VIEW;

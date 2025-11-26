@@ -1,12 +1,12 @@
-import View, { ViewOptions, ViewContent } from "./View";
-import { Graph, Line, Rectangle } from "../graph";
+import View, { ViewOptions, ViewContent } from "../View";
+import { Graph, Line, Rectangle } from "../../graph";
 import { VIEWTYPE } from "@/core/constants";
-import { Point3 } from "../math";
-import { ViewAddonImpl } from "./addon";
+import { Point3 } from "../../math";
+import { ViewAddonImpl } from "../addon";
 import { world2Relative } from "@/utils/utils";
-import { getGlobalCanvasContext } from "../renderer/CanvasContext";
-import { InteractionMapBuilder } from "./addon";
-import { Action, Cursor, ExtraData } from "./addon/InteractionMapBuilder";
+import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
+import { InteractionMapBuilder } from "../addon";
+import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
 
 // 图形视图选项接口
 export interface GraphViewOptions extends Omit<ViewOptions, "content"> {

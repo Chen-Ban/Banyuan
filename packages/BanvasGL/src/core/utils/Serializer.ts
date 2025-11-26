@@ -17,11 +17,11 @@ import QuadraticBezier from "../graph/analytic/QuadraticBezier";
 import CubicBezier from "../graph/analytic/CubicBezier";
 
 // 导入可实例化容器类型
-import CombinedView from "../views/CombinedView";
-import GraphView from "../views/GraphView";
+import CombinedView from "../views/CombinedViews";
+import GraphView from "../views/GraphViews";
 import TextView from "../views/TextView";
-import ImageView from "../views/ImageView";
-import VideoView from "../views/VideoView";
+import ImageView from "../views/MediaViews/ImageView";
+import VideoView from "../views/MediaViews/VideoView";
 
 /**
  * 序列化配置选项

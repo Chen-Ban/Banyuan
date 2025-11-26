@@ -1,8 +1,8 @@
-import View, { ViewOptions, ViewContent } from "./View";
-import { ImageElement } from "../graph/media";
-import { Point3 } from "../math";
-import { InteractionMapBuilder, ViewAddonImpl } from "./addon";
-import { Action, Cursor, ExtraData } from "./addon/InteractionMapBuilder";
+import View, { ViewOptions, ViewContent } from "../View";
+import { ImageElement } from "../../graph/media";
+import { Point3 } from "../../math";
+import { InteractionMapBuilder, ViewAddonImpl } from "../addon";
+import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
 
 // 图像视图选项接口
 export interface ImageViewOptions extends Omit<ViewOptions, "content"> {

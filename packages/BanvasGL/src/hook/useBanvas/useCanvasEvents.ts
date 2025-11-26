@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { App } from "@/core/app";
-import { Color, FillStyle, GraphView, Point3, Rectangle, StrokeStyle, Style, View } from "@/core";
+import { Color, FillStyle, GraphView, Point3, Rectangle, Scene, StrokeStyle, Style, View } from "@/core";
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { ViewAddonImpl } from "@/core/views/addon";
@@ -56,6 +56,129 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
     [app]
   );
 
+  const handleMouseMoveWithAction = useCallback(
+    (scene: Scene, point: Point3, mousDownPoint: Point3) => {
+      switch (actionRef.current) {
+        case Action.MOVE: {
+          const moveVector = point.subtract(lastPointRef.current || mousDownPoint);
+          const indicateView = indicateViewRef.current;
+          if (indicateView && !indicateView?.actived) {
+            scene.select(indicateView);
+            indicateView.translate(moveVector.x, moveVector.y, 0);
+          } else {
+            for (const activeView of scene.getAllActived()) {
+              activeView.translate(moveVector.x, moveVector.y, 0);
+            }
+          }
+          break;
+        }
+        case Action.SELECTION:
+          if (isTextView(indicateViewRef.current) && isTextElement(indicateContentRef.current)) {
+            const textView = indicateViewRef.current;
+            const { content } = textView.interact(point, true);
+            if (!textView.actived) {
+              scene.select(textView);
+              const fixedIndex = textView.element2Index(indicateContentRef.current, point);
+              textView.setSelection(fixedIndex, fixedIndex);
+            }
+            if (isTextElement(content)) {
+              const dynamicIndex = textView.element2Index(content, point);
+              textView.setSelection(textView.fixedIndex, dynamicIndex);
+            }
+          }
+          break;
+        case Action.EDIT_POINT:
+          canvasRef.current!.style.cursor = Cursor.Grabbing;
+          if (extraDataRef.current) {
+            const { editPoint } = extraDataRef.current;
+            if (editPoint) {
+              editPoint.add(point.subtract(lastPointRef.current || mousDownPoint));
+            }
+          }
+          break;
+        case Action.RESIZE:
+          break;
+        case Action.ROTATE: {
+          canvasRef.current!.style.cursor = Cursor.Grabbing;
+          const bounds = indicateViewRef.current?.getBounds();
+
+          if (bounds && lastPointRef.current && indicateViewRef.current) {
+            const center = new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).getCenter();
+            const inverseMatrix = indicateViewRef.current.getWorldMatrix().inverse();
+            const lastVector = inverseMatrix.multiply(lastPointRef.current).subtract(center);
+            const currentVector = inverseMatrix.multiply(point).subtract(center);
+            const dot = currentVector.dot(lastVector) / (currentVector.length * lastVector.length);
+            const clampedDot = Math.max(-1, Math.min(1, dot));
+            const sign = Math.sign(currentVector.cross(lastVector).z);
+            const angle = Math.acos(clampedDot) * sign;
+            indicateViewRef.current.rotate(0, 0, angle, center);
+          }
+          break;
+        }
+        case Action.SELECT:
+          canvasRef.current!.style.cursor = Cursor.Crosshair;
+          if (selectionRectViewRef.current && mousDownPoint) {
+            const minX = Math.min(mousDownPoint.x, point.x);
+            const minY = Math.min(mousDownPoint.y, point.y);
+            const maxX = Math.max(mousDownPoint.x, point.x);
+            const maxY = Math.max(mousDownPoint.y, point.y);
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const rectGraph = selectionRectViewRef.current.content as Rectangle;
+            rectGraph.setPosition(minX, minY);
+            rectGraph.setSize(width, height);
+            selectionRectViewRef.current.initBoundingBox();
+            selectionRectViewRef.current.initViewport();
+          }
+          if (selectionRectViewRef.current) {
+            const selectionRect = selectionRectViewRef.current.content;
+            if (!isRectangle(selectionRect)) return;
+            const viewsToActivate: View[] = [];
+            const allViews = ViewTreeUtils.flattenViewTree(scene);
+            for (const view of allViews) {
+              if (checkViewIntersection(view, selectionRect)) {
+                viewsToActivate.push(view);
+              }
+            }
+            for (const view of viewsToActivate) {
+              scene.select(view, true);
+            }
+          }
+          break;
+        case Action.EDIT_VIEWPORT:
+          break;
+        case Action.NONE:
+        default:
+      }
+      lastPointRef.current = point;
+    },
+    [canvasRef]
+  );
+
+  const handleMouseMoveHover = useCallback(
+    (scene: Scene, point: Point3) => {
+      if (!canvasRef.current) return;
+      let selected = false;
+      for (const view of scene.children) {
+        const { view: _view, content, extraData: _extraData } = view.interact(point);
+        if (_view && content && _extraData) {
+          indicateViewRef.current = _view;
+          indicateContentRef.current = content;
+          actionRef.current = _extraData.action;
+          extraDataRef.current = _extraData;
+          canvasRef.current.style.cursor = _extraData.cursorStyle;
+          selected = true;
+        }
+      }
+      if (!selected) {
+        indicateViewRef.current = indicateContentRef.current = extraDataRef.current = null;
+        actionRef.current = Action.NONE;
+        canvasRef.current.style.cursor = Cursor.Default;
+      }
+    },
+    [canvasRef]
+  );
+
   // 鼠标移动
   const onMouseMove = useCallback(
     (e: MouseEvent) => {
@@ -67,131 +190,12 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
       const mousDownPoint = mouseDownPointRef.current;
 
       if (mousDownPoint) {
-        switch (actionRef.current) {
-          case Action.MOVE:
-            const moveVector = point.subtract(lastPointRef.current || mousDownPoint);
-            const indicateView = indicateViewRef.current;
-            if (indicateView && !indicateView?.actived) {
-              scene.select(indicateView);
-              indicateView.translate(moveVector.x, moveVector.y, 0);
-            } else {
-              for (const activeView of scene.getAllActived()) {
-                activeView.translate(moveVector.x, moveVector.y, 0);
-              }
-            }
-            break;
-          case Action.SELECTION:
-            if (isTextView(indicateViewRef.current) && isTextElement(indicateContentRef.current)) {
-              const textView = indicateViewRef.current;
-              const { content } = textView.interact(point, true);
-              if (!textView.actived) {
-                scene.select(textView);
-                const fixedIndex = textView.element2Index(indicateContentRef.current, point);
-                textView.setSelection(fixedIndex, fixedIndex);
-              }
-              if (isTextElement(content)) {
-                const dynamicIndex = textView.element2Index(content, point);
-                textView.setSelection(textView.fixedIndex, dynamicIndex);
-              }
-            }
-            break;
-          case Action.EDIT_POINT:
-            canvasRef.current.style.cursor = Cursor.Grabbing;
-            if (extraDataRef.current) {
-              const { editPoint } = extraDataRef.current;
-              if (editPoint) {
-                editPoint.add(point.subtract(lastPointRef.current || mousDownPoint));
-              }
-            }
-            break;
-          case Action.RESIZE:
-            break;
-          case Action.ROTATE:
-            canvasRef.current.style.cursor = Cursor.Grabbing;
-            const bounds = indicateViewRef.current?.getBounds();
-
-            if (bounds && lastPointRef.current && indicateViewRef.current) {
-              const center = new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).getCenter();
-              const inverseMatrix = indicateViewRef.current.getWorldMatrix().inverse();
-              const lastVector = inverseMatrix.multiply(lastPointRef.current).subtract(center);
-              const currentVector = inverseMatrix.multiply(point).subtract(center);
-              const dot = currentVector.dot(lastVector) / (currentVector.length * lastVector.length);
-              const clampedDot = Math.max(-1, Math.min(1, dot));
-              const sign = Math.sign(currentVector.cross(lastVector).z);
-              const angle = Math.acos(clampedDot) * sign;
-              indicateViewRef.current.rotate(0, 0, angle, center);
-            }
-            break;
-          case Action.SELECT:
-            canvasRef.current.style.cursor = Cursor.Crosshair;
-            // 更新框选矩形的位置和大小
-            if (selectionRectViewRef.current && mousDownPoint) {
-              const minX = Math.min(mousDownPoint.x, point.x);
-              const minY = Math.min(mousDownPoint.y, point.y);
-              const maxX = Math.max(mousDownPoint.x, point.x);
-              const maxY = Math.max(mousDownPoint.y, point.y);
-              const width = maxX - minX;
-              const height = maxY - minY;
-
-              // 更新矩形图形
-              const rectGraph = selectionRectViewRef.current.content as Rectangle;
-
-              rectGraph.setPosition(minX, minY);
-              rectGraph.setSize(width, height);
-              selectionRectViewRef.current.initBoundingBox();
-              selectionRectViewRef.current.initViewport();
-            }
-            // 将所有和框选矩形相交的容器设置为激活（跳过已激活容器）
-            if (selectionRectViewRef.current) {
-              const selectionRect = selectionRectViewRef.current.content;
-              if (!isRectangle(selectionRect)) return;
-              const viewsToActivate: View[] = [];
-
-              // 使用 ViewTreeUtils 展平视图树，获取所有视图
-              const allViews = ViewTreeUtils.flattenViewTree(scene);
-
-              // 遍历所有视图，检查相交
-              for (const view of allViews) {
-                if (checkViewIntersection(view, selectionRect)) {
-                  viewsToActivate.push(view);
-                }
-              }
-
-              // 激活所有相交的视图
-              for (const view of viewsToActivate) {
-                scene.select(view, true);
-              }
-            }
-            break;
-          case Action.EDIT_VIEWPORT:
-            break;
-          case Action.NONE:
-          default:
-        }
-        // 记录过程点
-        lastPointRef.current = point;
+        handleMouseMoveWithAction(scene, point, mousDownPoint);
       } else {
-        // 普通移动事件，用于选定候选容器和改变鼠标样式
-        let selected = false;
-        for (const view of scene.children) {
-          const { view: _view, content, extraData: _extraData } = view.interact(point);
-          if (_view && content && _extraData) {
-            indicateViewRef.current = _view;
-            indicateContentRef.current = content;
-            actionRef.current = _extraData.action;
-            extraDataRef.current = _extraData;
-            canvasRef.current.style.cursor = _extraData.cursorStyle;
-            selected = true;
-          }
-        }
-        if (!selected) {
-          indicateViewRef.current = indicateContentRef.current = extraDataRef.current = null;
-          actionRef.current = Action.NONE;
-          canvasRef.current.style.cursor = Cursor.Default;
-        }
+        handleMouseMoveHover(scene, point);
       }
     },
-    [app, canvasRef]
+    [app, canvasRef, handleMouseMoveHover, handleMouseMoveWithAction]
   );
 
   // 鼠标抬起，记录抬起点
