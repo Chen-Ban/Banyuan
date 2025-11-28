@@ -1,18 +1,18 @@
 import { GRAPHTYPE } from "@/core/constants";
-import Graph from "@/core/graph/base/Graph";
-import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style, Color } from "@/core/style";
 import TextOptions from "./TextOptions";
-import Bounds from "../base/Bounds";
 import { getGlobalCanvasContext } from "@/core/renderer/CanvasContext";
+import Graph from "@/core/graph/base/Graph";
+import { Point3, Vector3, Matrix4 } from "@/core/math";
+import Bounds from "../base/Bounds";
 import { Rectangle } from "../combined";
 
 /**
- * 文字元素类
- * 表示单个文字元素，是最小的文字单位
+ * 文字元素基类
+ * 包含文字元素的共同属性和方法
  */
-export default class TextElement extends Graph {
-  public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT;
+export default abstract class TextElement extends Graph {
+  public abstract type: GRAPHTYPE;
   public controlPoints: Point3[];
   public _style: Style;
   public _options: TextOptions;
@@ -24,17 +24,18 @@ export default class TextElement extends Graph {
 
   constructor(content: string, options: TextOptions = TextOptions.DEFAULT, style: Style = Style.DEFAULT) {
     super();
-
-    if (content.length > 1) throw new Error("TextElement content must be a single character");
     this._content = content;
     this._options = options;
     this._style = style;
-
-    this.calculateActualDimensions();
-
-    // 初始化时不设置控制点,包围盒和具体行高，等待布局时设置
     this.controlPoints = [];
+    
+    // 子类需要在构造函数中调用 calculateActualDimensions
   }
+
+  /**
+   * 计算文字的实际宽高（由子类实现）
+   */
+  protected abstract calculateActualDimensions(): void;
 
   public getLength(tStart: number, tEnd: number): number {
     return 1;
@@ -42,23 +43,6 @@ export default class TextElement extends Graph {
 
   public getPointAt(t: number): Point3 {
     return this.controlPoints[0];
-  }
-
-  /**
-   * 计算文字的实际宽高
-   */
-  private calculateActualDimensions(): void {
-    const ctx = getGlobalCanvasContext()?.getBufferContext();
-    if (!ctx) throw new Error("无法获取真实字体尺寸");
-    ctx.save();
-    // 设置字体样式
-    ctx.font = this.options.fontString;
-
-    // 测量文字尺寸
-    const metrics = ctx.measureText(this._content);
-    this.width = metrics.width;
-    this.height = this.options.size;
-    ctx.restore();
   }
 
   public calculateBounds(): Bounds {
@@ -91,7 +75,6 @@ export default class TextElement extends Graph {
    * 设置文字内容
    */
   set content(content: string) {
-    if (content.length > 1) throw new Error("TextElement content must be a single character");
     this._content = content;
     // 重新计算尺寸，因为文字内容已改变
     this.calculateActualDimensions();
@@ -103,9 +86,10 @@ export default class TextElement extends Graph {
 
   set style(style: Style) {
     this._style = style;
-    // 重新计算尺寸，因为文字内容已改变
+    // 重新计算尺寸，因为样式可能已改变
     this.calculateActualDimensions();
   }
+
   get style() {
     return this._style;
   }
@@ -113,7 +97,7 @@ export default class TextElement extends Graph {
   /**
    * 布局方法 - 在TextView中调用时设置位置和计算包围盒
    */
-  public layout(position: Point3, lineHeight: number): TextElement {
+  public layout(position: Point3, lineHeight: number): this {
     this.isLayouted = true;
     this.controlPoints = [position.copy()];
     this.lineHeight = lineHeight;
@@ -133,30 +117,9 @@ export default class TextElement extends Graph {
   }
 
   /**
-   * 渲染文字元素
+   * 渲染文字元素（由子类实现）
    */
-  public render(ctx: CanvasRenderingContext2D): void {
-    ctx.save();
-
-    // 设置字体样式
-    ctx.font = this.options.fontString;
-    //字体基线
-    ctx.textBaseline = "top";
-
-    // 应用样式（但不覆盖文字颜色）
-    const bounds = this.getBounds();
-    this.style.applyToContext(ctx, bounds.width, bounds.height);
-
-    // 设置文字颜色（在应用样式后设置，确保不被覆盖）
-    ctx.fillStyle = this.options.color.rgba;
-    // 绘制文字
-    ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.1)";
-    ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-    ctx.restore();
-    ctx.fillText(this.content, this.controlPoints[0].x, this.controlPoints[0].y);
-    ctx.restore();
-  }
+  public abstract render(ctx: CanvasRenderingContext2D): void;
 
   isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
     const bounds = this.getBounds();
@@ -256,10 +219,84 @@ export default class TextElement extends Graph {
   }
 
   /**
+   * 复制文字元素（由子类实现）
+   */
+  public abstract copy(): this;
+}
+
+
+
+/**
+ * 可打印的文字元素类
+ * 表示单个可打印的文字元素，是最小的文字单位
+ */
+export class PrintableTextElement extends TextElement {
+  public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT;
+
+  constructor(content: string, options: TextOptions = TextOptions.DEFAULT, style: Style = Style.DEFAULT) {
+    super(content, options, style);
+
+    if (content.length !== 1) throw new Error("PrintableTextElement content must be a single character");
+    
+    this.calculateActualDimensions();
+  }
+
+  /**
+   * 计算文字的实际宽高
+   */
+  protected calculateActualDimensions(): void {
+    const ctx = getGlobalCanvasContext()?.getBufferContext();
+    if (!ctx) throw new Error("无法获取真实字体尺寸");
+    ctx.save();
+    // 设置字体样式
+    ctx.font = this.options.fontString;
+
+    // 测量文字尺寸
+    const metrics = ctx.measureText(this._content);
+    this.width = metrics.width;
+    this.height = this.options.size;
+    ctx.restore();
+  }
+
+  /**
+   * 设置文字内容
+   */
+  set content(content: string) {
+    if (content.length > 1) throw new Error("PrintableTextElement content must be a single character");
+    super.content = content;
+  }
+
+  /**
+   * 渲染文字元素
+   */
+  public render(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
+
+    // 设置字体样式
+    ctx.font = this.options.fontString;
+    //字体基线
+    ctx.textBaseline = "top";
+
+    // 应用样式（但不覆盖文字颜色）
+    const bounds = this.getBounds();
+    this.style.applyToContext(ctx, bounds.width, bounds.height);
+
+    // 设置文字颜色（在应用样式后设置，确保不被覆盖）
+    ctx.fillStyle = this.options.color.rgba;
+    // 绘制文字
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.1)";
+    ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    ctx.restore();
+    ctx.fillText(this.content, this.controlPoints[0].x, this.controlPoints[0].y);
+    ctx.restore();
+  }
+
+  /**
    * 复制文字元素
    */
   public copy(): this {
-    const newElement = new TextElement(this.content, this.options.copy(), this.style.copy());
+    const newElement = new PrintableTextElement(this.content, this.options.copy(), this.style.copy());
 
     if (this.isLayouted) {
       newElement.layout(this.controlPoints[0].copy(), this.lineHeight);
@@ -270,43 +307,84 @@ export default class TextElement extends Graph {
   /**
    * 静态工厂方法 - 创建简单文字元素
    */
-  static simple(content: string, size: number = 16, color: string = "#000000"): TextElement {
+  static simple(content: string, size: number = 16, color: string = "#000000"): PrintableTextElement {
     const options = new TextOptions();
     options.size = size;
     // 从字符串创建Color对象
     const colorObj = Color.fromHex(color);
     options.color = colorObj;
 
-    return new TextElement(content, options);
+    return new PrintableTextElement(content, options);
   }
 
   /**
    * 静态工厂方法 - 创建标题文字元素
    */
-  static title(content: string, size: number = 24): TextElement {
+  static title(content: string, size: number = 24): PrintableTextElement {
     const options = TextOptions.title();
     options.size = size;
 
-    return new TextElement(content, options);
+    return new PrintableTextElement(content, options);
   }
 
   /**
    * 静态工厂方法 - 创建粗体文字元素
    */
-  static bold(content: string, size: number = 16): TextElement {
+  static bold(content: string, size: number = 16): PrintableTextElement {
     const options = TextOptions.bold();
     options.size = size;
 
-    return new TextElement(content, options);
+    return new PrintableTextElement(content, options);
   }
 
   /**
    * 静态工厂方法 - 创建斜体文字元素
    */
-  static italic(content: string, size: number = 16): TextElement {
+  static italic(content: string, size: number = 16): PrintableTextElement {
     const options = TextOptions.italic();
     options.size = size;
 
-    return new TextElement(content, options);
+    return new PrintableTextElement(content, options);
+  }
+}
+
+/**
+ * 不可打印的文字元素
+ * @description 不可打印的文字元素，段落结束位置守卫
+ * @description 使用场景: 空行布局与交互
+ */
+export class NonPrintableTextElement extends TextElement {
+  public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT;
+
+  constructor() {
+    super("", TextOptions.DEFAULT, Style.DEFAULT);
+    this.calculateActualDimensions();
+  }
+
+  /**
+   * 计算文字的实际宽高（固定尺寸）
+   */
+  protected calculateActualDimensions(): void {
+    this.width = 2;
+    this.height = TextOptions.DEFAULT.size;
+  }
+
+  /**
+   * 渲染文字元素（不可打印，不渲染内容）
+   */
+  public render(ctx: CanvasRenderingContext2D): void {
+    // 不可打印元素不渲染任何内容
+  }
+
+  /**
+   * 复制文字元素
+   */
+  public copy(): this {
+    const newElement = new NonPrintableTextElement();
+
+    if (this.isLayouted) {
+      newElement.layout(this.controlPoints[0].copy(), this.lineHeight);
+    }
+    return newElement as this;
   }
 }

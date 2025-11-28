@@ -1,7 +1,7 @@
 import View from "@/core/views/View";
 import { Rectangle } from "@/core/graph/combined/Polygon";
 import { IntersectionUtils } from "@/core/graph/utils/IntersectionUtils";
-import { isTextView, isGraphView, isCombinedView, isImageView, isVideoView } from "@/core/views/utils/typeGuards";
+import { isTextView, isGraphView, isCombinedView, isImageView, isVideoView, isSelectBoxView } from "@/core/views/utils/typeGuards";
 
 /**
  * 检查视图是否与框选矩形相交
@@ -10,7 +10,7 @@ import { isTextView, isGraphView, isCombinedView, isImageView, isVideoView } fro
  */
 export const checkViewIntersection = (view: View, selectionRect: Rectangle): boolean => {
   // 跳过框选矩形本身
-  if (isGraphView(view) && view.isSelectBox) {
+  if (isSelectBoxView(view)) {
     return false;
   }
 

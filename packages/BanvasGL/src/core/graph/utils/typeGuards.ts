@@ -11,7 +11,8 @@ import type RegularPolygon from "../combined/Polygon/RegularPolygon";
 import type Triangle from "../combined/Polygon/Triangle";
 import type CombinedGraph from "../combined/CombinedGraph";
 import type { ComplexGraph, MagnifyingGlass } from "../combined/ComplexGraph";
-import type { TextParagraph, TextElement } from "../text";
+import type { TextParagraph, TextElement, NonPrintableTextElement, PrintableTextElement } from "../text";
+import { NonPrintableTextElement as NonPrintableTextElementClass, PrintableTextElement as PrintableTextElementClass } from "../text";
 import type { DenseTrajectory } from "../trajectory";
 import type ImageElement from "../media/ImageElement";
 import type VideoElement from "../media/VideoElement";
@@ -82,6 +83,14 @@ export function isTextParagraph(graph: any): graph is TextParagraph {
 
 export function isTextElement(graph: any): graph is TextElement {
   return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.TEXTELEMENT;
+}
+
+export function isNonPrintableTextElement(graph: any): graph is NonPrintableTextElement {
+  return graph instanceof NonPrintableTextElementClass;
+}
+
+export function isPrintableTextElement(graph: any): graph is PrintableTextElement {
+  return graph instanceof PrintableTextElementClass;
 }
 
 export function isDenseTrajectory(graph: any): graph is DenseTrajectory {

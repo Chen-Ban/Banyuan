@@ -17,12 +17,12 @@ export class IntersectionUtils {
   /**
    * 容差值，用于判断点是否在图形上
    */
-  public static readonly TOLERANCE = 1e-6;
+  public static readonly TOLERANCE = 1e-3;
 
   /**
-   * 数值方法的采样点数
+   * 固定步长（像素），用于采样计算相交点
    */
-  public static readonly NUM_SAMPLES = 100;
+  public static readonly STEP_SIZE = .1;
 
   /**
    * 计算两个图形之间的相交点
@@ -254,8 +254,18 @@ export class IntersectionUtils {
     tolerance: number
   ): Point3[] {
     const intersections: Point3[] = [];
-    const numSamples = IntersectionUtils.NUM_SAMPLES;
+    
+    // 计算总长度
+    const totalLength = bezier.getTotalLength();
+    if (totalLength <= 0) {
+      return intersections;
+    }
 
+    // 根据固定步长计算采样点数量
+    const stepSize = IntersectionUtils.STEP_SIZE;
+    const numSamples = Math.max(2, Math.ceil(totalLength / stepSize) + 1);
+
+    // 使用固定步长采样（直接使用参数 t 的均匀分布）
     for (let i = 0; i < numSamples; i++) {
       const t = i / (numSamples - 1);
       const point = bezier.getPointAt(t);
@@ -303,9 +313,18 @@ export class IntersectionUtils {
    */
   private static getNumericalIntersections(graph1: Graph, graph2: Graph, tolerance: number): Point3[] {
     const intersections: Point3[] = [];
-    const numSamples = IntersectionUtils.NUM_SAMPLES;
+    
+    // 计算第一个图形的总长度
+    const totalLength = graph1.getTotalLength();
+    if (totalLength <= 0) {
+      return intersections;
+    }
 
-    // 在第一个图形上采样
+    // 根据固定步长计算采样点数量
+    const stepSize = IntersectionUtils.STEP_SIZE;
+    const numSamples = Math.max(2, Math.ceil(totalLength / stepSize) + 1);
+
+    // 使用固定步长采样（直接使用参数 t 的均匀分布）
     for (let i = 0; i < numSamples; i++) {
       const t = i / (numSamples - 1);
       const point = graph1.getPointAt(t);
