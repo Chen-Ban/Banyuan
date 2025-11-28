@@ -350,7 +350,7 @@ export class PrintableTextElement extends TextElement {
 
 /**
  * 不可打印的文字元素
- * @description 不可打印的文字元素，段落结束位置守卫
+ * @description 不可打印的文字元素，段落结束位置守卫，不会渲染到屏幕上
  * @description 使用场景: 空行布局与交互
  */
 export class NonPrintableTextElement extends TextElement {

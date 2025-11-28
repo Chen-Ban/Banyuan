@@ -7,6 +7,9 @@ import ParagraphOptions from "./ParagraphOptions";
 import Bounds from "../base/Bounds";
 import TextOptions from "./TextOptions";
 import { Rectangle } from "../combined";
+import { isTextParagraphContent } from "../utils/typeGuards";
+
+export type TextParagraphContent = [...PrintableTextElement[],NonPrintableTextElement];
 
 /**
  * 文字段落类
@@ -17,14 +20,14 @@ export default class TextParagraph extends Graph {
   public controlPoints: Point3[];
   public style: Style;
   public options: ParagraphOptions;
-  public texts: [...PrintableTextElement[],NonPrintableTextElement];
+  public texts: TextParagraphContent;
   public isLayouted: boolean = false;
 
-  constructor(options: ParagraphOptions = ParagraphOptions.DEFAULT, style: Style = Style.DEFAULT) {
+  constructor(texts:TextParagraphContent = [new NonPrintableTextElement()], options: ParagraphOptions = ParagraphOptions.DEFAULT, style: Style = Style.DEFAULT) {
     super();
     this.options = options;
     this.style = style;
-    this.texts = [new NonPrintableTextElement()];
+    this.texts = texts;
     // 初始化时不设置控制点和包围盒，等待布局时设置
     this.controlPoints = [];
   }
@@ -253,13 +256,9 @@ export default class TextParagraph extends Graph {
    * 复制段落
    */
   public copy(): this {
-    const newParagraph = new TextParagraph(this.options.copy(), this.style.copy());
-
-    // 复制所有文字元素
-    for (const textElement of this.texts.filter((text) => text instanceof PrintableTextElement)) {
-      newParagraph.addTextElement(textElement.copy());
-    }
-
+    const texts = this.texts.map((text) => text.copy());
+    if(!isTextParagraphContent(texts)) throw new Error("The texts is not a valid TextParagraphContent");
+    const newParagraph = new TextParagraph(texts, this.options.copy(), this.style.copy());
     // 如果原对象已经布局，则设置position
     if (this.isLayouted) {
       newParagraph.layout(this.controlPoints[0].copy());
@@ -283,7 +282,7 @@ export default class TextParagraph extends Graph {
    * 静态工厂方法 - 创建简单段落
    */
   static simple(content: string, options?: ParagraphOptions): TextParagraph {
-    const paragraph = new TextParagraph(options);
+    const paragraph = new TextParagraph([new NonPrintableTextElement()],options);
     paragraph.addText(content, 0, TextOptions.DEFAULT);
     return paragraph;
   }
@@ -293,7 +292,7 @@ export default class TextParagraph extends Graph {
    */
   static center(content: string): TextParagraph {
     const options = ParagraphOptions.center();
-    const paragraph = new TextParagraph(options);
+    const paragraph = new TextParagraph([new NonPrintableTextElement()],options);
     paragraph.addText(content);
     return paragraph;
   }
