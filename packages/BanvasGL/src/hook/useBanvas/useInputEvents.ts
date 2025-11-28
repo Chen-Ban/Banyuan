@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
-import type { TextIndex } from "@/core/views/TextView";
 import { Point3, App } from "@/core";
 import { isTextView } from "@/core/views/utils/typeGuards";
 import { cursorPosToIndex, indexToCursorPos } from "./utils/textUtils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import type TextView from "@/core/views/TextView";
+import { TextIndex } from "@/core/views/TextView/Selection";
 
 export interface UseInputEventsOptions {
   inputRef: React.RefObject<HTMLInputElement | null>;

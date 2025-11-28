@@ -11,7 +11,7 @@ import type RegularPolygon from "../combined/Polygon/RegularPolygon";
 import type Triangle from "../combined/Polygon/Triangle";
 import type CombinedGraph from "../combined/CombinedGraph";
 import type { ComplexGraph, MagnifyingGlass } from "../combined/ComplexGraph";
-import type { TextParagraph, TextElement, NonPrintableTextElement, PrintableTextElement } from "../text";
+import type { TextParagraph, TextElement, NonPrintableTextElement, PrintableTextElement, TextParagraphContent } from "../text";
 import { NonPrintableTextElement as NonPrintableTextElementClass, PrintableTextElement as PrintableTextElementClass } from "../text";
 import type { DenseTrajectory } from "../trajectory";
 import type ImageElement from "../media/ImageElement";
@@ -91,6 +91,27 @@ export function isNonPrintableTextElement(graph: any): graph is NonPrintableText
 
 export function isPrintableTextElement(graph: any): graph is PrintableTextElement {
   return graph instanceof PrintableTextElementClass;
+}
+
+export function isTextParagraphContent(content: any): content is TextParagraphContent {
+  if (!Array.isArray(content) || content.length === 0) {
+    return false;
+  }
+  
+  // 检查最后一个元素是否是 NonPrintableTextElement
+  const lastElement = content[content.length - 1];
+  if (!isNonPrintableTextElement(lastElement)) {
+    return false;
+  }
+  
+  // 检查前面的所有元素（如果有）是否是 PrintableTextElement
+  for (let i = 0; i < content.length - 1; i++) {
+    if (!isPrintableTextElement(content[i])) {
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 export function isDenseTrajectory(graph: any): graph is DenseTrajectory {

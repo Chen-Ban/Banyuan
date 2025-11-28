@@ -1,6 +1,6 @@
 import View, { ViewOptions, ViewContent } from "../View";
 import TextParagraph from "../../graph/text/TextParagraph";
-import TextElement, { PrintableTextElement } from "../../graph/text/TextElement";
+import TextElement, { NonPrintableTextElement, PrintableTextElement } from "../../graph/text/TextElement";
 import TextOptions from "../../graph/text/TextOptions";
 import { Rectangle } from "../../graph/combined/Polygon";
 import { Point3, Vector3 } from "../../math";
@@ -393,7 +393,7 @@ export default class TextView extends View {
     const paragraphStyle = paragraph.style;
 
     // 创建新段落，包含分割点后的内容
-    const newParagraph = new TextParagraph(paragraphOptions, paragraphStyle);
+    const newParagraph = new TextParagraph([new NonPrintableTextElement()], paragraphOptions, paragraphStyle);
     if (splitIndex < paragraph.texts.length) {
       // 将分割点后的文本移动到新段落
       const textsToMove = paragraph.texts.splice(splitIndex).filter((text) => text instanceof PrintableTextElement);
@@ -575,8 +575,8 @@ export default class TextView extends View {
     this.selection.dynamicIndex = dynamicIndex;
   }
 
-  //--------------------------------------------------------------------//
-  //--------------------------------布局--------------------------------//
+  //---------------------------------------------------------------------//
+  //--------------------------------布局---------------------------------//
   //--------------------------------------------------------------------//
   /**
    * 执行文本布局
@@ -643,7 +643,7 @@ export default class TextView extends View {
     // 计算基于首字符宽度的缩进
     const indentationWidth = this.calculateIndentationWidth(paragraph);
 
-    // 考虑段落的前宽度，但不在这里加缩进
+    // 考虑段落的前宽度，但不在这里加缩进(因为只有第一行有缩进)
     const actualStartX = startX + paragraph.options.preWidth;
     const actualMaxWidth = maxWidth - paragraph.options.preWidth;
 
