@@ -1,8 +1,8 @@
-import { GRAPHTYPE, HORIZONTALALIGN } from "@/core/constants";
+import { GRAPHTYPE } from "@/core/constants";
 import Graph from "@/core/graph/base/Graph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
-import { Style, Color } from "@/core/style";
-import TextElement from "./TextElement";
+import { Style } from "@/core/style";
+import  { NonPrintableTextElement, PrintableTextElement } from "./TextElement";
 import ParagraphOptions from "./ParagraphOptions";
 import Bounds from "../base/Bounds";
 import TextOptions from "./TextOptions";
@@ -17,25 +17,29 @@ export default class TextParagraph extends Graph {
   public controlPoints: Point3[];
   public style: Style;
   public options: ParagraphOptions;
-  public texts: TextElement[];
+  public texts: [...PrintableTextElement[],NonPrintableTextElement];
   public isLayouted: boolean = false;
 
   constructor(options: ParagraphOptions = ParagraphOptions.DEFAULT, style: Style = Style.DEFAULT) {
     super();
     this.options = options;
     this.style = style;
-    this.texts = [];
+    this.texts = [new NonPrintableTextElement()];
     // 初始化时不设置控制点和包围盒，等待布局时设置
     this.controlPoints = [];
+  }
+
+  get length(): number {
+    const length = this.texts.filter((text) => text instanceof PrintableTextElement).length;
+    if(length !== this.texts.length - 1) throw new Error("Text length is not equal to the number of printable text elements");
+    return length;
   }
 
   // 计算文字段落的包围盒
   public calculateBounds(): Bounds {
     // 计算所有文字元素的包围盒
     const bounds = this.texts.map((text) => text.getBounds());
-    if (bounds.length === 0) {
-      return Bounds.empty();
-    }
+    // 加入守卫过后，bounds 至少有一个元素，空段也能正确显示
     const { preHeight, preWidth, postHeight } = this.options;
     const unionBounds = Bounds.union(...bounds);
     unionBounds.x -= preWidth;
@@ -48,15 +52,15 @@ export default class TextParagraph extends Graph {
   /**
    * 添加文字元素
    */
-  addTextElement(textElement: TextElement): TextParagraph {
-    this.texts.push(textElement);
+  addTextElement(textElement: PrintableTextElement): TextParagraph {
+    this.texts.splice(this.length, 0, textElement);
     return this;
   }
 
   /**
    * 移除文字元素
    */
-  removeTextElement(textElement: TextElement): TextParagraph {
+  removeTextElement(textElement: PrintableTextElement): TextParagraph {
     const index = this.texts.indexOf(textElement);
     if (index > -1) {
       this.texts.splice(index, 1);
@@ -68,19 +72,21 @@ export default class TextParagraph extends Graph {
    * 清空所有文字元素
    */
   clearTextElements(): TextParagraph {
-    this.texts = [];
+    this.texts = [new NonPrintableTextElement()];
     return this;
   }
 
   /**
    * 添加文字内容（创建新的TextElement）
    */
-  addText(content: string, index: number = this.texts.length, options?: TextOptions): this {
+  addText(content: string, index: number = this.texts.length - 1, options?: TextOptions): this {
+    // 不能在守卫位置添加文字
+    if (index < 0 || index >= this.texts.length) throw new Error("Index out of bounds");
     const textOptions = options || this.texts[Math.max(0, index - 1)].options;
 
     for (let i = 0; i < content.length; i++) {
       const char = content[i];
-      const textElement = new TextElement(char, textOptions.copy());
+      const textElement = new PrintableTextElement(char, textOptions.copy());
       this.texts.splice(index + i, 0, textElement);
     }
     return this;
@@ -250,7 +256,7 @@ export default class TextParagraph extends Graph {
     const newParagraph = new TextParagraph(this.options.copy(), this.style.copy());
 
     // 复制所有文字元素
-    for (const textElement of this.texts) {
+    for (const textElement of this.texts.filter((text) => text instanceof PrintableTextElement)) {
       newParagraph.addTextElement(textElement.copy());
     }
 

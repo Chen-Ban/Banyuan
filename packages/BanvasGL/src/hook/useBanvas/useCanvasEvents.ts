@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
 import { App } from "@/core/app";
-import { Color, FillStyle, GraphView, Point3, Rectangle, Scene, StrokeStyle, Style, View } from "@/core";
+import { Point3, Rectangle, Scene, View, SelectBoxView } from "@/core";
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { ViewAddonImpl } from "@/core/views/addon";
 import { ViewContent } from "@/core/views/View";
 import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
-import { isTextView, isGraphView } from "@/core/views/utils/typeGuards";
+import { isTextView, isSelectBoxView } from "@/core/views/utils/typeGuards";
 import { isRectangle, isTextElement } from "@/core/graph/utils/typeGuards";
 import { checkViewIntersection } from "./utils/intersectionUtils";
 import { PointUtils } from "@/core/graph/utils/PointUtils";
@@ -30,7 +30,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
   const actionRef = useRef<Action>(Action.NONE);
   const extraDataRef = useRef<ExtraData | null>(null);
   const lastClickTimeRef = useRef<number | undefined>(undefined);
-  const selectionRectViewRef = useRef<GraphView | null>(null);
+  const selectionRectViewRef = useRef<SelectBoxView | null>(null);
 
   // 鼠标落下，判定操作类型
   const onMouseDown = useCallback(
@@ -44,12 +44,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
       if (!indicateViewRef.current && !indicateContentRef.current) {
         actionRef.current = Action.SELECT;
         // 创建临时框选矩形容器
-        const selectionColor = new Color(100, 150, 255, 0.8);
-        const selectionStrokeStyle = StrokeStyle.dashed(selectionColor, 1, [5, 5]);
-        const selectionFillStyle = FillStyle.fromRGBA(0, 0, 144, 0.1);
-        const selectionStyle = new Style(selectionFillStyle, selectionStrokeStyle);
-        const selectionRect = new Rectangle(0, 0, 0, 0, selectionStyle);
-        selectionRectViewRef.current = new GraphView(selectionRect, { isSelectBox: true });
+        selectionRectViewRef.current = new SelectBoxView();
         scene.addChild(selectionRectViewRef.current);
       }
     },
@@ -118,17 +113,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
         case Action.SELECT:
           canvasRef.current!.style.cursor = Cursor.Crosshair;
           if (selectionRectViewRef.current && mousDownPoint) {
-            const minX = Math.min(mousDownPoint.x, point.x);
-            const minY = Math.min(mousDownPoint.y, point.y);
-            const maxX = Math.max(mousDownPoint.x, point.x);
-            const maxY = Math.max(mousDownPoint.y, point.y);
-            const width = maxX - minX;
-            const height = maxY - minY;
-            const rectGraph = selectionRectViewRef.current.content as Rectangle;
-            rectGraph.setPosition(minX, minY);
-            rectGraph.setSize(width, height);
-            selectionRectViewRef.current.initBoundingBox();
-            selectionRectViewRef.current.initViewport();
+            selectionRectViewRef.current.updateSelect(mousDownPoint, point);
           }
           if (selectionRectViewRef.current) {
             const selectionRect = selectionRectViewRef.current.content;
@@ -211,7 +196,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
     // 删除所有框选容器
     const selectBoxViews: View[] = [];
     for (const view of scene.children) {
-      if (isGraphView(view) && view.isSelectBox) {
+      if (isSelectBoxView(view)) {
         selectBoxViews.push(view);
       }
     }

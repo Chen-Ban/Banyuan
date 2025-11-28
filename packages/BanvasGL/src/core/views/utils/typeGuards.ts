@@ -1,6 +1,7 @@
 import View from "../View";
 import { VIEWTYPE } from "@/core/constants";
 import type GraphView from "../GraphViews";
+import type SelectBoxView from "../GraphViews/SelectBoxView";
 import type ImageView from "../MediaViews/ImageView";
 import type VideoView from "../MediaViews/VideoView";
 import type TextView from "../TextView";
@@ -12,6 +13,10 @@ export function isView(view: any): view is View {
 
 export function isGraphView(view: any): view is GraphView {
   return view !== null && view.type === VIEWTYPE.GRAPHVIEW;
+}
+
+export function isSelectBoxView(view: any): view is SelectBoxView {
+  return view !== null && view.type === VIEWTYPE.SELECTBOXVIEW;
 }
 
 export function isImageView(view: any): view is ImageView {
