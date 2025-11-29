@@ -54,6 +54,8 @@ export default abstract class View<T extends object = any> {
   public actived: boolean = false;
   public freezed: boolean = false;
   public visible: boolean = true;
+  public editingVertex: boolean = false;
+  public editingViewport: boolean = false;
 
   // 变换矩阵
   public matrix: Matrix4 = Matrix4.identity();
@@ -282,14 +284,14 @@ export default abstract class View<T extends object = any> {
   // 渲染插件
   private renderPlugins(ctx: CanvasRenderingContext2D): void {
     if (!this.actived) return;
-    if (this.controlPoints && typeof (this.controlPoints as any).render === "function") {
-      (this.controlPoints as any).render(ctx);
+    this.boundingBox?.render(ctx);
+    if (this.editingVertex) {
+      this.controlPoints?.render(ctx);
+      return;
     }
-    if (this.boundingBox && typeof (this.boundingBox as any).render === "function") {
-      (this.boundingBox as any).render(ctx);
-    }
-    if (this.viewport && typeof (this.viewport as any).render === "function") {
-      (this.viewport as any).render(ctx);
+    if (this.editingViewport) {
+      this.viewport?.render(ctx);
+      return;
     }
   }
 
@@ -393,6 +395,16 @@ export default abstract class View<T extends object = any> {
 
   public setFreezed(freezed: boolean): View {
     this.freezed = freezed;
+    return this;
+  }
+
+  public setEditingVertex(editingVertex: boolean): View {
+    this.editingVertex = editingVertex;
+    return this;
+  }
+
+  public setEditingViewport(editingViewport: boolean): View {
+    this.editingViewport = editingViewport;
     return this;
   }
 

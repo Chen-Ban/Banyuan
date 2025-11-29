@@ -4840,6 +4840,10 @@ snapshots:
     dependencies:
       string-convert: 0.2.1
 
+  json2mq@0.2.0:
+    dependencies:
+      string-convert: 0.2.1
+
   json5@2.2.3: {}
 
   jsonfile@4.0.0:
