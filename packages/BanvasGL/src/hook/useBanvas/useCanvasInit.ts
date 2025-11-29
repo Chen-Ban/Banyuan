@@ -78,7 +78,11 @@ const defaultCanvasSize = {
 /**
  * Canvas 初始化逻辑
  */
-export function useCanvasInit(serializedScenes: SerializedSceneJSON[], options: UseBanvasOptions): UseCanvasInitResult {
+export function useCanvasInit(
+  serializedScenes: SerializedSceneJSON[],
+  options: UseBanvasOptions,
+  dpr: number
+): UseCanvasInitResult {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [app, setApp] = useState<App | null>(null);
   const initializedRef = useRef<boolean>(false);
@@ -87,25 +91,27 @@ export function useCanvasInit(serializedScenes: SerializedSceneJSON[], options: 
   const applyCanvasSize = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // 传入的尺寸是逻辑尺寸
-    const dpr = window?.devicePixelRatio ?? 1;
-    const logicalWidth = options.width ?? defaultCanvasSize.width;
-    const logicalHeight = options.height ?? defaultCanvasSize.height;
-    // 样式尺寸 
-    canvas.style.width = `${logicalWidth}px`;
-    canvas.style.height = `${logicalHeight}px`;
-    // 实际像素尺寸 = 逻辑尺寸 * dpr
-    canvas.width = Math.round(logicalWidth * dpr);
-    canvas.height = Math.round(logicalHeight * dpr);
-  }, [options.width, options.height]);
+    // 传入的尺寸是样式尺寸
+    const styleWidth = options.width ?? defaultCanvasSize.width;
+    const styleHeight = options.height ?? defaultCanvasSize.height;
+    // 样式尺寸 = 传入的尺寸
+    canvas.style.width = `${styleWidth}px`;
+    canvas.style.height = `${styleHeight}px`;
+    // 实际像素尺寸 = 样式尺寸 * dpr
+    canvas.width = Math.round(styleWidth * dpr);
+    canvas.height = Math.round(styleHeight * dpr);
+  }, [options.width, options.height, dpr]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || initializedRef.current) return;
 
     applyCanvasSize();
-    // 初始化 App 与 Renderer
-    const _app = App.create(canvas, options.appOptions ?? {}, options.rendererOptions ?? {});
+    // 初始化 App 与 Renderer，将 dpr 传递给 rendererOptions
+    const _app = App.create(canvas, options.appOptions ?? {}, {
+      ...options.rendererOptions,
+      dpr,
+    });
     _app.launch({});
     // 通过序列化的 Scene JSON 初始化
     if (Array.isArray(serializedScenes) && serializedScenes.length > 0) {
@@ -248,7 +254,6 @@ export function useCanvasInit(serializedScenes: SerializedSceneJSON[], options: 
 
       // 导航到新页面
       _app.navigateTo(scene);
-      console.log(scene);
 
       // 循环渲染会自动处理渲染，无需手动调用
     } catch (error) {
@@ -269,12 +274,14 @@ export function useCanvasInit(serializedScenes: SerializedSceneJSON[], options: 
     };
   }, []); // 空依赖数组，只在组件挂载时执行一次
 
-  // 当尺寸参数变化时，更新画布尺寸与渲染器
+  // 当尺寸参数或 dpr 变化时，更新画布尺寸与渲染器
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !app || !initializedRef.current) return;
     applyCanvasSize();
-  }, [app, applyCanvasSize]);
+    // 更新 renderer 的 dpr
+    app.renderer.setDPR(dpr);
+  }, [app, applyCanvasSize, dpr]);
 
   return { app, canvasRef };
 }
