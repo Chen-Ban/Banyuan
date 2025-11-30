@@ -110,3 +110,8 @@ export default class QuadraticBezier extends Bezier {
     return this;
   }
 }
+
+// 类型守卫函数
+export function isQuadraticBezier(graph: any): graph is QuadraticBezier {
+  return graph instanceof QuadraticBezier;
+}

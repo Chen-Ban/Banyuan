@@ -248,3 +248,8 @@ export default class Arc extends AnalyticGraph {
     return this;
   }
 }
+
+// 类型守卫函数
+export function isArc(graph: any): graph is Arc {
+  return graph instanceof Arc;
+}

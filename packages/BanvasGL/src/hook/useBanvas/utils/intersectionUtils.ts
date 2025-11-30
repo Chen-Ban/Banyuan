@@ -1,7 +1,7 @@
 import View from "@/core/views/View";
 import { Rectangle } from "@/core/graph/combined/Polygon";
-import { IntersectionUtils } from "@/core/graph/utils/IntersectionUtils";
-import { isTextView, isGraphView, isCombinedView, isImageView, isVideoView, isSelectBoxView } from "@/core/views/utils/typeGuards";
+import { IntersectionUtils } from "@/core/graph";
+import { isTextView, isGraphView, isSelectBoxView } from "@/core/views/utils/typeGuards";
 
 /**
  * 检查视图是否与框选矩形相交

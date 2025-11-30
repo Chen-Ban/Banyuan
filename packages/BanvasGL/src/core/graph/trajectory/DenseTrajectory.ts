@@ -235,3 +235,8 @@ export default class DenseTrajectory extends Graph {
     return this;
   }
 }
+
+// 类型守卫函数
+export function isDenseTrajectory(graph: any): graph is DenseTrajectory {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.DENSETRAJECTORY;
+}

@@ -1,4 +1,4 @@
-import { Point3, Vector3, Matrix4 } from "./index";
+import { Point3, Matrix4 } from "./index";
 
 /**
  * 数学工具类

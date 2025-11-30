@@ -3,16 +3,14 @@ import Style from "@/core/style/Style";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import Graph from "../base/Graph";
 import Bounds from "../base/Bounds";
-import { isDenseTrajectory, isLine } from "../utils/typeGuards";
 import { PointUtils } from "@/core/graph/utils/PointUtils";
-import {
-  isAnalyticGraph,
-  isCombinedGraph,
-  isCombinedGraphType,
-  isMediaElement,
-  isTextGraph,
-} from "../utils/typeGuards";
-import { AnalyticGraph } from "../analytic";
+import { isDenseTrajectory } from "../trajectory/DenseTrajectory";
+import { isLine } from "../analytic/Line";
+import { isArc } from "../analytic/Arc";
+import { isCircle } from "../analytic/Circle";
+import { isQuadraticBezier } from "../analytic/QuadraticBezier";
+import { isCubicBezier } from "../analytic/CubicBezier";
+import { isImageElement, isVideoElement } from "../media";
 
 /**
  * CombinedGraph类 - 组合多个图形元素的复合图形
@@ -99,7 +97,7 @@ export default class CombinedGraph extends Graph {
 
     for (const graph of this.graphs) {
       // 1. 分析图形（解析式图形）：使用采样点
-      if (isAnalyticGraph(graph)) {
+      if (isLine(graph) || isArc(graph) || isCircle(graph) || isQuadraticBezier(graph) || isCubicBezier(graph)) {
         const steps = 64;
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
@@ -107,17 +105,7 @@ export default class CombinedGraph extends Graph {
         }
       }
       // 2. 媒体图形（图片、视频）：从 bounds 获取四个角点
-      else if (isMediaElement(graph)) {
-        const bounds = graph.getBounds();
-        if (bounds && !bounds.isEmpty) {
-          samplePoints.push(new Point3(bounds.x, bounds.y, 0));
-          samplePoints.push(new Point3(bounds.x + bounds.width, bounds.y, 0));
-          samplePoints.push(new Point3(bounds.x + bounds.width, bounds.y + bounds.height, 0));
-          samplePoints.push(new Point3(bounds.x, bounds.y + bounds.height, 0));
-        }
-      }
-      // 3. 字体图形（文本元素、文本段落）：从 bounds 获取四个角点
-      else if (isTextGraph(graph)) {
+      else if (isImageElement(graph) || isVideoElement(graph)) {
         const bounds = graph.getBounds();
         if (bounds && !bounds.isEmpty) {
           samplePoints.push(new Point3(bounds.x, bounds.y, 0));
@@ -127,8 +115,8 @@ export default class CombinedGraph extends Graph {
         }
       }
       // 4. 合并图形（组合图形、复杂图形）：递归获取其 bounds 的四个角点
-      else if (isCombinedGraphType(graph)) {
-        const bounds = graph.getBounds();
+      else if (isCombinedGraph(graph)) {
+        const bounds = (graph as CombinedGraph).getBounds();
         if (bounds && !bounds.isEmpty) {
           samplePoints.push(new Point3(bounds.x, bounds.y, 0));
           samplePoints.push(new Point3(bounds.x + bounds.width, bounds.y, 0));
@@ -138,10 +126,10 @@ export default class CombinedGraph extends Graph {
       }
       // 5. 其他图形（如密集轨迹等）：从控制点采样
       else if (isDenseTrajectory(graph)) {
-        const otherGraph = graph;
-        for (let i = 0; i < otherGraph.controlPoints.length; i += 3) {
+        const denseGraph = graph as any; // DenseTrajectory 使用 Float32Array
+        for (let i = 0; i < denseGraph.controlPoints.length; i += 3) {
           samplePoints.push(
-            new Point3(otherGraph.controlPoints[i], otherGraph.controlPoints[i + 1], otherGraph.controlPoints[i + 2])
+            new Point3(denseGraph.controlPoints[i], denseGraph.controlPoints[i + 1], denseGraph.controlPoints[i + 2])
           );
         }
       }
@@ -345,7 +333,14 @@ export default class CombinedGraph extends Graph {
   public transform(matrix: Matrix4): CombinedGraph {
     for (const graph of this.graphs) {
       // 如果是解析式图形，直接调用其transform方法
-      if (isAnalyticGraph(graph) || isCombinedGraph(graph)) {
+      if (
+        isLine(graph) ||
+        isArc(graph) ||
+        isCircle(graph) ||
+        isQuadraticBezier(graph) ||
+        isCubicBezier(graph) ||
+        isCombinedGraph(graph)
+      ) {
         graph.transform(matrix);
       }
       // 其他类型的图形，手动变换控制点
@@ -382,4 +377,9 @@ export default class CombinedGraph extends Graph {
       }
     }
   }
+}
+
+// 类型守卫函数
+export function isCombinedGraph(graph: any): graph is CombinedGraph {
+  return graph instanceof CombinedGraph;
 }

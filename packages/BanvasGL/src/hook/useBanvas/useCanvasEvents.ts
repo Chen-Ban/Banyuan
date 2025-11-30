@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef } from "react";
 import { App } from "@/core/app";
-import { Point3, Rectangle, Scene, View, SelectBoxView } from "@/core";
+import {
+  Point3,
+  Rectangle,
+  Scene,
+  View,
+  SelectBoxView,
+  isNonPrintableTextElement,
+  isPrintableTextElement,
+} from "@/core";
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { ViewAddonImpl } from "@/core/views/addon";
 import { ViewContent } from "@/core/views/View";
 import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
 import { isTextView, isSelectBoxView } from "@/core/views/utils/typeGuards";
-import { isRectangle, isTextElement } from "@/core/graph/utils/typeGuards";
+import { isRectangle } from "@/core/graph/combined/Polygon/Rectangle";
 import { checkViewIntersection } from "./utils/intersectionUtils";
 import { PointUtils } from "@/core/graph/utils/PointUtils";
 
@@ -68,7 +76,11 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           break;
         }
         case Action.SELECTION:
-          if (isTextView(indicateViewRef.current) && isTextElement(indicateContentRef.current)) {
+          if (
+            isTextView(indicateViewRef.current) &&
+            (isPrintableTextElement(indicateContentRef.current) ||
+              isNonPrintableTextElement(indicateContentRef.current))
+          ) {
             const textView = indicateViewRef.current;
             const { content } = textView.interact(point, true);
             if (!textView.actived) {
@@ -76,7 +88,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
               const fixedIndex = textView.element2Index(indicateContentRef.current, point);
               textView.setSelection(fixedIndex, fixedIndex);
             }
-            if (isTextElement(content)) {
+            if (isPrintableTextElement(content) || isNonPrintableTextElement(content)) {
               const dynamicIndex = textView.element2Index(content, point);
               textView.setSelection(textView.fixedIndex, dynamicIndex);
             }
@@ -222,7 +234,11 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
         if (indicateView) {
           scene.select(indicateView, e.ctrlKey);
 
-          if (isTextView(indicateView) && isTextElement(indicateContentRef.current)) {
+          if (
+            isTextView(indicateView) &&
+            (isPrintableTextElement(indicateContentRef.current) ||
+              isNonPrintableTextElement(indicateContentRef.current))
+          ) {
             const fixedIndex = indicateView.element2Index(indicateContentRef.current, mousDownPoint);
             indicateView.setSelection(fixedIndex, fixedIndex);
 
@@ -287,7 +303,10 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
 
       // 双击事件处理
       if (PointUtils.isSamePoint(mousDownPoint, mouseUpPoint, lastClickTimeRef.current)) {
-        if (isTextView(indicateViewRef.current) && isTextElement(indicateContentRef.current)) {
+        if (
+          isTextView(indicateViewRef.current) &&
+          (isPrintableTextElement(indicateContentRef.current) || isNonPrintableTextElement(indicateContentRef.current))
+        ) {
           console.log("选中一整行");
           // 这里可以添加更多双击相关的逻辑
         }

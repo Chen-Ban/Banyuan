@@ -1,7 +1,12 @@
 import Graph from "../base/Graph";
 import { Point3 } from "@/core/math";
 import { MathUtils } from "@/core/math/MathUtils";
-import { isLine, isCircle, isArc, isQuadraticBezier, isCubicBezier, isAnalyticGraph, isRectangle } from "./typeGuards";
+import { isLine } from "../analytic/Line";
+import { isCircle } from "../analytic/Circle";
+import { isArc } from "../analytic/Arc";
+import { isQuadraticBezier } from "../analytic/QuadraticBezier";
+import { isCubicBezier } from "../analytic/CubicBezier";
+import { isRectangle } from "../combined/Polygon/Rectangle";
 import Line from "../analytic/Line";
 import Circle from "../analytic/Circle";
 import type Arc from "../analytic/Arc";
@@ -37,7 +42,10 @@ export class IntersectionUtils {
     tolerance: number = IntersectionUtils.TOLERANCE
   ): Point3[] {
     // 如果两个图形都是解析式图形，使用精确方法
-    if (isAnalyticGraph(graph1) && isAnalyticGraph(graph2)) {
+    if (
+      (isLine(graph1) || isArc(graph1) || isCircle(graph1) || isQuadraticBezier(graph1) || isCubicBezier(graph1)) &&
+      (isLine(graph2) || isArc(graph2) || isCircle(graph2) || isQuadraticBezier(graph2) || isCubicBezier(graph2))
+    ) {
       return IntersectionUtils.getAnalyticIntersections(graph1, graph2, tolerance);
     }
 

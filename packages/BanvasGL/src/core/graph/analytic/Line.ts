@@ -222,3 +222,8 @@ export default class Line extends AnalyticGraph {
     return this;
   }
 }
+
+// 类型守卫函数
+export function isLine(graph: any): graph is Line {
+  return graph instanceof Line;
+}

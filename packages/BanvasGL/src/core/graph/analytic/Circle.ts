@@ -182,3 +182,8 @@ export default class Circle extends Arc {
   static readonly UNIT_CIRCLE = new Circle(new Point3(0, 0, 0), 1);
   static readonly EMPTY_CIRCLE = new Circle(new Point3(0, 0, 0), 0);
 }
+
+// 类型守卫函数
+export function isCircle(graph: any): graph is Circle {
+  return graph instanceof Circle;
+}

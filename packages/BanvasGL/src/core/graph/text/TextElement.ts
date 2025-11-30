@@ -28,7 +28,7 @@ export default abstract class TextElement extends Graph {
     this._options = options;
     this._style = style;
     this.controlPoints = [];
-    
+
     // 子类需要在构造函数中调用 calculateActualDimensions
   }
 
@@ -224,8 +224,6 @@ export default abstract class TextElement extends Graph {
   public abstract copy(): this;
 }
 
-
-
 /**
  * 可打印的文字元素类
  * 表示单个可打印的文字元素，是最小的文字单位
@@ -237,7 +235,7 @@ export class PrintableTextElement extends TextElement {
     super(content, options, style);
 
     if (content.length !== 1) throw new Error("PrintableTextElement content must be a single character");
-    
+
     this.calculateActualDimensions();
   }
 
@@ -288,7 +286,7 @@ export class PrintableTextElement extends TextElement {
     ctx.fillStyle = "rgba(0,0,0,0.1)";
     ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
     ctx.restore();
-    ctx.fillText(this.content, this.controlPoints[0].x, this.controlPoints[0].y);
+    ctx.fillText(super.content, this.controlPoints[0].x, this.controlPoints[0].y);
     ctx.restore();
   }
 
@@ -387,4 +385,20 @@ export class NonPrintableTextElement extends TextElement {
     }
     return newElement as this;
   }
+}
+
+// 类型守卫函数
+
+/**
+ * 检查是否为可打印的文字元素
+ */
+export function isPrintableTextElement(graph: any): graph is PrintableTextElement {
+  return graph instanceof PrintableTextElement;
+}
+
+/**
+ * 检查是否为不可打印的文字元素
+ */
+export function isNonPrintableTextElement(graph: any): graph is NonPrintableTextElement {
+  return graph instanceof NonPrintableTextElement;
 }
