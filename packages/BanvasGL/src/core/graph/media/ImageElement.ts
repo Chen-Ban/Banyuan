@@ -167,3 +167,8 @@ export default class ImageElement extends MediaElement {
     return element;
   }
 }
+
+// 类型守卫函数
+export function isImageElement(graph: any): graph is ImageElement {
+  return graph instanceof ImageElement;
+}

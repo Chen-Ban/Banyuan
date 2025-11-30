@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Point3, App } from "@/core";
 import { isTextView } from "@/core/views/utils/typeGuards";
-import { cursorPosToIndex, indexToCursorPos } from "./utils/textUtils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import type TextView from "@/core/views/TextView";
 import { TextIndex } from "@/core/views/TextView/Selection";
@@ -15,47 +14,12 @@ export interface UseInputEventsOptions {
  * 获取当前选中的 TextView
  */
 function getSelectedTextView(app: App | null): TextView | null {
-  if (!app) return null;
-  const scene = app.getCurrentPage();
+  const scene = app?.getCurrentScene();
   if (!scene) return null;
 
-  const selectedViews = scene.getSelectedView();
-  const selectedView = selectedViews.length > 0 ? selectedViews[selectedViews.length - 1] : null;
+  const selectedView = scene.getSelectedView()[0];
 
   return isTextView(selectedView) ? selectedView : null;
-}
-
-/**
- * 更新输入框的光标位置
- */
-function updateInputCursor(
-  inputRef: React.RefObject<HTMLInputElement | null>,
-  selectedView: TextView,
-  index: TextIndex
-) {
-  if (!inputRef.current) return;
-  const cursorPos = indexToCursorPos(selectedView, index);
-  inputRef.current.setSelectionRange(cursorPos, cursorPos);
-}
-
-/**
- * 删除操作后更新输入框的值和光标位置
- */
-function updateInputAfterDelete(
-  inputRef: React.RefObject<HTMLInputElement | null>,
-  selectedView: TextView,
-  paragraphIndex: number
-) {
-  if (!inputRef.current) return;
-
-  const paragraph = selectedView.content[paragraphIndex];
-  if (!paragraph) return;
-
-  const newText = paragraph.texts.map((t) => t.content).join("");
-  inputRef.current.value = newText;
-
-  const newIndex = selectedView.fixedIndex || [paragraphIndex, 0, 0];
-  updateInputCursor(inputRef, selectedView, newIndex as TextIndex);
 }
 
 /**
@@ -68,12 +32,7 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
   const onInput = useCallback(
     (e: Event) => {
       const selectedView = getSelectedTextView(app);
-      if (!selectedView || !selectedView.fixedIndex || !selectedView.dynamicIndex || !inputRef.current) return;
-
-      // 合成输入由 onCompositionUpdate 处理，这里跳过
-      if (isComposingRef.current) {
-        return;
-      }
+      if (!selectedView || !selectedView.selection.isSelection || !inputRef.current) return;
 
       if (!(e instanceof InputEvent)) return;
 
@@ -82,9 +41,6 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
         const insertedText = e.data || "";
         if (insertedText.length > 0) {
           selectedView.input(insertedText, false);
-          // 更新输入框的光标位置
-          const newIndex = selectedView.dynamicIndex || selectedView.fixedIndex;
-          updateInputCursor(inputRef, selectedView, newIndex);
         }
       }
       // 其他 inputType（删除、换行等）由 onKeyDown 处理
@@ -100,16 +56,13 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
   const onCompositionUpdate = useCallback(
     (e: CompositionEvent) => {
       const selectedView = getSelectedTextView(app);
-      if (!selectedView || !selectedView.fixedIndex || !selectedView.dynamicIndex || !inputRef.current) return;
+      if (!selectedView || !selectedView.selection.isSelection || !inputRef.current) return;
 
       // 合成输入更新时，使用 e.data 获取正在输入的文本
       const compositionText = e.data || "";
       if (compositionText.length > 0) {
         // 使用 input 方法更新文本（合成输入中）
         selectedView.input(compositionText, true);
-        // 更新输入框的光标位置
-        const newIndex = selectedView.dynamicIndex || selectedView.fixedIndex;
-        updateInputCursor(inputRef, selectedView, newIndex);
       }
     },
     [app, inputRef]
@@ -119,16 +72,13 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
     (e: CompositionEvent) => {
       isComposingRef.current = false;
       const selectedView = getSelectedTextView(app);
-      if (!selectedView || !selectedView.fixedIndex || !selectedView.dynamicIndex || !inputRef.current) return;
+      if (!selectedView || !selectedView.selection.isSelection || !inputRef.current) return;
 
       // 合成输入结束，使用 e.data 获取最终输入的文本
       const finalText = e.data || "";
       if (finalText.length > 0) {
         // 合成输入结束，最终更新文本（非合成输入）
         selectedView.input(finalText, false);
-        // 更新输入框的光标位置
-        const newIndex = selectedView.dynamicIndex || selectedView.fixedIndex;
-        updateInputCursor(inputRef, selectedView, newIndex);
       }
     },
     [app, inputRef]
@@ -138,41 +88,25 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
       const selectedView = getSelectedTextView(app);
-      if (!selectedView || !selectedView.fixedIndex || !inputRef.current) return;
+
+      if (!selectedView || !selectedView.selection.isSelection || !inputRef.current) return;
 
       // 合成输入过程中，不处理按键（除了 Escape）
       if (isComposingRef.current && e.key !== "Escape") {
         return;
       }
 
-      const paragraphIndex = selectedView.fixedIndex[0];
-      const paragraph = selectedView.content[paragraphIndex];
-      if (!paragraph) return;
-
       const input = inputRef.current;
       const inputValue = input.value;
       const selectionStart = input.selectionStart || 0;
       const selectionEnd = input.selectionEnd || 0;
+      console.log(e.key);
 
       switch (e.key) {
         case "ArrowLeft":
-          e.preventDefault();
-          if (selectionStart > 0) {
-            const newPos = selectionStart - 1;
-            input.setSelectionRange(newPos, newPos);
-            const leftIndex = cursorPosToIndex(selectedView, paragraphIndex, newPos);
-            selectedView.setSelection(leftIndex, leftIndex);
-          }
           break;
 
         case "ArrowRight":
-          e.preventDefault();
-          if (selectionEnd < inputValue.length) {
-            const newPos = selectionEnd + 1;
-            input.setSelectionRange(newPos, newPos);
-            const rightIndex = cursorPosToIndex(selectedView, paragraphIndex, newPos);
-            selectedView.setSelection(rightIndex, rightIndex);
-          }
           break;
 
         case "ArrowUp":
@@ -184,70 +118,33 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
           e.preventDefault();
           // 移动到下一行（暂时不支持，可以扩展）
           break;
-
-        case "Home":
-          e.preventDefault();
-          input.setSelectionRange(0, 0);
-          const homeIndex: TextIndex = [paragraphIndex, 0, 0];
-          selectedView.setSelection(homeIndex, homeIndex);
-          break;
-
         case "End":
           e.preventDefault();
           const endPos = inputValue.length;
           input.setSelectionRange(endPos, endPos);
-          const endIndex = cursorPosToIndex(selectedView, paragraphIndex, endPos);
-          selectedView.setSelection(endIndex, endIndex);
           break;
 
         case "Backspace":
           // 退格键：删除光标前的字符
-          e.preventDefault();
-          if (selectionStart === selectionEnd && selectionStart > 0) {
-            selectedView.delete(true);
-            updateInputAfterDelete(inputRef, selectedView, paragraphIndex);
-          } else if (selectionStart !== selectionEnd) {
-            // 有选中文本，删除选中范围
-            selectedView.delete(true);
-            updateInputAfterDelete(inputRef, selectedView, paragraphIndex);
-          }
+          selectedView.delete(true);
           break;
 
         case "Delete":
           // Delete 键：删除光标后的字符
-          e.preventDefault();
-          if (selectionStart === selectionEnd && selectionEnd < inputValue.length) {
-            selectedView.delete(false);
-            updateInputAfterDelete(inputRef, selectedView, paragraphIndex);
-          } else if (selectionStart !== selectionEnd) {
-            // 有选中文本，删除选中范围
-            selectedView.delete(false);
-            updateInputAfterDelete(inputRef, selectedView, paragraphIndex);
-          }
+          selectedView.delete(false);
           break;
 
         case "Enter":
           e.preventDefault();
           // 回车键：创建新段落
           selectedView.newLine();
-          // 更新输入框的值和光标位置
-          const newIndex = selectedView.fixedIndex || [0, 0, 0];
-          const newCursorPos = indexToCursorPos(selectedView, newIndex as TextIndex);
-          // 注意：这里只更新当前段落，因为 newLine 会创建新段落
-          const currentParagraph = selectedView.content[newIndex[0]];
-          if (currentParagraph) {
-            input.value = currentParagraph.texts.map((t) => t.content).join("");
-            input.setSelectionRange(newCursorPos, newCursorPos);
-          }
           break;
-
         case "Escape":
           // 失活当前选中的容器
           if (!isComposingRef.current && selectedView && app) {
             selectedView.fixedIndex = undefined;
             selectedView.dynamicIndex = undefined;
             selectedView.setSelection(undefined, undefined);
-            input.style.display = "none";
           }
           break;
 
@@ -286,12 +183,6 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
                       input.style.height = `16px`;
                       input.style.display = "block";
                       input.focus();
-
-                      // 设置光标到新容器的开始位置
-                      const fixedIndex: TextIndex = [0, 0, 0];
-                      nextView.setSelection(fixedIndex, fixedIndex);
-                      const cursorPos = indexToCursorPos(nextView, fixedIndex);
-                      input.setSelectionRange(cursorPos, cursorPos);
 
                       // 更新输入框内容
                       const contentText = nextView.getContentText();
@@ -333,5 +224,5 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
       input.removeEventListener("compositionend", onCompositionEnd as any);
       input.removeEventListener("keydown", onKeyDown as any);
     };
-  }, [onInput, onCompositionStart, onCompositionUpdate, onCompositionEnd, onKeyDown, inputRef]);
+  }, [onInput, onCompositionStart, onCompositionUpdate, onCompositionEnd, onKeyDown, inputRef, app]);
 }

@@ -150,3 +150,8 @@ export default class Triangle extends Polygon {
     return new Triangle(p1, p2, p3, style);
   }
 }
+
+// 类型守卫函数
+export function isTriangle(graph: any): graph is Triangle {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.TRIANGLE;
+}

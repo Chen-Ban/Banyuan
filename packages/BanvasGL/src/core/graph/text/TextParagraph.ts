@@ -2,14 +2,14 @@ import { GRAPHTYPE } from "@/core/constants";
 import Graph from "@/core/graph/base/Graph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
-import  { NonPrintableTextElement, PrintableTextElement } from "./TextElement";
+import { NonPrintableTextElement, PrintableTextElement } from "./TextElement";
 import ParagraphOptions from "./ParagraphOptions";
 import Bounds from "../base/Bounds";
 import TextOptions from "./TextOptions";
 import { Rectangle } from "../combined";
-import { isTextParagraphContent } from "../utils/typeGuards";
+import { isNonPrintableTextElement, isPrintableTextElement } from "./TextElement";
 
-export type TextParagraphContent = [...PrintableTextElement[],NonPrintableTextElement];
+export type TextParagraphContent = [...PrintableTextElement[], NonPrintableTextElement];
 
 /**
  * 文字段落类
@@ -23,7 +23,11 @@ export default class TextParagraph extends Graph {
   public texts: TextParagraphContent;
   public isLayouted: boolean = false;
 
-  constructor(texts:TextParagraphContent = [new NonPrintableTextElement()], options: ParagraphOptions = ParagraphOptions.DEFAULT, style: Style = Style.DEFAULT) {
+  constructor(
+    texts: TextParagraphContent = [new NonPrintableTextElement()],
+    options: ParagraphOptions = ParagraphOptions.DEFAULT,
+    style: Style = Style.DEFAULT
+  ) {
     super();
     this.options = options;
     this.style = style;
@@ -34,7 +38,8 @@ export default class TextParagraph extends Graph {
 
   get length(): number {
     const length = this.texts.filter((text) => text instanceof PrintableTextElement).length;
-    if(length !== this.texts.length - 1) throw new Error("Text length is not equal to the number of printable text elements");
+    if (length !== this.texts.length - 1)
+      throw new Error("Text length is not equal to the number of printable text elements");
     return length;
   }
 
@@ -257,7 +262,7 @@ export default class TextParagraph extends Graph {
    */
   public copy(): this {
     const texts = this.texts.map((text) => text.copy());
-    if(!isTextParagraphContent(texts)) throw new Error("The texts is not a valid TextParagraphContent");
+    if (!isTextParagraphContent(texts)) throw new Error("The texts is not a valid TextParagraphContent");
     const newParagraph = new TextParagraph(texts, this.options.copy(), this.style.copy());
     // 如果原对象已经布局，则设置position
     if (this.isLayouted) {
@@ -282,7 +287,7 @@ export default class TextParagraph extends Graph {
    * 静态工厂方法 - 创建简单段落
    */
   static simple(content: string, options?: ParagraphOptions): TextParagraph {
-    const paragraph = new TextParagraph([new NonPrintableTextElement()],options);
+    const paragraph = new TextParagraph([new NonPrintableTextElement()], options);
     paragraph.addText(content, 0, TextOptions.DEFAULT);
     return paragraph;
   }
@@ -292,8 +297,34 @@ export default class TextParagraph extends Graph {
    */
   static center(content: string): TextParagraph {
     const options = ParagraphOptions.center();
-    const paragraph = new TextParagraph([new NonPrintableTextElement()],options);
+    const paragraph = new TextParagraph([new NonPrintableTextElement()], options);
     paragraph.addText(content);
     return paragraph;
   }
+}
+
+// 类型守卫函数
+export function isTextParagraph(graph: any): graph is TextParagraph {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.TEXTPARAGRAPH;
+}
+
+export function isTextParagraphContent(content: any): content is TextParagraphContent {
+  if (!Array.isArray(content) || content.length === 0) {
+    return false;
+  }
+
+  // 检查最后一个元素是否是 NonPrintableTextElement
+  const lastElement = content[content.length - 1];
+  if (!isNonPrintableTextElement(lastElement)) {
+    return false;
+  }
+
+  // 检查前面的所有元素（如果有）是否是 PrintableTextElement
+  for (let i = 0; i < content.length - 1; i++) {
+    if (!isPrintableTextElement(content[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }

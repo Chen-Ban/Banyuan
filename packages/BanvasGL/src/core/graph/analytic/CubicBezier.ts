@@ -254,3 +254,8 @@ export default class CubicBezier extends Bezier {
     return this;
   }
 }
+
+// 类型守卫函数
+export function isCubicBezier(graph: any): graph is CubicBezier {
+  return graph instanceof CubicBezier;
+}

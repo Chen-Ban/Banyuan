@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react'
-import { Form, Input, Button, Card, message, Row, Col } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
-import { useNavigate, useParams, useLocation } from 'react-router-dom'
-import type { FormProps } from 'antd'
-import type { UserFormData, OptometryParams } from '@/types'
-import FaceDiagram from './components/FaceDiagram'
-import OptometryControls from './components/OptometryControls'
-import styles from './index.module.scss'
+import { useState, useEffect } from "react";
+import { Form, Input, Button, Card, message, Row, Col } from "antd";
+import { ArrowLeftOutlined, SaveOutlined } from "@ant-design/icons";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import type { FormProps } from "antd";
+import type { UserFormData, OptometryParams } from "@/types";
+import FaceDiagram from "./components/FaceDiagram";
+import OptometryControls from "./components/OptometryControls";
+import styles from "./index.module.scss";
 
 // 默认验光参数
 const defaultOptometryParams: OptometryParams = {
@@ -28,41 +28,41 @@ const defaultOptometryParams: OptometryParams = {
     ph: 18,
     add: 0,
   },
-}
+};
 
 const UserPage = () => {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { id } = useParams<{ id?: string }>()
-  const [form] = Form.useForm()
-  const [loading, setLoading] = useState(false)
-  const [isEditMode, setIsEditMode] = useState(false)
-  const [initialLoading, setInitialLoading] = useState(false)
-  const [optometryParams, setOptometryParams] = useState<OptometryParams>(defaultOptometryParams)
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id } = useParams<{ id?: string }>();
+  const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(false);
+  const [optometryParams, setOptometryParams] = useState<OptometryParams>(defaultOptometryParams);
 
   // 判断是新增还是编辑模式
   useEffect(() => {
     if (id) {
-      setIsEditMode(true)
-      loadUserData(id)
+      setIsEditMode(true);
+      loadUserData(id);
     } else {
-      setIsEditMode(false)
+      setIsEditMode(false);
     }
-  }, [id])
+  }, [id]);
 
   // 加载用户数据（编辑模式）
   const loadUserData = async (userId: string) => {
-    setInitialLoading(true)
+    setInitialLoading(true);
     try {
       // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // 模拟数据
       const mockUserData: UserFormData = {
         userId: userId,
         username: `用户${userId}`,
         email: `user${userId}@example.com`,
-        phone: `138${String(userId).padStart(8, '0')}`,
+        phone: `138${String(userId).padStart(8, "0")}`,
         optometry: {
           pd: {
             left: 31.5,
@@ -83,48 +83,48 @@ const UserPage = () => {
             add: 0.5,
           },
         },
-      }
-      
-      form.setFieldsValue(mockUserData)
+      };
+
+      form.setFieldsValue(mockUserData);
       if (mockUserData.optometry) {
-        setOptometryParams(mockUserData.optometry)
+        setOptometryParams(mockUserData.optometry);
       }
     } catch (error) {
-      message.error('加载用户数据失败')
+      message.error("加载用户数据失败");
     } finally {
-      setInitialLoading(false)
+      setInitialLoading(false);
     }
-  }
+  };
 
   // 处理验光参数变化
   const handleOptometryChange = (params: OptometryParams) => {
-    setOptometryParams(params)
-  }
+    setOptometryParams(params);
+  };
 
   const handleBack = () => {
-    const returnTo = (location.state as any)?.returnTo
+    const returnTo = (location.state as any)?.returnTo;
     if (returnTo) {
-      navigate(returnTo)
+      navigate(returnTo);
     } else {
-      navigate('/list')
+      navigate("/list");
     }
-  }
+  };
 
-  const handleSubmit: FormProps<UserFormData>['onFinish'] = async (values) => {
-    setLoading(true)
+  const handleSubmit: FormProps<UserFormData>["onFinish"] = async (values) => {
+    setLoading(true);
     try {
       const payload: UserFormData = {
         ...values,
         optometry: optometryParams,
-      }
+      };
       // 模拟API调用
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      console.log('用户数据:', payload)
-      message.success(isEditMode ? '用户更新成功！' : '用户创建成功！')
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      console.log("用户数据:", payload);
+      message.success(isEditMode ? "用户更新成功！" : "用户创建成功！");
+
       // 检查是否有返回路径（从订单页跳转过来）
-      const returnTo = (location.state as any)?.returnTo
+      const returnTo = (location.state as any)?.returnTo;
       if (returnTo && !isEditMode) {
         // 如果是新建用户且需要返回，则跳转回订单页并传递用户信息
         setTimeout(() => {
@@ -132,49 +132,46 @@ const UserPage = () => {
             state: {
               newUser: payload,
             },
-          })
-        }, 1500)
+          });
+        }, 1500);
       } else {
         // 否则跳转到用户列表
         setTimeout(() => {
-          navigate('/list')
-        }, 1500)
+          navigate("/list");
+        }, 1500);
       }
     } catch (error) {
-      message.error(isEditMode ? '用户更新失败，请重试' : '用户创建失败，请重试')
+      message.error(isEditMode ? "用户更新失败，请重试" : "用户创建失败，请重试");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleReset = () => {
     if (isEditMode) {
       // 编辑模式下，重置为原始数据
-      loadUserData(id!)
+      loadUserData(id!);
     } else {
       // 新增模式下，清空表单
-      form.resetFields()
-      setOptometryParams(defaultOptometryParams)
+      form.resetFields();
+      setOptometryParams(defaultOptometryParams);
       form.setFieldsValue({
         optometry: defaultOptometryParams,
-      })
+      });
     }
-  }
+  };
 
   if (initialLoading) {
-    return <div>加载中...</div>
+    return <div>加载中...</div>;
   }
 
   return (
     <div className={styles.userPage}>
       <div className={styles.userPageHeader}>
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={handleBack}
-        >
+        <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
           返回列表
         </Button>
-        <h2>{isEditMode ? '编辑用户' : '新建用户'}</h2>
+        <h2>{isEditMode ? "编辑用户" : "新建用户"}</h2>
       </div>
 
       <Form
@@ -194,44 +191,33 @@ const UserPage = () => {
                 label="用户ID"
                 name="userId"
                 rules={[
-                  { required: true, message: '请输入用户ID' },
-                  { pattern: /^[a-zA-Z0-9_]+$/, message: '用户ID只能包含字母、数字和下划线' },
+                  { required: true, message: "请输入用户ID" },
+                  { pattern: /^[a-zA-Z0-9_]+$/, message: "用户ID只能包含字母、数字和下划线" },
                 ]}
               >
-                <Input 
-                  placeholder="请输入用户ID" 
-                  disabled={isEditMode}
-                />
+                <Input placeholder="请输入用户ID" disabled={isEditMode} />
               </Form.Item>
 
               <Form.Item
                 label="用户名"
                 name="username"
                 rules={[
-                  { required: true, message: '请输入用户名' },
-                  { min: 2, message: '用户名至少2个字符' },
-                  { max: 50, message: '用户名最多50个字符' },
+                  { required: true, message: "请输入用户名" },
+                  { min: 2, message: "用户名至少2个字符" },
+                  { max: 50, message: "用户名最多50个字符" },
                 ]}
               >
                 <Input placeholder="请输入用户名" />
               </Form.Item>
 
-              <Form.Item
-                label="邮箱"
-                name="email"
-                rules={[
-                  { type: 'email', message: '请输入有效的邮箱地址' },
-                ]}
-              >
+              <Form.Item label="邮箱" name="email" rules={[{ type: "email", message: "请输入有效的邮箱地址" }]}>
                 <Input placeholder="请输入邮箱（可选）" />
               </Form.Item>
 
               <Form.Item
                 label="电话"
                 name="phone"
-                rules={[
-                  { pattern: /^1[3-9]\d{9}$/, message: '请输入有效的手机号码' },
-                ]}
+                rules={[{ pattern: /^1[3-9]\d{9}$/, message: "请输入有效的手机号码" }]}
               >
                 <Input placeholder="请输入电话（可选）" />
               </Form.Item>
@@ -252,17 +238,14 @@ const UserPage = () => {
         </Card>
 
         <div className={styles.formActions}>
-          <Button onClick={handleReset}>
-            {isEditMode ? '重置' : '清空'}
-          </Button>
+          <Button onClick={handleReset}>{isEditMode ? "重置" : "清空"}</Button>
           <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={loading}>
-            {isEditMode ? '更新用户' : '创建用户'}
+            {isEditMode ? "更新用户" : "创建用户"}
           </Button>
         </div>
       </Form>
     </div>
-  )
-}
+  );
+};
 
-export default UserPage
-
+export default UserPage;

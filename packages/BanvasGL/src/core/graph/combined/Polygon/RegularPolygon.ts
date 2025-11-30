@@ -203,3 +203,8 @@ export default class RegularPolygon extends Polygon {
     return new RegularPolygon(center, outerRadius, points * 2, rotation, style);
   }
 }
+
+// 类型守卫函数
+export function isRegularPolygon(graph: any): graph is RegularPolygon {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.REGULAR_POLYGON;
+}

@@ -1,5 +1,5 @@
 import View, { ViewOptions, ViewContent } from "../View";
-import TextParagraph from "../../graph/text/TextParagraph";
+import TextParagraph, { TextParagraphContent } from "../../graph/text/TextParagraph";
 import TextElement, { NonPrintableTextElement, PrintableTextElement } from "../../graph/text/TextElement";
 import TextOptions from "../../graph/text/TextOptions";
 import { Rectangle } from "../../graph/combined/Polygon";
@@ -12,7 +12,7 @@ import { HORIZONTALALIGN, VERTICALALIGN, VIEWTYPE } from "@/core/constants";
 import { PointUtils } from "../../graph/utils/PointUtils";
 import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
 import Bounds from "../../graph/base/Bounds";
-import { isNonPrintableTextElement } from "../../graph/utils/typeGuards";
+import { isNonPrintableTextElement } from "../../graph/text/TextElement";
 
 // 文本视图选项接口
 export interface TextViewOptions extends Omit<ViewOptions, "content"> {
@@ -150,8 +150,7 @@ export default class TextView extends View {
     return builder.build();
   }
 
-  private getTextOptionsByIndex(paragraph:TextParagraph,insertIndex:number): TextOptions {
-
+  private getTextOptionsByIndex(paragraph: TextParagraph, insertIndex: number): TextOptions {
     let textOptions: TextOptions;
 
     if (insertIndex > 0 && paragraph.texts[insertIndex - 1]) {
@@ -171,47 +170,51 @@ export default class TextView extends View {
    * 处理输入事件
    * @param content 输入的文本内容
    * @param isComposition 是否是合成输入（中文输入法等）
-   * @description 完整流程：删除选中范围->插入新文本->根据isComposition更新光标位置->重新布局
+   * @description 完整流程：删除选中范围->插入新文本->重新布局->设置selection
    * @description 如果isComposition为true，则selection包含输入的内容，否则selection不包含输入的内容，置于输入内容的结束位置
    */
   public input(content: string, isComposition: boolean): void {
     // 没有选中文本内容，不进行输入
     if (!this.selection.isSelection || content.length === 0) return;
 
+    let insertIndex: TextIndex | undefined;
+
     // 如果有选中范围，先删除选中内容
     if (!this.selection.isCursor()) {
-      // 删除选中范围（deleteSelection 会更新光标位置，但不重新布局）
-      this.deleteSelection();
-    }
-
-    const [startIndex] = this.selection.toDirectionlessIndex();
-
-    if(!startIndex) return;
-    const [paragraphIndex, textIndex, position] = startIndex;
-    const paragraph = this.content[paragraphIndex];
-    const insertIndex = textIndex + position;
-
-    const textOptions = this.getTextOptionsByIndex(paragraph,insertIndex);
-   
-    paragraph.addText(content,insertIndex,textOptions)
-
-    // 更新光标位置
-    if (isComposition) {
-      // 合成输入时：fixedIndex 保持不变，dynamicIndex 根据输入长度动态更新
-      const newDynamicIndex: TextIndex = [paragraphIndex, textIndex + content.length, 1];
-      this.setSelection(this.selection.fixedIndex, newDynamicIndex);
+      // 删除选中范围，获取新的插入位置索引
+      insertIndex = this.deleteSelection();
     } else {
-      // 非合成输入时：fixedIndex 和 dynamicIndex 都更新到插入文本的末尾
-      const newCursorIndex = textIndex + content.length;
-      const newIndex: TextIndex = [paragraphIndex, newCursorIndex, 1];
-      this.setSelection(newIndex, newIndex);
+      // 使用当前光标位置作为插入位置
+      const [startIndex] = this.selection.toDirectionlessIndex();
+      insertIndex = startIndex;
     }
+
+    if (!insertIndex) return;
+    const [paragraphIndex, textIndex, position] = insertIndex;
+    const paragraph = this.content[paragraphIndex];
+    const textInsertIndex = textIndex + position;
+
+    const textOptions = this.getTextOptionsByIndex(paragraph, textInsertIndex);
+
+    paragraph.addText(content, textInsertIndex, textOptions);
 
     // 重新布局
     this.shouldLayout = true;
     this.layout();
     this.initBoundingBox();
     this.initViewport();
+
+    // 更新光标位置（布局后设置selection，因为selectionBoxs依赖于文字的包围盒）
+    if (isComposition) {
+      // 合成输入时：fixedIndex 保持不变，dynamicIndex 根据输入长度动态更新
+      const newDynamicIndex: TextIndex = [paragraphIndex, textInsertIndex + content.length, 0];
+      this.setSelection(insertIndex, newDynamicIndex);
+    } else {
+      // 非合成输入时：fixedIndex 和 dynamicIndex 都更新到插入文本的末尾
+      const newCursorIndex = textInsertIndex + content.length;
+      const newIndex: TextIndex = [paragraphIndex, newCursorIndex, 0];
+      this.setSelection(newIndex, [...newIndex]);
+    }
   }
 
   /**
@@ -221,34 +224,44 @@ export default class TextView extends View {
   public delete(isBackspace: boolean): void {
     if (!this.selection.isSelection) return;
 
+    let newIndex: TextIndex | undefined;
+
     if (!this.selection.isCursor()) {
       // 有选中范围，删除选中范围
-      this.deleteSelection();
+      newIndex = this.deleteSelection();
     } else {
       // 没有选中范围，删除光标位置的字符
-      this.deleteAtCursor(isBackspace);
+      newIndex = this.deleteAtCursor(isBackspace);
     }
+
     // 重新布局
     this.shouldLayout = true;
     this.layout();
     this.initBoundingBox();
     this.initViewport();
+
+    // 布局后设置selection（因为selectionBoxs依赖于文字的包围盒）
+    if (newIndex) {
+      this.setSelection(newIndex, [...newIndex]);
+    }
   }
 
   /**
    * 删除选中范围的文本（可能跨段落）
+   * @returns 删除后的新光标位置索引，如果删除失败则返回undefined
+   * @description 只修改文本内容，不设置selection，不更新布局
    */
-  private deleteSelection(): void {
-    if (!this.selection.isSelection) return;
+  private deleteSelection(): TextIndex | undefined {
+    if (!this.selection.isSelection) return undefined;
 
     // 使用 toDirectionlessIndex 转换为无方向的索引
     const [startIndex, endIndex] = this.selection.toDirectionlessIndex();
-    
-    if (!startIndex || !endIndex) return;
-    
+
+    if (!startIndex || !endIndex) return undefined;
+
     const [startPara, startText, startPos] = startIndex;
     const [endPara, endText, endPos] = endIndex;
-    
+
     const startParagraphIndex = startPara;
     const startTextIndex = startText + startPos;
     const endParagraphIndex = endPara;
@@ -257,19 +270,18 @@ export default class TextView extends View {
     if (startParagraphIndex === endParagraphIndex) {
       // 同一段落内删除
       const paragraph = this.content[startParagraphIndex];
-      if (!paragraph) return;
-      
+      if (!paragraph) return undefined;
+
       const deleteCount = endTextIndex - startTextIndex;
       paragraph.texts.splice(startTextIndex, deleteCount);
 
-      // 更新光标位置到删除位置
-      const newIndex: TextIndex = [startParagraphIndex, startText, startPos];
-      this.setSelection(newIndex, [...newIndex]);
+      // 返回新的光标位置索引
+      return [startParagraphIndex, startTextIndex, 0];
     } else {
       // 跨段落删除
       const startParagraph = this.content[startParagraphIndex];
       const endParagraph = this.content[endParagraphIndex];
-      if (!startParagraph || !endParagraph) return;
+      if (!startParagraph || !endParagraph) return undefined;
 
       // 删除起始段落中从起始位置到末尾的内容
       const startDeleteCount = startParagraph.texts.length - startTextIndex;
@@ -288,26 +300,23 @@ export default class TextView extends View {
       const paragraphsToDelete = endParagraphIndex - startParagraphIndex;
       this.content.splice(startParagraphIndex + 1, paragraphsToDelete);
 
-      // 更新光标位置到起始删除位置
-      const newIndex: TextIndex = [startParagraphIndex, startText, startPos];
-      this.setSelection(newIndex, [...newIndex]);
+      // 返回新的光标位置索引
+      return [startParagraphIndex, startText, startPos];
     }
-
-
   }
 
   /**
    * 删除光标位置的字符
    * @param isBackspace true 表示 Backspace（删除光标前），false 表示 Delete（删除光标后）
+   * @returns 删除后的新光标位置索引，如果删除失败则返回undefined
+   * @description 只修改文本内容，不设置selection，不更新布局
    */
-  private deleteAtCursor(isBackspace: boolean): void {
-    if (!this.selection.isSelection) return;
-
-    if(!this.selection.fixedIndex) return;
+  private deleteAtCursor(isBackspace: boolean): TextIndex | undefined {
+    if (!this.selection.fixedIndex) return undefined;
     const [fixedParagraphIndex, fixedTextIndex, fixedPosition] = this.selection.fixedIndex;
     const cursorIndex = fixedTextIndex + fixedPosition;
     const paragraph = this.content[fixedParagraphIndex];
-    if (!paragraph) return;
+    if (!paragraph) return undefined;
 
     if (isBackspace) {
       // Backspace：删除光标前的字符
@@ -315,40 +324,34 @@ export default class TextView extends View {
         // 删除光标前的一个字符
         paragraph.texts.splice(cursorIndex - 1, 1);
 
-        // 更新光标位置
-        const newIndex: TextIndex = [fixedParagraphIndex, cursorIndex - 1, 0];
-        this.setSelection(newIndex, newIndex);
+        // 返回新的光标位置索引
+        return [fixedParagraphIndex, cursorIndex - 1, 0];
       } else {
         // 光标在段落开头，尝试合并到上一个段落
         if (fixedParagraphIndex > 0) {
           const prevParagraph = this.content[fixedParagraphIndex - 1];
           const currentParagraph = paragraph;
           const prevTextCount = prevParagraph.texts.length;
-
-          // 将当前段落的内容合并到上一个段落
-          prevParagraph.texts.push(...currentParagraph.texts);
+          prevParagraph.texts = prevParagraph.texts.slice(0, -1).concat(currentParagraph.texts) as TextParagraphContent;
 
           // 删除当前段落
           this.content.splice(fixedParagraphIndex, 1);
 
-          // 更新光标位置到上一个段落的末尾
-          const newIndex: TextIndex = [fixedParagraphIndex - 1, prevTextCount, 0];
-          this.setSelection(newIndex, newIndex);
-          return;
+          // 返回新的光标位置索引
+          return [fixedParagraphIndex - 1, prevTextCount, 0];
         } else {
           // 已经是第一个段落，无法删除
-          return;
+          return undefined;
         }
       }
     } else {
       // Delete：删除光标后的字符
-      if (cursorIndex < paragraph.texts.length) {
+      if (cursorIndex < paragraph.length) {
         // 删除光标后的一个字符
         paragraph.texts.splice(cursorIndex, 1);
 
-        // 光标位置保持不变
-        const newIndex: TextIndex = [fixedParagraphIndex, cursorIndex, 0];
-        this.setSelection(newIndex, newIndex);
+        // 返回新的光标位置索引（光标位置保持不变）
+        return [fixedParagraphIndex, cursorIndex, 0];
       } else {
         // 光标在段落末尾，尝试合并下一个段落
         if (fixedParagraphIndex < this.content.length - 1) {
@@ -357,18 +360,18 @@ export default class TextView extends View {
           const currentTextCount = currentParagraph.texts.length;
 
           // 将下一个段落的内容合并到当前段落
-          currentParagraph.texts.push(...nextParagraph.texts);
+          currentParagraph.texts = currentParagraph.texts
+            .slice(0, -1)
+            .concat(nextParagraph.texts) as TextParagraphContent;
 
           // 删除下一个段落
           this.content.splice(fixedParagraphIndex + 1, 1);
 
-          // 光标位置保持不变
-          const newIndex: TextIndex = [fixedParagraphIndex, currentTextCount, 0];
-          this.setSelection(newIndex, newIndex);
-          return;
+          // 返回新的光标位置索引（光标位置保持不变）
+          return [fixedParagraphIndex, cursorIndex, 0];
         } else {
           // 已经是最后一个段落，无法删除
-          return;
+          return undefined;
         }
       }
     }
@@ -378,8 +381,6 @@ export default class TextView extends View {
    * 换行（创建新段落）
    */
   public newLine(): void {
-    if (this.selection.isSelection) throw new Error("Selection is not empty, please delete selection first");
-
     const [startIndex] = this.selection.toDirectionlessIndex();
     if (!startIndex) return;
 
@@ -397,21 +398,22 @@ export default class TextView extends View {
     if (splitIndex < paragraph.texts.length) {
       // 将分割点后的文本移动到新段落
       const textsToMove = paragraph.texts.splice(splitIndex).filter((text) => text instanceof PrintableTextElement);
+      paragraph.texts.push(new NonPrintableTextElement());
       newParagraph.texts.splice(0, 0, ...textsToMove);
     }
 
     // 插入新段落到内容数组
     this.content.splice(paragraphIndex + 1, 0, newParagraph);
 
-    // 更新光标位置到新段落的开头
-    const newIndex: TextIndex = [paragraphIndex + 1, 0, 0];
-    this.setSelection(newIndex, [...newIndex]);
-
     // 重新布局
     this.shouldLayout = true;
     this.layout();
     this.initBoundingBox();
     this.initViewport();
+
+    // 布局后设置selection（因为selectionBoxs依赖于文字的包围盒）
+    const newIndex: TextIndex = [paragraphIndex + 1, 0, 0];
+    this.setSelection(newIndex, [...newIndex]);
   }
 
   /**
@@ -431,7 +433,7 @@ export default class TextView extends View {
           if (relativePoint.x >= midPoint.x) {
             index[2] = 1;
           }
-          if(isNonPrintableTextElement(t)) {
+          if (isNonPrintableTextElement(t)) {
             index[1] -= 1;
           }
           return index;
@@ -447,7 +449,7 @@ export default class TextView extends View {
    * @param needConstraint 是否需要约束到段落的边界上
    */
   private point2TextElement(p: Point3, needConstraint: Boolean = false): TextElement | null {
-    if(!this.layoutArea) return null;
+    if (!this.layoutArea) return null;
     // 需不需要约束点
     const relativePoint = needConstraint ? this.constraintPoint(p) : p;
 
@@ -468,11 +470,15 @@ export default class TextView extends View {
       return hitedTextElement;
     }
     // 未命中段落，命中布局区域
-    const hitedLayoutArea = this.layoutArea.isPointInPath(relativePoint)||this.layoutArea.isPointOnCurve(relativePoint);
-    if(hitedLayoutArea){
-      return this.probeTextElement(this.content.flatMap((paragraph) => paragraph.texts), relativePoint);
+    const hitedLayoutArea =
+      this.layoutArea.isPointInPath(relativePoint) || this.layoutArea.isPointOnCurve(relativePoint);
+    if (hitedLayoutArea) {
+      return this.probeTextElement(
+        this.content.flatMap((paragraph) => paragraph.texts),
+        relativePoint
+      );
     }
-    return null
+    return null;
   }
 
   /**
@@ -530,18 +536,15 @@ export default class TextView extends View {
    * @description 两个都为undefined时，不出现光标
    */
   public setSelection(fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void {
-    if (!fixedIndex || !dynamicIndex) {
+    const [start, end] = Selection.toDirectionlessIndex(fixedIndex, dynamicIndex);
+    if (!start || !end) {
       this.selection.setSelectionBoxs([]);
       return;
     }
-    const fixedPriorityNum = Number(fixedIndex.join(""));
-    const dynamicPriorityNum = Number(dynamicIndex.join(""));
-    const start = fixedPriorityNum > dynamicPriorityNum ? dynamicIndex : fixedIndex;
-    const end = start === fixedIndex ? dynamicIndex : fixedIndex;
 
     const boxs = [];
     // 选中光标
-    if (start[0] === end[0] && start[1] == end[1] && start[2] === end[2]) {
+    if (Selection.isCursor(start, end)) {
       const textElement = this.content[start[0]].texts[start[1]];
       const bounds = textElement.getBounds();
       const x = start[2] === 0 ? bounds.x - 2 : bounds.x + bounds.width;
@@ -592,10 +595,10 @@ export default class TextView extends View {
 
     // 执行深度优先搜索布局
     this.layoutParagrahs(this.content, this.layoutArea);
-    
+
     // 布局结束后，将 layoutArea 大小设置成段落包围盒的并集
     this.updateLayoutAreaFromParagraphs();
-    
+
     this.shouldLayout = false;
   }
 
@@ -607,10 +610,10 @@ export default class TextView extends View {
 
     // 获取所有段落的包围盒
     const paragraphBounds = this.content.map((paragraph) => paragraph.getBounds());
-    
+
     // 计算所有段落包围盒的并集
     const unionBounds = Bounds.union(...paragraphBounds);
-    
+
     // 更新 layoutArea 的位置和大小（使用并集的位置和大小）
     // 这样 layoutArea 会完全包含所有段落内容
     // TODO: 需要根据固定宽度或高度来更新 layoutArea 的大小，需同步修改交互逻辑

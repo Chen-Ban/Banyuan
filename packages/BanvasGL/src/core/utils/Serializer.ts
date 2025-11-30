@@ -9,7 +9,6 @@ import { Operation, Diff } from "../scene/utils/OperationStack";
 
 // 导入可实例化图形类型
 import CombinedGraph from "../graph/combined/CombinedGraph";
-import ComplexGraph from "../graph/combined/ComplexGraph/ComplexGraph";
 import Line from "../graph/analytic/Line";
 import Circle from "../graph/analytic/Circle";
 import Arc from "../graph/analytic/Arc";
@@ -148,11 +147,6 @@ export default class Serializer {
     this.registerType("CombinedGraph", CombinedGraph, {
       serialize: (graph: CombinedGraph) => this.serializeCombinedGraph(graph),
       deserialize: (data: any) => this.deserializeCombinedGraph(data),
-    });
-
-    this.registerType("ComplexGraph", ComplexGraph, {
-      serialize: (graph: ComplexGraph) => this.serializeComplexGraph(graph),
-      deserialize: (data: any) => this.deserializeComplexGraph(data),
     });
 
     this.registerType("Line", Line, {
@@ -619,8 +613,6 @@ export default class Serializer {
         return this.deserializeCubicBezier(data);
       case GRAPHTYPE.COMBINED_GRAPH:
         return this.deserializeCombinedGraph(data);
-      case GRAPHTYPE.COMPLEX_GRAPH:
-        return this.deserializeComplexGraph(data);
       default:
         console.warn(`Unknown graph type: ${data.type}`);
         return null;
@@ -724,20 +716,6 @@ export default class Serializer {
   }
 
   /**
-   * 序列化ComplexGraph为JSON字符串
-   */
-  public static serializeComplexGraph(graph: ComplexGraph, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(graph, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为ComplexGraph
-   */
-  public static deserializeComplexGraph(json: string, options?: Partial<SerializerOptions>): ComplexGraph {
-    return Serializer.getInstance().deserialize<ComplexGraph>(json, options);
-  }
-
-  /**
    * 序列化Line为JSON字符串
    */
   public static serializeLine(line: Line, options?: Partial<SerializerOptions>): string {
@@ -815,33 +793,6 @@ export default class Serializer {
     const graphs = data.graphs.map((graphData: any) => this.deserializeValue(graphData, this.defaultOptions));
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const graph = new CombinedGraph(graphs, style);
-    graph._id = data.id;
-    return graph;
-  }
-
-  /**
-   * 序列化ComplexGraph对象
-   */
-  private serializeComplexGraph(graph: ComplexGraph): any {
-    return {
-      id: graph._id,
-      type: graph.type,
-      graphs: graph.graphs.map((g) => this.serializeValue(g, this.defaultOptions, 0)),
-      style: this.serializeValue(graph.style, this.defaultOptions, 0),
-      controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
-      bounds: graph.getBounds() ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0) : null,
-    };
-  }
-
-  /**
-   * 反序列化ComplexGraph对象
-   */
-  private deserializeComplexGraph(data: any): ComplexGraph {
-    const graphs = data.graphs.map((graphData: any) => this.deserializeValue(graphData, this.defaultOptions));
-    const style = this.deserializeValue(data.style, this.defaultOptions);
-    const graph = new ComplexGraph();
-    graph.graphs = graphs;
-    graph.style = style;
     graph._id = data.id;
     return graph;
   }

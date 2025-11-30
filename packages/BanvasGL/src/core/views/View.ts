@@ -30,8 +30,6 @@ export interface ViewOptions<T extends object = any> {
   [funcName: string]: any;
 }
 
-
-
 export default abstract class View<T extends object = any> {
   // 基本属性
   public readonly type: VIEWTYPE = VIEWTYPE.VIEW;
@@ -204,12 +202,12 @@ export default abstract class View<T extends object = any> {
     this.renderContent(canvasContext.getMainContext());
     // 渲染子节点
     this.renderChildren(canvasContext);
-    const ctx = canvasContext.getMainContext();
-    ctx.save();
-    ctx.fillStyle = "#000";
-    ctx.textBaseline = "top";
-    ctx.fillText(this.id, 0, 0);
-    ctx.restore();
+    // const ctx = canvasContext.getMainContext();
+    // ctx.save();
+    // ctx.fillStyle = "#000";
+    // ctx.textBaseline = "top";
+    // ctx.fillText(this.id, 0, 0);
+    // ctx.restore();
   }
 
   private renderChildren(ctx: CanvasContext) {

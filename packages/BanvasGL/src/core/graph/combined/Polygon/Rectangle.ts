@@ -184,3 +184,8 @@ export default class Rectangle extends Polygon {
     return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height, style);
   }
 }
+
+// 类型守卫函数
+export function isRectangle(graph: any): graph is Rectangle {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.RECTANGLE;
+}

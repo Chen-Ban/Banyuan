@@ -15,3 +15,8 @@ export * from "./text";
 
 // 图像元素
 export * from "./media";
+
+// 工具类
+export * from "./utils/IntersectionUtils";
+
+export * from "./utils/PointUtils";

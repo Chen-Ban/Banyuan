@@ -191,3 +191,8 @@ export default class Polygon extends CombinedGraph {
     return new Polygon(this.vertices, this.style.copy(), this.isClosed) as this;
   }
 }
+
+// 类型守卫函数
+export function isPolygon(graph: any): graph is Polygon {
+  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.POLYGON;
+}

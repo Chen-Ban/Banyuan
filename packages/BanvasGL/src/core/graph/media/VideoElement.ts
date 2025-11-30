@@ -291,3 +291,8 @@ export default class VideoElement extends MediaElement {
     return element;
   }
 }
+
+// 类型守卫函数
+export function isVideoElement(graph: any): graph is VideoElement {
+  return graph instanceof VideoElement;
+}
