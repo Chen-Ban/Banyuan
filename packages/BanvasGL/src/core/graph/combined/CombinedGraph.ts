@@ -3,7 +3,6 @@ import Style from "@/core/style/Style";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import Graph from "../base/Graph";
 import Bounds from "../base/Bounds";
-import { PointUtils } from "@/core/graph/utils/PointUtils";
 import { isDenseTrajectory } from "../trajectory/DenseTrajectory";
 import { isLine } from "../analytic/Line";
 import { isArc } from "../analytic/Arc";
@@ -41,7 +40,7 @@ export default class CombinedGraph extends Graph {
   }
 
   public getCentroid(): Point3 {
-    return this.graphs.map((g) => this.getCentroid()).reduce((a, b) => PointUtils.midpoint(a, b));
+    return this.graphs.map((g) => g.getCentroid()).reduce((a, b) => Point3.midpoint(a, b));
   }
 
   public getLength(tStart: number, tEnd: number): number {
@@ -209,7 +208,7 @@ export default class CombinedGraph extends Graph {
         // 获取当前图形的起始点
         const currentStartPoint = this.getGraphStartPoint(currentGraph);
 
-        if (!lastEndPoint || !PointUtils.isSamePoint(lastEndPoint, currentStartPoint)) return;
+        if (!lastEndPoint || !lastEndPoint.isSame(currentStartPoint)) return;
 
         // 渲染当前图形的路径（不包含moveTo）
         this.renderGraphPathWithoutMoveTo(ctx, currentGraph);
@@ -376,6 +375,16 @@ export default class CombinedGraph extends Graph {
         graph.controlPoints[i] = matrix.multiply(graph.controlPoints[i]);
       }
     }
+  }
+
+  /**
+   * 计算与另一个图形的相交点
+   * @param other 另一个图形
+   * @returns 相交点数组（暂未实现）
+   */
+  public intersect(other: Graph): Point3[] {
+    const intersections = this.graphs.map((graph) => graph.intersect(other));
+    return intersections.flat();
   }
 }
 

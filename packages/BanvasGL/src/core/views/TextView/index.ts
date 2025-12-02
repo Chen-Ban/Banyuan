@@ -9,7 +9,6 @@ import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { ViewAddonImpl, InteractionMapBuilder } from "../addon";
 import Selection, { TextIndex } from "./Selection";
 import { HORIZONTALALIGN, VERTICALALIGN, VIEWTYPE } from "@/core/constants";
-import { PointUtils } from "../../graph/utils/PointUtils";
 import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
 import Bounds from "../../graph/base/Bounds";
 import { isNonPrintableTextElement } from "../../graph/text/TextElement";
@@ -136,7 +135,7 @@ export default class TextView extends View {
     // 只有命中外部且需要约束时才约束
     const textElement = this.point2TextElement(relativePoint, needConstraint && !hitedParagraph);
     if (textElement) {
-      return builder.add(this, textElement, { action: Action.SELECTION, cursorStyle: Cursor.Text }).build();
+      return builder.add(this, [textElement], { action: Action.SELECTION, cursorStyle: Cursor.Text }).build();
     }
 
     // 命中边界框（移动/缩放）
@@ -508,12 +507,12 @@ export default class TextView extends View {
 
     // 找到leftBottom和rightTop中离relativePoint最近的textElement
     const leftBottomDistance = leftBottom.map((b) => {
-      const center = b.getBounds().center;
-      return PointUtils.distance(p, new Point3(center.x, center.y, 0));
+      const center = Rectangle.fromBounds(b.getBounds()).getCenter();
+      return p.distance(new Point3(center.x, center.y, 0));
     });
     const rightTopDistance = rightTop.map((b) => {
-      const center = b.getBounds().center;
-      return PointUtils.distance(p, new Point3(center.x, center.y, 0));
+      const center = Rectangle.fromBounds(b.getBounds()).getCenter();
+      return p.distance(new Point3(center.x, center.y, 0));
     });
     const minLeftBottomDistance = Math.min(...leftBottomDistance);
     const minRightTopDistance = Math.min(...rightTopDistance);
@@ -933,4 +932,8 @@ export default class TextView extends View {
 
     return newView;
   }
+}
+
+export function isTextView(view: any): view is TextView {
+  return view instanceof TextView;
 }

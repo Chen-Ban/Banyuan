@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Point3, App } from "@/core";
-import { isTextView } from "@/core/views/utils/typeGuards";
+import { Point3, App, isTextView } from "@/core";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import type TextView from "@/core/views/TextView";
 import { TextIndex } from "@/core/views/TextView/Selection";
@@ -98,9 +97,6 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
 
       const input = inputRef.current;
       const inputValue = input.value;
-      const selectionStart = input.selectionStart || 0;
-      const selectionEnd = input.selectionEnd || 0;
-      console.log(e.key);
 
       switch (e.key) {
         case "ArrowLeft":

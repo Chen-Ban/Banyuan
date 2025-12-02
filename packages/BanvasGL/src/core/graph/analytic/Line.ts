@@ -121,7 +121,7 @@ export default class Line extends AnalyticGraph {
     const lineLengthSquared = lineVector.dot(lineVector);
     if (MathUtils.isZero(lineLengthSquared)) {
       return {
-        distance: MathUtils.distance(point, this.startPoint),
+        distance: point.distance(this.startPoint),
         closestPoint: this.startPoint.copy(),
         parameter: 0,
       };
@@ -129,7 +129,7 @@ export default class Line extends AnalyticGraph {
 
     const t = Math.max(0, Math.min(1, pointVector.dot(lineVector) / lineLengthSquared));
     const closestPoint = this.getPointAt(t);
-    const distance = MathUtils.distance(point, closestPoint);
+    const distance = point.distance(closestPoint);
 
     return {
       distance,
@@ -139,38 +139,12 @@ export default class Line extends AnalyticGraph {
   }
 
   /**
-   * 计算线条与另一条解析式图形的交点
-   */
-  public getIntersections(other: AnalyticGraph): Point3[] {
-    if (other instanceof Line) {
-      const intersection = MathUtils.lineIntersection(this.startPoint, this.endPoint, other.startPoint, other.endPoint);
-      return intersection ? [intersection] : [];
-    }
-
-    // 对于其他类型的图形，使用数值方法求解
-    const intersections: Point3[] = [];
-    const numSamples = 100;
-
-    for (let i = 0; i < numSamples; i++) {
-      const t = i / (numSamples - 1);
-      const point = this.getPointAt(t);
-      const distance = other.getClosestPoint(point).distance;
-
-      if (distance < 1e-6) {
-        intersections.push(point);
-      }
-    }
-
-    return intersections;
-  }
-
-  /**
    * 计算线条在指定参数范围内的长度
    */
   public getLength(tStart: number, tEnd: number): number {
     const startPoint = this.getPointAt(tStart);
     const endPoint = this.getPointAt(tEnd);
-    return MathUtils.distance(startPoint, endPoint);
+    return startPoint.distance(endPoint);
   }
 
   /**

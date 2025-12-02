@@ -18,20 +18,20 @@ export interface GraphViewOptions extends Omit<ViewOptions, "content"> {
  */
 export default class GraphView extends View {
   public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW;
-  public content: Graph;
+  public content: [Graph];
   public children: View[] = [];
 
   constructor(graph: Graph, options: GraphViewOptions = {}) {
     // 将graph作为content传递给父类构造函数
     super({ ...options });
-    this.content = graph;
+    this.content = [graph];
     this.initBoundingBox();
     this.initViewport();
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    if (this.content && typeof this.content.render === "function") {
-      this.content.render(ctx);
+    if (this.content && typeof this.content[0].render === "function") {
+      this.content[0].render(ctx);
     }
   }
 
@@ -41,7 +41,7 @@ export default class GraphView extends View {
     width: number;
     height: number;
   } {
-    return this.content.getBounds();
+    return this.content[0].getBounds();
   }
 
   public interact(p: Point3): {
@@ -65,7 +65,7 @@ export default class GraphView extends View {
 
     // 检查内容
     if (this.content) {
-      const hitContent = this.content.isPointInPath(relativePoint) || this.content.isPointOnCurve(relativePoint, 2);
+      const hitContent = this.content[0].isPointInPath(relativePoint) || this.content[0].isPointOnCurve(relativePoint, 2);
       if (hitContent) {
         return builder
           .add(this, this.content, {
@@ -88,7 +88,7 @@ export default class GraphView extends View {
   }
 
   public copy(): GraphView {
-    const newView = new GraphView(this.content);
+    const newView = new GraphView(this.content[0]);
 
     // 复制基本属性
     newView.layer = this.layer;
@@ -115,4 +115,8 @@ export default class GraphView extends View {
 
     return newView;
   }
+}
+
+export function isGraphView(view: any): view is GraphView {
+  return view instanceof GraphView;
 }

@@ -8,16 +8,17 @@ import {
   SelectBoxView,
   isNonPrintableTextElement,
   isPrintableTextElement,
+  Graph,
+  isTextView,
+  isSelectBoxView,
+  Vector3,
+  MathUtils,
 } from "@/core";
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { ViewAddonImpl } from "@/core/views/addon";
 import { ViewContent } from "@/core/views/View";
 import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
-import { isTextView, isSelectBoxView } from "@/core/views/utils/typeGuards";
-import { isRectangle } from "@/core/graph/combined/Polygon/Rectangle";
-import { checkViewIntersection } from "./utils/intersectionUtils";
-import { PointUtils } from "@/core/graph/utils/PointUtils";
 
 export interface UseCanvasEventsOptions {
   app: App | null;
@@ -29,7 +30,6 @@ export interface UseCanvasEventsOptions {
  * Canvas 事件绑定
  */
 export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOptions) {
-  // 状态移动到副作用外层
   const mouseDownPointRef = useRef<Point3 | null>(null);
   const lastPointRef = useRef<Point3 | null>(null);
   const mouseUpPointRef = useRef<Point3 | null>(null);
@@ -104,6 +104,14 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           }
           break;
         case Action.RESIZE:
+          canvasRef.current!.style.cursor = Cursor.Grabbing;
+          if (extraDataRef.current) {
+            const { resizeFixedPoint, resizeDynamicPoint } = extraDataRef.current;
+            if (resizeFixedPoint && resizeDynamicPoint) {
+              const xMove = !MathUtils.isEqual(resizeDynamicPoint.x, resizeFixedPoint.x)
+              const yMove = !MathUtils.isEqual(resizeDynamicPoint.y, resizeFixedPoint.y)
+            }
+          }
           break;
         case Action.ROTATE: {
           canvasRef.current!.style.cursor = Cursor.Grabbing;
@@ -125,16 +133,20 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
         case Action.SELECT:
           canvasRef.current!.style.cursor = Cursor.Crosshair;
           if (selectionRectViewRef.current && mousDownPoint) {
+            // 更新框选矩形
             selectionRectViewRef.current.updateSelect(mousDownPoint, point);
-          }
-          if (selectionRectViewRef.current) {
             const selectionRect = selectionRectViewRef.current.content;
-            if (!isRectangle(selectionRect)) return;
             const viewsToActivate: View[] = [];
             const allViews = ViewTreeUtils.flattenViewTree(scene);
+            // 遍历所有视图，检查是否与框选矩形相交
             for (const view of allViews) {
-              if (checkViewIntersection(view, selectionRect)) {
-                viewsToActivate.push(view);
+              let graphs = [view.content,view?.layoutArea].flat().filter(graph=>graph instanceof Graph)
+              for (const graph of graphs) {
+                const intersection = selectionRect[0].intersect(graph);
+                if (intersection.length > 0) {
+                  viewsToActivate.push(view);
+                  break;
+                }
               }
             }
             for (const view of viewsToActivate) {
@@ -229,7 +241,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
       if (!mousDownPoint || !mouseUpPoint) return;
 
       // 只有单击时才处理
-      if (PointUtils.isSamePoint(mousDownPoint, mouseUpPoint)) {
+      if (mousDownPoint.isSame(mouseUpPoint)) {
         const indicateView = indicateViewRef.current;
         if (indicateView) {
           scene.select(indicateView, e.ctrlKey);
@@ -302,7 +314,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
       if (!mousDownPoint || !mouseUpPoint) return;
 
       // 双击事件处理
-      if (PointUtils.isSamePoint(mousDownPoint, mouseUpPoint, lastClickTimeRef.current)) {
+      if (mousDownPoint.isSame(mouseUpPoint) && lastClickTimeRef.current && Date.now() - lastClickTimeRef.current < 300) {
         if (
           isTextView(indicateViewRef.current) &&
           (isPrintableTextElement(indicateContentRef.current) || isNonPrintableTextElement(indicateContentRef.current))

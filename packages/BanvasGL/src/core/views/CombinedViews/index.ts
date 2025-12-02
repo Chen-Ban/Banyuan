@@ -26,7 +26,7 @@ export interface CombinedViewOptions extends Omit<ViewOptions, "content"> {
  */
 export default class CombinedView extends View {
   public type: VIEWTYPE = VIEWTYPE.COMBINEDVIEW;
-  public content: Graph;
+  public content: [Graph];
   public children: View[];
 
   private _contentBounds: Bounds;
@@ -34,7 +34,7 @@ export default class CombinedView extends View {
   constructor(views: View[] = [], options: CombinedViewOptions = {}) {
     // 将views作为content传递给父类构造函数
     super({ ...options });
-    this.content = options.graph;
+    this.content = [options.graph];
     this.children = views;
 
     this._extreme = this.computeExtreme();
@@ -71,7 +71,7 @@ export default class CombinedView extends View {
 
     // 命中自身内容（如有）
     if (this.content) {
-      const hitContent = this.content.isPointInPath(relativePoint);
+      const hitContent = this.content[0].isPointInPath(relativePoint);
       if (hitContent) {
         return builder
           .add(this, this.content, {
@@ -94,8 +94,8 @@ export default class CombinedView extends View {
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    if (this.content && typeof this.content.render === "function") {
-      this.content.render(ctx);
+    if (this.content && typeof this.content[0].render === "function") {
+      this.content[0].render(ctx);
     }
   }
 
@@ -223,4 +223,8 @@ export default class CombinedView extends View {
     }
     return this.children.some((child) => child.contains(view));
   }
+}
+
+export function isCombinedView(view: any): view is CombinedView {
+  return view instanceof CombinedView;
 }

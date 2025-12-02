@@ -13,18 +13,18 @@ export interface ImageViewOptions extends Omit<ViewOptions, "content"> {
  * 图像视图 - 专门处理ImageElement类型内容
  */
 export default class ImageView extends View {
-  public content: ImageElement;
+  public content: [ImageElement];
   public children: View<any>[] = [];
 
   constructor(image: ImageElement, options: ImageViewOptions = {}) {
     // 将image作为content传递给父类构造函数
-    super({ ...options, content: image });
-    this.content = image;
+    super({ ...options, content: [image] });
+    this.content = [image];
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    if (this.content && typeof this.content.render === "function") {
-      this.content.render(ctx);
+    if (this.content && typeof this.content[0].render === "function") {
+      this.content[0].render(ctx);
     }
   }
 
@@ -34,8 +34,8 @@ export default class ImageView extends View {
     width: number;
     height: number;
   } {
-    if (this.content && typeof this.content.getBounds === "function") {
-      return this.content.getBounds();
+    if (this.content && typeof this.content[0].getBounds === "function") {
+      return this.content[0].getBounds();
     }
     return { x: 0, y: 0, width: 0, height: 0 };
   }
@@ -55,7 +55,7 @@ export default class ImageView extends View {
   }
 
   public copy(): ImageView {
-    const newView = new ImageView(this.content);
+    const newView = new ImageView(this.content[0]);
 
     // 复制基本属性
     newView.layer = this.layer;
@@ -82,4 +82,8 @@ export default class ImageView extends View {
 
     return newView;
   }
+}
+
+export function isImageView(view: any): view is ImageView {
+  return view instanceof ImageView;
 }
