@@ -234,6 +234,16 @@ export default class DenseTrajectory extends Graph {
     this.setBounds(this.calculateBounds());
     return this;
   }
+
+  /**
+   * 计算与另一个图形的相交点
+   * @param other 另一个图形
+   * @returns 相交点数组（暂未实现）
+   */
+  public intersect(other: Graph): Point3[] {
+    // 暂未实现
+    return [];
+  }
 }
 
 // 类型守卫函数

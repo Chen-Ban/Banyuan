@@ -237,6 +237,16 @@ export default class TextParagraph extends Graph {
   }
 
   /**
+   * 计算与另一个图形的相交点
+   * @param other 另一个图形
+   * @returns 相交点数组（暂未实现）
+   */
+  public intersect(other: Graph): Point3[] {
+    // 暂未实现
+    return [];
+  }
+
+  /**
    * 渲染段落
    */
   public render(ctx: CanvasRenderingContext2D): void {

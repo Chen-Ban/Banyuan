@@ -276,4 +276,14 @@ export default abstract class MediaElement extends Graph {
     this.updateControlPoints();
     return this;
   }
+
+  /**
+   * 计算与另一个图形的相交点
+   * @param other 另一个图形
+   * @returns 相交点数组（暂未实现）
+   */
+  public intersect(other: Graph): Point3[] {
+    // 暂未实现
+    return [];
+  }
 }

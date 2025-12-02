@@ -14,18 +14,18 @@ export interface VideoViewOptions extends Omit<ViewOptions, "content"> {
  * 视频视图 - 专门处理VideoElement类型内容
  */
 export default class VideoView extends View {
-  public content: VideoElement;
+  public content: [VideoElement];
   public children: View<any>[] = [];
 
   constructor(video: VideoElement, options: VideoViewOptions = {}) {
     // 将video作为content传递给父类构造函数
-    super({ ...options, content: video });
-    this.content = video;
+    super({ ...options, content: [video] });
+    this.content = [video];
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    if (this.content && typeof this.content.render === "function") {
-      this.content.render(ctx);
+    if (this.content && typeof this.content[0].render === "function") {
+      this.content[0].render(ctx);
     }
   }
 
@@ -35,8 +35,8 @@ export default class VideoView extends View {
     width: number;
     height: number;
   } {
-    if (this.content && typeof this.content.getBounds === "function") {
-      return this.content.getBounds();
+    if (this.content && typeof this.content[0].getBounds === "function") {
+      return this.content[0].getBounds();
     }
     return { x: 0, y: 0, width: 0, height: 0 };
   }
@@ -50,7 +50,7 @@ export default class VideoView extends View {
   }
 
   public copy(): VideoView {
-    const newView = new VideoView(this.content);
+    const newView = new VideoView(this.content[0]);
 
     // 复制基本属性
     newView.layer = this.layer;
@@ -77,4 +77,8 @@ export default class VideoView extends View {
 
     return newView;
   }
+}
+
+export function isVideoView(view: any): view is VideoView {
+  return view instanceof VideoView;
 }

@@ -1,6 +1,6 @@
 /**
  * 图形边界框类
- * 用于表示图形的包围盒，包含位置和尺寸信息
+ * @description用于表示图形的包围盒，包含位置和尺寸信息。基于本地坐标系定位。
  */
 export default class Bounds {
   public x: number;
@@ -56,51 +56,6 @@ export default class Bounds {
    */
   get bottom(): number {
     return this.y + this.height;
-  }
-
-  /**
-   * 获取中心点X坐标
-   */
-  get centerX(): number {
-    return this.x + this.width / 2;
-  }
-
-  /**
-   * 获取中心点Y坐标
-   */
-  get centerY(): number {
-    return this.y + this.height / 2;
-  }
-
-  /**
-   * 获取中心点
-   */
-  get center(): { x: number; y: number } {
-    return {
-      x: this.centerX,
-      y: this.centerY,
-    };
-  }
-
-  /**
-   * 检查点是否在边界框内
-   */
-  contains(x: number, y: number): boolean {
-    return x >= this.x && x <= this.right && y >= this.y && y <= this.bottom;
-  }
-
-  /**
-   * 检查另一个边界框是否与此边界框相交
-   */
-  intersects(other: Bounds): boolean {
-    return !(this.right < other.x || this.x > other.right || this.bottom < other.y || this.y > other.bottom);
-  }
-
-  /**
-   * 检查另一个边界框是否完全包含在此边界框内
-   */
-  containsBounds(other: Bounds): boolean {
-    return this.x <= other.x && this.y <= other.y && this.right >= other.right && this.bottom >= other.bottom;
   }
 
   /**
@@ -198,31 +153,5 @@ export default class Bounds {
     }
 
     return result;
-  }
-
-  /**
-   * 转换为对象格式
-   */
-  toObject(): { x: number; y: number; width: number; height: number } {
-    return {
-      x: this.x,
-      y: this.y,
-      width: this.width,
-      height: this.height,
-    };
-  }
-
-  /**
-   * 从对象创建边界框
-   */
-  static fromObject(obj: { x: number; y: number; width: number; height: number }): Bounds {
-    return new Bounds(obj.x, obj.y, obj.width, obj.height);
-  }
-
-  /**
-   * 字符串表示
-   */
-  toString(): string {
-    return `Bounds(${this.x}, ${this.y}, ${this.width}, ${this.height})`;
   }
 }

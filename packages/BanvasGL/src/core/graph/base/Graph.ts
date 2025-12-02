@@ -127,4 +127,11 @@ export default abstract class Graph {
    * @returns 变换后的图形
    */
   public abstract transform(matrix: Matrix4): Graph;
+
+  /**
+   * 计算与另一个图形的相交点
+   * @param other 另一个图形
+   * @returns 相交点数组
+   */
+  public abstract intersect(other: Graph): Point3[];
 }

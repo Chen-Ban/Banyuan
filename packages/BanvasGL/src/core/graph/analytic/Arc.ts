@@ -202,7 +202,7 @@ export default class Arc extends AnalyticGraph {
     closestPoint: Point3;
     parameter: number;
   } {
-    const distanceToCenter = MathUtils.distance(point, this.center);
+    const distanceToCenter = point.distance(this.center);
     const angle = Math.atan2(point.y - this.center.y, point.x - this.center.x);
 
     // 将角度标准化到圆弧范围内
@@ -210,7 +210,7 @@ export default class Arc extends AnalyticGraph {
     const t = this.getParameterFromAngle(normalizedAngle);
 
     const closestPoint = this.getPointAt(t);
-    const distance = MathUtils.distance(point, closestPoint);
+    const distance = point.distance(closestPoint);
 
     return { distance, closestPoint, parameter: t };
   }

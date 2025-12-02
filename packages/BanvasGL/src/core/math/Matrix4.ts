@@ -169,40 +169,24 @@ export default class Matrix4 {
 
   // 计算行列式
   get determinant(): number {
-    const a00 = this.data[0],
-      a01 = this.data[1],
-      a02 = this.data[2],
-      a03 = this.data[3];
-    const a10 = this.data[4],
-      a11 = this.data[5],
-      a12 = this.data[6],
-      a13 = this.data[7];
-    const a20 = this.data[8],
-      a21 = this.data[9],
-      a22 = this.data[10],
-      a23 = this.data[11];
-    const a30 = this.data[12],
-      a31 = this.data[13],
-      a32 = this.data[14],
-      a33 = this.data[15];
-
+    const m = this.transform;
     return (
-      a00 *
-        (a11 * (a22 * a33 - a23 * a32) -
-          a12 * (a21 * a33 - a23 * a31) +
-          a13 * (a21 * a32 - a22 * a31)) -
-      a01 *
-        (a10 * (a22 * a33 - a23 * a32) -
-          a12 * (a20 * a33 - a23 * a30) +
-          a13 * (a20 * a32 - a22 * a30)) +
-      a02 *
-        (a10 * (a21 * a33 - a23 * a31) -
-          a11 * (a20 * a33 - a23 * a30) +
-          a13 * (a20 * a31 - a21 * a30)) -
-      a03 *
-        (a10 * (a21 * a32 - a22 * a31) -
-          a11 * (a20 * a32 - a22 * a30) +
-          a12 * (a20 * a31 - a21 * a30))
+      m[0] *
+        (m[5] * (m[10] * m[15] - m[11] * m[14]) -
+          m[6] * (m[9] * m[15] - m[11] * m[13]) +
+          m[7] * (m[9] * m[14] - m[10] * m[13])) -
+      m[1] *
+        (m[4] * (m[10] * m[15] - m[11] * m[14]) -
+          m[6] * (m[8] * m[15] - m[11] * m[12]) +
+          m[7] * (m[8] * m[14] - m[10] * m[12])) +
+      m[2] *
+        (m[4] * (m[9] * m[15] - m[11] * m[13]) -
+          m[5] * (m[8] * m[15] - m[11] * m[12]) +
+          m[7] * (m[8] * m[13] - m[9] * m[12])) -
+      m[3] *
+        (m[4] * (m[9] * m[14] - m[10] * m[13]) -
+          m[5] * (m[8] * m[14] - m[10] * m[12]) +
+          m[6] * (m[8] * m[13] - m[9] * m[12]))
     );
   }
 
