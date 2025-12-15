@@ -1,2 +1,3 @@
-export * from "./core"
-export * from "./hook"
+export * from "./core";
+export * from "./workers";
+export * from "./hook";
