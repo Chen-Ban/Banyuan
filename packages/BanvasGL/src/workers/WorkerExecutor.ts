@@ -18,14 +18,16 @@ export class WorkerExecutor {
         throw new Error("WorkerExecutor: Worker is not available in this environment.");
       }
 
-      // 依赖打包工具对 new URL(..., import.meta.url) 的支持（Vite/Rollup/Webpack5 等）
-      this.worker = new Worker(new URL("./WorkerRuntime.ts", import.meta.url), {
+      // 使用单独打包出的 worker 入口文件（见 tsup.config.ts 中的 entry 配置）
+      // dist 中会生成 dist/banvas-worker.mjs
+      this.worker = new Worker(new URL("./banvas-worker.mjs", import.meta.url), {
         type: "module",
       });
     }
 
     this.worker.onmessage = (event: MessageEvent<WorkerResult<any>>) => {
       const result = event.data;
+      console.log('收到worker返回的信息',result);
       const resolver = this.pending.get(result.id);
       if (resolver) {
         this.pending.delete(result.id);
@@ -38,6 +40,8 @@ export class WorkerExecutor {
     return new Promise<WorkerResult<TResult>>((resolve) => {
       this.pending.set(task.id, resolve as (r: WorkerResult<any>) => void);
       this.worker.postMessage(task);
+      console.log('已发送信息到worker');
+      
     });
   }
 }

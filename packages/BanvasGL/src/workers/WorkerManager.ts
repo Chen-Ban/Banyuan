@@ -37,7 +37,6 @@ export class WorkerManager {
       payload,
       sourceId,
     };
-
     const result = await this.executor.execute<TPayload, TResult>(task);
     this.lastResults.set(type, result);
     return result as WorkerResult<TResult>;

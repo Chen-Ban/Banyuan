@@ -21,8 +21,10 @@ handlers.set("graph/trajectory", trajectorySampleHandler);
 const ctx: any = self as any;
 
 ctx.onmessage = async (event: MessageEvent<WorkerTask<any>>) => {
+  console.log('收到主线程发送的信息',event);
   const task = event.data;
   const handler = handlers.get(task.type);
+  
 
   let result: WorkerResult<any>;
 
@@ -54,4 +56,8 @@ ctx.onmessage = async (event: MessageEvent<WorkerTask<any>>) => {
   }
 
   ctx.postMessage(result);
+};
+
+ctx.onerror = (event: ErrorEvent) => {
+  console.log('worker运行时错误',event);
 };
