@@ -232,6 +232,10 @@ export default abstract class TextElement extends Graph {
    * 复制文字元素（由子类实现）
    */
   public abstract copy(): this;
+
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    this.options.size += vector.length / 10;
+  }
 }
 
 /**
@@ -304,7 +308,7 @@ export class PrintableTextElement extends TextElement {
    * 复制文字元素
    */
   public copy(): this {
-    const newElement = new PrintableTextElement(this.content, this.options.copy(), this.style.copy());
+    const newElement = new PrintableTextElement(super.content, super.options.copy(), super.style.copy());
 
     if (this.isLayouted) {
       newElement.layout(this.controlPoints[0].copy(), this.lineHeight);

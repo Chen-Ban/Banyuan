@@ -112,7 +112,7 @@ export default class Scene {
     return tree2List(this.children).filter((v) => v.selected);
   }
 
-  public select(view: View | undefined = undefined, multiple: boolean = false) {
+  public select(view: View | undefined = undefined, multiple: boolean = false, deselect: boolean = false) {
     if (!view) {
       ViewTreeUtils.clearAllStates(this);
       return;
@@ -123,19 +123,23 @@ export default class Scene {
       return;
     }
 
-    // 多选时反选
     if (multiple) {
       ViewTreeUtils.clearSelectedStates(this, view);
-      // 选中->未选中，恢复上一个选中
-      if (view.actived === true) {
+      if (deselect && view.actived === true) {
         view.setActived(false).setSelected(false);
         this._selectedHistory.pop();
-        this._selectedHistory[this._selectedHistory.length - 1].setSelected(true);
+        if ( this._selectedHistory.length > 0) {
+          this._selectedHistory[this._selectedHistory.length - 1].setSelected(true);
+        }
       } else {
         view.setActived(true).setSelected(true);
         this._selectedHistory.push(view);
       }
     } else {
+      const selectedViews = this.getSelectedView();
+      if (selectedViews.length === 1 && selectedViews[0] === view) {
+        return;
+      }
       ViewTreeUtils.clearAllStates(this, view);
       view.setActived(true).setSelected(true);
     }

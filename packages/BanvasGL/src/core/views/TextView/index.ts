@@ -103,6 +103,14 @@ export default class TextView extends View {
     return closets.find((closet) => closet.distance === minDistance)!.closestPoint;
   }
 
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    this.content.forEach(paragraph=>{
+      paragraph.resize(fixedPoint, dynamicPoint, vector);
+    })
+    this.initBoundingBox();
+    this.initViewport();
+  }
+
   /**
    * 容器交互接口
    * @param p 世界坐标点

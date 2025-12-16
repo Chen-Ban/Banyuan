@@ -99,3 +99,7 @@ export default class VertexAddonImpl implements VertexAddon {
     };
   }
 }
+
+export function isVertexAddon(addon: any): addon is VertexAddonImpl {
+  return addon instanceof VertexAddonImpl;
+}

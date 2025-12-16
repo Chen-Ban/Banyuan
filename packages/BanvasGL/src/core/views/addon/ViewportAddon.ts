@@ -55,3 +55,7 @@ export default class ViewportAddonImpl implements ViewportAddon {
         // no-op by default
     }
 }
+
+export function isViewportAddon(addon: any): addon is ViewportAddonImpl {
+    return addon instanceof ViewportAddonImpl;
+}

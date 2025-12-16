@@ -311,6 +311,12 @@ export default class TextParagraph extends Graph {
     paragraph.addText(content);
     return paragraph;
   }
+
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    this.texts.forEach(text=>{
+      text.resize(fixedPoint, dynamicPoint, vector);
+    })
+  }
 }
 
 // 类型守卫函数

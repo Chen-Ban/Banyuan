@@ -1,6 +1,5 @@
 import { GRAPHTYPE } from "@/core/constants";
 import MediaElement from "./MediaElement";
-import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
 import Bounds from "../base/Bounds";
 
