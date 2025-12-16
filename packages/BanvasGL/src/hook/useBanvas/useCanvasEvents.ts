@@ -22,12 +22,14 @@ import {
   PrintableTextElement,
   NonPrintableTextElement,
   Style,
+  VERTICALALIGN,
 } from "@/core";
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { ViewAddonImpl } from "@/core/views/addon";
 import { ViewContent } from "@/core/views/View";
 import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
+import { getGlobalWorkerManager } from "@/workers";
 
 export interface UseCanvasEventsOptions {
   app: App | null;
@@ -51,10 +53,21 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
 
   // 鼠标落下，判定操作类型
   const onMouseDown = useCallback(
-    (e: MouseEvent) => {
+    async(e: MouseEvent) => {
       if (!app) return;
       const scene = app.getCurrentScene();
       if (!scene) return;
+
+      const worker = getGlobalWorkerManager();
+      const result = await worker.compute("text/layout", {
+        paragraphs:[TextParagraph.simple("Hello, world!")],
+        layoutArea:new Rectangle(0,0,100,100),
+        verticalAlign:VERTICALALIGN.TOP,
+        fixedWidth:false,
+        fixedHeight:false,
+      });
+      console.log(result);
+      
 
       mouseDownPointRef.current = event2Point(e);
       // 如果在普通移动过程中未找到候选节点，则设置操作类型为框选
