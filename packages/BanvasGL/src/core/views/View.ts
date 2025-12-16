@@ -10,7 +10,7 @@ import { Graph } from "../graph";
 
 // 导入addon类型
 import { BoundingBoxAddonImpl, ViewportAddonImpl, VertexAddonImpl, ViewAddonImpl } from "./addon";
-import { Point3 } from "../math";
+import { Point3, Vector3 } from "../math";
 import { ExtraData } from "./addon/InteractionMapBuilder";
 import Bounds from "../graph/base/Bounds";
 
@@ -85,6 +85,15 @@ export default abstract class View<T extends object = any> {
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   };
+
+  /**
+   * resize方法
+   * @param fixedPoint 固定点
+   * @param dynamicPoint 动态点
+   * @param vector 向量
+   * @description 根据固定点、动态点、向量计算新的变换矩阵
+   */
+  public abstract resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void;
 
   constructor(options: ViewOptions<T>) {
     this.construct(options);
@@ -202,12 +211,12 @@ export default abstract class View<T extends object = any> {
     this.renderContent(canvasContext.getMainContext());
     // 渲染子节点
     this.renderChildren(canvasContext);
-    // const ctx = canvasContext.getMainContext();
-    // ctx.save();
-    // ctx.fillStyle = "#000";
-    // ctx.textBaseline = "top";
-    // ctx.fillText(this.id, 0, 0);
-    // ctx.restore();
+    const ctx = canvasContext.getMainContext();
+    ctx.save();
+    ctx.fillStyle = "#000";
+    ctx.textBaseline = "top";
+    ctx.fillText(this.id, 0, 0);
+    ctx.restore();
   }
 
   private renderChildren(ctx: CanvasContext) {

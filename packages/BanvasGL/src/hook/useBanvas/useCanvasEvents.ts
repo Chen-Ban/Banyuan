@@ -11,8 +11,17 @@ import {
   Graph,
   isTextView,
   isSelectBoxView,
-  Vector3,
-  MathUtils,
+  GraphView,
+  TextView,
+  ImageView,
+  Line,
+  Circle,
+  Rectangle as RectangleGraph,
+  ImageElement,
+  TextParagraph,
+  PrintableTextElement,
+  NonPrintableTextElement,
+  Style,
 } from "@/core";
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
@@ -106,10 +115,10 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
         case Action.RESIZE:
           canvasRef.current!.style.cursor = Cursor.Grabbing;
           if (extraDataRef.current) {
+            const vector = point.subtract(lastPointRef.current || mousDownPoint);
             const { resizeFixedPoint, resizeDynamicPoint } = extraDataRef.current;
-            if (resizeFixedPoint && resizeDynamicPoint) {
-              const xMove = !MathUtils.isEqual(resizeDynamicPoint.x, resizeFixedPoint.x)
-              const yMove = !MathUtils.isEqual(resizeDynamicPoint.y, resizeFixedPoint.y)
+            if (resizeFixedPoint && resizeDynamicPoint && indicateViewRef.current) {
+              indicateViewRef.current.resize(resizeFixedPoint, resizeDynamicPoint, vector);
             }
           }
           break;
@@ -135,20 +144,24 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           if (selectionRectViewRef.current && mousDownPoint) {
             // 更新框选矩形
             selectionRectViewRef.current.updateSelect(mousDownPoint, point);
-            const selectionRect = selectionRectViewRef.current.content;
+            const selectionRect = selectionRectViewRef.current.content[0];
             const viewsToActivate: View[] = [];
-            const allViews = ViewTreeUtils.flattenViewTree(scene);
+            const allViews = ViewTreeUtils.flattenViewTree(scene).filter(view=>!isSelectBoxView(view));
             // 遍历所有视图，检查是否与框选矩形相交
             for (const view of allViews) {
-              let graphs = [view.content,view?.layoutArea].flat().filter(graph=>graph instanceof Graph)
+              let graphs = [view.content,view.layoutArea].flat().filter(Boolean).map(graph=>graph.copy());
               for (const graph of graphs) {
-                const intersection = selectionRect[0].intersect(graph);
+                // selectionBox就是基于原点的，所以selectionRect不需要转换到世界坐标
+                // 只需要将graph转换到世界坐标就能统一坐标了
+                const intersection = selectionRect.intersect(graph.transform(view.getWorldMatrix()));
                 if (intersection.length > 0) {
                   viewsToActivate.push(view);
                   break;
                 }
               }
+              
             }
+            
             for (const view of viewsToActivate) {
               scene.select(view, true);
             }
@@ -341,9 +354,114 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
     e.preventDefault();
   }, []);
 
-  const onDrop = useCallback((e: DragEvent) => {
-    e.preventDefault();
-  }, []);
+  const onDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      if (!app || !canvasRef.current) return;
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+
+      try {
+        // 获取拖拽数据
+        if (!e.dataTransfer) return;
+        const dataStr = e.dataTransfer.getData("application/json");
+        if (!dataStr) return;
+
+        const dragData = JSON.parse(dataStr) as {
+          viewType: "GraphView" | "TextView" | "ImageView";
+          graphType?: "Line" | "Circle" | "Rectangle";
+          constructorParams: any;
+        };
+        const { viewType, graphType, constructorParams } = dragData;
+
+        // 获取拖拽位置（相对于 canvas）
+        const rect = canvasRef.current.getBoundingClientRect();
+        const ratio = window.devicePixelRatio;
+        const x = (e.clientX - rect.left) * ratio;
+        const y = (e.clientY - rect.top) * ratio;
+        const dropPoint = new Point3(x, y, 0);
+
+        let newView: View | null = null;
+
+        // 根据 viewType 创建对应的 view
+        if (viewType === "GraphView") {
+          let graph: Graph | null = null;
+
+          // 根据 graphType 创建对应的 graph
+          if (graphType === "Line") {
+            const { startPoint, endPoint } = constructorParams;
+            // 使用 dropPoint 作为起点，根据相对位置计算终点
+            const start = dropPoint;
+            const relativeEnd = endPoint || { x: 100, y: 100, z: 0 };
+            const end = new Point3(
+              dropPoint.x + (relativeEnd.x || 100),
+              dropPoint.y + (relativeEnd.y || 100),
+              dropPoint.z + (relativeEnd.z || 0)
+            );
+            graph = new Line(start, end, Style.DEFAULT);
+          } else if (graphType === "Circle") {
+            const { radius } = constructorParams;
+            // 使用 dropPoint 作为圆心
+            graph = new Circle(new Point3(0,0,0), radius || 50, Style.DEFAULT);
+          } else if (graphType === "Rectangle") {
+            const { width, height } = constructorParams;
+            // 使用 dropPoint 作为矩形左上角
+            graph = new RectangleGraph(
+              dropPoint.x,
+              dropPoint.y,
+              width || 100,
+              height || 100,
+              Style.DEFAULT
+            );
+          }
+
+          if (graph) {
+            newView = new GraphView(graph).translate(x,y,0);
+          }
+        } else if (viewType === "TextView") {
+          const { text } = constructorParams;
+          const textContent = (text || "文本") as string;
+          const printableText = Array.from(textContent).map(
+            (char) => new PrintableTextElement(char as string)
+          );
+          const textParagraph = new TextParagraph([
+            ...printableText,
+            new NonPrintableTextElement(),
+          ]);
+          const layoutArea = new RectangleGraph(
+            dropPoint.x,
+            dropPoint.y,
+            200,
+            100,
+            Style.DEFAULT
+          );
+          newView = new TextView([textParagraph], {
+            layoutArea,
+            shouldLayout: true,
+          });
+        } else if (viewType === "ImageView") {
+          const { imageSrc } = constructorParams;
+          // 使用 dropPoint 作为图片左上角
+          const imageElement = new ImageElement(
+            dropPoint.x,
+            dropPoint.y,
+            imageSrc || "",
+            Style.DEFAULT
+          );
+          newView = new ImageView(imageElement);
+        }
+
+        // 将新创建的 view 添加到场景中
+        if (newView) {
+          scene.addChild(newView);
+          scene.select(newView);
+        }
+      } catch (error) {
+        console.error("拖拽创建组件失败:", error);
+      }
+    },
+    [app, canvasRef]
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;

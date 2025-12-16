@@ -1,7 +1,7 @@
 import View, { ViewOptions, ViewContent } from "../View";
 import { Graph } from "../../graph";
 import { VIEWTYPE } from "@/core/constants";
-import { Point3 } from "../../math";
+import { Point3, Vector3 } from "../../math";
 import { ViewAddonImpl } from "../addon";
 import { world2Relative } from "@/utils/utils";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
@@ -30,7 +30,7 @@ export default class GraphView extends View {
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    if (this.content && typeof this.content[0].render === "function") {
+    if (this.content) {
       this.content[0].render(ctx);
     }
   }
@@ -85,6 +85,12 @@ export default class GraphView extends View {
     }
 
     return builder.build();
+  }
+
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    this.content[0].resize(fixedPoint, dynamicPoint, vector);
+    this.initBoundingBox();
+    this.initViewport();
   }
 
   public copy(): GraphView {

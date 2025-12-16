@@ -244,6 +244,17 @@ export default class DenseTrajectory extends Graph {
     // 暂未实现
     return [];
   }
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    const width = dynamicPoint.x - fixedPoint.x;
+    const height = dynamicPoint.y - fixedPoint.y;
+    const x = vector.x;
+    const y = vector.y;
+    this.controlPoints.forEach((point, index)=>{
+      this.controlPoints[index] += x * point / width;
+      this.controlPoints[index + 1] += y * point / height;
+    })
+    this.setBounds(this.calculateBounds());
+  }
 }
 
 // 类型守卫函数

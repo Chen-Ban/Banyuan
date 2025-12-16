@@ -4,6 +4,7 @@ import { useBanvas } from "banvasgl";
 import { Button } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import styles from "./index.module.scss";
+import ComponentPalette from "./components/ComponentPalette";
 
 const TemplateDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,10 +40,13 @@ const TemplateDetail = () => {
         <h2>模板详情 {id && `- ${id}`}</h2>
       </div>
       <div className={styles.templateDetailContainer}>
-        <div className={styles.canvasSection}>
-          <div className={styles.canvasWrapper}>{Banvas}</div>
-          <div className={styles.canvasInfo}>
-            <p>应用实例: {app ? "已创建" : "未创建"}</p>
+        <div className={styles.mainContent}>
+          <ComponentPalette />
+          <div className={styles.canvasSection}>
+            <div className={styles.canvasWrapper}>{Banvas}</div>
+            <div className={styles.canvasInfo}>
+              <p>应用实例: {app ? "已创建" : "未创建"}</p>
+            </div>
           </div>
         </div>
       </div>

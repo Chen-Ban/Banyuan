@@ -4,6 +4,8 @@ import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
 import MathUtils from "@/core/math/MathUtils";
 import Bounds from "../base/Bounds";
+import Graph from "../base/Graph";
+import { intersect } from "./IntersectionUtils";
 
 export default class Line extends AnalyticGraph {
   public type: GRAPHTYPE = GRAPHTYPE.LINE;
@@ -194,6 +196,31 @@ export default class Line extends AnalyticGraph {
     this.controlPoints[1] = transformedEnd;
     this.setBounds(this.calculateBounds());
     return this;
+  }
+
+  /**
+   * 计算与另一个图形的相交点
+   * @param other 另一个图形
+   * @returns 相交点数组
+   */
+  public intersect(other: Graph): Point3[] {
+    // 如果另一个图形也是可分析图形，使用精确的相交计算方法
+    if (other instanceof AnalyticGraph) {
+      return intersect(this, other);
+    }
+    // 对于其他类型的图形，使用其他图形的相交计算方法
+    return other.intersect(this);
+  }
+  
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    const width = dynamicPoint.x - fixedPoint.x;
+    const height = dynamicPoint.y - fixedPoint.y;
+    const x = vector.x;
+    const y = vector.y;
+    this.controlPoints.forEach(point=>{
+      point.add(new Vector3(x * point.x / width, y * point.y / height, 0));
+    })
+    this.setBounds(this.calculateBounds());
   }
 }
 

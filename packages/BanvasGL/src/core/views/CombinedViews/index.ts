@@ -1,7 +1,7 @@
 import { VIEWTYPE } from "@/core/constants";
-import { Graph, Rectangle, TextElement } from "../../graph";
+import { Graph, Rectangle } from "../../graph";
 import View, { ViewOptions, ViewContent } from "../View";
-import { Point3 } from "../../math";
+import { Point3, Vector3 } from "../../math";
 import Bounds from "../../graph/base/Bounds";
 import { world2Relative } from "@/utils/utils";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
@@ -26,7 +26,7 @@ export interface CombinedViewOptions extends Omit<ViewOptions, "content"> {
  */
 export default class CombinedView extends View {
   public type: VIEWTYPE = VIEWTYPE.COMBINEDVIEW;
-  public content: [Graph];
+  public content: Graph[];
   public children: View[];
 
   private _contentBounds: Bounds;
@@ -34,7 +34,7 @@ export default class CombinedView extends View {
   constructor(views: View[] = [], options: CombinedViewOptions = {}) {
     // 将views作为content传递给父类构造函数
     super({ ...options });
-    this.content = [options.graph];
+    this.content = options.graph ? [options.graph] : [];
     this.children = views;
 
     this._extreme = this.computeExtreme();
@@ -56,7 +56,6 @@ export default class CombinedView extends View {
 
     const ctx = getGlobalCanvasContext()?.getBufferContext();
     if (!ctx) throw new Error("交互失败");
-    // console.log("combinedView", `世界坐标：${p.x},${p.y};相对坐标:${relativePoint.x},${relativePoint.y}`);
     // 优先命中子视图（从前到后或根据需要调整顺序）
     for (const child of this.children) {
       const { view, content, extraData } = child.interact(p);
@@ -68,18 +67,19 @@ export default class CombinedView extends View {
     if (builder.size > 0) {
       return builder.build();
     }
-
     // 命中自身内容（如有）
-    if (this.content) {
-      const hitContent = this.content[0].isPointInPath(relativePoint);
+    this.content.forEach(content=>{
+      const hitContent = content.isPointInPath(relativePoint);
       if (hitContent) {
-        return builder
-          .add(this, this.content, {
+        builder
+          .add(this, [content], {
             cursorStyle: Cursor.Move,
             action: Action.MOVE,
           })
-          .build();
       }
+    })
+    if (builder.size > 0) {
+      return builder.build();
     }
 
     // 命中边界框（移动/缩放）
@@ -94,7 +94,7 @@ export default class CombinedView extends View {
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    if (this.content && typeof this.content[0].render === "function") {
+    if (this.content[0]) {
       this.content[0].render(ctx);
     }
   }
@@ -148,6 +148,26 @@ export default class CombinedView extends View {
       this._contentBounds = this.initContentBox();
     }
     return this._contentBounds;
+  }
+
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    //将固定点、动态点映射到对应的子view对应的固定点、动态点，避免变换介质的尺寸失真
+    this.children.forEach(child=>{
+      const fixedIndex = child.boundingBox?.handles.findIndex(handle=>handle.isPointInPath(fixedPoint));
+      const dynamicIndex = child.boundingBox?.handles.findIndex(handle=>handle.isPointInPath(dynamicPoint));
+      if (fixedIndex !== undefined && dynamicIndex !== undefined) {
+        const fixed = child.boundingBox?.handles[fixedIndex];
+        const dynamic = child.boundingBox?.handles[dynamicIndex];
+        if (fixed && dynamic) {
+          child.resize(fixed.getCenter(), dynamic.getCenter(), vector);
+        }
+      }
+    })
+    this.initBoundingBox();
+    this.initViewport();
+    this._contentBounds = this.initContentBox();
+    this._extreme = this.computeExtreme();
+    this.initMatrix();
   }
 
   public copy(): CombinedView {

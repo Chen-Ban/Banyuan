@@ -87,13 +87,13 @@ class IntersectionManager {
 
   intersect(a: AnalyticGraph, b: AnalyticGraph): Point3[] {
     const handler = this.getHandler(a, b);
-
+    
     if (!handler) {
       // 降级到包围盒检测
       console.warn(`No intersection handler for ${a.constructor.name} and ${b.constructor.name}`);
       return [];
     }
-
+    
     return handler(a, b);
   }
 }

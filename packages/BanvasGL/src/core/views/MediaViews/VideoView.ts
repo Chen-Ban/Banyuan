@@ -1,7 +1,7 @@
 import View, { ViewContent, ViewOptions } from "../View";
 import { VideoElement } from "../../graph/media";
 import CanvasContext from "../../renderer/CanvasContext";
-import { Point3 } from "../../math";
+import { Point3, Vector3 } from "../../math";
 import { InteractionMapBuilder, ViewAddonImpl } from "../addon";
 import { ExtraData } from "../addon/InteractionMapBuilder";
 
@@ -47,6 +47,12 @@ export default class VideoView extends View {
     extraData: ExtraData | null;
   } {
     return new InteractionMapBuilder().build();
+  }
+
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    this.content[0].resize(fixedPoint, dynamicPoint, vector);
+    this.initBoundingBox();
+    this.initViewport();
   }
 
   public copy(): VideoView {

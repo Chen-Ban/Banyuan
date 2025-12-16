@@ -1,7 +1,7 @@
 import Bounds from "@/core/graph/base/Bounds";
 import Rectangle from "@/core/graph/combined/Polygon/Rectangle";
 import Style from "@/core/style/Style";
-import { Point3 } from "@/core/math";
+import { Point3, Vector3 } from "@/core/math";
 import { Action, Cursor, cursorMap, ExtraData } from "./InteractionMapBuilder";
 import { Circle, Line } from "@/index.backend";
 
@@ -195,4 +195,8 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
     }
     return null;
   }
+}
+
+export function isBoundingBoxAddon(addon: any): addon is BoundingBoxAddonImpl {
+  return addon instanceof BoundingBoxAddonImpl;
 }

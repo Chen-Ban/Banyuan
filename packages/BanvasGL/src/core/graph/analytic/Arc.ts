@@ -2,8 +2,9 @@ import { GRAPHTYPE } from "@/core/constants";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
-import MathUtils from "@/core/math/MathUtils";
 import Bounds from "../base/Bounds";
+import Graph from "../base/Graph";
+import { intersect } from "./IntersectionUtils";
 
 export default class Arc extends AnalyticGraph {
   public type: GRAPHTYPE = GRAPHTYPE.ARC;
@@ -247,6 +248,33 @@ export default class Arc extends AnalyticGraph {
     this.setBounds(this.calculateBounds());
     return this;
   }
+
+  /**
+   * 计算与另一个图形的相交点
+   * @param other 另一个图形
+   * @returns 相交点数组
+   */
+  public intersect(other: Graph): Point3[] {
+    // 如果另一个图形也是可分析图形，使用精确的相交计算方法
+    if (other instanceof AnalyticGraph) {
+      return intersect(this, other);
+    }
+    // 对于其他类型的图形，使用其他图形的相交计算方法
+    return other.intersect(this);
+  }
+
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    const diagonalVector = dynamicPoint.subtract(fixedPoint);
+    const dRadius = vector.dot(diagonalVector.normalized);
+    this.radius += dRadius;
+
+    // 计算控制点（用于边界框计算）
+    this.controlPoints = this.calculateControlPoints();
+
+    // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
+    this.setBounds(this.calculateBounds());
+  }
+
 }
 
 // 类型守卫函数

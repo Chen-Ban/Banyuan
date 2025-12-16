@@ -1,6 +1,6 @@
 import View, { ViewOptions, ViewContent } from "../View";
 import { ImageElement } from "../../graph/media";
-import { Point3 } from "../../math";
+import { Point3, Vector3 } from "../../math";
 import { InteractionMapBuilder, ViewAddonImpl } from "../addon";
 import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
 
@@ -52,6 +52,11 @@ export default class ImageView extends View {
         action: Action.NONE,
       })
       .build();
+  }
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+    this.content[0].resize(fixedPoint, dynamicPoint, vector);
+    this.initBoundingBox();
+    this.initViewport();
   }
 
   public copy(): ImageView {
