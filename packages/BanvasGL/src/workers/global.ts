@@ -22,8 +22,11 @@ export function initGlobalWorkerManager(executor?: WorkerExecutor): WorkerManage
  */
 export function getGlobalWorkerManager(): WorkerManager {
   if (!globalWorkerManager) {
+    console.log("新建workermanager");
     globalWorkerManager = new WorkerManager();
   }
+  console.log("获取全局workermanager");
+
   return globalWorkerManager;
 }
 

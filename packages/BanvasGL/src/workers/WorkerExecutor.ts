@@ -20,34 +20,45 @@ export class WorkerExecutor {
 
       // 使用单独打包出的 worker 入口文件（见 tsup.config.ts 中的 entry 配置）
       // dist 中会生成 dist/banvas-worker.mjs
-      this.worker = new Worker(new URL("./banvas-worker.mjs", import.meta.url), {
-        type: "module",
-      });
+      const workerUrl = new URL("./banvas-worker.mjs", import.meta.url).href;
+      this.worker = new Worker(workerUrl, { type: "module" });
     }
 
     this.worker.onmessage = (event: MessageEvent<WorkerResult<any>>) => {
       const result = event.data;
-      console.log('收到worker返回的信息',result);
+      console.log("收到worker返回的信息", result);
       const resolver = this.pending.get(result.id);
+      this.pending.delete(result.id);
       if (resolver) {
-        this.pending.delete(result.id);
         resolver(result);
+      } else {
+        console.warn(`No pending resolver found for task id: ${result.id}`);
       }
     };
   }
 
   public async execute<TPayload = any, TResult = any>(task: WorkerTask<TPayload>): Promise<WorkerResult<TResult>> {
     return new Promise<WorkerResult<TResult>>((resolve) => {
+      console.log("发送信息到worker");
       this.pending.set(task.id, resolve as (r: WorkerResult<any>) => void);
       this.worker.postMessage(task);
-      console.log('已发送信息到worker');
-      
     });
   }
 }
 
+// 全局单例执行器实例
+let defaultWorkerExecutorInstance: WorkerExecutor | null = null;
+
 /**
- * 默认执行器实例。
- * 在大多数场景下可以复用，仅当你需要完全自定义时才需要自己 new。
+ * 获取默认执行器实例（单例模式）。
+ * 确保整个应用只创建一个 Worker，避免重复加载 worker 文件。
+ *
+ * 注意：使用函数而不是模块级常量，避免在模块导入时立即创建 Worker。
+ * 只有在真正需要时才创建 Worker 实例。
  */
-export const defaultWorkerExecutor = new WorkerExecutor();
+export function getDefaultWorkerExecutor(): WorkerExecutor {
+  if (!defaultWorkerExecutorInstance) {
+    defaultWorkerExecutorInstance = new WorkerExecutor();
+  }
+  return defaultWorkerExecutorInstance;
+}

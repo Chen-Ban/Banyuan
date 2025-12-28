@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
-import { WorkerExecutor, defaultWorkerExecutor } from "./WorkerExecutor";
+import { WorkerExecutor, getDefaultWorkerExecutor } from "./WorkerExecutor";
 import { WorkerResult, WorkerTask, WorkerTaskType } from "./types";
 
 /**
@@ -18,8 +18,9 @@ export class WorkerManager {
    */
   private lastResults: Map<WorkerTaskType, WorkerResult<any>> = new Map();
 
-  constructor(executor: WorkerExecutor = defaultWorkerExecutor) {
-    this.executor = executor;
+  constructor(executor?: WorkerExecutor) {
+    // 如果没有传入 executor，使用全局单例，确保整个应用只有一个 Worker 实例
+    this.executor = executor ?? getDefaultWorkerExecutor();
   }
 
   /**

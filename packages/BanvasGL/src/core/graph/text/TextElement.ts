@@ -258,6 +258,7 @@ export class PrintableTextElement extends TextElement {
    */
   protected calculateActualDimensions(): void {
     const ctx = getGlobalCanvasContext()?.getBufferContext();
+
     if (!ctx) throw new Error("无法获取真实字体尺寸");
     ctx.save();
     // 设置字体样式

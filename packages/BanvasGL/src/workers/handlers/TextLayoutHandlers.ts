@@ -31,9 +31,7 @@ export interface TextLayoutResult {
   } | null;
 }
 
-export const textLayoutHandler: WorkerHandler<TextLayoutPayload, TextLayoutResult> = (
-  payload
-) => {
+export const textLayoutHandler: WorkerHandler<TextLayoutPayload, TextLayoutResult> = (payload) => {
   const {
     paragraphs,
     layoutArea,

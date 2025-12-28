@@ -22,15 +22,12 @@ import {
   PrintableTextElement,
   NonPrintableTextElement,
   Style,
-  VERTICALALIGN,
-  Vector3,
 } from "@/core";
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { ViewAddonImpl } from "@/core/views/addon";
 import { ViewContent } from "@/core/views/View";
 import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
-import { getGlobalWorkerManager } from "@/workers";
 
 export interface UseCanvasEventsOptions {
   app: App | null;
@@ -54,10 +51,19 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
 
   // 鼠标落下，判定操作类型
   const onMouseDown = useCallback(
-    async(e: MouseEvent) => {
+    async (e: MouseEvent) => {
       if (!app) return;
       const scene = app.getCurrentScene();
       if (!scene) return;
+
+      // const worker = getGlobalWorkerManager();
+      // await worker.compute("text/layout", {
+      //   paragraphs: [TextParagraph.simple("Hello, world!")],
+      //   layoutArea: new Rectangle(0, 0, 100, 100),
+      //   verticalAlign: VERTICALALIGN.TOP,
+      //   fixedWidth: false,
+      //   fixedHeight: false,
+      // });
 
       mouseDownPointRef.current = event2Point(e);
       // 如果在普通移动过程中未找到候选节点，则设置操作类型为框选
@@ -149,10 +155,13 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             selectionRectViewRef.current.updateSelect(mousDownPoint, point);
             const selectionRect = selectionRectViewRef.current.content[0];
             const viewsToActivate: View[] = [];
-            const allViews = ViewTreeUtils.flattenViewTree(scene).filter(view=>!isSelectBoxView(view));
+            const allViews = ViewTreeUtils.flattenViewTree(scene).filter((view) => !isSelectBoxView(view));
             // 遍历所有视图，检查是否与框选矩形相交
             for (const view of allViews) {
-              let graphs = [view.content,view.layoutArea].flat().filter(Boolean).map(graph=>graph.copy());
+              let graphs = [view.content, view.layoutArea]
+                .flat()
+                .filter(Boolean)
+                .map((graph) => graph.copy());
               for (const graph of graphs) {
                 // selectionBox就是基于原点的，所以selectionRect不需要转换到世界坐标
                 // 只需要将graph转换到世界坐标就能统一坐标了
@@ -162,9 +171,8 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
                   break;
                 }
               }
-              
             }
-            
+
             for (const view of viewsToActivate) {
               scene.select(view, true);
             }
@@ -330,7 +338,11 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
       if (!mousDownPoint || !mouseUpPoint) return;
 
       // 双击事件处理
-      if (mousDownPoint.isSame(mouseUpPoint) && lastClickTimeRef.current && Date.now() - lastClickTimeRef.current < 300) {
+      if (
+        mousDownPoint.isSame(mouseUpPoint) &&
+        lastClickTimeRef.current &&
+        Date.now() - lastClickTimeRef.current < 300
+      ) {
         if (
           isTextView(indicateViewRef.current) &&
           (isPrintableTextElement(indicateContentRef.current) || isNonPrintableTextElement(indicateContentRef.current))
@@ -407,32 +419,22 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             console.log(radius);
             
             // 使用 dropPoint 作为圆心
-            graph = new Circle(new Point3(radius,radius,0), radius || 50, Style.DEFAULT);
+            graph = new Circle(new Point3(0, 0, 0), radius || 50, Style.DEFAULT);
           } else if (graphType === "Rectangle") {
             const { width, height } = constructorParams;
             // 使用 dropPoint 作为矩形左上角
-            graph = new RectangleGraph(
-              0,
-              0,
-              width || 100,
-              height || 100,
-              Style.DEFAULT
-            );
+            graph = new RectangleGraph(dropPoint.x, dropPoint.y, width || 100, height || 100, Style.DEFAULT);
           }
 
           if (graph) {
-            newView = new GraphView(graph).translate(x,y,0);
+            newView = new GraphView(graph).translate(x, y, 0);
           }
         } else if (viewType === "TextView") {
           const { text } = constructorParams;
-          const textParagraph = TextParagraph.simple(text || "文本");
-          const layoutArea = new RectangleGraph(
-            1,
-            1,
-            200,
-            100,
-            Style.DEFAULT
-          );
+          const textContent = (text || "文本") as string;
+          const printableText = Array.from(textContent).map((char) => new PrintableTextElement(char as string));
+          const textParagraph = new TextParagraph([...printableText, new NonPrintableTextElement()]);
+          const layoutArea = new RectangleGraph(dropPoint.x, dropPoint.y, 200, 100, Style.DEFAULT);
           newView = new TextView([textParagraph], {
             layoutArea,
             shouldLayout: true,
@@ -441,12 +443,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           const { imageSrc } = constructorParams;
           
           // 使用 dropPoint 作为图片左上角
-          const imageElement = new ImageElement(
-            dropPoint.x,
-            dropPoint.y,
-            imageSrc || "",
-            Style.DEFAULT
-          );
+          const imageElement = new ImageElement(dropPoint.x, dropPoint.y, imageSrc || "", Style.DEFAULT);
           newView = new ImageView(imageElement);
         }
 

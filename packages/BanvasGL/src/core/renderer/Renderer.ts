@@ -1,7 +1,6 @@
 import Scene from "../scene/Scene";
 import CanvasContext, {
   CanvasContextOptions,
-  initGlobalCanvasContext,
   getGlobalCanvasContext,
   destroyGlobalCanvasContext,
 } from "./CanvasContext";
@@ -24,18 +23,14 @@ export default class Renderer {
 
   constructor(canvas: HTMLCanvasElement, options: RendererOptions = {}) {
     // 初始化全局 CanvasContext
-    initGlobalCanvasContext(canvas, options);
+    getGlobalCanvasContext(canvas, options);
     // 保存 dpr，默认为 1
     this.dpr = options.dpr ?? 1;
   }
 
   // 获取全局 CanvasContext 实例
   private get canvasContext(): CanvasContext {
-    const context = getGlobalCanvasContext();
-    if (!context) {
-      throw new Error("Global CanvasContext not initialized. Call initGlobalCanvasContext first.");
-    }
-    return context;
+    return getGlobalCanvasContext();
   }
 
   // 渲染场景
