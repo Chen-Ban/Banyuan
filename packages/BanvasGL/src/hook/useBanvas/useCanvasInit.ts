@@ -20,8 +20,10 @@ import {
   QuadraticBezier,
   CubicBezier,
   StrokeStyle,
+  VERTICALALIGN,
 } from "@/core";
 import type { UseBanvasOptions, SerializedSceneJSON } from "./types";
+import { getGlobalWorkerManager, WorkerManager } from "@/workers";
 
 export interface UseCanvasInitResult {
   app: App | null;
@@ -102,10 +104,20 @@ export function useCanvasInit(
     canvas.height = Math.round(styleHeight * dpr);
   }, [options.width, options.height, dpr]);
 
+  const worker = useRef<WorkerManager | null>(null);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || initializedRef.current) return;
 
+    worker.current = getGlobalWorkerManager();
+    worker.current.compute("text/layout", {
+      paragraphs: [TextParagraph.simple("Hello, world!")],
+      layoutArea: new Rectangle(0, 0, 100, 100),
+      verticalAlign: VERTICALALIGN.TOP,
+      fixedWidth: false,
+      fixedHeight: false,
+    });
     applyCanvasSize();
     // 初始化 App 与 Renderer，将 dpr 传递给 rendererOptions
     const _app = App.create(canvas, options.appOptions ?? {}, {
