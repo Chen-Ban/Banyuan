@@ -6,7 +6,7 @@ export class MathUtils {
   /**
    * 数值精度常量
    */
-  public static readonly EPSILON = 1e-10;
+  public static readonly EPSILON = 1e-2;
   public static readonly PI = Math.PI;
   public static readonly TWO_PI = 2 * Math.PI;
   public static readonly HALF_PI = Math.PI / 2;
@@ -27,16 +27,16 @@ export class MathUtils {
 
   /**
    * 计算角度
-   * @param x 
-   * @param y 
+   * @param x
+   * @param y
    * @param range 角度范围，默认为[0,2π]
    * @returns 标准化后的角度
    */
-  public static calculateAngle(x:number, y:number,range:[number,number] = [0,MathUtils.TWO_PI]): number {
+  public static calculateAngle(x: number, y: number, range: [number, number] = [0, MathUtils.TWO_PI]): number {
     const angle = Math.atan2(y, x);
     const rangeNum = Math.abs(range[1] - range[0]);
     const normalizedAngle = angle % rangeNum;
-    if(normalizedAngle < Math.min(...range)) {
+    if (normalizedAngle < Math.min(...range)) {
       return normalizedAngle + rangeNum;
     }
     return normalizedAngle;
@@ -67,7 +67,6 @@ export class MathUtils {
       }
     }
   }
-
 }
 
 export default MathUtils;

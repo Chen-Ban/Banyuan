@@ -110,14 +110,14 @@ export function useCanvasInit(
     const canvas = canvasRef.current;
     if (!canvas || initializedRef.current) return;
 
-    worker.current = getGlobalWorkerManager();
-    worker.current.compute("text/layout", {
-      paragraphs: [TextParagraph.simple("Hello, world!")],
-      layoutArea: new Rectangle(0, 0, 100, 100),
-      verticalAlign: VERTICALALIGN.TOP,
-      fixedWidth: false,
-      fixedHeight: false,
-    });
+    // worker.current = getGlobalWorkerManager();
+    // worker.current.compute("text/layout", {
+    //   paragraphs: [TextParagraph.simple("Hello, world!")],
+    //   layoutArea: new Rectangle(0, 0, 100, 100),
+    //   verticalAlign: VERTICALALIGN.TOP,
+    //   fixedWidth: false,
+    //   fixedHeight: false,
+    // });
     applyCanvasSize();
     // 初始化 App 与 Renderer，将 dpr 传递给 rendererOptions
     const _app = App.create(canvas, options.appOptions ?? {}, {
@@ -231,14 +231,14 @@ export function useCanvasInit(
       allViews.push(bezierView);
 
       // 8. 创建 CubicBezier（三次贝塞尔曲线）
-      const cubicStart = new Point3(0, 0, 0);
-      const control1 = new Point3(random(20, 60), random(20, 60), 0);
-      const control2 = new Point3(random(40, 80), random(40, 80), 0);
-      const cubicEnd = new Point3(random(60, 100), random(60, 100), 0);
-      const cubicBezier = new CubicBezier(cubicStart, control1, control2, cubicEnd, randomStyle());
-      const cubicBezierView = new GraphView(cubicBezier);
-      cubicBezierView.translate(random(0, 400), random(0, 400));
-      allViews.push(cubicBezierView);
+      // const cubicStart = new Point3(0, 0, 0);
+      // const control1 = new Point3(random(20, 60), random(20, 60), 0);
+      // const control2 = new Point3(random(40, 80), random(40, 80), 0);
+      // const cubicEnd = new Point3(random(60, 100), random(60, 100), 0);
+      // const cubicBezier = new CubicBezier(cubicStart, control1, control2, cubicEnd, randomStyle());
+      // const cubicBezierView = new GraphView(cubicBezier);
+      // cubicBezierView.translate(random(0, 400), random(0, 400));
+      // allViews.push(cubicBezierView);
 
       // 将所有随机图形添加到场景
       allViews.forEach((view) => {

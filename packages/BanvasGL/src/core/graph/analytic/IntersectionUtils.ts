@@ -87,13 +87,13 @@ class IntersectionManager {
 
   intersect(a: AnalyticGraph, b: AnalyticGraph): Point3[] {
     const handler = this.getHandler(a, b);
-    
+
     if (!handler) {
       // 降级到包围盒检测
       console.warn(`No intersection handler for ${a.constructor.name} and ${b.constructor.name}`);
       return [];
     }
-    
+
     return handler(a, b);
   }
 }
@@ -177,12 +177,7 @@ function numericalIntersection(
  * 线-线相交
  */
 function lineLineIntersect(a: Line, b: Line): Point3[] {
-  const intersection = Point3.lineSegmentIntersection(
-    a.startPoint,
-    a.endPoint,
-    b.startPoint,
-    b.endPoint
-  );
+  const intersection = Point3.lineSegmentIntersection(a.startPoint, a.endPoint, b.startPoint, b.endPoint);
   return intersection ? [intersection] : [];
 }
 
