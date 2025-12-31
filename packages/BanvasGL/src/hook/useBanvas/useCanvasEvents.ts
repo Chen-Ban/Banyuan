@@ -23,6 +23,7 @@ import {
   NonPrintableTextElement,
   Style,
   VERTICALALIGN,
+  Vector3,
 } from "@/core";
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
@@ -57,17 +58,6 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
       if (!app) return;
       const scene = app.getCurrentScene();
       if (!scene) return;
-
-      const worker = getGlobalWorkerManager();
-      const result = await worker.compute("text/layout", {
-        paragraphs:[TextParagraph.simple("Hello, world!")],
-        layoutArea:new Rectangle(0,0,100,100),
-        verticalAlign:VERTICALALIGN.TOP,
-        fixedWidth:false,
-        fixedHeight:false,
-      });
-      console.log(result);
-      
 
       mouseDownPointRef.current = event2Point(e);
       // 如果在普通移动过程中未找到候选节点，则设置操作类型为框选
@@ -411,17 +401,19 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
               dropPoint.y + (relativeEnd.y || 100),
               dropPoint.z + (relativeEnd.z || 0)
             );
-            graph = new Line(start, end, Style.DEFAULT);
+            graph = new Line(new Point3(0,0,0), end, Style.DEFAULT);
           } else if (graphType === "Circle") {
             const { radius } = constructorParams;
+            console.log(radius);
+            
             // 使用 dropPoint 作为圆心
-            graph = new Circle(new Point3(0,0,0), radius || 50, Style.DEFAULT);
+            graph = new Circle(new Point3(radius,radius,0), radius || 50, Style.DEFAULT);
           } else if (graphType === "Rectangle") {
             const { width, height } = constructorParams;
             // 使用 dropPoint 作为矩形左上角
             graph = new RectangleGraph(
-              dropPoint.x,
-              dropPoint.y,
+              0,
+              0,
               width || 100,
               height || 100,
               Style.DEFAULT
@@ -433,17 +425,10 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           }
         } else if (viewType === "TextView") {
           const { text } = constructorParams;
-          const textContent = (text || "文本") as string;
-          const printableText = Array.from(textContent).map(
-            (char) => new PrintableTextElement(char as string)
-          );
-          const textParagraph = new TextParagraph([
-            ...printableText,
-            new NonPrintableTextElement(),
-          ]);
+          const textParagraph = TextParagraph.simple(text || "文本");
           const layoutArea = new RectangleGraph(
-            dropPoint.x,
-            dropPoint.y,
+            1,
+            1,
             200,
             100,
             Style.DEFAULT
@@ -451,9 +436,10 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           newView = new TextView([textParagraph], {
             layoutArea,
             shouldLayout: true,
-          });
+          }).translate(x,y,0);
         } else if (viewType === "ImageView") {
           const { imageSrc } = constructorParams;
+          
           // 使用 dropPoint 作为图片左上角
           const imageElement = new ImageElement(
             dropPoint.x,
