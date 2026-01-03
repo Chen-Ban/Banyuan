@@ -28,6 +28,12 @@ export default class Vector3 {
     this.transform[2] += v.z;
     return this;
   }
+  scale(s: number): Vector3 {
+    this.transform[0] *= s;
+    this.transform[1] *= s;
+    this.transform[2] *= s;
+    return this;
+  }
   subtract(v: Vector3): Vector3 {
     this.transform[0] -= v.x;
     this.transform[1] -= v.y;

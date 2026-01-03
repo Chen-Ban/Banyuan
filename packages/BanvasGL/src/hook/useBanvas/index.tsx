@@ -50,6 +50,7 @@ export default function useBanvas(
           ref={inputRef}
           type="text"
           style={{
+            opacity: 0,
             position: "absolute",
             left: 0,
             top: 0,

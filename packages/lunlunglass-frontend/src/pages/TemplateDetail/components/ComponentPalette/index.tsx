@@ -27,10 +27,7 @@ const ComponentPalette: React.FC = () => {
             handleDragStart(e, {
               viewType: "GraphView",
               graphType: "Line",
-              constructorParams: {
-                startPoint: { x: 0, y: 0, z: 0 },
-                endPoint: { x: 100, y: 100, z: 0 },
-              },
+              constructorParams: {},
             })
           }
         />

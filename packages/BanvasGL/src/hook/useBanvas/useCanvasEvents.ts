@@ -19,8 +19,6 @@ import {
   Rectangle as RectangleGraph,
   ImageElement,
   TextParagraph,
-  PrintableTextElement,
-  NonPrintableTextElement,
   Style,
 } from "@/core";
 import { event2Point } from "@/utils/utils";
@@ -268,18 +266,17 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
       if (mousDownPoint.isSame(mouseUpPoint)) {
         const indicateView = indicateViewRef.current;
         if (indicateView) {
-          scene.select(indicateView, e.ctrlKey);
-
           if (
             isTextView(indicateView) &&
-            (isPrintableTextElement(indicateContentRef.current) ||
-              isNonPrintableTextElement(indicateContentRef.current))
+            indicateContentRef.current instanceof Array &&
+            (isPrintableTextElement(indicateContentRef.current[0]) || 
+            isNonPrintableTextElement(indicateContentRef.current[0]))
           ) {
-            const fixedIndex = indicateView.element2Index(indicateContentRef.current, mousDownPoint);
+            const fixedIndex = indicateView.element2Index(indicateContentRef.current[0], mousDownPoint);
             indicateView.setSelection(fixedIndex, fixedIndex);
 
             // 将输入框移动到选中的 textElement 下方
-            const bounds = indicateContentRef.current.getBounds();
+            const bounds = indicateContentRef.current[0].getBounds();
 
             // 将相对坐标转换为世界坐标
             const worldMatrix = indicateView.getWorldMatrix();
@@ -301,6 +298,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
               input.selectionEnd = fixedIndex[1] + fixedIndex[2];
             }
           }
+          scene.select(indicateView, e.ctrlKey);
         } else {
           ViewTreeUtils.clearAllStates(scene);
           // 隐藏输入框
@@ -404,22 +402,13 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
 
           // 根据 graphType 创建对应的 graph
           if (graphType === "Line") {
-            const { startPoint, endPoint } = constructorParams;
-            // 使用 dropPoint 作为起点，根据相对位置计算终点
-            const start = dropPoint;
-            const relativeEnd = endPoint || { x: 100, y: 100, z: 0 };
-            const end = new Point3(
-              dropPoint.x + (relativeEnd.x || 100),
-              dropPoint.y + (relativeEnd.y || 100),
-              dropPoint.z + (relativeEnd.z || 0)
-            );
+            const end = new Point3(50,50,0);
             graph = new Line(new Point3(0,0,0), end, Style.DEFAULT);
           } else if (graphType === "Circle") {
             const { radius } = constructorParams;
-            console.log(radius);
             
-            // 使用 dropPoint 作为圆心
-            graph = new Circle(new Point3(0, 0, 0), radius || 50, Style.DEFAULT);
+            graph = new Circle(new Point3(radius,radius,0), radius || 50, Style.DEFAULT);
+            
           } else if (graphType === "Rectangle") {
             const { width, height } = constructorParams;
             // 使用 dropPoint 作为矩形左上角
@@ -431,10 +420,15 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           }
         } else if (viewType === "TextView") {
           const { text } = constructorParams;
-          const textContent = (text || "文本") as string;
-          const printableText = Array.from(textContent).map((char) => new PrintableTextElement(char as string));
-          const textParagraph = new TextParagraph([...printableText, new NonPrintableTextElement()]);
-          const layoutArea = new RectangleGraph(dropPoint.x, dropPoint.y, 200, 100, Style.DEFAULT);
+          const textParagraph = TextParagraph.simple(text || "文本");
+          
+          const layoutArea = new RectangleGraph(
+            1,
+            1,
+            200,
+            100,
+            Style.DEFAULT
+          );
           newView = new TextView([textParagraph], {
             layoutArea,
             shouldLayout: true,
