@@ -235,6 +235,7 @@ export default abstract class TextElement extends Graph {
 
   public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
     this.options.size += vector.length / 10;
+    this.calculateActualDimensions()
   }
 }
 
@@ -297,10 +298,6 @@ export class PrintableTextElement extends TextElement {
     // 设置文字颜色（在应用样式后设置，确保不被覆盖）
     ctx.fillStyle = this.options.color.rgba;
     // 绘制文字
-    ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.1)";
-    ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
-    ctx.restore();
     ctx.fillText(super.content, this.controlPoints[0].x, this.controlPoints[0].y);
     ctx.restore();
   }

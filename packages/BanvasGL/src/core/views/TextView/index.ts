@@ -106,7 +106,9 @@ export default class TextView extends View {
   public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
     this.content.forEach(paragraph=>{
       paragraph.resize(fixedPoint, dynamicPoint, vector);
-    })
+    })  
+    this.shouldLayout = true;
+    this.layout();
     this.initBoundingBox();
     this.initViewport();
   }
@@ -627,8 +629,6 @@ export default class TextView extends View {
     this.layoutArea.setPosition(unionBounds.x, unionBounds.y);
     const width = unionBounds.width;
     const height = unionBounds.height;
-    // const width = this.fixedWidth ? this.layoutArea.width : unionBounds.width;
-    // const height = this.fixedHeight ? this.layoutArea.height : unionBounds.height;
     this.layoutArea.setSize(width, height);
   }
 
