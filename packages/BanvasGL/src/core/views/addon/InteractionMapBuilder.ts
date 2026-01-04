@@ -88,8 +88,8 @@ export type ExtraData<T extends Action = Action> = {
   action: T;
   editPoint?: T extends Action.EDIT_POINT ? Point3 : never;
   viewPortPoint?: T extends Action.EDIT_VIEWPORT ? Point3 : never;
-  resizeFixedPoint?: T extends Action.RESIZE ? Point3 : never;
-  resizeDynamicPoint?: T extends Action.RESIZE ? Point3 : never;
+  resizeFixedIndex?: T extends Action.RESIZE ? number : never;
+  resizeDynamicIndex?: T extends Action.RESIZE ? number : never;
 };
 /**
  * 交互结果构建器

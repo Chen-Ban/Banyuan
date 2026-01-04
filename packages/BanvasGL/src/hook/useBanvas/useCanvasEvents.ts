@@ -123,9 +123,9 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           canvasRef.current!.style.cursor = Cursor.Grabbing;
           if (extraDataRef.current) {
             const vector = point.subtract(lastPointRef.current || mousDownPoint);
-            const { resizeFixedPoint, resizeDynamicPoint } = extraDataRef.current;
-            if (resizeFixedPoint && resizeDynamicPoint && indicateViewRef.current) {
-              indicateViewRef.current.resize(resizeFixedPoint, resizeDynamicPoint, vector);
+            const { resizeFixedIndex, resizeDynamicIndex } = extraDataRef.current;
+            if (resizeDynamicIndex !== undefined && resizeFixedIndex !== undefined && indicateViewRef.current) {
+              indicateViewRef.current.resize(resizeFixedIndex, resizeDynamicIndex, vector);
             }
           }
           break;
@@ -142,7 +142,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             const clampedDot = Math.max(-1, Math.min(1, dot));
             const sign = Math.sign(currentVector.cross(lastVector).z);
             const angle = Math.acos(clampedDot) * sign;
-            indicateViewRef.current.rotate(0, 0, angle, center);
+            scene.getAllActived().forEach((view)=>view.rotate(0, 0, angle, center));
           }
           break;
         }

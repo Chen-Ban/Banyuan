@@ -103,7 +103,10 @@ export default class TextView extends View {
     return closets.find((closet) => closet.distance === minDistance)!.closestPoint;
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
+  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3): void {
+    const fixedPoint = this.boundingBox?.handles[fixedIndex].getCenter();
+    const dynamicPoint = this.boundingBox?.handles[dynamicIndex].getCenter() ;
+    if(!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
     this.content.forEach(paragraph=>{
       paragraph.resize(fixedPoint, dynamicPoint, vector);
     })  

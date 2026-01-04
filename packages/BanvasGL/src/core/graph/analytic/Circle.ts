@@ -8,7 +8,8 @@ export default class Circle extends Arc {
 
   constructor(center: Point3, radius: number, style: Style = Style.DEFAULT) {
     // 调用父类构造函数，创建完整圆（0 到 2π）
-    super(center, radius, 0, 2 * Math.PI, false, style);
+    // 对于圆，xRadius 和 yRadius 相等，rotation 为 0
+    super(center, radius, radius, 0, 0, 2 * Math.PI, false, style);
   }
 
   // 设置中心点
@@ -20,31 +21,37 @@ export default class Circle extends Arc {
 
   // 设置半径
   setRadius(radius: number): Circle {
-    this.radius = Math.max(0, radius);
+    this.xRadius = Math.max(0, radius);
+    this.yRadius = Math.max(0, radius);
     this.controlPoints = this.calculateControlPoints();
+    this.setBounds(this.calculateBounds());
     return this;
   }
 
   // 获取直径
   get diameter(): number {
-    return this.radius * 2;
+    return (this.xRadius + this.yRadius);
   }
 
-  // 获取周长
+  // 获取周长（椭圆周长近似公式）
   get circumference(): number {
-    return 2 * Math.PI * this.radius;
+    const a = this.xRadius;
+    const b = this.yRadius;
+    // 使用Ramanujan近似公式
+    const h = Math.pow((a - b) / (a + b), 2);
+    return Math.PI * (a + b) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
   }
 
   // 获取面积
   get area(): number {
-    return Math.PI * this.radius * this.radius;
+    return Math.PI * this.xRadius * this.yRadius;
   }
 
   // 获取圆上的点（根据角度）
   getPointOnCircle(angle: number): Point3 {
-    const x = this.center.x + this.radius * Math.cos(angle);
-    const y = this.center.y + this.radius * Math.sin(angle);
-    return new Point3(x, y, this.center.z);
+    // 使用父类的 getPointAt 方法，但需要将角度转换为参数 t
+    const t = angle / (2 * Math.PI);
+    return this.getPointAt(t);
   }
 
   // 获取圆上的切线方向
@@ -68,7 +75,9 @@ export default class Circle extends Arc {
     const dx = other.center.x - this.center.x;
     const dy = other.center.y - this.center.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance <= this.radius + other.radius && distance >= Math.abs(this.radius - other.radius);
+    const thisRadius = (this.xRadius + this.yRadius) / 2;
+    const otherRadius = (other.xRadius + other.yRadius) / 2;
+    return distance <= thisRadius + otherRadius && distance >= Math.abs(thisRadius - otherRadius);
   }
 
   // 检查两个圆是否相切
@@ -76,8 +85,10 @@ export default class Circle extends Arc {
     const dx = other.center.x - this.center.x;
     const dy = other.center.y - this.center.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    const sumRadii = this.radius + other.radius;
-    const diffRadii = Math.abs(this.radius - other.radius);
+    const thisRadius = (this.xRadius + this.yRadius) / 2;
+    const otherRadius = (other.xRadius + other.yRadius) / 2;
+    const sumRadii = thisRadius + otherRadius;
+    const diffRadii = Math.abs(thisRadius - otherRadius);
     return Math.abs(distance - sumRadii) <= tolerance || Math.abs(distance - diffRadii) <= tolerance;
   }
 
@@ -86,7 +97,9 @@ export default class Circle extends Arc {
     const dx = other.center.x - this.center.x;
     const dy = other.center.y - this.center.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    return distance + other.radius <= this.radius;
+    const thisRadius = (this.xRadius + this.yRadius) / 2;
+    const otherRadius = (other.xRadius + other.yRadius) / 2;
+    return distance + otherRadius <= thisRadius;
   }
 
   // 渲染圆形（重写父类方法以支持填充）
@@ -112,7 +125,8 @@ export default class Circle extends Arc {
 
   // 复制圆形
   public copy(): this {
-    return new Circle(this.center.copy(), this.radius, this.style.copy()) as this;
+    const radius = (this.xRadius + this.yRadius) / 2;
+    return new Circle(this.center.copy(), radius, this.style.copy()) as this;
   }
 
   // 静态工厂方法

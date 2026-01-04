@@ -855,7 +855,9 @@ export default class Serializer {
       id: arc._id,
       type: arc.type,
       center: this.serializeValue(arc.center, this.defaultOptions, 0),
-      radius: arc.radius,
+      xRadius: arc.xRadius,
+      yRadius: arc.yRadius,
+      rotation: arc.rotation,
       startAngle: arc.startAngle,
       endAngle: arc.endAngle,
       clockwise: arc.clockwise,
@@ -871,7 +873,39 @@ export default class Serializer {
   private deserializeArc(data: any): Arc {
     const center = this.deserializeValue(data.center, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
-    const arc = new Arc(center, data.radius, data.startAngle, data.endAngle, data.clockwise, style);
+    
+    // 向后兼容：如果数据中有 radius（旧格式），则同时设置 xRadius 和 yRadius
+    let xRadius: number;
+    let yRadius: number;
+    let rotation: number;
+    
+    if (data.xRadius !== undefined && data.yRadius !== undefined) {
+      // 新格式
+      xRadius = data.xRadius;
+      yRadius = data.yRadius;
+      rotation = data.rotation !== undefined ? data.rotation : 0;
+    } else if (data.radius !== undefined) {
+      // 旧格式：向后兼容
+      xRadius = data.radius;
+      yRadius = data.radius;
+      rotation = 0;
+    } else {
+      // 默认值
+      xRadius = 1;
+      yRadius = 1;
+      rotation = 0;
+    }
+    
+    const arc = new Arc(
+      center,
+      xRadius,
+      yRadius,
+      rotation,
+      data.startAngle,
+      data.endAngle,
+      data.clockwise,
+      style
+    );
     arc._id = data.id;
     return arc;
   }
