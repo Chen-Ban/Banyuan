@@ -134,6 +134,97 @@ export function intersectAll(shapes: AnalyticGraph[]): Map<string, Point3[]> {
 // ========== 辅助函数 ==========
 
 /**
+ * 计算直线与椭圆的交点
+ * @param line 直线
+ * @param center 椭圆中心
+ * @param xRadius X轴半径
+ * @param yRadius Y轴半径
+ * @param rotation 旋转角度
+ * @returns 交点数组
+ */
+function lineEllipseIntersect(
+  line: Line,
+  center: Point3,
+  xRadius: number,
+  yRadius: number,
+  rotation: number
+): Point3[] {
+  const start = line.startPoint;
+  const end = line.endPoint;
+  
+  // 将直线转换到椭圆的局部坐标系
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const fx = start.x - center.x;
+  const fy = start.y - center.y;
+  
+  // 应用旋转（将点转换到局部坐标系）
+  const cos = Math.cos(-rotation);
+  const sin = Math.sin(-rotation);
+  const localFx = fx * cos - fy * sin;
+  const localFy = fx * sin + fy * cos;
+  const localDx = dx * cos - dy * sin;
+  const localDy = dx * sin + dy * cos;
+  
+  // 在局部坐标系中，椭圆方程为 (x/a)^2 + (y/b)^2 = 1
+  // 直线参数方程为: x = localFx + t * localDx, y = localFy + t * localDy
+  // 代入椭圆方程得到关于 t 的二次方程
+  const a = xRadius;
+  const b = yRadius;
+  const a_coeff = (localDx * localDx) / (a * a) + (localDy * localDy) / (b * b);
+  const b_coeff = 2 * ((localFx * localDx) / (a * a) + (localFy * localDy) / (b * b));
+  const c_coeff = (localFx * localFx) / (a * a) + (localFy * localFy) / (b * b) - 1;
+  
+  const discriminant = b_coeff * b_coeff - 4 * a_coeff * c_coeff;
+  
+  if (discriminant < 0 || Math.abs(a_coeff) < 1e-10) {
+    return []; // 无交点
+  }
+  
+  const sqrtDiscriminant = Math.sqrt(discriminant);
+  const t1 = (-b_coeff - sqrtDiscriminant) / (2 * a_coeff);
+  const t2 = (-b_coeff + sqrtDiscriminant) / (2 * a_coeff);
+  
+  const intersections: Point3[] = [];
+  
+  // 检查交点是否在线段上（对于线段，t应该在[0,1]范围内）
+  if (t1 >= 0 && t1 <= 1) {
+    const worldX = start.x + t1 * dx;
+    const worldY = start.y + t1 * dy;
+    intersections.push(new Point3(worldX, worldY, start.z));
+  }
+  if (t2 >= 0 && t2 <= 1 && !MathUtils.isEqual(t1, t2)) {
+    const worldX = start.x + t2 * dx;
+    const worldY = start.y + t2 * dy;
+    intersections.push(new Point3(worldX, worldY, start.z));
+  }
+  
+  return intersections;
+}
+
+/**
+ * 检查点是否在椭圆弧范围内
+ * @param point 点
+ * @param arc 椭圆弧
+ * @returns 是否在范围内
+ */
+function isPointInEllipseArcRange(point: Point3, arc: Arc): boolean {
+  // 将点转换到椭圆的局部坐标系
+  const dx = point.x - arc.center.x;
+  const dy = point.y - arc.center.y;
+  const cos = Math.cos(-arc.rotation);
+  const sin = Math.sin(-arc.rotation);
+  const localX = dx * cos - dy * sin;
+  const localY = dx * sin + dy * cos;
+  
+  // 计算点在局部坐标系中的角度
+  const angle = Math.atan2(localY / arc.yRadius, localX / arc.xRadius);
+  
+  // 检查角度是否在弧范围内
+  return MathUtils.isAngleInArcRange(angle, arc.startAngle, arc.endAngle, arc.clockwise);
+}
+
+/**
  * 使用数值方法计算曲线与图形的相交点
  */
 function numericalIntersection(
@@ -182,17 +273,22 @@ function lineLineIntersect(a: Line, b: Line): Point3[] {
 }
 
 /**
- * 线-圆弧相交
+ * 线-椭圆弧相交
  */
 function lineArcIntersect(a: Line, b: Arc): Point3[] {
-  // 先计算直线与完整圆的交点
-  const circleIntersections = lineCircleIntersect(a, new Circle(b.center, b.radius, b.style));
+  // 计算直线与完整椭圆的交点
+  const ellipseIntersections = lineEllipseIntersect(
+    a,
+    b.center,
+    b.xRadius,
+    b.yRadius,
+    b.rotation
+  );
 
-  // 过滤出在圆弧范围内的交点
+  // 过滤出在椭圆弧范围内的交点
   const arcIntersections: Point3[] = [];
-  for (const point of circleIntersections) {
-    const angle = MathUtils.calculateAngle(point.x - b.center.x, point.y - b.center.y);
-    if (MathUtils.isAngleInArcRange(angle, b.startAngle, b.endAngle, b.clockwise)) {
+  for (const point of ellipseIntersections) {
+    if (isPointInEllipseArcRange(point, b)) {
       arcIntersections.push(point);
     }
   }
@@ -261,49 +357,68 @@ function lineCubicBezierIntersect(a: Line, b: CubicBezier): Point3[] {
 // ========== 圆弧与其他图形的相交 ==========
 
 /**
- * 圆弧-圆弧相交
+ * 椭圆弧-椭圆弧相交
  */
 function arcArcIntersect(a: Arc, b: Arc): Point3[] {
-  // 将圆弧转换为圆，计算两个完整圆的交点
-  const circleA = new Circle(a.center, a.radius, a.style);
-  const circleB = new Circle(b.center, b.radius, b.style);
-  const circleIntersections = circleCircleIntersect(circleA, circleB);
-
-  // 过滤出在两个圆弧范围内的交点
-  const arcIntersections: Point3[] = [];
-  for (const point of circleIntersections) {
-    const angle1 = MathUtils.calculateAngle(point.x - a.center.x, point.y - a.center.y);
-    const angle2 = MathUtils.calculateAngle(point.x - b.center.x, point.y - b.center.y);
-
-    if (
-      MathUtils.isAngleInArcRange(angle1, a.startAngle, a.endAngle, a.clockwise) &&
-      MathUtils.isAngleInArcRange(angle2, b.startAngle, b.endAngle, b.clockwise)
-    ) {
-      arcIntersections.push(point);
+  // 对于椭圆与椭圆的相交，使用数值方法
+  // 采样第一个椭圆弧上的点，检查是否在第二个椭圆弧上
+  const intersections: Point3[] = [];
+  const numSamples = 200;
+  const tolerance = MathUtils.EPSILON * 10;
+  
+  for (let i = 0; i <= numSamples; i++) {
+    const t = i / numSamples;
+    const point = a.getPointAt(t);
+    const { distance } = b.getClosestPoint(point);
+    
+    if (distance < tolerance) {
+      // 检查是否在第二个弧的范围内
+      if (isPointInEllipseArcRange(point, b)) {
+        // 去重
+        const isDuplicate = intersections.some(
+          (existing) => existing.distance(point) < tolerance
+        );
+        if (!isDuplicate) {
+          intersections.push(point);
+        }
+      }
     }
   }
-
-  return arcIntersections;
+  
+  return intersections;
 }
 
 /**
- * 圆弧-圆相交
+ * 椭圆弧-圆相交
  */
 function arcCircleIntersect(a: Arc, b: Circle): Point3[] {
-  // 将圆弧转换为圆，计算两个完整圆的交点
-  const circleA = new Circle(a.center, a.radius, a.style);
-  const circleIntersections = circleCircleIntersect(circleA, b);
-
-  // 过滤出在圆弧范围内的交点
-  const arcIntersections: Point3[] = [];
-  for (const point of circleIntersections) {
-    const angle = MathUtils.calculateAngle(point.x - a.center.x, point.y - a.center.y);
-    if (MathUtils.isAngleInArcRange(angle, a.startAngle, a.endAngle, a.clockwise)) {
-      arcIntersections.push(point);
+  // 对于椭圆弧与圆的相交，使用数值方法
+  // 采样椭圆弧上的点，检查是否在圆上
+  const intersections: Point3[] = [];
+  const numSamples = 200;
+  const tolerance = MathUtils.EPSILON * 10;
+  const circleRadius = (b.xRadius + b.yRadius) / 2;
+  
+  for (let i = 0; i <= numSamples; i++) {
+    const t = i / numSamples;
+    const point = a.getPointAt(t);
+    const distanceToCircleCenter = point.distance(b.center);
+    
+    if (Math.abs(distanceToCircleCenter - circleRadius) < tolerance) {
+      // 检查是否在椭圆弧的范围内
+      if (isPointInEllipseArcRange(point, a)) {
+        // 去重
+        const isDuplicate = intersections.some(
+          (existing) => existing.distance(point) < tolerance
+        );
+        if (!isDuplicate) {
+          intersections.push(point);
+        }
+      }
     }
   }
-
-  return arcIntersections;
+  
+  return intersections;
 }
 
 /**

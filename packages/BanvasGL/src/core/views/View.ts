@@ -88,12 +88,12 @@ export default abstract class View<T extends object = any> {
 
   /**
    * resize方法
-   * @param fixedPoint 固定点
-   * @param dynamicPoint 动态点
+   * @param fixedIndex 固定点索引
+   * @param dynamicIndex 动态点索引(也是上一个点，与vector可求得新的动态点)
    * @param vector 向量
-   * @description 根据固定点、动态点、向量计算新的变换矩阵
+   * @description 根据固定点索引、动态点索引、向量计算图形的变化和新的变换矩阵
    */
-  public abstract resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void;
+  public abstract resize(fixedIndex: number, dynamicIndex: number, vector: Vector3): void;
 
   constructor(options: ViewOptions<T>) {
     this.construct(options);

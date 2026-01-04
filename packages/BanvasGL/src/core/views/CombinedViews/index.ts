@@ -150,18 +150,9 @@ export default class CombinedView extends View {
     return this._contentBounds;
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
-    //将固定点、动态点映射到对应的子view对应的固定点、动态点，避免变换介质的尺寸失真
+  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3): void {
     this.children.forEach(child=>{
-      const fixedIndex = child.boundingBox?.handles.findIndex(handle=>handle.isPointInPath(fixedPoint));
-      const dynamicIndex = child.boundingBox?.handles.findIndex(handle=>handle.isPointInPath(dynamicPoint));
-      if (fixedIndex !== undefined && dynamicIndex !== undefined) {
-        const fixed = child.boundingBox?.handles[fixedIndex];
-        const dynamic = child.boundingBox?.handles[dynamicIndex];
-        if (fixed && dynamic) {
-          child.resize(fixed.getCenter(), dynamic.getCenter(), vector);
-        }
-      }
+      child.resize(fixedIndex, dynamicIndex, vector);
     })
     this.initBoundingBox();
     this.initViewport();
