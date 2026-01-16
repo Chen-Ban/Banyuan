@@ -312,11 +312,7 @@ export default class TextParagraph extends Graph {
     return paragraph;
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
-    this.texts.forEach(text=>{
-      text.resize(fixedPoint, dynamicPoint, vector);
-    })
-  }
+  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
 }
 
 // 类型守卫函数

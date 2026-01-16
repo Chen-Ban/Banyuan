@@ -386,13 +386,8 @@ export default class CombinedGraph extends Graph {
     const intersections = this.graphs.map((graph) => graph.intersect(other));
     return intersections.flat();
   }
-  
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
-    this.graphs.forEach(graph=>{
-      graph.resize(fixedPoint, dynamicPoint, vector);
-    })
-    this.setBounds(this.calculateBounds());
-  }
+
+  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
 }
 
 // 类型守卫函数

@@ -68,16 +68,15 @@ export default class CombinedView extends View {
       return builder.build();
     }
     // 命中自身内容（如有）
-    this.content.forEach(content=>{
+    this.content.forEach((content) => {
       const hitContent = content.isPointInPath(relativePoint);
       if (hitContent) {
-        builder
-          .add(this, [content], {
-            cursorStyle: Cursor.Move,
-            action: Action.MOVE,
-          })
+        builder.add(this, [content], {
+          cursorStyle: Cursor.Move,
+          action: Action.MOVE,
+        });
       }
-    })
+    });
     if (builder.size > 0) {
       return builder.build();
     }
@@ -150,10 +149,10 @@ export default class CombinedView extends View {
     return this._contentBounds;
   }
 
-  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3): void {
-    this.children.forEach(child=>{
+  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
+    this.children.forEach((child) => {
       child.resize(fixedIndex, dynamicIndex, vector);
-    })
+    });
     this.initBoundingBox();
     this.initViewport();
     this._contentBounds = this.initContentBox();

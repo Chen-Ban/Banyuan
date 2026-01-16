@@ -65,7 +65,8 @@ export default class GraphView extends View {
 
     // 检查内容
     if (this.content) {
-      const hitContent = this.content[0].isPointInPath(relativePoint) || this.content[0].isPointOnCurve(relativePoint, 2);
+      const hitContent =
+        this.content[0].isPointInPath(relativePoint) || this.content[0].isPointOnCurve(relativePoint, 2);
       if (hitContent) {
         return builder
           .add(this, this.content, {
@@ -87,16 +88,43 @@ export default class GraphView extends View {
     return builder.build();
   }
 
-  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3): void {
+  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
     const fixedPoint = this.boundingBox?.handles[fixedIndex].getCenter();
     const dynamicPoint = this.boundingBox?.handles[dynamicIndex].getCenter();
-    if(!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
-    this.content[0].resize(fixedPoint, dynamicPoint, vector);
+    if (!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
+
+    let referenceVector = dynamicPoint.subtract(fixedPoint).normalized;
+
+    // 变化介质尺寸
+    let width = Math.abs(dynamicPoint.x - fixedPoint.x);
+    let height = Math.abs(dynamicPoint.y - fixedPoint.y);
+    // 单分量变化时，未变化方向介质尺寸为无穷大，表示后续计算中变化值为0
+    if (width === 0) width = Infinity;
+    if (height === 0) height = Infinity;
+
+    // 变化比例
+    const scaleX = this.center.x / width;
+    const scaleY = this.center.y / height;
+
+    // 带方向并且按照介质尺寸缩放的移动量
+    const dx = Math.abs(vector.x) * Math.sign(vector.x * referenceVector.x) * scaleX;
+    const dy = Math.abs(vector.y) * Math.sign(vector.y * referenceVector.y) * scaleY;
+
+    const overflowX = Math.abs(dx) > width && Math.sign(dx) === -1;
+    const overflowY = Math.abs(dy) > height && Math.sign(dy) === -1;
+
+    this.content[0].resize([width, height], [dx, dy], [overflowX, overflowY]);
     this.initBoundingBox();
     this.initViewport();
-    // const  extraData = this.boundingBox?.interact(dynamicPoint.add(vector));
-    // console.log(extraData?.resizeDynamicIndex,dynamicIndex);
-    
+
+    // 计算平移向量
+    // 1.如果超出了介质尺寸，则计算新的fixedIndex和dynamicIndex，否则使用当前index
+    // 2.根据新的index计算translateVector
+    // 3.计算新的matrix
+    if (overflowX) {
+      if (fixedIndex % 2 === 0) {
+      }
+    }
   }
 
   public copy(): GraphView {

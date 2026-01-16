@@ -136,11 +136,11 @@ export default abstract class Graph {
   public abstract intersect(other: Graph): Point3[];
 
   /**
-   * 根据固定/活动点resize图形尺寸
-   * @param fixedPoint 固定点
-   * @param dynamicPoint 活动点
-   * @param vector 移动向量
-   * @description 根据固定/活动点原地resize图形尺寸，固定/活动点为图形包围盒的八方位点，移动向量为活动点相对于固定点的向量
+   * 计算与另一个图形的相交点
+   * @param other 另一个图形
+   * @returns 相交点数组
    */
-  public abstract resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void;  
+  public abstract intersect(other: Graph): Point3[];
+
+  public abstract resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void;
 }

@@ -53,11 +53,11 @@ export default class ImageView extends View {
       })
       .build();
   }
-  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3): void {
+  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
     const fixedPoint = this.boundingBox?.handles[fixedIndex].getCenter();
-    const dynamicPoint = this.boundingBox?.handles[dynamicIndex].getCenter() ;
-    if(!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
-    this.content[0].resize(fixedPoint, dynamicPoint, vector);
+    const dynamicPoint = this.boundingBox?.handles[dynamicIndex].getCenter();
+    if (!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
+    // this.content[0].resize(fixedPoint, dynamicPoint, vector);
     this.initBoundingBox();
     this.initViewport();
   }
