@@ -286,14 +286,5 @@ export default abstract class MediaElement extends Graph {
     // 暂未实现
     return [];
   }
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
-    const width = dynamicPoint.x - fixedPoint.x;
-    const height = dynamicPoint.y - fixedPoint.y;
-    const x = vector.x;
-    const y = vector.y;
-    this.controlPoints.forEach(point=>{
-      point.add(new Vector3(x * point.x / width, y * point.y / height, 0));
-    })
-    this.setBounds(this.calculateBounds());
-  }
+  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
 }

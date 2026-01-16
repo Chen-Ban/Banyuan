@@ -142,7 +142,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             const clampedDot = Math.max(-1, Math.min(1, dot));
             const sign = Math.sign(currentVector.cross(lastVector).z);
             const angle = Math.acos(clampedDot) * sign;
-            scene.getAllActived().forEach((view)=>view.rotate(0, 0, angle, center));
+            scene.getAllActived().forEach((view) => view.rotate(0, 0, angle, center));
           }
           break;
         }
@@ -269,8 +269,8 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           if (
             isTextView(indicateView) &&
             indicateContentRef.current instanceof Array &&
-            (isPrintableTextElement(indicateContentRef.current[0]) || 
-            isNonPrintableTextElement(indicateContentRef.current[0]))
+            (isPrintableTextElement(indicateContentRef.current[0]) ||
+              isNonPrintableTextElement(indicateContentRef.current[0]))
           ) {
             const fixedIndex = indicateView.element2Index(indicateContentRef.current[0], mousDownPoint);
             indicateView.setSelection(fixedIndex, fixedIndex);
@@ -402,17 +402,16 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
 
           // 根据 graphType 创建对应的 graph
           if (graphType === "Line") {
-            const end = new Point3(50,50,0);
-            graph = new Line(new Point3(0,0,0), end, Style.DEFAULT);
+            const end = new Point3(50, 50, 0);
+            graph = new Line(new Point3(0, 0, 0), end, Style.DEFAULT);
           } else if (graphType === "Circle") {
             const { radius } = constructorParams;
-            
-            graph = new Circle(new Point3(radius,radius,0), radius || 50, Style.DEFAULT);
-            
+
+            graph = new Circle(new Point3(radius, radius, 0), radius || 50, Style.DEFAULT);
           } else if (graphType === "Rectangle") {
             const { width, height } = constructorParams;
             // 使用 dropPoint 作为矩形左上角
-            graph = new RectangleGraph(dropPoint.x, dropPoint.y, width || 100, height || 100, Style.DEFAULT);
+            graph = new RectangleGraph(0, 0, width || 100, height || 100, Style.DEFAULT);
           }
 
           if (graph) {
@@ -421,21 +420,15 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
         } else if (viewType === "TextView") {
           const { text } = constructorParams;
           const textParagraph = TextParagraph.simple(text || "文本");
-          
-          const layoutArea = new RectangleGraph(
-            1,
-            1,
-            200,
-            100,
-            Style.DEFAULT
-          );
+
+          const layoutArea = new RectangleGraph(1, 1, 200, 100, Style.DEFAULT);
           newView = new TextView([textParagraph], {
             layoutArea,
             shouldLayout: true,
-          }).translate(x,y,0);
+          }).translate(x, y, 0);
         } else if (viewType === "ImageView") {
           const { imageSrc } = constructorParams;
-          
+
           // 使用 dropPoint 作为图片左上角
           const imageElement = new ImageElement(dropPoint.x, dropPoint.y, imageSrc || "", Style.DEFAULT);
           newView = new ImageView(imageElement);

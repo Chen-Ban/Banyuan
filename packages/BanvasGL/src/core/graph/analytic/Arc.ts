@@ -206,17 +206,20 @@ export default class Arc extends AnalyticGraph {
     // 对于旋转的椭圆，需要计算所有可能的最大最小点
     const cos = Math.cos(this.rotation);
     const sin = Math.sin(this.rotation);
-    
+
     // 计算椭圆在局部坐标系中的四个关键点（未旋转时）
     const localPoints = [
       { x: this.xRadius, y: 0 },
       { x: -this.xRadius, y: 0 },
       { x: 0, y: this.yRadius },
-      { x: 0, y: -this.yRadius }
+      { x: 0, y: -this.yRadius },
     ];
-    
+
     // 旋转这些点并找到边界
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const p of localPoints) {
       const rotatedX = p.x * cos - p.y * sin;
       const rotatedY = p.x * sin + p.y * cos;
@@ -227,7 +230,7 @@ export default class Arc extends AnalyticGraph {
       maxX = Math.max(maxX, worldX);
       maxY = Math.max(maxY, worldY);
     }
-    
+
     // 还需要考虑起始点和结束点
     const startPoint = this.getPointAt(0);
     const endPoint = this.getPointAt(1);
@@ -235,7 +238,7 @@ export default class Arc extends AnalyticGraph {
     minY = Math.min(minY, startPoint.y, endPoint.y);
     maxX = Math.max(maxX, startPoint.x, endPoint.x);
     maxY = Math.max(maxY, startPoint.y, endPoint.y);
-    
+
     return new Bounds(minX, minY, maxX - minX, maxY - minY);
   }
 
@@ -261,38 +264,34 @@ export default class Arc extends AnalyticGraph {
 
   public getPointAt(t: number): Point3 {
     const angle = this.startAngle + t * (this.endAngle - this.startAngle);
-    
+
     // 在局部坐标系中计算椭圆上的点
     const localX = this.xRadius * Math.cos(angle);
     const localY = this.yRadius * Math.sin(angle);
-    
+
     // 应用旋转
     const cos = Math.cos(this.rotation);
     const sin = Math.sin(this.rotation);
     const rotatedX = localX * cos - localY * sin;
     const rotatedY = localX * sin + localY * cos;
-    
+
     // 平移到世界坐标系
-    return new Point3(
-      this.center.x + rotatedX,
-      this.center.y + rotatedY,
-      this.center.z
-    );
+    return new Point3(this.center.x + rotatedX, this.center.y + rotatedY, this.center.z);
   }
 
   public getTangentAt(t: number): Vector3 {
     const angle = this.startAngle + t * (this.endAngle - this.startAngle);
-    
+
     // 在局部坐标系中的切线方向
     const localTangentX = -this.xRadius * Math.sin(angle);
     const localTangentY = this.yRadius * Math.cos(angle);
-    
+
     // 应用旋转
     const cos = Math.cos(this.rotation);
     const sin = Math.sin(this.rotation);
     const rotatedX = localTangentX * cos - localTangentY * sin;
     const rotatedY = localTangentX * sin + localTangentY * cos;
-    
+
     // 归一化
     const length = Math.sqrt(rotatedX * rotatedX + rotatedY * rotatedY);
     if (length < 1e-10) {
@@ -303,17 +302,17 @@ export default class Arc extends AnalyticGraph {
 
   public getNormalAt(t: number): Vector3 {
     const angle = this.startAngle + t * (this.endAngle - this.startAngle);
-    
+
     // 在局部坐标系中的法线方向（指向椭圆中心）
     const localNormalX = this.xRadius * Math.cos(angle);
     const localNormalY = this.yRadius * Math.sin(angle);
-    
+
     // 应用旋转
     const cos = Math.cos(this.rotation);
     const sin = Math.sin(this.rotation);
     const rotatedX = localNormalX * cos - localNormalY * sin;
     const rotatedY = localNormalX * sin + localNormalY * cos;
-    
+
     // 归一化
     const length = Math.sqrt(rotatedX * rotatedX + rotatedY * rotatedY);
     if (length < 1e-10) {
@@ -334,12 +333,12 @@ export default class Arc extends AnalyticGraph {
     const sin = Math.sin(-this.rotation);
     const localX = dx * cos - dy * sin;
     const localY = dx * sin + dy * cos;
-    
+
     // 在局部坐标系中计算最近点（使用数值方法）
     let closestT = 0;
     let minDistance = Infinity;
     const numSamples = 100;
-    
+
     for (let i = 0; i <= numSamples; i++) {
       const t = i / numSamples;
       const arcPoint = this.getPointAt(t);
@@ -349,7 +348,7 @@ export default class Arc extends AnalyticGraph {
         closestT = t;
       }
     }
-    
+
     const closestPoint = this.getPointAt(closestT);
     const distance = point.distance(closestPoint);
 
@@ -380,20 +379,16 @@ export default class Arc extends AnalyticGraph {
 
   public transform(matrix: Matrix4): AnalyticGraph {
     const newCenter = matrix.multiply(this.center);
-    
+
     // 获取变换后的起始点和结束点
     const ts = matrix.multiply(this.getPointAt(0));
     const te = matrix.multiply(this.getPointAt(1));
-    
+
     // 计算变换后的椭圆参数（简化处理：使用平均半径）
-    const startDist = Math.sqrt(
-      Math.pow(ts.x - newCenter.x, 2) + Math.pow(ts.y - newCenter.y, 2)
-    );
-    const endDist = Math.sqrt(
-      Math.pow(te.x - newCenter.x, 2) + Math.pow(te.y - newCenter.y, 2)
-    );
+    const startDist = Math.sqrt(Math.pow(ts.x - newCenter.x, 2) + Math.pow(ts.y - newCenter.y, 2));
+    const endDist = Math.sqrt(Math.pow(te.x - newCenter.x, 2) + Math.pow(te.y - newCenter.y, 2));
     const avgRadius = (startDist + endDist) / 2;
-    
+
     // 更新参数（注意：矩阵变换可能改变椭圆的形状，这里使用简化处理）
     this.center = newCenter;
     this.xRadius = avgRadius;
@@ -419,48 +414,35 @@ export default class Arc extends AnalyticGraph {
     return other.intersect(this);
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
-    // 参考向量和vector的关系代表图形在xy分量上的变化关系
-    const referenceVector = dynamicPoint.subtract(fixedPoint).normalized;
+  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {
+    const [width, height] = size;
+    const [dx, dy] = diff;
+    const [overflowx, overflowy] = overflow;
 
-    // 带方向的移动量
-    const dx = vector.x * Math.sign(vector.x * referenceVector.x);
-    const dy = vector.y * Math.sign(vector.y * referenceVector.y);
+    if (overflowx) {
+      const restX = Math.abs(dx) - width;
+      this.center = new Point3(restX, this.center.y, this.center.z);
+      this.xRadius = restX;
+    } else {
+      this.center.add(new Vector3(dx, 0, 0));
+      this.xRadius += dx;
+    }
 
-    // 变化介质尺寸
-    const width = Math.abs(dynamicPoint.x - fixedPoint.x);
-    const height = Math.abs(dynamicPoint.y - fixedPoint.y);
-
-    // 变化比例
-    const scaleX = this.center.x / width;
-    const scaleY = this.center.y / height;
-
-    // 半径变化量
-    const dXRadius = this.xRadius * scaleX * Math.sign(dx);
-    const dYRadius = this.yRadius * scaleY * Math.sign(dy);
-
-    // 中心点变化量
-    const dCenterX = dx * scaleX;
-    const dCenterY = dy * scaleY;
-
-    this.center.add(new Vector3(dCenterX, dCenterY, 0));
-    this.xRadius += dXRadius;
-    this.yRadius += dYRadius;
+    if (overflowy) {
+      const restY = Math.abs(dy) - height;
+      this.center = new Point3(this.center.x, restY, this.center.z);
+      this.yRadius = restY;
+    } else {
+      this.center.add(new Vector3(0, dy, 0));
+      this.yRadius += dy;
+    }
 
     // 计算控制点（用于边界框计算）
     this.controlPoints = this.calculateControlPoints();
 
     // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
     this.setBounds(this.calculateBounds());
-
-    // 判断是否需要换像（当移动向量任意分量模长大于对应介质尺寸时，需要换像）
-    // 换像：resize的固定点和活动点改变，实现上来说，返回值改为{x:boolean,y:boolean}，表示对应方向是否需要换像
-    return { 
-      x: Math.sign(dx) === -1 && Math.abs(dx) > width, // 反向并且大于介质尺寸
-      y: Math.sign(dy) === -1 && Math.abs(dy) > height // 反向并且大于介质尺寸
-    };
   }
-
 }
 
 // 类型守卫函数

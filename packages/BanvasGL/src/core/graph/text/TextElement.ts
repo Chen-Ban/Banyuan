@@ -233,10 +233,7 @@ export default abstract class TextElement extends Graph {
    */
   public abstract copy(): this;
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
-    this.options.size += vector.length / 10;
-    this.calculateActualDimensions()
-  }
+  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
 }
 
 /**

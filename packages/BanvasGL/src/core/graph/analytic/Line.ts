@@ -211,17 +211,8 @@ export default class Line extends AnalyticGraph {
     // 对于其他类型的图形，使用其他图形的相交计算方法
     return other.intersect(this);
   }
-  
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void {
-    const width = dynamicPoint.x - fixedPoint.x;
-    const height = dynamicPoint.y - fixedPoint.y;
-    const x = vector.x;
-    const y = vector.y;
-    this.controlPoints.forEach(point=>{
-      point.add(new Vector3(x * point.x / width, y * point.y / height, 0));
-    })
-    this.setBounds(this.calculateBounds());
-  }
+
+  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
 }
 
 // 类型守卫函数
