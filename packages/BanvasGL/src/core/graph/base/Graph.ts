@@ -136,13 +136,6 @@ export default abstract class Graph {
   public abstract intersect(other: Graph): Point3[];
 
   /**
-   * 计算与另一个图形的相交点
-   * @param other 另一个图形
-   * @returns 相交点数组
-   */
-  public abstract intersect(other: Graph): Point3[];
-
-  /**
    * 根据固定/活动点resize图形尺寸
    * @param fixedPoint 固定点
    * @param dynamicPoint 活动点
