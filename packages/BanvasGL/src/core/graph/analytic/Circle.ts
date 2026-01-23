@@ -24,7 +24,7 @@ export default class Circle extends Arc {
     this.xRadius = Math.max(0, radius);
     this.yRadius = Math.max(0, radius);
     this.controlPoints = this.calculateControlPoints();
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds(this.bounds.width>0,this.bounds.height>0)
     return this;
   }
 
@@ -105,7 +105,7 @@ export default class Circle extends Arc {
   // 渲染圆形（重写父类方法以支持填充）
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     this.style.applyToContext(ctx, bounds.width, bounds.height);
 
     ctx.beginPath();

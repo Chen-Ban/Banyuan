@@ -1,7 +1,8 @@
-import { GRAPHTYPE } from "@/core/constants";
 import Graph from "../base/Graph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
+import Bounds from "../base/Bounds";
+import { Rectangle } from "../combined";
 
 /**
  * MediaElement 抽象基类 - 媒体元素基类
@@ -10,26 +11,42 @@ import { Style } from "@/core/style";
 export default abstract class MediaElement extends Graph {
   public controlPoints: Point3[];
   public style: Style;
+  public bounds: Bounds;
+  public transfromOrigin: Point3;
 
   // 媒体相关属性
   public x: number;
   public y: number;
   public width: number = 100;
   public height: number = 100;
+  public actualWidth: number = 0;
+  public actualHeight: number = 0;
   public opacity: number = 1; // 透明度
   public loaded: boolean = false;
+  public src: string = ''
 
-  constructor(x: number, y: number, style: Style = Style.DEFAULT) {
+  constructor(src: string, x: number, y: number, style: Style = Style.DEFAULT) {
     super();
+    this.src = src
     this.x = x;
     this.y = y;
     this.style = style;
 
     // 初始化控制点（裁剪区域的八个点）
-    this.controlPoints = this.calculateCropControlPoints();
+    this.controlPoints = this.calculateControlPoints();
 
-    // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds(true, true)
+    this.transfromOrigin = new Point3(this.x + this.width / 2, this.y + this.height / 2, 0)
+  }
+
+  public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
+    const points = [
+      new Point3(this.x, this.y, 0),
+      new Point3(this.x + this.width, this.y, 0),
+      new Point3(this.x + this.width, this.y + this.height, 0),
+      new Point3(this.x, this.y + this.height, 0),
+    ]
+    return Bounds.fromPoints(points, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds.height > 0)
   }
 
   /**
@@ -75,7 +92,7 @@ export default abstract class MediaElement extends Graph {
   /**
    * 计算裁剪区域的控制点（八个点）
    */
-  protected calculateCropControlPoints(): Point3[] {
+  protected calculateControlPoints(): Point3[] {
     if (!this.loaded) {
       // 如果媒体未加载，返回默认控制点
       return [new Point3(this.x, this.y, 0)];
@@ -83,19 +100,15 @@ export default abstract class MediaElement extends Graph {
 
     const actualX = this.x;
     const actualY = this.y;
-    const actualWidth = this.width;
-    const actualHeight = this.height;
+    const displayWidth = this.width;
+    const displayHeight = this.height;
 
     // 返回裁剪区域的八个控制点
     return [
       new Point3(actualX, actualY, 0), // 左上角
-      new Point3(actualX + actualWidth / 2, actualY, 0), // 上中
-      new Point3(actualX + actualWidth, actualY, 0), // 右上角
-      new Point3(actualX + actualWidth, actualY + actualHeight / 2, 0), // 右中
-      new Point3(actualX + actualWidth, actualY + actualHeight, 0), // 右下角
-      new Point3(actualX + actualWidth / 2, actualY + actualHeight, 0), // 下中
-      new Point3(actualX, actualY + actualHeight, 0), // 左下角
-      new Point3(actualX, actualY + actualHeight / 2, 0), // 左中
+      new Point3(actualX + displayWidth, actualY, 0), // 右上角
+      new Point3(actualX + displayWidth, actualY + displayHeight, 0), // 右下角
+      new Point3(actualX, actualY + displayHeight, 0), // 左下角
     ];
   }
 
@@ -103,8 +116,8 @@ export default abstract class MediaElement extends Graph {
    * 更新控制点
    */
   protected updateControlPoints(): void {
-    this.controlPoints = this.calculateCropControlPoints();
-    this.setBounds(this.calculateBounds());
+    this.controlPoints = this.calculateControlPoints();
+    this.bounds = this.updateBounds()
   }
 
   /**
@@ -280,11 +293,29 @@ export default abstract class MediaElement extends Graph {
   /**
    * 计算与另一个图形的相交点
    * @param other 另一个图形
-   * @returns 相交点数组（暂未实现）
+   * @returns 相交点数组
    */
   public intersect(other: Graph): Point3[] {
-    // 暂未实现
-    return [];
+    return Rectangle.fromBounds(this.bounds ?? this.updateBounds()).intersect(other);
   }
-  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
+
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+
+    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
+    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
+
+    for (const p of this.controlPoints) {
+      // 变化比例
+      const scaleX = Math.abs(p.x - fixedPoint.x) / width;
+      const scaleY = Math.abs(p.y - fixedPoint.y) / height;
+
+      // 带方向并且按照介质尺寸缩放的移动量
+      const dx = resizeVector.x * scaleX;
+      const dy = resizeVector.y * scaleY;
+
+      p.add(new Vector3(dx, dy, 0))
+    }
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    this.updateBounds(referenceVector.x - resizeVector.x > 0, referenceVector.y - resizeVector.y > 0)
+  }
 }

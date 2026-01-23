@@ -3,26 +3,21 @@ import Graph from "../base/Graph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import Style from "@/core/style/Style";
 import Bounds from "../base/Bounds";
+import { Line } from "../analytic";
 
 export default class DenseTrajectory extends Graph {
   public type: GRAPHTYPE = GRAPHTYPE.DENSETRAJECTORY;
   public controlPoints: Float32Array;
-  public width: number;
-  public height: number;
   public style: Style;
+  public bounds: Bounds;
+  public transfromOrigin: Point3;
+
   constructor(points: Float32Array, style: Style = Style.DEFAULT) {
     super();
-    this.controlPoints = Float32Array.from(points);
-    const xs = this.controlPoints.filter((_, i) => i % 3 === 0);
-    const ys = this.controlPoints.filter((_, i) => (i + 1) % 3 === 0);
-    const maxX = Math.max(...xs);
-    const minX = Math.min(...xs);
-    const maxY = Math.max(...ys);
-    const minY = Math.min(...ys);
-    this.width = maxX - minX;
-    this.height = maxY - minY;
-
     this.style = style;
+    this.controlPoints = Float32Array.from(points);
+    this.bounds = this.updateBounds()
+    this.transfromOrigin = new Point3(this.controlPoints[0], this.controlPoints[1], 0)
   }
 
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
@@ -36,7 +31,7 @@ export default class DenseTrajectory extends Graph {
 
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    this.style.applyToContext(ctx, this.width, this.height);
+    this.style.applyToContext(ctx, this.bounds.width, this.bounds.height);
     this.renderPath(ctx, true);
     ctx.stroke();
     ctx.restore();
@@ -49,19 +44,13 @@ export default class DenseTrajectory extends Graph {
     return true;
   }
 
-  public calculateBounds(): Bounds {
-    if (this.controlPoints.length === 0) {
-      return Bounds.empty();
+  public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
+    let points = []
+    const length = this.controlPoints.length
+    for (let i = 0; i < length - 2; i + 3) {
+      points.push(new Point3(this.controlPoints[i], this.controlPoints[i + 1], this.controlPoints[i + 2]))
     }
-
-    const xs = this.controlPoints.filter((_, i) => i % 3 === 0);
-    const ys = this.controlPoints.filter((_, i) => (i + 1) % 3 === 0);
-    const maxX = Math.max(...xs);
-    const minX = Math.min(...xs);
-    const maxY = Math.max(...ys);
-    const minY = Math.min(...ys);
-
-    return new Bounds(minX, minY, maxX - minX, maxY - minY);
+    return Bounds.fromPoints(points, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds.height > 0)
   }
 
   public isPointOnCurve(p: Point3, tolerance: number = 1e-6): boolean {
@@ -162,7 +151,7 @@ export default class DenseTrajectory extends Graph {
         Math.min(
           1,
           ((point.x - p1.x) * (p2.x - p1.x) + (point.y - p1.y) * (p2.y - p1.y) + (point.z - p1.z) * (p2.z - p1.z)) /
-            (segmentLength * segmentLength)
+          (segmentLength * segmentLength)
         )
       );
 
@@ -231,7 +220,7 @@ export default class DenseTrajectory extends Graph {
       this.controlPoints[i + 1] = transformed.y;
       this.controlPoints[i + 2] = transformed.z;
     }
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds()
     return this;
   }
 
@@ -241,10 +230,36 @@ export default class DenseTrajectory extends Graph {
    * @returns 相交点数组（暂未实现）
    */
   public intersect(other: Graph): Point3[] {
-    // 暂未实现
-    return [];
+    const points = []
+    for (let i = 0; i < this.controlPoints.length; i += 3) {
+      points.push(new Point3(this.controlPoints[i], this.controlPoints[i + 1], this.controlPoints[i + 2]))
+    }
+    const lines: Line[] = []
+    points.reduce((prePoint, curPoint) => {
+      lines.push(new Line(prePoint, curPoint))
+      return curPoint
+    })
+    return lines.map(line => line.intersect(other)).flat()
   }
-  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
+    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
+
+    for (let i = 0; i < this.controlPoints.length; i += 3) {
+      // 变化比例
+      const scaleX = Math.abs(this.controlPoints[i] - fixedPoint.x) / width;
+      const scaleY = Math.abs(this.controlPoints[i + 1] - fixedPoint.y) / height;
+
+      // 带方向并且按照介质尺寸缩放的移动量
+      const dx = resizeVector.x * scaleX;
+      const dy = resizeVector.y * scaleY;
+
+      this.controlPoints[i] += dx
+      this.controlPoints[i + 1] += dy
+    }
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    this.updateBounds(referenceVector.x - resizeVector.x > 0, referenceVector.y - resizeVector.y > 0)
+  }
 }
 
 // 类型守卫函数

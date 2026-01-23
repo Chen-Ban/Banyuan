@@ -19,14 +19,17 @@ export default class CombinedGraph extends Graph {
   public type: GRAPHTYPE = GRAPHTYPE.COMBINED_GRAPH;
   public graphs: Graph[] = [];
   public style: Style;
+  public bounds: Bounds;
+  public transfromOrigin: Point3;
 
   constructor(graphs: Graph[] = [], style?: Style) {
     super();
     this.graphs = [...graphs];
     this.style = style || new Style();
+    this.transfromOrigin = this.getCentroid()
 
     // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds(true, true)
   }
 
   public getArea(): number {
@@ -86,7 +89,7 @@ export default class CombinedGraph extends Graph {
   /**
    * 计算组合图形的包围盒
    */
-  public calculateBounds(): Bounds {
+  public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
     if (this.graphs.length === 0) {
       return Bounds.empty();
     }
@@ -97,15 +100,15 @@ export default class CombinedGraph extends Graph {
     for (const graph of this.graphs) {
       // 1. 分析图形（解析式图形）：使用采样点
       if (isLine(graph) || isArc(graph) || isCircle(graph) || isQuadraticBezier(graph) || isCubicBezier(graph)) {
-        const steps = 64;
+        const steps = graph.getTotalLength();
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
           samplePoints.push(graph.getPointAt(t));
         }
       }
       // 2. 媒体图形（图片、视频）：从 bounds 获取四个角点
-      else if (isImageElement(graph) || isVideoElement(graph)) {
-        const bounds = graph.getBounds();
+      else if (isImageElement(graph) || isVideoElement(graph) || isCombinedGraph(graph)) {
+        const bounds = graph.bounds;
         if (bounds && !bounds.isEmpty) {
           samplePoints.push(new Point3(bounds.x, bounds.y, 0));
           samplePoints.push(new Point3(bounds.x + bounds.width, bounds.y, 0));
@@ -113,47 +116,21 @@ export default class CombinedGraph extends Graph {
           samplePoints.push(new Point3(bounds.x, bounds.y + bounds.height, 0));
         }
       }
-      // 4. 合并图形（组合图形、复杂图形）：递归获取其 bounds 的四个角点
-      else if (isCombinedGraph(graph)) {
-        const bounds = (graph as CombinedGraph).getBounds();
-        if (bounds && !bounds.isEmpty) {
-          samplePoints.push(new Point3(bounds.x, bounds.y, 0));
-          samplePoints.push(new Point3(bounds.x + bounds.width, bounds.y, 0));
-          samplePoints.push(new Point3(bounds.x + bounds.width, bounds.y + bounds.height, 0));
-          samplePoints.push(new Point3(bounds.x, bounds.y + bounds.height, 0));
-        }
-      }
-      // 5. 其他图形（如密集轨迹等）：从控制点采样
+      // 3. 其他图形（如密集轨迹等）：从控制点采样
       else if (isDenseTrajectory(graph)) {
-        const denseGraph = graph as any; // DenseTrajectory 使用 Float32Array
-        for (let i = 0; i < denseGraph.controlPoints.length; i += 3) {
+        for (let i = 0; i < graph.controlPoints.length; i += 3) {
           samplePoints.push(
-            new Point3(denseGraph.controlPoints[i], denseGraph.controlPoints[i + 1], denseGraph.controlPoints[i + 2])
+            new Point3(graph.controlPoints[i], graph.controlPoints[i + 1], graph.controlPoints[i + 2])
           );
         }
       }
     }
 
-    // 如果没有采样点，返回空边界
+    // 如果没有采样点，返回空(TODO： 监控)
     if (samplePoints.length === 0) {
       return Bounds.empty();
     }
-
-    // 从采样点计算包围盒
-    let minX = samplePoints[0].x;
-    let maxX = samplePoints[0].x;
-    let minY = samplePoints[0].y;
-    let maxY = samplePoints[0].y;
-
-    for (let i = 1; i < samplePoints.length; i++) {
-      const p = samplePoints[i];
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x);
-      minY = Math.min(minY, p.y);
-      maxY = Math.max(maxY, p.y);
-    }
-
-    return new Bounds(minX, minY, maxX - minX, maxY - minY);
+    return Bounds.fromPoints(samplePoints, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds.height > 0)
   }
 
   isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
@@ -165,6 +142,7 @@ export default class CombinedGraph extends Graph {
    */
   public addGraph(graph: Graph): CombinedGraph {
     this.graphs.push(graph);
+    this.bounds = this.updateBounds()
     return this;
   }
 
@@ -176,9 +154,8 @@ export default class CombinedGraph extends Graph {
 
     for (const graph of this.graphs) {
       if (graph.controlPoints instanceof Float32Array) {
-        for (let i = 0; i < graph.controlPoints.length; i += 3) {
-          allPoints.push(new Point3(graph.controlPoints[i], graph.controlPoints[i + 1], graph.controlPoints[i + 2]));
-        }
+        allPoints.push(new Point3(graph.controlPoints[0], graph.controlPoints[1], graph.controlPoints[2]));
+        allPoints.push(new Point3(graph.controlPoints[-3], graph.controlPoints[-2], graph.controlPoints[-1]));
       } else {
         allPoints.push(...graph.controlPoints.map((p) => p.copy()));
       }
@@ -283,7 +260,7 @@ export default class CombinedGraph extends Graph {
   public render(ctx: CanvasRenderingContext2D): void {
     // 应用组合图形的样式
     ctx.save();
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     this.style.applyToContext(ctx, bounds.width, bounds.height);
     for (const graph of this.graphs) {
       graph.render(ctx);
@@ -331,63 +308,35 @@ export default class CombinedGraph extends Graph {
    */
   public transform(matrix: Matrix4): CombinedGraph {
     for (const graph of this.graphs) {
-      // 如果是解析式图形，直接调用其transform方法
-      if (
-        isLine(graph) ||
-        isArc(graph) ||
-        isCircle(graph) ||
-        isQuadraticBezier(graph) ||
-        isCubicBezier(graph) ||
-        isCombinedGraph(graph)
-      ) {
-        graph.transform(matrix);
-      }
-      // 其他类型的图形，手动变换控制点
-      else {
-        this.transformGraphControlPoints(graph, matrix);
-      }
-      graph.setBounds(graph.calculateBounds());
+      const transfromOrigin = graph.transfromOrigin
+      graph.transfromOrigin = this.transfromOrigin.copy()
+      graph.transform(matrix);
+      graph.transfromOrigin = transfromOrigin
+      graph.bounds = graph.updateBounds(graph.bounds.width > 0, graph.bounds.height > 0)
     }
 
     // 更新组合图形的边界框
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds()
     return this;
-  }
-
-  /**
-   * 手动变换图形的控制点
-   * @param graph 要变换的图形
-   * @param matrix 变换矩阵
-   */
-  private transformGraphControlPoints(graph: Graph, matrix: Matrix4): void {
-    if (graph.controlPoints instanceof Float32Array) {
-      // 对于Float32Array类型的控制点，逐个变换
-      for (let i = 0; i < graph.controlPoints.length; i += 3) {
-        const point = new Point3(graph.controlPoints[i], graph.controlPoints[i + 1], graph.controlPoints[i + 2]);
-        const transformed = matrix.multiply(point);
-        graph.controlPoints[i] = transformed.x;
-        graph.controlPoints[i + 1] = transformed.y;
-        graph.controlPoints[i + 2] = transformed.z;
-      }
-    } else {
-      // 对于Point3[]类型的控制点，逐个变换
-      for (let i = 0; i < graph.controlPoints.length; i++) {
-        graph.controlPoints[i] = matrix.multiply(graph.controlPoints[i]);
-      }
-    }
   }
 
   /**
    * 计算与另一个图形的相交点
    * @param other 另一个图形
-   * @returns 相交点数组（暂未实现）
+   * @returns 相交点数组
    */
   public intersect(other: Graph): Point3[] {
     const intersections = this.graphs.map((graph) => graph.intersect(other));
     return intersections.flat();
   }
 
-  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    for (const graph of this.graphs) {
+      graph.resize(fixedPoint, dynamicPoint, resizeVector)
+    }
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    this.updateBounds(referenceVector.x - resizeVector.x > 0, referenceVector.y - resizeVector.y > 0)
+  }
 }
 
 // 类型守卫函数

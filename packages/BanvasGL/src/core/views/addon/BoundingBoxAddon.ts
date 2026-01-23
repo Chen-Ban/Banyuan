@@ -23,32 +23,13 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
   public rotate: [Line, Circle];
 
   // 基础参数（用于推导 region）
-  private width: number;
-  private height: number;
-  private padding: { top: number; right: number; bottom: number; left: number };
-  private margin: { top: number; right: number; bottom: number; left: number };
+  private contentBounds: Bounds
   private handleSize: number = 8;
 
   constructor(
-    width: number = 0,
-    height: number = 0,
-    padding: { top: number; right: number; bottom: number; left: number } = {
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-    },
-    margin: { top: number; right: number; bottom: number; left: number } = {
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-    }
+    contentBounds:Bounds,
   ) {
-    this.width = width;
-    this.height = height;
-    this.padding = { ...padding };
-    this.margin = { ...margin };
+    this.contentBounds = contentBounds
     this.region = this.computeRegion();
     this.handles = this.createHandles(this.region);
     this.rotate = this.createRotate();
@@ -78,7 +59,7 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
 
   private createRotate(): [Line, Circle] {
     const center = this.region.getCenter();
-    const halfHeight = this.region.getBounds().height / 2;
+    const halfHeight = this.region.bounds.height / 2;
     const line = new Line(
       new Point3(center.x, center.y - halfHeight, 0),
       new Point3(center.x, center.y - halfHeight - 15, 0),
@@ -88,44 +69,22 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
     return [line, circle];
   }
 
+  // 扩展包围框使之包含原点
   private computeRegion(): Rectangle {
-    // region 仅包含内容与 padding，不包含 margin
-    const x = -this.padding.left;
-    const y = -this.padding.top;
-    const w = this.width + this.padding.left + this.padding.right;
-    const h = this.height + this.padding.top + this.padding.bottom;
-    return new Rectangle(x, y, w, h);
+    return Rectangle.fromBounds(this.contentBounds.copy().expandToInclude(0,0))
   }
 
   public setSize(width: number, height: number): BoundingBoxAddonImpl {
-    this.width = width;
-    this.height = height;
-    this.region = this.computeRegion();
-    this.handles = this.createHandles(this.region);
-    return this;
-  }
-
-  public setPadding(top: number, right: number, bottom: number, left: number): BoundingBoxAddonImpl {
-    this.padding = { top, right, bottom, left };
-    this.region = this.computeRegion();
-    this.handles = this.createHandles(this.region);
-    return this;
-  }
-
-  public setMargin(top: number, right: number, bottom: number, left: number): BoundingBoxAddonImpl {
-    this.margin = { top, right, bottom, left };
-    this.region = this.computeRegion();
+    this.region.setSize(width,height)
     this.handles = this.createHandles(this.region);
     return this;
   }
 
   /**
-   * 获取边界框（内容大小 + 内边距）
-   * 相对定位：左上角 = -paddingLeft, -paddingTop
+   * 获取边界框
    */
   getBounds(): Bounds {
-    const tl = this.region.getTopLeft();
-    return new Bounds(tl.x, tl.y, this.region.width, this.region.height);
+    return this.region?.bounds ?? Bounds.empty()
   }
 
   /**
@@ -160,9 +119,12 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
    * 复制边界框插件
    */
   copy(): BoundingBoxAddonImpl {
-    return new BoundingBoxAddonImpl(this.width, this.height, { ...this.padding }, { ...this.margin });
+    const boudingBox = new BoundingBoxAddonImpl(this.contentBounds);
+    boudingBox.region = this.region.copy()
+    boudingBox.rotate = this.rotate.map(grph=>grph.copy()) as [Line, Circle]
+    boudingBox.handles = this.handles.map(graph=>graph.copy())
+    return boudingBox
   }
-
   /**
    * 交互接口
    */

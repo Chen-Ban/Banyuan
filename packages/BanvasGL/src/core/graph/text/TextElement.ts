@@ -21,6 +21,8 @@ export default abstract class TextElement extends Graph {
   public width: number = 0;
   public height: number = 0;
   public lineHeight: number = 0;
+  public bounds: Bounds;
+  public transfromOrigin: Point3;
 
   constructor(content: string, options: TextOptions = TextOptions.DEFAULT, style: Style = Style.DEFAULT) {
     super();
@@ -28,31 +30,36 @@ export default abstract class TextElement extends Graph {
     this._options = options;
     this._style = style;
     this.controlPoints = [];
+    this.bounds = Bounds.empty()
+    this.transfromOrigin = Point3.orgin
 
-    // 子类需要在构造函数中调用 calculateActualDimensions
   }
 
   /**
    * 计算文字的实际宽高（由子类实现）
    */
   protected abstract calculateActualDimensions(): void;
+  public abstract layout(point: Point3, lineHeight: number): void;
 
   public getLength(tStart: number, tEnd: number): number {
-    return 1;
+    return (this.width + this.lineHeight) * 2 * (tEnd - tStart);
   }
 
   public getPointAt(t: number): Point3 {
     return this.controlPoints[0];
   }
 
-  public calculateBounds(): Bounds {
+  public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
     if (this.isLayouted && this.controlPoints.length > 0) {
-      return new Bounds(
-        this.controlPoints[0].x,
-        this.controlPoints[0].y - this.lineHeight + this.height,
-        this.width + this.options.letterSpacing,
-        this.lineHeight
-      );
+      const { x, y } = this.controlPoints[0]
+      const startPoint = new Point3(x, y - this.lineHeight + this.height, 0)
+      const points = [
+        startPoint,
+        startPoint.copy().add(new Vector3(this.width + this.options.letterSpacing, 0, 0)),
+        startPoint.copy().add(new Vector3(this.width + this.options.letterSpacing, this.lineHeight, 0)),
+        startPoint.copy().add(new Vector3(0, this.lineHeight, 0))
+      ]
+      return Bounds.fromPoints(points, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds?.height > 0)
     } else {
       return Bounds.empty();
     }
@@ -94,21 +101,10 @@ export default abstract class TextElement extends Graph {
     return this._style;
   }
 
-  /**
-   * 布局方法 - 在TextView中调用时设置位置和计算包围盒
-   */
-  public layout(position: Point3, lineHeight: number): this {
-    this.isLayouted = true;
-    this.controlPoints = [position.copy()];
-    this.lineHeight = lineHeight;
-    // 计算包围盒并设置正确的controlPoints
-    this.setBounds(this.calculateBounds());
-    return this;
-  }
 
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
     dependent && ctx.beginPath();
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     ctx.moveTo(bounds.x, bounds.y);
     ctx.lineTo(bounds.x + bounds.width, bounds.y);
     ctx.lineTo(bounds.x + bounds.width, bounds.y + bounds.height);
@@ -122,12 +118,12 @@ export default abstract class TextElement extends Graph {
   public abstract render(ctx: CanvasRenderingContext2D): void;
 
   isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).isPointOnCurve(point, tolerance);
   }
 
   public getTangentAt(t: number): Vector3 {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     const perimeter = 2 * (bounds.width + bounds.height);
     let currentLength = 0;
 
@@ -162,7 +158,7 @@ export default abstract class TextElement extends Graph {
     closestPoint: Point3;
     parameter: number;
   } {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     const closestX = Math.max(bounds.x, Math.min(point.x, bounds.x + bounds.width));
     const closestY = Math.max(bounds.y, Math.min(point.y, bounds.y + bounds.height));
     const closestPoint = new Point3(closestX, closestY, 0);
@@ -201,19 +197,19 @@ export default abstract class TextElement extends Graph {
   }
 
   public getArea(): number {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     return bounds.width * bounds.height;
   }
 
   public getCentroid(): Point3 {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     return new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
   }
 
   public transform(matrix: Matrix4): Graph {
     if (this.controlPoints.length > 0) {
       this.controlPoints[0] = matrix.multiply(this.controlPoints[0]);
-      this.setBounds(this.calculateBounds());
+      this.bounds = this.updateBounds()
     }
     return this;
   }
@@ -224,21 +220,24 @@ export default abstract class TextElement extends Graph {
    * @returns 相交点数组（暂未实现）
    */
   public intersect(other: Graph): Point3[] {
-    // 暂未实现
-    return [];
+    return Rectangle.fromBounds(this.bounds ?? this.updateBounds()).intersect(other)
+  }
+
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void { 
+    
   }
 
   /**
-   * 复制文字元素（由子类实现）
-   */
+ * 复制文字元素（由子类实现）
+ */
   public abstract copy(): this;
-
-  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
 }
 
 /**
  * 可打印的文字元素类
  * 表示单个可打印的文字元素，是最小的文字单位
+ * 文字包围盒为option.size * lineheight
+ * 单个文字的控制点不在其包围盒左上角而是在文字的左上角
  */
 export class PrintableTextElement extends TextElement {
   public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT;
@@ -278,6 +277,20 @@ export class PrintableTextElement extends TextElement {
   }
 
   /**
+ * 布局方法 - 在TextView中调用时设置位置和计算包围盒
+ */
+  public layout(position: Point3, lineHeight: number): this {
+    this.isLayouted = true;
+    this.controlPoints = [position.copy()];
+    this.lineHeight = lineHeight;
+    // 计算包围盒并设置正确的controlPoints
+    this.bounds = this.updateBounds()
+    // 将变换原点放到左上角
+    this.transfromOrigin = position.copy().add(new Vector3(0, this.height - lineHeight, 0))
+    return this;
+  }
+
+  /**
    * 渲染文字元素
    */
   public render(ctx: CanvasRenderingContext2D): void {
@@ -289,7 +302,7 @@ export class PrintableTextElement extends TextElement {
     ctx.textBaseline = "top";
 
     // 应用样式（但不覆盖文字颜色）
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     this.style.applyToContext(ctx, bounds.width, bounds.height);
 
     // 设置文字颜色（在应用样式后设置，确保不被覆盖）
@@ -369,11 +382,31 @@ export class NonPrintableTextElement extends TextElement {
   }
 
   /**
+ * 布局方法 - 在TextView中调用时设置位置和计算包围盒
+ */
+  public layout(position: Point3, lineHeight: number): this {
+    this.isLayouted = true;
+    //由于height为0，计算时y值在包围盒左下角，将它移动到左上角
+    this.controlPoints = [position.copy().add(new Vector3(0, -lineHeight, 0))];
+    // 高度和行高保持一致，此时控制点在包围盒左上角
+    this.height = lineHeight
+    this.lineHeight = lineHeight;
+    // 计算包围盒并设置正确的controlPoints
+    this.bounds = this.updateBounds()
+    this.transfromOrigin = position.copy()
+    return this;
+  }
+
+  /**
    * 计算文字的实际宽高（固定尺寸）
    */
   protected calculateActualDimensions(): void {
     this.width = 2;
-    this.height = TextOptions.DEFAULT.size;
+    this.height = 0;
+  }
+
+  public updateBounds(): Bounds {
+    return new Bounds(this.controlPoints[0].x, this.controlPoints[0].y - this.lineHeight + this.height, this.width + this.options.letterSpacing, this.lineHeight)
   }
 
   /**

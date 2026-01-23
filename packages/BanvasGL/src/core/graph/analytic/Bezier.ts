@@ -1,6 +1,6 @@
 import { GRAPHTYPE } from "@/core/constants";
 import AnalyticGraph from "./AnalyticGraph";
-import { Point3, Vector3 } from "@/core/math";
+import { Matrix4, Point3, Vector3 } from "@/core/math";
 import { Style } from "@/core/style";
 import Bounds from "../base/Bounds";
 import Graph from "../base/Graph";
@@ -10,38 +10,31 @@ export default abstract class Bezier extends AnalyticGraph {
   public type: GRAPHTYPE = GRAPHTYPE.BEZIER;
   public controlPoints: Point3[];
   public style: Style;
+  public bounds: Bounds;
+  public transfromOrigin: Point3;
 
-  constructor(controlPoints: Point3[], style: Style = Style.DEFAULT) {
-    super();
+  constructor(controlPoints: Point3[], style: Style = Style.DEFAULT, id?: string) {
+    super(id);
     this.controlPoints = controlPoints;
     this.style = style;
-
-    // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
-    this.setBounds(this.calculateBounds());
+    this.transfromOrigin = this.getCentroid()
+    this.bounds = this.updateBounds()
   }
 
   // 计算贝塞尔曲线的包围盒（等参数采样）
-  public calculateBounds(): Bounds {
+  public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
     if (this.controlPoints.length === 0) {
       return Bounds.empty();
     }
 
-    const steps = 64;
-    let minX = Infinity,
-      maxX = -Infinity;
-    let minY = Infinity,
-      maxY = -Infinity;
-
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const p = this.getPointAt(t);
-      minX = Math.min(minX, p.x);
-      maxX = Math.max(maxX, p.x);
-      minY = Math.min(minY, p.y);
-      maxY = Math.max(maxY, p.y);
+    const length = this.getTotalLength();
+    const points: Point3[] = [];
+    for (const i of Array.from({ length }).map((_, i) => i)) {
+      const point = this.getPointAt(i / length);
+      points.push(point);
     }
-
-    return new Bounds(minX, minY, maxX - minX, maxY - minY);
+    points.push()
+    return Bounds.fromPoints(points, orientationX ?? this.controlPoints[-1].x - this.controlPoints[0].x > 0, orientationY ?? this.controlPoints[-1].y - this.controlPoints[0].y > 0)
   }
 
   // 获取起始点
@@ -54,14 +47,10 @@ export default abstract class Bezier extends AnalyticGraph {
     return this.controlPoints[this.controlPoints.length - 1];
   }
 
-  // 获取控制点数量
-  get controlPointCount(): number {
-    return this.controlPoints.length;
-  }
-
   // 设置控制点
   setControlPoints(controlPoints: Point3[]): Bezier {
     this.controlPoints = controlPoints;
+    this.bounds = this.updateBounds()
     return this;
   }
 
@@ -78,6 +67,7 @@ export default abstract class Bezier extends AnalyticGraph {
     if (index >= 0 && index < this.controlPoints.length) {
       this.controlPoints[index] = point;
     }
+    this.bounds = this.updateBounds()
     return this;
   }
 
@@ -153,7 +143,7 @@ export default abstract class Bezier extends AnalyticGraph {
   // 渲染贝塞尔曲线
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     this.style.applyToContext(ctx, bounds.width, bounds.height);
     this.renderPath(ctx, true);
     ctx.stroke();
@@ -193,6 +183,32 @@ export default abstract class Bezier extends AnalyticGraph {
     // 对于其他类型的图形，使用其他图形的相交计算方法
     return other.intersect(this);
   }
+  public transform(matrix: Matrix4): Graph {
+    const centroid = this.getCentroid()
+    for (const [i] of this.controlPoints.entries()) {
+      this.controlPoints[i] = matrix.multiply(this.controlPoints[i].add(Point3.orgin.subtract(centroid))).add(centroid.subtract(Point3.orgin));
+    }
+    this.bounds = this.updateBounds()
+    return this;
+  }
 
-  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+
+    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
+    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
+
+    for (const p of this.controlPoints) {
+      // 变化比例，TOFIX： 缩放比例应该和坐标无关（需要将referenceVector拆分成两个点，这样甚至不用判断，直接取固定点）
+      const scaleX = Math.abs(p.x - fixedPoint.x) / width;
+      const scaleY = Math.abs(p.y - fixedPoint.y) / height;
+
+      // 带方向并且按照介质尺寸缩放的移动量
+      const dx = resizeVector.x * scaleX;
+      const dy = resizeVector.y * scaleY;
+
+      p.add(new Vector3(dx, dy, 0))
+    }
+
+    this.bounds = this.updateBounds()
+  }
 }

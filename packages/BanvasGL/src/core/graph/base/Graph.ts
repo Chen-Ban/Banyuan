@@ -1,28 +1,44 @@
+import { v4 as uuid } from "uuid";
 import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Matrix4, Point3, Vector3 } from "@/core/math";
 import Bounds from "./Bounds";
-import { v4 as uuid } from "uuid";
 import { getGlobalCanvasContext } from "@/core/renderer/CanvasContext";
 
 export default abstract class Graph {
-  public _id: string;
+  // 图形唯一标识
+  public id: string;
+  // 图形类型
   public abstract type: GRAPHTYPE;
+  // 图形控制点
   public abstract controlPoints: Point3[] | Float32Array;
+  // 图形样式
   public abstract style: Style;
-
-  // 私有包围盒缓存
-  private _bounds: Bounds | null = null;
-
-  public abstract renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void;
-  public abstract render(ctx: CanvasRenderingContext2D): void;
-  public abstract copy(): this;
-  public abstract calculateBounds(): Bounds;
-
-  constructor() {
-    this._id = uuid();
+  // 图形包围盒
+  public abstract bounds: Bounds
+  // transform原点
+  public abstract transfromOrigin: Point3
+  //构造函数
+  constructor(id?: string) {
+    this.id = id ?? uuid()
   }
-
+  /**
+   * 描绘路径
+   * @param ctx 绘制上下文
+   * @param dependent 是否是独立路径
+   */
+  public abstract renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void;
+  // 渲染方法
+  public abstract render(ctx: CanvasRenderingContext2D): void;
+  // 图形拷贝
+  public abstract copy(): this;
+  // 更新图形包围盒
+  public abstract updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds;
+  /**
+   * 判断点是否在图形内部
+   * @param p 本地坐标系下的点
+   * @returns 是否在路径内
+   */
   public isPointInPath(p: Point3): Boolean {
     const ctx = getGlobalCanvasContext()?.bufferCtx;
     if (!ctx) return false;
@@ -34,22 +50,6 @@ export default abstract class Graph {
     ctx.restore();
     return isIn;
   }
-
-  /**
-   * 获取包围盒（带缓存机制）
-   */
-  public getBounds(): Bounds {
-    if (this._bounds) return this._bounds;
-    return this.calculateBounds();
-  }
-
-  /**
-   * 设置边界框（供子类在构造函数中使用）
-   */
-  public setBounds(bounds: Bounds): void {
-    this._bounds = bounds;
-  }
-
   /**
    * 获取图形上指定参数t处的点
    * @param t 参数值，通常在[0,1]范围内
@@ -135,12 +135,6 @@ export default abstract class Graph {
    */
   public abstract intersect(other: Graph): Point3[];
 
-  /**
-   * 计算与另一个图形的相交点
-   * @param other 另一个图形
-   * @returns 相交点数组
-   */
-  public abstract intersect(other: Graph): Point3[];
-
-  public abstract resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void;
+  // resize
+  public abstract resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void;
 }

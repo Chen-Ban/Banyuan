@@ -303,7 +303,7 @@ function lineCircleIntersect(a: Line, b: Circle): Point3[] {
   const start = a.startPoint;
   const end = a.endPoint;
   const center = b.center;
-  const radius = b.radius;
+  const radius = b.xRadius;
 
   // 将直线转换为参数方程：P = start + t * (end - start)
   const dx = end.x - start.x;
@@ -444,9 +444,9 @@ function arcCubicBezierIntersect(a: Arc, b: CubicBezier): Point3[] {
  */
 function circleCircleIntersect(a: Circle, b: Circle): Point3[] {
   const center1 = a.center;
-  const radius1 = a.radius;
+  const radius1 = a.xRadius;
   const center2 = b.center;
-  const radius2 = b.radius;
+  const radius2 = b.xRadius;
 
   const dx = center2.x - center1.x;
   const dy = center2.y - center1.y;

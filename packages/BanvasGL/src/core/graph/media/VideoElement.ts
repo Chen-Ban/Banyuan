@@ -2,7 +2,6 @@ import { GRAPHTYPE } from "@/core/constants";
 import MediaElement from "./MediaElement";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
-import Bounds from "../base/Bounds";
 
 /**
  * VideoElement 类 - 视频元素
@@ -13,18 +12,14 @@ export default class VideoElement extends MediaElement {
 
   // 视频相关属性
   public video: HTMLVideoElement | null = null;
-  public videoSrc: string = "";
   public autoplay: boolean = false;
   public loop: boolean = false;
   public muted: boolean = false;
   public playing: boolean = false;
 
-  constructor(x: number, y: number, videoSrc: string, style: Style = Style.DEFAULT) {
-    super(x, y, style);
-    this.videoSrc = videoSrc;
-
-    // 异步加载视频
-    this.loadVideo();
+  constructor(src: string, x: number, y: number, style: Style = Style.DEFAULT) {
+    super(src, x, y, style);
+    this.loadMedia()
   }
   /**
    * 加载视频
@@ -56,34 +51,29 @@ export default class VideoElement extends MediaElement {
         this.video = video;
         this.width = video.videoWidth;
         this.height = video.videoHeight;
+        this.actualWidth = video.videoWidth
+        this.actualHeight = video.videoHeight
         this.loaded = true;
         // 媒体加载完成后，更新控制点和边界框
         this.updateControlPoints();
+        this.transfromOrigin = new Point3(this.x + this.width / 2, this.y + this.height / 2, 0)
         resolve();
       };
 
       video.onerror = () => {
-        console.error(`Failed to load video: ${this.videoSrc}`);
-        reject(new Error(`Failed to load video: ${this.videoSrc}`));
+        console.error(`Failed to load video: ${this.src}`);
+        reject(new Error(`Failed to load video: ${this.src}`));
       };
 
-      video.src = this.videoSrc;
+      video.src = this.src;
     });
-  }
-
-  /**
-   * 计算边界框
-   */
-  public calculateBounds(): Bounds {
-    // 如果视频已加载，使用实际尺寸；否则使用当前设置的尺寸
-    return new Bounds(this.x, this.y, this.width, this.height);
   }
 
   /**
    * 设置视频源
    */
   setVideoSrc(src: string): VideoElement {
-    this.videoSrc = src;
+    this.src = src;
     this.video = null;
     this.loaded = false;
     // 重置为未加载状态时，更新控制点和边界框
@@ -192,7 +182,7 @@ export default class VideoElement extends MediaElement {
     }
 
     // 应用样式
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     this.style.applyToContext(ctx, bounds.width, bounds.height);
 
     // 设置透明度
@@ -264,7 +254,7 @@ export default class VideoElement extends MediaElement {
    * 复制视频元素
    */
   public copy(): this {
-    const copy = new VideoElement(this.x, this.y, this.videoSrc, this.style);
+    const copy = new VideoElement(this.src, this.x, this.y, this.style);
     copy.width = this.width;
     copy.height = this.height;
     copy.opacity = this.opacity;
@@ -281,15 +271,6 @@ export default class VideoElement extends MediaElement {
     return true;
   }
 
-  /**
-   * 静态工厂方法
-   */
-  static fromVideoElement(video: HTMLVideoElement, x: number, y: number, style: Style = Style.DEFAULT): VideoElement {
-    const element = new VideoElement(x, y, "", style);
-    element.video = video;
-    element.loaded = true;
-    return element;
-  }
 }
 
 // 类型守卫函数

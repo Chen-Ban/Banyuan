@@ -1,7 +1,7 @@
 import { GRAPHTYPE } from "@/core/constants";
 import MediaElement from "./MediaElement";
 import { Style } from "@/core/style";
-import Bounds from "../base/Bounds";
+import { Point3 } from "@/index.backend";
 
 /**
  * ImageElement 类 - 图片元素
@@ -12,25 +12,10 @@ export default class ImageElement extends MediaElement {
 
   // 图片相关属性
   public image: HTMLImageElement | null = null;
-  public imageSrc: string = "";
 
-  constructor(x: number, y: number, imageSrc: string, style: Style = Style.DEFAULT) {
-    super(x, y, style);
-    this.imageSrc = imageSrc;
-
-    // 异步加载图片
-    this.loadImage();
-  }
-
-  /**
-   * 计算图片元素的包围盒
-   */
-  public calculateBounds(): Bounds {
-    if (!this.image || !this.loaded) {
-      return new Bounds(this.x, this.y, 0, 0);
-    }
-
-    return new Bounds(this.x, this.y, this.image.naturalWidth, this.image.naturalHeight);
+  constructor(src: string,x: number, y: number, style: Style = Style.DEFAULT) {
+    super(src, x, y, style);
+    this.loadMedia()
   }
 
   /**
@@ -51,19 +36,22 @@ export default class ImageElement extends MediaElement {
       img.onload = () => {
         this.image = img;
         this.width = img.naturalWidth;
+        this.actualWidth = img.naturalWidth
+        this.actualHeight = img.naturalHeight
         this.height = img.naturalHeight;
         this.loaded = true;
         // 媒体加载完成后，更新控制点和边界框
         this.updateControlPoints();
+        this.transfromOrigin = new Point3(this.x+this.width/2,this.y+this.height/2,0)
         resolve();
       };
 
       img.onerror = () => {
-        console.error(`Failed to load image: ${this.imageSrc}`);
-        reject(new Error(`Failed to load image: ${this.imageSrc}`));
+        console.error(`Failed to load image: ${this.src}`);
+        reject(new Error(`Failed to load image: ${this.src}`));
       };
 
-      img.src = this.imageSrc;
+      img.src = this.src;
     });
   }
 
@@ -71,12 +59,12 @@ export default class ImageElement extends MediaElement {
    * 设置图片源
    */
   setImageSrc(src: string): ImageElement {
-    this.imageSrc = src;
+    this.src = src;
     this.image = null;
     this.loaded = false;
     // 重置为未加载状态时，更新控制点和边界框
     this.updateControlPoints();
-    this.loadImage();
+    this.loadMedia()
     return this;
   }
 
@@ -92,7 +80,7 @@ export default class ImageElement extends MediaElement {
     }
 
     // 应用样式
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     this.style.applyToContext(ctx, bounds.width, bounds.height);
 
     // 设置透明度
@@ -141,29 +129,26 @@ export default class ImageElement extends MediaElement {
    * 复制图片元素
    */
   public copy(): this {
-    const copy = new ImageElement(this.x, this.y, this.imageSrc, this.style);
+    const copy = new ImageElement(this.src,this.x, this.y, this.style);
     copy.opacity = this.opacity;
     return copy as this;
   }
 
-  /**
-   * 静态工厂方法
-   */
-  static fromImageElement(image: HTMLImageElement, x: number, y: number, style: Style = Style.DEFAULT): ImageElement {
-    const element = new ImageElement(x, y, "", style);
-    element.image = image;
-    element.loaded = true;
-    return element;
-  }
 
-  static fromCanvas(canvas: HTMLCanvasElement, x: number, y: number, style: Style = Style.DEFAULT): ImageElement {
-    const element = new ImageElement(x, y, "", style);
-    // 将 canvas 转换为图片
-    const img = new Image();
-    img.src = canvas.toDataURL();
-    element.image = img;
-    element.loaded = true;
-    return element;
+  static  fromCanvas(canvas: HTMLCanvasElement, x: number, y: number, style: Style = Style.DEFAULT): Promise<ImageElement> {
+    return new Promise((resolve,reject)=>{
+      const element = new ImageElement("",x, y, style);
+      // 将 canvas 转换为图片
+      const img = new Image();
+      img.src = canvas.toDataURL()
+      img.onload = ()=>{
+        element.image = img;
+        element.loaded = true;
+        element.loadMedia().then(()=>{
+          resolve(element)
+        }).catch((error)=>reject(error))
+      }
+    })
   }
 }
 

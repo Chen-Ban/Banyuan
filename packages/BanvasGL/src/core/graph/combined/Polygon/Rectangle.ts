@@ -67,8 +67,7 @@ export default class Rectangle extends Polygon {
   public setSize(width: number, height: number): Rectangle {
     this.width = width;
     this.height = height;
-    const topLeft = this.getTopLeft();
-    this.setPosition(topLeft.x, topLeft.y);
+    this.updateBounds(width > 0, height > 0)
     return this;
   }
 

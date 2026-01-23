@@ -18,6 +18,9 @@ export default class Point3 {
   get z(): number {
     return this.transform[2];
   }
+  static get orgin(){
+    return new Point3(0,0,0)
+  }
   add(v: Vector3): Point3 {
     this.transform[0] += v.x;
     this.transform[1] += v.y;

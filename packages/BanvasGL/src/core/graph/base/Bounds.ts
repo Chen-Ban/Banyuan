@@ -1,6 +1,8 @@
+import Point3 from '@/core/math/Point3'
 /**
- * 图形边界框类
- * @description用于表示图形的包围盒，包含位置和尺寸信息。基于本地坐标系定位。
+ * 边界框类
+ * @description 用于表示图形的包围盒，包含位置和尺寸信息。基于本地坐标系定位。
+ * @description 边界框的宽高带正负，表示边界框的扩展方向。正：右\下；负：左\上。
  */
 export default class Bounds {
   public x: number;
@@ -15,16 +17,6 @@ export default class Bounds {
     this.height = height;
   }
 
-  /**
-   * 设置边界框
-   */
-  set(x: number, y: number, width: number, height: number): Bounds {
-    this.x = x;
-    this.y = y;
-    this.width = width;
-    this.height = height;
-    return this;
-  }
 
   /**
    * 设置位置
@@ -62,18 +54,25 @@ export default class Bounds {
    * 扩展边界框以包含指定点
    */
   expandToInclude(x: number, y: number): Bounds {
-    if (x < this.x) {
-      this.width += this.x - x;
-      this.x = x;
-    } else if (x > this.right) {
-      this.width = x - this.x;
+    const minX = Math.min(this.x,this.right, x);
+    const maxX = Math.max(this.x,this.right, x);
+    const minY = Math.min(this.y,this.bottom, y);
+    const maxY = Math.max(this.y,this.bottom, y);
+    
+    if(this.x < this.right){
+      this.x = minX;
+      this.width = maxX - minX;
+    }else{
+      this.x = maxX;
+      this.width = minX - maxX;
     }
 
-    if (y < this.y) {
-      this.height += this.y - y;
-      this.y = y;
-    } else if (y > this.bottom) {
-      this.height = y - this.y;
+    if(this.y < this.bottom){
+      this.y = minY;
+      this.height = maxY - minY;
+    }else{
+      this.y = maxY;
+      this.height = minY - maxY;
     }
 
     return this;
@@ -92,7 +91,7 @@ export default class Bounds {
    * 获取边界框的面积
    */
   get area(): number {
-    return this.width * this.height;
+    return Math.abs(this.width * this.height);
   }
 
   /**
@@ -118,8 +117,10 @@ export default class Bounds {
 
   /**
    * 从点集合创建边界框
+   * @description 从点集合创建边界框，返回一个包含所有点集的最小边界框。
+   * @description 默认为向右下扩展。
    */
-  static fromPoints(points: Array<{ x: number; y: number }>): Bounds {
+  static fromPoints(points: Point3[],orientationX:boolean=true,orientationY:boolean=false): Bounds {
     if (points.length === 0) {
       return Bounds.empty();
     }
@@ -135,12 +136,26 @@ export default class Bounds {
       minY = Math.min(minY, point.y);
       maxY = Math.max(maxY, point.y);
     }
+    let x = minX
+    let y = minY
+    let width = maxX - minX
+    let height = maxY - minY
+    if(!orientationX){
+      x = maxX
+      width = -width
+    }
+    if(!orientationY){
+      y = maxY
+      height = -height
+    }
 
-    return new Bounds(minX, minY, maxX - minX, maxY - minY);
+    return new Bounds(x,y,width,height);
   }
 
   /**
    * 合并多个边界框
+   * @description 合并多个边界框，返回一个包含所有边界框的最小边界框。
+   * @description 合并时，会根据第一个边界框的扩展方向，决定合并后的边界框的宽高正负。
    */
   static union(...bounds: Bounds[]): Bounds {
     if (bounds.length === 0) {
