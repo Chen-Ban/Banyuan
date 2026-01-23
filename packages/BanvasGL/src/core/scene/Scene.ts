@@ -105,6 +105,7 @@ export default class Scene {
     }
   }
 
+  // 需要保证不会出现父子关系
   public getAllActived() {
     return tree2List(this.children).filter((v) => v.actived);
   }
@@ -128,7 +129,7 @@ export default class Scene {
       if (deselect && view.actived === true) {
         view.setActived(false).setSelected(false);
         this._selectedHistory.pop();
-        if ( this._selectedHistory.length > 0) {
+        if (this._selectedHistory.length > 0) {
           this._selectedHistory[this._selectedHistory.length - 1].setSelected(true);
         }
       } else {

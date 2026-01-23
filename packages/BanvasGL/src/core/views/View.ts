@@ -90,7 +90,7 @@ export default abstract class View<T extends object = any> {
    * @param vector 向量
    * @description 根据固定点索引、动态点索引、向量计算图形的变化和新的变换矩阵
    */
-  public abstract resize(fixedIndex: number, dynamicIndex: number, vector: Vector3): void;
+  public abstract resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void;
 
   public editPoint(point: Point3, vector: Vector3) {
     point.add(vector);

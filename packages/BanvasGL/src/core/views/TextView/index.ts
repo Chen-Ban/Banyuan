@@ -4,7 +4,6 @@ import TextElement, { NonPrintableTextElement, PrintableTextElement } from "../.
 import TextOptions from "../../graph/text/TextOptions";
 import { Rectangle } from "../../graph/combined/Polygon";
 import { Point3, Vector3 } from "../../math";
-import { world2Relative } from "@/utils/utils";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { ViewAddonImpl, InteractionMapBuilder } from "../addon";
 import Selection, { TextIndex } from "./Selection";
@@ -100,14 +99,20 @@ export default class TextView extends View {
     return closets.find((closet) => closet.distance === minDistance)!.closestPoint;
   }
 
-  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
-    // 更新layoutArea，再重新布局，不变换内部文字。异性文本容器请使用组合容器实现
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
+    // 更新layoutArea，再重新布局，不变换内部文字。异形文本容器请使用组合容器实现
     if (!this.layoutArea) throw new Error("请布局后再操作文本容器");
     const { width, height } = this.layoutArea
     this.layoutArea.setSize(width + vector.x, height + vector.y)
     this.layout();
     this.initBoundingBox();
-    this.initViewport();
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    if (referenceVector.x < 0) {
+      this.matrix.translate(vector.x, 0, 0)
+    }
+    if (referenceVector.y < 0) {
+      this.matrix.translate(0, vector.y, 0)
+    }
   }
 
   /**
@@ -129,7 +134,7 @@ export default class TextView extends View {
     extraData: ExtraData | null;
   } {
     if (!this.layoutArea) throw new Error("请在布局后交互");
-    const relativePoint = world2Relative(p, this.getWorldMatrix());
+    const relativePoint = this.getWorldMatrix().multiply(p)
     const ctx = getGlobalCanvasContext()?.getBufferContext();
     if (!ctx) throw new Error("交互失败");
 
@@ -425,7 +430,7 @@ export default class TextView extends View {
    * @param p 世界坐标点
    */
   public element2Index(textElement: TextElement, p: Point3): TextIndex {
-    const relativePoint = world2Relative(p, this.getWorldMatrix());
+    const relativePoint = this.getWorldMatrix().multiply(p)
     const bounds = textElement.bounds;
 
     for (const [i, p] of this.content.entries()) {

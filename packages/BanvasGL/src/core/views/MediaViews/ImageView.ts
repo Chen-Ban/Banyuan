@@ -31,8 +31,8 @@ export default class ImageView extends View {
     }
   }
 
-  public getContentBounds():Bounds {
-    if (this.content ) {
+  public getContentBounds(): Bounds {
+    if (this.content) {
       return this.content[0].bounds.copy();
     }
     return Bounds.empty()
@@ -51,12 +51,16 @@ export default class ImageView extends View {
       })
       .build();
   }
-  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
-    const fixedPoint = this.boundingBox?.handles[fixedIndex].getCenter();
-    const dynamicPoint = this.boundingBox?.handles[dynamicIndex].getCenter();
-    if (!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
-    // this.content[0].resize(fixedPoint, dynamicPoint, vector);
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
+    this.content[0].resize(fixedPoint, dynamicPoint, vector);
     this.initBoundingBox();
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    if (referenceVector.x < 0) {
+      this.matrix.translate(vector.x, 0, 0)
+    }
+    if (referenceVector.y < 0) {
+      this.matrix.translate(0, vector.y, 0)
+    }
   }
 
   public copy(): ImageView {

@@ -3,7 +3,6 @@ import { Graph } from "../../graph";
 import { VIEWTYPE } from "@/core/constants";
 import { Point3, Vector3 } from "../../math";
 import { ViewAddonImpl } from "../addon";
-import { world2Relative } from "@/utils/utils";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { InteractionMapBuilder } from "../addon";
 import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
@@ -45,7 +44,7 @@ export default class GraphView extends View {
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   } {
-    const relativePoint = world2Relative(p, this.getWorldMatrix());
+    const relativePoint = this.getWorldMatrix().multiply(p)
     const builder = new InteractionMapBuilder();
 
     const ctx = getGlobalCanvasContext()?.getBufferContext();
@@ -84,18 +83,21 @@ export default class GraphView extends View {
     return builder.build();
   }
 
-  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
-    const fixedPoint = this.boundingBox?.handles[fixedIndex].getCenter();
-    const dynamicPoint = this.boundingBox?.handles[dynamicIndex].getCenter();
-    if (!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
-
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
     this.content[0].resize(fixedPoint, dynamicPoint, vector);
     this.initBoundingBox();
-    // TODO: 修改matrix
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    if (referenceVector.x < 0) {
+      this.matrix.translate(vector.x, 0, 0)
+    }
+    if (referenceVector.y < 0) {
+      this.matrix.translate(0, vector.y, 0)
+    }
+
   }
 
   public editPoint(point: Point3, vector: Vector3): void {
-    
+
   }
 
   public copy(): GraphView {

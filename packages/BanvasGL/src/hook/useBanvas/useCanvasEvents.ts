@@ -124,8 +124,13 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           if (extraDataRef.current) {
             const vector = point.subtract(lastPointRef.current || mousDownPoint);
             const { resizeFixedIndex, resizeDynamicIndex } = extraDataRef.current;
-            if (resizeDynamicIndex !== undefined && resizeFixedIndex !== undefined && indicateViewRef.current) {
-              indicateViewRef.current.resize(resizeFixedIndex, resizeDynamicIndex, vector);
+            if (resizeDynamicIndex !== undefined && resizeFixedIndex !== undefined) {
+              scene.getAllActived().forEach(view => {
+                const fixedPoint = view.boundingBox?.handles[resizeFixedIndex].getCenter();
+                const dynamicPoint = view.boundingBox?.handles[resizeDynamicIndex].getCenter();
+                if (!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
+                view.resize(fixedPoint, dynamicPoint, vector)
+              })
             }
           }
           break;
