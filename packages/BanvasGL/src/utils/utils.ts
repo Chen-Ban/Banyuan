@@ -1,4 +1,4 @@
-import { Matrix4, Point3, View } from "../core";
+import { Point3, View } from "../core";
 export const event2Point = (e: MouseEvent): Point3 => {
   const ratio = window.devicePixelRatio;
   const { offsetX, offsetY } = e;

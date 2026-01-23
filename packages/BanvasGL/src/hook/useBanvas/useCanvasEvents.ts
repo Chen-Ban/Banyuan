@@ -16,7 +16,6 @@ import {
   ImageView,
   Line,
   Circle,
-  Rectangle as RectangleGraph,
   ImageElement,
   TextParagraph,
   Style,
@@ -416,7 +415,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           } else if (graphType === "Rectangle") {
             const { width, height } = constructorParams;
             // 使用 dropPoint 作为矩形左上角
-            graph = new RectangleGraph(0, 0, width || 100, height || 100, Style.DEFAULT);
+            graph = new Rectangle(0, 0, width || 100, height || 100, Style.DEFAULT);
           }
 
           if (graph) {
@@ -426,7 +425,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           const { text } = constructorParams;
           const textParagraph = TextParagraph.simple(text || "文本");
 
-          const layoutArea = new RectangleGraph(1, 1, 200, 100, Style.DEFAULT);
+          const layoutArea = new Rectangle(1, 1, 200, 100, Style.DEFAULT);
           newView = new TextView([textParagraph], {
             layoutArea,
             shouldLayout: true,
