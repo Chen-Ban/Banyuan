@@ -5,10 +5,6 @@ export const event2Point = (e: MouseEvent): Point3 => {
   return new Point3(offsetX * ratio, offsetY * ratio, 0);
 };
 
-export const world2Relative = (p: Point3, matrix: Matrix4): Point3 => {
-  return matrix.inverse().multiply(p);
-};
-
 export const tree2List = (views: View[]): View[] => {
   const res: View[] = [];
 

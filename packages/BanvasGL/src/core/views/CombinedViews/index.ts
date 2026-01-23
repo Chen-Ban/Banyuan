@@ -3,7 +3,6 @@ import { Graph, Rectangle } from "../../graph";
 import View, { ViewOptions, ViewContent } from "../View";
 import { Matrix4, Point3, Vector3 } from "../../math";
 import Bounds from "../../graph/base/Bounds";
-import { world2Relative } from "@/utils/utils";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { ViewAddonImpl } from "../addon";
 import { InteractionMapBuilder } from "../addon";
@@ -27,7 +26,7 @@ export default class CombinedView extends View {
     super({ ...options });
     this.content = options.graph ? [options.graph] : [];
     this.children = views;
-    if(!options.matrix){
+    if (!options.matrix) {
       this.initMatrix();
     }
     this.initRef();
@@ -40,7 +39,7 @@ export default class CombinedView extends View {
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   } {
-    const relativePoint = world2Relative(p, this.getWorldMatrix());
+    const relativePoint = this.getWorldMatrix().multiply(p)
     const builder = new InteractionMapBuilder();
 
     const ctx = getGlobalCanvasContext()?.getBufferContext();
@@ -96,22 +95,31 @@ export default class CombinedView extends View {
 
   initMatrix() {
     const contentBounds = this.getContentBounds()
-    this.matrix = Matrix4.translation(contentBounds.x,contentBounds.y,0)
+    this.matrix = Matrix4.translation(contentBounds.x, contentBounds.y, 0)
   }
 
   // 组合容器的内容盒是子容器的包围盒
   public getContentBounds(): Bounds {
     // 同层级下view，将他们包围盒矩形转换到同一坐标系再计算包围盒
-    const points = this.children.map(child=>{
+    const points = this.children.map(child => {
       // view的包围盒插件是要包含容器起点的，至少比content包围盒大
       const boundingRect = Rectangle.fromBounds(child.boundingBox?.getBounds() ?? Bounds.empty())
-      return boundingRect.vertices.map(point=>child.getWorldMatrix().multiply(point))
+      return boundingRect.vertices.map(point => child.getWorldMatrix().multiply(point))
     }).flat()
     return Bounds.fromPoints(points)
   }
 
-  public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
-
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
+    for (const view of this.children) {
+      view.resize(fixedPoint, dynamicPoint, vector)
+    }
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    if (referenceVector.x < 0) {
+      this.matrix.translate(vector.x, 0, 0)
+    }
+    if (referenceVector.y < 0) {
+      this.matrix.translate(0, vector.y, 0)
+    }
   }
 
   public copy(): CombinedView {
