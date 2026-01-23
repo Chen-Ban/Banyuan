@@ -22,6 +22,8 @@ export default class TextParagraph extends Graph {
   public options: ParagraphOptions;
   public texts: TextParagraphContent;
   public isLayouted: boolean = false;
+  public bounds: Bounds;
+  public transfromOrigin: Point3;
 
   constructor(
     texts: TextParagraphContent = [new NonPrintableTextElement()],
@@ -34,6 +36,8 @@ export default class TextParagraph extends Graph {
     this.texts = texts;
     // 初始化时不设置控制点和包围盒，等待布局时设置
     this.controlPoints = [];
+    this.bounds = Bounds.empty()
+    this.transfromOrigin = Point3.orgin
   }
 
   get length(): number {
@@ -44,9 +48,9 @@ export default class TextParagraph extends Graph {
   }
 
   // 计算文字段落的包围盒
-  public calculateBounds(): Bounds {
+  public updateBounds(): Bounds {
     // 计算所有文字元素的包围盒
-    const bounds = this.texts.map((text) => text.getBounds());
+    const bounds = this.texts.map((text) => text.bounds);
     // 加入守卫过后，bounds 至少有一个元素，空段也能正确显示
     const { preHeight, preWidth, postHeight } = this.options;
     const unionBounds = Bounds.union(...bounds);
@@ -102,7 +106,7 @@ export default class TextParagraph extends Graph {
 
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
     dependent && ctx.beginPath();
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     ctx.moveTo(bounds.x, bounds.y);
     ctx.lineTo(bounds.x + bounds.width, bounds.y);
     ctx.lineTo(bounds.x + bounds.width, bounds.y + bounds.height);
@@ -111,12 +115,12 @@ export default class TextParagraph extends Graph {
   }
 
   isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).isPointOnCurve(point, tolerance);
   }
 
   public getPointAt(t: number): Point3 {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     const perimeter = 2 * (bounds.width + bounds.height);
     const clampedT = Math.max(0, Math.min(1, t));
     let currentLength = clampedT * perimeter;
@@ -144,12 +148,12 @@ export default class TextParagraph extends Graph {
   }
 
   public getLength(tStart: number, tEnd: number): number {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     return 2 * (bounds.width + bounds.height) * Math.abs(tEnd - tStart);
   }
 
   public getTangentAt(t: number): Vector3 {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     const perimeter = 2 * (bounds.width + bounds.height);
     let currentLength = 0;
 
@@ -184,7 +188,7 @@ export default class TextParagraph extends Graph {
     closestPoint: Point3;
     parameter: number;
   } {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     const closestX = Math.max(bounds.x, Math.min(point.x, bounds.x + bounds.width));
     const closestY = Math.max(bounds.y, Math.min(point.y, bounds.y + bounds.height));
     const closestPoint = new Point3(closestX, closestY, 0);
@@ -215,12 +219,12 @@ export default class TextParagraph extends Graph {
   }
 
   public getArea(): number {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     return bounds.width * bounds.height;
   }
 
   public getCentroid(): Point3 {
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     return new Point3(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2, 0);
   }
 
@@ -231,7 +235,7 @@ export default class TextParagraph extends Graph {
       for (const textElement of this.texts) {
         textElement.transform(matrix);
       }
-      this.setBounds(this.calculateBounds());
+      this.bounds = this.updateBounds()
     }
     return this;
   }
@@ -252,7 +256,7 @@ export default class TextParagraph extends Graph {
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
     // 应用样式
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
     this.style.applyToContext(ctx, bounds.width, bounds.height);
     this.renderPath(ctx, true);
     ctx.strokeStyle = "#bfa";
@@ -289,7 +293,8 @@ export default class TextParagraph extends Graph {
     this.isLayouted = true;
     this.controlPoints = [position.copy()];
     // 计算包围盒
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds()
+    this.transfromOrigin = position.copy()
     return this;
   }
 
@@ -312,7 +317,9 @@ export default class TextParagraph extends Graph {
     return paragraph;
   }
 
-  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    
+  }
 }
 
 // 类型守卫函数

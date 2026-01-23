@@ -22,7 +22,6 @@ export interface TextViewOptions extends Omit<ViewOptions, "content"> {
   selection?: Selection;
   fixedHeight?: Boolean;
   fixedWidth?: Boolean;
-  shouldLayout?: Boolean;
   fixedIndex?: TextIndex;
   dynamicIndex?: TextIndex;
 }
@@ -41,7 +40,6 @@ export default class TextView extends View {
   public selection: Selection;
   public fixedHeight: Boolean;
   public fixedWidth: Boolean;
-  public shouldLayout: Boolean;
   public verticalAlign: VERTICALALIGN = VERTICALALIGN.TOP;
 
   constructor(text: TextParagraph[], options: TextViewOptions = {}) {
@@ -56,7 +54,6 @@ export default class TextView extends View {
     this.selection = new Selection(options?.fixedIndex, options?.dynamicIndex);
     this.fixedHeight = !!options?.fixedHeight;
     this.fixedWidth = !!options?.fixedWidth;
-    this.shouldLayout = !!options?.shouldLayout;
     this.verticalAlign = options?.verticalAlign ?? VERTICALALIGN.TOP;
 
     // 如果设置了layoutArea，更新bounds
@@ -95,7 +92,7 @@ export default class TextView extends View {
    */
   public constraintPoint(p: Point3): Point3 {
     const paragraRects = this.content
-      .map((paragraph) => paragraph.getBounds())
+      .map((paragraph) => paragraph.bounds)
       .map((bounds) => new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height));
     if (paragraRects.length === 0) return p;
     const closets = paragraRects.map((rect) => rect.getClosestPoint(p));
@@ -104,13 +101,10 @@ export default class TextView extends View {
   }
 
   public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
-    const fixedPoint = this.boundingBox?.handles[fixedIndex].getCenter();
-    const dynamicPoint = this.boundingBox?.handles[dynamicIndex].getCenter();
-    if (!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
-    // this.content.forEach(paragraph=>{
-    //   paragraph.resize(fixedPoint, dynamicPoint, vector);
-    // })
-    this.shouldLayout = true;
+    // 更新layoutArea，再重新布局，不变换内部文字。异性文本容器请使用组合容器实现
+    if (!this.layoutArea) throw new Error("请布局后再操作文本容器");
+    const { width, height } = this.layoutArea
+    this.layoutArea.setSize(width + vector.x, height + vector.y)
     this.layout();
     this.initBoundingBox();
     this.initViewport();
@@ -211,7 +205,6 @@ export default class TextView extends View {
     paragraph.addText(content, textInsertIndex, textOptions);
 
     // 重新布局
-    this.shouldLayout = true;
     this.layout();
     this.initBoundingBox();
     this.initViewport();
@@ -247,7 +240,6 @@ export default class TextView extends View {
     }
 
     // 重新布局
-    this.shouldLayout = true;
     this.layout();
     this.initBoundingBox();
     this.initViewport();
@@ -418,7 +410,6 @@ export default class TextView extends View {
     this.content.splice(paragraphIndex + 1, 0, newParagraph);
 
     // 重新布局
-    this.shouldLayout = true;
     this.layout();
     this.initBoundingBox();
     this.initViewport();
@@ -435,7 +426,7 @@ export default class TextView extends View {
    */
   public element2Index(textElement: TextElement, p: Point3): TextIndex {
     const relativePoint = world2Relative(p, this.getWorldMatrix());
-    const bounds = textElement.getBounds();
+    const bounds = textElement.bounds;
 
     for (const [i, p] of this.content.entries()) {
       for (const [j, t] of p.texts.entries()) {
@@ -471,7 +462,7 @@ export default class TextView extends View {
     if (hitedParagraph) {
       // 准确命中某个文字
       for (const t of hitedParagraph.texts) {
-        const tb = t.getBounds();
+        const tb = t.bounds;
         const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height);
         const hitText = tRect.isPointInPath(relativePoint);
         if (hitText) {
@@ -501,30 +492,30 @@ export default class TextView extends View {
    */
   private probeTextElement(textElements: TextElement[], p: Point3): TextElement {
     const leftTop = textElements.filter((b) => {
-      const bounds = b.getBounds();
+      const bounds = b.bounds;
       return bounds.x < p.x && bounds.y < p.y;
     });
     const rightTop = textElements.filter((b) => {
-      const bounds = b.getBounds();
+      const bounds = b.bounds;
       return bounds.x + bounds.width > p.x && bounds.y + bounds.height < p.y;
     });
 
     const rightBottom = textElements.filter((b) => {
-      const bounds = b.getBounds();
+      const bounds = b.bounds;
       return bounds.x + bounds.width > p.x && bounds.y + bounds.height > p.y;
     });
     const leftBottom = textElements.filter((b) => {
-      const bounds = b.getBounds();
+      const bounds = b.bounds;
       return bounds.x < p.x && bounds.y + bounds.height > p.y;
     });
 
     // 找到leftBottom和rightTop中离relativePoint最近的textElement
     const leftBottomDistance = leftBottom.map((b) => {
-      const center = Rectangle.fromBounds(b.getBounds()).getCenter();
+      const center = Rectangle.fromBounds(b.bounds).getCenter();
       return p.distance(new Point3(center.x, center.y, 0));
     });
     const rightTopDistance = rightTop.map((b) => {
-      const center = Rectangle.fromBounds(b.getBounds()).getCenter();
+      const center = Rectangle.fromBounds(b.bounds).getCenter();
       return p.distance(new Point3(center.x, center.y, 0));
     });
     const minLeftBottomDistance = Math.min(...leftBottomDistance);
@@ -558,7 +549,7 @@ export default class TextView extends View {
     // 选中光标
     if (Selection.isCursor(start, end)) {
       const textElement = this.content[start[0]].texts[start[1]];
-      const bounds = textElement.getBounds();
+      const bounds = textElement.bounds;
       const x = start[2] === 0 ? bounds.x - 2 : bounds.x + bounds.width;
       boxs.push(new Rectangle(x, bounds.y, 2, bounds.height));
     } else {
@@ -578,7 +569,7 @@ export default class TextView extends View {
         for (const [j, textElement] of paragraph.texts.entries()) {
           const curPriorityNum = Number([i, j, 0].join(""));
           if (curPriorityNum >= startPriorityNum && curPriorityNum < endPriorityNum) {
-            const bounds = textElement.getBounds();
+            const bounds = textElement.bounds;
             boxs.push(new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height));
           }
         }
@@ -608,10 +599,8 @@ export default class TextView extends View {
     // 执行深度优先搜索布局
     this.layoutParagrahs(this.content, this.layoutArea);
 
-    // 布局结束后，将 layoutArea 大小设置成段落包围盒的并集
+    // 布局结束后，根据将fixedHeight和fixedWidth更新 layoutArea 大小
     this.updateLayoutAreaFromParagraphs();
-
-    this.shouldLayout = false;
   }
 
   /**
@@ -621,7 +610,7 @@ export default class TextView extends View {
     if (!this.layoutArea || this.content.length === 0) return;
 
     // 获取所有段落的包围盒
-    const paragraphBounds = this.content.map((paragraph) => paragraph.getBounds());
+    const paragraphBounds = this.content.map((paragraph) => paragraph.bounds);
 
     // 计算所有段落包围盒的并集
     const unionBounds = Bounds.union(...paragraphBounds);
@@ -642,7 +631,7 @@ export default class TextView extends View {
     // 遍历所有段落进行布局
     for (const paragraph of paragraphs) {
       this.layoutParagraph(paragraph, layoutArea.getTopLeft().x, currentY, layoutArea.width);
-      const paragraphBounds = paragraph.getBounds();
+      const paragraphBounds = paragraph.bounds;
       currentY += paragraphBounds.height;
     }
 
@@ -787,7 +776,7 @@ export default class TextView extends View {
    * 调整段落的水平对齐
    */
   private adjustParagraphHorizontalAlignment(paragraph: TextParagraph, maxWidth: number): void {
-    const paragraphBounds = paragraph.getBounds();
+    const paragraphBounds = paragraph.bounds;
     if (!paragraphBounds) return;
 
     let offsetX = 0;
@@ -817,7 +806,7 @@ export default class TextView extends View {
    * 调整Texts的垂直对齐
    */
   private adjustParagraphVerticalAlignment(paragraphs: TextParagraph[], layoutArea: Rectangle): void {
-    const textsBounds = Bounds.union(...paragraphs.map((paragraph) => paragraph.getBounds()));
+    const textsBounds = Bounds.union(...paragraphs.map((paragraph) => paragraph.bounds));
     if (!textsBounds) return;
 
     let offsetY = 0;
@@ -842,7 +831,7 @@ export default class TextView extends View {
       for (const textElement of paragraph.texts) {
         textElement.layout(textElement.controlPoints[0].add(offsetVector), textElement.lineHeight);
       }
-      offsetVector.add(new Vector3(0, paragraph.getBounds().height, 0));
+      offsetVector.add(new Vector3(0, paragraph.bounds.height, 0));
     }
   }
 
@@ -865,14 +854,9 @@ export default class TextView extends View {
 
   // 1、供view初始化调用，再textView初始化最后会根据layoutArea更新包围盒和视口插件
   // 2、供视口裁剪判断调用
-  public getContentBounds(): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } {
+  public getContentBounds(): Bounds {
     if (this.layoutArea) {
-      return this.layoutArea.getBounds();
+      return this.layoutArea.bounds;
     }
     return Bounds.empty();
   }
@@ -890,7 +874,7 @@ export default class TextView extends View {
    */
   private updateBoundsFromLayoutArea(): void {
     if (this.layoutArea && this.boundingBox && this.viewport) {
-      const bounds = this.layoutArea.getBounds();
+      const bounds = this.layoutArea.bounds;
 
       const viewWidth = Math.max(0, bounds.x + bounds.width);
       const viewHeight = Math.max(0, bounds.y + bounds.height);
@@ -925,7 +909,6 @@ export default class TextView extends View {
     newView.deleteLine = this.deleteLine;
     newView.fixedHeight = this.fixedHeight;
     newView.fixedWidth = this.fixedWidth;
-    newView.shouldLayout = this.shouldLayout;
 
     // 复制选择区域
     newView.selection = new Selection(this.selection.fixedIndex, this.selection.dynamicIndex);

@@ -115,7 +115,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           if (extraDataRef.current) {
             const { editPoint } = extraDataRef.current;
             if (editPoint) {
-              editPoint.add(point.subtract(lastPointRef.current || mousDownPoint));
+              indicateViewRef.current?.editPoint(point, point.subtract(lastPointRef.current || mousDownPoint))
             }
           }
           break;
@@ -276,7 +276,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             indicateView.setSelection(fixedIndex, fixedIndex);
 
             // 将输入框移动到选中的 textElement 下方
-            const bounds = indicateContentRef.current[0].getBounds();
+            const bounds = indicateContentRef.current[0].bounds;
 
             // 将相对坐标转换为世界坐标
             const worldMatrix = indicateView.getWorldMatrix();
@@ -285,7 +285,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             const worldBottomLeft = worldMatrix.multiply(relativeBottomLeft);
             // 移动输入框到该位置下方
             const input = inputRef.current;
-            const layoutBounds = indicateView.layoutArea?.getBounds();
+            const layoutBounds = indicateView.layoutArea?.bounds;
             if (input && layoutBounds) {
               input.style.left = `${worldBottomLeft.x}px`;
               input.style.top = `${worldBottomLeft.y}px`;
@@ -430,7 +430,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           const { imageSrc } = constructorParams;
 
           // 使用 dropPoint 作为图片左上角
-          const imageElement = new ImageElement(dropPoint.x, dropPoint.y, imageSrc || "", Style.DEFAULT);
+          const imageElement = new ImageElement(imageSrc || "", dropPoint.x, dropPoint.y, Style.DEFAULT);
           newView = new ImageView(imageElement);
         }
 

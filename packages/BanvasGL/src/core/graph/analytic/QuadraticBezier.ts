@@ -7,8 +7,8 @@ import AnalyticGraph from "./AnalyticGraph";
 export default class QuadraticBezier extends Bezier {
   public type: GRAPHTYPE = GRAPHTYPE.QUADRATIC_BEZIER;
 
-  constructor(startPoint: Point3, controlPoint: Point3, endPoint: Point3, style: Style = Style.DEFAULT) {
-    super([startPoint, controlPoint, endPoint], style);
+  constructor(startPoint: Point3, controlPoint: Point3, endPoint: Point3, style: Style = Style.DEFAULT,id?:string) {
+    super([startPoint, controlPoint, endPoint], style,id);
   }
 
   // 获取控制点
@@ -86,28 +86,12 @@ export default class QuadraticBezier extends Bezier {
     ) as this;
   }
 
-  public getIntersections(other: any): Point3[] {
-    // 简化实现，返回空数组
-    return [];
-  }
-
   public getLength(tStart: number, tEnd: number): number {
     return this.calculateApproximateLength(100) * Math.abs(tEnd - tStart);
   }
 
   public getArea(): number {
     return 0;
-  }
-
-  public transform(matrix: Matrix4): AnalyticGraph {
-    const p0 = matrix.multiply(this.controlPoints[0]);
-    const p1 = matrix.multiply(this.controlPoints[1]);
-    const p2 = matrix.multiply(this.controlPoints[2]);
-    this.controlPoints[0] = p0;
-    this.controlPoints[1] = p1;
-    this.controlPoints[2] = p2;
-    this.setBounds(this.calculateBounds());
-    return this;
   }
 }
 

@@ -9,7 +9,7 @@ import Scene from "../scene/Scene";
 import { Graph } from "../graph";
 
 // 导入addon类型
-import { BoundingBoxAddonImpl, ViewportAddonImpl, VertexAddonImpl, ViewAddonImpl } from "./addon";
+import { BoundingBoxAddonImpl, VertexAddonImpl, ViewAddonImpl } from "./addon";
 import { Point3, Vector3 } from "../math";
 import { ExtraData } from "./addon/InteractionMapBuilder";
 import Bounds from "../graph/base/Bounds";
@@ -59,9 +59,11 @@ export default abstract class View<T extends object = any> {
   public matrix: Matrix4 = Matrix4.identity();
 
   // 插件
-  public viewport: ViewportAddonImpl | null = null;
   public controlPoints: VertexAddonImpl | null = null;
   public boundingBox: BoundingBoxAddonImpl | null = null;
+
+  // 视口
+  public viewport: Bounds | null = null
 
   // 私有属性
   private _isConstructed: boolean = false;
@@ -70,12 +72,7 @@ export default abstract class View<T extends object = any> {
   //抽象方法
   public abstract renderContent(ctx: CanvasRenderingContext2D): void;
   public abstract copy(): View;
-  public abstract getContentBounds(): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
+  public abstract getContentBounds(): Bounds;
   /**
    * @description 容器和鼠标交互事件的起点
    * 完整流程：传入世界坐标点->转换到容器坐标系下->判断和内容或者插件的交互情况->返回交互结果->后续通过交互结果进一步处理
@@ -89,11 +86,16 @@ export default abstract class View<T extends object = any> {
   /**
    * resize方法
    * @param fixedIndex 固定点索引
-   * @param dynamicIndex 动态点索引(也是上一个点，与vector可求得新的动态点)
+   * @param dynamicIndex 动态点索引
    * @param vector 向量
    * @description 根据固定点索引、动态点索引、向量计算图形的变化和新的变换矩阵
    */
   public abstract resize(fixedIndex: number, dynamicIndex: number, vector: Vector3): void;
+
+  public editPoint(point: Point3, vector: Vector3) {
+    point.add(vector);
+    this.content.forEach(graph => graph.updateBounds())
+  }
 
   constructor(options: ViewOptions<T>) {
     this.construct(options);
@@ -155,7 +157,7 @@ export default abstract class View<T extends object = any> {
   }
 
   // 生命周期回调
-  public onCreated(): void {}
+  public onCreated(): void { }
 
   public onDestroy(): void {
     if (this._isDestroyed) {
@@ -169,7 +171,7 @@ export default abstract class View<T extends object = any> {
     this.content = [];
   }
 
-  public onAttach(): void {}
+  public onAttach(): void { }
 
   // 自定义方法（索引签名）
   [funcName: string]: any;
@@ -296,10 +298,6 @@ export default abstract class View<T extends object = any> {
       this.controlPoints?.render(ctx);
       return;
     }
-    if (this.editingViewport) {
-      this.viewport?.render(ctx);
-      return;
-    }
   }
 
   // 检查是否需要视口裁剪
@@ -315,7 +313,7 @@ export default abstract class View<T extends object = any> {
   }
 
   // 检查内容是否在视口外
-  private hasContentOutsideViewport(viewport: ViewportAddonImpl): boolean {
+  private hasContentOutsideViewport(viewport: Bounds): boolean {
     // 获取内容的边界框
     const contentBounds = this.getContentBounds();
     if (!contentBounds) {
@@ -332,18 +330,14 @@ export default abstract class View<T extends object = any> {
   }
 
   public initBoundingBox(): void {
-    const bounds = this.getContentBounds();
-
-    const width = Math.max(0, bounds.x + bounds.width);
-    const height = Math.max(0, bounds.y + bounds.height);
-    this.boundingBox = new BoundingBoxAddonImpl(width, height);
+    this.boundingBox = new BoundingBoxAddonImpl(this.getContentBounds());
   }
 
   public initViewport(): void {
     const bounds = this.boundingBox?.getBounds();
     if (!bounds) throw new Error("Bounding box is not set");
 
-    this.viewport = new ViewportAddonImpl(bounds.x, bounds.y, bounds.width, bounds.height);
+    this.viewport = bounds.copy()
   }
 
   public getLastRenderTime(): number {

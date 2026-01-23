@@ -12,9 +12,10 @@ export default class CubicBezier extends Bezier {
     controlPoint1: Point3,
     controlPoint2: Point3,
     endPoint: Point3,
-    style: Style = Style.DEFAULT
+    style: Style = Style.DEFAULT,
+    id?:string
   ) {
-    super([startPoint, controlPoint1, controlPoint2, endPoint], style);
+    super([startPoint, controlPoint1, controlPoint2, endPoint], style,id);
   }
 
   // 获取第一个控制点
@@ -209,49 +210,9 @@ export default class CubicBezier extends Bezier {
     ) as this;
   }
 
-  // 计算与另一条解析式图形的交点（AnalyticGraph 要求）
-  public getIntersections(other: AnalyticGraph): Point3[] {
-    // 简化的交点计算，使用数值方法
-    const intersections: Point3[] = [];
-    const steps = 100;
-
-    for (let i = 0; i < steps; i++) {
-      const t1 = i / steps;
-      const point1 = this.getPointAt(t1);
-
-      for (let j = 0; j < steps; j++) {
-        const t2 = j / steps;
-        const point2 = other.getPointAt(t2);
-
-        const dx = point1.x - point2.x;
-        const dy = point1.y - point2.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < 1e-6) {
-          intersections.push(point1);
-        }
-      }
-    }
-
-    return intersections;
-  }
 
   public getArea(): number {
     return 0;
-  }
-
-  // 应用变换矩阵（AnalyticGraph 要求）
-  public transform(matrix: Matrix4): AnalyticGraph {
-    const p0 = matrix.multiply(this.controlPoints[0]);
-    const p1 = matrix.multiply(this.controlPoints[1]);
-    const p2 = matrix.multiply(this.controlPoints[2]);
-    const p3 = matrix.multiply(this.controlPoints[3]);
-    this.controlPoints[0] = p0;
-    this.controlPoints[1] = p1;
-    this.controlPoints[2] = p2;
-    this.controlPoints[3] = p3;
-    this.setBounds(this.calculateBounds());
-    return this;
   }
 }
 

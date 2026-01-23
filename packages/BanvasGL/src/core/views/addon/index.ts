@@ -1,6 +1,3 @@
-// 导出所有addon类型和实现
-export type { ViewportAddon } from "./ViewportAddon";
-export { default as ViewportAddonImpl } from "./ViewportAddon";
 export type { BoundingBoxAddon } from "./BoundingBoxAddon";
 export { default as BoundingBoxAddonImpl } from "./BoundingBoxAddon";
 export type { VertexAddon } from "./VertexAddon";
@@ -13,15 +10,12 @@ export {
 } from "./InteractionMapBuilder";
 
 // 导出类型联合
-import type { ViewportAddon } from "./ViewportAddon";
 import type { BoundingBoxAddon } from "./BoundingBoxAddon";
 import type { VertexAddon } from "./VertexAddon";
-import ViewportAddonImpl from "./ViewportAddon";
 import BoundingBoxAddonImpl from "./BoundingBoxAddon";
 import VertexAddonImpl from "./VertexAddon";
 
-export type ViewAddon = ViewportAddon | BoundingBoxAddon | VertexAddon;
+export type ViewAddon = BoundingBoxAddon | VertexAddon;
 export type ViewAddonImpl =
-  | ViewportAddonImpl
-  | BoundingBoxAddonImpl
+  BoundingBoxAddonImpl
   | VertexAddonImpl;

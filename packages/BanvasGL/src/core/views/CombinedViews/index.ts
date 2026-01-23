@@ -1,20 +1,13 @@
 import { VIEWTYPE } from "@/core/constants";
 import { Graph, Rectangle } from "../../graph";
 import View, { ViewOptions, ViewContent } from "../View";
-import { Point3, Vector3 } from "../../math";
+import { Matrix4, Point3, Vector3 } from "../../math";
 import Bounds from "../../graph/base/Bounds";
 import { world2Relative } from "@/utils/utils";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { ViewAddonImpl } from "../addon";
 import { InteractionMapBuilder } from "../addon";
 import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
-
-type Extreme = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-};
 
 // 组合视图选项接口
 export interface CombinedViewOptions extends Omit<ViewOptions, "content"> {
@@ -29,19 +22,15 @@ export default class CombinedView extends View {
   public content: Graph[];
   public children: View[];
 
-  private _contentBounds: Bounds;
-  private _extreme: Extreme;
   constructor(views: View[] = [], options: CombinedViewOptions = {}) {
     // 将views作为content传递给父类构造函数
     super({ ...options });
     this.content = options.graph ? [options.graph] : [];
     this.children = views;
-
-    this._extreme = this.computeExtreme();
-    this.initMatrix();
-    this._contentBounds = this.initContentBox();
+    if(!options.matrix){
+      this.initMatrix();
+    }
     this.initRef();
-
     this.initBoundingBox();
     this.initViewport();
   }
@@ -104,60 +93,25 @@ export default class CombinedView extends View {
     });
   }
 
-  computeExtreme() {
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    for (const child of this.children) {
-      const childBounds = child.boundingBox?.getBounds();
-      if (!childBounds) throw new Error("Child bounding box is not set");
-      const points = new Rectangle(childBounds.x, childBounds.y, childBounds.width, childBounds.height).controlPoints;
-      const transformedPoint = points.map((p) => child.matrix.multiply(p));
-
-      minX = Math.min(...[minX, ...transformedPoint.map((p) => p.x)]);
-      minY = Math.min(...[minY, ...transformedPoint.map((p) => p.y)]);
-      maxX = Math.max(...[maxX, ...transformedPoint.map((p) => p.x)]);
-      maxY = Math.max(...[maxY, ...transformedPoint.map((p) => p.y)]);
-    }
-
-    if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
-      throw new Error("initContentBox error");
-    }
-    return {
-      minX,
-      minY,
-      maxX,
-      maxY,
-    };
-  }
 
   initMatrix() {
-    if (!this.children.length) return;
-    this.matrix.translate(this._extreme.minX, this._extreme.minY, 0);
-  }
-  initContentBox(): Bounds {
-    const { minX, minY, maxX, maxY } = this._extreme;
-    return new Bounds(0, 0, maxX - minX, maxY - minY);
+    const contentBounds = this.getContentBounds()
+    this.matrix = Matrix4.translation(contentBounds.x,contentBounds.y,0)
   }
 
+  // 组合容器的内容盒是子容器的包围盒
   public getContentBounds(): Bounds {
-    if (!this._contentBounds) {
-      this._contentBounds = this.initContentBox();
-    }
-    return this._contentBounds;
+    // 同层级下view，将他们包围盒矩形转换到同一坐标系再计算包围盒
+    const points = this.children.map(child=>{
+      // view的包围盒插件是要包含容器起点的，至少比content包围盒大
+      const boundingRect = Rectangle.fromBounds(child.boundingBox?.getBounds() ?? Bounds.empty())
+      return boundingRect.vertices.map(point=>child.getWorldMatrix().multiply(point))
+    }).flat()
+    return Bounds.fromPoints(points)
   }
 
   public resize(fixedIndex: number, dynamicIndex: number, vector: Vector3) {
-    this.children.forEach((child) => {
-      child.resize(fixedIndex, dynamicIndex, vector);
-    });
-    this.initBoundingBox();
-    this.initViewport();
-    this._contentBounds = this.initContentBox();
-    this._extreme = this.computeExtreme();
-    this.initMatrix();
+
   }
 
   public copy(): CombinedView {
@@ -193,7 +147,7 @@ export default class CombinedView extends View {
   public addChild(child: View): void {
     if (!this.children.includes(child)) {
       this.children.push(child);
-      child.parent = this as any;
+      child.parent = this;
       child.onAttach();
     }
   }
@@ -206,32 +160,12 @@ export default class CombinedView extends View {
     }
   }
 
-  public getChildren(): View[] {
-    return [...this.children];
-  }
-
-  public getChildCount(): number {
-    return this.children.length;
-  }
-
   public clear(): void {
     this.children.forEach((child) => {
       child.parent = null;
       child.onDestroy();
     });
     this.children = [];
-  }
-
-  public isCombinedView() {
-    return true;
-  }
-
-  // 重写contains方法以支持子View
-  public contains(view: View): boolean {
-    if (this === view) {
-      return true;
-    }
-    return this.children.some((child) => child.contains(view));
   }
 }
 

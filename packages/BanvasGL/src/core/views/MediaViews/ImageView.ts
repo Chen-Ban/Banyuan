@@ -3,6 +3,7 @@ import { ImageElement } from "../../graph/media";
 import { Point3, Vector3 } from "../../math";
 import { InteractionMapBuilder, ViewAddonImpl } from "../addon";
 import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
+import Bounds from "@/core/graph/base/Bounds";
 
 // 图像视图选项接口
 export interface ImageViewOptions extends Omit<ViewOptions, "content"> {
@@ -20,6 +21,8 @@ export default class ImageView extends View {
     // 将image作为content传递给父类构造函数
     super({ ...options, content: [image] });
     this.content = [image];
+    this.initBoundingBox()
+    this.initViewport()
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
@@ -28,16 +31,11 @@ export default class ImageView extends View {
     }
   }
 
-  public getContentBounds(): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } {
-    if (this.content && typeof this.content[0].getBounds === "function") {
-      return this.content[0].getBounds();
+  public getContentBounds():Bounds {
+    if (this.content ) {
+      return this.content[0].bounds.copy();
     }
-    return { x: 0, y: 0, width: 0, height: 0 };
+    return Bounds.empty()
   }
 
   public interact(p: Point3): {
@@ -59,7 +57,6 @@ export default class ImageView extends View {
     if (!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
     // this.content[0].resize(fixedPoint, dynamicPoint, vector);
     this.initBoundingBox();
-    this.initViewport();
   }
 
   public copy(): ImageView {

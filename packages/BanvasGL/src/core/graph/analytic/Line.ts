@@ -11,14 +11,17 @@ export default class Line extends AnalyticGraph {
   public type: GRAPHTYPE = GRAPHTYPE.LINE;
   public controlPoints: Point3[];
   public style: Style;
+  public bounds: Bounds;
+  public transfromOrigin: Point3;
 
-  constructor(startPoint: Point3, endPoint: Point3, style: Style = Style.DEFAULT) {
-    super();
+  constructor(startPoint: Point3, endPoint: Point3, style: Style = Style.DEFAULT, id?: string) {
+    super(id);
     this.controlPoints = [startPoint, endPoint];
     this.style = style;
+    this.transfromOrigin = this.getPointAt(0.5)
 
     // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds()
   }
 
   // 获取起始点
@@ -31,29 +34,22 @@ export default class Line extends AnalyticGraph {
     return this.controlPoints[1];
   }
 
-  // 计算线条的包围盒
-  public calculateBounds(): Bounds {
-    const startPoint = this.controlPoints[0];
-    const endPoint = this.controlPoints[1];
-
-    const minX = Math.min(startPoint.x, endPoint.x);
-    const maxX = Math.max(startPoint.x, endPoint.x);
-    const minY = Math.min(startPoint.y, endPoint.y);
-    const maxY = Math.max(startPoint.y, endPoint.y);
-
-    return new Bounds(minX, minY, maxX - minX, maxY - minY);
-  }
-
   // 设置起始点
-  setStartPoint(point: Point3): Line {
+  set startPoint(point: Point3) {
     this.controlPoints[0] = point;
-    return this;
+    this.updateBounds()
   }
 
   // 设置结束点
-  setEndPoint(point: Point3): Line {
+  set endPoint(point: Point3) {
     this.controlPoints[1] = point;
-    return this;
+    this.updateBounds()
+  }
+
+
+  // 计算线条的包围盒
+  public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
+    return Bounds.fromPoints(this.controlPoints, orientationX ?? this.endPoint.x - this.startPoint.x > 0, orientationY ?? this.endPoint.y - this.startPoint.y > 0)
   }
 
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
@@ -65,7 +61,7 @@ export default class Line extends AnalyticGraph {
   // 渲染线条
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    const bounds = this.getBounds();
+    const bounds = this.bounds
     this.style.applyToContext(ctx, bounds.width, bounds.height);
     this.renderPath(ctx, true);
     ctx.stroke();
@@ -149,24 +145,6 @@ export default class Line extends AnalyticGraph {
     return startPoint.distance(endPoint);
   }
 
-  /**
-   * 计算线条的包围盒
-   */
-  public getBoundingBox(): {
-    minX: number;
-    minY: number;
-    maxX: number;
-    maxY: number;
-  } {
-    const start = this.startPoint;
-    const end = this.endPoint;
-    return {
-      minX: Math.min(start.x, end.x),
-      minY: Math.min(start.y, end.y),
-      maxX: Math.max(start.x, end.x),
-      maxY: Math.max(start.y, end.y),
-    };
-  }
 
   /**
    * 计算线条的面积（直线面积为0）
@@ -190,11 +168,12 @@ export default class Line extends AnalyticGraph {
    * 应用变换矩阵到线条
    */
   public transform(matrix: Matrix4): AnalyticGraph {
-    const transformedStart = matrix.multiply(this.startPoint);
-    const transformedEnd = matrix.multiply(this.endPoint);
+    const transfromOrigin = this.transfromOrigin
+    const transformedStart = matrix.multiply(this.startPoint.add(Point3.orgin.subtract(transfromOrigin))).add(transfromOrigin.subtract(Point3.orgin));
+    const transformedEnd = matrix.multiply(this.endPoint.add(Point3.orgin.subtract(transfromOrigin))).add(transfromOrigin.subtract(Point3.orgin));
     this.controlPoints[0] = transformedStart;
     this.controlPoints[1] = transformedEnd;
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds()
     return this;
   }
 
@@ -212,7 +191,25 @@ export default class Line extends AnalyticGraph {
     return other.intersect(this);
   }
 
-  public resize(size: [number, number], diff: [number, number], overflow: [boolean, boolean]): void {}
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+
+    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
+    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
+
+    for (const p of this.controlPoints) {
+      // 变化比例，TOFIX： 缩放比例应该和坐标无关（需要将referenceVector拆分成两个点，这样甚至不用判断，直接取固定点）
+      const scaleX = Math.abs(p.x - fixedPoint.x) / width;
+      const scaleY = Math.abs(p.y - fixedPoint.y) / height;
+
+      // 带方向并且按照介质尺寸缩放的移动量
+      const dx = resizeVector.x * scaleX;
+      const dy = resizeVector.y * scaleY;
+
+      p.add(new Vector3(dx, dy, 0))
+    }
+
+    this.updateBounds()
+  }
 }
 
 // 类型守卫函数
