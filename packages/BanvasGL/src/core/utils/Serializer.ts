@@ -1,5 +1,5 @@
 import { VIEWTYPE, GRAPHTYPE } from "../constants";
-import View, { ViewOptions } from "../views/View";
+import View from "../views/View";
 import Scene from "../scene/Scene";
 import Matrix4 from "../math/Matrix4";
 import { Point3, Vector3 } from "../math";
@@ -81,7 +81,7 @@ export default class Serializer {
     includeFunctions: false,
     includePrivate: false,
     handleCircularRefs: true,
-    maxDepth: 29,
+    maxDepth: 29,// 在实际使用后判断多少层级合理
   };
 
   private constructor() {
@@ -403,33 +403,6 @@ export default class Serializer {
 
   // ========== 具体类型的序列化方法 ==========
 
-  /**
-   * 序列化View对象
-   */
-  private serializeView(view: View): any {
-    switch (view.type) {
-      case VIEWTYPE.VIEW: {
-        break;
-      }
-      default: {
-        throw new Error("unknown view type");
-      }
-    }
-  }
-
-  /**
-   * 反序列化View对象
-   */
-  private deserializeView(data: any): any {
-    switch (data.$type) {
-      case VIEWTYPE.VIEW: {
-        break;
-      }
-      default: {
-        throw new Error("unknown view type");
-      }
-    }
-  }
 
   /**
    * 序列化Scene对象
@@ -437,7 +410,13 @@ export default class Serializer {
   private serializeScene(scene: Scene): any {
     const result: any = {
       id: scene.id,
-      children: scene.children.map((child) => this.serializeView(child)),
+      children: scene.children.map((child) => {
+        const typeInfo = this.typeRegistry.get(this.getObjectType(child))
+        if (typeInfo && typeInfo.serializer) {
+          return typeInfo.serializer(child)
+        }
+        throw new Error('未定义容器类型')
+      }),
       data: this.serializeValue(scene.data, this.defaultOptions, 0),
       camera: this.serializeValue(scene.camera, this.defaultOptions, 0),
     };
@@ -579,47 +558,6 @@ export default class Serializer {
   }
 
   /**
-   * 序列化Graph对象
-   */
-  private serializeGraph(graph: Graph): any {
-    return {
-      id: graph._id,
-      type: graph.type,
-      controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
-      style: this.serializeValue(graph.style, this.defaultOptions, 0),
-      bounds: graph.getBounds() ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0) : null,
-    };
-  }
-
-  /**
-   * 反序列化Graph对象
-   */
-  private deserializeGraph(data: any): any {
-    // 根据类型创建对应的图形对象
-    switch (data.type) {
-      case GRAPHTYPE.LINE:
-        return this.deserializeLine(data);
-      case GRAPHTYPE.CIRCLE:
-        return this.deserializeCircle(data);
-      case GRAPHTYPE.ARC:
-        return this.deserializeArc(data);
-      case GRAPHTYPE.BEZIER:
-        // Bezier是抽象类，根据具体类型处理
-        console.warn("Bezier is abstract class, use specific subclasses instead");
-        return null;
-      case GRAPHTYPE.QUADRATIC_BEZIER:
-        return this.deserializeQuadraticBezier(data);
-      case GRAPHTYPE.CUBIC_BEZIER:
-        return this.deserializeCubicBezier(data);
-      case GRAPHTYPE.COMBINED_GRAPH:
-        return this.deserializeCombinedGraph(data);
-      default:
-        console.warn(`Unknown graph type: ${data.type}`);
-        return null;
-    }
-  }
-
-  /**
    * 序列化Operation对象
    */
   private serializeOperation(operation: Operation): any {
@@ -640,135 +578,29 @@ export default class Serializer {
   }
 
   private serializeDiffs(diffs: Diff[]): any {
-    return diffs.map((diff) => ({
-      parentId: diff.parentId,
-      id: diff.id,
-      type: diff.type,
-      content: this.serializeView(diff.content),
-    }));
+    return diffs.map((diff) => {
+      const typeInfo = this.typeRegistry.get(this.getObjectType(diff.content))
+      if (!typeInfo || !typeInfo.serializer) throw new Error("容器类型未定义");
+      return {
+        parentId: diff.parentId,
+        id: diff.id,
+        type: diff.type,
+        content: typeInfo.serializer(diff.content),
+      }
+    });
   }
 
   private deserializeDiffs(data: any[]): Diff[] {
-    return data.map((diffJson) => ({
-      parentId: diffJson.parentId,
-      id: diffJson.id,
-      type: diffJson.type,
-      content: this.deserializeView(diffJson.content),
-    }));
-  }
-
-  // ========== 便捷方法 ==========
-
-  /**
-   * 序列化View为JSON字符串
-   */
-  public static serializeView(view: View, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(view, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为View
-   */
-  public static deserializeView(json: string, options?: Partial<SerializerOptions>): View {
-    return Serializer.getInstance().deserialize<View>(json, options);
-  }
-
-  /**
-   * 序列化Scene为JSON字符串
-   */
-  public static serializeScene(scene: Scene, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(scene, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为Scene
-   */
-  public static deserializeScene(json: string, options?: Partial<SerializerOptions>): Scene {
-    return Serializer.getInstance().deserialize<Scene>(json, options);
-  }
-
-  /**
-   * 序列化任意对象为JSON字符串
-   */
-  public static serialize(obj: any, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(obj, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为任意对象
-   */
-  public static deserialize<T = any>(json: string, options?: Partial<SerializerOptions>): T {
-    return Serializer.getInstance().deserialize<T>(json, options);
-  }
-
-  /**
-   * 序列化CombinedGraph为JSON字符串
-   */
-  public static serializeCombinedGraph(graph: CombinedGraph, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(graph, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为CombinedGraph
-   */
-  public static deserializeCombinedGraph(json: string, options?: Partial<SerializerOptions>): CombinedGraph {
-    return Serializer.getInstance().deserialize<CombinedGraph>(json, options);
-  }
-
-  /**
-   * 序列化Line为JSON字符串
-   */
-  public static serializeLine(line: Line, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(line, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为Line
-   */
-  public static deserializeLine(json: string, options?: Partial<SerializerOptions>): Line {
-    return Serializer.getInstance().deserialize<Line>(json, options);
-  }
-
-  /**
-   * 序列化Circle为JSON字符串
-   */
-  public static serializeCircle(circle: Circle, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(circle, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为Circle
-   */
-  public static deserializeCircle(json: string, options?: Partial<SerializerOptions>): Circle {
-    return Serializer.getInstance().deserialize<Circle>(json, options);
-  }
-
-  /**
-   * 序列化CombinedView为JSON字符串
-   */
-  public static serializeCombinedView(view: CombinedView, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(view, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为CombinedView
-   */
-  public static deserializeCombinedView(json: string, options?: Partial<SerializerOptions>): CombinedView {
-    return Serializer.getInstance().deserialize<CombinedView>(json, options);
-  }
-
-  /**
-   * 序列化GraphView为JSON字符串
-   */
-  public static serializeGraphView(view: GraphView, options?: Partial<SerializerOptions>): string {
-    return Serializer.getInstance().serialize(view, options);
-  }
-
-  /**
-   * 反序列化JSON字符串为GraphView
-   */
-  public static deserializeGraphView(json: string, options?: Partial<SerializerOptions>): GraphView {
-    return Serializer.getInstance().deserialize<GraphView>(json, options);
+    return data.map((diffJson) => {
+      const typeInfo = this.typeRegistry.get(this.getObjectType(diffJson.content))
+      if (!typeInfo || !typeInfo.deserializer) throw new Error("容器类型未定义");
+      return {
+        parentId: diffJson.parentId,
+        id: diffJson.id,
+        type: diffJson.type,
+        content: typeInfo.deserializer(diffJson.content),
+      }
+    });
   }
 
   // ========== 可实例化图形的序列化方法 =========
@@ -777,12 +609,12 @@ export default class Serializer {
    */
   private serializeCombinedGraph(graph: CombinedGraph): any {
     return {
-      id: graph._id,
+      id: graph.id,
       type: graph.type,
       graphs: graph.graphs.map((g: Graph) => this.serializeValue(g, this.defaultOptions, 0)),
       style: this.serializeValue(graph.style, this.defaultOptions, 0),
       controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
-      bounds: graph.getBounds() ? this.serializeValue(graph.getBounds(), this.defaultOptions, 0) : null,
+      bounds: graph.bounds ? this.serializeValue(graph.bounds, this.defaultOptions, 0) : null,
     };
   }
 
@@ -793,7 +625,7 @@ export default class Serializer {
     const graphs = data.graphs.map((graphData: any) => this.deserializeValue(graphData, this.defaultOptions));
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const graph = new CombinedGraph(graphs, style);
-    graph._id = data.id;
+    graph.id = data.id;
     return graph;
   }
 
@@ -802,11 +634,11 @@ export default class Serializer {
    */
   private serializeLine(line: Line): any {
     return {
-      id: line._id,
+      id: line.id,
       type: line.type,
       controlPoints: this.serializeValue(line.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(line.style, this.defaultOptions, 0),
-      bounds: line.getBounds() ? this.serializeValue(line.getBounds(), this.defaultOptions, 0) : null,
+      bounds: line.bounds ? this.serializeValue(line.bounds, this.defaultOptions, 0) : null,
     };
   }
 
@@ -817,7 +649,7 @@ export default class Serializer {
     const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const line = new Line(controlPoints[0], controlPoints[1], style);
-    line._id = data.id;
+    line.id = data.id;
     return line;
   }
 
@@ -826,13 +658,12 @@ export default class Serializer {
    */
   private serializeCircle(circle: Circle): any {
     return {
-      id: circle._id,
+      id: circle.id,
       type: circle.type,
       center: this.serializeValue(circle.center, this.defaultOptions, 0),
-      radius: circle.radius,
+      xRadius: circle.xRadius,
+      yRadius: circle.yRadius,
       style: this.serializeValue(circle.style, this.defaultOptions, 0),
-      controlPoints: this.serializeValue(circle.controlPoints, this.defaultOptions, 0),
-      bounds: circle.getBounds() ? this.serializeValue(circle.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -842,8 +673,8 @@ export default class Serializer {
   private deserializeCircle(data: any): Circle {
     const center = this.deserializeValue(data.center, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
-    const circle = new Circle(center, data.radius, style);
-    circle._id = data.id;
+    const circle = new Circle(center, data.xRadius, style);
+    circle.id = data.id;
     return circle;
   }
 
@@ -852,7 +683,7 @@ export default class Serializer {
    */
   private serializeArc(arc: Arc): any {
     return {
-      id: arc._id,
+      id: arc.id,
       type: arc.type,
       center: this.serializeValue(arc.center, this.defaultOptions, 0),
       xRadius: arc.xRadius,
@@ -862,8 +693,6 @@ export default class Serializer {
       endAngle: arc.endAngle,
       clockwise: arc.clockwise,
       style: this.serializeValue(arc.style, this.defaultOptions, 0),
-      controlPoints: this.serializeValue(arc.controlPoints, this.defaultOptions, 0),
-      bounds: arc.getBounds() ? this.serializeValue(arc.getBounds(), this.defaultOptions, 0) : null,
     };
   }
 
@@ -873,12 +702,12 @@ export default class Serializer {
   private deserializeArc(data: any): Arc {
     const center = this.deserializeValue(data.center, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
-    
+
     // 向后兼容：如果数据中有 radius（旧格式），则同时设置 xRadius 和 yRadius
     let xRadius: number;
     let yRadius: number;
     let rotation: number;
-    
+
     if (data.xRadius !== undefined && data.yRadius !== undefined) {
       // 新格式
       xRadius = data.xRadius;
@@ -895,7 +724,7 @@ export default class Serializer {
       yRadius = 1;
       rotation = 0;
     }
-    
+
     const arc = new Arc(
       center,
       xRadius,
@@ -906,7 +735,7 @@ export default class Serializer {
       data.clockwise,
       style
     );
-    arc._id = data.id;
+    arc.id = data.id;
     return arc;
   }
 
@@ -917,11 +746,11 @@ export default class Serializer {
    */
   private serializeQuadraticBezier(bezier: QuadraticBezier): any {
     return {
-      id: bezier._id,
+      id: bezier.id,
       type: bezier.type,
       controlPoints: this.serializeValue(bezier.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(bezier.style, this.defaultOptions, 0),
-      bounds: bezier.getBounds() ? this.serializeValue(bezier.getBounds(), this.defaultOptions, 0) : null,
+      bounds: bezier.bounds ? this.serializeValue(bezier.bounds, this.defaultOptions, 0) : null,
     };
   }
 
@@ -932,7 +761,7 @@ export default class Serializer {
     const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const bezier = new QuadraticBezier(controlPoints[0], controlPoints[1], controlPoints[2], style);
-    bezier._id = data.id;
+    bezier.id = data.id;
     return bezier;
   }
 
@@ -941,11 +770,11 @@ export default class Serializer {
    */
   private serializeCubicBezier(bezier: CubicBezier): any {
     return {
-      id: bezier._id,
+      id: bezier.id,
       type: bezier.type,
       controlPoints: this.serializeValue(bezier.controlPoints, this.defaultOptions, 0),
       style: this.serializeValue(bezier.style, this.defaultOptions, 0),
-      bounds: bezier.getBounds() ? this.serializeValue(bezier.getBounds(), this.defaultOptions, 0) : null,
+      bounds: bezier.bounds ? this.serializeValue(bezier.bounds, this.defaultOptions, 0) : null,
     };
   }
 
@@ -956,7 +785,7 @@ export default class Serializer {
     const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
     const style = this.deserializeValue(data.style, this.defaultOptions);
     const bezier = new CubicBezier(controlPoints[0], controlPoints[1], controlPoints[2], controlPoints[3], style);
-    bezier._id = data.id;
+    bezier.id = data.id;
     return bezier;
   }
 
