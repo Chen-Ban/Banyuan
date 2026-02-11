@@ -1,15 +1,12 @@
 import Scene from '../scene/Scene'
 import Serializer from '../utils/Serializer'
 import Renderer, { RendererOptions } from '../renderer/Renderer'
-import Style from '../style/Style'
-import { getGlobalCanvasContext } from '../renderer/CanvasContext'
 
 // 页面类型
 export type Page = Scene
 
 // 应用选项
 export interface AppOptions {
-    style?: Style
     enablePageStack?: boolean
     maxPageStackSize?: number
     onLaunch?: (params: any) => void
@@ -28,11 +25,7 @@ export default class App {
     public scenes: Scene[] = []
     public renderer: Renderer
     public pageStack: Scene[] = []
-    public style: Style
-    
-    // 动态属性（索引签名）
-    [key: string]: any
-    
+
     // 私有属性
     private _currentScene: Scene | null = null
     private _currentPageIndex: number = -1 // 当前页面在栈中的索引
@@ -41,7 +34,7 @@ export default class App {
     private _maxPageStackSize: number = 50
     private _enablePageStack: boolean = true
     private _pageStackHistory: Set<string> = new Set() // 记录已经在栈中的页面ID
-    
+
     // 循环渲染相关属性
     private _animationFrameId: number | null = null
     private _isRendering: boolean = false
@@ -49,17 +42,16 @@ export default class App {
     private _lastRenderTime: number = 0
     private _targetFPS: number = 60
     private _frameInterval: number = 1000 / 60 // 16.67ms for 60fps
-    
+
     // 用户自定义生命周期回调函数
     private _userOnLaunch?: (params: any) => void
     private _userOnUnlaunch?: () => void
 
     constructor(renderer: Renderer, options: AppOptions = {}) {
         this.renderer = renderer
-        this.style = options.style || new Style()
         this._enablePageStack = options.enablePageStack !== false
         this._maxPageStackSize = options.maxPageStackSize || 50
-        
+
         // 保存用户自定义的生命周期回调函数
         if (options.onLaunch) {
             this._userOnLaunch = options.onLaunch
@@ -74,11 +66,11 @@ export default class App {
         // 内置逻辑
         this._launchParams = params
         this._isLaunched = true
-        
+
         // 自动启动循环渲染
         this.startRenderLoop()
         console.log('App已启动，自动开始循环渲染')
-        
+
         // 调用用户自定义的生命周期回调函数
         if (this._userOnLaunch) {
             try {
@@ -92,23 +84,23 @@ export default class App {
     public onUnlaunch(): void {
         this._isLaunched = false
         this._launchParams = null
-        
+
         // 停止渲染循环
         this.stopRenderLoop()
-        
+
         // 清理所有场景
         this.scenes.forEach(scene => {
             scene.unload()
         })
         this.scenes = []
-        
+
         // 清空页面栈
         this.pageStack = []
         this._currentScene = null
-        
+
         // 清空页面栈历史记录
         this._pageStackHistory.clear()
-        
+
         // 调用用户自定义的生命周期回调函数
         if (this._userOnUnlaunch) {
             try {
@@ -177,7 +169,7 @@ export default class App {
 
         // 检查目标页面是否已经在栈中
         const isPageAlreadyInStack = this.isPageInStack(page)
-        
+
         if (isPageAlreadyInStack) {
             // 如果页面已经在栈中，将其从栈中移除
             this.removePageFromStack(page)
@@ -185,12 +177,12 @@ export default class App {
 
         // 将新页面推入栈顶
         this.pushToPageStack(page)
-        
+
         // 设置当前页面指针指向栈顶（新页面）
         this._currentScene = page
         this._currentPageIndex = this.pageStack.length - 1
         this._currentScene.show()
-        
+
         // 根据页面是否首次入栈决定调用onload还是onshow
         if (!isPageAlreadyInStack) {
             // 首次入栈，调用onload方法
@@ -267,12 +259,12 @@ export default class App {
 
         // 将新页面推入栈顶
         this.pushToPageStack(page)
-        
+
         // 设置当前页面指针指向栈顶（新页面）
         this._currentScene = page
         this._currentPageIndex = this.pageStack.length - 1
         this._currentScene.show()
-        
+
         // 替换页面时，根据页面是否在栈中决定调用onload还是onshow
         const isFirstTimeInStack = !this.isPageInStack(page)
         if (isFirstTimeInStack) {
@@ -309,7 +301,7 @@ export default class App {
 
         this.pageStack.push(page)
         this._pageStackHistory.add(page.id)
-        
+
         // 限制栈大小
         if (this.pageStack.length > this._maxPageStackSize) {
             const removedPage = this.pageStack.shift()
@@ -345,7 +337,7 @@ export default class App {
                 this._currentPageIndex = Math.min(this._currentPageIndex, this.pageStack.length - 1)
             }
         }
-        
+
         // 从历史记录中移除
         this._pageStackHistory.delete(page.id)
     }
@@ -380,19 +372,16 @@ export default class App {
         if (this._currentScene) {
             this._currentScene.hide()
         }
-        
+
         this._currentScene = scene
         this._currentScene.show()
-        
+
         return this
     }
 
     // 渲染
     public render(): App {
-        
-        // 应用App级别的样式到渲染器的两个上下文
-        this.applyAppStyle()
-        
+
         if (this._currentScene) {
             this.renderer.render(this._currentScene)
         } else {
@@ -417,7 +406,7 @@ export default class App {
         this._lastRenderTime = 0
 
         this._requestAnimationFrame()
-        
+
         return this
     }
 
@@ -431,7 +420,7 @@ export default class App {
         }
 
         this._renderLoop = false
-        
+
         if (this._animationFrameId !== null) {
             cancelAnimationFrame(this._animationFrameId)
             this._animationFrameId = null
@@ -572,7 +561,7 @@ export default class App {
     // 从序列化的 Scene JSON 初始化
     public initFromSerializedScenes(serializedScenes: string[]): App {
         try {
-            const scenes = (serializedScenes || []).map(json => Serializer.deserializeScene(json))
+            const scenes = (serializedScenes || []).map(json => Serializer.getInstance().deserialize(json))
             scenes.forEach(scene => this.addScene(scene))
             if (scenes.length > 0) {
                 this.setCurrentScene(scenes[0])
@@ -581,33 +570,6 @@ export default class App {
             console.warn('Failed to init scenes from serialized JSON:', e)
         }
         return this
-    }
-
-    // 应用App级别的样式
-    private applyAppStyle(): void {
-        const canvasContext = getGlobalCanvasContext()
-        if (!canvasContext) {
-            console.warn('Global CanvasContext not initialized')
-            return
-        }
-        
-        // 应用样式到主画布上下文
-        this.style.applyToContext(canvasContext.getMainContext())
-        
-        // 如果有离屏画布上下文，也应用样式
-        if (canvasContext.bufferCtx) {
-            this.style.applyToContext(canvasContext.bufferCtx)
-        }
-    }
-
-    // 样式管理
-    public setStyle(style: Style): App {
-        this.style = style
-        return this
-    }
-
-    public getStyle(): Style {
-        return this.style
     }
 
     // 状态查询
@@ -636,9 +598,13 @@ export default class App {
         return this
     }
 
+    public getCurrentPage(): Scene {
+        return this.pageStack[this.pageStack.length - 1]
+    }
+
     public setMaxPageStackSize(size: number): App {
         this._maxPageStackSize = Math.max(1, size)
-        
+
         // 如果当前栈大小超过限制，移除多余的页面
         while (this.pageStack.length > this._maxPageStackSize) {
             const removedPage = this.pageStack.shift()
@@ -646,7 +612,7 @@ export default class App {
                 removedPage.unload()
             }
         }
-        
+
         return this
     }
 
@@ -666,29 +632,6 @@ export default class App {
     public setRenderer(renderer: Renderer): App {
         this.renderer = renderer
         return this
-    }
-
-    // 应用信息
-    public getAppInfo(): {
-        isLaunched: boolean
-        launchParams: any
-        sceneCount: number
-        currentScene: Scene | null
-        pageStackSize: number
-        maxPageStackSize: number
-        pageStackEnabled: boolean
-        rendererStats: any
-    } {
-        return {
-            isLaunched: this._isLaunched,
-            launchParams: this._launchParams,
-            sceneCount: this.scenes.length,
-            currentScene: this._currentScene,
-            pageStackSize: this.pageStack.length,
-            maxPageStackSize: this._maxPageStackSize,
-            pageStackEnabled: this._enablePageStack,
-            rendererStats: this.renderer.getStats()
-        }
     }
 
     // 批量操作

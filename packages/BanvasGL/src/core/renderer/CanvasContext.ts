@@ -1,5 +1,4 @@
 export interface CanvasContextOptions {
-  enableOffscreen?: boolean;
   enableAntialiasing?: boolean;
   enableImageSmoothing?: boolean;
   backgroundColor?: string;
@@ -9,11 +8,12 @@ export interface CanvasContextOptions {
 class CanvasContext {
   // 画布上下文
   public readonly mainCtx: CanvasRenderingContext2D;
-  public bufferCtx: CanvasRenderingContext2D | null;
+  public bufferCtx: CanvasRenderingContext2D;
 
   // 画布元素
   private readonly mainCanvas: HTMLCanvasElement;
-  private bufferCanvas: HTMLCanvasElement | null;
+  // bufferCanvas 使用离屏 canvas（OffscreenCanvas）
+  private bufferCanvas: OffscreenCanvas;
 
   // 选项
   private readonly options: CanvasContextOptions;
@@ -28,7 +28,6 @@ class CanvasContext {
     this.mainCtx = ctx;
 
     this.options = {
-      enableOffscreen: true,
       enableAntialiasing: true,
       enableImageSmoothing: true,
       backgroundColor: "transparent",
@@ -37,16 +36,18 @@ class CanvasContext {
     };
 
     // 创建离屏画布
-    if (this.options.enableOffscreen) {
-      this.bufferCanvas = this.createCanvas();
-      this.bufferCanvas.width = this.mainCanvas.width;
-      this.bufferCanvas.height = this.mainCanvas.height;
-      this.bufferCtx = this.bufferCanvas.getContext("2d");
-      if (!this.bufferCtx) throw new Error("缓冲区上下文初始化失败");
-    } else {
-      this.bufferCanvas = null;
-      this.bufferCtx = null;
+    const bufferCanvas = this.createCanvas();
+    // 统一设置尺寸（OffscreenCanvas 与 HTMLCanvasElement 都支持 width/height）
+    bufferCanvas.width = this.mainCanvas.width;
+    bufferCanvas.height = this.mainCanvas.height;
+
+    // OffscreenCanvas.getContext 返回 OffscreenCanvasRenderingContext2D，这里做一次统一类型断言
+    const bufferCtx = bufferCanvas.getContext("2d") as CanvasRenderingContext2D
+    if (!bufferCtx) {
+      throw new Error("缓冲区上下文初始化失败");
     }
+    this.bufferCanvas = bufferCanvas;
+    this.bufferCtx = bufferCtx;
 
     this.initializeContexts();
   }
@@ -85,7 +86,7 @@ class CanvasContext {
   }
 
   // 设置画布上下文样式
-  private setupContext(ctx: CanvasRenderingContext2D): void {
+  private setupContext(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D): void {
     // 启用抗锯齿
     if (this.options.enableAntialiasing) {
       ctx.imageSmoothingEnabled = true;
@@ -103,11 +104,11 @@ class CanvasContext {
     ctx.lineWidth = 1;
   }
 
-  // 跨环境创建画布
-  private createCanvas(): HTMLCanvasElement {
-    // 浏览器环境
-    if (typeof document !== "undefined") {
-      return document.createElement("canvas");
+  // 跨环境创建画布，优先使用 OffscreenCanvas 作为离屏画布
+  private createCanvas(): any {
+    // 浏览器环境优先使用 OffscreenCanvas
+    if (typeof OffscreenCanvas !== "undefined") {
+      return new OffscreenCanvas(this.mainCanvas.width, this.mainCanvas.height);
     }
 
     // Node.js 环境 (需要安装 canvas 包)
@@ -116,7 +117,7 @@ class CanvasContext {
         const { createCanvas } = (globalThis as any).require("canvas");
         return createCanvas(this.mainCanvas.width, this.mainCanvas.height);
       } catch (e) {
-        console.warn("Canvas package not found. Install with: npm install canvas");
+        console.warn("Canvas package not found. Install with: npm install -g canvas");
       }
     }
 
@@ -167,7 +168,7 @@ class CanvasContext {
   }
 
   // 获取离屏画布元素
-  public getBufferCanvas(): HTMLCanvasElement | null {
+  public getBufferCanvas(): OffscreenCanvas {
     return this.bufferCanvas;
   }
 
@@ -177,7 +178,7 @@ class CanvasContext {
   }
 
   // 获取离屏画布上下文
-  public getBufferContext(): CanvasRenderingContext2D | null {
+  public getBufferContext(): CanvasRenderingContext2D {
     return this.bufferCtx;
   }
 
@@ -190,22 +191,6 @@ class CanvasContext {
   // 获取选项
   public getOptions(): CanvasContextOptions {
     return { ...this.options };
-  }
-
-  // 启用/禁用离屏渲染
-  public setOffscreenEnabled(enabled: boolean): void {
-    this.options.enableOffscreen = enabled;
-
-    if (enabled && !this.bufferCtx) {
-      this.bufferCanvas = this.createCanvas();
-      this.bufferCanvas.width = this.mainCanvas.width;
-      this.bufferCanvas.height = this.mainCanvas.height;
-      this.bufferCtx = this.bufferCanvas.getContext("2d")!;
-      this.setupContext(this.bufferCtx);
-    } else if (!enabled && this.bufferCtx) {
-      this.bufferCanvas = null;
-      this.bufferCtx = null;
-    }
   }
 
   // 启用/禁用抗锯齿
@@ -238,17 +223,6 @@ class CanvasContext {
   public toBlob(callback: (blob: Blob | null) => void, type?: string, quality?: number): void {
     this.mainCanvas.toBlob(callback, type, quality);
   }
-
-  // 销毁画布上下文
-  public destroy(): void {
-    // 清理资源
-    if (this.bufferCanvas) {
-      this.bufferCanvas = null;
-    }
-    if (this.bufferCtx) {
-      this.bufferCtx = null;
-    }
-  }
 }
 
 // 全局单例实例
@@ -276,7 +250,6 @@ export function getGlobalCanvasContext(
  */
 export function destroyGlobalCanvasContext(): void {
   if (globalCanvasContext) {
-    globalCanvasContext.destroy();
     globalCanvasContext = null;
   }
 }

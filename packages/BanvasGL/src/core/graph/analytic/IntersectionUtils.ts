@@ -1,11 +1,12 @@
 import { Point3 } from "@/core/math";
 import MathUtils from "@/core/math/MathUtils";
 import AnalyticGraph from "./AnalyticGraph";
-import Line from "./Line";
-import Circle from "./Circle";
-import Arc from "./Arc";
-import QuadraticBezier from "./QuadraticBezier";
-import CubicBezier from "./CubicBezier";
+
+import type Line from "./Line";
+import type Arc from "./Arc";
+import type Circle from "./Circle";
+import type QuadraticBezier from "./QuadraticBezier";
+import type CubicBezier from "./CubicBezier";
 
 /**
  * 相交处理函数类型
@@ -36,52 +37,50 @@ class IntersectionManager {
 
   private registerHandlers(): void {
     // 线与其他图形的相交
-    this.register(Line, Line, lineLineIntersect);
-    this.register(Line, Arc, lineArcIntersect);
-    this.register(Line, Circle, lineCircleIntersect);
-    this.register(Line, QuadraticBezier, lineQuadraticBezierIntersect);
-    this.register(Line, CubicBezier, lineCubicBezierIntersect);
+    this.register("_Line", "_Line", lineLineIntersect);
+    this.register("_Line", "_Arc", lineArcIntersect);
+    this.register("_Line", "_Circle", lineCircleIntersect);
+    this.register("_Line", "_QuadraticBezier", lineQuadraticBezierIntersect);
+    this.register("_Line", "_CubicBezier", lineCubicBezierIntersect);
 
     // 圆弧与其他图形的相交
-    this.register(Arc, Arc, arcArcIntersect);
-    this.register(Arc, Circle, arcCircleIntersect);
-    this.register(Arc, QuadraticBezier, arcQuadraticBezierIntersect);
-    this.register(Arc, CubicBezier, arcCubicBezierIntersect);
+    this.register("_Arc", "_Arc", arcArcIntersect);
+    this.register("_Arc", "_Circle", arcCircleIntersect);
+    this.register("_Arc", "_QuadraticBezier", arcQuadraticBezierIntersect);
+    this.register("_Arc", "_CubicBezier", arcCubicBezierIntersect);
 
     // 圆与其他图形的相交
-    this.register(Circle, Circle, circleCircleIntersect);
-    this.register(Circle, QuadraticBezier, circleQuadraticBezierIntersect);
-    this.register(Circle, CubicBezier, circleCubicBezierIntersect);
+    this.register("_Circle", "_Circle", circleCircleIntersect);
+    this.register("_Circle", "_QuadraticBezier", circleQuadraticBezierIntersect);
+    this.register("_Circle", "_CubicBezier", circleCubicBezierIntersect);
 
     // 贝塞尔曲线之间的相交
-    this.register(QuadraticBezier, QuadraticBezier, quadraticBezierQuadraticBezierIntersect);
-    this.register(QuadraticBezier, CubicBezier, quadraticBezierCubicBezierIntersect);
-    this.register(CubicBezier, CubicBezier, cubicBezierCubicBezierIntersect);
+    this.register("_QuadraticBezier", "_QuadraticBezier", quadraticBezierQuadraticBezierIntersect);
+    this.register("_QuadraticBezier", "_CubicBezier", quadraticBezierCubicBezierIntersect);
+    this.register("_CubicBezier", "_CubicBezier", cubicBezierCubicBezierIntersect);
   }
 
   private register<T extends AnalyticGraph, U extends AnalyticGraph>(
-    typeA: new (...args: any[]) => T,
-    typeB: new (...args: any[]) => U,
+    typeAName: string,
+    typeBName: string,
     handler: IntersectionHandler<T, U>
   ): void {
-    const key = this.getKey(typeA, typeB);
+    const key = this.getKey(typeAName, typeBName);
     this.handlerMap.set(key, handler);
 
     // 自动注册反向
-    const typeAName = typeA.name;
-    const typeBName = typeB.name;
     if (typeAName !== typeBName) {
-      const reverseKey = this.getKey(typeB, typeA);
+      const reverseKey = this.getKey(typeBName, typeAName);
       this.handlerMap.set(reverseKey, (b, a) => handler(a, b));
     }
   }
 
-  private getKey(typeA: any, typeB: any): string {
-    return `${typeA.name}-${typeB.name}`;
+  private getKey(typeAName: string, typeBName: string): string {
+    return `${typeAName}-${typeBName}`;
   }
 
   getHandler(a: AnalyticGraph, b: AnalyticGraph): IntersectionHandler<any, any> | undefined {
-    const key = this.getKey(a.constructor, b.constructor);
+    const key = this.getKey(a.constructor.name, b.constructor.name);
     return this.handlerMap.get(key);
   }
 
@@ -151,13 +150,13 @@ function lineEllipseIntersect(
 ): Point3[] {
   const start = line.startPoint;
   const end = line.endPoint;
-  
+
   // 将直线转换到椭圆的局部坐标系
   const dx = end.x - start.x;
   const dy = end.y - start.y;
   const fx = start.x - center.x;
   const fy = start.y - center.y;
-  
+
   // 应用旋转（将点转换到局部坐标系）
   const cos = Math.cos(-rotation);
   const sin = Math.sin(-rotation);
@@ -165,7 +164,7 @@ function lineEllipseIntersect(
   const localFy = fx * sin + fy * cos;
   const localDx = dx * cos - dy * sin;
   const localDy = dx * sin + dy * cos;
-  
+
   // 在局部坐标系中，椭圆方程为 (x/a)^2 + (y/b)^2 = 1
   // 直线参数方程为: x = localFx + t * localDx, y = localFy + t * localDy
   // 代入椭圆方程得到关于 t 的二次方程
@@ -174,19 +173,19 @@ function lineEllipseIntersect(
   const a_coeff = (localDx * localDx) / (a * a) + (localDy * localDy) / (b * b);
   const b_coeff = 2 * ((localFx * localDx) / (a * a) + (localFy * localDy) / (b * b));
   const c_coeff = (localFx * localFx) / (a * a) + (localFy * localFy) / (b * b) - 1;
-  
+
   const discriminant = b_coeff * b_coeff - 4 * a_coeff * c_coeff;
-  
+
   if (discriminant < 0 || Math.abs(a_coeff) < 1e-10) {
     return []; // 无交点
   }
-  
+
   const sqrtDiscriminant = Math.sqrt(discriminant);
   const t1 = (-b_coeff - sqrtDiscriminant) / (2 * a_coeff);
   const t2 = (-b_coeff + sqrtDiscriminant) / (2 * a_coeff);
-  
+
   const intersections: Point3[] = [];
-  
+
   // 检查交点是否在线段上（对于线段，t应该在[0,1]范围内）
   if (t1 >= 0 && t1 <= 1) {
     const worldX = start.x + t1 * dx;
@@ -198,7 +197,7 @@ function lineEllipseIntersect(
     const worldY = start.y + t2 * dy;
     intersections.push(new Point3(worldX, worldY, start.z));
   }
-  
+
   return intersections;
 }
 
@@ -216,10 +215,10 @@ function isPointInEllipseArcRange(point: Point3, arc: Arc): boolean {
   const sin = Math.sin(-arc.rotation);
   const localX = dx * cos - dy * sin;
   const localY = dx * sin + dy * cos;
-  
+
   // 计算点在局部坐标系中的角度
   const angle = Math.atan2(localY / arc.yRadius, localX / arc.xRadius);
-  
+
   // 检查角度是否在弧范围内
   return MathUtils.isAngleInArcRange(angle, arc.startAngle, arc.endAngle, arc.clockwise);
 }
@@ -365,12 +364,12 @@ function arcArcIntersect(a: Arc, b: Arc): Point3[] {
   const intersections: Point3[] = [];
   const numSamples = 200;
   const tolerance = MathUtils.EPSILON * 10;
-  
+
   for (let i = 0; i <= numSamples; i++) {
     const t = i / numSamples;
     const point = a.getPointAt(t);
     const { distance } = b.getClosestPoint(point);
-    
+
     if (distance < tolerance) {
       // 检查是否在第二个弧的范围内
       if (isPointInEllipseArcRange(point, b)) {
@@ -384,7 +383,7 @@ function arcArcIntersect(a: Arc, b: Arc): Point3[] {
       }
     }
   }
-  
+
   return intersections;
 }
 
@@ -398,12 +397,12 @@ function arcCircleIntersect(a: Arc, b: Circle): Point3[] {
   const numSamples = 200;
   const tolerance = MathUtils.EPSILON * 10;
   const circleRadius = (b.xRadius + b.yRadius) / 2;
-  
+
   for (let i = 0; i <= numSamples; i++) {
     const t = i / numSamples;
     const point = a.getPointAt(t);
     const distanceToCircleCenter = point.distance(b.center);
-    
+
     if (Math.abs(distanceToCircleCenter - circleRadius) < tolerance) {
       // 检查是否在椭圆弧的范围内
       if (isPointInEllipseArcRange(point, a)) {
@@ -417,7 +416,7 @@ function arcCircleIntersect(a: Arc, b: Circle): Point3[] {
       }
     }
   }
-  
+
   return intersections;
 }
 

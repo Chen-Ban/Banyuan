@@ -5,8 +5,6 @@ export interface BaseCameraOptions {
     position?: [number, number, number]
     target?: [number, number, number]
     up?: [number, number, number]
-    near?: number
-    far?: number
 }
 
 export default class BaseCamera {
@@ -15,7 +13,7 @@ export default class BaseCamera {
     protected _up: Vector3
     protected _near: number
     protected _far: number
-    
+
     protected _viewMatrix: Matrix4
     protected _projectionMatrix: Matrix4
     protected _viewProjectionMatrix: Matrix4
@@ -38,8 +36,9 @@ export default class BaseCamera {
             options.up?.[1] ?? 1,
             options.up?.[2] ?? 0
         )
-        this._near = options.near ?? 0.1
-        this._far = options.far ?? 1000
+        // 基础相机不关心近远裁剪平面，这里只给一个默认值，具体相机（透视 / 正交）自己决定是否使用和如何暴露
+        this._near = 0.1
+        this._far = 1000
 
         // 初始化矩阵
         this._viewMatrix = Matrix4.identity()
@@ -197,7 +196,7 @@ export default class BaseCamera {
         // 水平旋转（绕Y轴）
         const horizontalRotation = Matrix4.rotationY(horizontalAngle)
         const rotatedDirection = this.applyMatrixToVector(direction, horizontalRotation)
-        
+
         // 垂直旋转（绕右向量）
         const right = this.getRight()
         const verticalRotation = this.createRotationMatrix(right, verticalAngle)
@@ -273,8 +272,8 @@ export default class BaseCamera {
         // 基础相机不计算投影矩阵，只使用单位矩阵
         this._projectionMatrix = Matrix4.identity()
 
-        // 更新视图投影矩阵（对于基础相机，就是视图矩阵）
-        this._viewProjectionMatrix = this._viewMatrix.copy()
+        // 更新视图投影矩阵
+        this._viewProjectionMatrix = this._projectionMatrix.copy().multiply(this._viewMatrix.copy())
         this._dirty = false
     }
 
@@ -286,18 +285,18 @@ export default class BaseCamera {
 
         // 将世界坐标转换为齐次坐标
         const worldVec = new Vector3(worldPos[0], worldPos[1], worldPos[2])
-        
+
         // 应用视图矩阵（基础相机不使用投影矩阵）
         const viewPos = this.applyMatrixToVector(worldVec, this._viewMatrix)
-        
+
         // 基础相机直接使用视图坐标，不需要透视除法
         const ndcX = viewPos.x
         const ndcY = viewPos.y
-        
+
         // 转换为屏幕坐标（假设视图坐标范围是[-1, 1]）
         const screenX = (ndcX + 1) * 0.5 * screenWidth
         const screenY = (1 - ndcY) * 0.5 * screenHeight
-        
+
         return [screenX, screenY]
     }
 
@@ -310,16 +309,16 @@ export default class BaseCamera {
         // 转换为NDC坐标
         const ndcX = (screenPos[0] / screenWidth) * 2 - 1
         const ndcY = 1 - (screenPos[1] / screenHeight) * 2
-        
+
         // 创建视图坐标
         const viewPos = new Vector3(ndcX, ndcY, depth)
-        
+
         // 计算视图矩阵的逆矩阵
         const invViewMatrix = this._viewMatrix.inverse()
-        
+
         // 应用逆矩阵
         const worldPos = this.applyMatrixToVector(viewPos, invViewMatrix)
-        
+
         return [worldPos.x, worldPos.y, worldPos.z]
     }
 
@@ -355,11 +354,11 @@ export default class BaseCamera {
         matrix.set(0, 0, cos + x * x * oneMinusCos)
         matrix.set(0, 1, x * y * oneMinusCos - z * sin)
         matrix.set(0, 2, x * z * oneMinusCos + y * sin)
-        
+
         matrix.set(1, 0, y * x * oneMinusCos + z * sin)
         matrix.set(1, 1, cos + y * y * oneMinusCos)
         matrix.set(1, 2, y * z * oneMinusCos - x * sin)
-        
+
         matrix.set(2, 0, z * x * oneMinusCos - y * sin)
         matrix.set(2, 1, z * y * oneMinusCos + x * sin)
         matrix.set(2, 2, cos + z * z * oneMinusCos)

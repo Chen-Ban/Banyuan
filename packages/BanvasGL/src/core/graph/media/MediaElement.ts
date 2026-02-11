@@ -2,7 +2,7 @@ import Graph from "../base/Graph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
 import Bounds from "../base/Bounds";
-import { Rectangle } from "../combined";
+import Rectangle from "../combined/Polygon/Rectangle";
 
 /**
  * MediaElement 抽象基类 - 媒体元素基类

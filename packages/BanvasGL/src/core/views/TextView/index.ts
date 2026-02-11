@@ -1,4 +1,4 @@
-import View, { ViewOptions, ViewContent } from "../View";
+import View, { ViewOptions, ViewContent } from "../View/View";
 import TextParagraph, { TextParagraphContent } from "../../graph/text/TextParagraph";
 import TextElement, { NonPrintableTextElement, PrintableTextElement } from "../../graph/text/TextElement";
 import TextOptions from "../../graph/text/TextOptions";
@@ -8,14 +8,13 @@ import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { ViewAddonImpl, InteractionMapBuilder } from "../addon";
 import Selection, { TextIndex } from "./Selection";
 import { HORIZONTALALIGN, VERTICALALIGN, VIEWTYPE } from "@/core/constants";
-import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
+import { Action, Cursor, ExtraData } from "../View/InteractionMapBuilder";
 import Bounds from "../../graph/base/Bounds";
 import { isNonPrintableTextElement } from "../../graph/text/TextElement";
 
 // 文本视图选项接口
 export interface TextViewOptions extends Omit<ViewOptions, "content"> {
   verticalAlign?: VERTICALALIGN;
-  layoutArea?: Rectangle;
   underLine?: Rectangle;
   deleteLine?: Rectangle;
   selection?: Selection;
@@ -30,10 +29,9 @@ export interface TextViewOptions extends Omit<ViewOptions, "content"> {
  */
 export default class TextView extends View {
   public readonly type: VIEWTYPE = VIEWTYPE.TEXTVIEW;
-  public children: View<any>[] = [];
+  public children: View[] = [];
 
   public content: TextParagraph[];
-  public layoutArea: Rectangle | undefined;
   public underLine: Rectangle | undefined;
   public deleteLine: Rectangle | undefined;
   public selection: Selection;
@@ -47,7 +45,6 @@ export default class TextView extends View {
     this.content = text;
 
     // 初始化TextView特有的属性
-    this.layoutArea = options?.layoutArea;
     this.underLine = options?.underLine;
     this.deleteLine = options?.deleteLine;
     this.selection = new Selection(options?.fixedIndex, options?.dynamicIndex);
@@ -55,16 +52,9 @@ export default class TextView extends View {
     this.fixedWidth = !!options?.fixedWidth;
     this.verticalAlign = options?.verticalAlign ?? VERTICALALIGN.TOP;
 
-    // 如果设置了layoutArea，更新bounds
-    if (this.layoutArea) {
-      this.updateBoundsFromLayoutArea();
-      // 执行布局
-      this.layout();
-      //计算包围盒
-      this.initBoundingBox();
-      this.initViewport();
-      this.setSelection(this.selection.fixedIndex, this.selection.dynamicIndex);
-    }
+    // 执行布局
+    this.layout();
+    this.setSelection(this.selection.fixedIndex, this.selection.dynamicIndex);
   }
 
   public getContentText(): string[] {
@@ -73,9 +63,6 @@ export default class TextView extends View {
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
     // 渲染文本内容
-    if (this.layoutArea) {
-      this.layoutArea.render(ctx);
-    }
     for (const paragraph of this.content) {
       paragraph.render(ctx);
     }
@@ -105,7 +92,6 @@ export default class TextView extends View {
     const { width, height } = this.layoutArea
     this.layoutArea.setSize(width + vector.x, height + vector.y)
     this.layout();
-    this.initBoundingBox();
     const referenceVector = dynamicPoint.subtract(fixedPoint)
     if (referenceVector.x < 0) {
       this.matrix.translate(vector.x, 0, 0)
@@ -133,8 +119,7 @@ export default class TextView extends View {
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   } {
-    if (!this.layoutArea) throw new Error("请在布局后交互");
-    const relativePoint = this.getWorldMatrix().multiply(p)
+    const relativePoint = this.getMVPMatrix().inverse().multiply(p)
     const ctx = getGlobalCanvasContext()?.getBufferContext();
     if (!ctx) throw new Error("交互失败");
 
@@ -211,8 +196,6 @@ export default class TextView extends View {
 
     // 重新布局
     this.layout();
-    this.initBoundingBox();
-    this.initViewport();
 
     // 更新光标位置（布局后设置selection，因为selectionBoxs依赖于文字的包围盒）
     if (isComposition) {
@@ -246,8 +229,6 @@ export default class TextView extends View {
 
     // 重新布局
     this.layout();
-    this.initBoundingBox();
-    this.initViewport();
 
     // 布局后设置selection（因为selectionBoxs依赖于文字的包围盒）
     if (newIndex) {
@@ -416,8 +397,6 @@ export default class TextView extends View {
 
     // 重新布局
     this.layout();
-    this.initBoundingBox();
-    this.initViewport();
 
     // 布局后设置selection（因为selectionBoxs依赖于文字的包围盒）
     const newIndex: TextIndex = [paragraphIndex + 1, 0, 0];
@@ -430,7 +409,7 @@ export default class TextView extends View {
    * @param p 世界坐标点
    */
   public element2Index(textElement: TextElement, p: Point3): TextIndex {
-    const relativePoint = this.getWorldMatrix().multiply(p)
+    const relativePoint = this.getMVPMatrix().inverse().multiply(p)
     const bounds = textElement.bounds;
 
     for (const [i, p] of this.content.entries()) {
@@ -477,9 +456,10 @@ export default class TextView extends View {
       const hitedTextElement = this.probeTextElement(hitedParagraph.texts, relativePoint);
       return hitedTextElement;
     }
+
+    const layout = Rectangle.fromBounds(this.layoutArea)
     // 未命中段落，命中布局区域
-    const hitedLayoutArea =
-      this.layoutArea.isPointInPath(relativePoint) || this.layoutArea.isPointOnCurve(relativePoint);
+    const hitedLayoutArea = layout.isPointInPath(relativePoint) || layout.isPointOnCurve(relativePoint);
     if (hitedLayoutArea) {
       return this.probeTextElement(
         this.content.flatMap((paragraph) => paragraph.texts),
@@ -602,7 +582,7 @@ export default class TextView extends View {
     }
 
     // 执行深度优先搜索布局
-    this.layoutParagrahs(this.content, this.layoutArea);
+    this.layoutParagrahs(this.content, Rectangle.fromBounds(this.layoutArea));
 
     // 布局结束后，根据将fixedHeight和fixedWidth更新 layoutArea 大小
     this.updateLayoutAreaFromParagraphs();
@@ -861,7 +841,7 @@ export default class TextView extends View {
   // 2、供视口裁剪判断调用
   public getContentBounds(): Bounds {
     if (this.layoutArea) {
-      return this.layoutArea.bounds;
+      return this.layoutArea;
     }
     return Bounds.empty();
   }
@@ -870,27 +850,7 @@ export default class TextView extends View {
    * 设置布局区域并更新视口插件
    */
   public setLayoutArea(layoutArea: Rectangle): void {
-    this.layoutArea = layoutArea;
-    this.updateBoundsFromLayoutArea();
-  }
-
-  /**
-   * 根据layoutArea更新bounds和视口插件
-   */
-  private updateBoundsFromLayoutArea(): void {
-    if (this.layoutArea && this.boundingBox && this.viewport) {
-      const bounds = this.layoutArea.bounds;
-
-      const viewWidth = Math.max(0, bounds.x + bounds.width);
-      const viewHeight = Math.max(0, bounds.y + bounds.height);
-
-      // 更新boundingBox的尺寸
-      this.boundingBox.setSize(viewWidth, viewHeight);
-
-      // 更新视口插件的尺寸
-      this.viewport.width = viewWidth;
-      this.viewport.height = viewHeight;
-    }
+    this.layoutArea = layoutArea.bounds;
   }
 
   public copy(): TextView {
@@ -901,7 +861,11 @@ export default class TextView extends View {
     newView.id = this.id;
     newView.properties = { ...this.properties };
     newView.data = { ...this.data };
-    newView.style = this.style.copy();
+    newView.style = {
+      ...this.style,
+      content: this.style.content?.map(style => style.copy()),
+      layoutArea: this.style.layoutArea?.copy()
+    };
     newView.selected = this.selected;
     newView.actived = this.actived;
     newView.freezed = this.freezed;

@@ -118,11 +118,6 @@ export default class Renderer {
     return this.canvasContext.getOptions();
   }
 
-  // 启用/禁用离屏渲染
-  public setOffscreenEnabled(enabled: boolean): void {
-    this.canvasContext.setOffscreenEnabled(enabled);
-  }
-
   // 启用/禁用抗锯齿
   public setAntialiasingEnabled(enabled: boolean): void {
     this.canvasContext.setAntialiasingEnabled(enabled);
@@ -144,7 +139,7 @@ export default class Renderer {
   }
 
   // 获取离屏画布元素
-  public getBufferCanvas(): HTMLCanvasElement | null {
+  public getBufferCanvas(): HTMLCanvasElement | OffscreenCanvas | null {
     return this.canvasContext.getBufferCanvas();
   }
 

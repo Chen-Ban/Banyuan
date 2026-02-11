@@ -1,5 +1,5 @@
 import { Point3 } from "../../math";
-import { Action, Cursor, ExtraData } from "./InteractionMapBuilder";
+import { Action, Cursor, ExtraData } from "../View/InteractionMapBuilder";
 
 /**
  * 顶点插件
@@ -7,12 +7,15 @@ import { Action, Cursor, ExtraData } from "./InteractionMapBuilder";
  */
 export interface VertexAddon {
   vertices: Point3[];
+  activeVertex: Point3 | null;
+  isEditing: boolean
   render(ctx: CanvasRenderingContext2D): void;
 }
 
 export default class VertexAddonImpl implements VertexAddon {
   public vertices: Point3[];
   public activeVertex: Point3 | null = null;
+  isEditing: boolean = false;
 
   constructor(vertices: Point3[] = []) {
     this.vertices = [...vertices];
@@ -57,7 +60,7 @@ export default class VertexAddonImpl implements VertexAddon {
    * 渲染顶点（控制点）
    */
   render(ctx: CanvasRenderingContext2D): void {
-    if (!this.vertices || this.vertices.length === 0) {
+    if (!this.vertices || this.vertices.length === 0 || !this.isEditing) {
       return;
     }
     ctx.save();

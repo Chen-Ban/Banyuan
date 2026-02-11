@@ -23,8 +23,9 @@ import {
 import { event2Point } from "@/utils/utils";
 import { ViewTreeUtils } from "@/core/utils/ViewTreeUtils";
 import { ViewAddonImpl } from "@/core/views/addon";
-import { ViewContent } from "@/core/views/View";
-import { Action, Cursor, ExtraData } from "@/core/views/addon/InteractionMapBuilder";
+import { ViewContent } from "@/core/views/View/View";
+import { Action, Cursor, ExtraData } from "@/core/views/View/InteractionMapBuilder";
+import Bounds from "@/core/graph/base/Bounds";
 
 export interface UseCanvasEventsOptions {
   app: App | null;
@@ -157,21 +158,15 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             selectionRectViewRef.current.updateSelect(mousDownPoint, point);
             const selectionRect = selectionRectViewRef.current.content[0];
             const viewsToActivate: View[] = [];
-            const allViews = ViewTreeUtils.flattenViewTree(scene).filter((view) => !isSelectBoxView(view));
+            const allViews = scene.children
             // 遍历所有视图，检查是否与框选矩形相交
             for (const view of allViews) {
-              let graphs = [view.content, view.layoutArea]
-                .flat()
-                .filter(Boolean)
-                .map((graph) => graph.copy());
-              for (const graph of graphs) {
-                // selectionBox就是基于原点的，所以selectionRect不需要转换到世界坐标
-                // 只需要将graph转换到世界坐标就能统一坐标了
-                const intersection = selectionRect.intersect(graph.transform(view.getWorldMatrix()));
-                if (intersection.length > 0) {
-                  viewsToActivate.push(view);
-                  break;
-                }
+              let graph = view.style.overflow !== 'visible' ?
+                Rectangle.fromBounds(view.viewport ?? Bounds.empty()) :
+                Rectangle.fromBounds(view.layoutArea ?? Bounds.empty())
+              const intersection = selectionRect.intersect(graph.transform(view.getWorldMatrix()));
+              if (intersection.length > 0) {
+                viewsToActivate.push(view);
               }
             }
 
@@ -289,7 +284,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             const worldBottomLeft = worldMatrix.multiply(relativeBottomLeft);
             // 移动输入框到该位置下方
             const input = inputRef.current;
-            const layoutBounds = indicateView.layoutArea?.bounds;
+            const layoutBounds = indicateView.layoutArea;
             if (input && layoutBounds) {
               input.style.left = `${worldBottomLeft.x}px`;
               input.style.top = `${worldBottomLeft.y}px`;
@@ -410,7 +405,6 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             graph = new Line(new Point3(0, 0, 0), end, Style.DEFAULT);
           } else if (graphType === "Circle") {
             const { radius } = constructorParams;
-
             graph = new Circle(new Point3(radius, radius, 0), radius || 50, Style.DEFAULT);
           } else if (graphType === "Rectangle") {
             const { width, height } = constructorParams;
@@ -419,7 +413,12 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
           }
 
           if (graph) {
-            newView = new GraphView(graph).translate(x, y, 0);
+            newView = new GraphView(graph, {
+              style: {
+                width: graph.bounds.width,
+                height: graph.bounds.height
+              }
+            }).translate(x, y, 0);
           }
         } else if (viewType === "TextView") {
           const { text } = constructorParams;
@@ -442,6 +441,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
         if (newView) {
           scene.addChild(newView);
           scene.select(newView);
+          console.log(scene);
         }
       } catch (error) {
         console.error("拖拽创建组件失败:", error);

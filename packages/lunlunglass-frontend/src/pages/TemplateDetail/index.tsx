@@ -25,7 +25,7 @@ const TemplateDetail = () => {
     []
   );
 
-  const { app, Banvas } = useBanvas([], banvasOptions);
+  const { Banvas } = useBanvas([], banvasOptions);
 
   const handleBack = () => {
     navigate("/template");
@@ -44,9 +44,6 @@ const TemplateDetail = () => {
           <ComponentPalette />
           <div className={styles.canvasSection}>
             <div className={styles.canvasWrapper}>{Banvas}</div>
-            <div className={styles.canvasInfo}>
-              <p>应用实例: {app ? "已创建" : "未创建"}</p>
-            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,6 @@
 import { Point3 } from "@/index.backend";
-import View, { ViewContent } from "../View";
-import { ViewAddonImpl } from "./index";
+import View, { ViewContent } from "./View";
+import { ViewAddonImpl } from "../addon/index";
 
 export enum Cursor {
   // 基本值

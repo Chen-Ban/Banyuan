@@ -2,7 +2,7 @@ import Bounds from "@/core/graph/base/Bounds";
 import Rectangle from "@/core/graph/combined/Polygon/Rectangle";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
-import { Action, Cursor, cursorMap, ExtraData } from "./InteractionMapBuilder";
+import { Action, Cursor, cursorMap, ExtraData } from "../View/InteractionMapBuilder";
 import { Circle, Line } from "@/index.backend";
 
 /**
@@ -23,13 +23,13 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
   public rotate: [Line, Circle];
 
   // 基础参数（用于推导 region）
-  private contentBounds: Bounds
+  private viewport: Bounds
   private handleSize: number = 8;
 
   constructor(
-    contentBounds:Bounds,
+    viewport:Bounds,
   ) {
-    this.contentBounds = contentBounds
+    this.viewport = viewport
     this.region = this.computeRegion();
     this.handles = this.createHandles(this.region);
     this.rotate = this.createRotate();
@@ -71,7 +71,7 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
 
   // 扩展包围框使之包含原点
   private computeRegion(): Rectangle {
-    return Rectangle.fromBounds(this.contentBounds.copy().expandToInclude(0,0))
+    return Rectangle.fromBounds(this.viewport.copy().expandToInclude(0,0))
   }
 
   public setSize(width: number, height: number): BoundingBoxAddonImpl {
@@ -119,7 +119,7 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
    * 复制边界框插件
    */
   copy(): BoundingBoxAddonImpl {
-    const boudingBox = new BoundingBoxAddonImpl(this.contentBounds);
+    const boudingBox = new BoundingBoxAddonImpl(this.viewport);
     boudingBox.region = this.region.copy()
     boudingBox.rotate = this.rotate.map(grph=>grph.copy()) as [Line, Circle]
     boudingBox.handles = this.handles.map(graph=>graph.copy())

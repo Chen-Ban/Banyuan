@@ -1,11 +1,13 @@
 import BaseCamera, { BaseCameraOptions } from './BaseCamera'
-import {Matrix4, Vector3} from '../math'
+import { Matrix4, Vector3 } from '../math'
 
 export interface PerspectiveCameraOptions extends BaseCameraOptions {
     fov?: number
     aspect?: number
     width?: number
     height?: number
+    near?: number
+    far?: number
 }
 
 export default class PerspectiveCamera extends BaseCamera {
@@ -16,12 +18,19 @@ export default class PerspectiveCamera extends BaseCamera {
 
     constructor(options: PerspectiveCameraOptions = {}) {
         super(options)
-        
+
         this._fov = options.fov ?? Math.PI / 4 // 45度
         this._width = options.width ?? 800
         this._height = options.height ?? 600
         this._aspect = options.aspect ?? (this._width / this._height)
-        
+        // 透视相机才真正让 near/far 对外可配置
+        if (options.near != null) {
+            this._near = options.near
+        }
+        if (options.far != null) {
+            this._far = options.far
+        }
+
         this.updateMatrices()
     }
 
@@ -237,18 +246,18 @@ export default class PerspectiveCamera extends BaseCamera {
 
         const worldVec = new Vector3(point[0], point[1], point[2])
         const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
-        
+
         // 透视除法
         if (Math.abs(clipPos.z) < 1e-10) return false
-        
+
         const ndcX = clipPos.x / clipPos.z
         const ndcY = clipPos.y / clipPos.z
         const ndcZ = clipPos.z / clipPos.z
-        
+
         // 检查是否在NDC立方体内
-        return ndcX >= -1 && ndcX <= 1 && 
-               ndcY >= -1 && ndcY <= 1 && 
-               ndcZ >= -1 && ndcZ <= 1
+        return ndcX >= -1 && ndcX <= 1 &&
+            ndcY >= -1 && ndcY <= 1 &&
+            ndcZ >= -1 && ndcZ <= 1
     }
 
     // 检查球体是否在视锥体内
@@ -259,18 +268,18 @@ export default class PerspectiveCamera extends BaseCamera {
 
         const worldVec = new Vector3(center[0], center[1], center[2])
         const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
-        
+
         // 透视除法
         if (Math.abs(clipPos.z) < 1e-10) return false
-        
+
         const ndcX = clipPos.x / clipPos.z
         const ndcY = clipPos.y / clipPos.z
         const ndcZ = clipPos.z / clipPos.z
-        
+
         // 检查球体是否与NDC立方体相交
-        return ndcX >= -1 - radius && ndcX <= 1 + radius && 
-               ndcY >= -1 - radius && ndcY <= 1 + radius && 
-               ndcZ >= -1 - radius && ndcZ <= 1 + radius
+        return ndcX >= -1 - radius && ndcX <= 1 + radius &&
+            ndcY >= -1 - radius && ndcY <= 1 + radius &&
+            ndcZ >= -1 - radius && ndcZ <= 1 + radius
     }
 
     // 实现抽象方法：更新投影矩阵

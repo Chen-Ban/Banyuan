@@ -1,11 +1,11 @@
-import View, { ViewOptions, ViewContent } from "../View";
+import View, { ViewOptions, ViewContent } from "../View/View";
 import { Graph } from "../../graph";
 import { VIEWTYPE } from "@/core/constants";
 import { Point3, Vector3 } from "../../math";
 import { ViewAddonImpl } from "../addon";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { InteractionMapBuilder } from "../addon";
-import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
+import { Action, Cursor, ExtraData } from "../View/InteractionMapBuilder";
 import Bounds from "@/core/graph/base/Bounds";
 
 // 图形视图选项接口
@@ -25,14 +25,10 @@ export default class GraphView extends View {
     // 将graph作为content传递给父类构造函数
     super({ ...options });
     this.content = [graph];
-    this.initBoundingBox();
-    this.initViewport();
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    if (this.content) {
-      this.content[0].render(ctx);
-    }
+    this.content.forEach(graph => graph.render(ctx))
   }
 
   public getContentBounds(): Bounds {
@@ -44,7 +40,7 @@ export default class GraphView extends View {
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   } {
-    const relativePoint = this.getWorldMatrix().multiply(p)
+    const relativePoint = this.getMVPMatrix().inverse().multiply(p)
     const builder = new InteractionMapBuilder();
 
     const ctx = getGlobalCanvasContext()?.getBufferContext();
@@ -85,7 +81,6 @@ export default class GraphView extends View {
 
   public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
     this.content[0].resize(fixedPoint, dynamicPoint, vector);
-    this.initBoundingBox();
     const referenceVector = dynamicPoint.subtract(fixedPoint)
     if (referenceVector.x < 0) {
       this.matrix.translate(vector.x, 0, 0)
@@ -108,7 +103,11 @@ export default class GraphView extends View {
     newView.id = this.id;
     newView.properties = { ...this.properties };
     newView.data = { ...this.data };
-    newView.style = this.style.copy();
+    newView.style = {
+      ...this.style,
+      content: this.style.content?.map(style => style.copy()),
+      layoutArea: this.style.layoutArea?.copy()
+    };
     newView.selected = this.selected;
     newView.actived = this.actived;
     newView.freezed = this.freezed;

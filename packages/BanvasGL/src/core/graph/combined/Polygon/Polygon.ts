@@ -54,7 +54,7 @@ export default class Polygon extends CombinedGraph {
       this.addGraph(line);
     }
     // 重建后刷新组合bounds
-    this.setBounds(this.calculateBounds());
+    this.bounds = this.updateBounds();
   }
 
   /**
@@ -160,7 +160,7 @@ export default class Polygon extends CombinedGraph {
     if (this.vertices.length < 2) {
       return;
     }
-    const bounds = this.getBounds();
+    const bounds = this.bounds;
 
     this.style.applyToContext(ctx, bounds.width, bounds.height);
 
