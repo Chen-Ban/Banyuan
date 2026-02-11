@@ -1,5 +1,3 @@
-import { VIEWTYPE, GRAPHTYPE } from "../constants";
-import View from "../views/View";
 import Scene from "../scene/Scene";
 import Matrix4 from "../math/Matrix4";
 import { Point3, Vector3 } from "../math";
@@ -81,7 +79,7 @@ export default class Serializer {
     includeFunctions: false,
     includePrivate: false,
     handleCircularRefs: true,
-    maxDepth: 29,// 在实际使用后判断多少层级合理
+    maxDepth: 29,// 在实际使用后判断多少层级合理，最好不要做限制
   };
 
   private constructor() {
@@ -402,7 +400,6 @@ export default class Serializer {
   }
 
   // ========== 具体类型的序列化方法 ==========
-
 
   /**
    * 序列化Scene对象

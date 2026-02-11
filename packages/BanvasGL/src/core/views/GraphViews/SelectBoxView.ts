@@ -23,7 +23,7 @@ export default class SelectBoxView extends GraphView {
     const selectionFillStyle = FillStyle.fromRGBA(0, 0, 144, 0.1);
     const selectionStyle = new Style(selectionFillStyle, selectionStrokeStyle);
     const selectionRect = new Rectangle(0, 0, 0, 0, selectionStyle);
-    
+
     super(selectionRect, options);
     // 框选视图不应该被激活或选中
     this.actived = false;
@@ -58,12 +58,10 @@ export default class SelectBoxView extends GraphView {
     const maxY = Math.max(anchorPoint.y, dynamicPoint.y);
     const width = maxX - minX;
     const height = maxY - minY;
-    
+
     const rectGraph = this.content[0] as Rectangle;
     rectGraph.setPosition(minX, minY);
     rectGraph.setSize(width, height);
-    this.initBoundingBox();
-    this.initViewport();
   }
 
   public copy(): SelectBoxView {
@@ -74,7 +72,11 @@ export default class SelectBoxView extends GraphView {
     newView.id = this.id;
     newView.properties = { ...this.properties };
     newView.data = { ...this.data };
-    newView.style = this.style.copy();
+    newView.style = {
+      ...this.style,
+      content: this.style.content?.map(style => style.copy()),
+      layoutArea: this.style.layoutArea?.copy()
+    };
     newView.selected = this.selected;
     newView.actived = this.actived;
     newView.freezed = this.freezed;

@@ -151,6 +151,7 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
             if (scene) {
               const allViews = ViewTreeUtils.flattenViewTree(scene);
               const editableViews = allViews.filter((view) => isTextView(view));
+              // TODO：根据位置来排序
 
               if (editableViews.length > 0) {
                 const currentIndex = editableViews.findIndex((view) => view === selectedView);
@@ -169,7 +170,7 @@ export function useInputEvents({ inputRef, app }: UseInputEventsOptions) {
                     const worldMatrix = nextView.getWorldMatrix();
                     const relativeBottomLeft = new Point3(bounds.x, bounds.y + bounds.height, 0);
                     const worldBottomLeft = worldMatrix.multiply(relativeBottomLeft);
-                    const layoutBounds = nextView.layoutArea?.bounds;
+                    const layoutBounds = nextView.layoutArea;
 
                     if (layoutBounds) {
                       input.style.left = `${worldBottomLeft.x}px`;

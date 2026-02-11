@@ -7,7 +7,7 @@ export { default as VertexAddonImpl } from "./VertexAddon";
 export {
   InteractionMapBuilder,
   type InteractionMap,
-} from "./InteractionMapBuilder";
+} from "../View/InteractionMapBuilder";
 
 // 导出类型联合
 import type { BoundingBoxAddon } from "./BoundingBoxAddon";

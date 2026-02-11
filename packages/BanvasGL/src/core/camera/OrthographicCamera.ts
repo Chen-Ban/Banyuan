@@ -7,6 +7,9 @@ export interface OrthographicCameraOptions extends BaseCameraOptions {
     right?: number
     bottom?: number
     top?: number
+    // 为后续 3D 正交相机做准备，允许配置近远裁剪平面
+    near?: number
+    far?: number
 }
 
 export default class OrthographicCamera extends BaseCamera {
@@ -23,8 +26,16 @@ export default class OrthographicCamera extends BaseCamera {
         this._bottom = options.bottom ?? -10
         this._top = options.top ?? 10
 
+        // 如果传入 near/far，则覆盖基类中的默认近远平面
+        if (options.near != null) {
+            this._near = options.near
+        }
+        if (options.far != null) {
+            this._far = options.far
+        }
+
         this.updateMatrices()
-        
+
     }
 
     // 边界相关方法
@@ -106,12 +117,12 @@ export default class OrthographicCamera extends BaseCamera {
     setViewportSize(width: number, height: number): this {
         const centerX = (this._left + this._right) / 2
         const centerY = (this._bottom + this._top) / 2
-        
+
         this._left = centerX - width / 2
         this._right = centerX + width / 2
         this._bottom = centerY - height / 2
         this._top = centerY + height / 2
-        
+
         this._dirty = true
         return this
     }
@@ -121,10 +132,10 @@ export default class OrthographicCamera extends BaseCamera {
         const centerX = (this._left + this._right) / 2
         const height = this._top - this._bottom
         const width = height * aspect
-        
+
         this._left = centerX - width / 2
         this._right = centerX + width / 2
-        
+
         this._dirty = true
         return this
     }
@@ -135,12 +146,12 @@ export default class OrthographicCamera extends BaseCamera {
         const centerY = (this._bottom + this._top) / 2
         const width = (this._right - this._left) * factor
         const height = (this._top - this._bottom) * factor
-        
+
         this._left = centerX - width / 2
         this._right = centerX + width / 2
         this._bottom = centerY - height / 2
         this._top = centerY + height / 2
-        
+
         this._dirty = true
         return this
     }
@@ -151,7 +162,7 @@ export default class OrthographicCamera extends BaseCamera {
         this._right += deltaX
         this._bottom += deltaY
         this._top += deltaY
-        
+
         this._dirty = true
         return this
     }
@@ -162,17 +173,17 @@ export default class OrthographicCamera extends BaseCamera {
         const contentHeight = bounds.top - bounds.bottom
         const contentCenterX = (bounds.left + bounds.right) / 2
         const contentCenterY = (bounds.bottom + bounds.top) / 2
-        
+
         // 计算需要的视口尺寸（包含padding）
         const viewportWidth = contentWidth + padding * 2
         const viewportHeight = contentHeight + padding * 2
-        
+
         // 设置视口
         this._left = contentCenterX - viewportWidth / 2
         this._right = contentCenterX + viewportWidth / 2
         this._bottom = contentCenterY - viewportHeight / 2
         this._top = contentCenterY + viewportHeight / 2
-        
+
         this._dirty = true
         return this
     }
@@ -185,25 +196,25 @@ export default class OrthographicCamera extends BaseCamera {
 
         const worldVec = new Vector3(point[0], point[1], point[2])
         const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
-        
+
         // 正交投影不需要透视除法
         const ndcX = clipPos.x
         const ndcY = clipPos.y
         const ndcZ = clipPos.z
-        
+
         // 检查是否在NDC立方体内
-        return ndcX >= -1 && ndcX <= 1 && 
-               ndcY >= -1 && ndcY <= 1 && 
-               ndcZ >= -1 && ndcZ <= 1
+        return ndcX >= -1 && ndcX <= 1 &&
+            ndcY >= -1 && ndcY <= 1 &&
+            ndcZ >= -1 && ndcZ <= 1
     }
 
     // 检查矩形是否在视口内
     isRectInViewport(rect: { left: number, right: number, bottom: number, top: number }): boolean {
         // 检查矩形是否与视口相交
-        return !(rect.right < this._left || 
-                rect.left > this._right || 
-                rect.top < this._bottom || 
-                rect.bottom > this._top)
+        return !(rect.right < this._left ||
+            rect.left > this._right ||
+            rect.top < this._bottom ||
+            rect.bottom > this._top)
     }
 
     // 获取视口边界框
@@ -224,20 +235,20 @@ export default class OrthographicCamera extends BaseCamera {
 
         const worldVec = new Vector3(worldPos[0], worldPos[1], worldPos[2])
         const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
-        
+
         // 正交投影不需要透视除法
         const ndcX = clipPos.x
         const ndcY = clipPos.y
-        
+
         // 检查是否在视口内
         if (ndcX < -1 || ndcX > 1 || ndcY < -1 || ndcY > 1) {
             return null
         }
-        
+
         // 转换为视口坐标
         const viewportX = this._left + (ndcX + 1) * 0.5 * (this._right - this._left)
         const viewportY = this._bottom + (ndcY + 1) * 0.5 * (this._top - this._bottom)
-        
+
         return [viewportX, viewportY]
     }
 
@@ -250,16 +261,16 @@ export default class OrthographicCamera extends BaseCamera {
         // 转换为NDC坐标
         const ndcX = (viewportPos[0] - this._left) / (this._right - this._left) * 2 - 1
         const ndcY = (viewportPos[1] - this._bottom) / (this._top - this._bottom) * 2 - 1
-        
+
         // 创建NDC坐标
         const ndcPos = new Vector3(ndcX, ndcY, depth)
-        
+
         // 计算视图投影矩阵的逆矩阵
         const invViewProjection = this._viewProjectionMatrix.inverse()
-        
+
         // 应用逆矩阵
         const worldPos = this.applyMatrixToVector(ndcPos, invViewProjection)
-        
+
         return [worldPos.x, worldPos.y, worldPos.z]
     }
 
@@ -286,7 +297,7 @@ export default class OrthographicCamera extends BaseCamera {
             bottom: this._bottom,
             top: this._top,
             near: this._near,
-            far: this._far
+            far: this._far,
         })
     }
 

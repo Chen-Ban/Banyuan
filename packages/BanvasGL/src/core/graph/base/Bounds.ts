@@ -54,23 +54,23 @@ export default class Bounds {
    * 扩展边界框以包含指定点
    */
   expandToInclude(x: number, y: number): Bounds {
-    const minX = Math.min(this.x,this.right, x);
-    const maxX = Math.max(this.x,this.right, x);
-    const minY = Math.min(this.y,this.bottom, y);
-    const maxY = Math.max(this.y,this.bottom, y);
-    
-    if(this.x < this.right){
+    const minX = Math.min(this.x, this.right, x);
+    const maxX = Math.max(this.x, this.right, x);
+    const minY = Math.min(this.y, this.bottom, y);
+    const maxY = Math.max(this.y, this.bottom, y);
+
+    if (this.x < this.right) {
       this.x = minX;
       this.width = maxX - minX;
-    }else{
+    } else {
       this.x = maxX;
       this.width = minX - maxX;
     }
 
-    if(this.y < this.bottom){
+    if (this.y < this.bottom) {
       this.y = minY;
       this.height = maxY - minY;
-    }else{
+    } else {
       this.y = maxY;
       this.height = minY - maxY;
     }
@@ -120,7 +120,7 @@ export default class Bounds {
    * @description 从点集合创建边界框，返回一个包含所有点集的最小边界框。
    * @description 默认为向右下扩展。
    */
-  static fromPoints(points: Point3[],orientationX:boolean=true,orientationY:boolean=false): Bounds {
+  static fromPoints(points: Point3[], orientationX: boolean = true, orientationY: boolean = true): Bounds {
     if (points.length === 0) {
       return Bounds.empty();
     }
@@ -140,16 +140,16 @@ export default class Bounds {
     let y = minY
     let width = maxX - minX
     let height = maxY - minY
-    if(!orientationX){
+    if (!orientationX) {
       x = maxX
       width = -width
     }
-    if(!orientationY){
+    if (!orientationY) {
       y = maxY
       height = -height
     }
 
-    return new Bounds(x,y,width,height);
+    return new Bounds(x, y, width, height);
   }
 
   /**

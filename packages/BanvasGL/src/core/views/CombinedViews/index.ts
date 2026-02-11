@@ -1,12 +1,12 @@
 import { VIEWTYPE } from "@/core/constants";
 import { Graph, Rectangle } from "../../graph";
-import View, { ViewOptions, ViewContent } from "../View";
+import View, { ViewOptions, ViewContent } from "../View/View";
 import { Matrix4, Point3, Vector3 } from "../../math";
 import Bounds from "../../graph/base/Bounds";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { ViewAddonImpl } from "../addon";
 import { InteractionMapBuilder } from "../addon";
-import { Action, Cursor, ExtraData } from "../addon/InteractionMapBuilder";
+import { Action, Cursor, ExtraData } from "../View/InteractionMapBuilder";
 
 // 组合视图选项接口
 export interface CombinedViewOptions extends Omit<ViewOptions, "content"> {
@@ -30,8 +30,6 @@ export default class CombinedView extends View {
       this.initMatrix();
     }
     this.initRef();
-    this.initBoundingBox();
-    this.initViewport();
   }
 
   public interact(p: Point3): {
@@ -39,7 +37,7 @@ export default class CombinedView extends View {
     content: ViewContent | ViewAddonImpl | null;
     extraData: ExtraData | null;
   } {
-    const relativePoint = this.getWorldMatrix().multiply(p)
+    const relativePoint = this.getMVPMatrix().inverse().multiply(p)
     const builder = new InteractionMapBuilder();
 
     const ctx = getGlobalCanvasContext()?.getBufferContext();
@@ -81,9 +79,7 @@ export default class CombinedView extends View {
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    if (this.content[0]) {
-      this.content[0].render(ctx);
-    }
+    this.content.forEach(graph => graph.render(ctx))
   }
 
   initRef() {
@@ -104,7 +100,7 @@ export default class CombinedView extends View {
     const points = this.children.map(child => {
       // view的包围盒插件是要包含容器起点的，至少比content包围盒大
       const boundingRect = Rectangle.fromBounds(child.boundingBox?.getBounds() ?? Bounds.empty())
-      return boundingRect.vertices.map(point => child.getWorldMatrix().multiply(point))
+      return boundingRect.vertices.map(point => child.getWorldMatrix(this).multiply(point))
     }).flat()
     return Bounds.fromPoints(points)
   }
@@ -130,7 +126,11 @@ export default class CombinedView extends View {
     newView.id = this.id;
     newView.properties = { ...this.properties };
     newView.data = { ...this.data };
-    newView.style = this.style.copy();
+    newView.style = {
+      ...this.style,
+      content: this.style.content?.map(style => style.copy()),
+      layoutArea: this.style.layoutArea?.copy()
+    };
     newView.selected = this.selected;
     newView.actived = this.actived;
     newView.freezed = this.freezed;

@@ -1,4 +1,4 @@
-import View from "@/core/views/View";
+import View from "@/core/views/View/View";
 import Scene from "@/core/scene/Scene";
 import { TextView } from "../views";
 
