@@ -1,9 +1,9 @@
 import Bounds from "@/core/graph/base/Bounds";
 import Rectangle from "@/core/graph/combined/Polygon/Rectangle";
 import Style from "@/core/style/Style";
-import { Point3 } from "@/core/math";
+import { Point3, Vector3 } from "@/core/math";
 import { Action, Cursor, cursorMap, ExtraData } from "../View/InteractionMapBuilder";
-import { Circle, Line } from "@/index.backend";
+import { Circle, Color, Line, StrokeStyle } from "@/index.backend";
 
 /**
  * 边界框插件
@@ -27,7 +27,7 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
   private handleSize: number = 8;
 
   constructor(
-    viewport:Bounds,
+    viewport: Bounds,
   ) {
     this.viewport = viewport
     this.region = this.computeRegion();
@@ -59,24 +59,29 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
 
   private createRotate(): [Line, Circle] {
     const center = this.region.getCenter();
-    const halfHeight = this.region.bounds.height / 2;
+    const up = (new Point3(0, 0, 0)).subtract(new Point3(0, center.y, 0)).normalized
+    const startPoint = new Point3(center.x, 0, 0);
+    const endPoint = startPoint.copy().add(up.copy().scale(15))
+    const circleCenter = startPoint.copy().add(up.copy().scale(20))
     const line = new Line(
-      new Point3(center.x, center.y - halfHeight, 0),
-      new Point3(center.x, center.y - halfHeight - 15, 0),
+      startPoint,
+      endPoint,
       new Style().setStrokeWidth(1)
     );
-    const circle = new Circle(new Point3(center.x, center.y - halfHeight - 20, 0), 5, new Style().setStrokeWidth(1));
+    const circle = new Circle(circleCenter, 5, new Style().setStrokeWidth(1));
     return [line, circle];
   }
 
   // 扩展包围框使之包含原点
   private computeRegion(): Rectangle {
-    return Rectangle.fromBounds(this.viewport.copy().expandToInclude(0,0))
+    return Rectangle.fromBounds(this.viewport.copy().expandToInclude(0, 0))
   }
 
   public setSize(width: number, height: number): BoundingBoxAddonImpl {
-    this.region.setSize(width,height)
+
+    this.region.setSize(width, height)
     this.handles = this.createHandles(this.region);
+    this.rotate = this.createRotate()
     return this;
   }
 
@@ -98,8 +103,7 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
       ctx.strokeStyle = "#00ff00";
       ctx.lineWidth = 1;
       ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+      this.region.render(ctx)
       ctx.stroke();
 
       ctx.fillStyle = "#00ff00";
@@ -121,8 +125,8 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
   copy(): BoundingBoxAddonImpl {
     const boudingBox = new BoundingBoxAddonImpl(this.viewport);
     boudingBox.region = this.region.copy()
-    boudingBox.rotate = this.rotate.map(grph=>grph.copy()) as [Line, Circle]
-    boudingBox.handles = this.handles.map(graph=>graph.copy())
+    boudingBox.rotate = this.rotate.map(grph => grph.copy()) as [Line, Circle]
+    boudingBox.handles = this.handles.map(graph => graph.copy())
     return boudingBox
   }
   /**

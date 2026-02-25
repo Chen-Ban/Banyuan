@@ -321,6 +321,7 @@ export default class _Scene {
   /**
    * 合并多个视图
    * 计算合并后view的matrix，并调整原view的matrix
+   * TODO：合并时需要让所有view的bounds保持一致，不一致会导致resize出错
    */
   public static mergeViews(views: View[]): CombinedView {
     if (views.length === 0) {

@@ -94,9 +94,6 @@ export default class SelectBoxView extends GraphView {
     if (this.viewport) {
       newView.viewport = this.viewport.copy();
     }
-    if (this.controlPoints) {
-      newView.controlPoints = this.controlPoints.copy();
-    }
     if (this.boundingBox) {
       newView.boundingBox = this.boundingBox.copy();
     }

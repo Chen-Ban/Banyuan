@@ -130,7 +130,7 @@ export default class CombinedGraph extends Graph {
     if (samplePoints.length === 0) {
       return Bounds.empty();
     }
-    return Bounds.fromPoints(samplePoints, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds.height > 0)
+    return Bounds.fromPoints(samplePoints, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds?.height > 0)
   }
 
   isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
@@ -142,7 +142,6 @@ export default class CombinedGraph extends Graph {
    */
   public addGraph(graph: Graph): CombinedGraph {
     this.graphs.push(graph);
-    this.bounds = this.updateBounds()
     return this;
   }
 

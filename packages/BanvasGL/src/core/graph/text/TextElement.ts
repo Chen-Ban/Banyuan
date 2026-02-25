@@ -223,8 +223,8 @@ export default abstract class TextElement extends Graph {
     return Rectangle.fromBounds(this.bounds ?? this.updateBounds()).intersect(other)
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void { 
-    
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    this.options.size = Math.max(0, this.options.size + resizeVector.length * Math.sign(dynamicPoint.subtract(fixedPoint).dot(resizeVector)))
   }
 
   /**

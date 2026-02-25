@@ -34,12 +34,11 @@ export default class Polygon extends CombinedGraph {
   /**
    * 从顶点构建多边形
    */
-  protected buildPolygonFromVertices(): void {
+  protected buildPolygonFromVertices(orientationX?: boolean, orientationY?: boolean): void {
     this.graphs = [];
     if (this.vertices.length < 2) {
       return;
     }
-
     // 创建边线
     for (let i = 0; i < this.vertices.length; i++) {
       const current = this.vertices[i];
@@ -53,8 +52,7 @@ export default class Polygon extends CombinedGraph {
       const line = new Line(current, next, this.style);
       this.addGraph(line);
     }
-    // 重建后刷新组合bounds
-    this.bounds = this.updateBounds();
+    this.bounds = this.updateBounds(orientationX, orientationY)
   }
 
   /**

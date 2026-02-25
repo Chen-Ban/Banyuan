@@ -15,11 +15,11 @@ import { isNonPrintableTextElement } from "../../graph/text/TextElement";
 // 文本视图选项接口
 export interface TextViewOptions extends Omit<ViewOptions, "content"> {
   verticalAlign?: VERTICALALIGN;
-  underLine?: Rectangle;
-  deleteLine?: Rectangle;
+  underLine?: boolean;
+  deleteLine?: boolean;
   selection?: Selection;
-  fixedHeight?: Boolean;
-  fixedWidth?: Boolean;
+  fixedHeight?: boolean;
+  fixedWidth?: boolean;
   fixedIndex?: TextIndex;
   dynamicIndex?: TextIndex;
 }
@@ -32,11 +32,11 @@ export default class TextView extends View {
   public children: View[] = [];
 
   public content: TextParagraph[];
-  public underLine: Rectangle | undefined;
-  public deleteLine: Rectangle | undefined;
+  public underLine: boolean | undefined;
+  public deleteLine: boolean | undefined;
   public selection: Selection;
-  public fixedHeight: Boolean;
-  public fixedWidth: Boolean;
+  public fixedHeight: boolean;
+  public fixedWidth: boolean;
   public verticalAlign: VERTICALALIGN = VERTICALALIGN.TOP;
 
   constructor(text: TextParagraph[], options: TextViewOptions = {}) {
@@ -48,8 +48,8 @@ export default class TextView extends View {
     this.underLine = options?.underLine;
     this.deleteLine = options?.deleteLine;
     this.selection = new Selection(options?.fixedIndex, options?.dynamicIndex);
-    this.fixedHeight = !!options?.fixedHeight;
-    this.fixedWidth = !!options?.fixedWidth;
+    this.fixedHeight = options?.fixedHeight ?? false;// 初始化非固定高度
+    this.fixedWidth = options?.fixedWidth ?? true;// 初始化固定宽度
     this.verticalAlign = options?.verticalAlign ?? VERTICALALIGN.TOP;
 
     // 执行布局
@@ -69,6 +69,10 @@ export default class TextView extends View {
 
     // 渲染选择区域
     this.selection.render(ctx);
+
+    // TODO：渲染装饰区域（优先级较低）
+    // 1、渲染下划线
+    // 2、渲染删除线
   }
 
   /**
@@ -79,26 +83,16 @@ export default class TextView extends View {
   public constraintPoint(p: Point3): Point3 {
     const paragraRects = this.content
       .map((paragraph) => paragraph.bounds)
-      .map((bounds) => new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height));
+      .map((bounds) => Rectangle.fromBounds(bounds));
     if (paragraRects.length === 0) return p;
     const closets = paragraRects.map((rect) => rect.getClosestPoint(p));
     const minDistance = Math.min(...closets.map((closet) => closet.distance));
     return closets.find((closet) => closet.distance === minDistance)!.closestPoint;
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
-    // 更新layoutArea，再重新布局，不变换内部文字。异形文本容器请使用组合容器实现
-    if (!this.layoutArea) throw new Error("请布局后再操作文本容器");
-    const { width, height } = this.layoutArea
-    this.layoutArea.setSize(width + vector.x, height + vector.y)
-    this.layout();
-    const referenceVector = dynamicPoint.subtract(fixedPoint)
-    if (referenceVector.x < 0) {
-      this.matrix.translate(vector.x, 0, 0)
-    }
-    if (referenceVector.y < 0) {
-      this.matrix.translate(0, vector.y, 0)
-    }
+  public resize(fixed: [number, Point3], dynamic: [number, Point3], vector: Vector3, needResizeContent: boolean = false) {
+    super.resize(fixed, dynamic, vector, needResizeContent)
+    this.layout()
   }
 
   /**
@@ -435,7 +429,7 @@ export default class TextView extends View {
    * @param p 相对坐标
    * @param needConstraint 是否需要约束到段落的边界上
    */
-  private point2TextElement(p: Point3, needConstraint: Boolean = false): TextElement | null {
+  private point2TextElement(p: Point3, needConstraint: boolean = false): TextElement | null {
     if (!this.layoutArea) return null;
     // 需不需要约束点
     const relativePoint = needConstraint ? this.constraintPoint(p) : p;

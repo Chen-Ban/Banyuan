@@ -318,7 +318,7 @@ export default class TextParagraph extends Graph {
   }
 
   public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
-    
+    this.texts.forEach(text => text.resize(fixedPoint, dynamicPoint, resizeVector))
   }
 }
 

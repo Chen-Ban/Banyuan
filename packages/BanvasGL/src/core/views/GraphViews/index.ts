@@ -2,7 +2,7 @@ import View, { ViewOptions, ViewContent } from "../View/View";
 import { Graph } from "../../graph";
 import { VIEWTYPE } from "@/core/constants";
 import { Point3, Vector3 } from "../../math";
-import { ViewAddonImpl } from "../addon";
+import { VertexAddonImpl, ViewAddonImpl } from "../addon";
 import { getGlobalCanvasContext } from "../../renderer/CanvasContext";
 import { InteractionMapBuilder } from "../addon";
 import { Action, Cursor, ExtraData } from "../View/InteractionMapBuilder";
@@ -20,15 +20,23 @@ export default class GraphView extends View {
   public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW;
   public content: [Graph];
   public children: View[] = [];
+  public controlPoints: VertexAddonImpl[] | null = null;
 
   constructor(graph: Graph, options: GraphViewOptions = {}) {
     // 将graph作为content传递给父类构造函数
     super({ ...options });
     this.content = [graph];
+    // TODO：获取顶点插件
+    this.controlPoints = this.content.map(graph => {
+      const vertics = graph.controlPoints instanceof Float32Array ? Point3.fromArray(graph.controlPoints) : graph.controlPoints
+      return new VertexAddonImpl(vertics)
+    })
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
     this.content.forEach(graph => graph.render(ctx))
+    // TOREVIEW: 容器独有的插件应该怎么渲染
+    this.controlPoints?.forEach(addon => addon.render(ctx))
   }
 
   public getContentBounds(): Bounds {
@@ -48,9 +56,10 @@ export default class GraphView extends View {
 
     // 检查控制点
     if (this.actived && this.controlPoints) {
-      const extraData = this.controlPoints.interact(relativePoint);
-      if (extraData) {
-        return builder.add(this, this.controlPoints, extraData).build();
+      const extraDatas = this.controlPoints.map(addon => addon.interact(relativePoint))
+      const index = extraDatas.findIndex(data => data !== null)
+      if (index !== -1) {
+        return builder.add(this, this.controlPoints[index], extraDatas[index] as ExtraData).build();
       }
     }
 
@@ -59,12 +68,10 @@ export default class GraphView extends View {
       const hitContent =
         this.content[0].isPointInPath(relativePoint) || this.content[0].isPointOnCurve(relativePoint, 2);
       if (hitContent) {
-        return builder
-          .add(this, this.content, {
-            cursorStyle: Cursor.Move,
-            action: Action.MOVE,
-          })
-          .build();
+        return builder.add(this, this.content, {
+          cursorStyle: Cursor.Move,
+          action: Action.MOVE,
+        }).build();
       }
     }
 
@@ -77,18 +84,6 @@ export default class GraphView extends View {
     }
 
     return builder.build();
-  }
-
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
-    this.content[0].resize(fixedPoint, dynamicPoint, vector);
-    const referenceVector = dynamicPoint.subtract(fixedPoint)
-    if (referenceVector.x < 0) {
-      this.matrix.translate(vector.x, 0, 0)
-    }
-    if (referenceVector.y < 0) {
-      this.matrix.translate(0, vector.y, 0)
-    }
-
   }
 
   public editPoint(point: Point3, vector: Vector3): void {
@@ -119,7 +114,7 @@ export default class GraphView extends View {
       newView.viewport = this.viewport.copy();
     }
     if (this.controlPoints) {
-      newView.controlPoints = this.controlPoints.copy();
+      newView.controlPoints = this.controlPoints.map(addon => addon.copy());
     }
     if (this.boundingBox) {
       newView.boundingBox = this.boundingBox.copy();

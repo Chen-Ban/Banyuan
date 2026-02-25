@@ -58,6 +58,7 @@ export default class Rectangle extends Polygon {
       new Point3(x, y + this.height, 0),
     ];
     this.buildPolygonFromVertices();
+    this.updateBounds()
     return this;
   }
 
@@ -67,7 +68,17 @@ export default class Rectangle extends Polygon {
   public setSize(width: number, height: number): Rectangle {
     this.width = width;
     this.height = height;
+    const { x, y } = this.controlPoints[0]
+    this.vertices = [
+      new Point3(x, y, 0),
+      new Point3(x + this.width, y, 0),
+      new Point3(x + this.width, y + this.height, 0),
+      new Point3(x, y + this.height, 0),
+    ];
+
+    this.buildPolygonFromVertices(width > 0, height > 0);
     this.updateBounds(width > 0, height > 0)
+
     return this;
   }
 
