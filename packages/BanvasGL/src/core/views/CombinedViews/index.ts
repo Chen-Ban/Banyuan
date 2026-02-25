@@ -105,19 +105,6 @@ export default class CombinedView extends View {
     return Bounds.fromPoints(points)
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
-    for (const view of this.children) {
-      view.resize(fixedPoint, dynamicPoint, vector)
-    }
-    const referenceVector = dynamicPoint.subtract(fixedPoint)
-    if (referenceVector.x < 0) {
-      this.matrix.translate(vector.x, 0, 0)
-    }
-    if (referenceVector.y < 0) {
-      this.matrix.translate(0, vector.y, 0)
-    }
-  }
-
   public copy(): CombinedView {
     const newView = new CombinedView(this.children.map((view) => view.copy()));
 
@@ -140,9 +127,6 @@ export default class CombinedView extends View {
     // 复制插件
     if (this.viewport) {
       newView.viewport = this.viewport.copy();
-    }
-    if (this.controlPoints) {
-      newView.controlPoints = this.controlPoints.copy();
     }
     if (this.boundingBox) {
       newView.boundingBox = this.boundingBox.copy();

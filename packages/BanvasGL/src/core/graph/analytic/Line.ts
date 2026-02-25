@@ -197,7 +197,7 @@ export default class Line extends AnalyticGraph {
     const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
 
     for (const p of this.controlPoints) {
-      // 变化比例，TOFIX： 缩放比例应该和坐标无关（需要将referenceVector拆分成两个点，这样甚至不用判断，直接取固定点）
+      // 变化比例
       const scaleX = Math.abs(p.x - fixedPoint.x) / width;
       const scaleY = Math.abs(p.y - fixedPoint.y) / height;
 

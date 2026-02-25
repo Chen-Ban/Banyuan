@@ -45,17 +45,6 @@ export default class VideoView extends View {
     return new InteractionMapBuilder().build();
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3) {
-    this.content[0].resize(fixedPoint, dynamicPoint, vector);
-    const referenceVector = dynamicPoint.subtract(fixedPoint)
-    if (referenceVector.x < 0) {
-      this.matrix.translate(vector.x, 0, 0)
-    }
-    if (referenceVector.y < 0) {
-      this.matrix.translate(0, vector.y, 0)
-    }
-  }
-
   public copy(): VideoView {
     const newView = new VideoView(this.content[0]);
 

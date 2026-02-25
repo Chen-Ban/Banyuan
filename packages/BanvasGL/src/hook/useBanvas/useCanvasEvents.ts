@@ -76,7 +76,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
   );
 
   const handleMouseMoveWithAction = useCallback(
-    (scene: Scene, point: Point3, mousDownPoint: Point3) => {
+    (e: MouseEvent, scene: Scene, point: Point3, mousDownPoint: Point3) => {
       switch (actionRef.current) {
         case Action.MOVE: {
           const moveVector = point.subtract(lastPointRef.current || mousDownPoint);
@@ -126,20 +126,20 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
             const { resizeFixedIndex, resizeDynamicIndex } = extraDataRef.current;
             if (resizeDynamicIndex !== undefined && resizeFixedIndex !== undefined) {
               scene.getAllActived().forEach(view => {
-                const fixedPoint = view.boundingBox?.handles[resizeFixedIndex].getCenter();
-                const dynamicPoint = view.boundingBox?.handles[resizeDynamicIndex].getCenter();
-                if (!fixedPoint || !dynamicPoint) throw new Error("固定点或动态点不存在");
-                view.resize(fixedPoint, dynamicPoint, vector)
+                const fixedPoint = view.boundingBox?.handles[resizeFixedIndex].getCenter()
+                const dynamicPoint = view.boundingBox?.handles[resizeDynamicIndex].getCenter()
+                if (!fixedPoint || !dynamicPoint) throw new Error("固定点或活动点不存在")
+                view.resize([resizeFixedIndex, fixedPoint], [resizeDynamicIndex, dynamicPoint], vector, e.ctrlKey)
               })
             }
           }
           break;
         case Action.ROTATE: {
           canvasRef.current!.style.cursor = Cursor.Grabbing;
-          const bounds = indicateViewRef.current?.getBounds();
+          const bounds = indicateViewRef.current?.viewport;
 
           if (bounds && lastPointRef.current && indicateViewRef.current) {
-            const center = new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height).getCenter();
+            const center = Rectangle.fromBounds(bounds).getCenter();
             const inverseMatrix = indicateViewRef.current.getWorldMatrix().inverse();
             const lastVector = inverseMatrix.multiply(lastPointRef.current).subtract(center);
             const currentVector = inverseMatrix.multiply(point).subtract(center);
@@ -220,7 +220,7 @@ export function useCanvasEvents({ app, canvasRef, inputRef }: UseCanvasEventsOpt
       const mousDownPoint = mouseDownPointRef.current;
 
       if (mousDownPoint) {
-        handleMouseMoveWithAction(scene, point, mousDownPoint);
+        handleMouseMoveWithAction(e, scene, point, mousDownPoint);
       } else {
         handleMouseMoveHover(scene, point);
       }

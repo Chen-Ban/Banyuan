@@ -15,6 +15,29 @@ import { Point3, Vector3 } from "../../math";
 import { ExtraData } from "./InteractionMapBuilder";
 import Bounds from "../../graph/base/Bounds";
 
+const RESIZE_MATRIX_MAP = [
+  { x: true, y: true },  // 0: 同时移动x和y
+  { x: false, y: true }, // 1: 只移动y
+  { x: false, y: true }, // 2: 只移动y
+  { x: false, y: false }, // 3: 不移动
+  { x: false, y: false }, // 4: 不移动
+  { x: false, y: false }, // 5: 不移动
+  { x: true, y: false }, // 6: 只移动x
+  { x: true, y: false }, // 7: 只移动x
+];
+
+const RESIZE_SIZE_MAP = [
+  { width: true, height: true },
+  { width: false, height: true },
+  { width: true, height: true },
+  { width: true, height: false },
+
+  { width: true, height: true },
+  { width: false, height: true },
+  { width: true, height: true },
+  { width: true, height: false },
+]
+
 
 export interface InteractResult {
   view: View | null;
@@ -47,6 +70,7 @@ export interface ViewOptions<T extends object = any> {
   [funcName: string]: any;
 }
 
+
 export default abstract class View<T extends object = any> {
   // 基本属性
   public layer: number = 0;
@@ -68,7 +92,6 @@ export default abstract class View<T extends object = any> {
   public matrix: Matrix4 = Matrix4.identity();
 
   // 插件
-  public controlPoints: VertexAddonImpl | null = null;
   public boundingBox: BoundingBoxAddonImpl | null = null;
 
   // 视口
@@ -82,13 +105,7 @@ export default abstract class View<T extends object = any> {
   //抽象方法
   public abstract renderContent(ctx: CanvasRenderingContext2D): void;
   public abstract copy(): View;
-  public abstract resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3): void;
   public abstract interact(worldPoint: Point3): InteractResult
-
-  public editPoint(point: Point3, vector: Vector3) {
-    point.add(vector);
-    this.content.forEach(graph => graph.updateBounds())
-  }
 
   constructor(options: ViewOptions<T>) {
     this.id = options.id || this.generateId();
@@ -140,6 +157,60 @@ export default abstract class View<T extends object = any> {
 
   // 自定义属性（索引签名）
   [funcName: string]: any;
+
+  /**
+   * 尺寸变化方向由三个因素决定：
+   * 1. 视口当前尺寸方向（正/负）
+   * 2. 参考向量的方向（拖拽方向）
+   * 3. 传入向量的方向（预期变化方向）
+   */
+  private calulateDimensionDelta(dimension: number, reference: number, delta: number) {
+    return Math.sign(dimension * reference * delta) * Math.abs(delta);
+  }
+
+  private updateViewport(fixed: [number, Point3], dynamic: [number, Point3], vector: Vector3) {
+    const mvp = this.getMVPMatrix()
+    const relativeVector = mvp.inverse().multiply(vector)
+    const viewport = this.viewport
+    if (!viewport) throw new Error("视口丢失")
+    const referenceVector = dynamic[1].subtract(fixed[1])
+
+    const deltaX = this.calulateDimensionDelta(viewport.width || 1, referenceVector.x || 1, relativeVector.x)
+    const deltaY = this.calulateDimensionDelta(viewport.height || 1, referenceVector.y || 1, relativeVector.y)
+
+    // || 1是为了避免跨界是计算出错，保证按照delta变化
+    const canResize = RESIZE_SIZE_MAP[dynamic[0]]
+    const newWidth = viewport.width + Number(canResize.width) * deltaX
+    const newHeight = viewport.height + Number(canResize.height) * deltaY
+
+    this.viewport?.setSize(newWidth, newHeight)
+
+    this.boundingBox?.setSize(viewport.width, viewport.height)
+
+    // 修改matrix（由dynamicIndex决定）
+    const canTranslate = RESIZE_MATRIX_MAP[dynamic[0]];
+    const translateVector = mvp.multiply(new Vector3(
+      canTranslate.x ? -deltaX : 0,
+      canTranslate.y ? -deltaY : 0,
+      0
+    ))
+    this.translate(translateVector.x, translateVector.y, translateVector.z);
+  }
+
+  public resize(fixed: [number, Point3], dynamic: [number, Point3], vector: Vector3, needResizeContent?: boolean) {
+    // 修改视口(只会修改width和height，根据参考向量与vector的关系决定)
+    this.updateViewport(fixed, dynamic, vector)
+
+    // 修改子容器
+    this.children.forEach(view => {
+      view.resize(fixed, dynamic, vector, needResizeContent)
+    })
+
+    if (needResizeContent) {
+      // 修改内容
+      this.content.forEach(graph => graph.resize(fixed[1], dynamic[1], vector))
+    }
+  };
 
   // 渲染方法
   public render(): void {
@@ -210,7 +281,6 @@ export default abstract class View<T extends object = any> {
   private renderPlugins(ctx: CanvasRenderingContext2D): void {
     if (!this.actived) return;
     this.boundingBox?.render(ctx);
-    this.controlPoints?.render(ctx);
   }
 
   // 获取世界矩阵（考虑父view的matrix）
