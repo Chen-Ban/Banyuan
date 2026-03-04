@@ -659,6 +659,10 @@ export default class App {
         return this
     }
 
+    public toString() {
+       return Serializer.getInstance().serialize(this)
+    }
+
     // 静态方法：创建应用
     public static create(canvas: HTMLCanvasElement, options: AppOptions = {}, rendererOptions: RendererOptions = {}): App {
         const renderer = new Renderer(canvas, rendererOptions)

@@ -180,6 +180,7 @@ export default class Arc extends AnalyticGraph {
       const point = this.getPointAt(i / length);
       points.push(point);
     }
+
     return Bounds.fromPoints(points, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds?.height > 0)
   }
 
@@ -209,7 +210,7 @@ export default class Arc extends AnalyticGraph {
     // 在局部坐标系中计算椭圆上的点
     const localX = this.xRadius * Math.cos(angle);
     const localY = this.yRadius * Math.sin(angle);
-    const localPoint = new Matrix4().rotateZ(this.rotation).multiply(new Point3(localX, localY, 0));
+    const localPoint = Matrix4.identity().rotateZ(this.rotation).multiply(new Point3(localX, localY, 0));
 
     return localPoint.add(new Vector3(this.center.x, this.center.y, this.center.z));
   }
@@ -336,26 +337,23 @@ export default class Arc extends AnalyticGraph {
 
   public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
 
-    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
-    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
-
-    const scaleX = Math.abs(this.center.x - fixedPoint.x) / width;
-    const scaleY = Math.abs(this.center.y - fixedPoint.y) / height;
-
-    // 带方向并且按照介质尺寸缩放的移动量
-    const dx = resizeVector.x * scaleX;
-    const dy = resizeVector.y * scaleY;
     const referenceVector = dynamicPoint.subtract(fixedPoint)
+    // TODO: 此时不应该使用viewport作为参考系，而是该采用内容包围盒
+    let width = Math.abs(referenceVector.x) || Infinity
+    let height = Math.abs(referenceVector.y) || Infinity
+    // 变化比例：(dimension + delta) / dimension
+    const scaleX = 1 + resizeVector.x * Math.sign(referenceVector.x) / width;
+    const scaleY = 1 + resizeVector.y * Math.sign(referenceVector.y) / height;
 
-    this.center.add(new Vector3(dx, dy, 0));
-    this.xRadius += Math.abs(dx) * Math.sign(referenceVector.x * resizeVector.x);
-    this.yRadius += Math.abs(dy) * Math.sign(referenceVector.y * resizeVector.y);
+    this.center = new Point3(this.center.x * scaleX, this.center.y * scaleY, 0)
+
+    this.xRadius = Math.abs(this.xRadius * scaleX)
+    this.yRadius = Math.abs(this.yRadius * scaleY)
 
     // 计算控制点（用于边界框计算）
     this.controlPoints = this.calculateControlPoints();
 
     this.bounds = this.updateBounds(referenceVector.x - resizeVector.x > 0, referenceVector.y - resizeVector.y > 0)
-
   }
 }
 

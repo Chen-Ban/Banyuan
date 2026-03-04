@@ -1,8 +1,8 @@
 import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
-import { Point3 } from "@/core/math";
+import { Point3, Vector3 } from "@/core/math";
 import CombinedGraph from "../CombinedGraph";
-import Line from "../../analytic/Line";
+import Line, { isLine } from "../../analytic/Line";
 
 /**
  * Polygon类 - 多边形图形基类
@@ -180,6 +180,22 @@ export default class Polygon extends CombinedGraph {
     if (this.fillMode === "stroke" || this.fillMode === "both") {
       ctx.stroke();
     }
+  }
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    const graphs = this.graphs
+    if (!graphs.every(graph => isLine(graph))) throw new Error("多边形边只能为Line")
+    const vertices: Point3[] = []
+    for (const graph of graphs) {
+      graph.resize(fixedPoint, dynamicPoint, resizeVector)
+      vertices.push(graph.controlPoints[0])
+      if (!vertices.find(v => graph.controlPoints[1].isSame(v))) {
+        vertices.push(graph.controlPoints[1])
+      }
+    }
+    this.vertices = vertices
+    this.buildPolygonFromVertices()
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    this.updateBounds(referenceVector.x - resizeVector.x > 0, referenceVector.y - resizeVector.y > 0)
   }
 
   /**

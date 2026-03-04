@@ -10,11 +10,17 @@ export default class Style {
   strokeStyle: StrokeStyle
   shadowStyle: ShadowStyle
 
-  constructor(
-    fillStyle: FillStyle = new FillStyle('color', Color.WHITE),
-    strokeStyle: StrokeStyle = new StrokeStyle('color', Color.BLACK, null, null, 1),
-    shadowStyle: ShadowStyle = ShadowStyle.NONE,
-  ) {
+  constructor(options: {
+    fillStyle?: FillStyle
+    strokeStyle?: StrokeStyle
+    shadowStyle?: ShadowStyle
+  } = {}) {
+    const {
+      fillStyle = new FillStyle({ type: 'color', color: Color.WHITE }),
+      strokeStyle = new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 }),
+      shadowStyle = ShadowStyle.NONE,
+    } = options
+
     this.fillStyle = fillStyle
     this.strokeStyle = strokeStyle
     this.shadowStyle = shadowStyle
@@ -83,11 +89,11 @@ export default class Style {
 
   // 复制样式
   copy(): Style {
-    return new Style(
-      this.fillStyle.copy(),
-      this.strokeStyle.copy(),
-      this.shadowStyle.copy(),
-    )
+    return new Style({
+      fillStyle: this.fillStyle.copy(),
+      strokeStyle: this.strokeStyle.copy(),
+      shadowStyle: this.shadowStyle.copy(),
+    })
   }
 
   // 比较是否相等
@@ -99,29 +105,43 @@ export default class Style {
 
   // 静态工厂方法
   static fromFillColor(color: Color): Style {
-    return new Style(new FillStyle('color', color))
+    return new Style({
+      fillStyle: new FillStyle({ type: 'color', color }),
+    })
   }
 
   static fromStrokeColor(color: Color, width: number = 1): Style {
-    return new Style(new FillStyle('color', Color.TRANSPARENT), new StrokeStyle('color', color, null, null, width))
+    return new Style({
+      fillStyle: new FillStyle({ type: 'color', color: Color.TRANSPARENT }),
+      strokeStyle: new StrokeStyle({ type: 'color', color, width }),
+    })
   }
 
   static fromFillAndStroke(fillColor: Color, strokeColor: Color, strokeWidth: number = 1): Style {
-    return new Style(
-      new FillStyle('color', fillColor),
-      new StrokeStyle('color', strokeColor, null, null, strokeWidth)
-    )
+    return new Style({
+      fillStyle: new FillStyle({ type: 'color', color: fillColor }),
+      strokeStyle: new StrokeStyle({ type: 'color', color: strokeColor, width: strokeWidth }),
+    })
   }
 
 
   // 预定义样式
   static readonly DEFAULT = new Style()
-  static readonly FILL_ONLY = new Style(new FillStyle('color', Color.WHITE), new StrokeStyle('color', Color.TRANSPARENT, null, null, 0))
-  static readonly STROKE_ONLY = new Style(new FillStyle('color', Color.TRANSPARENT), new StrokeStyle('color', Color.BLACK, null, null, 1))
-  static readonly FILL_AND_STROKE = new Style(new FillStyle('color', Color.WHITE), new StrokeStyle('color', Color.BLACK, null, null, 1))
-  static readonly WITH_SHADOW = new Style(
-    new FillStyle('color', Color.WHITE),
-    new StrokeStyle('color', Color.BLACK, null, null, 1),
-    ShadowStyle.SOFT_DROP
-  )
+  static readonly FILL_ONLY = new Style({
+    fillStyle: new FillStyle({ type: 'color', color: Color.WHITE }),
+    strokeStyle: new StrokeStyle({ type: 'color', color: Color.TRANSPARENT, width: 0 }),
+  })
+  static readonly STROKE_ONLY = new Style({
+    fillStyle: new FillStyle({ type: 'color', color: Color.TRANSPARENT }),
+    strokeStyle: new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 }),
+  })
+  static readonly FILL_AND_STROKE = new Style({
+    fillStyle: new FillStyle({ type: 'color', color: Color.WHITE }),
+    strokeStyle: new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 }),
+  })
+  static readonly WITH_SHADOW = new Style({
+    fillStyle: new FillStyle({ type: 'color', color: Color.WHITE }),
+    strokeStyle: new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 }),
+    shadowStyle: ShadowStyle.SOFT_DROP,
+  })
 }
