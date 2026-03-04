@@ -17,19 +17,33 @@ export default class StrokeStyle {
   dashArray: number[]
   dashOffset: number
 
-  constructor(
-    type: StrokeType = 'color',
-    color: Color = Color.BLACK,
-    gradient: Gradient | null = null,
-    pattern: Image | null = null,
-    width: number = 1,
-    opacity: number = 1,
-    lineCap: 'butt' | 'round' | 'square' = 'butt',
-    lineJoin: 'miter' | 'round' | 'bevel' = 'miter',
-    miterLimit: number = 10,
-    dashArray: number[] = [],
-    dashOffset: number = 0
-  ) {
+  constructor(options: {
+    type?: StrokeType
+    color?: Color
+    gradient?: Gradient | null
+    pattern?: Image | null
+    width?: number
+    opacity?: number
+    lineCap?: 'butt' | 'round' | 'square'
+    lineJoin?: 'miter' | 'round' | 'bevel'
+    miterLimit?: number
+    dashArray?: number[]
+    dashOffset?: number
+  } = {}) {
+    const {
+      type = 'color',
+      color = Color.BLACK,
+      gradient = null,
+      pattern = null,
+      width = 1,
+      opacity = 1,
+      lineCap = 'butt',
+      lineJoin = 'miter',
+      miterLimit = 10,
+      dashArray = [],
+      dashOffset = 0,
+    } = options
+
     this.type = type
     this.color = color
     this.gradient = gradient
@@ -169,19 +183,19 @@ export default class StrokeStyle {
 
   // 复制样式
   copy(): StrokeStyle {
-    return new StrokeStyle(
-      this.type,
-      this.color.copy(),
-      this.gradient?.copy() || null,
-      this.pattern?.copy() || null,
-      this.width,
-      this.opacity,
-      this.lineCap,
-      this.lineJoin,
-      this.miterLimit,
-      this.dashArray,
-      this.dashOffset
-    )
+    return new StrokeStyle({
+      type: this.type,
+      color: this.color.copy(),
+      gradient: this.gradient?.copy() || null,
+      pattern: this.pattern?.copy() || null,
+      width: this.width,
+      opacity: this.opacity,
+      lineCap: this.lineCap,
+      lineJoin: this.lineJoin,
+      miterLimit: this.miterLimit,
+      dashArray: this.dashArray,
+      dashOffset: this.dashOffset,
+    })
   }
 
   // 克隆并修改
@@ -207,44 +221,96 @@ export default class StrokeStyle {
 
   // 静态工厂方法
   static fromColor(color: Color, width: number = 1, opacity: number = 1): StrokeStyle {
-    return new StrokeStyle('color', color, null, null, width, opacity)
+    return new StrokeStyle({
+      type: 'color',
+      color,
+      width,
+      opacity,
+    })
   }
 
   static fromHex(hex: string, width: number = 1, opacity: number = 1): StrokeStyle {
-    return new StrokeStyle('color', Color.fromHex(hex), null, null, width, opacity)
+    return new StrokeStyle({
+      type: 'color',
+      color: Color.fromHex(hex),
+      width,
+      opacity,
+    })
   }
 
   static fromHSL(h: number, s: number, l: number, width: number = 1, opacity: number = 1): StrokeStyle {
-    return new StrokeStyle('color', Color.fromHSL(h, s, l), null, null, width, opacity)
+    return new StrokeStyle({
+      type: 'color',
+      color: Color.fromHSL(h, s, l),
+      width,
+      opacity,
+    })
   }
 
   static fromRGB(r: number, g: number, b: number, width: number = 1, opacity: number = 1): StrokeStyle {
-    return new StrokeStyle('color', new Color(r, g, b), null, null, width, opacity)
+    return new StrokeStyle({
+      type: 'color',
+      color: new Color(r, g, b),
+      width,
+      opacity,
+    })
   }
 
   static fromGradient(gradient: Gradient, width: number = 1, opacity: number = 1): StrokeStyle {
-    return new StrokeStyle('gradient', Color.BLACK, gradient, null, width, opacity)
+    return new StrokeStyle({
+      type: 'gradient',
+      color: Color.BLACK,
+      gradient,
+      width,
+      opacity,
+    })
   }
 
   static fromPattern(pattern: Image, width: number = 1, opacity: number = 1): StrokeStyle {
-    return new StrokeStyle('image', Color.BLACK, null, pattern, width, opacity)
+    return new StrokeStyle({
+      type: 'image',
+      color: Color.BLACK,
+      pattern,
+      width,
+      opacity,
+    })
   }
 
   // 创建虚线样式
   static dashed(color: Color = Color.BLACK, width: number = 1, dashPattern: number[] = [5, 5]): StrokeStyle {
-    return new StrokeStyle('color', color, null, null, width, 1, 'butt', 'miter', 10, dashPattern, 0)
+    return new StrokeStyle({
+      type: 'color',
+      color,
+      width,
+      opacity: 1,
+      lineCap: 'butt',
+      lineJoin: 'miter',
+      miterLimit: 10,
+      dashArray: dashPattern,
+      dashOffset: 0,
+    })
   }
 
   static dotted(color: Color = Color.BLACK, width: number = 1): StrokeStyle {
-    return new StrokeStyle('color', color, null, null, width, 1, 'round', 'round', 10, [1, 3], 0)
+    return new StrokeStyle({
+      type: 'color',
+      color,
+      width,
+      opacity: 1,
+      lineCap: 'round',
+      lineJoin: 'round',
+      miterLimit: 10,
+      dashArray: [1, 3],
+      dashOffset: 0,
+    })
   }
 
   // 预定义样式
-  static readonly SOLID_BLACK = new StrokeStyle('color', Color.BLACK, null, null, 1)
-  static readonly SOLID_WHITE = new StrokeStyle('color', Color.WHITE, null, null, 1)
-  static readonly SOLID_RED = new StrokeStyle('color', Color.RED, null, null, 1)
-  static readonly SOLID_GREEN = new StrokeStyle('color', Color.GREEN, null, null, 1)
-  static readonly SOLID_BLUE = new StrokeStyle('color', Color.BLUE, null, null, 1)
+  static readonly SOLID_BLACK = new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 })
+  static readonly SOLID_WHITE = new StrokeStyle({ type: 'color', color: Color.WHITE, width: 1 })
+  static readonly SOLID_RED = new StrokeStyle({ type: 'color', color: Color.RED, width: 1 })
+  static readonly SOLID_GREEN = new StrokeStyle({ type: 'color', color: Color.GREEN, width: 1 })
+  static readonly SOLID_BLUE = new StrokeStyle({ type: 'color', color: Color.BLUE, width: 1 })
   static readonly DASHED_BLACK = StrokeStyle.dashed(Color.BLACK, 1)
   static readonly DOTTED_BLACK = StrokeStyle.dotted(Color.BLACK, 1)
 }

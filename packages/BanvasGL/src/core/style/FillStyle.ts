@@ -10,12 +10,19 @@ export default class FillStyle {
   gradient: Gradient | null;
   image: Image | null;
 
-  constructor(
-    type: FillType = "color",
-    color: Color = Color.WHITE,
-    gradient: Gradient | null = null,
-    image: Image | null = null
-  ) {
+  constructor(options: {
+    type?: FillType;
+    color?: Color;
+    gradient?: Gradient | null;
+    image?: Image | null;
+  } = {}) {
+    const {
+      type = "color",
+      color = Color.WHITE,
+      gradient = null,
+      image = null,
+    } = options;
+
     this.type = type;
     this.color = color;
     this.gradient = gradient;
@@ -74,7 +81,12 @@ export default class FillStyle {
 
   // 复制样式
   copy(): FillStyle {
-    return new FillStyle(this.type, this.color.copy(), this.gradient?.copy() || null, this.image?.copy() || null);
+    return new FillStyle({
+      type: this.type,
+      color: this.color.copy(),
+      gradient: this.gradient?.copy() || null,
+      image: this.image?.copy() || null,
+    });
   }
 
   // 克隆并修改
@@ -100,47 +112,70 @@ export default class FillStyle {
 
   // 静态工厂方法
   static fromColor(color: Color): FillStyle {
-    return new FillStyle("color", color);
+    return new FillStyle({
+      type: "color",
+      color,
+    });
   }
 
   static fromHex(hex: string): FillStyle {
-    return new FillStyle("color", Color.fromHex(hex));
+    return new FillStyle({
+      type: "color",
+      color: Color.fromHex(hex),
+    });
   }
 
   static fromHSL(h: number, s: number, l: number): FillStyle {
-    return new FillStyle("color", Color.fromHSL(h, s, l));
+    return new FillStyle({
+      type: "color",
+      color: Color.fromHSL(h, s, l),
+    });
   }
 
   static fromRGB(r: number, g: number, b: number): FillStyle {
-    return new FillStyle("color", new Color(r, g, b));
+    return new FillStyle({
+      type: "color",
+      color: new Color(r, g, b),
+    });
   }
 
   static fromRGBA(r: number, g: number, b: number, a: number): FillStyle {
-    return new FillStyle("color", new Color(r, g, b, a));
+    return new FillStyle({
+      type: "color",
+      color: new Color(r, g, b, a),
+    });
   }
 
   static fromGradient(gradient: Gradient): FillStyle {
-    return new FillStyle("gradient", Color.WHITE, gradient);
+    return new FillStyle({
+      type: "gradient",
+      color: Color.WHITE,
+      gradient,
+    });
   }
 
   static fromPattern(image: Image): FillStyle {
-    return new FillStyle("image", Color.WHITE, null, image);
+    return new FillStyle({
+      type: "image",
+      color: Color.WHITE,
+      image,
+    });
   }
 
   // 预定义样式
-  static readonly TRANSPARENT = new FillStyle("color", Color.TRANSPARENT);
-  static readonly WHITE = new FillStyle("color", Color.WHITE);
-  static readonly BLACK = new FillStyle("color", Color.BLACK);
-  static readonly RED = new FillStyle("color", Color.RED);
-  static readonly GREEN = new FillStyle("color", Color.GREEN);
-  static readonly BLUE = new FillStyle("color", Color.BLUE);
-  static readonly YELLOW = new FillStyle("color", Color.YELLOW);
-  static readonly CYAN = new FillStyle("color", Color.CYAN);
-  static readonly MAGENTA = new FillStyle("color", Color.MAGENTA);
+  static readonly TRANSPARENT = new FillStyle({ type: "color", color: Color.TRANSPARENT });
+  static readonly WHITE = new FillStyle({ type: "color", color: Color.WHITE });
+  static readonly BLACK = new FillStyle({ type: "color", color: Color.BLACK });
+  static readonly RED = new FillStyle({ type: "color", color: Color.RED });
+  static readonly GREEN = new FillStyle({ type: "color", color: Color.GREEN });
+  static readonly BLUE = new FillStyle({ type: "color", color: Color.BLUE });
+  static readonly YELLOW = new FillStyle({ type: "color", color: Color.YELLOW });
+  static readonly CYAN = new FillStyle({ type: "color", color: Color.CYAN });
+  static readonly MAGENTA = new FillStyle({ type: "color", color: Color.MAGENTA });
 
   // 预定义渐变
-  static readonly RAINBOW_GRADIENT = new FillStyle("gradient", Color.WHITE, Gradient.HORIZONTAL_RAINBOW);
-  static readonly SUNSET_GRADIENT = new FillStyle("gradient", Color.WHITE, Gradient.SUNSET);
-  static readonly OCEAN_GRADIENT = new FillStyle("gradient", Color.WHITE, Gradient.OCEAN);
-  static readonly FIRE_GRADIENT = new FillStyle("gradient", Color.WHITE, Gradient.FIRE);
+  static readonly RAINBOW_GRADIENT = new FillStyle({ type: "gradient", color: Color.WHITE, gradient: Gradient.HORIZONTAL_RAINBOW });
+  static readonly SUNSET_GRADIENT = new FillStyle({ type: "gradient", color: Color.WHITE, gradient: Gradient.SUNSET });
+  static readonly OCEAN_GRADIENT = new FillStyle({ type: "gradient", color: Color.WHITE, gradient: Gradient.OCEAN });
+  static readonly FIRE_GRADIENT = new FillStyle({ type: "gradient", color: Color.WHITE, gradient: Gradient.FIRE });
 }

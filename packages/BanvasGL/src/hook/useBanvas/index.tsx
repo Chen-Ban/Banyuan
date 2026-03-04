@@ -1,9 +1,9 @@
-import React, { useMemo, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasInit } from './useCanvasInit'
 import { useCanvasEvents } from './useCanvasEvents'
 import { useInputEvents } from './useInputEvents'
 import { SerializedSceneJSON, UseBanvasOptions, UseBanvasResult } from './types'
-import Serializer from '@/core/utils/Serializer'
+import { Scene } from '@/core'
 
 export default function useBanvas(
     serializedScenes: SerializedSceneJSON[],
@@ -12,20 +12,32 @@ export default function useBanvas(
     const containerRef = useRef<HTMLDivElement | null>(null)
     const inputRef = useRef<HTMLInputElement | null>(null)
 
+    const [selectedScene, setSelectedScene] = useState<Scene | null>(null)
+    const [selectedViewId, setSelectedViewId] = useState<string>('')
+
     // Canvas 初始化
     const { app, canvasRef } = useCanvasInit(serializedScenes, _options)
+
+    useEffect(() => {
+        const scene = app?.getCurrentPage()
+        if (scene) {
+            setSelectedScene(scene)
+        }
+    }, [app, setSelectedScene])
 
     // Canvas 事件绑定
     useCanvasEvents({
         app,
         canvasRef,
         inputRef,
+        setSelectedViewId,
     })
 
     // Input 事件绑定
     useInputEvents({
         app,
         inputRef,
+        setSelectedViewId,
     })
 
     const canvasEl = useMemo(
@@ -60,7 +72,12 @@ export default function useBanvas(
         []
     )
 
-    const getSerilizedApp = () => Serializer.getInstance().serialize(app)
-
-    return { Banvas: canvasEl, app, getSerilizedApp }
+    return {
+        Banvas: canvasEl,
+        app,
+        selectedViewId,
+        selectedScene,
+        setSelectedScene,
+        setSelectedViewId,
+    }
 }

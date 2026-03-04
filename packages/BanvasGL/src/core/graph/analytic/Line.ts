@@ -191,24 +191,20 @@ export default class Line extends AnalyticGraph {
     return other.intersect(this);
   }
 
+  // TODO: 将参数变为1个resizeVector，其余维度graph不关心
   public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
-
-    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
-    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
-
-    for (const p of this.controlPoints) {
-      // 变化比例
-      const scaleX = Math.abs(p.x - fixedPoint.x) / width;
-      const scaleY = Math.abs(p.y - fixedPoint.y) / height;
-
-      // 带方向并且按照介质尺寸缩放的移动量
-      const dx = resizeVector.x * scaleX;
-      const dy = resizeVector.y * scaleY;
-
-      p.add(new Vector3(dx, dy, 0))
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    // TODO: 此时不应该使用viewport作为参考系，而是该采用内容包围盒
+    let width = Math.abs(referenceVector.x) || Infinity
+    let height = Math.abs(referenceVector.y) || Infinity
+    // 变化比例：(dimension + delta) / dimension
+    const scaleX = 1 + resizeVector.x * Math.sign(referenceVector.x) / width;
+    const scaleY = 1 + resizeVector.y * Math.sign(referenceVector.y) / height;
+    for (const [i, p] of this.controlPoints.entries()) {
+      this.controlPoints[i] = new Point3(p.x * scaleX, p.y * scaleY, 0)
     }
 
-    this.updateBounds()
+    this.bounds = this.updateBounds()
   }
 }
 

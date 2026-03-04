@@ -2,7 +2,10 @@ export { default as View } from './View/View'
 export type { ViewOptions } from './View/View'
 export { default as GraphView, isGraphView } from './GraphViews'
 export type { GraphViewOptions } from './GraphViews'
-export { default as SelectBoxView, isSelectBoxView } from './GraphViews/SelectBoxView'
+export {
+    default as SelectBoxView,
+    isSelectBoxView,
+} from './GraphViews/SelectBoxView'
 export type { SelectBoxViewOptions } from './GraphViews/SelectBoxView'
 export { default as ImageView, isImageView } from './MediaViews/ImageView'
 export type { ImageViewOptions } from './MediaViews/ImageView'
@@ -11,4 +14,3 @@ export type { VideoViewOptions } from './MediaViews/VideoView'
 export { default as TextView, isTextView } from './TextView'
 export type { TextViewOptions } from './TextView'
 export { default as CombinedView, isCombinedView } from './CombinedViews'
-export type { CombinedViewOptions } from './CombinedViews'

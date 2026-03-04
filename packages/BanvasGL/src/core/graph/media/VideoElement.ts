@@ -17,9 +17,8 @@ export default class VideoElement extends MediaElement {
   public muted: boolean = false;
   public playing: boolean = false;
 
-  constructor(src: string, x: number, y: number, style: Style = Style.DEFAULT) {
-    super(src, x, y, style);
-    this.loadMedia()
+  constructor(src: string, x: number, y: number, width: number, height: number, style: Style = Style.DEFAULT) {
+    super(src, x, y, width, height, style);
   }
   /**
    * 加载视频
@@ -185,9 +184,6 @@ export default class VideoElement extends MediaElement {
     const bounds = this.bounds;
     this.style.applyToContext(ctx, bounds.width, bounds.height);
 
-    // 设置透明度
-    ctx.globalAlpha = this.opacity;
-
     // 绘制视频（使用设置的尺寸）
     ctx.drawImage(this.video, this.x, this.y, this.width, this.height);
   }
@@ -254,10 +250,9 @@ export default class VideoElement extends MediaElement {
    * 复制视频元素
    */
   public copy(): this {
-    const copy = new VideoElement(this.src, this.x, this.y, this.style);
+    const copy = new VideoElement(this.src, this.x, this.y,this.width,this.height, this.style);
     copy.width = this.width;
     copy.height = this.height;
-    copy.opacity = this.opacity;
     copy.autoplay = this.autoplay;
     copy.loop = this.loop;
     copy.muted = this.muted;
