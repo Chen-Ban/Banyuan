@@ -19,6 +19,7 @@ import {
     ImageElement,
     TextParagraph,
     Style,
+    TextFields,
 } from '@/core'
 import { event2Point } from '@/utils/utils'
 import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
@@ -29,6 +30,7 @@ import {
     ExtraData,
 } from '@/core/views/View/InteractionMapBuilder'
 import Bounds from '@/core/graph/base/Bounds'
+import snapAlignManager from '@/core/snapAlign'
 
 export interface UseCanvasEventsOptions {
     app: App | null
@@ -67,7 +69,12 @@ export function useCanvasEvents({
             if (!indicateViewRef.current && !indicateContentRef.current) {
                 actionRef.current = Action.SELECT
                 // 创建临时框选矩形容器
-                selectionRectViewRef.current = new SelectBoxView()
+                selectionRectViewRef.current = new SelectBoxView({
+                    style: {
+                        width: canvasRef.current?.width,
+                        height: canvasRef.current?.height,
+                    },
+                })
                 scene.addChild(selectionRectViewRef.current)
             }
         },
@@ -82,6 +89,7 @@ export function useCanvasEvents({
                         lastPointRef.current || mousDownPoint
                     )
                     const indicateView = indicateViewRef.current
+                    if (!indicateView) return
                     if (indicateView && !indicateView?.actived) {
                         scene.select(indicateView)
                         setSelectedViewId(indicateView.id)
@@ -89,6 +97,13 @@ export function useCanvasEvents({
                     } else {
                         for (const activeView of scene.getAllActived()) {
                             activeView.translate(moveVector.x, moveVector.y, 0)
+                        }
+                    }
+                    // 吸附对齐
+                    const res = snapAlignManager.snapAlign(indicateView, point)
+                    if (res.snapped) {
+                        for (const activeView of scene.getAllActived()) {
+                            activeView.translate(res.offset.x, res.offset.y, 0)
                         }
                     }
                     break
@@ -165,8 +180,8 @@ export function useCanvasEvents({
                                 if (!fixedPoint || !dynamicPoint)
                                     throw new Error('固定点或活动点不存在')
                                 view.resize(
-                                    [resizeFixedIndex, fixedPoint],
-                                    [resizeDynamicIndex, dynamicPoint],
+                                    fixedPoint,
+                                    dynamicPoint,
                                     vector,
                                     e.ctrlKey
                                 )
@@ -216,7 +231,7 @@ export function useCanvasEvents({
                             point
                         )
                         const selectionRect =
-                            selectionRectViewRef.current.content[0]
+                            selectionRectViewRef.current.content
                         const viewsToActivate: View[] = []
                         const allViews = scene.children
                         // 遍历所有视图，检查是否与框选矩形相交
@@ -538,8 +553,8 @@ export function useCanvasEvents({
                 } else if (viewType === 'TextView') {
                     const { text } = constructorParams
                     const textParagraph = TextParagraph.simple(text || '文本')
-
-                    newView = new TextView([textParagraph], {
+                    const textFields = new TextFields([textParagraph])
+                    newView = new TextView(textFields, {
                         style: {
                             width: 200,
                             height: 24,

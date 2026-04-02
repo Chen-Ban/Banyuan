@@ -1,6 +1,5 @@
 import View, { ViewOptions } from '../View/View'
 import { VideoElement } from '../../graph/media'
-import Bounds from '@/core/graph/base/Bounds'
 import { VIEWTYPE } from '@/index.backend'
 
 // 视频视图选项接口
@@ -13,16 +12,16 @@ export interface VideoViewOptions extends Omit<ViewOptions, 'content'> {
  */
 export default class VideoView extends View {
     public type: VIEWTYPE = VIEWTYPE.VIDEOVIEW
-    public content: [VideoElement]
+    public content: VideoElement
 
     constructor(video: VideoElement, options: VideoViewOptions = {}) {
         // 将video作为content传递给父类构造函数
-        super({ ...options, content: [video] })
-        this.content = [video]
+        super({ ...options, content: video })
+        this.content = video
     }
 
     public copy(): VideoView {
-        const newView = new VideoView(this.content[0])
+        const newView = new VideoView(this.content)
 
         // 复制基本属性
         newView.layer = this.layer

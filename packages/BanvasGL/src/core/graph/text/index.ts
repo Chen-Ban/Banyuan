@@ -12,7 +12,9 @@ export {
   isNonPrintableTextElement,
   isPrintableTextElement,
 } from "./TextElement";
+export { default as TextFields, isTextFields } from "./TextFields";
 
 // 选项类导出
 export { default as ParagraphOptions } from "./ParagraphOptions";
 export { default as TextOptions } from "./TextOptions";
+export { default as TextFieldsOptions } from "./TextFieldsOptions";
