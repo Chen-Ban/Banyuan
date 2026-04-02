@@ -4,6 +4,7 @@ import TextView from '@/core/views/TextView'
 import { VERTICALALIGN } from '@/core/constants'
 import { WorkerHandler } from '../types'
 import Bounds from '@/core/graph/base/Bounds'
+import { TextFields } from '@/core'
 
 /**
  * 文本布局相关任务（纯 handler，仅描述计算逻辑）：
@@ -45,7 +46,7 @@ export const textLayoutHandler: WorkerHandler<
     } = payload
 
     // 利用 TextView 现有的布局逻辑执行一次完整布局
-    const view = new TextView(paragraphs, {
+    const view = new TextView(new TextFields(paragraphs), {
         layoutArea,
         verticalAlign,
         fixedWidth,

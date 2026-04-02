@@ -1,6 +1,5 @@
 import View, { ViewOptions } from '../View/View'
 import { ImageElement } from '../../graph/media'
-import Bounds from '@/core/graph/base/Bounds'
 import { VIEWTYPE } from '@/index.backend'
 
 // 图像视图选项接口
@@ -13,16 +12,16 @@ export interface ImageViewOptions extends Omit<ViewOptions, 'content'> {
  */
 export default class ImageView extends View {
     public type: VIEWTYPE = VIEWTYPE.IMAGEVIEW
-    public content: [ImageElement]
+    public content: ImageElement
 
     constructor(image: ImageElement, options: ImageViewOptions = {}) {
         // 将image作为content传递给父类构造函数
-        super({ ...options, content: [image] })
-        this.content = [image]
+        super({ ...options, content: image })
+        this.content = image
     }
 
     public copy(): ImageView {
-        const newView = new ImageView(this.content[0])
+        const newView = new ImageView(this.content)
 
         // 复制基本属性
         newView.layer = this.layer

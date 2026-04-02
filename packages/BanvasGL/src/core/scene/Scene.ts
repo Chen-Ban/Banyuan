@@ -115,7 +115,7 @@ export default class _Scene {
         return tree2List(this.children).filter((v) => v.actived)
     }
     public getSelectedView() {
-        return tree2List(this.children).filter((v) => v.selected)
+        return tree2List(this.children).find((v) => v.selected)
     }
 
     public select(
@@ -148,8 +148,8 @@ export default class _Scene {
                 this._selectedHistory.push(view)
             }
         } else {
-            const selectedViews = this.getSelectedView()
-            if (selectedViews.length === 1 && selectedViews[0] === view) {
+            const selectedView = this.getSelectedView()
+            if (selectedView && selectedView === view) {
                 return
             }
             ViewTreeUtils.clearAllStates(this, view)

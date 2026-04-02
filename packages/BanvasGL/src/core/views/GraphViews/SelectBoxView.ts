@@ -66,7 +66,7 @@ export default class SelectBoxView extends GraphView {
         const width = maxX - minX
         const height = maxY - minY
 
-        const rectGraph = this.content[0] as Rectangle
+        const rectGraph = this.content as Rectangle
         rectGraph.setPosition(minX, minY)
         rectGraph.setSize(width, height)
     }
@@ -89,8 +89,8 @@ export default class SelectBoxView extends GraphView {
         newView.matrix = this.matrix.copy()
 
         // 复制内容（矩形）
-        const rectGraph = this.content[0] as Rectangle
-        const newRectGraph = newView.content[0] as Rectangle
+        const rectGraph = this.content as Rectangle
+        const newRectGraph = newView.content as Rectangle
         const topLeft = rectGraph.getTopLeft()
         newRectGraph.setPosition(topLeft.x, topLeft.y)
         newRectGraph.setSize(rectGraph.width, rectGraph.height)

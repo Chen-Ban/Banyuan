@@ -16,7 +16,7 @@ function getSelectedTextView(app: App | null): TextView | null {
     const scene = app?.getCurrentScene()
     if (!scene) return null
 
-    const selectedView = scene.getSelectedView()[0]
+    const selectedView = scene.getSelectedView()
 
     return isTextView(selectedView) ? selectedView : null
 }

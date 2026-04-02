@@ -6,7 +6,7 @@ import { isScene, type Scene } from '../../scene/Scene'
 import BaseCamera from '../../camera/BaseCamera'
 
 // 导入图形相关类型
-import { Graph, Rectangle } from '../../graph'
+import { Graph, Line, Rectangle } from '../../graph'
 
 // 导入addon类型
 import {
@@ -14,7 +14,7 @@ import {
     ViewAddonImpl,
     InteractionMapBuilder,
 } from '../addon'
-import { Point3, Vector3 } from '../../math'
+import { MathUtils, Point3, Vector3 } from '../../math'
 import { Action, Cursor, ExtraData } from './InteractionMapBuilder'
 import Bounds from '../../graph/base/Bounds'
 
@@ -54,15 +54,17 @@ export interface ViewStyle {
     scrollX?: number
     scrollY?: number
     transformOrigin?: Point3
+    needStructViewport?: boolean
 }
-// 视图选项接口
+// 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
 export interface ViewOptions<T extends object = any> {
     id?: string
-    content?: Graph[]
+    content?: Graph // 改为Graph，多图形用组合图形替代
     children?: View[]
+    parent?: Scene | View
     data?: T
     properties?: T
-    style?: ViewStyle // TODO:继承关系和初始化，兼顾拓展性
+    style?: ViewStyle
     matrix?: Matrix4
     onCreated?: () => void
     onAttach?: () => void
@@ -77,7 +79,7 @@ export default abstract class View<T extends object = any> {
     public id: string = ''
     public properties: T = {} as T
     public data: T = {} as T
-    public content: Graph[] = []
+    public content: Graph | null
     public children: View[] = []
     public parent: Scene | View | null = null
 
@@ -100,12 +102,9 @@ export default abstract class View<T extends object = any> {
     public boundingBox: BoundingBoxAddonImpl | null = null
 
     // 视口
-    public viewport: Bounds | null = null
+    public viewport: Bounds
     // 内容布局区域
-    public layoutArea: Bounds | null = null
-
-    // 视口是否被内容区域撑开
-    public needStructViewport: boolean
+    public layoutArea: Bounds
 
     // 类型
     public abstract readonly type: VIEWTYPE
@@ -114,16 +113,17 @@ export default abstract class View<T extends object = any> {
     public abstract copy(): View
 
     public layoutContent(): Bounds {
-        // 内容布局区域
-        return Bounds.union(
-            ...this.content.map((graph) => graph.bounds)
-        ).expandToInclude(0, 0)
+        // 内容布局区域，优先调用布局方法，然后看已有bounds
+        return (
+            this.content?.layout(this.layoutArea)?.bounds ??
+            this.content?.bounds ??
+            Bounds.empty()
+        )
     }
 
     public layoutChildren(): Bounds {
         // 将子视口转换为矩形
         const childRects = this.children.map((child) => {
-            if (!child.viewport) throw new Error('子视图必须设置viewport')
             return Rectangle.fromBounds(child.viewport)
         })
         // 应用对应容器变换
@@ -150,9 +150,7 @@ export default abstract class View<T extends object = any> {
     }
 
     public renderContent(ctx: CanvasRenderingContext2D): void {
-        this.content.forEach((graph) => {
-            graph.render(ctx)
-        })
+        this.content?.render(ctx)
     }
 
     /**
@@ -163,16 +161,16 @@ export default abstract class View<T extends object = any> {
      */
     protected interactContent(point: Point3, needConstraint?: boolean) {
         const builder = new InteractionMapBuilder()
-        this.content.forEach((content) => {
-            const hitContent =
-                content.isPointInPath(point) || content.isPointOnCurve(point, 5)
-            if (hitContent) {
-                builder.add(this, content, {
-                    cursorStyle: Cursor.Move,
-                    action: Action.MOVE,
-                })
-            }
-        })
+        if (!this.content) return builder.build()
+        const hitContent =
+            this.content.isPointInPath(point) ||
+            this.content.isPointOnCurve(point, 5)
+        if (hitContent) {
+            builder.add(this, this.content, {
+                cursorStyle: Cursor.Move,
+                action: Action.MOVE,
+            })
+        }
         return builder.build()
     }
 
@@ -227,15 +225,19 @@ export default abstract class View<T extends object = any> {
         if (new Set(options?.children?.map((view) => view.parent)).size > 1) {
             throw new Error('子视图必须属于同一个父视图')
         }
-
+        // 属性初始化
         this.id = options.id || this.generateId()
         this.data = options.data || ({} as T)
         this.properties = options.properties || ({} as T)
-        this.style = { overflow: 'visible', ...(options.style || {}) }
-        this.matrix = options.matrix || Matrix4.identity()
-        this.content = options.content || []
-        this.children = options.children || []
-        this.needStructViewport = options.needStructViewport ?? false // 布局后是否将布局区域作为视口
+        this.style = {
+            overflow: 'visible',
+            needStructViewport: false,
+            ...(options.style || {}),
+        }
+        this.matrix = options.matrix ?? Matrix4.identity()
+        this.content = options.content ?? null
+        this.children = options.children ?? []
+        this.parent = options.parent ?? null
 
         this.onCreated = options.onCreated || (() => {})
         this.onAttach = options.onAttach || (() => {})
@@ -245,6 +247,7 @@ export default abstract class View<T extends object = any> {
             this[key] = options[key]
         })
 
+        // 开始布局相关
         // 步骤1: 初始化视口
         this.viewport = new Bounds(
             0,
@@ -284,11 +287,9 @@ export default abstract class View<T extends object = any> {
     public onDestroy(): void {
         // 清理引用
         this.parent = null
-        this.content = []
+        this.content = null
         this.children.forEach((child) => child.onDestroy())
         this.children = []
-        this.viewport = null
-        this.layoutArea = null
         this.boundingBox = null
         this.controlPoints = null
         this.setEditingVertex(false)
@@ -332,17 +333,20 @@ export default abstract class View<T extends object = any> {
     }
 
     public resize(
-        fixed: [number, Point3],
-        dynamic: [number, Point3],
+        fixedPoint: Point3,
+        dynamicPoint: Point3,
         vector: Vector3,
         needResizeContent?: boolean
     ) {
-        // 修改视口(只会修改width和height，根据参考向量与vector的关系决定)
+        // 修改视口(视口起点固定在0，0,根据参考向量与vector的关系,只会修改width和height)
         const mvp = this.getMVPMatrix()
         const relativeVector = mvp.inverse().multiply(vector)
+        const handles = this.boundingBox?.handles
         const viewport = this.viewport
+        if (!handles) throw new Error('包围盒插件丢失')
         if (!viewport) throw new Error('视口丢失')
-        const referenceVector = dynamic[1].subtract(fixed[1])
+
+        const referenceVector = dynamicPoint.subtract(fixedPoint)
 
         const deltaX = this.calulateDimensionDelta(
             viewport.width,
@@ -355,41 +359,60 @@ export default abstract class View<T extends object = any> {
             relativeVector.y
         )
 
-        const canResize = RESIZE_SIZE_MAP[dynamic[0]]
-        const newWidth = viewport.width + Number(canResize.width) * deltaX
-        const newHeight = viewport.height + Number(canResize.height) * deltaY
+        for (let [i, handler] of handles.entries()) {
+            const v = handler
+                .getCenter()
+                .subtract(handles[(i + 4) % 8].getCenter())
+            //判断两个向量是否同向
+            if (
+                1 - v.normalized.dot(referenceVector.normalized) <
+                MathUtils.EPSILON
+            ) {
+                const canResize = RESIZE_SIZE_MAP[i]
+                const newWidth =
+                    viewport.width + Number(canResize.width) * deltaX
+                const newHeight =
+                    viewport.height + Number(canResize.height) * deltaY
 
-        // 当resize结果为0时，不进行操作，避免后续计算出错
-        // 1、calulateDimensionDelta出错导致视口不变化
-        // 2、graph resize在边界时比例失调
-        if (newWidth === 0 || newHeight === 0) return
+                // 当resize结果为0时，不进行操作，避免后续计算出错
+                // 1、calulateDimensionDelta出错导致视口不变化
+                // 2、graph resize在边界时比例失调
+                if (newWidth === 0 || newHeight === 0) return
 
-        this.viewport?.setSize(newWidth, newHeight)
+                this.viewport?.setSize(newWidth, newHeight)
 
-        this.boundingBox?.setSize(viewport.width, viewport.height)
+                this.boundingBox?.setSize(viewport.width, viewport.height)
 
-        // 修改matrix（由dynamicIndex决定）
-        const canTranslate = RESIZE_MATRIX_MAP[dynamic[0]]
-        const translateVector = mvp.multiply(
-            new Vector3(
-                canTranslate.x ? -deltaX : 0, // 增大宽度，x需要变小
-                canTranslate.y ? -deltaY : 0, // 增大高度，y需要变小
-                0
-            )
-        )
-        this.translate(translateVector.x, translateVector.y, translateVector.z)
+                // 修改matrix
+                const canTranslate = RESIZE_MATRIX_MAP[i]
+                const translateVector = mvp.multiply(
+                    new Vector3(
+                        canTranslate.x ? -deltaX : 0, // 增大宽度，x需要变小
+                        canTranslate.y ? -deltaY : 0, // 增大高度，y需要变小
+                        0
+                    )
+                )
+                this.translate(
+                    translateVector.x,
+                    translateVector.y,
+                    translateVector.z
+                )
+                break
+            }
+        }
 
-        // 修改子容器
+        // 修改子容器。
         this.children.forEach((view) => {
-            view.resize(fixed, dynamic, vector, needResizeContent)
+            view.resize(fixedPoint, dynamicPoint, vector, needResizeContent)
         })
 
-        if (needResizeContent) {
+        if (needResizeContent && this.content) {
             // 修改内容
-            this.content.forEach((graph) =>
-                graph.resize(fixed[1], dynamic[1], relativeVector)
-            )
+            // 内容边界框的扩展方向和容器是解耦的，和容器操作无关
+            this.content.resize(fixedPoint, dynamicPoint, relativeVector)
         }
+        // resize完成后视口/内容/子视图可能发生变化，需要重新布局（和回流/重绘类似）
+        this.layout()
     }
 
     // 渲染方法
@@ -560,10 +583,14 @@ export default abstract class View<T extends object = any> {
     // 布局管理
     public layout(): void {
         // 1、执行布局,获取最新的内容布局区域并更新
-        const contentBound = this.layoutContent()
-        const childrenBound = this.layoutChildren()
-        this.layoutArea = Bounds.union(contentBound, childrenBound)
-        if (this.needStructViewport) {
+        const contentBound = this.layoutContent() // 拓展方向为第一个图形的拓展方向
+        const childrenBound = this.layoutChildren() // 总是获取到正向拓展的包围盒
+        this.layoutArea = Bounds.union(
+            this.viewport, // 将视口加入进来，主导布局区域的拓展方向，并且保证布局区域包含视口
+            contentBound,
+            childrenBound
+        )
+        if (this.style.needStructViewport) {
             this.viewport = this.layoutArea.copy()
             this.boundingBox = new BoundingBoxAddonImpl(this.viewport)
         }
@@ -571,10 +598,23 @@ export default abstract class View<T extends object = any> {
         if (this.style.overflow === 'scroll') {
             const { scrollX, scrollY } = this.style
             // 判断是否可滚动（内容区域大于了视口）
+
             // 计算合理滚动距离（带方向）
             // 移动内容和子视图
             // 更新滚动条
         }
+    }
+
+    // 不需要递归获取子视图的吸附数据
+    public getSnapObjects(): [Point3[], Line[]] {
+        if (!this.boundingBox) return [[], []]
+        const mvpInverse = this.getMVPMatrix().inverse()
+        const points = this.boundingBox.handles.map((handler) =>
+            mvpInverse.multiply(handler.getCenter())
+        )
+        const lines = this.boundingBox.region.transform(mvpInverse)
+            .graphs as Line[]
+        return [points, lines]
     }
 
     // 获取当前视图所属场景的相机
