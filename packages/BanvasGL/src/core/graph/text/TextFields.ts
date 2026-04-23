@@ -151,9 +151,10 @@ export default class TextFields extends Graph {
 
     /**
      * 布局文本域
-     * @param position 文本域起始位置
+     * 根据 constraintBounds（排版约束区域）进行文本布局
      */
-    public layout(layoutArea: Bounds): TextFields {
+    public layout(): TextFields {
+        const layoutArea = this.constraintBounds.copy()
         // 如果没有固定宽度则选择最长段落宽度作为布局宽度，让所有段落能够一行展示
         if (!this.options.fixedWidth) {
             const widths = this.paragraphs.map(
@@ -224,7 +225,7 @@ export default class TextFields extends Graph {
         )
 
         // 设置段落的布局状态（先设置位置，再调整对齐）
-        paragraph.layout(new Point3(startX, startY, 0))
+        paragraph.applyLayout(new Point3(startX, startY, 0))
 
         // 根据段落的水平对齐方式调整段落内元素位置
         this.adjustParagraphHorizontalAlignment(paragraph, maxWidth)
@@ -267,7 +268,7 @@ export default class TextFields extends Graph {
                     currentY + lineHeight - textElement.height,
                     0
                 )
-                textElement.layout(position, lineHeight)
+                textElement.applyLayout(position, lineHeight)
 
                 // 更新X位置
                 currentX +=
@@ -372,7 +373,7 @@ export default class TextFields extends Graph {
         // 调整段落内所有TextElement的位置
         for (const textElement of paragraph.texts) {
             textElement.controlPoints[0].add(offsetVector)
-            textElement.layout(
+            textElement.applyLayout(
                 textElement.controlPoints[0],
                 textElement.lineHeight
             )
@@ -411,7 +412,7 @@ export default class TextFields extends Graph {
         // 调整所有段落内文字元素的位置
         for (const paragraph of paragraphs) {
             for (const textElement of paragraph.texts) {
-                textElement.layout(
+                textElement.applyLayout(
                     textElement.controlPoints[0].add(offsetVector),
                     textElement.lineHeight
                 )
@@ -821,6 +822,8 @@ export default class TextFields extends Graph {
         for (const paragraph of this.paragraphs) {
             paragraph.resize(fixedPoint, dynamicPoint, resizeVector)
         }
+        // resize 后同步更新排版约束区域为最新的实际内容边界
+        this.constraintBounds = this.bounds.copy()
     }
 
     /**

@@ -42,7 +42,7 @@ export default abstract class TextElement extends Graph {
      * 计算文字的实际宽高（由子类实现）
      */
     protected abstract calculateActualDimensions(): void
-    public abstract layout(point: Point3, lineHeight: number): void
+    public abstract applyLayout(point: Point3, lineHeight: number): void
 
     public getLength(tStart: number, tEnd: number): number {
         return (this.width + this.lineHeight) * 2 * (tEnd - tStart)
@@ -364,7 +364,7 @@ export class PrintableTextElement extends TextElement {
     /**
      * 布局方法 - 在TextView中调用时设置位置和计算包围盒
      */
-    public layout(position: Point3, lineHeight: number): this {
+    public applyLayout(position: Point3, lineHeight: number): this {
         this.isLayouted = true
         this.controlPoints = [position.copy()]
         this.lineHeight = lineHeight
@@ -414,7 +414,7 @@ export class PrintableTextElement extends TextElement {
         )
 
         if (this.isLayouted) {
-            newElement.layout(this.controlPoints[0].copy(), this.lineHeight)
+            newElement.applyLayout(this.controlPoints[0].copy(), this.lineHeight)
         }
         return newElement as this
     }
@@ -483,7 +483,7 @@ export class NonPrintableTextElement extends TextElement {
     /**
      * 布局方法 - 在TextView中调用时设置位置和计算包围盒
      */
-    public layout(position: Point3, lineHeight: number): this {
+    public applyLayout(position: Point3, lineHeight: number): this {
         this.isLayouted = true
         //由于height为0，计算时y值在包围盒左下角，将它移动到左上角
         this.controlPoints = [
@@ -529,7 +529,7 @@ export class NonPrintableTextElement extends TextElement {
         const newElement = new NonPrintableTextElement()
 
         if (this.isLayouted) {
-            newElement.layout(this.controlPoints[0].copy(), this.lineHeight)
+            newElement.applyLayout(this.controlPoints[0].copy(), this.lineHeight)
         }
         return newElement as this
     }

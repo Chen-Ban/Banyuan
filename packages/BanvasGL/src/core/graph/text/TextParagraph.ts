@@ -346,7 +346,7 @@ export default class TextParagraph extends Graph {
         )
         // 如果原对象已经布局，则设置position
         if (this.isLayouted) {
-            newParagraph.layout(this.controlPoints[0].copy())
+            newParagraph.applyLayout(this.controlPoints[0].copy())
         }
 
         return newParagraph as this
@@ -355,7 +355,7 @@ export default class TextParagraph extends Graph {
     /**
      * 布局方法 - 在TextView中调用时设置位置和计算包围盒
      */
-    public layout(position: Point3): TextParagraph {
+    public applyLayout(position: Point3): TextParagraph {
         this.isLayouted = true
         this.controlPoints = [position.copy()]
         // 计算包围盒

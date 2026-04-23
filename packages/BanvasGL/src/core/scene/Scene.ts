@@ -1,22 +1,13 @@
 import View from '../views/View/View'
 import { BaseCamera } from '../camera'
 import { OperationStack, Operation, LayerManager } from './utils'
-import Matrix4 from '../math/Matrix4'
 import { v4 as uuidv4 } from 'uuid'
-import { CombinedView } from '../views'
 import { ViewTreeUtils } from '../utils/ViewTreeUtils'
 import { tree2List } from '@/utils/utils'
+import type { ISceneNode } from '../types'
 
-export type Scene = {
-    id: string
-    children: View[]
-    camera: BaseCamera
-    data: any
+export type Scene = ISceneNode & {
     operationStack: OperationStack
-}
-
-export function isScene(obj: any): obj is Scene {
-    return obj instanceof _Scene
 }
 
 export interface SceneOptions {
@@ -163,9 +154,21 @@ export default class _Scene {
             return
         }
 
+        // 渲染前将 Camera 的 VP 矩阵广播到所有子 View
+        this.broadcastVPMatrix()
+
         this.children.forEach((view) => {
             view.render()
         })
+    }
+
+    /**
+     * 将当前 Camera 的 viewProjectionMatrix 广播到所有子 View。
+     * 每帧渲染前调用一次，确保渲染和交互时使用的 VP 矩阵一致。
+     */
+    public broadcastVPMatrix(): void {
+        const vpMatrix = this.camera.viewProjectionMatrix
+        this.children.forEach((view) => view.setVPMatrix(vpMatrix))
     }
 
     // 子视图管理
@@ -175,6 +178,8 @@ export default class _Scene {
             this.setChildLayer(child)
             this.children.push(child)
             child.parent = this
+            // 新加入的 View 立即获得当前 Camera 的 VP 矩阵
+            child.setVPMatrix(this.camera.viewProjectionMatrix)
             child.onAttach()
         }
         return this

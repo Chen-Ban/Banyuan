@@ -2,32 +2,21 @@ import { VIEWTYPE } from '../../constants'
 import Matrix4 from '../../math/Matrix4'
 import { getGlobalCanvasContext } from '../../renderer/CanvasContext'
 import { v4 as uuidv4 } from 'uuid'
-import { isScene, type Scene } from '../../scene/Scene'
-import BaseCamera from '../../camera/BaseCamera'
+import type { ISceneNode, IView } from '../../types'
 
 // 导入图形相关类型
 import { Graph, Line, Rectangle } from '../../graph'
 
 // 导入addon类型
-import {
-    BoundingBoxAddonImpl,
-    ViewAddonImpl,
-    InteractionMapBuilder,
-} from '../addon'
+import { BoundingBoxAddonImpl, ViewAddonImpl } from '../addon'
 import { MathUtils, Point3, Vector3 } from '../../math'
-import { Action, Cursor, ExtraData } from './InteractionMapBuilder'
+import {
+    InteractionMapBuilder,
+    Action,
+    Cursor,
+    ExtraData,
+} from './InteractionMapBuilder'
 import Bounds from '../../graph/base/Bounds'
-
-const RESIZE_MATRIX_MAP = [
-    { x: true, y: true }, // 0: 同时移动x和y
-    { x: false, y: true }, // 1: 只移动y
-    { x: false, y: true }, // 2: 只移动y
-    { x: false, y: false }, // 3: 不移动
-    { x: false, y: false }, // 4: 不移动
-    { x: false, y: false }, // 5: 不移动
-    { x: true, y: false }, // 6: 只移动x
-    { x: true, y: false }, // 7: 只移动x
-]
 
 const RESIZE_SIZE_MAP = [
     { width: true, height: true },
@@ -41,8 +30,21 @@ const RESIZE_SIZE_MAP = [
     { width: true, height: false },
 ]
 
+// 控制 resize 时是否需要移动视口起点
+// 当拖拽手柄在固定点的左侧时需要移动 x，在上方时需要移动 y
+const RESIZE_ORIGIN_MAP = [
+    { x: true, y: true }, // 0: 左上角 → 起点x和y都要反向偏移
+    { x: false, y: true }, // 1: 上中 → 只偏移y
+    { x: false, y: true }, // 2: 右上角 → 只偏移y
+    { x: false, y: false }, // 3: 右中 → 不偏移
+    { x: false, y: false }, // 4: 右下角 → 不偏移
+    { x: false, y: false }, // 5: 下中 → 不偏移
+    { x: true, y: false }, // 6: 左下角 → 只偏移x
+    { x: true, y: false }, // 7: 左中 → 只偏移x
+]
+
 export interface InteractResult {
-    view: View | null
+    view: IView | null
     content: Graph | ViewAddonImpl | null
     extraData: ExtraData | null
 }
@@ -61,7 +63,7 @@ export interface ViewOptions<T extends object = any> {
     id?: string
     content?: Graph // 改为Graph，多图形用组合图形替代
     children?: View[]
-    parent?: Scene | View
+    parent?: ISceneNode | View
     data?: T
     properties?: T
     style?: ViewStyle
@@ -81,7 +83,7 @@ export default abstract class View<T extends object = any> {
     public data: T = {} as T
     public content: Graph | null
     public children: View[] = []
-    public parent: Scene | View | null = null
+    public parent: ISceneNode | View | null = null
 
     // 样式和状态
     public style: ViewStyle = {}
@@ -94,59 +96,44 @@ export default abstract class View<T extends object = any> {
     // 滚动条图形
     public scrollBarHorization: Rectangle | null = null
     public scrollBarVertical: Rectangle | null = null
-
     // 变换矩阵
     public matrix: Matrix4 = Matrix4.identity()
-
+    // VP 矩阵缓存（由 Scene 在每帧渲染前广播设置）
+    private _vpMatrix: Matrix4 = Matrix4.identity()
+    // 滚动偏移量（由 layout 计算，渲染和交互时使用）
+    public scrollOffset: { x: number; y: number } = { x: 0, y: 0 }
     // 插件
     public boundingBox: BoundingBoxAddonImpl | null = null
-
     // 视口
     public viewport: Bounds
     // 内容布局区域
     public layoutArea: Bounds
-
     // 类型
     public abstract readonly type: VIEWTYPE
-
     //抽象方法
     public abstract copy(): View
 
+    // 获取内容
     public layoutContent(): Bounds {
-        // 内容布局区域，优先调用布局方法，然后看已有bounds
+        // 内容布局区域，优先调用布局方法(主要只有文字需要进行内容布局)，然后看已有bounds
+        // content 通过自身的 constraintBounds 获取排版约束，不再由外部传参
         return (
-            this.content?.layout(this.layoutArea)?.bounds ??
+            this.content?.layout()?.bounds ??
             this.content?.bounds ??
             Bounds.empty()
         )
     }
 
-    public layoutChildren(): Bounds {
+    // 计算子容器布局区域和
+    public measureChildren(): Bounds {
         // 将子视口转换为矩形
         const childRects = this.children.map((child) => {
             return Rectangle.fromBounds(child.viewport)
         })
-        // 应用对应容器变换
-        childRects.forEach((childRect, i) =>
-            childRect.transform(this.children[i].matrix)
-        )
-        // 获取包围盒
-        const childrenBounds = Bounds.fromPoints(
-            childRects.map((rect) => rect.vertices).flat()
-        )
-        // 将包围盒起点作为平移分量
-        this.matrix = Matrix4.identity().translate(
-            childrenBounds.x,
-            childrenBounds.y,
-            0
-        )
-        // 修改子容器变换矩阵
-        this.children.forEach((child) => {
-            child.matrix = this.matrix.multiply(child.matrix)
-        })
-        // 将子视图的布局区域平移回原点
-        childrenBounds.setPosition(0, 0)
-        return childrenBounds
+        // 应用各自的变换矩阵
+        childRects.forEach((rect, i) => rect.transform(this.children[i].matrix))
+        // 计算所有子容器在本地坐标系下的总包围盒
+        return Bounds.fromPoints(childRects.map((rect) => rect.vertices).flat())
     }
 
     public renderContent(ctx: CanvasRenderingContext2D): void {
@@ -194,7 +181,7 @@ export default abstract class View<T extends object = any> {
         const ctx = getGlobalCanvasContext()?.getBufferContext()
         if (!ctx) throw new Error('交互失败')
 
-        // 1. 检查插件（边界框）
+        // 1. 检查插件（边界框）—— 插件不随 scroll 移动，用原始坐标
         if (this.actived && this.boundingBox) {
             const extraData = this.boundingBox.interact(relativePoint)
             if (extraData) {
@@ -206,13 +193,23 @@ export default abstract class View<T extends object = any> {
         const pluginsResult = this.interactPlugins(relativePoint)
         if (pluginsResult.view) return pluginsResult
 
-        // 3. 检查内容（复杂图形由子类重写）
-        const result = this.interactContent(relativePoint, needConstraint)
+        // 3. 补偿 scroll 偏移：内容和子视图在渲染时被 translate 了 scrollOffset，
+        //    命中检测时需要反向补偿，将点转换到"内容坐标系"
+        const scrolledPoint = new Point3(
+            relativePoint.x - this.scrollOffset.x,
+            relativePoint.y - this.scrollOffset.y,
+            relativePoint.z
+        )
+
+        // 4. 检查内容（复杂图形由子类重写）
+        const result = this.interactContent(scrolledPoint, needConstraint)
         if (result.view) return result
 
-        // 4. 递归检查子视图
+        // 5. 递归检查子视图
+        //    将 scrolledPoint 转回世界坐标传给子视图，子视图再用自己的 MVP 逆矩阵转本地坐标
+        const adjustedWorldPoint = this.getMVPMatrix().multiply(scrolledPoint)
         for (const child of this.children) {
-            const result = child.interact(worldPoint, needConstraint)
+            const result = child.interact(adjustedWorldPoint, needConstraint)
             if (result.view && result.content && result.extraData) {
                 builder.add(result.view, result.content, result.extraData)
             }
@@ -258,12 +255,12 @@ export default abstract class View<T extends object = any> {
         this.boundingBox = new BoundingBoxAddonImpl(this.viewport)
 
         // 步骤2: 初始化布局区域(使用视口大小作为初始值)
-        this.layoutArea = new Bounds(
-            0,
-            0,
-            options.style?.width || 0,
-            options.style?.height || 0
-        )
+        this.layoutArea = this.viewport.copy()
+
+        // 步骤2.5: 初始化内容的排版约束区域为当前视口副本
+        if (this.content) {
+            this.content.constraintBounds = this.viewport.copy()
+        }
 
         // 步骤3: 执行布局，布局目的
         // 1、不同容器独有的布局（比如文本容器）
@@ -321,8 +318,8 @@ export default abstract class View<T extends object = any> {
     /**
      * 尺寸变化方向由三个因素决定：
      * 1. 视口当前尺寸方向（正/负）
-     * 2. 参考向量的方向（拖拽方向）
-     * 3. 传入向量的方向（预期变化方向）
+     * 2. 参考向量的方向（本地坐标系下容器的变化方向）
+     * 3. 传入向量的方向（预期变化方向，拖拽方向，是屏幕坐标系下的向量）
      */
     private calulateDimensionDelta(
         dimension: number,
@@ -338,8 +335,8 @@ export default abstract class View<T extends object = any> {
         vector: Vector3,
         needResizeContent?: boolean
     ) {
-        // 修改视口(视口起点固定在0，0,根据参考向量与vector的关系,只会修改width和height)
         const mvp = this.getMVPMatrix()
+        // 拖拽方向只和屏幕坐标系有关，所以需要转换到世界坐标
         const relativeVector = mvp.inverse().multiply(vector)
         const handles = this.boundingBox?.handles
         const viewport = this.viewport
@@ -363,7 +360,7 @@ export default abstract class View<T extends object = any> {
             const v = handler
                 .getCenter()
                 .subtract(handles[(i + 4) % 8].getCenter())
-            //判断两个向量是否同向
+            //判断两个向量是否同向，用于判断是否可以修改尺寸（仅水平/垂直修改）
             if (
                 1 - v.normalized.dot(referenceVector.normalized) <
                 MathUtils.EPSILON
@@ -379,24 +376,19 @@ export default abstract class View<T extends object = any> {
                 // 2、graph resize在边界时比例失调
                 if (newWidth === 0 || newHeight === 0) return
 
+                // 根据手柄位置决定是否移动视口起点
+                // 拖左侧/上方手柄时，起点需要反向偏移以保持固定点不动
+                const canMoveOrigin = RESIZE_ORIGIN_MAP[i]
+                this.viewport.setPosition(
+                    viewport.x + (canMoveOrigin.x ? -deltaX : 0),
+                    viewport.y + (canMoveOrigin.y ? -deltaY : 0)
+                )
+
                 this.viewport?.setSize(newWidth, newHeight)
 
-                this.boundingBox?.setSize(viewport.width, viewport.height)
+                // boundingBox 直接从 viewport 引用读取最新位置和尺寸
+                this.boundingBox?.updateSize()
 
-                // 修改matrix
-                const canTranslate = RESIZE_MATRIX_MAP[i]
-                const translateVector = mvp.multiply(
-                    new Vector3(
-                        canTranslate.x ? -deltaX : 0, // 增大宽度，x需要变小
-                        canTranslate.y ? -deltaY : 0, // 增大高度，y需要变小
-                        0
-                    )
-                )
-                this.translate(
-                    translateVector.x,
-                    translateVector.y,
-                    translateVector.z
-                )
                 break
             }
         }
@@ -408,11 +400,15 @@ export default abstract class View<T extends object = any> {
 
         if (needResizeContent && this.content) {
             // 修改内容
-            // 内容边界框的扩展方向和容器是解耦的，和容器操作无关
             this.content.resize(fixedPoint, dynamicPoint, relativeVector)
+            // 更新完内容后更新实际布局区域
+            this.layoutArea = Bounds.union(
+                // this.viewport 先不加入视口区域，避免文本布局跟着视口跑
+                this.content.bounds ?? Bounds.empty(),
+                this.measureChildren()
+            )
+            this.layout()
         }
-        // resize完成后视口/内容/子视图可能发生变化，需要重新布局（和回流/重绘类似）
-        this.layout()
     }
 
     // 渲染方法
@@ -463,14 +459,19 @@ export default abstract class View<T extends object = any> {
             offscreenCtx.clip()
         }
 
-        // 渲染内容到离屏画布
+        // 应用 scroll 偏移后渲染内容和子节点
+        // clip 已经建立，translate 只影响内容绘制位置，不影响裁剪区域
+        offscreenCtx.save()
+        offscreenCtx.translate(this.scrollOffset.x, this.scrollOffset.y)
+
         this.renderContent(offscreenCtx)
-        // 渲染子节点
         this.children.forEach((view) => {
             view.render()
         })
 
-        offscreenCtx.restore()
+        offscreenCtx.restore() // 恢复 scroll translate
+
+        offscreenCtx.restore() // 恢复 MVP setTransform
     }
 
     // 从缓存渲染到主画布
@@ -496,6 +497,9 @@ export default abstract class View<T extends object = any> {
     protected renderPlugins(ctx: CanvasRenderingContext2D): void {
         if (!this.actived) return
         this.boundingBox?.render(ctx)
+        // 滚动条始终在 clip 之前渲染，不会被裁掉
+        this.scrollBarHorization?.render(ctx)
+        this.scrollBarVertical?.render(ctx)
     }
 
     // 获取世界矩阵（考虑父view的matrix）
@@ -514,11 +518,16 @@ export default abstract class View<T extends object = any> {
     }
 
     public getMVPMatrix() {
-        return (
-            this.getCamera()?.viewProjectionMatrix.multiply(
-                this.getWorldMatrix()
-            ) || this.getWorldMatrix()
-        )
+        return this._vpMatrix.copy().multiply(this.getWorldMatrix())
+    }
+
+    /**
+     * 设置 VP 矩阵并递归广播到所有子 View。
+     * 由 Scene 在每帧渲染前调用，交互时直接从缓存读取。
+     */
+    public setVPMatrix(vpMatrix: Matrix4): void {
+        this._vpMatrix = vpMatrix
+        this.children.forEach((child) => child.setVPMatrix(vpMatrix))
     }
 
     // 变换方法
@@ -583,25 +592,87 @@ export default abstract class View<T extends object = any> {
     // 布局管理
     public layout(): void {
         // 1、执行布局,获取最新的内容布局区域并更新
-        const contentBound = this.layoutContent() // 拓展方向为第一个图形的拓展方向
-        const childrenBound = this.layoutChildren() // 总是获取到正向拓展的包围盒
+        const contentBounds = this.layoutContent() // 拓展方向为第一个图形的拓展方向
         this.layoutArea = Bounds.union(
             this.viewport, // 将视口加入进来，主导布局区域的拓展方向，并且保证布局区域包含视口
-            contentBound,
-            childrenBound
+            contentBounds,
+            this.layoutArea
         )
         if (this.style.needStructViewport) {
             this.viewport = this.layoutArea.copy()
             this.boundingBox = new BoundingBoxAddonImpl(this.viewport)
         }
-        // 2、应用scroll偏移
+        // 2、计算scroll偏移（纯渲染层偏移，不修改content和children的数据）
         if (this.style.overflow === 'scroll') {
-            const { scrollX, scrollY } = this.style
-            // 判断是否可滚动（内容区域大于了视口）
+            const scrollX = this.style.scrollX ?? 0
+            const scrollY = this.style.scrollY ?? 0
+            const la = this.layoutArea
+            const vp = this.viewport
 
-            // 计算合理滚动距离（带方向）
-            // 移动内容和子视图
+            // 可滚动范围 = 内容溢出视口的部分
+            const maxScrollX = Math.abs(la.width) - Math.abs(vp.width)
+            const maxScrollY = Math.abs(la.height) - Math.abs(vp.height)
+
+            // clamp 到合法区间，不可滚动方向归零
+            const clampedScrollX = maxScrollX > 0 ? Math.max(0, Math.min(scrollX, maxScrollX)) : 0
+            const clampedScrollY = maxScrollY > 0 ? Math.max(0, Math.min(scrollY, maxScrollY)) : 0
+
+            // scroll增大 → 内容向扩展方向的反方向移动
+            this.scrollOffset = {
+                x: -Math.sign(la.width) * clampedScrollX,
+                y: -Math.sign(la.height) * clampedScrollY,
+            }
+
             // 更新滚动条
+            this.updateScrollBars(clampedScrollX, clampedScrollY, maxScrollX, maxScrollY)
+        } else {
+            // 非scroll模式，清零偏移和滚动条
+            this.scrollOffset = { x: 0, y: 0 }
+            this.scrollBarHorization = null
+            this.scrollBarVertical = null
+        }
+    }
+
+    /**
+     * 更新滚动条的尺寸和位置
+     * 滚动条长度 = 视口尺寸的平方 / 布局区域尺寸（等比例缩放）
+     * 滚动条位置 = 根据滚动进度在视口范围内线性插值
+     */
+    private updateScrollBars(
+        scrollX: number,
+        scrollY: number,
+        maxScrollX: number,
+        maxScrollY: number
+    ): void {
+        const vp = this.viewport
+        const SCROLLBAR_THICKNESS = 4
+
+        // 水平滚动条
+        if (maxScrollX > 0) {
+            const ratio = Math.abs(vp.width) / Math.abs(this.layoutArea.width)
+            const barWidth = vp.width * ratio
+            const travel = Math.abs(vp.width) - Math.abs(barWidth)
+            const progress = scrollX / maxScrollX
+            const barX = vp.x + Math.sign(vp.width) * progress * travel
+            const barHeight = SCROLLBAR_THICKNESS * Math.sign(vp.height)
+            const barY = vp.y + vp.height - barHeight
+            this.scrollBarHorization = new Rectangle(barX, barY, barWidth, barHeight)
+        } else {
+            this.scrollBarHorization = null
+        }
+
+        // 垂直滚动条
+        if (maxScrollY > 0) {
+            const ratio = Math.abs(vp.height) / Math.abs(this.layoutArea.height)
+            const barHeight = vp.height * ratio
+            const travel = Math.abs(vp.height) - Math.abs(barHeight)
+            const progress = scrollY / maxScrollY
+            const barY = vp.y + Math.sign(vp.height) * progress * travel
+            const barWidth = SCROLLBAR_THICKNESS * Math.sign(vp.width)
+            const barX = vp.x + vp.width - barWidth
+            this.scrollBarVertical = new Rectangle(barX, barY, barWidth, barHeight)
+        } else {
+            this.scrollBarVertical = null
         }
     }
 
@@ -615,19 +686,6 @@ export default abstract class View<T extends object = any> {
         const lines = this.boundingBox.region.transform(mvpInverse)
             .graphs as Line[]
         return [points, lines]
-    }
-
-    // 获取当前视图所属场景的相机
-    private getCamera(): BaseCamera | null {
-        // 向上查找父级，直到找到 Scene
-        let current: Scene | View | null = this.parent
-        while (current) {
-            if (isScene(current)) {
-                return current.camera
-            }
-            current = current.parent
-        }
-        return null
     }
 
     // 销毁视图

@@ -101,8 +101,8 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
         )
     }
 
-    public setSize(width: number, height: number): BoundingBoxAddonImpl {
-        this.region.setSize(width, height)
+    public updateSize(): BoundingBoxAddonImpl {
+        this.region = this.computeRegion()
         this.handles = this.createHandles(this.region)
         this.rotate = this.createRotate()
         return this
