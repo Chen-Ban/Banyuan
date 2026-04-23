@@ -3,10 +3,9 @@ import TextParagraph from '../../graph/text/TextParagraph'
 import TextElement from '../../graph/text/TextElement'
 import { Rectangle } from '../../graph/combined/Polygon'
 import { Point3, Vector3 } from '../../math'
-import { InteractionMapBuilder } from '../addon'
+import { InteractionMapBuilder, Action, Cursor } from '../View/InteractionMapBuilder'
 import Selection from './Selection'
 import { VERTICALALIGN, VIEWTYPE } from '@/core/constants'
-import { Action, Cursor } from '../View/InteractionMapBuilder'
 import {
     NonPrintableTextElement,
     PrintableTextElement,

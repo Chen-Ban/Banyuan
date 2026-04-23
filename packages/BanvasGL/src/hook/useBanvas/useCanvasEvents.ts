@@ -283,7 +283,7 @@ export function useCanvasEvents({
                     extraData: _extraData,
                 } = view.interact(point)
                 if (_view && content && _extraData) {
-                    indicateViewRef.current = _view
+                    indicateViewRef.current = _view as View
                     indicateContentRef.current = content
                     actionRef.current = _extraData.action
                     extraDataRef.current = _extraData

@@ -1,5 +1,5 @@
 import { Graph, Point3 } from '@/index.backend'
-import View from './View'
+import type { IView } from '../../types'
 import { ViewAddonImpl } from '../addon/index'
 
 export enum Cursor {
@@ -69,7 +69,7 @@ export const cursorMap: Record<number, Cursor> = {
  * 键值对类型，键是View，值是ViewContent或ViewAddonImpl
  */
 export type InteractionMap = Map<
-    View,
+    IView,
     { content: Graph | ViewAddonImpl; extraData: ExtraData }
 >
 
@@ -111,7 +111,7 @@ export class InteractionMapBuilder {
      * @param content 内容（ViewContent或ViewAddonImpl）
      */
     public add(
-        view: View,
+        view: IView,
         content: Graph | ViewAddonImpl,
         extraData: ExtraData
     ): InteractionMapBuilder {
@@ -122,7 +122,7 @@ export class InteractionMapBuilder {
      * 构建最终结果 - 返回最高层级的view和content对象
      */
     public build(): {
-        view: View | null
+        view: IView | null
         content: Graph | ViewAddonImpl | null
         extraData: ExtraData | null
     } {
@@ -130,7 +130,7 @@ export class InteractionMapBuilder {
             return { view: null, content: null, extraData: null }
         }
 
-        let highestView: View | null = null
+        let highestView: IView | null = null
         let highestLayer = -1
         let content: Graph | ViewAddonImpl | null = null
         let extraData: ExtraData | null = null
