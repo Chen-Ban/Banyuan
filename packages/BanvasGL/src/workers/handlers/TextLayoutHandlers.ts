@@ -2,7 +2,7 @@ import { Rectangle } from '@/core/graph/combined'
 import TextParagraph from '@/core/graph/text/TextParagraph'
 import TextView from '@/core/views/TextView'
 import { VERTICALALIGN } from '@/core/constants'
-import { WorkerHandler } from '../types'
+import { WorkerHandler } from '@/workers/types'
 import Bounds from '@/core/graph/base/Bounds'
 import { TextFields } from '@/core'
 

@@ -5,7 +5,7 @@ import type { ExtraData } from '@/core/interfaces'
 import { Action, Cursor } from '@/core/interfaces'
 import { isTextView } from '@/core/interfaces'
 import { Rectangle } from '@/core/graph'
-import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
+import { clearAllStates } from '@/core/scene/ViewTree'
 import snapAlignManager from '@/core/snapAlign'
 import Bounds from '@/core/graph/base/Bounds'
 import {
@@ -222,7 +222,7 @@ export class InteractionDispatcher {
                     viewsToActivate.push(view)
                 }
             }
-            ViewTreeUtils.clearAllStates(scene)
+            clearAllStates(scene)
             for (const view of viewsToActivate) {
                 scene.select(view, true)
             }

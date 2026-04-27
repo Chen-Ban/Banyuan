@@ -1,4 +1,4 @@
-import { View } from "../../views";
+import { View } from "@/core/views";
 
 export default class LayerManager {
     static bringToFront(views:View[],view:View){

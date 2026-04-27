@@ -1,7 +1,7 @@
 import AnalyticGraph from "@/core/graph/analytic/AnalyticGraph";
 import { intersect, intersectAll } from "@/core/graph/analytic/IntersectionUtils";
 import { Point3 } from "@/core/math";
-import { WorkerHandler } from "../types";
+import { WorkerHandler } from "@/workers/types";
 
 /**
  * 解析几何相交相关任务（纯 handler）：

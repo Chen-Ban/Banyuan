@@ -1,4 +1,4 @@
-import { View } from "../../views"
+import { View } from "@/core/views"
 
 export class LinkNode<T> {
     value: T

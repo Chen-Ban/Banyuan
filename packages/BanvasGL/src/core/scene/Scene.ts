@@ -1,10 +1,9 @@
-import View from '../views/View/View'
-import { BaseCamera } from '../camera'
+import View from '@/core/views/View/View'
+import { BaseCamera } from '@/core/camera'
 import { OperationStack, Operation, LayerManager } from './utils'
 import { v4 as uuidv4 } from 'uuid'
-import { ViewTreeUtils } from '../utils/ViewTreeUtils'
-import { tree2List } from '@/utils/utils'
-import type { ISceneNode } from '../interfaces'
+import { flattenViewTree, clearAllStates, clearSelectedStates, isViewInTree } from './ViewTree'
+import type { ISceneNode } from '@/core/interfaces'
 
 export interface SceneOptions {
     camera?: BaseCamera
@@ -99,10 +98,10 @@ export default class Scene {
     }
 
     public getAllActived() {
-        return tree2List(this.children).filter((v) => v.actived)
+        return flattenViewTree(this).filter((v) => v.actived)
     }
     public getSelectedView() {
-        return tree2List(this.children).find((v) => v.selected)
+        return flattenViewTree(this).find((v) => v.selected)
     }
 
     public select(
@@ -111,17 +110,17 @@ export default class Scene {
         deselect: boolean = false
     ) {
         if (!view) {
-            ViewTreeUtils.clearAllStates(this)
+            clearAllStates(this)
             return
         }
         // 查看传入的view是不是在这个列表中
-        if (!ViewTreeUtils.isViewInTree(this, view)) {
+        if (!isViewInTree(this, view)) {
             console.warn('指定的视图不在当前场景中')
             return
         }
 
         if (multiple) {
-            ViewTreeUtils.clearSelectedStates(this, view)
+            clearSelectedStates(this, view)
             if (deselect && view.actived === true) {
                 view.setActived(false).setSelected(false)
                 this._selectedHistory.pop()
@@ -139,7 +138,7 @@ export default class Scene {
             if (selectedView && selectedView === view) {
                 return
             }
-            ViewTreeUtils.clearAllStates(this, view)
+            clearAllStates(this, view)
             view.setActived(true).setSelected(true)
         }
     }
@@ -263,7 +262,7 @@ export default class Scene {
     }
 
     public findViewById(id: string) {
-        return tree2List(this.children).find((view) => view.id === id)
+        return flattenViewTree(this).find((view) => view.id === id)
     }
 
     // 层级管理方法

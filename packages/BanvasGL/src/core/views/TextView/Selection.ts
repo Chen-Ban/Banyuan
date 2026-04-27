@@ -1,5 +1,5 @@
 import { TextIndex } from '@/core/graph/text/TextFields'
-import { Rectangle } from '../../graph/combined/Polygon'
+import { Rectangle } from '@/core/graph/combined/Polygon'
 
 /**
  * 选择区域类 - 管理选择状态（目前仅文本容器选择文字时支持）

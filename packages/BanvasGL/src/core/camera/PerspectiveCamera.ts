@@ -1,5 +1,5 @@
 import BaseCamera, { BaseCameraOptions } from './BaseCamera'
-import { Matrix4, Vector3 } from '../math'
+import { Matrix4, Vector3 } from '@/core/math'
 
 export interface PerspectiveCameraOptions extends BaseCameraOptions {
     fov?: number

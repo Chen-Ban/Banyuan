@@ -1,11 +1,10 @@
-import View, { InteractResult, ViewOptions } from '../View/View'
-import { Graph, Line } from '../../graph'
+import View, { InteractResult, ViewOptions } from '@/core/views/View/View'
+import { Graph, Line } from '@/core/graph'
 import { isGraphType, isAnalyticGraph } from '@/core/interfaces'
 import { VIEWTYPE } from '@/core/constants'
-import { Point3 } from '../../math'
-import { VertexAddonImpl, ViewAddonImpl } from '../addon'
+import { Point3 } from '@/core/math'
+import { VertexAddonImpl, ViewAddonImpl } from '@/core/views/addon'
 import type { ExtraData } from '@/core/interfaces'
-import { InteractionMapBuilder } from '../View/InteractionMapBuilder'
 import type { IGraphView } from '@/core/interfaces'
 
 // 图形视图选项接口
@@ -45,14 +44,13 @@ export default class GraphView extends View implements IGraphView {
         if (baseResult.view) return baseResult
 
         // VertexAddon（控制点编辑）
-        const builder = new InteractionMapBuilder()
         if (this.actived && this.controlPoints) {
             const data = this.controlPoints.interact(relativePoint)
             if (data) {
-                builder.add(this, this.controlPoints, data)
+                return { view: this, content: this.controlPoints, extraData: data }
             }
         }
-        return builder.build()
+        return { view: null, content: null, extraData: null }
     }
 
     public renderPlugins(ctx: CanvasRenderingContext2D): void {

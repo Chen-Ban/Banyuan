@@ -1,6 +1,6 @@
 import DenseTrajectory from "@/core/graph/trajectory/DenseTrajectory";
 import { Point3, Vector3 } from "@/core/math";
-import { WorkerHandler } from "../types";
+import { WorkerHandler } from "@/workers/types";
 
 /**
  * 轨迹相关任务（纯 handler）：

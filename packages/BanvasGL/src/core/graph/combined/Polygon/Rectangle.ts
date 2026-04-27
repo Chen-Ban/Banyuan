@@ -2,7 +2,7 @@ import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
-import Bounds from "../../base/Bounds";
+import Bounds from "@/core/graph/base/Bounds";
 import type { IRectangle } from '@/core/interfaces';
 
 /**

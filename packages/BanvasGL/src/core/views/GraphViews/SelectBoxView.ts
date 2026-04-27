@@ -1,8 +1,8 @@
 import GraphView, { GraphViewOptions } from './index'
-import { Rectangle } from '../../graph'
+import { Rectangle } from '@/core/graph'
 import { VIEWTYPE } from '@/core/constants'
-import { Point3 } from '../../math'
-import { Color, FillStyle, StrokeStyle, Style } from '../../style'
+import { Point3 } from '@/core/math'
+import { Color, FillStyle, StrokeStyle, Style } from '@/core/style'
 import type { ISelectBoxView } from '@/core/interfaces'
 
 // 框选视图选项接口

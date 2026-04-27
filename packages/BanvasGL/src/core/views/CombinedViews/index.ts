@@ -1,5 +1,5 @@
 import { VIEWTYPE } from '@/core/constants'
-import View, { ViewOptions } from '../View/View'
+import View, { ViewOptions } from '@/core/views/View/View'
 import type { ICombinedView } from '@/core/interfaces'
 
 /**

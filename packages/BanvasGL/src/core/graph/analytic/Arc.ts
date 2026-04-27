@@ -2,8 +2,8 @@ import { GRAPHTYPE } from "@/core/constants";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
-import Bounds from "../base/Bounds";
-import Graph from "../base/Graph";
+import Bounds from "@/core/graph/base/Bounds";
+import Graph from "@/core/graph/base/Graph";
 import { intersect } from "./IntersectionUtils";
 import type { IArc } from '@/core/interfaces';
 

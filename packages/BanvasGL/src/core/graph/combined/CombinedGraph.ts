@@ -1,8 +1,8 @@
 import { GRAPHTYPE } from '@/core/constants'
 import Style from '@/core/style/Style'
 import { Point3, Vector3, Matrix4 } from '@/core/math'
-import Graph from '../base/Graph'
-import Bounds from '../base/Bounds'
+import Graph from '@/core/graph/base/Graph'
+import Bounds from '@/core/graph/base/Bounds'
 import { isGraphType, isAnalyticGraph, isMediaElement, isCombinedGraph as isCombinedGraphGuard } from '@/core/interfaces'
 import type { ICombinedGraph } from '@/core/interfaces'
 

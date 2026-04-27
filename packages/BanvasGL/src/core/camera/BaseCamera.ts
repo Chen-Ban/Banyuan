@@ -1,5 +1,5 @@
-import Matrix4 from '../math/Matrix4'
-import Vector3 from '../math/Vector3'
+import Matrix4 from '@/core/math/Matrix4'
+import Vector3 from '@/core/math/Vector3'
 
 export interface BaseCameraOptions {
     position?: [number, number, number]

@@ -1,5 +1,5 @@
 import { TextFields, VIEWTYPE } from '@/index.backend'
-import TextView, { TextViewOptions } from '../../TextView'
+import TextView, { TextViewOptions } from '@/core/views/TextView'
 import type { IInput } from '@/core/interfaces'
 
 // 输入框选项接口
