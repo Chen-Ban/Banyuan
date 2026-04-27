@@ -4,22 +4,13 @@ import Style from '@/core/style/Style'
 import { Point3, Vector3 } from '@/core/math'
 import type { ExtraData } from '@/core/interfaces'
 import { Action, Cursor, cursorMap } from '@/core/interfaces'
-import { Circle, Color, Line, StrokeStyle } from '@/index.backend'
+import { ADDONTYPE } from '@/core/constants'
+import { Circle, Line } from '@/core/graph'
+import { Color, StrokeStyle } from '@/core/style'
 import type { IBoundingBoxAddon } from '@/core/interfaces'
 
-/**
- * 边界框插件
- * 定义视图的边界框，包含padding和margin属性
- * 位置由view的matrix决定，不包含独立的x,y属性
- */
-export interface BoundingBoxAddon {
-    region: Rectangle
-    handles: Rectangle[]
-    rotate: [Line, Circle]
-    getBounds(): { x: number; y: number; width: number; height: number }
-}
-
-export default class BoundingBoxAddonImpl implements BoundingBoxAddon, IBoundingBoxAddon {
+export default class BoundingBoxAddon implements IBoundingBoxAddon {
+    public readonly type = ADDONTYPE.BOUNDING_BOX
     public region: Rectangle
     public handles: Rectangle[]
     public rotate: [Line, Circle]
@@ -98,7 +89,7 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon, IBounding
         )
     }
 
-    public updateSize(): BoundingBoxAddonImpl {
+    public updateSize(): BoundingBoxAddon {
         this.region = this.computeRegion()
         this.handles = this.createHandles(this.region)
         this.rotate = this.createRotate()
@@ -131,8 +122,8 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon, IBounding
     /**
      * 复制边界框插件
      */
-    copy(): BoundingBoxAddonImpl {
-        const boudingBox = new BoundingBoxAddonImpl(this.viewport)
+    copy(): BoundingBoxAddon {
+        const boudingBox = new BoundingBoxAddon(this.viewport)
         boudingBox.region = this.region.copy()
         boudingBox.rotate = this.rotate.map((grph) => grph.copy()) as [
             Line,
@@ -178,8 +169,4 @@ export default class BoundingBoxAddonImpl implements BoundingBoxAddon, IBounding
         }
         return null
     }
-}
-
-export function isBoundingBoxAddon(addon: any): addon is BoundingBoxAddonImpl {
-    return addon instanceof BoundingBoxAddonImpl
 }

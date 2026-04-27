@@ -3,7 +3,7 @@ import { Graph, Line } from '@/core/graph'
 import { isGraphType, isAnalyticGraph } from '@/core/interfaces'
 import { VIEWTYPE } from '@/core/constants'
 import { Point3 } from '@/core/math'
-import { VertexAddonImpl, ViewAddonImpl } from '@/core/views/addon'
+import { VertexAddon } from '@/core/views/addon'
 import type { ExtraData } from '@/core/interfaces'
 import type { IGraphView } from '@/core/interfaces'
 
@@ -18,7 +18,7 @@ export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
 export default class GraphView extends View implements IGraphView {
     public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW
     public content: Graph
-    public controlPoints: VertexAddonImpl | null = null
+    public controlPoints: VertexAddon | null = null
 
     constructor(graph: Graph, options: GraphViewOptions = {}) {
         // 将graph作为content传递给父类构造函数
@@ -35,7 +35,7 @@ export default class GraphView extends View implements IGraphView {
             this.content.controlPoints instanceof Float32Array
                 ? Point3.fromArray(this.content.controlPoints)
                 : this.content.controlPoints
-        this.controlPoints = new VertexAddonImpl(vertics)
+        this.controlPoints = new VertexAddon(vertics)
     }
 
     protected interactPlugins(relativePoint: Point3): InteractResult {

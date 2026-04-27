@@ -10,9 +10,9 @@
  *   不引入任何具体 class，因此不会产生循环依赖。
  */
 
-import { GRAPHTYPE, VIEWTYPE } from '@/core/constants'
+import { GRAPHTYPE, VIEWTYPE, ADDONTYPE } from '@/core/constants'
 import type { IGraph, GraphTypeMap } from './IGraph'
-import type { IView, ViewTypeMap } from './IView'
+import type { IView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon } from './IView'
 
 // ────────────────────────────────────────────
 //  Graph 类型守卫
@@ -100,4 +100,18 @@ export function isSelectBoxView(view: IView | null | undefined): view is ViewTyp
 /** 快捷判断：是否为 CombinedView */
 export function isCombinedView(view: IView | null | undefined): view is ViewTypeMap[VIEWTYPE.COMBINEDVIEW] {
     return !!view && view.type === VIEWTYPE.COMBINEDVIEW
+}
+
+// ────────────────────────────────────────────
+//  Addon 类型守卫
+// ────────────────────────────────────────────
+
+/** 快捷判断：是否为 BoundingBoxAddon */
+export function isBoundingBoxAddon(addon: IViewAddon | null | undefined): addon is IBoundingBoxAddon {
+    return !!addon && addon.type === ADDONTYPE.BOUNDING_BOX
+}
+
+/** 快捷判断：是否为 VertexAddon */
+export function isVertexAddon(addon: IViewAddon | null | undefined): addon is IVertexAddon {
+    return !!addon && addon.type === ADDONTYPE.VERTEX
 }

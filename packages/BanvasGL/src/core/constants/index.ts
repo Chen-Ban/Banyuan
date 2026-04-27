@@ -37,6 +37,12 @@ export const enum VIEWTYPE {
     EDITABLETEXT = 'EDITABLETEXT',
 }
 
+// 插件类型枚举
+export const enum ADDONTYPE {
+    BOUNDING_BOX = 'BOUNDING_BOX',
+    VERTEX = 'VERTEX',
+}
+
 // 文字对齐方式枚举
 export const enum VERTICALALIGN {
     TOP = 'TOP',

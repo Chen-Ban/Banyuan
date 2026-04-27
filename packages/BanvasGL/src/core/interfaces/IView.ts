@@ -10,12 +10,11 @@
  *   - IView / ISceneNode 定义在此文件中，作为唯一来源
  */
 
-import { VIEWTYPE } from '@/core/constants'
+import { VIEWTYPE, ADDONTYPE } from '@/core/constants'
 import type { Matrix4, Point3, Vector3 } from '@/core/math'
 import type Bounds from '@/core/graph/base/Bounds'
 import type { Line, Rectangle, Circle } from '@/core/graph'
 import type { Graph } from '@/core/graph'
-import type { BoundingBoxAddonImpl } from '@/core/views/addon'
 import type { IGraph, ITextElement, ITextFields, TextIndex } from './IGraph'
 
 // ────────────────────────────────────────────
@@ -33,7 +32,7 @@ export interface IView {
     content: Graph | null
     viewport: Bounds
     layoutArea: Bounds
-    boundingBox: BoundingBoxAddonImpl | null
+    boundingBox: IBoundingBoxAddon | null
 
     // 状态
     selected: boolean
@@ -108,20 +107,28 @@ export interface ISceneNode {
 //  Addon 接口（从 addon 模块提升到此处避免循环）
 // ────────────────────────────────────────────
 
+/** Addon 基础接口 —— 所有 addon 共有的契约 */
+export interface IAddonBase {
+    readonly type: ADDONTYPE
+    render(ctx: CanvasRenderingContext2D): void
+    copy(): IAddonBase
+    interact(p: Point3): ExtraData | null
+}
+
 /** BoundingBoxAddon 的公共接口 */
-export interface IBoundingBoxAddon {
+export interface IBoundingBoxAddon extends IAddonBase {
+    readonly type: ADDONTYPE.BOUNDING_BOX
     region: Rectangle
     handles: Rectangle[]
     rotate: [Line, Circle]
     getBounds(): Bounds
     updateSize(): IBoundingBoxAddon
-    render(ctx: CanvasRenderingContext2D): void
     copy(): IBoundingBoxAddon
-    interact(p: Point3): ExtraData | null
 }
 
 /** VertexAddon 的公共接口 */
-export interface IVertexAddon {
+export interface IVertexAddon extends IAddonBase {
+    readonly type: ADDONTYPE.VERTEX
     vertices: Point3[]
     activeVertex: Point3 | null
     isEditing: boolean
@@ -129,10 +136,9 @@ export interface IVertexAddon {
     getVertex(index: number): Point3 | null
     setVertex(index: number, vertex: Point3): boolean
     copy(): IVertexAddon
-    render(ctx: CanvasRenderingContext2D): void
-    interact(p: Point3): ExtraData | null
 }
 
+/** Addon 判别联合 —— 通过 type 字段收窄 */
 export type IViewAddon = IBoundingBoxAddon | IVertexAddon
 
 // ────────────────────────────────────────────

@@ -14,13 +14,13 @@ import {
     Graph,
 } from '@/core'
 import { SelectBoxView } from '@/core'
-import type { ViewAddonImpl } from '@/core/views/addon'
+import type { IViewAddon } from '@/core/interfaces'
 
 export interface InteractionContext {
     /** Get the current indicated (hovered) view */
     getIndicateView(): View | null
     /** Get the current indicated content */
-    getIndicateContent(): Graph | ViewAddonImpl | null
+    getIndicateContent(): Graph | IViewAddon | null
     /** Get the last mouse point */
     getLastPoint(): Point3 | null
     /** Get extra data from the interact result */

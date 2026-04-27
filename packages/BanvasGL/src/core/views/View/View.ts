@@ -2,14 +2,14 @@ import { VIEWTYPE } from '@/core/constants'
 import Matrix4 from '@/core/math/Matrix4'
 import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
 import { v4 as uuidv4 } from 'uuid'
-import type { ISceneNode, IView, IViewStyle, ExtraData } from '@/core/interfaces'
+import type { ISceneNode, IView, IViewStyle, IViewAddon, ExtraData } from '@/core/interfaces'
 import { Action, Cursor } from '@/core/interfaces'
 
 // 导入图形相关类型
 import { Graph, Line, Rectangle } from '@/core/graph'
 
 // 导入addon类型
-import { BoundingBoxAddonImpl, ViewAddonImpl } from '@/core/views/addon'
+import { BoundingBoxAddon } from '@/core/views/addon'
 import { MathUtils, Point3, Vector3 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
 
@@ -40,7 +40,7 @@ const RESIZE_ORIGIN_MAP = [
 
 export interface InteractResult {
     view: IView | null
-    content: Graph | ViewAddonImpl | null
+    content: Graph | IViewAddon | null
     extraData: ExtraData | null
 }
 
@@ -89,7 +89,7 @@ export default abstract class View<T extends object = any> implements IView {
     // 滚动偏移量（由 layout 计算，渲染和交互时使用）
     public scrollOffset: { x: number; y: number } = { x: 0, y: 0 }
     // 插件
-    public boundingBox: BoundingBoxAddonImpl | null = null
+    public boundingBox: BoundingBoxAddon | null = null
     // 视口
     public viewport: Bounds
     // 内容布局区域
@@ -235,7 +235,7 @@ export default abstract class View<T extends object = any> implements IView {
             options.style?.width || 0,
             options.style?.height || 0
         )
-        this.boundingBox = new BoundingBoxAddonImpl(this.viewport)
+        this.boundingBox = new BoundingBoxAddon(this.viewport)
 
         // 步骤2: 初始化布局区域(使用视口大小作为初始值)
         this.layoutArea = this.viewport.copy()
@@ -583,7 +583,7 @@ export default abstract class View<T extends object = any> implements IView {
         )
         if (this.style.needStructViewport) {
             this.viewport = this.layoutArea.copy()
-            this.boundingBox = new BoundingBoxAddonImpl(this.viewport)
+            this.boundingBox = new BoundingBoxAddon(this.viewport)
         }
         // 2、计算scroll偏移（纯渲染层偏移，不修改content和children的数据）
         if (this.style.overflow === 'scroll') {
