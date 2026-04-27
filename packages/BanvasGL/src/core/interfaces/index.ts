@@ -38,6 +38,7 @@ export type { TextIndex } from './IGraph'
 
 // ── View 接口 ──
 export type {
+    IAddonBase,
     IBoundingBoxAddon,
     IVertexAddon,
     IViewAddon,
@@ -111,4 +112,6 @@ export {
     isTextView,
     isSelectBoxView,
     isCombinedView,
+    isBoundingBoxAddon,
+    isVertexAddon,
 } from './guards'

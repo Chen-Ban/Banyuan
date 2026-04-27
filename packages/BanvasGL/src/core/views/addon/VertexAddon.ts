@@ -2,19 +2,10 @@ import { Point3 } from '@/core/math'
 import type { ExtraData } from '@/core/interfaces'
 import { Action, Cursor } from '@/core/interfaces'
 import type { IVertexAddon } from '@/core/interfaces'
+import { ADDONTYPE } from '@/core/constants'
 
-/**
- * 顶点插件
- * 定义视图的顶点集合
- */
-export interface VertexAddon {
-    vertices: Point3[]
-    activeVertex: Point3 | null
-    isEditing: boolean
-    render(ctx: CanvasRenderingContext2D): void
-}
-
-export default class VertexAddonImpl implements VertexAddon, IVertexAddon {
+export default class VertexAddon implements IVertexAddon {
+    public readonly type = ADDONTYPE.VERTEX
     public vertices: Point3[]
     public activeVertex: Point3 | null = null
     isEditing: boolean = false
@@ -54,8 +45,8 @@ export default class VertexAddonImpl implements VertexAddon, IVertexAddon {
     /**
      * 复制顶点插件
      */
-    copy(): VertexAddonImpl {
-        return new VertexAddonImpl(this.vertices.map((v) => v.copy()))
+    copy(): VertexAddon {
+        return new VertexAddon(this.vertices.map((v) => v.copy()))
     }
 
     /**
@@ -103,8 +94,4 @@ export default class VertexAddonImpl implements VertexAddon, IVertexAddon {
             editPoint: v,
         }
     }
-}
-
-export function isVertexAddon(addon: any): addon is VertexAddonImpl {
-    return addon instanceof VertexAddonImpl
 }

@@ -21,8 +21,7 @@ import {
 } from '@/core'
 import { isTextView, isSelectBoxView } from '@/core/interfaces'
 import { clearAllStates } from '@/core/scene/ViewTree'
-import { ViewAddonImpl } from '@/core/views/addon'
-import type { ExtraData } from '@/core/interfaces'
+import type { ExtraData, IViewAddon } from '@/core/interfaces'
 import { Action, Cursor } from '@/core/interfaces'
 import { InteractionDispatcher } from './InteractionDispatcher'
 import type { InteractionContext } from './InteractionDispatcher'
@@ -54,7 +53,7 @@ export function useCanvasEvents({
     const lastPointRef = useRef<Point3 | null>(null)
     const mouseUpPointRef = useRef<Point3 | null>(null)
     const indicateViewRef = useRef<View | null>(null)
-    const indicateContentRef = useRef<Graph | ViewAddonImpl | null>(null)
+    const indicateContentRef = useRef<Graph | IViewAddon | null>(null)
     const actionRef = useRef<Action>(Action.NONE)
     const extraDataRef = useRef<ExtraData | null>(null)
     const lastClickTimeRef = useRef<number | undefined>(undefined)
