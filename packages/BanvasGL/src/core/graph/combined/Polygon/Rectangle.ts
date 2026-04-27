@@ -3,12 +3,13 @@ import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
 import Bounds from "../../base/Bounds";
+import type { IRectangle } from '@/core/interfaces';
 
 /**
  * Rectangle类 - 矩形
  * 继承自Polygon，专门用于创建和管理矩形
  */
-export default class Rectangle extends Polygon {
+export default class Rectangle extends Polygon implements IRectangle {
   public type: GRAPHTYPE = GRAPHTYPE.RECTANGLE;
   public width: number;
   public height: number;
@@ -193,9 +194,4 @@ export default class Rectangle extends Polygon {
   public static fromBounds(bounds: Bounds, style?: Style): Rectangle {
     return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height, style);
   }
-}
-
-// 类型守卫函数
-export function isRectangle(graph: any): graph is Rectangle {
-  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.RECTANGLE;
 }

@@ -2,7 +2,8 @@ import { VIEWTYPE } from '../../constants'
 import Matrix4 from '../../math/Matrix4'
 import { getGlobalCanvasContext } from '../../renderer/CanvasContext'
 import { v4 as uuidv4 } from 'uuid'
-import type { ISceneNode, IView } from '../../types'
+import type { ISceneNode, IView, IViewStyle, ExtraData } from '@/core/interfaces'
+import { Action, Cursor } from '@/core/interfaces'
 
 // 导入图形相关类型
 import { Graph, Line, Rectangle } from '../../graph'
@@ -10,12 +11,7 @@ import { Graph, Line, Rectangle } from '../../graph'
 // 导入addon类型
 import { BoundingBoxAddonImpl, ViewAddonImpl } from '../addon'
 import { MathUtils, Point3, Vector3 } from '../../math'
-import {
-    InteractionMapBuilder,
-    Action,
-    Cursor,
-    ExtraData,
-} from './InteractionMapBuilder'
+import { InteractionMapBuilder } from './InteractionMapBuilder'
 import Bounds from '../../graph/base/Bounds'
 
 const RESIZE_SIZE_MAP = [
@@ -49,15 +45,6 @@ export interface InteractResult {
     extraData: ExtraData | null
 }
 
-export interface ViewStyle {
-    width?: number // 视口宽度
-    height?: number // 视口高度
-    overflow?: 'visible' | 'hidden' | 'scroll'
-    scrollX?: number
-    scrollY?: number
-    transformOrigin?: Point3
-    needStructViewport?: boolean
-}
 // 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
 export interface ViewOptions<T extends object = any> {
     id?: string
@@ -66,7 +53,7 @@ export interface ViewOptions<T extends object = any> {
     parent?: ISceneNode | View
     data?: T
     properties?: T
-    style?: ViewStyle
+    style?: IViewStyle
     matrix?: Matrix4
     onCreated?: () => void
     onAttach?: () => void
@@ -75,7 +62,7 @@ export interface ViewOptions<T extends object = any> {
 }
 
 // TODO：不同容器的默认样式表
-export default abstract class View<T extends object = any> {
+export default abstract class View<T extends object = any> implements IView {
     // 基本属性
     public layer: number = 0
     public id: string = ''
@@ -86,7 +73,7 @@ export default abstract class View<T extends object = any> {
     public parent: ISceneNode | View | null = null
 
     // 样式和状态
-    public style: ViewStyle = {}
+    public style: IViewStyle = {}
     public selected: boolean = false
     public actived: boolean = false
     public freezed: boolean = false
@@ -142,11 +129,9 @@ export default abstract class View<T extends object = any> {
 
     /**
      * 检查内容是否被命中，子类可以重写此方法实现自定义逻辑
-     * @param builder 交互构建器
      * @param point 相对坐标点
-     * @param needConstraint 是否需要约束（可选，TextView使用）
      */
-    protected interactContent(point: Point3, needConstraint?: boolean) {
+    protected interactContent(point: Point3) {
         const builder = new InteractionMapBuilder()
         if (!this.content) return builder.build()
         const hitContent =
@@ -162,38 +147,33 @@ export default abstract class View<T extends object = any> {
     }
 
     protected interactPlugins(relativePoint: Point3): InteractResult {
-        return new InteractionMapBuilder().build()
+        const builder = new InteractionMapBuilder()
+        if (this.actived && this.boundingBox) {
+            const extraData = this.boundingBox.interact(relativePoint)
+            if (extraData) {
+                builder.add(this, this.boundingBox, extraData)
+            }
+        }
+        return builder.build()
     }
 
     /**
      * 统一交互方法
      * 优先级：1. 插件 -> 2. 内容 -> 3. 子视图
      * @param worldPoint 世界坐标点
-     * @param needConstraint 是否需要约束到布局区域/视口中
      */
-    public interact(
-        worldPoint: Point3,
-        needConstraint?: boolean
-    ): InteractResult {
+    public interact(worldPoint: Point3): InteractResult {
         const relativePoint = this.getMVPMatrix().inverse().multiply(worldPoint)
         const builder = new InteractionMapBuilder()
 
         const ctx = getGlobalCanvasContext()?.getBufferContext()
         if (!ctx) throw new Error('交互失败')
 
-        // 1. 检查插件（边界框）—— 插件不随 scroll 移动，用原始坐标
-        if (this.actived && this.boundingBox) {
-            const extraData = this.boundingBox.interact(relativePoint)
-            if (extraData) {
-                return builder.add(this, this.boundingBox, extraData).build()
-            }
-        }
-
-        // 2. 检查独有插件
+        // 1. 检查插件（BoundingBox + 子类插件）—— 插件不随 scroll 移动，用原始坐标
         const pluginsResult = this.interactPlugins(relativePoint)
         if (pluginsResult.view) return pluginsResult
 
-        // 3. 补偿 scroll 偏移：内容和子视图在渲染时被 translate 了 scrollOffset，
+        // 2. 补偿 scroll 偏移：内容和子视图在渲染时被 translate 了 scrollOffset，
         //    命中检测时需要反向补偿，将点转换到"内容坐标系"
         const scrolledPoint = new Point3(
             relativePoint.x - this.scrollOffset.x,
@@ -201,15 +181,15 @@ export default abstract class View<T extends object = any> {
             relativePoint.z
         )
 
-        // 4. 检查内容（复杂图形由子类重写）
-        const result = this.interactContent(scrolledPoint, needConstraint)
+        // 3. 检查内容（复杂图形由子类重写）
+        const result = this.interactContent(scrolledPoint)
         if (result.view) return result
 
-        // 5. 递归检查子视图
+        // 4. 递归检查子视图
         //    将 scrolledPoint 转回世界坐标传给子视图，子视图再用自己的 MVP 逆矩阵转本地坐标
         const adjustedWorldPoint = this.getMVPMatrix().multiply(scrolledPoint)
         for (const child of this.children) {
-            const result = child.interact(adjustedWorldPoint, needConstraint)
+            const result = child.interact(adjustedWorldPoint)
             if (result.view && result.content && result.extraData) {
                 builder.add(result.view, result.content, result.extraData)
             }

@@ -5,8 +5,9 @@ import { Style } from "@/core/style";
 import Bounds from "../base/Bounds";
 import Graph from "../base/Graph";
 import { intersect } from "./IntersectionUtils";
+import type { IBezier } from '@/core/interfaces';
 
-export default abstract class Bezier extends AnalyticGraph {
+export default abstract class Bezier extends AnalyticGraph implements IBezier {
   public type: GRAPHTYPE = GRAPHTYPE.BEZIER;
   public controlPoints: Point3[];
   public style: Style;

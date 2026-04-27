@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { Point3, App, isTextView } from '@/core'
+import { Point3, App } from '@/core'
+import { isTextView, type ITextView } from '@/core/interfaces'
 import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
-import type TextView from '@/core/views/TextView'
 
 export interface UseInputEventsOptions {
     inputRef: React.RefObject<HTMLInputElement | null>
@@ -12,7 +12,7 @@ export interface UseInputEventsOptions {
 /**
  * 获取当前选中的 TextView
  */
-function getSelectedTextView(app: App | null): TextView | null {
+function getSelectedTextView(app: App | null): ITextView | null {
     const scene = app?.getCurrentScene()
     if (!scene) return null
 
@@ -162,8 +162,8 @@ export function useInputEvents({
                 case 'Escape':
                     // 失活当前选中的容器
                     if (!isComposingRef.current && selectedView && app) {
-                        selectedView.fixedIndex = undefined
-                        selectedView.dynamicIndex = undefined
+                        selectedView.selection.fixedIndex = undefined
+                        selectedView.selection.dynamicIndex = undefined
                         selectedView.setSelection(undefined, undefined)
                     }
                     break

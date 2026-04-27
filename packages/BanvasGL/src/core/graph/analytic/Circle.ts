@@ -2,8 +2,9 @@ import { GRAPHTYPE } from "@/core/constants";
 import Arc from "./Arc";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
+import type { ICircle } from '@/core/interfaces';
 
-export default class Circle extends Arc {
+export default class Circle extends Arc implements ICircle {
   public type: GRAPHTYPE = GRAPHTYPE.CIRCLE;
 
   constructor(center: Point3, radius: number, style: Style = Style.DEFAULT) {
@@ -197,7 +198,3 @@ export default class Circle extends Arc {
   static readonly EMPTY_CIRCLE = new Circle(new Point3(0, 0, 0), 0);
 }
 
-// 类型守卫函数
-export function isCircle(graph: any): graph is Circle {
-  return graph instanceof Circle;
-}

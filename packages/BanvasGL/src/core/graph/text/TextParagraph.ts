@@ -11,6 +11,7 @@ import {
     isNonPrintableTextElement,
     isPrintableTextElement,
 } from './TextElement'
+import type { ITextParagraph } from '@/core/interfaces'
 
 export type TextParagraphContent = [
     ...PrintableTextElement[],
@@ -21,7 +22,7 @@ export type TextParagraphContent = [
  * 文字段落类
  * 表示一个段落，包含多个文字元素 - TODO: 文本装饰的设计与实现
  */
-export default class TextParagraph extends Graph {
+export default class TextParagraph extends Graph implements ITextParagraph {
     public type: GRAPHTYPE = GRAPHTYPE.TEXTPARAGRAPH
     public controlPoints: Point3[]
     public style: Style

@@ -2,12 +2,13 @@ import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
+import type { ITriangle } from '@/core/interfaces';
 
 /**
  * Triangle类 - 三角形
  * 继承自Polygon，专门用于创建和管理三角形
  */
-export default class Triangle extends Polygon {
+export default class Triangle extends Polygon implements ITriangle {
   public type: GRAPHTYPE = GRAPHTYPE.TRIANGLE;
 
   constructor(p1: Point3, p2: Point3, p3: Point3, style?: Style) {
@@ -149,9 +150,4 @@ export default class Triangle extends Polygon {
     const p3 = new Point3(center.x - width / 2, center.y + height / 2, center.z);
     return new Triangle(p1, p2, p3, style);
   }
-}
-
-// 类型守卫函数
-export function isTriangle(graph: any): graph is Triangle {
-  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.TRIANGLE;
 }

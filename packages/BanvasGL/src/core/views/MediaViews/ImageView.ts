@@ -1,6 +1,7 @@
 import View, { ViewOptions } from '../View/View'
 import { ImageElement } from '../../graph/media'
 import { VIEWTYPE } from '@/index.backend'
+import type { IImageView } from '@/core/interfaces'
 
 // 图像视图选项接口
 export interface ImageViewOptions extends Omit<ViewOptions, 'content'> {
@@ -10,7 +11,7 @@ export interface ImageViewOptions extends Omit<ViewOptions, 'content'> {
 /**
  * 图像视图 - 专门处理ImageElement类型内容
  */
-export default class ImageView extends View {
+export default class ImageView extends View implements IImageView {
     public type: VIEWTYPE = VIEWTYPE.IMAGEVIEW
     public content: ImageElement
 
@@ -49,6 +50,3 @@ export default class ImageView extends View {
     }
 }
 
-export function isImageView(view: any): view is ImageView {
-    return view instanceof ImageView
-}

@@ -1,5 +1,5 @@
 import View from "@/core/views/View/View";
-import type { ISceneNode, IView } from "../types";
+import type { ISceneNode, IView } from "../interfaces";
 import { TextView } from "../views";
 
 /** 视图树节点：可以是 Scene、View 或任何实现了 IView 的对象 */

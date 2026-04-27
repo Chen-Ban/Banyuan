@@ -1,6 +1,7 @@
 import View, { ViewOptions } from '../View/View'
 import { VideoElement } from '../../graph/media'
 import { VIEWTYPE } from '@/index.backend'
+import type { IVideoView } from '@/core/interfaces'
 
 // 视频视图选项接口
 export interface VideoViewOptions extends Omit<ViewOptions, 'content'> {
@@ -10,7 +11,7 @@ export interface VideoViewOptions extends Omit<ViewOptions, 'content'> {
 /**
  * 视频视图 - 专门处理VideoElement类型内容
  */
-export default class VideoView extends View {
+export default class VideoView extends View implements IVideoView {
     public type: VIEWTYPE = VIEWTYPE.VIDEOVIEW
     public content: VideoElement
 
@@ -49,6 +50,3 @@ export default class VideoView extends View {
     }
 }
 
-export function isVideoView(view: any): view is VideoView {
-    return view instanceof VideoView
-}

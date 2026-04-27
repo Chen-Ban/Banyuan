@@ -2,12 +2,13 @@ import { GRAPHTYPE } from '@/core/constants'
 import MediaElement from './MediaElement'
 import { Style } from '@/core/style'
 import { Point3 } from '@/index.backend'
+import type { IImageElement } from '@/core/interfaces'
 
 /**
  * ImageElement 类 - 图片元素
  * 继承自 MediaElement，用于在画布中绘制图片
  */
-export default class ImageElement extends MediaElement {
+export default class ImageElement extends MediaElement implements IImageElement {
     public type: GRAPHTYPE = GRAPHTYPE.IMAGE
 
     // 图片相关属性
@@ -187,7 +188,3 @@ export default class ImageElement extends MediaElement {
     }
 }
 
-// 类型守卫函数
-export function isImageElement(graph: any): graph is ImageElement {
-    return graph instanceof ImageElement
-}

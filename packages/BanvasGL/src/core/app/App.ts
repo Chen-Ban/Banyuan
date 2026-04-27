@@ -1,24 +1,7 @@
 import Scene from '../scene/Scene'
 import Serializer from '../utils/Serializer'
-import Renderer, { RendererOptions } from '../renderer/Renderer'
-
-// 页面类型
-export type Page = Scene
-
-// 应用选项
-export interface AppOptions {
-    enablePageStack?: boolean
-    maxPageStackSize?: number
-    onLaunch?: (params: any) => void
-    onUnlaunch?: () => void
-}
-
-// 导航选项
-export interface NavigationOptions {
-    replace?: boolean
-    clearStack?: boolean
-    params?: any
-}
+import Renderer from '../renderer/Renderer'
+import type { IAppOptions, INavigationOptions, IRendererOptions } from '../interfaces'
 
 export default class App {
     // 基本属性
@@ -47,7 +30,7 @@ export default class App {
     private _userOnLaunch?: (params: any) => void
     private _userOnUnlaunch?: () => void
 
-    constructor(renderer: Renderer, options: AppOptions = {}) {
+    constructor(renderer: Renderer, options: IAppOptions = {}) {
         this.renderer = renderer
         this._enablePageStack = options.enablePageStack !== false
         this._maxPageStackSize = options.maxPageStackSize || 50
@@ -157,7 +140,7 @@ export default class App {
     }
 
     // 导航方法
-    public navigateTo(page: Page, options: NavigationOptions = {}): App {
+    public navigateTo(page: Scene, options: INavigationOptions = {}): App {
         if (!this._enablePageStack) {
             return this.replaceTo(page, options)
         }
@@ -195,7 +178,7 @@ export default class App {
         return this
     }
 
-    public navigateBack(page?: Page): App {
+    public navigateBack(page?: Scene): App {
         if (!this._enablePageStack || this.pageStack.length <= 1 || this._currentPageIndex <= 0) {
             return this
         }
@@ -241,7 +224,7 @@ export default class App {
         return this
     }
 
-    public replaceTo(page: Page, options: NavigationOptions = {}): App {
+    public replaceTo(page: Scene, options: INavigationOptions = {}): App {
         // 隐藏当前场景
         if (this._currentScene) {
             this._currentScene.hide()
@@ -294,7 +277,7 @@ export default class App {
     }
 
     // 页面栈管理
-    private pushToPageStack(page: Page): void {
+    private pushToPageStack(page: Scene): void {
         if (!this._enablePageStack) {
             return
         }
@@ -312,7 +295,7 @@ export default class App {
         }
     }
 
-    private popFromPageStack(): Page | null {
+    private popFromPageStack(): Scene | null {
         const page = this.pageStack.pop() || null
         if (page) {
             this._pageStackHistory.delete(page.id)
@@ -324,7 +307,7 @@ export default class App {
         return page
     }
 
-    private removePageFromStack(page: Page): void {
+    private removePageFromStack(page: Scene): void {
         // 从页面栈中移除指定页面
         const index = this.pageStack.findIndex(p => p.id === page.id)
         if (index !== -1) {
@@ -344,7 +327,7 @@ export default class App {
 
 
     // 检查页面是否在栈中
-    private isPageInStack(page: Page): boolean {
+    private isPageInStack(page: Scene): boolean {
         return this._pageStackHistory.has(page.id)
     }
 
@@ -355,7 +338,7 @@ export default class App {
         return this
     }
 
-    public getPageStack(): Page[] {
+    public getPageStack(): Scene[] {
         return [...this.pageStack]
     }
 
@@ -664,7 +647,7 @@ export default class App {
     }
 
     // 静态方法：创建应用
-    public static create(canvas: HTMLCanvasElement, options: AppOptions = {}, rendererOptions: RendererOptions = {}): App {
+    public static create(canvas: HTMLCanvasElement, options: IAppOptions = {}, rendererOptions: IRendererOptions = {}): App {
         const renderer = new Renderer(canvas, rendererOptions)
         return new App(renderer, options)
     }

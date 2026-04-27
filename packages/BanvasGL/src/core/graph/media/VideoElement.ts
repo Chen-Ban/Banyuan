@@ -2,12 +2,13 @@ import { GRAPHTYPE } from "@/core/constants";
 import MediaElement from "./MediaElement";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
+import type { IVideoElement } from '@/core/interfaces';
 
 /**
  * VideoElement 类 - 视频元素
  * 继承自 MediaElement，用于在画布中绘制视频
  */
-export default class VideoElement extends MediaElement {
+export default class VideoElement extends MediaElement implements IVideoElement {
   public type: GRAPHTYPE = GRAPHTYPE.VIDEO;
 
   // 视频相关属性
@@ -266,9 +267,4 @@ export default class VideoElement extends MediaElement {
     return true;
   }
 
-}
-
-// 类型守卫函数
-export function isVideoElement(graph: any): graph is VideoElement {
-  return graph instanceof VideoElement;
 }

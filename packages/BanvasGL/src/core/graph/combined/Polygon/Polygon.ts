@@ -2,13 +2,15 @@ import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3, Vector3 } from "@/core/math";
 import CombinedGraph from "../CombinedGraph";
-import Line, { isLine } from "../../analytic/Line";
+import Line from "../../analytic/Line";
+import { isGraphType } from '@/core/interfaces';
+import type { IPolygon } from '@/core/interfaces';
 
 /**
  * Polygon类 - 多边形图形基类
  * 基于CombinedGraph，专门用于创建和管理多边形
  */
-export default class Polygon extends CombinedGraph {
+export default class Polygon extends CombinedGraph implements IPolygon {
   public type: GRAPHTYPE = GRAPHTYPE.POLYGON;
   public vertices: Point3[] = [];
   public isClosed: boolean = true;
@@ -183,9 +185,10 @@ export default class Polygon extends CombinedGraph {
   }
   public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
     const graphs = this.graphs
-    if (!graphs.every(graph => isLine(graph))) throw new Error("多边形边只能为Line")
+    if (!graphs.every(graph => isGraphType(graph, GRAPHTYPE.LINE))) throw new Error("多边形边只能为Line")
     const vertices: Point3[] = []
     for (const graph of graphs) {
+      if (!isGraphType(graph, GRAPHTYPE.LINE)) continue // 已由 every 保证，此处仅为类型收窄
       graph.resize(fixedPoint, dynamicPoint, resizeVector)
       vertices.push(graph.controlPoints[0])
       if (!vertices.find(v => graph.controlPoints[1].isSame(v))) {
@@ -206,7 +209,3 @@ export default class Polygon extends CombinedGraph {
   }
 }
 
-// 类型守卫函数
-export function isPolygon(graph: any): graph is Polygon {
-  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.POLYGON;
-}

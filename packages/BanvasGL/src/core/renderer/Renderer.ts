@@ -1,15 +1,9 @@
 import Scene from "../scene/Scene";
 import CanvasContext, {
-  CanvasContextOptions,
   getGlobalCanvasContext,
   destroyGlobalCanvasContext,
 } from "./CanvasContext";
-
-export interface RendererOptions extends CanvasContextOptions {
-  // 渲染器选项可以在这里添加
-  /** 设备像素比，用于高DPI屏幕适配 */
-  dpr?: number;
-}
+import type { IRendererOptions } from '../interfaces'
 
 export default class Renderer {
   // 渲染状态
@@ -21,7 +15,7 @@ export default class Renderer {
   // 设备像素比
   private dpr: number;
 
-  constructor(canvas: HTMLCanvasElement, options: RendererOptions = {}) {
+  constructor(canvas: HTMLCanvasElement, options: IRendererOptions = {}) {
     // 初始化全局 CanvasContext
     getGlobalCanvasContext(canvas, options);
     // 保存 dpr，默认为 1
@@ -96,7 +90,7 @@ export default class Renderer {
   }
 
   // 设置渲染选项
-  public setOptions(options: Partial<RendererOptions>): void {
+  public setOptions(options: Partial<IRendererOptions>): void {
     this.canvasContext.setOptions(options);
     if (options.dpr !== undefined) {
       this.dpr = options.dpr;
@@ -114,7 +108,7 @@ export default class Renderer {
   }
 
   // 获取渲染选项
-  public getOptions(): RendererOptions {
+  public getOptions(): IRendererOptions {
     return this.canvasContext.getOptions();
   }
 

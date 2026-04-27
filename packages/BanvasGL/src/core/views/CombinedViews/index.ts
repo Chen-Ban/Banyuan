@@ -1,10 +1,11 @@
 import { VIEWTYPE } from '@/core/constants'
 import View, { ViewOptions } from '../View/View'
+import type { ICombinedView } from '@/core/interfaces'
 
 /**
  * 组合视图
  */
-export default class CombinedView extends View {
+export default class CombinedView extends View implements ICombinedView {
     public type: VIEWTYPE = VIEWTYPE.COMBINEDVIEW
 
     constructor(options: ViewOptions = {}) {
@@ -67,6 +68,3 @@ export default class CombinedView extends View {
     }
 }
 
-export function isCombinedView(view: any): view is CombinedView {
-    return view instanceof CombinedView
-}

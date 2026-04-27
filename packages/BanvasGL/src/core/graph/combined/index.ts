@@ -1,2 +1,2 @@
-export { default as CombinedGraph, isCombinedGraph } from "./CombinedGraph";
+export { default as CombinedGraph } from "./CombinedGraph";
 export * from "./Polygon";

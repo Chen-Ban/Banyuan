@@ -6,12 +6,13 @@ import Graph from '@/core/graph/base/Graph'
 import { Point3, Vector3, Matrix4 } from '@/core/math'
 import Bounds from '../base/Bounds'
 import { Rectangle } from '../combined'
+import type { ITextElement, IPrintableTextElement, INonPrintableTextElement } from '@/core/interfaces'
 
 /**
  * 文字元素基类
  * 包含文字元素的共同属性和方法
  */
-export default abstract class TextElement extends Graph {
+export default abstract class TextElement extends Graph implements ITextElement {
     public abstract type: GRAPHTYPE
     public controlPoints: Point3[]
     public _style: Style
@@ -42,7 +43,7 @@ export default abstract class TextElement extends Graph {
      * 计算文字的实际宽高（由子类实现）
      */
     protected abstract calculateActualDimensions(): void
-    public abstract applyLayout(point: Point3, lineHeight: number): void
+    public abstract applyLayout(point: Point3, lineHeight: number): this
 
     public getLength(tStart: number, tEnd: number): number {
         return (this.width + this.lineHeight) * 2 * (tEnd - tStart)
@@ -314,7 +315,7 @@ export default abstract class TextElement extends Graph {
  * 文字包围盒为option.size * lineheight
  * 单个文字的控制点不在其包围盒左上角而是在文字的左上角
  */
-export class PrintableTextElement extends TextElement {
+export class PrintableTextElement extends TextElement implements IPrintableTextElement {
     public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT
 
     constructor(
@@ -472,7 +473,7 @@ export class PrintableTextElement extends TextElement {
  * @description 不可打印的文字元素，段落结束位置守卫，不会渲染到屏幕上
  * @description 使用场景: 空行布局与交互
  */
-export class NonPrintableTextElement extends TextElement {
+export class NonPrintableTextElement extends TextElement implements INonPrintableTextElement {
     public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT
 
     constructor() {

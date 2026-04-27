@@ -3,19 +3,14 @@ import Style from '@/core/style/Style'
 import { Point3, Vector3, Matrix4 } from '@/core/math'
 import Graph from '../base/Graph'
 import Bounds from '../base/Bounds'
-import { isDenseTrajectory } from '../trajectory/DenseTrajectory'
-import { isLine } from '../analytic/Line'
-import { isArc } from '../analytic/Arc'
-import { isCircle } from '../analytic/Circle'
-import { isQuadraticBezier } from '../analytic/QuadraticBezier'
-import { isCubicBezier } from '../analytic/CubicBezier'
-import { isImageElement, isVideoElement } from '../media'
+import { isGraphType, isAnalyticGraph, isMediaElement, isCombinedGraph as isCombinedGraphGuard } from '@/core/interfaces'
+import type { ICombinedGraph } from '@/core/interfaces'
 
 /**
  * CombinedGraph类 - 组合多个图形元素的复合图形
  * 可以包含多个子图形，统一管理和渲染
  */
-export default class CombinedGraph extends Graph {
+export default class CombinedGraph extends Graph implements ICombinedGraph {
     public type: GRAPHTYPE = GRAPHTYPE.COMBINED_GRAPH
     public graphs: Graph[] = []
     public style: Style
@@ -112,13 +107,7 @@ export default class CombinedGraph extends Graph {
 
         for (const graph of this.graphs) {
             // 1. 分析图形（解析式图形）：使用采样点
-            if (
-                isLine(graph) ||
-                isArc(graph) ||
-                isCircle(graph) ||
-                isQuadraticBezier(graph) ||
-                isCubicBezier(graph)
-            ) {
+            if (isAnalyticGraph(graph)) {
                 const steps = graph.getTotalLength()
                 for (let i = 0; i <= steps; i++) {
                     const t = i / steps
@@ -127,9 +116,8 @@ export default class CombinedGraph extends Graph {
             }
             // 2. 媒体图形（图片、视频）：从 bounds 获取四个角点
             else if (
-                isImageElement(graph) ||
-                isVideoElement(graph) ||
-                isCombinedGraph(graph)
+                isMediaElement(graph) ||
+                isCombinedGraphGuard(graph)
             ) {
                 const bounds = graph.bounds
                 if (bounds && !bounds.isEmpty) {
@@ -150,7 +138,7 @@ export default class CombinedGraph extends Graph {
                 }
             }
             // 3. 其他图形（如密集轨迹等）：从控制点采样
-            else if (isDenseTrajectory(graph)) {
+            else if (isGraphType(graph, GRAPHTYPE.DENSETRAJECTORY)) {
                 for (let i = 0; i < graph.controlPoints.length; i += 3) {
                     samplePoints.push(
                         new Point3(
@@ -255,7 +243,7 @@ export default class CombinedGraph extends Graph {
         ctx: CanvasRenderingContext2D,
         graph: Graph
     ): void {
-        if (isLine(graph)) {
+        if (isGraphType(graph, GRAPHTYPE.LINE)) {
             // 对于线段，只使用lineTo
             ctx.lineTo(graph.endPoint.x, graph.endPoint.y)
         } else if (graph.type === GRAPHTYPE.BEZIER) {
@@ -403,7 +391,3 @@ export default class CombinedGraph extends Graph {
     }
 }
 
-// 类型守卫函数
-export function isCombinedGraph(graph: any): graph is CombinedGraph {
-    return graph instanceof CombinedGraph
-}

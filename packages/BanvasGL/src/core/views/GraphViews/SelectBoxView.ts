@@ -3,6 +3,7 @@ import { Rectangle } from '../../graph'
 import { VIEWTYPE } from '@/core/constants'
 import { Point3 } from '../../math'
 import { Color, FillStyle, StrokeStyle, Style } from '../../style'
+import type { ISelectBoxView } from '@/core/interfaces'
 
 // 框选视图选项接口
 export interface SelectBoxViewOptions extends GraphViewOptions {
@@ -13,7 +14,7 @@ export interface SelectBoxViewOptions extends GraphViewOptions {
  * 框选视图 - 专门用于矩形框选操作
  * 继承自 GraphView，但具有特殊的类型标识，不参与交互
  */
-export default class SelectBoxView extends GraphView {
+export default class SelectBoxView extends GraphView implements ISelectBoxView {
     public type: VIEWTYPE = VIEWTYPE.SELECTBOXVIEW
 
     constructor(options: SelectBoxViewOptions = {}) {
@@ -107,6 +108,3 @@ export default class SelectBoxView extends GraphView {
     }
 }
 
-export function isSelectBoxView(view: any): view is SelectBoxView {
-    return view instanceof SelectBoxView
-}
