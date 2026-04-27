@@ -1,8 +1,8 @@
 import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3, Vector3 } from "@/core/math";
-import CombinedGraph from "../CombinedGraph";
-import Line from "../../analytic/Line";
+import CombinedGraph from "@/core/graph/combined/CombinedGraph";
+import Line from "@/core/graph/analytic/Line";
 import { isGraphType } from '@/core/interfaces';
 import type { IPolygon } from '@/core/interfaces';
 

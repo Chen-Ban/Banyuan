@@ -1,4 +1,4 @@
-import { Point3 } from '../../math'
+import { Point3 } from '@/core/math'
 import type { ExtraData } from '@/core/interfaces'
 import { Action, Cursor } from '@/core/interfaces'
 import type { IVertexAddon } from '@/core/interfaces'

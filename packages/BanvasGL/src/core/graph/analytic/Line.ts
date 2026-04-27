@@ -3,8 +3,8 @@ import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
 import MathUtils from "@/core/math/MathUtils";
-import Bounds from "../base/Bounds";
-import Graph from "../base/Graph";
+import Bounds from "@/core/graph/base/Bounds";
+import Graph from "@/core/graph/base/Graph";
 import { intersect } from "./IntersectionUtils";
 import type { ILine } from '@/core/interfaces';
 

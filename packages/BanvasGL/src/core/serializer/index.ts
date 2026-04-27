@@ -1,24 +1,24 @@
-import Scene from "../scene/Scene";
-import Matrix4 from "../math/Matrix4";
-import { Point3, Vector3 } from "../math";
-import Style from "../style/Style";
-import { Graph } from "../graph";
-import { Operation, Diff } from "../scene/utils/OperationStack";
+import Scene from "@/core/scene/Scene";
+import Matrix4 from "@/core/math/Matrix4";
+import { Point3, Vector3 } from "@/core/math";
+import Style from "@/core/style/Style";
+import { Graph } from "@/core/graph";
+import { Operation, Diff } from "@/core/scene/utils/OperationStack";
 
 // 导入可实例化图形类型
-import CombinedGraph from "../graph/combined/CombinedGraph";
-import Line from "../graph/analytic/Line";
-import Circle from "../graph/analytic/Circle";
-import Arc from "../graph/analytic/Arc";
-import QuadraticBezier from "../graph/analytic/QuadraticBezier";
-import CubicBezier from "../graph/analytic/CubicBezier";
+import CombinedGraph from "@/core/graph/combined/CombinedGraph";
+import Line from "@/core/graph/analytic/Line";
+import Circle from "@/core/graph/analytic/Circle";
+import Arc from "@/core/graph/analytic/Arc";
+import QuadraticBezier from "@/core/graph/analytic/QuadraticBezier";
+import CubicBezier from "@/core/graph/analytic/CubicBezier";
 
 // 导入可实例化容器类型
-import CombinedView from "../views/CombinedViews";
-import GraphView from "../views/GraphViews";
-import TextView from "../views/TextView";
-import ImageView from "../views/MediaViews/ImageView";
-import VideoView from "../views/MediaViews/VideoView";
+import CombinedView from "@/core/views/CombinedViews";
+import GraphView from "@/core/views/GraphViews";
+import TextView from "@/core/views/TextView";
+import ImageView from "@/core/views/MediaViews/ImageView";
+import VideoView from "@/core/views/MediaViews/VideoView";
 
 /**
  * 序列化配置选项

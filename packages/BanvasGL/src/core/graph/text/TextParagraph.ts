@@ -4,9 +4,9 @@ import { Point3, Vector3, Matrix4 } from '@/core/math'
 import { Style } from '@/core/style'
 import { NonPrintableTextElement, PrintableTextElement } from './TextElement'
 import ParagraphOptions from './ParagraphOptions'
-import Bounds from '../base/Bounds'
+import Bounds from '@/core/graph/base/Bounds'
 import TextOptions from './TextOptions'
-import { Rectangle } from '../combined'
+import { Rectangle } from '@/core/graph/combined'
 import {
     isNonPrintableTextElement,
     isPrintableTextElement,

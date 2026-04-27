@@ -1,5 +1,5 @@
 import { GRAPHTYPE } from "@/core/constants";
-import Graph from "../base/Graph";
+import Graph from "@/core/graph/base/Graph";
 import type { Point3 } from '@/core/math';
 import type { IAnalyticGraph } from '@/core/interfaces';
 

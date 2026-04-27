@@ -1,5 +1,5 @@
-import View, { ViewOptions } from '../View/View'
-import { ImageElement } from '../../graph/media'
+import View, { ViewOptions } from '@/core/views/View/View'
+import { ImageElement } from '@/core/graph/media'
 import { VIEWTYPE } from '@/index.backend'
 import type { IImageView } from '@/core/interfaces'
 

@@ -1,5 +1,5 @@
-import View, { ViewOptions } from '../View/View'
-import { VideoElement } from '../../graph/media'
+import View, { ViewOptions } from '@/core/views/View/View'
+import { VideoElement } from '@/core/graph/media'
 import { VIEWTYPE } from '@/index.backend'
 import type { IVideoView } from '@/core/interfaces'
 

@@ -1,6 +1,6 @@
-import { Line } from '../graph'
-import { Point3, Vector3, MathUtils } from '../math'
-import { View } from '../views'
+import { Line } from '@/core/graph'
+import { Point3, Vector3, MathUtils } from '@/core/math'
+import { View } from '@/core/views'
 
 /**
  * 吸附结果

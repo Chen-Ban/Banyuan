@@ -2,8 +2,8 @@ import { GRAPHTYPE } from "@/core/constants";
 import AnalyticGraph from "./AnalyticGraph";
 import { Matrix4, Point3, Vector3 } from "@/core/math";
 import { Style } from "@/core/style";
-import Bounds from "../base/Bounds";
-import Graph from "../base/Graph";
+import Bounds from "@/core/graph/base/Bounds";
+import Graph from "@/core/graph/base/Graph";
 import { intersect } from "./IntersectionUtils";
 import type { IBezier } from '@/core/interfaces';
 

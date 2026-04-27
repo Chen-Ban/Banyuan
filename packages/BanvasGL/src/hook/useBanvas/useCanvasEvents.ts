@@ -20,13 +20,19 @@ import {
     TextFields,
 } from '@/core'
 import { isTextView, isSelectBoxView } from '@/core/interfaces'
-import { event2Point } from '@/utils/utils'
-import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
+import { clearAllStates } from '@/core/scene/ViewTree'
 import { ViewAddonImpl } from '@/core/views/addon'
 import type { ExtraData } from '@/core/interfaces'
 import { Action, Cursor } from '@/core/interfaces'
-import { InteractionDispatcher } from '@/core/interaction'
-import type { InteractionContext } from '@/core/interaction'
+import { InteractionDispatcher } from './InteractionDispatcher'
+import type { InteractionContext } from './InteractionDispatcher'
+
+/** 将 MouseEvent 转为 canvas 物理像素坐标 */
+const event2Point = (e: MouseEvent): Point3 => {
+    const ratio = window.devicePixelRatio
+    const { offsetX, offsetY } = e
+    return new Point3(offsetX * ratio, offsetY * ratio, 0)
+}
 
 export interface UseCanvasEventsOptions {
     app: App | null
@@ -72,7 +78,7 @@ export function useCanvasEvents({
                 setSelectedViewId(view.id)
             },
             clearSelection: (scene: Scene) => {
-                ViewTreeUtils.clearAllStates(scene)
+                clearAllStates(scene)
             },
             setSelectedViewId,
         }
@@ -240,7 +246,7 @@ export function useCanvasEvents({
                     scene.select(indicateView, e.ctrlKey)
                     setSelectedViewId(indicateView.id)
                 } else {
-                    ViewTreeUtils.clearAllStates(scene)
+                    clearAllStates(scene)
                     // 隐藏输入框
                     const input = inputRef.current
                     if (input) {

@@ -1,10 +1,9 @@
-import View, { ViewOptions } from '../View/View'
-import TextParagraph from '../../graph/text/TextParagraph'
-import TextElement from '../../graph/text/TextElement'
-import { Rectangle } from '../../graph/combined/Polygon'
-import { Point3, Vector3 } from '../../math'
+import View, { InteractResult, ViewOptions } from '@/core/views/View/View'
+import TextParagraph from '@/core/graph/text/TextParagraph'
+import TextElement from '@/core/graph/text/TextElement'
+import { Rectangle } from '@/core/graph/combined/Polygon'
+import { Point3, Vector3 } from '@/core/math'
 import { Action, Cursor } from '@/core/interfaces'
-import { InteractionMapBuilder } from '../View/InteractionMapBuilder'
 import Selection from './Selection'
 import { VERTICALALIGN, VIEWTYPE } from '@/core/constants'
 import type { ITextView } from '@/core/interfaces'
@@ -76,8 +75,7 @@ export default class TextView extends View implements ITextView {
      * @param relativePoint 相对坐标点
      * @returns 交互结果
      */
-    protected interactContent(relativePoint: Point3) {
-        const builder = new InteractionMapBuilder()
+    protected interactContent(relativePoint: Point3): InteractResult {
         // 是否命中文本域
         const hitedFields =
             this.content.isPointInPath(relativePoint) ||
@@ -91,12 +89,13 @@ export default class TextView extends View implements ITextView {
 
         const textElement = this.content.point2TextElement(_relativePoint)
         if (textElement) {
-            builder.add(this, textElement, {
-                action: Action.TEXT_SELECTION,
-                cursorStyle: Cursor.Text,
-            })
+            return {
+                view: this,
+                content: textElement,
+                extraData: { action: Action.TEXT_SELECTION, cursorStyle: Cursor.Text },
+            }
         }
-        return builder.build()
+        return { view: null, content: null, extraData: null }
     }
 
     /**

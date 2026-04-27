@@ -1,19 +1,14 @@
 import { Point3 } from "@/core/math";
 import MathUtils from "@/core/math/MathUtils";
-import AnalyticGraph from "./AnalyticGraph";
-
-import type Line from "./Line";
-import type Arc from "./Arc";
-import type Circle from "./Circle";
-import type QuadraticBezier from "./QuadraticBezier";
-import type CubicBezier from "./CubicBezier";
+import { GRAPHTYPE } from "@/core/constants";
+import type { IAnalyticGraph, ILine, IArc, ICircle, IQuadraticBezier, ICubicBezier } from "@/core/interfaces";
 
 /**
  * 相交处理函数类型
  * @template T 第一个图形类型
  * @template U 第二个图形类型
  */
-type IntersectionHandler<T extends AnalyticGraph, U extends AnalyticGraph> = (a: T, b: U) => Point3[];
+type IntersectionHandler<T extends IAnalyticGraph = IAnalyticGraph, U extends IAnalyticGraph = IAnalyticGraph> = (a: T, b: U) => Point3[];
 
 /**
  * 相交管理器
@@ -22,7 +17,7 @@ type IntersectionHandler<T extends AnalyticGraph, U extends AnalyticGraph> = (a:
 class IntersectionManager {
   private static instance: IntersectionManager;
 
-  private handlerMap = new Map<string, IntersectionHandler<any, any>>();
+  private handlerMap = new Map<string, IntersectionHandler>();
 
   private constructor() {
     this.registerHandlers();
@@ -37,59 +32,54 @@ class IntersectionManager {
 
   private registerHandlers(): void {
     // 线与其他图形的相交
-    this.register("_Line", "_Line", lineLineIntersect);
-    this.register("_Line", "_Arc", lineArcIntersect);
-    this.register("_Line", "_Circle", lineCircleIntersect);
-    this.register("_Line", "_QuadraticBezier", lineQuadraticBezierIntersect);
-    this.register("_Line", "_CubicBezier", lineCubicBezierIntersect);
+    this.register(GRAPHTYPE.LINE, GRAPHTYPE.LINE, lineLineIntersect);
+    this.register(GRAPHTYPE.LINE, GRAPHTYPE.ARC, lineArcIntersect);
+    this.register(GRAPHTYPE.LINE, GRAPHTYPE.CIRCLE, lineCircleIntersect);
+    this.register(GRAPHTYPE.LINE, GRAPHTYPE.QUADRATIC_BEZIER, lineQuadraticBezierIntersect);
+    this.register(GRAPHTYPE.LINE, GRAPHTYPE.CUBIC_BEZIER, lineCubicBezierIntersect);
 
     // 圆弧与其他图形的相交
-    this.register("_Arc", "_Arc", arcArcIntersect);
-    this.register("_Arc", "_Circle", arcCircleIntersect);
-    this.register("_Arc", "_QuadraticBezier", arcQuadraticBezierIntersect);
-    this.register("_Arc", "_CubicBezier", arcCubicBezierIntersect);
+    this.register(GRAPHTYPE.ARC, GRAPHTYPE.ARC, arcArcIntersect);
+    this.register(GRAPHTYPE.ARC, GRAPHTYPE.CIRCLE, arcCircleIntersect);
+    this.register(GRAPHTYPE.ARC, GRAPHTYPE.QUADRATIC_BEZIER, arcQuadraticBezierIntersect);
+    this.register(GRAPHTYPE.ARC, GRAPHTYPE.CUBIC_BEZIER, arcCubicBezierIntersect);
 
     // 圆与其他图形的相交
-    this.register("_Circle", "_Circle", circleCircleIntersect);
-    this.register("_Circle", "_QuadraticBezier", circleQuadraticBezierIntersect);
-    this.register("_Circle", "_CubicBezier", circleCubicBezierIntersect);
+    this.register(GRAPHTYPE.CIRCLE, GRAPHTYPE.CIRCLE, circleCircleIntersect);
+    this.register(GRAPHTYPE.CIRCLE, GRAPHTYPE.QUADRATIC_BEZIER, circleQuadraticBezierIntersect);
+    this.register(GRAPHTYPE.CIRCLE, GRAPHTYPE.CUBIC_BEZIER, circleCubicBezierIntersect);
 
     // 贝塞尔曲线之间的相交
-    this.register("_QuadraticBezier", "_QuadraticBezier", quadraticBezierQuadraticBezierIntersect);
-    this.register("_QuadraticBezier", "_CubicBezier", quadraticBezierCubicBezierIntersect);
-    this.register("_CubicBezier", "_CubicBezier", cubicBezierCubicBezierIntersect);
+    this.register(GRAPHTYPE.QUADRATIC_BEZIER, GRAPHTYPE.QUADRATIC_BEZIER, quadraticBezierQuadraticBezierIntersect);
+    this.register(GRAPHTYPE.QUADRATIC_BEZIER, GRAPHTYPE.CUBIC_BEZIER, quadraticBezierCubicBezierIntersect);
+    this.register(GRAPHTYPE.CUBIC_BEZIER, GRAPHTYPE.CUBIC_BEZIER, cubicBezierCubicBezierIntersect);
   }
 
-  private register<T extends AnalyticGraph, U extends AnalyticGraph>(
-    typeAName: string,
-    typeBName: string,
-    handler: IntersectionHandler<T, U>
+  private register<A extends IAnalyticGraph, B extends IAnalyticGraph>(
+    typeA: GRAPHTYPE,
+    typeB: GRAPHTYPE,
+    handler: IntersectionHandler<A, B>
   ): void {
-    const key = this.getKey(typeAName, typeBName);
-    this.handlerMap.set(key, handler);
+    const key = this.getKey(typeA, typeB);
+    this.handlerMap.set(key, handler as IntersectionHandler);
 
     // 自动注册反向
-    if (typeAName !== typeBName) {
-      const reverseKey = this.getKey(typeBName, typeAName);
-      this.handlerMap.set(reverseKey, (b, a) => handler(a, b));
+    if (typeA !== typeB) {
+      const reverseKey = this.getKey(typeB, typeA);
+      this.handlerMap.set(reverseKey, (b, a) => (handler as IntersectionHandler)(a, b));
     }
   }
 
-  private getKey(typeAName: string, typeBName: string): string {
-    return `${typeAName}-${typeBName}`;
+  private getKey(typeA: GRAPHTYPE, typeB: GRAPHTYPE): string {
+    return `${typeA}-${typeB}`;
   }
 
-  getHandler(a: AnalyticGraph, b: AnalyticGraph): IntersectionHandler<any, any> | undefined {
-    const key = this.getKey(a.constructor.name, b.constructor.name);
-    return this.handlerMap.get(key);
-  }
-
-  intersect(a: AnalyticGraph, b: AnalyticGraph): Point3[] {
-    const handler = this.getHandler(a, b);
+  intersect(a: IAnalyticGraph, b: IAnalyticGraph): Point3[] {
+    const key = this.getKey(a.type, b.type);
+    const handler = this.handlerMap.get(key);
 
     if (!handler) {
-      // 降级到包围盒检测
-      console.warn(`No intersection handler for ${a.constructor.name} and ${b.constructor.name}`);
+      console.warn(`No intersection handler for ${a.type} and ${b.type}`);
       return [];
     }
 
@@ -103,7 +93,7 @@ class IntersectionManager {
  * @param b 第二个图形
  * @returns 相交点数组
  */
-export function intersect(a: AnalyticGraph, b: AnalyticGraph): Point3[] {
+export function intersect(a: IAnalyticGraph, b: IAnalyticGraph): Point3[] {
   return IntersectionManager.getInstance().intersect(a, b);
 }
 
@@ -112,7 +102,7 @@ export function intersect(a: AnalyticGraph, b: AnalyticGraph): Point3[] {
  * @param shapes 图形数组
  * @returns 相交结果映射，key 为图形索引对 "i-j"，value 为相交点数组
  */
-export function intersectAll(shapes: AnalyticGraph[]): Map<string, Point3[]> {
+export function intersectAll(shapes: IAnalyticGraph[]): Map<string, Point3[]> {
   const results = new Map<string, Point3[]>();
   const intersectionManager = IntersectionManager.getInstance();
 
@@ -142,7 +132,7 @@ export function intersectAll(shapes: AnalyticGraph[]): Map<string, Point3[]> {
  * @returns 交点数组
  */
 function lineEllipseIntersect(
-  line: Line,
+  line: ILine,
   center: Point3,
   xRadius: number,
   yRadius: number,
@@ -207,7 +197,7 @@ function lineEllipseIntersect(
  * @param arc 椭圆弧
  * @returns 是否在范围内
  */
-function isPointInEllipseArcRange(point: Point3, arc: Arc): boolean {
+function isPointInEllipseArcRange(point: Point3, arc: IArc): boolean {
   // 将点转换到椭圆的局部坐标系
   const dx = point.x - arc.center.x;
   const dy = point.y - arc.center.y;
@@ -227,8 +217,8 @@ function isPointInEllipseArcRange(point: Point3, arc: Arc): boolean {
  * 使用数值方法计算曲线与图形的相交点
  */
 function numericalIntersection(
-  curve: AnalyticGraph,
-  other: AnalyticGraph,
+  curve: IAnalyticGraph,
+  other: IAnalyticGraph,
   tolerance: number = MathUtils.EPSILON
 ): Point3[] {
   const intersections: Point3[] = [];
@@ -266,7 +256,7 @@ function numericalIntersection(
 /**
  * 线-线相交
  */
-function lineLineIntersect(a: Line, b: Line): Point3[] {
+function lineLineIntersect(a: ILine, b: ILine): Point3[] {
   const intersection = Point3.lineSegmentIntersection(a.startPoint, a.endPoint, b.startPoint, b.endPoint);
   return intersection ? [intersection] : [];
 }
@@ -274,7 +264,7 @@ function lineLineIntersect(a: Line, b: Line): Point3[] {
 /**
  * 线-椭圆弧相交
  */
-function lineArcIntersect(a: Line, b: Arc): Point3[] {
+function lineArcIntersect(a: ILine, b: IArc): Point3[] {
   // 计算直线与完整椭圆的交点
   const ellipseIntersections = lineEllipseIntersect(
     a,
@@ -298,7 +288,7 @@ function lineArcIntersect(a: Line, b: Arc): Point3[] {
 /**
  * 线-圆相交
  */
-function lineCircleIntersect(a: Line, b: Circle): Point3[] {
+function lineCircleIntersect(a: ILine, b: ICircle): Point3[] {
   const start = a.startPoint;
   const end = a.endPoint;
   const center = b.center;
@@ -340,7 +330,7 @@ function lineCircleIntersect(a: Line, b: Circle): Point3[] {
 /**
  * 线-二次贝塞尔曲线相交
  */
-function lineQuadraticBezierIntersect(a: Line, b: QuadraticBezier): Point3[] {
+function lineQuadraticBezierIntersect(a: ILine, b: IQuadraticBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(b, a, MathUtils.EPSILON);
 }
@@ -348,7 +338,7 @@ function lineQuadraticBezierIntersect(a: Line, b: QuadraticBezier): Point3[] {
 /**
  * 线-三次贝塞尔曲线相交
  */
-function lineCubicBezierIntersect(a: Line, b: CubicBezier): Point3[] {
+function lineCubicBezierIntersect(a: ILine, b: ICubicBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(b, a, MathUtils.EPSILON);
 }
@@ -358,7 +348,7 @@ function lineCubicBezierIntersect(a: Line, b: CubicBezier): Point3[] {
 /**
  * 椭圆弧-椭圆弧相交
  */
-function arcArcIntersect(a: Arc, b: Arc): Point3[] {
+function arcArcIntersect(a: IArc, b: IArc): Point3[] {
   // 对于椭圆与椭圆的相交，使用数值方法
   // 采样第一个椭圆弧上的点，检查是否在第二个椭圆弧上
   const intersections: Point3[] = [];
@@ -390,7 +380,7 @@ function arcArcIntersect(a: Arc, b: Arc): Point3[] {
 /**
  * 椭圆弧-圆相交
  */
-function arcCircleIntersect(a: Arc, b: Circle): Point3[] {
+function arcCircleIntersect(a: IArc, b: ICircle): Point3[] {
   // 对于椭圆弧与圆的相交，使用数值方法
   // 采样椭圆弧上的点，检查是否在圆上
   const intersections: Point3[] = [];
@@ -423,7 +413,7 @@ function arcCircleIntersect(a: Arc, b: Circle): Point3[] {
 /**
  * 圆弧-二次贝塞尔曲线相交
  */
-function arcQuadraticBezierIntersect(a: Arc, b: QuadraticBezier): Point3[] {
+function arcQuadraticBezierIntersect(a: IArc, b: IQuadraticBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(b, a, MathUtils.EPSILON);
 }
@@ -431,7 +421,7 @@ function arcQuadraticBezierIntersect(a: Arc, b: QuadraticBezier): Point3[] {
 /**
  * 圆弧-三次贝塞尔曲线相交
  */
-function arcCubicBezierIntersect(a: Arc, b: CubicBezier): Point3[] {
+function arcCubicBezierIntersect(a: IArc, b: ICubicBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(b, a, MathUtils.EPSILON);
 }
@@ -441,7 +431,7 @@ function arcCubicBezierIntersect(a: Arc, b: CubicBezier): Point3[] {
 /**
  * 圆-圆相交
  */
-function circleCircleIntersect(a: Circle, b: Circle): Point3[] {
+function circleCircleIntersect(a: ICircle, b: ICircle): Point3[] {
   const center1 = a.center;
   const radius1 = a.xRadius;
   const center2 = b.center;
@@ -487,7 +477,7 @@ function circleCircleIntersect(a: Circle, b: Circle): Point3[] {
 /**
  * 圆-二次贝塞尔曲线相交
  */
-function circleQuadraticBezierIntersect(a: Circle, b: QuadraticBezier): Point3[] {
+function circleQuadraticBezierIntersect(a: ICircle, b: IQuadraticBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(b, a, MathUtils.EPSILON);
 }
@@ -495,7 +485,7 @@ function circleQuadraticBezierIntersect(a: Circle, b: QuadraticBezier): Point3[]
 /**
  * 圆-三次贝塞尔曲线相交
  */
-function circleCubicBezierIntersect(a: Circle, b: CubicBezier): Point3[] {
+function circleCubicBezierIntersect(a: ICircle, b: ICubicBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(b, a, MathUtils.EPSILON);
 }
@@ -505,7 +495,7 @@ function circleCubicBezierIntersect(a: Circle, b: CubicBezier): Point3[] {
 /**
  * 二次贝塞尔曲线-二次贝塞尔曲线相交
  */
-function quadraticBezierQuadraticBezierIntersect(a: QuadraticBezier, b: QuadraticBezier): Point3[] {
+function quadraticBezierQuadraticBezierIntersect(a: IQuadraticBezier, b: IQuadraticBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(a, b, MathUtils.EPSILON);
 }
@@ -513,7 +503,7 @@ function quadraticBezierQuadraticBezierIntersect(a: QuadraticBezier, b: Quadrati
 /**
  * 二次贝塞尔曲线-三次贝塞尔曲线相交
  */
-function quadraticBezierCubicBezierIntersect(a: QuadraticBezier, b: CubicBezier): Point3[] {
+function quadraticBezierCubicBezierIntersect(a: IQuadraticBezier, b: ICubicBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(a, b, MathUtils.EPSILON);
 }
@@ -521,7 +511,7 @@ function quadraticBezierCubicBezierIntersect(a: QuadraticBezier, b: CubicBezier)
 /**
  * 三次贝塞尔曲线-三次贝塞尔曲线相交
  */
-function cubicBezierCubicBezierIntersect(a: CubicBezier, b: CubicBezier): Point3[] {
+function cubicBezierCubicBezierIntersect(a: ICubicBezier, b: ICubicBezier): Point3[] {
   // 使用数值方法
   return numericalIntersection(a, b, MathUtils.EPSILON);
 }

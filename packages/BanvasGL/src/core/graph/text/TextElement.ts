@@ -4,8 +4,8 @@ import TextOptions from './TextOptions'
 import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
 import Graph from '@/core/graph/base/Graph'
 import { Point3, Vector3, Matrix4 } from '@/core/math'
-import Bounds from '../base/Bounds'
-import { Rectangle } from '../combined'
+import Bounds from '@/core/graph/base/Bounds'
+import { Rectangle } from '@/core/graph/combined'
 import type { ITextElement, IPrintableTextElement, INonPrintableTextElement } from '@/core/interfaces'
 
 /**

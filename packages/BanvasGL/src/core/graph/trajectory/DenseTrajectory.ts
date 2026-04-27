@@ -1,9 +1,9 @@
 import { GRAPHTYPE } from "@/core/constants";
-import Graph from "../base/Graph";
+import Graph from "@/core/graph/base/Graph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import Style from "@/core/style/Style";
-import Bounds from "../base/Bounds";
-import { Line } from "../analytic";
+import Bounds from "@/core/graph/base/Bounds";
+import { Line } from "@/core/graph/analytic";
 import type { IDenseTrajectory } from '@/core/interfaces';
 
 export default class DenseTrajectory extends Graph implements IDenseTrajectory {

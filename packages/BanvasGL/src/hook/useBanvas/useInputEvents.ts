@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { Point3, App } from '@/core'
 import { isTextView, type ITextView } from '@/core/interfaces'
-import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
+import { flattenViewTree } from '@/core/scene/ViewTree'
 
 export interface UseInputEventsOptions {
     inputRef: React.RefObject<HTMLInputElement | null>
@@ -175,7 +175,7 @@ export function useInputEvents({
                         const scene = app.getCurrentPage()
                         if (scene) {
                             const allViews =
-                                ViewTreeUtils.flattenViewTree(scene)
+                                flattenViewTree(scene)
                             const editableViews = allViews.filter((view) =>
                                 isTextView(view)
                             )

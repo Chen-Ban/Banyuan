@@ -1,18 +1,17 @@
-import { VIEWTYPE } from '../../constants'
-import Matrix4 from '../../math/Matrix4'
-import { getGlobalCanvasContext } from '../../renderer/CanvasContext'
+import { VIEWTYPE } from '@/core/constants'
+import Matrix4 from '@/core/math/Matrix4'
+import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
 import { v4 as uuidv4 } from 'uuid'
 import type { ISceneNode, IView, IViewStyle, ExtraData } from '@/core/interfaces'
 import { Action, Cursor } from '@/core/interfaces'
 
 // 导入图形相关类型
-import { Graph, Line, Rectangle } from '../../graph'
+import { Graph, Line, Rectangle } from '@/core/graph'
 
 // 导入addon类型
-import { BoundingBoxAddonImpl, ViewAddonImpl } from '../addon'
-import { MathUtils, Point3, Vector3 } from '../../math'
-import { InteractionMapBuilder } from './InteractionMapBuilder'
-import Bounds from '../../graph/base/Bounds'
+import { BoundingBoxAddonImpl, ViewAddonImpl } from '@/core/views/addon'
+import { MathUtils, Point3, Vector3 } from '@/core/math'
+import Bounds from '@/core/graph/base/Bounds'
 
 const RESIZE_SIZE_MAP = [
     { width: true, height: true },
@@ -131,30 +130,29 @@ export default abstract class View<T extends object = any> implements IView {
      * 检查内容是否被命中，子类可以重写此方法实现自定义逻辑
      * @param point 相对坐标点
      */
-    protected interactContent(point: Point3) {
-        const builder = new InteractionMapBuilder()
-        if (!this.content) return builder.build()
+    protected interactContent(point: Point3): InteractResult {
+        if (!this.content) return { view: null, content: null, extraData: null }
         const hitContent =
             this.content.isPointInPath(point) ||
             this.content.isPointOnCurve(point, 5)
         if (hitContent) {
-            builder.add(this, this.content, {
-                cursorStyle: Cursor.Move,
-                action: Action.MOVE,
-            })
+            return {
+                view: this,
+                content: this.content,
+                extraData: { cursorStyle: Cursor.Move, action: Action.MOVE },
+            }
         }
-        return builder.build()
+        return { view: null, content: null, extraData: null }
     }
 
     protected interactPlugins(relativePoint: Point3): InteractResult {
-        const builder = new InteractionMapBuilder()
         if (this.actived && this.boundingBox) {
             const extraData = this.boundingBox.interact(relativePoint)
             if (extraData) {
-                builder.add(this, this.boundingBox, extraData)
+                return { view: this, content: this.boundingBox, extraData }
             }
         }
-        return builder.build()
+        return { view: null, content: null, extraData: null }
     }
 
     /**
@@ -164,7 +162,6 @@ export default abstract class View<T extends object = any> implements IView {
      */
     public interact(worldPoint: Point3): InteractResult {
         const relativePoint = this.getMVPMatrix().inverse().multiply(worldPoint)
-        const builder = new InteractionMapBuilder()
 
         const ctx = getGlobalCanvasContext()?.getBufferContext()
         if (!ctx) throw new Error('交互失败')
@@ -182,20 +179,26 @@ export default abstract class View<T extends object = any> implements IView {
         )
 
         // 3. 检查内容（复杂图形由子类重写）
-        const result = this.interactContent(scrolledPoint)
-        if (result.view) return result
+        const contentResult = this.interactContent(scrolledPoint)
+        if (contentResult.view) return contentResult
 
-        // 4. 递归检查子视图
+        // 4. 递归检查子视图，取最高 layer 的结果
         //    将 scrolledPoint 转回世界坐标传给子视图，子视图再用自己的 MVP 逆矩阵转本地坐标
         const adjustedWorldPoint = this.getMVPMatrix().multiply(scrolledPoint)
+        let best: InteractResult = { view: null, content: null, extraData: null }
+        let bestLayer = -1
         for (const child of this.children) {
-            const result = child.interact(adjustedWorldPoint)
-            if (result.view && result.content && result.extraData) {
-                builder.add(result.view, result.content, result.extraData)
+            const childResult = child.interact(adjustedWorldPoint)
+            if (childResult.view && childResult.content && childResult.extraData) {
+                // layer 相同时，后加入的 View 胜出（对应视觉上"后绘制 = 在上方"的约定）
+                if (childResult.view.layer >= bestLayer) {
+                    bestLayer = childResult.view.layer
+                    best = childResult
+                }
             }
         }
 
-        return builder.build()
+        return best
     }
 
     constructor(options: ViewOptions<T>) {
