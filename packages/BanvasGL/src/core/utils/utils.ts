@@ -1,5 +1,6 @@
 import { VIEWTYPE } from "@/core/constants";
-import { CombinedView, View } from "../views";
+import { View } from "../views";
+import { isCombinedView } from '@/core/interfaces';
 
 // 查找方法
 function findByType(view: View, type: VIEWTYPE): View[] {
@@ -8,8 +9,8 @@ function findByType(view: View, type: VIEWTYPE): View[] {
   if (view.type === type) {
     results.push(view);
   }
-  if ((view as CombinedView).isCombinedView()) {
-    results.push(...(view as CombinedView).children.map((v) => findByType(v, type)).flat());
+  if (isCombinedView(view)) {
+    results.push(...view.children.map((v) => findByType(v, type)).flat());
   }
 
   return results;
@@ -20,8 +21,8 @@ function findChildById(view: View, id: string): View | null {
   if (view.id === id) {
     return view;
   }
-  if ((view as CombinedView).isCombinedView()) {
-    result = (view as CombinedView).children.filter((v) => findChildById(v, id))[0];
+  if (isCombinedView(view)) {
+    result = view.children.filter((v) => findChildById(v, id))[0];
   }
   return result;
 }

@@ -3,12 +3,13 @@ import { Point3, Vector3, Matrix4 } from '@/core/math'
 import { Style } from '@/core/style'
 import Bounds from '../base/Bounds'
 import Rectangle from '../combined/Polygon/Rectangle'
+import type { IMediaElement } from '@/core/interfaces'
 
 /**
  * MediaElement 抽象基类 - 媒体元素基类
  * 用于图片和视频等媒体元素的共同功能
  */
-export default abstract class MediaElement extends Graph {
+export default abstract class MediaElement extends Graph implements IMediaElement {
     public controlPoints: Point3[]
     public style: Style
     public bounds: Bounds

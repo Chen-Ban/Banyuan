@@ -6,8 +6,9 @@ import MathUtils from "@/core/math/MathUtils";
 import Bounds from "../base/Bounds";
 import Graph from "../base/Graph";
 import { intersect } from "./IntersectionUtils";
+import type { ILine } from '@/core/interfaces';
 
-export default class Line extends AnalyticGraph {
+export default class Line extends AnalyticGraph implements ILine {
   public type: GRAPHTYPE = GRAPHTYPE.LINE;
   public controlPoints: Point3[];
   public style: Style;
@@ -208,7 +209,3 @@ export default class Line extends AnalyticGraph {
   }
 }
 
-// 类型守卫函数
-export function isLine(graph: any): graph is Line {
-  return graph instanceof Line;
-}

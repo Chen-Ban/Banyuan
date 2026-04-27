@@ -2,13 +2,10 @@ import Bounds from '@/core/graph/base/Bounds'
 import Rectangle from '@/core/graph/combined/Polygon/Rectangle'
 import Style from '@/core/style/Style'
 import { Point3, Vector3 } from '@/core/math'
-import {
-    Action,
-    Cursor,
-    cursorMap,
-    ExtraData,
-} from '../View/InteractionMapBuilder'
+import type { ExtraData } from '@/core/interfaces'
+import { Action, Cursor, cursorMap } from '@/core/interfaces'
 import { Circle, Color, Line, StrokeStyle } from '@/index.backend'
+import type { IBoundingBoxAddon } from '@/core/interfaces'
 
 /**
  * 边界框插件
@@ -22,7 +19,7 @@ export interface BoundingBoxAddon {
     getBounds(): { x: number; y: number; width: number; height: number }
 }
 
-export default class BoundingBoxAddonImpl implements BoundingBoxAddon {
+export default class BoundingBoxAddonImpl implements BoundingBoxAddon, IBoundingBoxAddon {
     public region: Rectangle
     public handles: Rectangle[]
     public rotate: [Line, Circle]

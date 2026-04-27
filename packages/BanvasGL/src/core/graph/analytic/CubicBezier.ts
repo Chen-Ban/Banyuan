@@ -3,8 +3,9 @@ import Bezier from "./Bezier";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
+import type { ICubicBezier } from '@/core/interfaces';
 
-export default class CubicBezier extends Bezier {
+export default class CubicBezier extends Bezier implements ICubicBezier {
   public type: GRAPHTYPE = GRAPHTYPE.CUBIC_BEZIER;
 
   constructor(
@@ -214,9 +215,4 @@ export default class CubicBezier extends Bezier {
   public getArea(): number {
     return 0;
   }
-}
-
-// 类型守卫函数
-export function isCubicBezier(graph: any): graph is CubicBezier {
-  return graph instanceof CubicBezier;
 }

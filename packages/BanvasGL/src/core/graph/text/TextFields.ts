@@ -8,6 +8,7 @@ import Bounds from '../base/Bounds'
 import { Rectangle } from '../combined'
 import TextElement, { isNonPrintableTextElement } from './TextElement'
 import TextOptions from './TextOptions'
+import type { ITextFields } from '@/core/interfaces'
 
 //文本选区三元组： 段落号，字序号，字前｜字后
 export type TextIndex = [number, number, 0 | 1]
@@ -17,7 +18,7 @@ export type TextIndex = [number, number, 0 | 1]
  * 表示一个文本域，包含多个段落
  * 是文本内容的最外层容器
  */
-export default class TextFields extends Graph {
+export default class TextFields extends Graph implements ITextFields {
     public type: GRAPHTYPE = GRAPHTYPE.TEXTFIELDS
     public controlPoints: Point3[]
     public style: Style

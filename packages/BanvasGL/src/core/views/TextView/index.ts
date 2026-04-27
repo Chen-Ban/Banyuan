@@ -3,9 +3,11 @@ import TextParagraph from '../../graph/text/TextParagraph'
 import TextElement from '../../graph/text/TextElement'
 import { Rectangle } from '../../graph/combined/Polygon'
 import { Point3, Vector3 } from '../../math'
-import { InteractionMapBuilder, Action, Cursor } from '../View/InteractionMapBuilder'
+import { Action, Cursor } from '@/core/interfaces'
+import { InteractionMapBuilder } from '../View/InteractionMapBuilder'
 import Selection from './Selection'
 import { VERTICALALIGN, VIEWTYPE } from '@/core/constants'
+import type { ITextView } from '@/core/interfaces'
 import {
     NonPrintableTextElement,
     PrintableTextElement,
@@ -22,7 +24,7 @@ export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
 /**
  * 文本视图
  */
-export default class TextView extends View {
+export default class TextView extends View implements ITextView {
     public readonly type: VIEWTYPE = VIEWTYPE.TEXTVIEW
 
     public content: TextFields
@@ -72,26 +74,25 @@ export default class TextView extends View {
     /**
      * 检查内容是否被命中
      * @param relativePoint 相对坐标点
-     * @param needConstraint 是否需要约束到文本域边界上
      * @returns 交互结果
      */
-    protected interactContent(relativePoint: Point3, needConstraint?: boolean) {
+    protected interactContent(relativePoint: Point3) {
         const builder = new InteractionMapBuilder()
         // 是否命中文本域
         const hitedFields =
             this.content.isPointInPath(relativePoint) ||
             this.content.isPointOnCurve(relativePoint, 5)
 
-        // TOREVIEW：四周的空白区域是否需要有响应
+        // 已激活（正在编辑）时，将鼠标点约束到文本域边界
         const _relativePoint =
-            needConstraint && !hitedFields
+            this.actived && !hitedFields
                 ? this.constraintPoint(relativePoint)
                 : relativePoint
 
         const textElement = this.content.point2TextElement(_relativePoint)
         if (textElement) {
             builder.add(this, textElement, {
-                action: Action.SELECTION,
+                action: Action.TEXT_SELECTION,
                 cursorStyle: Cursor.Text,
             })
         }
@@ -483,6 +484,3 @@ export default class TextView extends View {
     }
 }
 
-export function isTextView(view: any): view is TextView {
-    return view instanceof TextView
-}

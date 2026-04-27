@@ -1,13 +1,12 @@
-import type { AppOptions } from "@/core/app";
-import type { RendererOptions } from "@/core/renderer/Renderer";
+import type { IAppOptions, IRendererOptions } from "@/core/interfaces";
 import type { App } from "@/core/app";
 import { Scene } from "@/core";
 
 export interface UseBanvasOptions {
   width: number;
   height: number;
-  appOptions?: AppOptions;
-  rendererOptions?: Omit<RendererOptions, 'dpr'>;
+  appOptions?: IAppOptions;
+  rendererOptions?: Omit<IRendererOptions, 'dpr'>;
 }
 
 export type SerializedSceneJSON = string;

@@ -2,8 +2,9 @@ import { GRAPHTYPE } from '@/core/constants'
 import Bezier from './Bezier'
 import { Point3, Vector3 } from '@/core/math'
 import { Style } from '@/core/style'
+import type { IQuadraticBezier } from '@/core/interfaces'
 
-export default class QuadraticBezier extends Bezier {
+export default class QuadraticBezier extends Bezier implements IQuadraticBezier {
     public type: GRAPHTYPE = GRAPHTYPE.QUADRATIC_BEZIER
 
     constructor(
@@ -117,7 +118,3 @@ export default class QuadraticBezier extends Bezier {
     }
 }
 
-// 类型守卫函数
-export function isQuadraticBezier(graph: any): graph is QuadraticBezier {
-    return graph instanceof QuadraticBezier
-}

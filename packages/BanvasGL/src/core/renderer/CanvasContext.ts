@@ -1,9 +1,4 @@
-export interface CanvasContextOptions {
-  enableAntialiasing?: boolean;
-  enableImageSmoothing?: boolean;
-  backgroundColor?: string;
-  clearColor?: string;
-}
+import type { ICanvasContextOptions } from '../interfaces'
 
 class CanvasContext {
   // 画布上下文
@@ -16,9 +11,9 @@ class CanvasContext {
   private bufferCanvas: OffscreenCanvas;
 
   // 选项
-  private readonly options: CanvasContextOptions;
+  private readonly options: ICanvasContextOptions;
 
-  constructor(mainCanvas: HTMLCanvasElement, options: CanvasContextOptions = {}) {
+  constructor(mainCanvas: HTMLCanvasElement, options: ICanvasContextOptions = {}) {
     this.mainCanvas = mainCanvas;
     const ctx = mainCanvas.getContext("2d");
 
@@ -183,13 +178,13 @@ class CanvasContext {
   }
 
   // 设置选项
-  public setOptions(options: Partial<CanvasContextOptions>): void {
+  public setOptions(options: Partial<ICanvasContextOptions>): void {
     Object.assign(this.options, options);
     this.initializeContexts();
   }
 
   // 获取选项
-  public getOptions(): CanvasContextOptions {
+  public getOptions(): ICanvasContextOptions {
     return { ...this.options };
   }
 
@@ -236,7 +231,7 @@ let globalCanvasContext: CanvasContext | null = null;
  */
 export function getGlobalCanvasContext(
   mainCanvas: HTMLCanvasElement = document.createElement("canvas"),
-  options: CanvasContextOptions = {}
+  options: ICanvasContextOptions = {}
 ): CanvasContext {
   if (!globalCanvasContext) {
     globalCanvasContext = new CanvasContext(mainCanvas, options);

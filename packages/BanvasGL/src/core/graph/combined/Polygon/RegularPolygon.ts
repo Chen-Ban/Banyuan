@@ -2,12 +2,13 @@ import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
+import type { IRegularPolygon } from '@/core/interfaces';
 
 /**
  * RegularPolygon类 - 正多边形
  * 继承自Polygon，专门用于创建和管理正多边形
  */
-export default class RegularPolygon extends Polygon {
+export default class RegularPolygon extends Polygon implements IRegularPolygon {
   public type: GRAPHTYPE = GRAPHTYPE.REGULAR_POLYGON;
   public center: Point3;
   public radius: number;
@@ -202,9 +203,4 @@ export default class RegularPolygon extends Polygon {
 
     return new RegularPolygon(center, outerRadius, points * 2, rotation, style);
   }
-}
-
-// 类型守卫函数
-export function isRegularPolygon(graph: any): graph is RegularPolygon {
-  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.REGULAR_POLYGON;
 }

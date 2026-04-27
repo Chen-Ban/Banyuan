@@ -4,11 +4,7 @@ import { OperationStack, Operation, LayerManager } from './utils'
 import { v4 as uuidv4 } from 'uuid'
 import { ViewTreeUtils } from '../utils/ViewTreeUtils'
 import { tree2List } from '@/utils/utils'
-import type { ISceneNode } from '../types'
-
-export type Scene = ISceneNode & {
-    operationStack: OperationStack
-}
+import type { ISceneNode } from '../interfaces'
 
 export interface SceneOptions {
     camera?: BaseCamera
@@ -19,7 +15,7 @@ export interface SceneOptions {
     onHide?: () => void
 }
 
-export default class _Scene {
+export default class Scene {
     // 基本属性
     public id: string = ''
     public children: View[] = []
@@ -172,7 +168,7 @@ export default class _Scene {
     }
 
     // 子视图管理
-    public addChild(child: View): Scene {
+    public addChild(child: View): this {
         if (!this.children.includes(child)) {
             // 设置子视图的层级
             this.setChildLayer(child)
@@ -185,7 +181,7 @@ export default class _Scene {
         return this
     }
 
-    public removeChild(child: View): Scene {
+    public removeChild(child: View): this {
         const index = this.children.indexOf(child)
         if (index > -1) {
             this.children.splice(index, 1)
@@ -194,7 +190,7 @@ export default class _Scene {
         return this
     }
 
-    public clearChildren(): Scene {
+    public clearChildren(): this {
         this.children.forEach((child) => {
             child.parent = null
         })
@@ -221,33 +217,33 @@ export default class _Scene {
         return this.operationStack.redo()
     }
     // 数据管理
-    public setData(data: any): Scene {
+    public setData(data: any): this {
         this.data = data
         return this
     }
     // 场景管理
-    public load(params: any = {}): Scene {
+    public load(params: any = {}): this {
         this.onLoad(params)
         return this
     }
-    public unload(): Scene {
+    public unload(): this {
         this.onUnload()
         return this
     }
 
-    public show(): Scene {
+    public show(): this {
         this.onShow()
         return this
     }
 
-    public hide(): Scene {
+    public hide(): this {
         this.onHide()
         return this
     }
 
     // 复制场景
     public copy(): Scene {
-        const newScene = new _Scene(this.camera)
+        const newScene = new Scene(this.camera)
 
         // 复制基本属性
         newScene.id = this.generateId()
@@ -296,7 +292,7 @@ export default class _Scene {
     /**
      * 将视图移到最前面（置顶）
      */
-    public bringToFront(view: View): Scene {
+    public bringToFront(view: View): this {
         LayerManager.bringToFront(this.children, view)
         return this
     }
@@ -304,7 +300,7 @@ export default class _Scene {
     /**
      * 将视图移到最后面（置底）
      */
-    public sendToBack(view: View): Scene {
+    public sendToBack(view: View): this {
         LayerManager.sendToBack(this.children, view)
         return this
     }
@@ -312,7 +308,7 @@ export default class _Scene {
     /**
      * 将视图上移一层
      */
-    public bringForward(view: View): Scene {
+    public bringForward(view: View): this {
         LayerManager.bringForward(this.children, view)
         return this
     }
@@ -320,7 +316,7 @@ export default class _Scene {
     /**
      * 将视图下移一层
      */
-    public sendBackward(view: View): Scene {
+    public sendBackward(view: View): this {
         LayerManager.sendBackward(this.children, view)
         return this
     }
@@ -328,7 +324,7 @@ export default class _Scene {
     /**
      * 设置视图到指定层级
      */
-    public setLayer(view: View, layer: number): Scene {
+    public setLayer(view: View, layer: number): this {
         LayerManager.setLayer(this.children, view, layer)
         return this
     }

@@ -4,8 +4,9 @@ import { Point3, Vector3, Matrix4 } from "@/core/math";
 import Style from "@/core/style/Style";
 import Bounds from "../base/Bounds";
 import { Line } from "../analytic";
+import type { IDenseTrajectory } from '@/core/interfaces';
 
-export default class DenseTrajectory extends Graph {
+export default class DenseTrajectory extends Graph implements IDenseTrajectory {
   public type: GRAPHTYPE = GRAPHTYPE.DENSETRAJECTORY;
   public controlPoints: Float32Array;
   public style: Style;
@@ -262,7 +263,3 @@ export default class DenseTrajectory extends Graph {
   }
 }
 
-// 类型守卫函数
-export function isDenseTrajectory(graph: any): graph is DenseTrajectory {
-  return graph !== null && graph !== undefined && graph.type === GRAPHTYPE.DENSETRAJECTORY;
-}

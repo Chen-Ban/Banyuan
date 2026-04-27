@@ -5,8 +5,9 @@ import { Style } from "@/core/style";
 import Bounds from "../base/Bounds";
 import Graph from "../base/Graph";
 import { intersect } from "./IntersectionUtils";
+import type { IArc } from '@/core/interfaces';
 
-export default class Arc extends AnalyticGraph {
+export default class Arc extends AnalyticGraph implements IArc {
   public type: GRAPHTYPE = GRAPHTYPE.ARC;
   public controlPoints: Point3[];
   public style: Style;
@@ -357,7 +358,3 @@ export default class Arc extends AnalyticGraph {
   }
 }
 
-// 类型守卫函数
-export function isArc(graph: any): graph is Arc {
-  return graph instanceof Arc;
-}

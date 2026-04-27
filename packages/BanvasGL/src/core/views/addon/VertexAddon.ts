@@ -1,5 +1,7 @@
 import { Point3 } from '../../math'
-import { Action, Cursor, ExtraData } from '../View/InteractionMapBuilder'
+import type { ExtraData } from '@/core/interfaces'
+import { Action, Cursor } from '@/core/interfaces'
+import type { IVertexAddon } from '@/core/interfaces'
 
 /**
  * 顶点插件
@@ -12,7 +14,7 @@ export interface VertexAddon {
     render(ctx: CanvasRenderingContext2D): void
 }
 
-export default class VertexAddonImpl implements VertexAddon {
+export default class VertexAddonImpl implements VertexAddon, IVertexAddon {
     public vertices: Point3[]
     public activeVertex: Point3 | null = null
     isEditing: boolean = false

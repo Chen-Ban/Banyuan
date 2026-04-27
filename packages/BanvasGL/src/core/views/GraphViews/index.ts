@@ -1,9 +1,12 @@
 import View, { InteractResult, ViewOptions } from '../View/View'
-import { Graph, isArc, isCubicBezier, isLine, Line } from '../../graph'
+import { Graph, Line } from '../../graph'
+import { isGraphType, isAnalyticGraph } from '@/core/interfaces'
 import { VIEWTYPE } from '@/core/constants'
 import { Point3 } from '../../math'
 import { VertexAddonImpl, ViewAddonImpl } from '../addon'
-import { ExtraData, InteractionMapBuilder } from '../View/InteractionMapBuilder'
+import type { ExtraData } from '@/core/interfaces'
+import { InteractionMapBuilder } from '../View/InteractionMapBuilder'
+import type { IGraphView } from '@/core/interfaces'
 
 // 图形视图选项接口
 export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
@@ -13,7 +16,7 @@ export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
 /**
  * 图形视图 - 专门处理Graph类型内容
  */
-export default class GraphView extends View {
+export default class GraphView extends View implements IGraphView {
     public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW
     public content: Graph
     public controlPoints: VertexAddonImpl | null = null
@@ -24,12 +27,7 @@ export default class GraphView extends View {
         this.content = graph
 
         // TOREVIEW: 多个插件的展示、交互、优先级是怎么样的
-        if (
-            isLine(graph) ||
-            isCubicBezier(graph) ||
-            isCubicBezier(graph) ||
-            isArc(graph)
-        ) {
+        if (isAnalyticGraph(graph)) {
             this.boundingBox = null
         }
 
@@ -42,6 +40,11 @@ export default class GraphView extends View {
     }
 
     protected interactPlugins(relativePoint: Point3): InteractResult {
+        // BoundingBox 优先（来自基类）
+        const baseResult = super.interactPlugins(relativePoint)
+        if (baseResult.view) return baseResult
+
+        // VertexAddon（控制点编辑）
         const builder = new InteractionMapBuilder()
         if (this.actived && this.controlPoints) {
             const data = this.controlPoints.interact(relativePoint)
@@ -102,6 +105,3 @@ export default class GraphView extends View {
     }
 }
 
-export function isGraphView(view: any): view is GraphView {
-    return view instanceof GraphView
-}

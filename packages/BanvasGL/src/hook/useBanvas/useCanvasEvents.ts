@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { App } from '@/core/app'
 import {
     Point3,
@@ -9,8 +9,6 @@ import {
     isNonPrintableTextElement,
     isPrintableTextElement,
     Graph,
-    isTextView,
-    isSelectBoxView,
     GraphView,
     TextView,
     ImageView,
@@ -21,16 +19,14 @@ import {
     Style,
     TextFields,
 } from '@/core'
+import { isTextView, isSelectBoxView } from '@/core/interfaces'
 import { event2Point } from '@/utils/utils'
 import { ViewTreeUtils } from '@/core/utils/ViewTreeUtils'
 import { ViewAddonImpl } from '@/core/views/addon'
-import {
-    Action,
-    Cursor,
-    ExtraData,
-} from '@/core/views/View/InteractionMapBuilder'
-import Bounds from '@/core/graph/base/Bounds'
-import snapAlignManager from '@/core/snapAlign'
+import type { ExtraData } from '@/core/interfaces'
+import { Action, Cursor } from '@/core/interfaces'
+import { InteractionDispatcher } from '@/core/interaction'
+import type { InteractionContext } from '@/core/interaction'
 
 export interface UseCanvasEventsOptions {
     app: App | null
@@ -58,6 +54,31 @@ export function useCanvasEvents({
     const lastClickTimeRef = useRef<number | undefined>(undefined)
     const selectionRectViewRef = useRef<SelectBoxView | null>(null)
 
+    // 创建 InteractionDispatcher 实例（依赖注入 ref 读取器和 DOM/React 回调）
+    const dispatcher = useMemo(() => {
+        const ctx: InteractionContext = {
+            getIndicateView: () => indicateViewRef.current,
+            getIndicateContent: () => indicateContentRef.current,
+            getLastPoint: () => lastPointRef.current,
+            getExtraData: () => extraDataRef.current,
+            getSelectionRectView: () => selectionRectViewRef.current,
+            setCursor: (cursor: Cursor) => {
+                if (canvasRef.current) {
+                    canvasRef.current.style.cursor = cursor
+                }
+            },
+            selectView: (scene: Scene, view: View) => {
+                scene.select(view)
+                setSelectedViewId(view.id)
+            },
+            clearSelection: (scene: Scene) => {
+                ViewTreeUtils.clearAllStates(scene)
+            },
+            setSelectedViewId,
+        }
+        return new InteractionDispatcher(ctx)
+    }, [canvasRef, setSelectedViewId])
+
     // 鼠标落下，判定操作类型
     const onMouseDown = useCallback(
         async (e: MouseEvent) => {
@@ -83,193 +104,10 @@ export function useCanvasEvents({
 
     const handleMouseMoveWithAction = useCallback(
         (e: MouseEvent, scene: Scene, point: Point3, mousDownPoint: Point3) => {
-            switch (actionRef.current) {
-                case Action.MOVE: {
-                    const moveVector = point.subtract(
-                        lastPointRef.current || mousDownPoint
-                    )
-                    const indicateView = indicateViewRef.current
-                    if (!indicateView) return
-                    if (indicateView && !indicateView?.actived) {
-                        scene.select(indicateView)
-                        setSelectedViewId(indicateView.id)
-                        indicateView.translate(moveVector.x, moveVector.y, 0)
-                    } else {
-                        for (const activeView of scene.getAllActived()) {
-                            activeView.translate(moveVector.x, moveVector.y, 0)
-                        }
-                    }
-                    // 吸附对齐
-                    const res = snapAlignManager.snapAlign(indicateView, point)
-                    if (res.snapped) {
-                        for (const activeView of scene.getAllActived()) {
-                            activeView.translate(res.offset.x, res.offset.y, 0)
-                        }
-                    }
-                    break
-                }
-                case Action.SELECTION:
-                    if (
-                        isTextView(indicateViewRef.current) &&
-                        (isPrintableTextElement(indicateContentRef.current) ||
-                            isNonPrintableTextElement(
-                                indicateContentRef.current
-                            ))
-                    ) {
-                        const textView = indicateViewRef.current
-                        const { content } = textView.interact(point, true)
-                        if (!textView.actived) {
-                            scene.select(textView)
-                            setSelectedViewId(textView.id)
-                            const fixedIndex = textView.element2Index(
-                                indicateContentRef.current,
-                                point
-                            )
-                            textView.setSelection(fixedIndex, fixedIndex)
-                        }
-                        if (
-                            isPrintableTextElement(content) ||
-                            isNonPrintableTextElement(content)
-                        ) {
-                            const dynamicIndex = textView.element2Index(
-                                content,
-                                point
-                            )
-                            textView.setSelection(
-                                textView.fixedIndex,
-                                dynamicIndex
-                            )
-                        }
-                    }
-                    break
-                case Action.EDIT_POINT:
-                    canvasRef.current!.style.cursor = Cursor.Grabbing
-                    if (extraDataRef.current) {
-                        const { editPoint } = extraDataRef.current
-                        if (editPoint) {
-                            indicateViewRef.current?.editPoint(
-                                point,
-                                point.subtract(
-                                    lastPointRef.current || mousDownPoint
-                                )
-                            )
-                        }
-                    }
-                    break
-                case Action.RESIZE:
-                    canvasRef.current!.style.cursor = Cursor.Grabbing
-                    if (extraDataRef.current) {
-                        const vector = point.subtract(
-                            lastPointRef.current || mousDownPoint
-                        )
-                        const { resizeFixedIndex, resizeDynamicIndex } =
-                            extraDataRef.current
-                        if (
-                            resizeDynamicIndex !== undefined &&
-                            resizeFixedIndex !== undefined
-                        ) {
-                            scene.getAllActived().forEach((view) => {
-                                const fixedPoint =
-                                    view.boundingBox?.handles[
-                                        resizeFixedIndex
-                                    ].getCenter()
-                                const dynamicPoint =
-                                    view.boundingBox?.handles[
-                                        resizeDynamicIndex
-                                    ].getCenter()
-                                if (!fixedPoint || !dynamicPoint)
-                                    throw new Error('固定点或活动点不存在')
-                                view.resize(
-                                    fixedPoint,
-                                    dynamicPoint,
-                                    vector,
-                                    e.ctrlKey
-                                )
-                            })
-                        }
-                    }
-                    break
-                case Action.ROTATE: {
-                    canvasRef.current!.style.cursor = Cursor.Grabbing
-                    const bounds = indicateViewRef.current?.viewport
-
-                    if (
-                        bounds &&
-                        lastPointRef.current &&
-                        indicateViewRef.current
-                    ) {
-                        const center = Rectangle.fromBounds(bounds).getCenter()
-                        const inverseMatrix = indicateViewRef.current
-                            .getWorldMatrix()
-                            .inverse()
-                        const lastVector = inverseMatrix
-                            .multiply(lastPointRef.current)
-                            .subtract(center)
-                        const currentVector = inverseMatrix
-                            .multiply(point)
-                            .subtract(center)
-                        const dot =
-                            currentVector.dot(lastVector) /
-                            (currentVector.length * lastVector.length)
-                        const clampedDot = Math.max(-1, Math.min(1, dot))
-                        const sign = Math.sign(
-                            currentVector.cross(lastVector).z
-                        )
-                        const angle = Math.acos(clampedDot) * sign
-                        scene
-                            .getAllActived()
-                            .forEach((view) => view.rotate(0, 0, angle, center))
-                    }
-                    break
-                }
-                case Action.SELECT:
-                    canvasRef.current!.style.cursor = Cursor.Crosshair
-                    if (selectionRectViewRef.current && mousDownPoint) {
-                        // 更新框选矩形
-                        selectionRectViewRef.current.updateSelect(
-                            mousDownPoint,
-                            point
-                        )
-                        const selectionRect =
-                            selectionRectViewRef.current.content
-                        const viewsToActivate: View[] = []
-                        const allViews = scene.children
-                        // 遍历所有视图，检查是否与框选矩形相交
-                        for (const view of allViews) {
-                            let graph =
-                                view.style.overflow !== 'visible'
-                                    ? Rectangle.fromBounds(
-                                          view.viewport ?? Bounds.empty()
-                                      )
-                                    : Rectangle.fromBounds(
-                                          view.layoutArea ?? Bounds.empty()
-                                      )
-                            const intersection = selectionRect.intersect(
-                                graph.transform(view.getWorldMatrix())
-                            )
-                            if (intersection.length > 0) {
-                                viewsToActivate.push(view)
-                            }
-                        }
-                        ViewTreeUtils.clearAllStates(scene)
-
-                        for (const view of viewsToActivate) {
-                            scene.select(view, true)
-                        }
-                        setSelectedViewId(
-                            viewsToActivate[viewsToActivate.length - 1]?.id ??
-                                ''
-                        )
-                    }
-                    break
-                case Action.EDIT_VIEWPORT:
-                    break
-                case Action.NONE:
-                default:
-            }
+            dispatcher.dispatch(actionRef.current, e, scene, point, mousDownPoint)
             lastPointRef.current = point
         },
-        [canvasRef]
+        [dispatcher]
     )
 
     const handleMouseMoveHover = useCallback(

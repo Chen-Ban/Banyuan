@@ -4,8 +4,9 @@ import Style from '@/core/style/Style'
 import { Matrix4, Point3, Vector3 } from '@/core/math'
 import Bounds from './Bounds'
 import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
+import type { IGraph } from '@/core/interfaces'
 
-export default abstract class Graph {
+export default abstract class Graph implements IGraph {
     // 图形唯一标识
     public id: string
     // 图形类型
