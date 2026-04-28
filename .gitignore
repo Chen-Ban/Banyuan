@@ -131,6 +131,8 @@ dist_electron/
 .aider*
 .continue/
 *.mdc
+**/ai/apiKey.json
+**/ai/apiKey*.json
 
 # Legacy root files (migrated to packages/)
 /src/
