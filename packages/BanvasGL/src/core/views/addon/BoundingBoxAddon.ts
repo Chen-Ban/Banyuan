@@ -2,12 +2,10 @@ import Bounds from '@/core/graph/base/Bounds'
 import Rectangle from '@/core/graph/combined/Polygon/Rectangle'
 import Style from '@/core/style/Style'
 import { Point3, Vector3 } from '@/core/math'
-import type { ExtraData } from '@/core/interfaces'
-import { Action, Cursor, cursorMap } from '@/core/interfaces'
+import { Action, Cursor, cursorMap, ExtraData, IBoundingBoxAddon } from '@/core/interfaces'
 import { ADDONTYPE } from '@/core/constants'
 import { Circle, Line } from '@/core/graph'
 import { Color, StrokeStyle } from '@/core/style'
-import type { IBoundingBoxAddon } from '@/core/interfaces'
 
 export default class BoundingBoxAddon implements IBoundingBoxAddon {
     public readonly type = ADDONTYPE.BOUNDING_BOX
@@ -81,7 +79,7 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
             this.viewport.copy().expandToInclude(0, 0),
             new Style({
                 strokeStyle: new StrokeStyle({
-                    type: 'color',
+                    strokeType: 'color',
                     color: new Color(0, 1, 0, 1),
                     dashArray: [5, 5],
                 }),

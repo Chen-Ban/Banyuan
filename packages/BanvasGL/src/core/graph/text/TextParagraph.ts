@@ -11,7 +11,7 @@ import {
     isNonPrintableTextElement,
     isPrintableTextElement,
 } from './TextElement'
-import type { ITextParagraph } from '@/core/interfaces'
+import { ITextParagraph, ISerializable } from '@/core/interfaces'
 
 export type TextParagraphContent = [
     ...PrintableTextElement[],
@@ -22,7 +22,7 @@ export type TextParagraphContent = [
  * 文字段落类
  * 表示一个段落，包含多个文字元素 - TODO: 文本装饰的设计与实现
  */
-export default class TextParagraph extends Graph implements ITextParagraph {
+export default class TextParagraph extends Graph implements ITextParagraph, ISerializable {
     public type: GRAPHTYPE = GRAPHTYPE.TEXTPARAGRAPH
     public controlPoints: Point3[]
     public style: Style
@@ -363,6 +363,33 @@ export default class TextParagraph extends Graph implements ITextParagraph {
         this.bounds = this.updateBounds()
         this.transfromOrigin = position.copy()
         return this
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            texts: this.texts.map(t => t.toJSON()),
+            options: this.options.toJSON(),
+            style: this.style.toJSON(),
+        }
+    }
+
+    static fromJSON(data: any): TextParagraph {
+        const texts = data.texts.map((t: any) => {
+            if (t.$class === 'NonPrintableTextElement') {
+                return NonPrintableTextElement.fromJSON(t)
+            }
+            return PrintableTextElement.fromJSON(t)
+        }) as TextParagraphContent
+        const paragraph = new TextParagraph(
+            texts,
+            ParagraphOptions.fromJSON(data.options),
+            Style.fromJSON(data.style),
+        )
+        paragraph.id = data.id
+        return paragraph
     }
 
     /**

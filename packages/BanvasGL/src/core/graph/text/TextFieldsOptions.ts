@@ -47,6 +47,25 @@ export default class TextFieldsOptions {
         )
     }
 
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            verticalAlign: this.verticalAlign,
+            paragraphSpacing: this.paragraphSpacing,
+            fixedWidth: this.fixedWidth,
+            fixedHeight: this.fixedHeight,
+        }
+    }
+
+    static fromJSON(data: any): TextFieldsOptions {
+        return new TextFieldsOptions({
+            verticalAlign: data.verticalAlign,
+            paragraphSpacing: data.paragraphSpacing,
+            fixedWidth: data.fixedWidth,
+            fixedHeight: data.fixedHeight,
+        })
+    }
+
     /**
      * 静态工厂方法 - 创建居中对齐文本域选项
      */

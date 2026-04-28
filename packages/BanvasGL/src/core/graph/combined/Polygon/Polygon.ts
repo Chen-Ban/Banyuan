@@ -3,14 +3,13 @@ import Style from "@/core/style/Style";
 import { Point3, Vector3 } from "@/core/math";
 import CombinedGraph from "@/core/graph/combined/CombinedGraph";
 import Line from "@/core/graph/analytic/Line";
-import { isGraphType } from '@/core/interfaces';
-import type { IPolygon } from '@/core/interfaces';
+import { isGraphType, IPolygon, ISerializable } from '@/core/interfaces';
 
 /**
  * Polygon类 - 多边形图形基类
  * 基于CombinedGraph，专门用于创建和管理多边形
  */
-export default class Polygon extends CombinedGraph implements IPolygon {
+export default class Polygon extends CombinedGraph implements IPolygon, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.POLYGON;
   public vertices: Point3[] = [];
   public isClosed: boolean = true;
@@ -199,6 +198,27 @@ export default class Polygon extends CombinedGraph implements IPolygon {
     this.buildPolygonFromVertices()
     const referenceVector = dynamicPoint.subtract(fixedPoint)
     this.updateBounds(referenceVector.x - resizeVector.x > 0, referenceVector.y - resizeVector.y > 0)
+  }
+
+  // ── 序列化 ──
+  public toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      vertices: this.vertices.map(v => v.toJSON()),
+      isClosed: this.isClosed,
+      fillMode: this.fillMode,
+      style: this.style.toJSON(),
+    }
+  }
+
+  public static fromJSON(data: any): Polygon {
+    const vertices = data.vertices.map((v: any) => Point3.fromJSON(v))
+    const style = Style.fromJSON(data.style)
+    const polygon = new Polygon(vertices, style, data.isClosed)
+    polygon.id = data.id
+    polygon.fillMode = data.fillMode
+    return polygon
   }
 
   /**

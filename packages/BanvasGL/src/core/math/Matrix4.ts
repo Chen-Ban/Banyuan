@@ -1,7 +1,10 @@
 import Point3 from "./Point3";
 import Vector3 from "./Vector3";
+import { MATHTYPE } from '@/core/constants';
+import type { ISerializable } from '@/core/interfaces';
 
-export default class Matrix4 {
+export default class Matrix4 implements ISerializable {
+  public readonly type: MATHTYPE = MATHTYPE.MATRIX4;
   private data: Float32Array;
 
   constructor(data?: number[][] | Float32Array) {
@@ -28,6 +31,14 @@ export default class Matrix4 {
   // 获取原始数据
   get transform(): number[] {
     return Array.from(this.data);
+  }
+
+  // ── 序列化 ──
+  toJSON(): { transform: number[] } {
+    return { transform: this.transform };
+  }
+  static fromJSON(data: { transform: number[] | Float32Array }): Matrix4 {
+    return new Matrix4(data.transform instanceof Float32Array ? data.transform : new Float32Array(data.transform));
   }
 
   // 复制矩阵

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { Point3, App } from '@/core'
-import { isTextView, type ITextView } from '@/core/interfaces'
+import { Point3 } from '@/core/math'
+import { App } from '@/core/app'
+import { isTextView, ITextView } from '@/core/interfaces'
 import { flattenViewTree } from '@/core/scene/ViewTree'
 
 export interface UseInputEventsOptions {

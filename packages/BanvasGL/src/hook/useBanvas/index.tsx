@@ -3,7 +3,7 @@ import { useCanvasInit } from './useCanvasInit'
 import { useCanvasEvents } from './useCanvasEvents'
 import { useInputEvents } from './useInputEvents'
 import { SerializedSceneJSON, UseBanvasOptions, UseBanvasResult } from './types'
-import { Scene } from '@/core'
+import { Scene } from '@/core/scene'
 
 export default function useBanvas(
     serializedScenes: SerializedSceneJSON[],

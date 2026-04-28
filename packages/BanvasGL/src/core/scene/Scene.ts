@@ -3,7 +3,8 @@ import { BaseCamera } from '@/core/camera'
 import { OperationStack, Operation, LayerManager } from './utils'
 import { v4 as uuidv4 } from 'uuid'
 import { flattenViewTree, clearAllStates, clearSelectedStates, isViewInTree } from './ViewTree'
-import type { ISceneNode } from '@/core/interfaces'
+import { ISceneNode, ISerializable } from '@/core/interfaces'
+import { SCENETYPE } from '@/core/constants'
 
 export interface SceneOptions {
     camera?: BaseCamera
@@ -14,8 +15,9 @@ export interface SceneOptions {
     onHide?: () => void
 }
 
-export default class Scene {
+export default class Scene implements ISerializable {
     // 基本属性
+    public readonly type: SCENETYPE = SCENETYPE.SCENE
     public id: string = ''
     public children: View[] = []
     public camera: BaseCamera
@@ -326,5 +328,49 @@ export default class Scene {
     public setLayer(view: View, layer: number): this {
         LayerManager.setLayer(this.children, view, layer)
         return this
+    }
+
+    // ==================== 序列化 ====================
+
+    /**
+     * 将 Scene 实例序列化为纯数据对象。
+     */
+    public toJSON(): any {
+        return {
+            id: this.id,
+            data: this.data,
+            camera: {
+                $type: (this.camera as any).type,
+                $value: {
+                    position: [this.camera.position.x, this.camera.position.y, this.camera.position.z],
+                    target: [this.camera.target.x, this.camera.target.y, this.camera.target.z],
+                    up: [this.camera.up.x, this.camera.up.y, this.camera.up.z],
+                },
+            },
+            children: this.children.map(child => ({
+                $type: child.type,
+                $value: child.toJSON(),
+            })),
+        }
+    }
+
+    /**
+     * 从纯数据对象恢复 Scene 实例。
+     * data.camera 和 data.children 应由 Serializer 预先解析为实例后传入。
+     */
+    static fromJSON(data: any): Scene {
+        const scene = new Scene(data.camera)
+        scene.id = data.id
+        if (data.data) scene.data = data.data
+        if (data.children) {
+            data.children.forEach((child: View) => {
+                // addChild 会自动分配递增的 layer，
+                // 需要先保存原始值，addChild 后再恢复
+                const savedLayer = child.layer
+                scene.addChild(child)
+                child.layer = savedLayer
+            })
+        }
+        return scene
     }
 }

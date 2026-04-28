@@ -1,46 +1,35 @@
-import AnalyticGraph from "@/core/graph/analytic/AnalyticGraph";
-import { intersect, intersectAll } from "@/core/graph/analytic/IntersectionUtils";
+import Serializer from "@/core/serializer";
 import { Point3 } from "@/core/math";
-import { WorkerHandler } from "@/workers/types";
+import { WorkerHandler, WorkerHandlerResult } from "@/workers/types";
 
 /**
  * 解析几何相交相关任务（纯 handler）：
  * - 曲线/直线/圆弧/圆等之间的相交点计算
- * - 批量相交检测（intersectAll）
+ * - 批量相交检测
+ *
+ * 传输方式：AnalyticGraph 通过 Serializer 序列化为 JSON 纯对象传输，
+ * Worker 端反序列化重建实例后执行计算。
  */
 
 export interface GraphIntersectionPairPayload {
-  a: AnalyticGraph;
-  b: AnalyticGraph;
+  a: string; // Serializer.serialize(graph) 后的 JSON 字符串
+  b: string;
 }
 
 export interface GraphIntersectionPairResult {
-  points: Point3[];
+  points: Array<{ x: number; y: number; z: number }>;
 }
 
 export interface GraphIntersectionBatchPayload {
-  shapes: AnalyticGraph[];
+  shapes: string[]; // 每个元素是 Serializer.serialize(graph) 后的 JSON 字符串
 }
 
 export interface GraphIntersectionBatchResult {
   /**
    * key 形如 "i-j"，与 IntersectionUtils.intersectAll 返回结构一致
    */
-  intersections: Map<string, Point3[]>;
+  intersections: Record<string, Array<{ x: number; y: number; z: number }>>;
 }
-
-// 内部使用的纯函数 handler
-const graphIntersectionPairHandler = (payload: GraphIntersectionPairPayload): GraphIntersectionPairResult => {
-  const { a, b } = payload;
-  const points = intersect(a, b);
-  return { points };
-};
-
-const graphIntersectionBatchHandler = (payload: GraphIntersectionBatchPayload): GraphIntersectionBatchResult => {
-  const { shapes } = payload;
-  const intersections = intersectAll(shapes);
-  return { intersections };
-};
 
 export type GraphIntersectionMode = "pair" | "batch";
 
@@ -57,15 +46,34 @@ export type GraphIntersectionUnifiedResult =
 export const graphIntersectionUnifiedHandler: WorkerHandler<
   GraphIntersectionUnifiedPayload,
   GraphIntersectionUnifiedResult
-> = (payload) => {
+> = (payload): WorkerHandlerResult<GraphIntersectionUnifiedResult> => {
+  const serializer = Serializer.getInstance();
+
   if (payload.mode === "pair" && payload.pair) {
-    const res = graphIntersectionPairHandler(payload.pair);
-    return { mode: "pair", ...res };
+    const a = serializer.deserialize(payload.pair.a);
+    const b = serializer.deserialize(payload.pair.b);
+    const rawPoints: Point3[] = a.intersect(b);
+    const points = rawPoints.map((p: Point3) => ({ x: p.x, y: p.y, z: p.z }));
+    return { result: { mode: "pair", points } };
   }
 
   if (payload.mode === "batch" && payload.batch) {
-    const res = graphIntersectionBatchHandler(payload.batch);
-    return { mode: "batch", ...res };
+    const shapes = payload.batch.shapes.map((s: string) => serializer.deserialize(s));
+    const intersections: Record<string, Array<{ x: number; y: number; z: number }>> = {};
+
+    for (let i = 0; i < shapes.length; i++) {
+      for (let j = i + 1; j < shapes.length; j++) {
+        const rawPoints: Point3[] = shapes[i].intersect(shapes[j]);
+        if (rawPoints.length > 0) {
+          intersections[`${i}-${j}`] = rawPoints.map((p: Point3) => ({
+            x: p.x,
+            y: p.y,
+            z: p.z,
+          }));
+        }
+      }
+    }
+    return { result: { mode: "batch", intersections } };
   }
 
   throw new Error("Invalid GraphIntersectionUnifiedPayload");

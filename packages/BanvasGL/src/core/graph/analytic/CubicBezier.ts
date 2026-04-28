@@ -3,9 +3,10 @@ import Bezier from "./Bezier";
 import AnalyticGraph from "./AnalyticGraph";
 import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
-import type { ICubicBezier } from '@/core/interfaces';
+import { ICubicBezier } from '@/core/interfaces';
+import type { ISerializable } from '@/core/interfaces';
 
-export default class CubicBezier extends Bezier implements ICubicBezier {
+export default class CubicBezier extends Bezier implements ICubicBezier, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.CUBIC_BEZIER;
 
   constructor(
@@ -198,6 +199,23 @@ export default class CubicBezier extends Bezier implements ICubicBezier {
     const crossProduct2 = (control2.x - start.x) * (end.y - start.y) - (control2.y - start.y) * (end.x - start.x);
 
     return Math.abs(crossProduct1) < 1e-10 && Math.abs(crossProduct2) < 1e-10;
+  }
+
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      controlPoints: this.controlPoints.map(p => p.toJSON()),
+      style: this.style.toJSON(),
+    }
+  }
+
+  static fromJSON(data: any): CubicBezier {
+    const points = data.controlPoints.map((p: any) => Point3.fromJSON(p));
+    const cb = new CubicBezier(points[0], points[1], points[2], points[3], Style.fromJSON(data.style));
+    cb.id = data.id;
+    return cb;
   }
 
   // 复制三次贝塞尔曲线

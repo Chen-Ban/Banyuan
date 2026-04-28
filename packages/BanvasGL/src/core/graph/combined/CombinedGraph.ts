@@ -3,14 +3,14 @@ import Style from '@/core/style/Style'
 import { Point3, Vector3, Matrix4, GeometryUtils } from '@/core/math'
 import Graph from '@/core/graph/base/Graph'
 import Bounds from '@/core/graph/base/Bounds'
-import { isGraphType, isAnalyticGraph, isMediaElement, isCombinedGraph as isCombinedGraphGuard } from '@/core/interfaces'
-import type { ICombinedGraph } from '@/core/interfaces'
+import { isGraphType, isAnalyticGraph, isMediaElement, isCombinedGraph, ICombinedGraph } from '@/core/interfaces'
+import type { ISerializable } from '@/core/interfaces'
 
 /**
  * CombinedGraph类 - 组合多个图形元素的复合图形
  * 可以包含多个子图形，统一管理和渲染
  */
-export default class CombinedGraph extends Graph implements ICombinedGraph {
+export default class CombinedGraph extends Graph implements ICombinedGraph, ISerializable {
     public type: GRAPHTYPE = GRAPHTYPE.COMBINED_GRAPH
     public graphs: Graph[] = []
     public style: Style
@@ -117,7 +117,7 @@ export default class CombinedGraph extends Graph implements ICombinedGraph {
             // 2. 媒体图形（图片、视频）：从 bounds 获取四个角点
             else if (
                 isMediaElement(graph) ||
-                isCombinedGraphGuard(graph)
+                isCombinedGraph(graph)
             ) {
                 const bounds = graph.bounds
                 if (bounds && !bounds.isEmpty) {
@@ -317,6 +317,35 @@ export default class CombinedGraph extends Graph implements ICombinedGraph {
         }
 
         ctx.restore()
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            graphs: this.graphs.map(g => ({
+                $type: g.type,
+                $value: (g as any).toJSON(),
+            })),
+            style: this.style.toJSON(),
+        }
+    }
+
+    /**
+     * 从 JSON 数据重建 CombinedGraph。
+     * 注意：data.graphs 中每个元素应已由 Serializer 递归解析为 Graph 实例。
+     * 如果传入的是原始 JSON（包含 $type/$value），则需要通过 Serializer 先行反序列化。
+     */
+    static fromJSON(data: any): CombinedGraph {
+        // data.graphs 应为已解析的 Graph 实例数组（由 Serializer 处理）
+        const graphs: Graph[] = data.graphs ?? [];
+        const cg = new CombinedGraph(
+            graphs,
+            data.style ? Style.fromJSON(data.style) : undefined,
+        );
+        cg.id = data.id;
+        return cg;
     }
 
     /**

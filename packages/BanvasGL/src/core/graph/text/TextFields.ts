@@ -8,7 +8,7 @@ import Bounds from '@/core/graph/base/Bounds'
 import { Rectangle } from '@/core/graph/combined'
 import TextElement, { isNonPrintableTextElement } from './TextElement'
 import TextOptions from './TextOptions'
-import type { ITextFields } from '@/core/interfaces'
+import { ITextFields, ISerializable } from '@/core/interfaces'
 
 //文本选区三元组： 段落号，字序号，字前｜字后
 export type TextIndex = [number, number, 0 | 1]
@@ -18,7 +18,7 @@ export type TextIndex = [number, number, 0 | 1]
  * 表示一个文本域，包含多个段落
  * 是文本内容的最外层容器
  */
-export default class TextFields extends Graph implements ITextFields {
+export default class TextFields extends Graph implements ITextFields, ISerializable {
     public type: GRAPHTYPE = GRAPHTYPE.TEXTFIELDS
     public controlPoints: Point3[]
     public style: Style
@@ -825,6 +825,28 @@ export default class TextFields extends Graph implements ITextFields {
         }
         // resize 后同步更新排版约束区域为最新的实际内容边界
         this.constraintBounds = this.bounds.copy()
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            paragraphs: this.paragraphs.map(p => p.toJSON()),
+            options: this.options.toJSON(),
+            style: this.style.toJSON(),
+        }
+    }
+
+    static fromJSON(data: any): TextFields {
+        const paragraphs = data.paragraphs.map((p: any) => TextParagraph.fromJSON(p))
+        const fields = new TextFields(
+            paragraphs,
+            TextFieldsOptions.fromJSON(data.options),
+            Style.fromJSON(data.style),
+        )
+        fields.id = data.id
+        return fields
     }
 
     /**

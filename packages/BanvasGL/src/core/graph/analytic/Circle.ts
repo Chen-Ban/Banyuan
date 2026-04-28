@@ -2,9 +2,10 @@ import { GRAPHTYPE } from "@/core/constants";
 import Arc from "./Arc";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
-import type { ICircle } from '@/core/interfaces';
+import { ICircle } from '@/core/interfaces';
+import type { ISerializable } from '@/core/interfaces';
 
-export default class Circle extends Arc implements ICircle {
+export default class Circle extends Arc implements ICircle, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.CIRCLE;
 
   constructor(center: Point3, radius: number, style: Style = Style.DEFAULT) {
@@ -122,6 +123,27 @@ export default class Circle extends Arc implements ICircle {
       ctx.stroke();
     }
     ctx.restore();
+  }
+
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      center: this.center.toJSON(),
+      radius: this.xRadius,
+      style: this.style.toJSON(),
+    }
+  }
+
+  static fromJSON(data: any): Circle {
+    const circle = new Circle(
+      Point3.fromJSON(data.center),
+      data.radius ?? data.xRadius,
+      Style.fromJSON(data.style),
+    );
+    circle.id = data.id;
+    return circle;
   }
 
   // 复制圆形

@@ -24,7 +24,7 @@ export interface IDiff {
     parentId: string
     id: string
     content: IView
-    type: string // OperationType
+    operationType: string // OperationType
 }
 
 /** 操作记录 */

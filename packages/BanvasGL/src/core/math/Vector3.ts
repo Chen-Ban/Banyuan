@@ -1,4 +1,8 @@
-export default class Vector3 {
+import { MATHTYPE } from '@/core/constants';
+import type { ISerializable } from '@/core/interfaces';
+
+export default class Vector3 implements ISerializable {
+  public readonly type: MATHTYPE = MATHTYPE.VECTOR3;
   private transform: Float32Array;
   constructor(x: number, y: number, z: number) {
     this.transform = new Float32Array(3);
@@ -41,6 +45,14 @@ export default class Vector3 {
   cross(v: Vector3): Vector3 {
     return new Vector3(this.y * v.z - this.z * v.y, this.z * v.x - this.x * v.z, this.x * v.y - this.y * v.x);
   }
+  // ── 序列化 ──
+  toJSON(): { x: number; y: number; z: number } {
+    return { x: this.x, y: this.y, z: this.z };
+  }
+  static fromJSON(data: { x: number; y: number; z: number }): Vector3 {
+    return new Vector3(data.x, data.y, data.z);
+  }
+
   copy(): Vector3 {
     return new Vector3(this.x, this.y, this.z);
   }

@@ -4,9 +4,9 @@ import Style from '@/core/style/Style'
 import { Matrix4, Point3, Vector3 } from '@/core/math'
 import Bounds from './Bounds'
 import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
-import type { IGraph } from '@/core/interfaces'
+import { IGraph, ISerializable } from '@/core/interfaces'
 
-export default abstract class Graph implements IGraph {
+export default abstract class Graph implements IGraph, ISerializable {
     // 图形唯一标识
     public id: string
     // 图形类型
@@ -26,6 +26,10 @@ export default abstract class Graph implements IGraph {
     constructor(id?: string) {
         this.id = id ?? uuid()
     }
+
+    // ── 序列化（子类必须实现） ──
+    public abstract toJSON(): any
+
     /**
      * 描绘路径
      * @param ctx 绘制上下文

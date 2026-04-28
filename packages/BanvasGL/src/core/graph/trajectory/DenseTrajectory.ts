@@ -4,9 +4,10 @@ import { Point3, Vector3, Matrix4 } from "@/core/math";
 import Style from "@/core/style/Style";
 import Bounds from "@/core/graph/base/Bounds";
 import { Line } from "@/core/graph/analytic";
-import type { IDenseTrajectory } from '@/core/interfaces';
+import { IDenseTrajectory, ISerializable } from '@/core/interfaces';
+import type { ITransferable, TransferableData } from '@/core/interfaces';
 
-export default class DenseTrajectory extends Graph implements IDenseTrajectory {
+export default class DenseTrajectory extends Graph implements IDenseTrajectory, ISerializable, ITransferable {
   public type: GRAPHTYPE = GRAPHTYPE.DENSETRAJECTORY;
   public controlPoints: Float32Array;
   public style: Style;
@@ -242,6 +243,64 @@ export default class DenseTrajectory extends Graph implements IDenseTrajectory {
     })
     return lines.map(line => line.intersect(other)).flat()
   }
+  // ── 序列化（JSON，用于持久化存储） ──
+  toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      controlPoints: Array.from(this.controlPoints),
+      style: this.style.toJSON(),
+    }
+  }
+
+  static fromJSON(data: any): DenseTrajectory {
+    const points = new Float32Array(data.controlPoints);
+    const dt = new DenseTrajectory(points, Style.fromJSON(data.style));
+    dt.id = data.id;
+    return dt;
+  }
+
+  // ── Worker 传输（零拷贝，用于 Worker 间数据传输） ──
+
+  /**
+   * 提取 controlPoints 的底层 ArrayBuffer 用于零拷贝传输。
+   * 调用后当前实例的 controlPoints 将被 detach（不可用），
+   * Worker 处理完毕后应通过 fromTransferable 归还 buffer。
+   */
+  toTransferable(): TransferableData {
+    const buffer = this.controlPoints.buffer;
+    return {
+      $type: 'DenseTrajectory',
+      meta: {
+        id: this.id,
+        type: this.type,
+        byteOffset: this.controlPoints.byteOffset,
+        length: this.controlPoints.length,
+        style: this.style.toJSON(),
+      },
+      buffers: [buffer],
+    }
+  }
+
+  /**
+   * 从 TransferableData 重建 DenseTrajectory 实例（零拷贝）。
+   * 绕过构造函数的 Float32Array.from() 拷贝，直接在传入的 ArrayBuffer 上创建视图。
+   */
+  static fromTransferable(data: TransferableData): DenseTrajectory {
+    const { meta, buffers } = data;
+    const controlPoints = new Float32Array(buffers[0], meta.byteOffset, meta.length);
+    // 绕过构造函数避免 Float32Array.from 的隐式拷贝
+    const dt = Object.create(DenseTrajectory.prototype) as DenseTrajectory;
+    dt.id = meta.id;
+    dt.type = GRAPHTYPE.DENSETRAJECTORY;
+    dt.controlPoints = controlPoints;
+    dt.style = Style.fromJSON(meta.style);
+    dt.bounds = dt.updateBounds();
+    dt.transfromOrigin = new Point3(controlPoints[0], controlPoints[1], 0);
+    dt.constraintBounds = Bounds.empty();
+    return dt;
+  }
+
   public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
     const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
     const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;

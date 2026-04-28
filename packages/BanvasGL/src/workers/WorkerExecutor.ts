@@ -2,9 +2,7 @@ import { WorkerResult, WorkerTask } from "./types";
 
 /**
  * 基于浏览器 Web Worker 的执行器实现。
- * 所有任务都会通过 Web Worker 执行（如果运行环境支持 Worker）。
- *
- * 具体的 handler 注册和实际计算逻辑在 `WorkerRuntime.ts` 中完成。
+ * 支持 Transferable 零拷贝传输：通过 postMessage 第二参数传递 ArrayBuffer。
  */
 export class WorkerExecutor {
   private worker: Worker;
@@ -18,15 +16,12 @@ export class WorkerExecutor {
         throw new Error("WorkerExecutor: Worker is not available in this environment.");
       }
 
-      // 使用单独打包出的 worker 入口文件（见 tsup.config.ts 中的 entry 配置）
-      // dist 中会生成 dist/banvas-worker.mjs
       const workerUrl = new URL("./banvas-worker.mjs", import.meta.url).href;
       this.worker = new Worker(workerUrl, { type: "module" });
     }
 
     this.worker.onmessage = (event: MessageEvent<WorkerResult<any>>) => {
       const result = event.data;
-      console.log("收到worker返回的信息", result);
       const resolver = this.pending.get(result.id);
       this.pending.delete(result.id);
       if (resolver) {
@@ -37,11 +32,19 @@ export class WorkerExecutor {
     };
   }
 
-  public async execute<TPayload = any, TResult = any>(task: WorkerTask<TPayload>): Promise<WorkerResult<TResult>> {
+  /**
+   * 执行一个 Worker 任务。
+   * task.buffers 中的 ArrayBuffer 会通过 Transferable 零拷贝传输到 Worker，
+   * 传输后这些 buffer 在主线程中将被 detach（不可用）。
+   */
+  public async execute<TPayload = any, TResult = any>(
+    task: WorkerTask<TPayload>
+  ): Promise<WorkerResult<TResult>> {
     return new Promise<WorkerResult<TResult>>((resolve) => {
-      console.log("发送信息到worker");
       this.pending.set(task.id, resolve as (r: WorkerResult<any>) => void);
-      this.worker.postMessage(task);
+      // 提取 transferable 的 ArrayBuffer 列表
+      const transferables = task.buffers ?? [];
+      this.worker.postMessage(task, transferables);
     });
   }
 }
@@ -49,13 +52,6 @@ export class WorkerExecutor {
 // 全局单例执行器实例
 let defaultWorkerExecutorInstance: WorkerExecutor | null = null;
 
-/**
- * 获取默认执行器实例（单例模式）。
- * 确保整个应用只创建一个 Worker，避免重复加载 worker 文件。
- *
- * 注意：使用函数而不是模块级常量，避免在模块导入时立即创建 Worker。
- * 只有在真正需要时才创建 Worker 实例。
- */
 export function getDefaultWorkerExecutor(): WorkerExecutor {
   if (!defaultWorkerExecutorInstance) {
     defaultWorkerExecutorInstance = new WorkerExecutor();

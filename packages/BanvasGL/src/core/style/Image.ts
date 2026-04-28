@@ -5,7 +5,11 @@ export interface PatternSize {
   height: number
 }
 
-export default class Image {
+import { STYLETYPE } from '@/core/constants'
+import type { ISerializable } from '@/core/interfaces'
+
+export default class Image implements ISerializable {
+  public readonly type: STYLETYPE = STYLETYPE.IMAGE_PATTERN;
   src: string | null
   size: PatternSize | null
   repeat: PatternRepeat
@@ -51,6 +55,15 @@ export default class Image {
     // 创建图案
     const image = ctx.createPattern(img, this.repeat)
     return image
+  }
+
+  // ── 序列化 ──
+  toJSON(): any {
+    return { src: this.src, size: this.size, repeat: this.repeat }
+  }
+
+  static fromJSON(data: any): Image {
+    return new Image(data.src, data.size, data.repeat)
   }
 
   copy(): Image {

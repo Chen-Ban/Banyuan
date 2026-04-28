@@ -102,6 +102,12 @@ export type {
     IAppStatic,
 } from './IApp'
 
+// ── 序列化接口 ──
+export type { ISerializable, SerializableStatic } from './ISerializable'
+
+// ── Worker 传输接口 ──
+export type { ITransferable, TransferableData } from './ITransferable'
+
 // ── 统一类型守卫 ──
 export {
     isGraphType,

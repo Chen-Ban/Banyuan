@@ -1,11 +1,13 @@
 import { VIEWTYPE } from '@/core/constants'
 import View, { ViewOptions } from '@/core/views/View/View'
-import type { ICombinedView } from '@/core/interfaces'
+import { ICombinedView, ISerializable } from '@/core/interfaces'
+import Matrix4 from '@/core/math/Matrix4'
+import Bounds from '@/core/graph/base/Bounds'
 
 /**
  * 组合视图
  */
-export default class CombinedView extends View implements ICombinedView {
+export default class CombinedView extends View implements ICombinedView, ISerializable {
     public type: VIEWTYPE = VIEWTYPE.COMBINEDVIEW
 
     constructor(options: ViewOptions = {}) {
@@ -13,9 +15,9 @@ export default class CombinedView extends View implements ICombinedView {
     }
 
     public copy(): CombinedView {
-        const newView = new CombinedView(
-            this.children.map((view) => view.copy())
-        )
+        const newView = new CombinedView({
+            children: this.children.map((view) => view.copy()),
+        })
 
         // 复制基本属性
         newView.layer = this.layer
@@ -65,6 +67,31 @@ export default class CombinedView extends View implements ICombinedView {
             child.onDestroy()
         })
         this.children = []
+    }
+
+    // ==================== 序列化 ====================
+
+    /**
+     * 从纯数据对象恢复 CombinedView 实例。
+     * content / children 中的 { $type, $value } 应由 Serializer 预先解析为实例后传入。
+     */
+    static fromJSON(data: any): CombinedView {
+        const view = new CombinedView({})
+        view.id = data.id
+        view.layer = data.layer
+        view.visible = data.visible
+        view.freezed = data.freezed
+        if (data.properties) view.properties = data.properties
+        if (data.data) view.data = data.data
+        if (data.style) view.style = data.style
+        if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
+        if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)
+        if (data.content) view.content = data.content // 已由 Serializer 解析
+        // children 通过 addChild 恢复，确保 parent 引用正确
+        if (data.children) {
+            data.children.forEach((child: View) => view.addChild(child))
+        }
+        return view
     }
 }
 

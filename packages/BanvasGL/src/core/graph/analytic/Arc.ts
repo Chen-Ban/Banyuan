@@ -5,9 +5,10 @@ import { Style } from "@/core/style";
 import Bounds from "@/core/graph/base/Bounds";
 import Graph from "@/core/graph/base/Graph";
 import { intersect } from "./IntersectionUtils";
-import type { IArc } from '@/core/interfaces';
+import { IArc } from '@/core/interfaces';
+import type { ISerializable } from '@/core/interfaces';
 
-export default class Arc extends AnalyticGraph implements IArc {
+export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.ARC;
   public controlPoints: Point3[];
   public style: Style;
@@ -157,6 +158,37 @@ export default class Arc extends AnalyticGraph implements IArc {
     this.renderPath(ctx, true);
     ctx.stroke();
     ctx.restore();
+  }
+
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      center: this.center.toJSON(),
+      xRadius: this.xRadius,
+      yRadius: this.yRadius,
+      rotation: this.rotation,
+      startAngle: this.startAngle,
+      endAngle: this.endAngle,
+      clockwise: this.clockwise,
+      style: this.style.toJSON(),
+    }
+  }
+
+  static fromJSON(data: any): Arc {
+    const arc = new Arc(
+      Point3.fromJSON(data.center),
+      data.xRadius,
+      data.yRadius,
+      data.rotation,
+      data.startAngle,
+      data.endAngle,
+      data.clockwise,
+      Style.fromJSON(data.style),
+    );
+    arc.id = data.id;
+    return arc;
   }
 
   // 复制椭圆弧

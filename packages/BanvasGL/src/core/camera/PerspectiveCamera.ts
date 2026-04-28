@@ -1,5 +1,6 @@
 import BaseCamera, { BaseCameraOptions } from './BaseCamera'
 import { Matrix4, Vector3 } from '@/core/math'
+import { SCENETYPE } from '@/core/constants'
 
 export interface PerspectiveCameraOptions extends BaseCameraOptions {
     fov?: number
@@ -11,6 +12,7 @@ export interface PerspectiveCameraOptions extends BaseCameraOptions {
 }
 
 export default class PerspectiveCamera extends BaseCamera {
+    public readonly type: SCENETYPE = SCENETYPE.PERSPECTIVE_CAMERA
     private _fov: number
     private _aspect: number
     private _width: number

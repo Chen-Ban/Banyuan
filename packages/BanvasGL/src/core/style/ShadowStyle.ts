@@ -1,6 +1,9 @@
 import Color from './Color'
+import { STYLETYPE } from '@/core/constants'
+import type { ISerializable } from '@/core/interfaces'
 
-export default class ShadowStyle {
+export default class ShadowStyle implements ISerializable {
+  public readonly type: STYLETYPE = STYLETYPE.SHADOW_STYLE;
   color: Color
   offsetX: number
   offsetY: number
@@ -86,6 +89,23 @@ export default class ShadowStyle {
       ctx.shadowOffsetY = 0
       ctx.shadowBlur = 0
     }
+  }
+
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      color: this.color.toJSON(),
+      offsetX: this.offsetX, offsetY: this.offsetY,
+      blur: this.blur, opacity: this.opacity, enabled: this.enabled,
+    }
+  }
+
+  static fromJSON(data: any): ShadowStyle {
+    return new ShadowStyle({
+      color: Color.fromJSON(data.color),
+      offsetX: data.offsetX, offsetY: data.offsetY,
+      blur: data.blur, opacity: data.opacity, enabled: data.enabled,
+    })
   }
 
   // 复制样式

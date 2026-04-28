@@ -14,7 +14,6 @@ import { VIEWTYPE, ADDONTYPE } from '@/core/constants'
 import type { Matrix4, Point3, Vector3 } from '@/core/math'
 import type Bounds from '@/core/graph/base/Bounds'
 import type { Line, Rectangle, Circle } from '@/core/graph'
-import type { Graph } from '@/core/graph'
 import type { IGraph, ITextElement, ITextFields, TextIndex } from './IGraph'
 
 // ────────────────────────────────────────────
@@ -29,7 +28,7 @@ export interface IView {
     parent: ISceneNode | IView | null
     children: IView[]
     matrix: Matrix4
-    content: Graph | null
+    content: IGraph | null
     viewport: Bounds
     layoutArea: Bounds
     boundingBox: IBoundingBoxAddon | null

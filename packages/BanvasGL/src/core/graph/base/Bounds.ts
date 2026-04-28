@@ -1,10 +1,13 @@
 import Point3 from '@/core/math/Point3'
+import { MATHTYPE } from '@/core/constants'
+import type { ISerializable } from '@/core/interfaces'
 /**
  * 边界框类
  * @description 用于表示图形的包围盒，包含位置和尺寸信息。基于本地坐标系定位。
  * @description 边界框的宽高带正负，表示边界框的扩展方向。正：右\下；负：左\上。
  */
-export default class Bounds {
+export default class Bounds implements ISerializable {
+  public readonly type: MATHTYPE = MATHTYPE.BOUNDS;
   public x: number;
   public y: number;
   public width: number;
@@ -101,9 +104,17 @@ export default class Bounds {
     return this.width <= 0 || this.height <= 0;
   }
 
+  // ── 序列化 ──
+  toJSON(): { x: number; y: number; width: number; height: number } {
+    return { x: this.x, y: this.y, width: this.width, height: this.height };
+  }
+  static fromJSON(data: { x: number; y: number; width: number; height: number }): Bounds {
+    return new Bounds(data.x, data.y, data.width, data.height);
+  }
+
   /**
-   * 复制边界框
-   */
+  * 复制边界框
+  */
   copy(): Bounds {
     return new Bounds(this.x, this.y, this.width, this.height);
   }
