@@ -1,0 +1,110 @@
+export const enum GRAPHTYPE {
+    GRAPH = 'GRAPH',
+    ANALYTICGRAPH = 'ANALYTICGRAPH',
+    DENSETRAJECTORY = 'DENSETRAJECTORY',
+    SKETCH = 'SKETCH',
+    LINE = 'LINE',
+    ARC = 'ARC',
+    CIRCLE = 'CIRCLE',
+    BEZIER = 'BEZIER',
+    QUADRATIC_BEZIER = 'QUADRATIC_BEZIER',
+    CUBIC_BEZIER = 'CUBIC_BEZIER',
+    COMBINED_GRAPH = 'COMBINED_GRAPH',
+    POLYGON = 'POLYGON',
+    TRIANGLE = 'TRIANGLE',
+    RECTANGLE = 'RECTANGLE',
+    REGULAR_POLYGON = 'REGULAR_POLYGON',
+    COMPLEX_GRAPH = 'COMPLEX_GRAPH',
+    MAGNIFYING_GLASS = 'MAGNIFYING_GLASS',
+    IMAGE = 'IMAGE',
+    VIDEO = 'VIDEO',
+    TEXTS = 'TEXTS',
+    TEXTPARAGRAPH = 'TEXTPARAGRAPH',
+    TEXTELEMENT = 'TEXTELEMENT',
+    PRINTABLE_TEXTELEMENT = 'PRINTABLE_TEXTELEMENT',
+    NONPRINTABLE_TEXTELEMENT = 'NONPRINTABLE_TEXTELEMENT',
+    TEXTFIELDS = 'TEXTFIELDS',
+}
+
+// 视图类型枚举
+export const enum VIEWTYPE {
+    VIEW = 'VIEW',
+    TEXTVIEW = 'TEXTVIEW',
+    GRAPHVIEW = 'GRAPHVIEW',
+    IMAGEVIEW = 'IMAGEVIEW',
+    VIDEOVIEW = 'VIDEOVIEW',
+    COMBINEDVIEW = 'COMBINEDVIEW',
+    SELECTBOXVIEW = 'SELECTBOXVIEW',
+    INPUT = 'INPUT',
+    EDITABLETEXT = 'EDITABLETEXT',
+}
+
+// 数学类型枚举
+export const enum MATHTYPE {
+    POINT3 = 'POINT3',
+    VECTOR3 = 'VECTOR3',
+    MATRIX4 = 'MATRIX4',
+    BOUNDS = 'BOUNDS',
+}
+
+// 样式类型枚举
+export const enum STYLETYPE {
+    COLOR = 'COLOR',
+    GRADIENT = 'GRADIENT',
+    IMAGE_PATTERN = 'IMAGE_PATTERN',
+    VIDEO_PATTERN = 'VIDEO_PATTERN',
+    FILL_STYLE = 'FILL_STYLE',
+    STROKE_STYLE = 'STROKE_STYLE',
+    SHADOW_STYLE = 'SHADOW_STYLE',
+    STYLE = 'STYLE',
+}
+
+// 场景类型枚举
+export const enum SCENETYPE {
+    SCENE = 'SCENE',
+    ORTHOGRAPHIC_CAMERA = 'ORTHOGRAPHIC_CAMERA',
+    PERSPECTIVE_CAMERA = 'PERSPECTIVE_CAMERA',
+}
+
+// 插件类型枚举
+export const enum ADDONTYPE {
+    BOUNDING_BOX = 'BOUNDING_BOX',
+    VERTEX = 'VERTEX',
+}
+
+// 文字对齐方式枚举
+export const enum VERTICALALIGN {
+    TOP = 'TOP',
+    MIDDLE = 'MIDDLE',
+    BOTTOM = 'BOTTOM',
+}
+
+export const enum HORIZONTALALIGN {
+    LEFT = 'LEFT',
+    CENTER = 'CENTER',
+    RIGHT = 'RIGHT',
+}
+
+// 字体样式枚举
+export const enum FontStyle {
+    NORMAL = 'normal',
+    ITALIC = 'italic',
+    OBLIQUE = 'oblique',
+}
+
+// 字体粗细枚举
+export const enum FontWeight {
+    NORMAL = 'normal',
+    BOLD = 'bold',
+    BOLDER = 'bolder',
+    LIGHTER = 'lighter',
+    WEIGHT_100 = '100',
+    WEIGHT_200 = '200',
+    WEIGHT_300 = '300',
+    WEIGHT_400 = '400',
+    WEIGHT_500 = '500',
+    WEIGHT_600 = '600',
+    WEIGHT_700 = '700',
+    WEIGHT_800 = '800',
+    WEIGHT_900 = '900',
+}

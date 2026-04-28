@@ -1,0 +1,47 @@
+{
+  "name": "banvasgl",
+  "version": "0.0.0-test.1",
+  "description": "一个二维图形绘制库",
+  "exports": {
+    ".": {
+      "types": {
+        "node": "./dist/index.backend.d.ts",
+        "default": "./dist/index.frontend.d.ts"
+      },
+      "require": {
+        "node": "./dist/index.backend.cjs",
+        "default": "./dist/index.frontend.cjs"
+      },
+      "import": {
+        "node": "./dist/index.backend.mjs",
+        "default": "./dist/index.frontend.mjs"
+      }
+    }
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "banvas",
+    "canvas",
+    "graph"
+  ],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.10.0",
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "@types/uuid": "^10.0.0",
+    "tsup": "^8.4.0"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "uuid": "^11.1.0"
+  }
+}
