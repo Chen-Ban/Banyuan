@@ -118,3 +118,40 @@ dist_electron/
 
 # Local development
 .local
+
+# AI tools config (may contain appkey/secrets)
+.cursor/
+.cursorignore
+.cursorrules
+.catpaw/
+.copilot/
+.github/copilot-*
+.augment*
+.cline/
+.aider*
+.continue/
+*.mdc
+**/ai/apiKey.json
+**/ai/apiKey*.json
+
+# Legacy root files (migrated to packages/)
+/src/
+/public/
+/desktop/
+/__test__/
+/.husky/
+/coverage/
+/package-lock.json
+/.eslintrc.cjs
+/.prettierrc
+/.prettierignore
+/LICENSE
+/TODO.md
+/README.md
+/babel.config.ts
+/commitlint.config.cjs
+/jest.config.ts
+/vite.config.ts
+/tsconfig.json
+/tsconfig.node.json
+/index.html
