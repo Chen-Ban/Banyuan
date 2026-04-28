@@ -1,19 +1,15 @@
-import { WorkerHandler, WorkerResult, WorkerTask } from "./types";
+import { WorkerHandler, WorkerHandlerResult, WorkerResult, WorkerTask } from "./types";
 import { textLayoutHandler, graphIntersectionUnifiedHandler, trajectorySampleHandler } from "./handlers";
 
 /**
  * WorkerRuntime 在 Web Worker 环境中运行：
- * - 维护与主线程一致的 handler 映射
- * - 监听 message，执行计算后通过 postMessage 返回结果
- *
- * 注意：当前 handler 使用的 payload/result 中大量包含类实例，
- * 要真正把这些计算放到 worker 中，还需要一层序列化/反序列化逻辑。
- * 这里先实现完整的消息通道，后续可以在具体任务上按需接入。
+ * - 维护 handler 映射
+ * - 监听 message，将 payload 和 buffers 传给 handler
+ * - handler 返回结果后通过 postMessage 回传，支持 Transferable 归还 buffer
  */
 
 const handlers: Map<string, WorkerHandler<any, any>> = new Map();
 
-// 注册与主线程相同的任务类型
 handlers.set("text/layout", textLayoutHandler);
 handlers.set("graph/intersection", graphIntersectionUnifiedHandler);
 handlers.set("graph/trajectory", trajectorySampleHandler);
@@ -21,10 +17,8 @@ handlers.set("graph/trajectory", trajectorySampleHandler);
 const ctx: any = self as any;
 
 ctx.onmessage = async (event: MessageEvent<WorkerTask<any>>) => {
-  console.log('收到主线程发送的信息',event);
   const task = event.data;
   const handler = handlers.get(task.type);
-  
 
   let result: WorkerResult<any>;
 
@@ -40,11 +34,14 @@ ctx.onmessage = async (event: MessageEvent<WorkerTask<any>>) => {
   }
 
   try {
-    const data = await Promise.resolve(handler(task.payload));
+    const handlerResult: WorkerHandlerResult<any> = await Promise.resolve(
+      handler(task.payload, task.buffers)
+    );
     result = {
       id: task.id,
       type: task.type,
-      result: data,
+      result: handlerResult.result,
+      buffers: handlerResult.buffers,
     };
   } catch (e: any) {
     result = {
@@ -55,9 +52,11 @@ ctx.onmessage = async (event: MessageEvent<WorkerTask<any>>) => {
     };
   }
 
-  ctx.postMessage(result);
+  // 如果 handler 返回了需要归还的 buffer，通过 Transferable 回传
+  const transferables = result.buffers ?? [];
+  ctx.postMessage(result, transferables);
 };
 
 ctx.onerror = (event: ErrorEvent) => {
-  console.log('worker运行时错误',event);
+  console.error('Worker runtime error:', event);
 };

@@ -1,4 +1,6 @@
 import Color from './Color'
+import { STYLETYPE } from '@/core/constants'
+import type { ISerializable } from '@/core/interfaces'
 
 export type GradientStop = {
   color: Color
@@ -7,8 +9,9 @@ export type GradientStop = {
 
 export type GradientType = 'linear' | 'radial' | 'conic'
 
-export default class Gradient {
-  type: GradientType
+export default class Gradient implements ISerializable {
+  public readonly type: STYLETYPE = STYLETYPE.GRADIENT;
+  gradientType: GradientType
   stops: GradientStop[]
   
   // Linear gradient properties
@@ -29,14 +32,14 @@ export default class Gradient {
   angle: number // in radians
 
   constructor(
-    type: GradientType = 'linear',
+    gradientType: GradientType = 'linear',
     stops: GradientStop[] = [],
     x0: number = 0,
     y0: number = 0,
     x1: number = 100,
     y1: number = 0
   ) {
-    this.type = type
+    this.gradientType = gradientType
     this.stops = [...stops]
     this.x0 = x0
     this.y0 = y0
@@ -66,7 +69,7 @@ export default class Gradient {
 
   // 设置线性渐变方向
   setLinearDirection(x0: number, y0: number, x1: number, y1: number): Gradient {
-    this.type = 'linear'
+    this.gradientType = 'linear'
     // 限定坐标值在0-100范围内
     this.x0 = Math.max(0, Math.min(100, x0))
     this.y0 = Math.max(0, Math.min(100, y0))
@@ -77,7 +80,7 @@ export default class Gradient {
 
   // 设置径向渐变
   setRadial(cx: number, cy: number, r: number, fx?: number, fy?: number, fr?: number): Gradient {
-    this.type = 'radial'
+    this.gradientType = 'radial'
     // 限定坐标值在0-100范围内
     this.cx = Math.max(0, Math.min(100, cx))
     this.cy = Math.max(0, Math.min(100, cy))
@@ -90,7 +93,7 @@ export default class Gradient {
 
   // 设置圆锥渐变
   setConic(angle: number = 0): Gradient {
-    this.type = 'conic'
+    this.gradientType = 'conic'
     this.angle = angle
     return this
   }
@@ -99,7 +102,7 @@ export default class Gradient {
   createCanvasGradient(ctx: CanvasRenderingContext2D, width: number = 100, height: number = 100): CanvasGradient | null {
     let gradient: CanvasGradient | null = null
 
-    switch (this.type) {
+    switch (this.gradientType) {
       case 'linear':
         gradient = ctx.createLinearGradient(
           this.x0 * width / 100,
@@ -153,9 +156,30 @@ export default class Gradient {
     return gradient
   }
 
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      gradientType: this.gradientType,
+      stops: this.stops.map(s => ({ color: s.color.toJSON(), position: s.position })),
+      x0: this.x0, y0: this.y0, x1: this.x1, y1: this.y1,
+      cx: this.cx, cy: this.cy, r: this.r,
+      fx: this.fx, fy: this.fy, fr: this.fr,
+      angle: this.angle,
+    }
+  }
+
+  static fromJSON(data: any): Gradient {
+    const stops = data.stops.map((s: any) => ({ color: Color.fromJSON(s.color), position: s.position }))
+    const g = new Gradient(data.gradientType, stops, data.x0, data.y0, data.x1, data.y1)
+    g.cx = data.cx; g.cy = data.cy; g.r = data.r
+    g.fx = data.fx; g.fy = data.fy; g.fr = data.fr
+    g.angle = data.angle
+    return g
+  }
+
   // 复制渐变
   copy(): Gradient {
-    const gradient = new Gradient(this.type, this.stops, this.x0, this.y0, this.x1, this.y1)
+    const gradient = new Gradient(this.gradientType, this.stops, this.x0, this.y0, this.x1, this.y1)
     gradient.cx = this.cx
     gradient.cy = this.cy
     gradient.r = this.r
@@ -168,7 +192,7 @@ export default class Gradient {
 
   // 比较是否相等
   equals(other: Gradient): boolean {
-    if (this.type !== other.type || this.stops.length !== other.stops.length) {
+    if (this.gradientType !== other.gradientType || this.stops.length !== other.stops.length) {
       return false
     }
 

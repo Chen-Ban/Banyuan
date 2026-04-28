@@ -3,13 +3,13 @@ import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
 import Bounds from "@/core/graph/base/Bounds";
-import type { IRectangle } from '@/core/interfaces';
+import { IRectangle, ISerializable } from '@/core/interfaces';
 
 /**
  * Rectangle类 - 矩形
  * 继承自Polygon，专门用于创建和管理矩形
  */
-export default class Rectangle extends Polygon implements IRectangle {
+export default class Rectangle extends Polygon implements IRectangle, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.RECTANGLE;
   public width: number;
   public height: number;
@@ -146,6 +146,27 @@ export default class Rectangle extends Polygon implements IRectangle {
    */
   public getAspectRatio(): number {
     return this.width / this.height;
+  }
+
+  // ── 序列化 ──
+  public toJSON(): any {
+    const topLeft = this.getTopLeft()
+    return {
+      id: this.id,
+      type: this.type,
+      x: topLeft.x,
+      y: topLeft.y,
+      width: this.width,
+      height: this.height,
+      style: this.style.toJSON(),
+    }
+  }
+
+  public static fromJSON(data: any): Rectangle {
+    const style = Style.fromJSON(data.style)
+    const rect = new Rectangle(data.x, data.y, data.width, data.height, style)
+    rect.id = data.id
+    return rect
   }
 
   /**

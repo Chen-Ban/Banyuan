@@ -2,13 +2,13 @@ import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
-import type { IRegularPolygon } from '@/core/interfaces';
+import { IRegularPolygon, ISerializable } from '@/core/interfaces';
 
 /**
  * RegularPolygon类 - 正多边形
  * 继承自Polygon，专门用于创建和管理正多边形
  */
-export default class RegularPolygon extends Polygon implements IRegularPolygon {
+export default class RegularPolygon extends Polygon implements IRegularPolygon, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.REGULAR_POLYGON;
   public center: Point3;
   public radius: number;
@@ -128,6 +128,27 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon {
       throw new Error("Vertex index out of bounds");
     }
     return this.vertices[index].copy();
+  }
+
+  // ── 序列化 ──
+  public toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      center: this.center.toJSON(),
+      radius: this.radius,
+      sides: this.sides,
+      rotation: this.rotation,
+      style: this.style.toJSON(),
+    }
+  }
+
+  public static fromJSON(data: any): RegularPolygon {
+    const center = Point3.fromJSON(data.center)
+    const style = Style.fromJSON(data.style)
+    const polygon = new RegularPolygon(center, data.radius, data.sides, data.rotation, style)
+    polygon.id = data.id
+    return polygon
   }
 
   /**

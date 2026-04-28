@@ -1,7 +1,5 @@
 import { Point3 } from '@/core/math'
-import type { ExtraData } from '@/core/interfaces'
-import { Action, Cursor } from '@/core/interfaces'
-import type { IVertexAddon } from '@/core/interfaces'
+import { Action, Cursor, ExtraData, IVertexAddon } from '@/core/interfaces'
 import { ADDONTYPE } from '@/core/constants'
 
 export default class VertexAddon implements IVertexAddon {

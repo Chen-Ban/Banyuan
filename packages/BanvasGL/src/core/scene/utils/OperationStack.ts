@@ -21,12 +21,12 @@ export class Diff{
     id:string 
     content:View
     // 操作类型
-    type: OperationType
-    constructor(parentId: string, id: string, content: View, type: OperationType) {
+    operationType: OperationType
+    constructor(parentId: string, id: string, content: View, operationType: OperationType) {
         this.parentId = parentId
         this.id = id
         this.content = content
-        this.type = type
+        this.operationType = operationType
     }
 }
 

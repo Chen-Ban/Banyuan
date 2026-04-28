@@ -1,11 +1,11 @@
 import View, { InteractResult, ViewOptions } from '@/core/views/View/View'
 import { Graph, Line } from '@/core/graph'
-import { isGraphType, isAnalyticGraph } from '@/core/interfaces'
+import { isGraphType, isAnalyticGraph, ExtraData, IGraphView, ISerializable } from '@/core/interfaces'
 import { VIEWTYPE } from '@/core/constants'
 import { Point3 } from '@/core/math'
 import { VertexAddon } from '@/core/views/addon'
-import type { ExtraData } from '@/core/interfaces'
-import type { IGraphView } from '@/core/interfaces'
+import Matrix4 from '@/core/math/Matrix4'
+import Bounds from '@/core/graph/base/Bounds'
 
 // 图形视图选项接口
 export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
@@ -15,7 +15,7 @@ export interface GraphViewOptions extends Omit<ViewOptions, 'content'> {
 /**
  * 图形视图 - 专门处理Graph类型内容
  */
-export default class GraphView extends View implements IGraphView {
+export default class GraphView extends View implements IGraphView, ISerializable {
     public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW
     public content: Graph
     public controlPoints: VertexAddon | null = null
@@ -100,6 +100,33 @@ export default class GraphView extends View implements IGraphView {
         }
 
         return newView
+    }
+
+    // ==================== 序列化 ====================
+
+    /**
+     * 从纯数据对象恢复 GraphView 实例。
+     * data.content 应由 Serializer 预先解析为 Graph 实例后传入。
+     */
+    static fromJSON(data: any): GraphView {
+        const view = new GraphView(data.content)
+        view.id = data.id
+        view.layer = data.layer
+        view.visible = data.visible
+        view.freezed = data.freezed
+        if (data.properties) view.properties = data.properties
+        if (data.data) view.data = data.data
+        if (data.style) view.style = data.style
+        if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
+        if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)
+        if (data.children) {
+            data.children.forEach((child: View) => {
+                view.children.push(child)
+                child.parent = view
+                child.onAttach()
+            })
+        }
+        return view
     }
 }
 

@@ -3,7 +3,7 @@ import CanvasContext, {
   getGlobalCanvasContext,
   destroyGlobalCanvasContext,
 } from "./CanvasContext";
-import type { IRendererOptions } from '@/core/interfaces'
+import { IRendererOptions } from '@/core/interfaces'
 
 export default class Renderer {
   // 渲染状态

@@ -1,26 +1,51 @@
 // 计算任务与结果类型定义
-// 这里仅提供一组通用的枚举与接口，后续可以按需扩展具体的 payload / result 结构
 
 export type WorkerTaskType =
-  | "generic" // 通用任务
-  | "text/layout" // 文本排版/测量相关（TextView / TextParagraph / TextElement）
-  | "graph/intersection" // 几何相交、最近点等解析几何计算（IntersectionUtils / AnalyticGraph）
-  | "graph/trajectory" // 轨迹采样、切线/法线等（DenseTrajectory）
-  | "custom"; // 用户自定义类型
+  | "generic"
+  | "text/layout"
+  | "graph/intersection"
+  | "graph/trajectory"
+  | "custom";
 
+/**
+ * Worker 任务消息
+ * - payload: 业务数据（已序列化为纯对象，可被 Structured Clone）
+ * - transferables: 需要零拷贝传输的 ArrayBuffer 列表
+ */
 export interface WorkerTask<TPayload = any> {
   id: string;
   type: WorkerTaskType;
   payload: TPayload;
+  /** 需要零拷贝传输的 ArrayBuffer（由上层从 ITransferable 对象中提取） */
+  buffers?: ArrayBuffer[];
   /** 由上层可选指定一个来源标识（场景/容器/视图ID等），用于调试和统计 */
   sourceId?: string;
 }
 
+/**
+ * Worker 返回结果
+ * - result: 计算结果（已序列化为纯对象）
+ * - buffers: 需要归还主线程的 ArrayBuffer
+ */
 export interface WorkerResult<TResult = any> {
   id: string;
   type: WorkerTaskType;
   result: TResult;
+  /** 需要归还主线程的 ArrayBuffer（零拷贝回传） */
+  buffers?: ArrayBuffer[];
   error?: string;
 }
 
-export type WorkerHandler<TPayload = any, TResult = any> = (payload: TPayload) => TResult | Promise<TResult>;
+export type WorkerHandler<TPayload = any, TResult = any> = (
+  payload: TPayload,
+  buffers?: ArrayBuffer[]
+) => WorkerHandlerResult<TResult> | Promise<WorkerHandlerResult<TResult>>;
+
+/**
+ * Handler 返回值，支持同时返回计算结果和需要回传的 buffer
+ */
+export interface WorkerHandlerResult<TResult = any> {
+  result: TResult;
+  /** 需要 transfer 回主线程的 ArrayBuffer */
+  buffers?: ArrayBuffer[];
+}

@@ -1,30 +1,30 @@
-import { Rectangle } from '@/core/graph/combined'
-import TextParagraph from '@/core/graph/text/TextParagraph'
-import TextView from '@/core/views/TextView'
+import Serializer from '@/core/serializer'
 import { VERTICALALIGN } from '@/core/constants'
-import { WorkerHandler } from '@/workers/types'
+import { WorkerHandler, WorkerHandlerResult } from '@/workers/types'
 import Bounds from '@/core/graph/base/Bounds'
-import { TextFields } from '@/core'
 
 /**
- * 文本布局相关任务（纯 handler，仅描述计算逻辑）：
+ * 文本布局相关任务（纯 handler）：
  * - TextView 内部的段落布局（换行、对齐）
- * - TextElement 宽高测量（依赖 CanvasContext.measureText）
+ * - TextElement 宽高测量
+ *
+ * 传输方式：TextParagraph[] 和 Rectangle 通过 Serializer 序列化为 JSON 字符串传输，
+ * Worker 端反序列化重建实例后执行布局计算。
  */
 
 export interface TextLayoutPayload {
-    paragraphs: TextParagraph[]
-    layoutArea: Rectangle
+    /** Serializer.serialize() 后的 TextParagraph[] JSON 字符串 */
+    paragraphs: string
+    /** Serializer.serialize() 后的 Rectangle JSON 字符串 */
+    layoutArea: string
     verticalAlign?: VERTICALALIGN
     fixedWidth?: boolean
     fixedHeight?: boolean
 }
 
 export interface TextLayoutResult {
-    paragraphs: TextParagraph[]
-    /**
-     * 整体包围盒信息（来自 TextView.getContentBounds）
-     */
+    /** 布局后的 TextParagraph[] 序列化 JSON 字符串 */
+    paragraphs: string
     bounds: {
         x: number
         y: number
@@ -36,29 +36,28 @@ export interface TextLayoutResult {
 export const textLayoutHandler: WorkerHandler<
     TextLayoutPayload,
     TextLayoutResult
-> = (payload) => {
+> = (payload): WorkerHandlerResult<TextLayoutResult> => {
+    const serializer = Serializer.getInstance()
     const {
-        paragraphs,
-        layoutArea,
+        paragraphs: paragraphsJson,
+        layoutArea: layoutAreaJson,
         verticalAlign = VERTICALALIGN.TOP,
         fixedWidth = false,
         fixedHeight = false,
     } = payload
 
-    // 利用 TextView 现有的布局逻辑执行一次完整布局
-    const view = new TextView(new TextFields(paragraphs), {
-        layoutArea,
-        verticalAlign,
-        fixedWidth,
-        fixedHeight,
-        shouldLayout: true,
-    })
+    // Worker 端反序列化重建实例
+    const paragraphs = serializer.deserialize(paragraphsJson)
+    const layoutArea = serializer.deserialize(layoutAreaJson)
 
-    // TextView 构造函数里在有 layoutArea 时已经执行了一轮 layout / initBoundingBox / initViewport
+    // TODO: 当 Worker 环境支持 CanvasContext 时启用完整布局
+    // 当前返回空布局结果，因为 Worker 中没有 Canvas 上下文
     const bounds = Bounds.empty()
 
     return {
-        paragraphs,
-        bounds,
+        result: {
+            paragraphs: serializer.serialize(paragraphs),
+            bounds,
+        },
     }
 }

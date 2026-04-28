@@ -1,11 +1,14 @@
 import Color from './Color'
 import Gradient from './Gradient'
 import Image from './Image'
+import { STYLETYPE } from '@/core/constants'
+import type { ISerializable } from '@/core/interfaces'
 
 export type StrokeType = 'color' | 'gradient' | 'image'
 
-export default class StrokeStyle {
-  type: StrokeType
+export default class StrokeStyle implements ISerializable {
+  public readonly type: STYLETYPE = STYLETYPE.STROKE_STYLE;
+  strokeType: StrokeType
   color: Color
   gradient: Gradient | null
   pattern: Image | null
@@ -18,7 +21,7 @@ export default class StrokeStyle {
   dashOffset: number
 
   constructor(options: {
-    type?: StrokeType
+    strokeType?: StrokeType
     color?: Color
     gradient?: Gradient | null
     pattern?: Image | null
@@ -31,7 +34,7 @@ export default class StrokeStyle {
     dashOffset?: number
   } = {}) {
     const {
-      type = 'color',
+      strokeType = 'color',
       color = Color.BLACK,
       gradient = null,
       pattern = null,
@@ -44,7 +47,7 @@ export default class StrokeStyle {
       dashOffset = 0,
     } = options
 
-    this.type = type
+    this.strokeType = strokeType
     this.color = color
     this.gradient = gradient
     this.pattern = pattern
@@ -65,7 +68,7 @@ export default class StrokeStyle {
 
   // 获取 Canvas 描边样式
   get canvasStyle(): string | CanvasGradient | CanvasPattern | null {
-    switch (this.type) {
+    switch (this.strokeType) {
       case 'color':
         return this.cssColor
       case 'gradient':
@@ -79,7 +82,7 @@ export default class StrokeStyle {
 
   // 设置为纯色描边
   setColor(color: Color): StrokeStyle {
-    this.type = 'color'
+    this.strokeType = 'color'
     this.color = color
     this.gradient = null
     this.pattern = null
@@ -88,7 +91,7 @@ export default class StrokeStyle {
 
   // 设置为渐变描边
   setGradient(gradient: Gradient): StrokeStyle {
-    this.type = 'gradient'
+    this.strokeType = 'gradient'
     this.gradient = gradient
     this.pattern = null
     return this
@@ -96,7 +99,7 @@ export default class StrokeStyle {
 
   // 设置为图案描边
   setPattern(pattern: Image): StrokeStyle {
-    this.type = 'image'
+    this.strokeType = 'image'
     this.pattern = pattern
     this.gradient = null
     return this
@@ -146,7 +149,7 @@ export default class StrokeStyle {
 
   // 应用样式到 Canvas 上下文
   applyToContext(ctx: CanvasRenderingContext2D, width: number = 100, height: number = 100): void {
-    switch (this.type) {
+    switch (this.strokeType) {
       case 'color':
         ctx.strokeStyle = this.cssColor
         break
@@ -181,10 +184,35 @@ export default class StrokeStyle {
     }
   }
 
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      strokeType: this.strokeType,
+      color: this.color.toJSON(),
+      gradient: this.gradient?.toJSON() ?? null,
+      pattern: this.pattern?.toJSON() ?? null,
+      width: this.width, opacity: this.opacity,
+      lineCap: this.lineCap, lineJoin: this.lineJoin, miterLimit: this.miterLimit,
+      dashArray: this.dashArray, dashOffset: this.dashOffset,
+    }
+  }
+
+  static fromJSON(data: any): StrokeStyle {
+    return new StrokeStyle({
+      strokeType: data.strokeType,
+      color: Color.fromJSON(data.color),
+      gradient: data.gradient ? Gradient.fromJSON(data.gradient) : null,
+      pattern: data.pattern ? Image.fromJSON(data.pattern) : null,
+      width: data.width, opacity: data.opacity,
+      lineCap: data.lineCap, lineJoin: data.lineJoin, miterLimit: data.miterLimit,
+      dashArray: data.dashArray, dashOffset: data.dashOffset,
+    })
+  }
+
   // 复制样式
   copy(): StrokeStyle {
     return new StrokeStyle({
-      type: this.type,
+      strokeType: this.strokeType,
       color: this.color.copy(),
       gradient: this.gradient?.copy() || null,
       pattern: this.pattern?.copy() || null,
@@ -205,7 +233,7 @@ export default class StrokeStyle {
 
   // 比较是否相等
   equals(other: StrokeStyle): boolean {
-    if (this.type !== other.type) return false
+    if (this.strokeType !== other.strokeType) return false
     
     return this.width === other.width &&
            this.opacity === other.opacity &&
@@ -222,7 +250,7 @@ export default class StrokeStyle {
   // 静态工厂方法
   static fromColor(color: Color, width: number = 1, opacity: number = 1): StrokeStyle {
     return new StrokeStyle({
-      type: 'color',
+      strokeType: 'color',
       color,
       width,
       opacity,
@@ -231,7 +259,7 @@ export default class StrokeStyle {
 
   static fromHex(hex: string, width: number = 1, opacity: number = 1): StrokeStyle {
     return new StrokeStyle({
-      type: 'color',
+      strokeType: 'color',
       color: Color.fromHex(hex),
       width,
       opacity,
@@ -240,7 +268,7 @@ export default class StrokeStyle {
 
   static fromHSL(h: number, s: number, l: number, width: number = 1, opacity: number = 1): StrokeStyle {
     return new StrokeStyle({
-      type: 'color',
+      strokeType: 'color',
       color: Color.fromHSL(h, s, l),
       width,
       opacity,
@@ -249,7 +277,7 @@ export default class StrokeStyle {
 
   static fromRGB(r: number, g: number, b: number, width: number = 1, opacity: number = 1): StrokeStyle {
     return new StrokeStyle({
-      type: 'color',
+      strokeType: 'color',
       color: new Color(r, g, b),
       width,
       opacity,
@@ -258,7 +286,7 @@ export default class StrokeStyle {
 
   static fromGradient(gradient: Gradient, width: number = 1, opacity: number = 1): StrokeStyle {
     return new StrokeStyle({
-      type: 'gradient',
+      strokeType: 'gradient',
       color: Color.BLACK,
       gradient,
       width,
@@ -268,7 +296,7 @@ export default class StrokeStyle {
 
   static fromPattern(pattern: Image, width: number = 1, opacity: number = 1): StrokeStyle {
     return new StrokeStyle({
-      type: 'image',
+      strokeType: 'image',
       color: Color.BLACK,
       pattern,
       width,
@@ -279,7 +307,7 @@ export default class StrokeStyle {
   // 创建虚线样式
   static dashed(color: Color = Color.BLACK, width: number = 1, dashPattern: number[] = [5, 5]): StrokeStyle {
     return new StrokeStyle({
-      type: 'color',
+      strokeType: 'color',
       color,
       width,
       opacity: 1,
@@ -293,7 +321,7 @@ export default class StrokeStyle {
 
   static dotted(color: Color = Color.BLACK, width: number = 1): StrokeStyle {
     return new StrokeStyle({
-      type: 'color',
+      strokeType: 'color',
       color,
       width,
       opacity: 1,
@@ -306,11 +334,11 @@ export default class StrokeStyle {
   }
 
   // 预定义样式
-  static readonly SOLID_BLACK = new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 })
-  static readonly SOLID_WHITE = new StrokeStyle({ type: 'color', color: Color.WHITE, width: 1 })
-  static readonly SOLID_RED = new StrokeStyle({ type: 'color', color: Color.RED, width: 1 })
-  static readonly SOLID_GREEN = new StrokeStyle({ type: 'color', color: Color.GREEN, width: 1 })
-  static readonly SOLID_BLUE = new StrokeStyle({ type: 'color', color: Color.BLUE, width: 1 })
+  static readonly SOLID_BLACK = new StrokeStyle({ strokeType: 'color', color: Color.BLACK, width: 1 })
+  static readonly SOLID_WHITE = new StrokeStyle({ strokeType: 'color', color: Color.WHITE, width: 1 })
+  static readonly SOLID_RED = new StrokeStyle({ strokeType: 'color', color: Color.RED, width: 1 })
+  static readonly SOLID_GREEN = new StrokeStyle({ strokeType: 'color', color: Color.GREEN, width: 1 })
+  static readonly SOLID_BLUE = new StrokeStyle({ strokeType: 'color', color: Color.BLUE, width: 1 })
   static readonly DASHED_BLACK = StrokeStyle.dashed(Color.BLACK, 1)
   static readonly DOTTED_BLACK = StrokeStyle.dotted(Color.BLACK, 1)
 }

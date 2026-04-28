@@ -2,13 +2,13 @@ import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
 import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
-import type { ITriangle } from '@/core/interfaces';
+import { ITriangle, ISerializable } from '@/core/interfaces';
 
 /**
  * Triangle类 - 三角形
  * 继承自Polygon，专门用于创建和管理三角形
  */
-export default class Triangle extends Polygon implements ITriangle {
+export default class Triangle extends Polygon implements ITriangle, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.TRIANGLE;
 
   constructor(p1: Point3, p2: Point3, p3: Point3, style?: Style) {
@@ -110,6 +110,24 @@ export default class Triangle extends Polygon implements ITriangle {
       ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
 
     return new Point3(ux, uy, (p1.z + p2.z + p3.z) / 3);
+  }
+
+  // ── 序列化 ──
+  public toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      vertices: this.vertices.map(v => v.toJSON()),
+      style: this.style.toJSON(),
+    }
+  }
+
+  public static fromJSON(data: any): Triangle {
+    const vertices = data.vertices.map((v: any) => Point3.fromJSON(v))
+    const style = Style.fromJSON(data.style)
+    const triangle = new Triangle(vertices[0], vertices[1], vertices[2], style)
+    triangle.id = data.id
+    return triangle
   }
 
   /**

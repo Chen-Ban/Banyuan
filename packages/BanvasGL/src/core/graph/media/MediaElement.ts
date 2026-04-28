@@ -3,7 +3,7 @@ import { Point3, Vector3, Matrix4 } from '@/core/math'
 import { Style } from '@/core/style'
 import Bounds from '@/core/graph/base/Bounds'
 import Rectangle from '@/core/graph/combined/Polygon/Rectangle'
-import type { IMediaElement } from '@/core/interfaces'
+import { IMediaElement } from '@/core/interfaces'
 
 /**
  * MediaElement 抽象基类 - 媒体元素基类

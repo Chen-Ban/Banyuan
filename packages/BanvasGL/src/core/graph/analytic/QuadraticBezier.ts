@@ -2,9 +2,10 @@ import { GRAPHTYPE } from '@/core/constants'
 import Bezier from './Bezier'
 import { Point3, Vector3 } from '@/core/math'
 import { Style } from '@/core/style'
-import type { IQuadraticBezier } from '@/core/interfaces'
+import { IQuadraticBezier } from '@/core/interfaces'
+import type { ISerializable } from '@/core/interfaces'
 
-export default class QuadraticBezier extends Bezier implements IQuadraticBezier {
+export default class QuadraticBezier extends Bezier implements IQuadraticBezier, ISerializable {
     public type: GRAPHTYPE = GRAPHTYPE.QUADRATIC_BEZIER
 
     constructor(
@@ -97,6 +98,23 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier 
             (control.x - start.x) * (end.y - start.y) -
             (control.y - start.y) * (end.x - start.x)
         return Math.abs(crossProduct) < 1e-10
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            controlPoints: this.controlPoints.map(p => p.toJSON()),
+            style: this.style.toJSON(),
+        }
+    }
+
+    static fromJSON(data: any): QuadraticBezier {
+        const points = data.controlPoints.map((p: any) => Point3.fromJSON(p));
+        const qb = new QuadraticBezier(points[0], points[1], points[2], Style.fromJSON(data.style));
+        qb.id = data.id;
+        return qb;
     }
 
     // 复制二次贝塞尔曲线

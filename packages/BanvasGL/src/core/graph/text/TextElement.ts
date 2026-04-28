@@ -6,7 +6,7 @@ import Graph from '@/core/graph/base/Graph'
 import { Point3, Vector3, Matrix4 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
 import { Rectangle } from '@/core/graph/combined'
-import type { ITextElement, IPrintableTextElement, INonPrintableTextElement } from '@/core/interfaces'
+import { ITextElement, IPrintableTextElement, INonPrintableTextElement, ISerializable } from '@/core/interfaces'
 
 /**
  * 文字元素基类
@@ -311,8 +311,8 @@ export default abstract class TextElement extends Graph implements ITextElement 
  * 文字包围盒为option.size * lineheight
  * 单个文字的控制点不在其包围盒左上角而是在文字的左上角
  */
-export class PrintableTextElement extends TextElement implements IPrintableTextElement {
-    public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT
+export class PrintableTextElement extends TextElement implements IPrintableTextElement, ISerializable {
+    public type: GRAPHTYPE = GRAPHTYPE.PRINTABLE_TEXTELEMENT
 
     constructor(
         content: string,
@@ -433,6 +433,28 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
         return new PrintableTextElement(content, options)
     }
 
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            $class: 'PrintableTextElement',
+            content: super.content,
+            options: super.options.toJSON(),
+            style: super.style.toJSON(),
+        }
+    }
+
+    static fromJSON(data: any): PrintableTextElement {
+        const el = new PrintableTextElement(
+            data.content,
+            TextOptions.fromJSON(data.options),
+            Style.fromJSON(data.style),
+        )
+        el.id = data.id
+        return el
+    }
+
     /**
      * 静态工厂方法 - 创建标题文字元素
      */
@@ -469,12 +491,27 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
  * @description 不可打印的文字元素，段落结束位置守卫，不会渲染到屏幕上
  * @description 使用场景: 空行布局与交互
  */
-export class NonPrintableTextElement extends TextElement implements INonPrintableTextElement {
-    public type: GRAPHTYPE = GRAPHTYPE.TEXTELEMENT
+export class NonPrintableTextElement extends TextElement implements INonPrintableTextElement, ISerializable {
+    public type: GRAPHTYPE = GRAPHTYPE.NONPRINTABLE_TEXTELEMENT
 
     constructor() {
         super('', TextOptions.DEFAULT, Style.DEFAULT)
         this.calculateActualDimensions()
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            $class: 'NonPrintableTextElement',
+        }
+    }
+
+    static fromJSON(data: any): NonPrintableTextElement {
+        const el = new NonPrintableTextElement()
+        el.id = data.id
+        return el
     }
 
     /**

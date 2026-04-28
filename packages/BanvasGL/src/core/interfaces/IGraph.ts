@@ -65,6 +65,7 @@ export interface IGraph {
         dynamicPoint: Point3,
         resizeVector: Vector3
     ): void
+
 }
 
 // ────────────────────────────────────────────

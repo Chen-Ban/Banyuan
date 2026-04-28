@@ -76,6 +76,30 @@ export default class ParagraphOptions {
     return new ParagraphOptions(HORIZONTALALIGN.RIGHT, leading, letterSpacing);
   }
 
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      horizontalAlign: this.horizontalAlign,
+      leading: this.leading,
+      preHeight: this.preHeight,
+      postHeight: this.postHeight,
+      indentation: this.indentation,
+      preWidth: this.preWidth,
+    }
+  }
+
+  static fromJSON(data: any): ParagraphOptions {
+    return new ParagraphOptions(
+      data.horizontalAlign,
+      data.leading,
+      data.preHeight,
+      data.postHeight,
+      undefined, // listItemDecoration not serialized
+      data.indentation,
+      data.preWidth,
+    )
+  }
+
   /**
    * 预定义段落选项
    */

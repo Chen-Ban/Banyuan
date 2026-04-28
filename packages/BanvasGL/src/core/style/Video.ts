@@ -5,7 +5,11 @@ export interface VideoSize {
   height: number
 }
 
-export default class Video {
+import { STYLETYPE } from '@/core/constants'
+import type { ISerializable } from '@/core/interfaces'
+
+export default class Video implements ISerializable {
+  public readonly type: STYLETYPE = STYLETYPE.VIDEO_PATTERN;
   src: string | null
   size: VideoSize | null
   repeat: VideoRepeat
@@ -118,6 +122,18 @@ export default class Video {
   // 检查视频是否有效
   isValid(): boolean {
     return this.src !== null && this.src.length > 0
+  }
+
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      src: this.src, size: this.size, repeat: this.repeat,
+      autoplay: this.autoplay, loop: this.loop, muted: this.muted, controls: this.controls,
+    }
+  }
+
+  static fromJSON(data: any): Video {
+    return new Video(data.src, data.size, data.repeat, data.autoplay, data.loop, data.muted, data.controls)
   }
 
   // 复制视频

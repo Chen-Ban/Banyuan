@@ -1,7 +1,10 @@
 import MathUtils from "./MathUtils";
 import Vector3 from "./Vector3";
+import { MATHTYPE } from '@/core/constants';
+import type { ISerializable } from '@/core/interfaces';
 
-export default class Point3 {
+export default class Point3 implements ISerializable {
+  public readonly type: MATHTYPE = MATHTYPE.POINT3;
   private transform: Float32Array;
   constructor(x: number, y: number, z: number) {
     this.transform = new Float32Array(3);
@@ -31,6 +34,14 @@ export default class Point3 {
   subtract(p: Point3): Vector3 {
     return new Vector3(this.x - p.x, this.y - p.y, this.z - p.z);
   }
+  // ── 序列化 ──
+  toJSON(): { x: number; y: number; z: number } {
+    return { x: this.x, y: this.y, z: this.z };
+  }
+  static fromJSON(data: { x: number; y: number; z: number }): Point3 {
+    return new Point3(data.x, data.y, data.z);
+  }
+
   copy(): Point3 {
     return new Point3(this.x, this.y, this.z);
   }

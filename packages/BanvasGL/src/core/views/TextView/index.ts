@@ -3,10 +3,11 @@ import TextParagraph from '@/core/graph/text/TextParagraph'
 import TextElement from '@/core/graph/text/TextElement'
 import { Rectangle } from '@/core/graph/combined/Polygon'
 import { Point3, Vector3 } from '@/core/math'
-import { Action, Cursor } from '@/core/interfaces'
+import { Action, Cursor, ITextView, ISerializable } from '@/core/interfaces'
 import Selection from './Selection'
 import { VERTICALALIGN, VIEWTYPE } from '@/core/constants'
-import type { ITextView } from '@/core/interfaces'
+import Matrix4 from '@/core/math/Matrix4'
+import Bounds from '@/core/graph/base/Bounds'
 import {
     NonPrintableTextElement,
     PrintableTextElement,
@@ -23,7 +24,7 @@ export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
 /**
  * 文本视图
  */
-export default class TextView extends View implements ITextView {
+export default class TextView extends View implements ITextView, ISerializable {
     public readonly type: VIEWTYPE = VIEWTYPE.TEXTVIEW
 
     public content: TextFields
@@ -480,6 +481,48 @@ export default class TextView extends View implements ITextView {
         }
 
         return newView
+    }
+
+    // ==================== 序列化 ====================
+
+    /**
+     * 将 TextView 实例序列化为纯数据对象。
+     * 在 View.toJSON() 的基础上追加 editable 和 verticalAlign。
+     */
+    public toJSON(): any {
+        return {
+            ...super.toJSON(),
+            editable: this.editable,
+            verticalAlign: this.verticalAlign,
+        }
+    }
+
+    /**
+     * 从纯数据对象恢复 TextView 实例。
+     * data.content 应由 Serializer 预先解析为 TextFields 实例后传入。
+     */
+    static fromJSON(data: any): TextView {
+        const view = new TextView(data.content, {
+            editable: data.editable,
+            verticalAlign: data.verticalAlign,
+        })
+        view.id = data.id
+        view.layer = data.layer
+        view.visible = data.visible
+        view.freezed = data.freezed
+        if (data.properties) view.properties = data.properties
+        if (data.data) view.data = data.data
+        if (data.style) view.style = data.style
+        if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
+        if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)
+        if (data.children) {
+            data.children.forEach((child: View) => {
+                view.children.push(child)
+                child.parent = view
+                child.onAttach()
+            })
+        }
+        return view
     }
 }
 

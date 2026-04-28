@@ -1,26 +1,18 @@
-import View from '@/core/views/View/View'
+import { View, SelectBoxView } from '@/core/views'
 import type Scene from '@/core/scene/Scene'
 import { Point3 } from '@/core/math'
-import type { ExtraData } from '@/core/interfaces'
-import { Action, Cursor } from '@/core/interfaces'
-import { isTextView } from '@/core/interfaces'
+import { Action, Cursor, isTextView, ExtraData, IViewAddon, IGraph } from '@/core/interfaces'
 import { Rectangle } from '@/core/graph'
 import { clearAllStates } from '@/core/scene/ViewTree'
 import snapAlignManager from '@/core/snapAlign'
 import Bounds from '@/core/graph/base/Bounds'
-import {
-    isNonPrintableTextElement,
-    isPrintableTextElement,
-    Graph,
-} from '@/core'
-import { SelectBoxView } from '@/core'
-import type { IViewAddon } from '@/core/interfaces'
+import { isNonPrintableTextElement, isPrintableTextElement, Graph } from '@/core/graph'
 
 export interface InteractionContext {
     /** Get the current indicated (hovered) view */
     getIndicateView(): View | null
     /** Get the current indicated content */
-    getIndicateContent(): Graph | IViewAddon | null
+    getIndicateContent(): IGraph | IViewAddon | null
     /** Get the last mouse point */
     getLastPoint(): Point3 | null
     /** Get extra data from the interact result */

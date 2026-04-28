@@ -2,13 +2,13 @@ import { GRAPHTYPE } from '@/core/constants'
 import MediaElement from './MediaElement'
 import { Style } from '@/core/style'
 import { Point3 } from '@/index.backend'
-import type { IImageElement } from '@/core/interfaces'
+import { IImageElement, ISerializable } from '@/core/interfaces'
 
 /**
  * ImageElement 类 - 图片元素
  * 继承自 MediaElement，用于在画布中绘制图片
  */
-export default class ImageElement extends MediaElement implements IImageElement {
+export default class ImageElement extends MediaElement implements IImageElement, ISerializable {
     public type: GRAPHTYPE = GRAPHTYPE.IMAGE
 
     // 图片相关属性
@@ -159,6 +159,33 @@ export default class ImageElement extends MediaElement implements IImageElement 
             this.style
         )
         return copy as this
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            src: this.src,
+            x: this.x,
+            y: this.y,
+            width: this.width,
+            height: this.height,
+            style: this.style.toJSON(),
+        }
+    }
+
+    static fromJSON(data: any): ImageElement {
+        const el = new ImageElement(
+            data.src,
+            data.x,
+            data.y,
+            data.width,
+            data.height,
+            Style.fromJSON(data.style),
+        )
+        el.id = data.id
+        return el
     }
 
     static fromCanvas(

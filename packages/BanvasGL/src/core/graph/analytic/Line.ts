@@ -6,9 +6,10 @@ import MathUtils from "@/core/math/MathUtils";
 import Bounds from "@/core/graph/base/Bounds";
 import Graph from "@/core/graph/base/Graph";
 import { intersect } from "./IntersectionUtils";
-import type { ILine } from '@/core/interfaces';
+import { ILine } from '@/core/interfaces';
+import type { ISerializable } from '@/core/interfaces';
 
-export default class Line extends AnalyticGraph implements ILine {
+export default class Line extends AnalyticGraph implements ILine, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.LINE;
   public controlPoints: Point3[];
   public style: Style;
@@ -67,6 +68,23 @@ export default class Line extends AnalyticGraph implements ILine {
     this.renderPath(ctx, true);
     ctx.stroke();
     ctx.restore();
+  }
+
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      controlPoints: this.controlPoints.map(p => p.toJSON()),
+      style: this.style.toJSON(),
+    }
+  }
+
+  static fromJSON(data: any): Line {
+    const points = data.controlPoints.map((p: any) => Point3.fromJSON(p));
+    const line = new Line(points[0], points[1], Style.fromJSON(data.style));
+    line.id = data.id;
+    return line;
   }
 
   // 复制线条

@@ -1,4 +1,8 @@
-export default class Color {
+import { STYLETYPE } from '@/core/constants'
+import type { ISerializable } from '@/core/interfaces'
+
+export default class Color implements ISerializable {
+  public readonly type: STYLETYPE = STYLETYPE.COLOR;
   private _r: number
   private _g: number
   private _b: number
@@ -286,6 +290,15 @@ export default class Color {
     const b = this._b + (other._b - this._b) * ratio
     const a = this._a + (other._a - this._a) * ratio
     return new Color(r, g, b, a)
+  }
+
+  // ── 序列化 ──
+  toJSON(): { r: number; g: number; b: number; a: number } {
+    return { r: this._r, g: this._g, b: this._b, a: this._a }
+  }
+
+  static fromJSON(data: { r: number; g: number; b: number; a: number }): Color {
+    return new Color(data.r, data.g, data.b, data.a)
   }
 
   // Utility methods

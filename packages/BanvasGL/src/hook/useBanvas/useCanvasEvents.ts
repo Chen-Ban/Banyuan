@@ -1,28 +1,36 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { App } from '@/core/app'
+import { Point3 } from '@/core/math'
+import { Style } from '@/core/style'
+import { Scene } from '@/core/scene'
 import {
-    Point3,
+    Graph,
+    Line,
+    Circle,
     Rectangle,
-    Scene,
-    View,
-    SelectBoxView,
+    ImageElement,
+    TextParagraph,
+    TextFields,
     isNonPrintableTextElement,
     isPrintableTextElement,
-    Graph,
+} from '@/core/graph'
+import {
+    View,
+    SelectBoxView,
     GraphView,
     TextView,
     ImageView,
-    Line,
-    Circle,
-    ImageElement,
-    TextParagraph,
-    Style,
-    TextFields,
-} from '@/core'
-import { isTextView, isSelectBoxView } from '@/core/interfaces'
+} from '@/core/views'
+import {
+    isTextView,
+    isSelectBoxView,
+    Action,
+    Cursor,
+    ExtraData,
+    IViewAddon,
+    IGraph,
+} from '@/core/interfaces'
 import { clearAllStates } from '@/core/scene/ViewTree'
-import type { ExtraData, IViewAddon } from '@/core/interfaces'
-import { Action, Cursor } from '@/core/interfaces'
 import { InteractionDispatcher } from './InteractionDispatcher'
 import type { InteractionContext } from './InteractionDispatcher'
 
@@ -53,7 +61,7 @@ export function useCanvasEvents({
     const lastPointRef = useRef<Point3 | null>(null)
     const mouseUpPointRef = useRef<Point3 | null>(null)
     const indicateViewRef = useRef<View | null>(null)
-    const indicateContentRef = useRef<Graph | IViewAddon | null>(null)
+    const indicateContentRef = useRef<IGraph | IViewAddon | null>(null)
     const actionRef = useRef<Action>(Action.NONE)
     const extraDataRef = useRef<ExtraData | null>(null)
     const lastClickTimeRef = useRef<number | undefined>(undefined)
@@ -109,7 +117,13 @@ export function useCanvasEvents({
 
     const handleMouseMoveWithAction = useCallback(
         (e: MouseEvent, scene: Scene, point: Point3, mousDownPoint: Point3) => {
-            dispatcher.dispatch(actionRef.current, e, scene, point, mousDownPoint)
+            dispatcher.dispatch(
+                actionRef.current,
+                e,
+                scene,
+                point,
+                mousDownPoint
+            )
             lastPointRef.current = point
         },
         [dispatcher]

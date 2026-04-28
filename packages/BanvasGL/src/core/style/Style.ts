@@ -4,8 +4,11 @@ import Color from './Color'
 import FillStyle from './FillStyle'
 import StrokeStyle from './StrokeStyle'
 import ShadowStyle from './ShadowStyle'
+import { STYLETYPE } from '@/core/constants'
+import type { ISerializable } from '@/core/interfaces'
 
-export default class Style {
+export default class Style implements ISerializable {
+  public readonly type: STYLETYPE = STYLETYPE.STYLE;
   fillStyle: FillStyle
   strokeStyle: StrokeStyle
   shadowStyle: ShadowStyle
@@ -16,8 +19,8 @@ export default class Style {
     shadowStyle?: ShadowStyle
   } = {}) {
     const {
-      fillStyle = new FillStyle({ type: 'color', color: Color.WHITE }),
-      strokeStyle = new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 }),
+      fillStyle = new FillStyle({ fillType: 'color', color: Color.WHITE }),
+      strokeStyle = new StrokeStyle({ strokeType: 'color', color: Color.BLACK, width: 1 }),
       shadowStyle = ShadowStyle.NONE,
     } = options
 
@@ -87,6 +90,23 @@ export default class Style {
   }
 
 
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      fillStyle: this.fillStyle.toJSON(),
+      strokeStyle: this.strokeStyle.toJSON(),
+      shadowStyle: this.shadowStyle.toJSON(),
+    }
+  }
+
+  static fromJSON(data: any): Style {
+    return new Style({
+      fillStyle: FillStyle.fromJSON(data.fillStyle),
+      strokeStyle: StrokeStyle.fromJSON(data.strokeStyle),
+      shadowStyle: ShadowStyle.fromJSON(data.shadowStyle),
+    })
+  }
+
   // 复制样式
   copy(): Style {
     return new Style({
@@ -106,21 +126,21 @@ export default class Style {
   // 静态工厂方法
   static fromFillColor(color: Color): Style {
     return new Style({
-      fillStyle: new FillStyle({ type: 'color', color }),
+      fillStyle: new FillStyle({ fillType: 'color', color }),
     })
   }
 
   static fromStrokeColor(color: Color, width: number = 1): Style {
     return new Style({
-      fillStyle: new FillStyle({ type: 'color', color: Color.TRANSPARENT }),
-      strokeStyle: new StrokeStyle({ type: 'color', color, width }),
+      fillStyle: new FillStyle({ fillType: 'color', color: Color.TRANSPARENT }),
+      strokeStyle: new StrokeStyle({ strokeType: 'color', color, width }),
     })
   }
 
   static fromFillAndStroke(fillColor: Color, strokeColor: Color, strokeWidth: number = 1): Style {
     return new Style({
-      fillStyle: new FillStyle({ type: 'color', color: fillColor }),
-      strokeStyle: new StrokeStyle({ type: 'color', color: strokeColor, width: strokeWidth }),
+      fillStyle: new FillStyle({ fillType: 'color', color: fillColor }),
+      strokeStyle: new StrokeStyle({ strokeType: 'color', color: strokeColor, width: strokeWidth }),
     })
   }
 
@@ -128,20 +148,20 @@ export default class Style {
   // 预定义样式
   static readonly DEFAULT = new Style()
   static readonly FILL_ONLY = new Style({
-    fillStyle: new FillStyle({ type: 'color', color: Color.WHITE }),
-    strokeStyle: new StrokeStyle({ type: 'color', color: Color.TRANSPARENT, width: 0 }),
+    fillStyle: new FillStyle({ fillType: 'color', color: Color.WHITE }),
+    strokeStyle: new StrokeStyle({ strokeType: 'color', color: Color.TRANSPARENT, width: 0 }),
   })
   static readonly STROKE_ONLY = new Style({
-    fillStyle: new FillStyle({ type: 'color', color: Color.TRANSPARENT }),
-    strokeStyle: new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 }),
+    fillStyle: new FillStyle({ fillType: 'color', color: Color.TRANSPARENT }),
+    strokeStyle: new StrokeStyle({ strokeType: 'color', color: Color.BLACK, width: 1 }),
   })
   static readonly FILL_AND_STROKE = new Style({
-    fillStyle: new FillStyle({ type: 'color', color: Color.WHITE }),
-    strokeStyle: new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 }),
+    fillStyle: new FillStyle({ fillType: 'color', color: Color.WHITE }),
+    strokeStyle: new StrokeStyle({ strokeType: 'color', color: Color.BLACK, width: 1 }),
   })
   static readonly WITH_SHADOW = new Style({
-    fillStyle: new FillStyle({ type: 'color', color: Color.WHITE }),
-    strokeStyle: new StrokeStyle({ type: 'color', color: Color.BLACK, width: 1 }),
+    fillStyle: new FillStyle({ fillType: 'color', color: Color.WHITE }),
+    strokeStyle: new StrokeStyle({ strokeType: 'color', color: Color.BLACK, width: 1 }),
     shadowStyle: ShadowStyle.SOFT_DROP,
   })
 }

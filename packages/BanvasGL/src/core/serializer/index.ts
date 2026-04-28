@@ -1,1246 +1,431 @@
-import Scene from "@/core/scene/Scene";
-import Matrix4 from "@/core/math/Matrix4";
-import { Point3, Vector3 } from "@/core/math";
-import Style from "@/core/style/Style";
-import { Graph } from "@/core/graph";
-import { Operation, Diff } from "@/core/scene/utils/OperationStack";
+import Scene from '@/core/scene/Scene'
+import Matrix4 from '@/core/math/Matrix4'
+import { Point3, Vector3 } from '@/core/math'
+import Style from '@/core/style/Style'
 
-// 导入可实例化图形类型
-import CombinedGraph from "@/core/graph/combined/CombinedGraph";
-import Line from "@/core/graph/analytic/Line";
-import Circle from "@/core/graph/analytic/Circle";
-import Arc from "@/core/graph/analytic/Arc";
-import QuadraticBezier from "@/core/graph/analytic/QuadraticBezier";
-import CubicBezier from "@/core/graph/analytic/CubicBezier";
+// 样式子类型
+import Color from '@/core/style/Color'
+import FillStyle from '@/core/style/FillStyle'
+import StrokeStyle from '@/core/style/StrokeStyle'
+import ShadowStyle from '@/core/style/ShadowStyle'
+import Gradient from '@/core/style/Gradient'
+import ImagePattern from '@/core/style/Image'
+import VideoPattern from '@/core/style/Video'
+import Bounds from '@/core/graph/base/Bounds'
 
-// 导入可实例化容器类型
-import CombinedView from "@/core/views/CombinedViews";
-import GraphView from "@/core/views/GraphViews";
-import TextView from "@/core/views/TextView";
-import ImageView from "@/core/views/MediaViews/ImageView";
-import VideoView from "@/core/views/MediaViews/VideoView";
+// 图形类型
+import CombinedGraph from '@/core/graph/combined/CombinedGraph'
+import Line from '@/core/graph/analytic/Line'
+import Circle from '@/core/graph/analytic/Circle'
+import Arc from '@/core/graph/analytic/Arc'
+import QuadraticBezier from '@/core/graph/analytic/QuadraticBezier'
+import CubicBezier from '@/core/graph/analytic/CubicBezier'
+import Polygon from '@/core/graph/combined/Polygon/Polygon'
+import Triangle from '@/core/graph/combined/Polygon/Triangle'
+import Rectangle from '@/core/graph/combined/Polygon/Rectangle'
+import RegularPolygon from '@/core/graph/combined/Polygon/RegularPolygon'
+
+// Media / Text 图形类型
+import ImageElement from '@/core/graph/media/ImageElement'
+import VideoElement from '@/core/graph/media/VideoElement'
+import TextFields from '@/core/graph/text/TextFields'
+import TextParagraph from '@/core/graph/text/TextParagraph'
+import {
+    PrintableTextElement,
+    NonPrintableTextElement,
+} from '@/core/graph/text/TextElement'
+import DenseTrajectory from '@/core/graph/trajectory/DenseTrajectory'
+
+// 容器类型
+import CombinedView from '@/core/views/CombinedViews'
+import GraphView from '@/core/views/GraphViews'
+import TextView from '@/core/views/TextView'
+import ImageView from '@/core/views/MediaViews/ImageView'
+import VideoView from '@/core/views/MediaViews/VideoView'
+
+// 相机类型
+import OrthographicCamera from '@/core/camera/OrthographicCamera'
+import PerspectiveCamera from '@/core/camera/PerspectiveCamera'
+
+// ISerializable
+import type { ISerializable, SerializableStatic } from '@/core/interfaces'
+import { MATHTYPE, STYLETYPE, GRAPHTYPE, VIEWTYPE, SCENETYPE } from '@/core/constants'
 
 /**
  * 序列化配置选项
  */
 export interface SerializerOptions {
-  /** 是否包含函数 */
-  includeFunctions?: boolean;
-  /** 是否包含私有属性 */
-  includePrivate?: boolean;
-  /** 是否处理循环引用 */
-  handleCircularRefs?: boolean;
-  /** 最大序列化深度 */
-  maxDepth?: number;
-  /** 自定义序列化器映射 */
-  customSerializers?: Map<string, (obj: any) => any>;
-  /** 自定义反序列化器映射 */
-  customDeserializers?: Map<string, (data: any) => any>;
+    /** 是否包含函数 */
+    includeFunctions?: boolean
+    /** 是否包含私有属性 */
+    includePrivate?: boolean
+    /** 是否处理循环引用 */
+    handleCircularRefs?: boolean
+    /** 最大序列化深度 */
+    maxDepth?: number
+    /** 自定义序列化器映射 */
+    customSerializers?: Map<string, (obj: any) => any>
+    /** 自定义反序列化器映射 */
+    customDeserializers?: Map<string, (data: any) => any>
 }
 
 /**
  * 序列化数据接口
  */
 export interface SerializedData {
-  /** 类型标识 */
-  type: string;
-  /** 版本号 */
-  version: string;
-  /** 数据内容 */
-  data: any;
-  /** 元数据 */
-  metadata?: {
-    timestamp: number;
-    source: string;
-    [key: string]: any;
-  };
+    /** 类型标识 */
+    type: string
+    /** 版本号 */
+    version: string
+    /** 数据内容 */
+    data: any
+    /** 元数据 */
+    metadata?: {
+        timestamp: number
+        source: string
+        [key: string]: any
+    }
 }
 
 /**
  * 类型注册信息
  */
 interface TypeRegistry {
-  type: string;
-  constructor: new (...args: any[]) => any;
-  serializer?: (obj: any) => any;
-  deserializer?: (data: any) => any;
+    type: string
+    constructor: new (...args: any[]) => any
+    serializer?: (obj: any) => any
+    deserializer?: (data: any) => any
 }
 
 /**
  * 核心对象序列化工具类
- * 支持View、Scene、Matrix4、Style、Graph等核心对象的序列化和反序列化
+ *
+ * 实现了 ISerializable 的类会自动使用 toJSON()/fromJSON() 进行序列化。
+ * 也支持通过 registerType() 注册自定义序列化器（用于 Operation/Diff 等特殊类型）。
  */
 export default class Serializer {
-  private static instance: Serializer;
-  private typeRegistry: Map<string, TypeRegistry> = new Map();
-  private circularRefs: Map<any, string> = new Map();
-  private refCounter: number = 0;
-  private defaultOptions: SerializerOptions = {
-    includeFunctions: false,
-    includePrivate: false,
-    handleCircularRefs: true,
-    maxDepth: 29,// 在实际使用后判断多少层级合理，最好不要做限制
-  };
-
-  private constructor() {
-    this.registerDefaultTypes();
-  }
-
-  /**
-   * 获取单例实例
-   */
-  public static getInstance(): Serializer {
-    if (!Serializer.instance) {
-      Serializer.instance = new Serializer();
-    }
-    return Serializer.instance;
-  }
-
-  /**
-   * 注册默认类型
-   */
-  private registerDefaultTypes(): void {
-    // 注册Scene类型
-    this.registerType("Scene", Scene, {
-      serialize: (scene: Scene) => this.serializeScene(scene),
-      deserialize: (data: any) => this.deserializeScene(data),
-    });
-
-    // 注册Matrix4类型
-    this.registerType("Matrix4", Matrix4, {
-      serialize: (matrix: Matrix4) => this.serializeMatrix4(matrix),
-      deserialize: (data: any) => this.deserializeMatrix4(data),
-    });
-
-    // 注册Point3类型
-    this.registerType("Point3", Point3, {
-      serialize: (point: Point3) => this.serializePoint3(point),
-      deserialize: (data: any) => this.deserializePoint3(data),
-    });
-
-    // 注册Vector3类型
-    this.registerType("Vector3", Vector3, {
-      serialize: (vector: Vector3) => this.serializeVector3(vector),
-      deserialize: (data: any) => this.deserializeVector3(data),
-    });
-
-    // 注册Style类型
-    this.registerType("Style", Style, {
-      serialize: (style: Style) => this.serializeStyle(style),
-      deserialize: (data: any) => this.deserializeStyle(data),
-    });
-
-    // 注册Operation类型
-    this.registerType("Operation", Operation, {
-      serialize: (operation: Operation) => this.serializeOperation(operation),
-      deserialize: (data: any) => this.deserializeOperation(data),
-    });
-
-    this.registerType("Diff", Diff, {
-      serialize: (diffs: Diff[]) => this.serializeDiffs(diffs),
-      deserialize: (data: any) => this.deserializeDiffs(data),
-    });
-
-    // 注册可实例化图形类型
-    this.registerType("CombinedGraph", CombinedGraph, {
-      serialize: (graph: CombinedGraph) => this.serializeCombinedGraph(graph),
-      deserialize: (data: any) => this.deserializeCombinedGraph(data),
-    });
-
-    this.registerType("Line", Line, {
-      serialize: (line: Line) => this.serializeLine(line),
-      deserialize: (data: any) => this.deserializeLine(data),
-    });
-
-    this.registerType("Circle", Circle, {
-      serialize: (circle: Circle) => this.serializeCircle(circle),
-      deserialize: (data: any) => this.deserializeCircle(data),
-    });
-
-    this.registerType("Arc", Arc, {
-      serialize: (arc: Arc) => this.serializeArc(arc),
-      deserialize: (data: any) => this.deserializeArc(data),
-    });
-
-    this.registerType("QuadraticBezier", QuadraticBezier, {
-      serialize: (bezier: QuadraticBezier) => this.serializeQuadraticBezier(bezier),
-      deserialize: (data: any) => this.deserializeQuadraticBezier(data),
-    });
-
-    this.registerType("CubicBezier", CubicBezier, {
-      serialize: (bezier: CubicBezier) => this.serializeCubicBezier(bezier),
-      deserialize: (data: any) => this.deserializeCubicBezier(data),
-    });
-
-    // 注册可实例化容器类型
-    this.registerType("CombinedView", CombinedView, {
-      serialize: (view: CombinedView) => this.serializeCombinedView(view),
-      deserialize: (data: any) => this.deserializeCombinedView(data),
-    });
-
-    this.registerType("GraphView", GraphView, {
-      serialize: (view: GraphView) => this.serializeGraphView(view),
-      deserialize: (data: any) => this.deserializeGraphView(data),
-    });
-
-    this.registerType("TextView", TextView, {
-      serialize: (view: TextView) => this.serializeTextView(view),
-      deserialize: (data: any) => this.deserializeTextView(data),
-    });
-
-    this.registerType("ImageView", ImageView, {
-      serialize: (view: ImageView) => this.serializeImageView(view),
-      deserialize: (data: any) => this.deserializeImageView(data),
-    });
-
-    this.registerType("VideoView", VideoView, {
-      serialize: (view: VideoView) => this.serializeVideoView(view),
-      deserialize: (data: any) => this.deserializeVideoView(data),
-    });
-  }
-
-  /**
-   * 注册类型
-   */
-  public registerType(
-    typeName: string,
-    constructor: new (...args: any[]) => any,
-    handlers?: {
-      serialize?: (obj: any) => any;
-      deserialize?: (data: any) => any;
-    }
-  ): void {
-    this.typeRegistry.set(typeName, {
-      type: typeName,
-      constructor,
-      serializer: handlers?.serialize,
-      deserializer: handlers?.deserialize,
-    });
-  }
-
-  /**
-   * 序列化对象为JSON
-   */
-  public serialize(obj: any, options: Partial<SerializerOptions> = {}): string {
-    const opts = { ...this.defaultOptions, ...options };
-    this.circularRefs.clear();
-    this.refCounter = 0;
-
-    const serializedData: SerializedData = {
-      type: this.getObjectType(obj),
-      version: "1.0.0",
-      data: this.serializeValue(obj, opts, 0),
-      metadata: {
-        timestamp: Date.now(),
-        source: "BanvasGL Serializer",
-      },
-    };
-
-    return JSON.stringify(serializedData, null, 2);
-  }
-
-  /**
-   * 反序列化JSON为对象
-   */
-  public deserialize<T = any>(json: string, options: Partial<SerializerOptions> = {}): T {
-    const opts = { ...this.defaultOptions, ...options };
-    const serializedData: SerializedData = JSON.parse(json);
-
-    if (!serializedData.type || !serializedData.data) {
-      throw new Error("Invalid serialized data format");
+    private static instance: Serializer
+    private typeRegistry: Map<string, TypeRegistry> = new Map()
+    private circularRefs: Map<any, string> = new Map()
+    private refCounter: number = 0
+    private defaultOptions: SerializerOptions = {
+        includeFunctions: false,
+        includePrivate: false,
+        handleCircularRefs: true,
+        maxDepth: 29,
     }
 
-    return this.deserializeValue(serializedData.data, opts) as T;
-  }
-
-  /**
-   * 序列化值
-   */
-  private serializeValue(value: any, options: SerializerOptions, depth: number): any {
-    if (depth > options.maxDepth!) {
-      return "[Max Depth Reached]";
+    private constructor() {
+        this.registerDefaultTypes()
     }
 
-    if (value === null || value === undefined) {
-      return value;
+    /**
+     * 获取单例实例
+     */
+    public static getInstance(): Serializer {
+        if (!Serializer.instance) {
+            Serializer.instance = new Serializer()
+        }
+        return Serializer.instance
     }
 
-    // 处理循环引用
-    if (options.handleCircularRefs && this.circularRefs.has(value)) {
-      return { $ref: this.circularRefs.get(value) };
+    // ========== 类型注册 ==========
+
+    /**
+     * 注册实现了 ISerializable 的类（自动使用 toJSON/fromJSON）
+     */
+    private registerSerializable(
+        typeName: string,
+        ctor: SerializableStatic
+    ): void {
+        this.typeRegistry.set(typeName, {
+            type: typeName,
+            constructor: ctor,
+            serializer: (obj: ISerializable) => obj.toJSON(),
+            deserializer: (data: any) => ctor.fromJSON(data),
+        })
     }
 
-    // 处理基本类型
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      return value;
+    /**
+     * 注册自定义序列化器（用于没有实现 ISerializable 的类或需要特殊处理的类型）
+     */
+    public registerType(
+        typeName: string,
+        constructor: new (...args: any[]) => any,
+        handlers?: {
+            serialize?: (obj: any) => any
+            deserialize?: (data: any) => any
+        }
+    ): void {
+        this.typeRegistry.set(typeName, {
+            type: typeName,
+            constructor,
+            serializer: handlers?.serialize,
+            deserializer: handlers?.deserialize,
+        })
     }
 
-    // 处理数组
-    if (Array.isArray(value)) {
-      if (options.handleCircularRefs) {
-        this.circularRefs.set(value, `ref_${++this.refCounter}`);
-      }
-      return value.map((item) => this.serializeValue(item, options, depth + 1));
+    /**
+     * 注册所有默认类型。
+     * 实现了 ISerializable 的类用 registerSerializable 一行注册；
+     * 需要特殊处理的类型用 registerType + 自定义 handlers。
+     */
+    private registerDefaultTypes(): void {
+        // ===== ISerializable 类型 =====
+        // key 使用各类的 type 枚举值，与实例上的 type 属性一一对应
+
+        // 数学
+        this.registerSerializable(MATHTYPE.MATRIX4, Matrix4)
+        this.registerSerializable(MATHTYPE.POINT3, Point3 as any)
+        this.registerSerializable(MATHTYPE.VECTOR3, Vector3 as any)
+        this.registerSerializable(MATHTYPE.BOUNDS, Bounds as any)
+        // 样式
+        this.registerSerializable(STYLETYPE.COLOR, Color as any)
+        this.registerSerializable(STYLETYPE.GRADIENT, Gradient as any)
+        this.registerSerializable(STYLETYPE.IMAGE_PATTERN, ImagePattern as any)
+        this.registerSerializable(STYLETYPE.VIDEO_PATTERN, VideoPattern as any)
+        this.registerSerializable(STYLETYPE.FILL_STYLE, FillStyle as any)
+        this.registerSerializable(STYLETYPE.STROKE_STYLE, StrokeStyle as any)
+        this.registerSerializable(STYLETYPE.SHADOW_STYLE, ShadowStyle as any)
+        this.registerSerializable(STYLETYPE.STYLE, Style as any)
+        // 图形
+        this.registerSerializable(GRAPHTYPE.LINE, Line as any)
+        this.registerSerializable(GRAPHTYPE.ARC, Arc as any)
+        this.registerSerializable(GRAPHTYPE.CIRCLE, Circle as any)
+        this.registerSerializable(GRAPHTYPE.QUADRATIC_BEZIER, QuadraticBezier as any)
+        this.registerSerializable(GRAPHTYPE.CUBIC_BEZIER, CubicBezier as any)
+        this.registerSerializable(GRAPHTYPE.COMBINED_GRAPH, CombinedGraph as any)
+        this.registerSerializable(GRAPHTYPE.POLYGON, Polygon as any)
+        this.registerSerializable(GRAPHTYPE.TRIANGLE, Triangle as any)
+        this.registerSerializable(GRAPHTYPE.RECTANGLE, Rectangle as any)
+        this.registerSerializable(GRAPHTYPE.REGULAR_POLYGON, RegularPolygon as any)
+        this.registerSerializable(GRAPHTYPE.IMAGE, ImageElement as any)
+        this.registerSerializable(GRAPHTYPE.VIDEO, VideoElement as any)
+        this.registerSerializable(GRAPHTYPE.TEXTFIELDS, TextFields as any)
+        this.registerSerializable(GRAPHTYPE.TEXTPARAGRAPH, TextParagraph as any)
+        this.registerSerializable(
+            GRAPHTYPE.PRINTABLE_TEXTELEMENT,
+            PrintableTextElement as any
+        )
+        this.registerSerializable(
+            GRAPHTYPE.NONPRINTABLE_TEXTELEMENT,
+            NonPrintableTextElement as any
+        )
+        this.registerSerializable(GRAPHTYPE.DENSETRAJECTORY, DenseTrajectory as any)
+        // 容器
+        this.registerSerializable(VIEWTYPE.COMBINEDVIEW, CombinedView as any)
+        this.registerSerializable(VIEWTYPE.GRAPHVIEW, GraphView as any)
+        this.registerSerializable(VIEWTYPE.TEXTVIEW, TextView as any)
+        this.registerSerializable(VIEWTYPE.IMAGEVIEW, ImageView as any)
+        this.registerSerializable(VIEWTYPE.VIDEOVIEW, VideoView as any)
+        // 场景
+        this.registerSerializable(SCENETYPE.SCENE, Scene as any)
+        // 相机
+        this.registerSerializable(SCENETYPE.ORTHOGRAPHIC_CAMERA, OrthographicCamera as any)
+        this.registerSerializable(SCENETYPE.PERSPECTIVE_CAMERA, PerspectiveCamera as any)
+
     }
 
-    // 处理Date对象
-    if (value instanceof Date) {
-      return { $type: "Date", $value: value.toISOString() };
-    }
+    // ========== 核心序列化/反序列化 ==========
 
-    // 处理函数
-    if (typeof value === "function") {
-      if (options.includeFunctions) {
-        return { $type: "Function", $value: value.toString() };
-      }
-      return undefined;
-    }
+    /**
+     * 序列化对象为JSON字符串
+     */
+    public serialize(
+        obj: any,
+        options: Partial<SerializerOptions> = {}
+    ): string {
+        const opts = { ...this.defaultOptions, ...options }
+        this.circularRefs.clear()
+        this.refCounter = 0
 
-    // 处理注册的类型
-    const typeName = this.getObjectType(value);
-    const typeInfo = this.typeRegistry.get(typeName);
-    if (typeInfo && typeInfo.serializer) {
-      if (options.handleCircularRefs) {
-        this.circularRefs.set(value, `ref_${++this.refCounter}`);
-      }
-      return {
-        $type: typeName,
-        $value: typeInfo.serializer(value),
-      };
-    }
-
-    // 处理普通对象
-    if (typeof value === "object") {
-      if (options.handleCircularRefs) {
-        this.circularRefs.set(value, `ref_${++this.refCounter}`);
-      }
-
-      const result: any = {};
-      for (const [key, val] of Object.entries(value)) {
-        // 跳过私有属性
-        if (!options.includePrivate && key.startsWith("_")) {
-          continue;
+        const serializedData: SerializedData = {
+            type: this.getObjectType(obj),
+            version: '1.0.0',
+            data: this.serializeValue(obj, opts, 0),
+            metadata: {
+                timestamp: Date.now(),
+                source: 'BanvasGL Serializer',
+            },
         }
 
-        const serializedVal = this.serializeValue(val, options, depth + 1);
-        if (serializedVal !== undefined) {
-          result[key] = serializedVal;
+        return JSON.stringify(serializedData, null, 2)
+    }
+
+    /**
+     * 反序列化JSON字符串为对象
+     */
+    public deserialize<T = any>(
+        json: string,
+        options: Partial<SerializerOptions> = {}
+    ): T {
+        const opts = { ...this.defaultOptions, ...options }
+        const serializedData: SerializedData = JSON.parse(json)
+
+        if (!serializedData.type || !serializedData.data) {
+            throw new Error('Invalid serialized data format')
         }
-      }
-      return result;
+
+        return this.deserializeValue(serializedData.data, opts) as T
     }
 
-    return value;
-  }
+    /**
+     * 序列化值（递归核心）
+     */
+    private serializeValue(
+        value: any,
+        options: SerializerOptions,
+        depth: number
+    ): any {
+        if (depth > options.maxDepth!) {
+            return '[Max Depth Reached]'
+        }
 
-  /**
-   * 反序列化值
-   */
-  private deserializeValue(value: any, options: SerializerOptions): any {
-    if (value === null || value === undefined) {
-      return value;
-    }
+        if (value === null || value === undefined) {
+            return value
+        }
 
-    // 处理引用
-    if (value.$ref) {
-      // 这里需要更复杂的引用解析逻辑
-      return value;
-    }
+        // 处理循环引用
+        if (
+            options.handleCircularRefs &&
+            typeof value === 'object' &&
+            this.circularRefs.has(value)
+        ) {
+            return { $ref: this.circularRefs.get(value) }
+        }
 
-    // 处理特殊类型
-    if (value.$type) {
-      switch (value.$type) {
-        case "Date":
-          return new Date(value.$value);
-        case "Function":
-          if (options.includeFunctions) {
-            return new Function("return " + value.$value)();
-          }
-          return undefined;
-        default:
-          // 处理注册的类型
-          const typeInfo = this.typeRegistry.get(value.$type);
-          if (typeInfo && typeInfo.deserializer) {
-            return typeInfo.deserializer(value.$value);
-          }
-          break;
-      }
-    }
+        // 基本类型
+        if (
+            typeof value === 'string' ||
+            typeof value === 'number' ||
+            typeof value === 'boolean'
+        ) {
+            return value
+        }
 
-    // 处理数组
-    if (Array.isArray(value)) {
-      return value.map((item) => this.deserializeValue(item, options));
-    }
+        // 数组
+        if (Array.isArray(value)) {
+            if (options.handleCircularRefs) {
+                this.circularRefs.set(value, `ref_${++this.refCounter}`)
+            }
+            return value.map((item) =>
+                this.serializeValue(item, options, depth + 1)
+            )
+        }
 
-    // 处理对象
-    if (typeof value === "object") {
-      const result: any = {};
-      for (const [key, val] of Object.entries(value)) {
-        result[key] = this.deserializeValue(val, options);
-      }
-      return result;
-    }
+        // Date
+        if (value instanceof Date) {
+            return { $type: 'Date', $value: value.toISOString() }
+        }
 
-    return value;
-  }
+        // 函数 — 默认跳过
+        if (typeof value === 'function') {
+            return undefined
+        }
 
-  /**
-   * 获取对象类型
-   */
-  private getObjectType(obj: any): string {
-    if (obj === null || obj === undefined) {
-      return "null";
-    }
-
-    if (obj.constructor && obj.constructor.name) {
-      return obj.constructor.name;
-    }
-
-    return typeof obj;
-  }
-
-  // ========== 具体类型的序列化方法 ==========
-
-  /**
-   * 序列化Scene对象
-   */
-  private serializeScene(scene: Scene): any {
-    const result: any = {
-      id: scene.id,
-      children: scene.children.map((child) => {
-        const typeInfo = this.typeRegistry.get(this.getObjectType(child))
+        // 已注册的类型（优先使用注册的 serializer）
+        const typeName = this.getObjectType(value)
+        const typeInfo = this.typeRegistry.get(typeName)
         if (typeInfo && typeInfo.serializer) {
-          return typeInfo.serializer(child)
-        }
-        throw new Error('未定义容器类型')
-      }),
-      data: this.serializeValue(scene.data, this.defaultOptions, 0),
-      camera: this.serializeValue(scene.camera, this.defaultOptions, 0),
-    };
-
-    // 序列化生命周期回调函数
-    const lifecycleCallbacks: any = {};
-    if ((scene as any)._onLoad) {
-      lifecycleCallbacks.onLoad = (scene as any)._onLoad.toString();
-    }
-    if ((scene as any)._onUnload) {
-      lifecycleCallbacks.onUnload = (scene as any)._onUnload.toString();
-    }
-    if ((scene as any)._onShow) {
-      lifecycleCallbacks.onShow = (scene as any)._onShow.toString();
-    }
-    if ((scene as any)._onHide) {
-      lifecycleCallbacks.onHide = (scene as any)._onHide.toString();
-    }
-
-    if (Object.keys(lifecycleCallbacks).length > 0) {
-      result.lifecycleCallbacks = lifecycleCallbacks;
-    }
-
-    return result;
-  }
-
-  /**
-   * 反序列化Scene对象
-   */
-  private deserializeScene(data: any): Scene {
-    const scene = new Scene(this.deserializeValue(data.camera, this.defaultOptions));
-    scene.id = data.id;
-    scene.data = this.deserializeValue(data.data, this.defaultOptions);
-    scene.children = data.children.map((childData: any) => this.deserializeValue(childData, this.defaultOptions));
-
-    // 反序列化生命周期回调函数
-    if (data.lifecycleCallbacks) {
-      Object.keys(data.lifecycleCallbacks).forEach((callbackName) => {
-        try {
-          const callbackString = data.lifecycleCallbacks[callbackName];
-          if (typeof callbackString === "string") {
-            const callback = new Function("return " + callbackString)();
-            switch (callbackName) {
-              case "onLoad":
-                scene.onLoad = callback;
-                break;
-              case "onUnload":
-                scene.onUnload = callback;
-                break;
-              case "onShow":
-                scene.onShow = callback;
-                break;
-              case "onHide":
-                scene.onHide = callback;
-                break;
+            if (options.handleCircularRefs) {
+                this.circularRefs.set(value, `ref_${++this.refCounter}`)
             }
-          }
-        } catch (error) {
-          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
-        }
-      });
-    }
-
-    return scene;
-  }
-
-  /**
-   * 序列化Matrix4对象
-   */
-  private serializeMatrix4(matrix: Matrix4): any {
-    return {
-      transform: matrix.transform,
-    };
-  }
-
-  /**
-   * 反序列化Matrix4对象
-   */
-  private deserializeMatrix4(data: any): Matrix4 {
-    return new Matrix4(data.transform);
-  }
-
-  /**
-   * 序列化Point3对象
-   */
-  private serializePoint3(point: Point3): any {
-    return {
-      x: point.x,
-      y: point.y,
-      z: point.z,
-    };
-  }
-
-  /**
-   * 反序列化Point3对象
-   */
-  private deserializePoint3(data: any): Point3 {
-    return new Point3(data.x, data.y, data.z);
-  }
-
-  /**
-   * 序列化Vector3对象
-   */
-  private serializeVector3(vector: Vector3): any {
-    return {
-      x: vector.x,
-      y: vector.y,
-      z: vector.z,
-    };
-  }
-
-  /**
-   * 反序列化Vector3对象
-   */
-  private deserializeVector3(data: any): Vector3 {
-    return new Vector3(data.x, data.y, data.z);
-  }
-
-  /**
-   * 序列化Style对象
-   */
-  private serializeStyle(style: Style): any {
-    return {
-      fillStyle: this.serializeValue(style.fillStyle, this.defaultOptions, 0),
-      strokeStyle: this.serializeValue(style.strokeStyle, this.defaultOptions, 0),
-      shadowStyle: this.serializeValue(style.shadowStyle, this.defaultOptions, 0),
-    };
-  }
-
-  /**
-   * 反序列化Style对象
-   */
-  private deserializeStyle(data: any): Style {
-    const style = new Style();
-    style.fillStyle = this.deserializeValue(data.fillStyle, this.defaultOptions);
-    style.strokeStyle = this.deserializeValue(data.strokeStyle, this.defaultOptions);
-    style.shadowStyle = this.deserializeValue(data.shadowStyle, this.defaultOptions);
-    return style;
-  }
-
-  /**
-   * 序列化Operation对象
-   */
-  private serializeOperation(operation: Operation): any {
-    return {
-      diffs: this.serializeDiffs(operation.diffs),
-      timestamp: operation.timestamp,
-    };
-  }
-
-  /**
-   * 反序列化Operation对象
-   */
-  private deserializeOperation(data: any): Operation {
-    return {
-      diffs: this.deserializeDiffs(data.diffs),
-      timestamp: data.timestamp,
-    };
-  }
-
-  private serializeDiffs(diffs: Diff[]): any {
-    return diffs.map((diff) => {
-      const typeInfo = this.typeRegistry.get(this.getObjectType(diff.content))
-      if (!typeInfo || !typeInfo.serializer) throw new Error("容器类型未定义");
-      return {
-        parentId: diff.parentId,
-        id: diff.id,
-        type: diff.type,
-        content: typeInfo.serializer(diff.content),
-      }
-    });
-  }
-
-  private deserializeDiffs(data: any[]): Diff[] {
-    return data.map((diffJson) => {
-      const typeInfo = this.typeRegistry.get(this.getObjectType(diffJson.content))
-      if (!typeInfo || !typeInfo.deserializer) throw new Error("容器类型未定义");
-      return {
-        parentId: diffJson.parentId,
-        id: diffJson.id,
-        type: diffJson.type,
-        content: typeInfo.deserializer(diffJson.content),
-      }
-    });
-  }
-
-  // ========== 可实例化图形的序列化方法 =========
-  /**
-   * 序列化CombinedGraph对象
-   */
-  private serializeCombinedGraph(graph: CombinedGraph): any {
-    return {
-      id: graph.id,
-      type: graph.type,
-      graphs: graph.graphs.map((g: Graph) => this.serializeValue(g, this.defaultOptions, 0)),
-      style: this.serializeValue(graph.style, this.defaultOptions, 0),
-      controlPoints: this.serializeValue(graph.controlPoints, this.defaultOptions, 0),
-      bounds: graph.bounds ? this.serializeValue(graph.bounds, this.defaultOptions, 0) : null,
-    };
-  }
-
-  /**
-   * 反序列化CombinedGraph对象
-   */
-  private deserializeCombinedGraph(data: any): CombinedGraph {
-    const graphs = data.graphs.map((graphData: any) => this.deserializeValue(graphData, this.defaultOptions));
-    const style = this.deserializeValue(data.style, this.defaultOptions);
-    const graph = new CombinedGraph(graphs, style);
-    graph.id = data.id;
-    return graph;
-  }
-
-  /**
-   * 序列化Line对象
-   */
-  private serializeLine(line: Line): any {
-    return {
-      id: line.id,
-      type: line.type,
-      controlPoints: this.serializeValue(line.controlPoints, this.defaultOptions, 0),
-      style: this.serializeValue(line.style, this.defaultOptions, 0),
-      bounds: line.bounds ? this.serializeValue(line.bounds, this.defaultOptions, 0) : null,
-    };
-  }
-
-  /**
-   * 反序列化Line对象
-   */
-  private deserializeLine(data: any): Line {
-    const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
-    const style = this.deserializeValue(data.style, this.defaultOptions);
-    const line = new Line(controlPoints[0], controlPoints[1], style);
-    line.id = data.id;
-    return line;
-  }
-
-  /**
-   * 序列化Circle对象
-   */
-  private serializeCircle(circle: Circle): any {
-    return {
-      id: circle.id,
-      type: circle.type,
-      center: this.serializeValue(circle.center, this.defaultOptions, 0),
-      xRadius: circle.xRadius,
-      yRadius: circle.yRadius,
-      style: this.serializeValue(circle.style, this.defaultOptions, 0),
-    };
-  }
-
-  /**
-   * 反序列化Circle对象
-   */
-  private deserializeCircle(data: any): Circle {
-    const center = this.deserializeValue(data.center, this.defaultOptions);
-    const style = this.deserializeValue(data.style, this.defaultOptions);
-    const circle = new Circle(center, data.xRadius, style);
-    circle.id = data.id;
-    return circle;
-  }
-
-  /**
-   * 序列化Arc对象
-   */
-  private serializeArc(arc: Arc): any {
-    return {
-      id: arc.id,
-      type: arc.type,
-      center: this.serializeValue(arc.center, this.defaultOptions, 0),
-      xRadius: arc.xRadius,
-      yRadius: arc.yRadius,
-      rotation: arc.rotation,
-      startAngle: arc.startAngle,
-      endAngle: arc.endAngle,
-      clockwise: arc.clockwise,
-      style: this.serializeValue(arc.style, this.defaultOptions, 0),
-    };
-  }
-
-  /**
-   * 反序列化Arc对象
-   */
-  private deserializeArc(data: any): Arc {
-    const center = this.deserializeValue(data.center, this.defaultOptions);
-    const style = this.deserializeValue(data.style, this.defaultOptions);
-
-    // 向后兼容：如果数据中有 radius（旧格式），则同时设置 xRadius 和 yRadius
-    let xRadius: number;
-    let yRadius: number;
-    let rotation: number;
-
-    if (data.xRadius !== undefined && data.yRadius !== undefined) {
-      // 新格式
-      xRadius = data.xRadius;
-      yRadius = data.yRadius;
-      rotation = data.rotation !== undefined ? data.rotation : 0;
-    } else if (data.radius !== undefined) {
-      // 旧格式：向后兼容
-      xRadius = data.radius;
-      yRadius = data.radius;
-      rotation = 0;
-    } else {
-      // 默认值
-      xRadius = 1;
-      yRadius = 1;
-      rotation = 0;
-    }
-
-    const arc = new Arc(
-      center,
-      xRadius,
-      yRadius,
-      rotation,
-      data.startAngle,
-      data.endAngle,
-      data.clockwise,
-      style
-    );
-    arc.id = data.id;
-    return arc;
-  }
-
-  // 注意：Bezier是抽象类，不能直接实例化，只处理具体子类
-
-  /**
-   * 序列化QuadraticBezier对象
-   */
-  private serializeQuadraticBezier(bezier: QuadraticBezier): any {
-    return {
-      id: bezier.id,
-      type: bezier.type,
-      controlPoints: this.serializeValue(bezier.controlPoints, this.defaultOptions, 0),
-      style: this.serializeValue(bezier.style, this.defaultOptions, 0),
-      bounds: bezier.bounds ? this.serializeValue(bezier.bounds, this.defaultOptions, 0) : null,
-    };
-  }
-
-  /**
-   * 反序列化QuadraticBezier对象
-   */
-  private deserializeQuadraticBezier(data: any): QuadraticBezier {
-    const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
-    const style = this.deserializeValue(data.style, this.defaultOptions);
-    const bezier = new QuadraticBezier(controlPoints[0], controlPoints[1], controlPoints[2], style);
-    bezier.id = data.id;
-    return bezier;
-  }
-
-  /**
-   * 序列化CubicBezier对象
-   */
-  private serializeCubicBezier(bezier: CubicBezier): any {
-    return {
-      id: bezier.id,
-      type: bezier.type,
-      controlPoints: this.serializeValue(bezier.controlPoints, this.defaultOptions, 0),
-      style: this.serializeValue(bezier.style, this.defaultOptions, 0),
-      bounds: bezier.bounds ? this.serializeValue(bezier.bounds, this.defaultOptions, 0) : null,
-    };
-  }
-
-  /**
-   * 反序列化CubicBezier对象
-   */
-  private deserializeCubicBezier(data: any): CubicBezier {
-    const controlPoints = this.deserializeValue(data.controlPoints, this.defaultOptions);
-    const style = this.deserializeValue(data.style, this.defaultOptions);
-    const bezier = new CubicBezier(controlPoints[0], controlPoints[1], controlPoints[2], controlPoints[3], style);
-    bezier.id = data.id;
-    return bezier;
-  }
-
-  // ========== 可实例化容器的序列化方法 ==========
-
-  /**
-   * 序列化CombinedView对象
-   */
-  private serializeCombinedView(view: CombinedView): any {
-    const result: any = {
-      id: view.id,
-      type: view.type,
-      layer: view.layer,
-      properties: this.serializeValue(view.properties, this.defaultOptions, 0),
-      data: this.serializeValue(view.data, this.defaultOptions, 0),
-      style: this.serializeValue(view.style, this.defaultOptions, 0),
-      selected: view.selected,
-      actived: view.actived,
-      freezed: view.freezed,
-      visible: view.visible,
-      matrix: this.serializeValue(view.matrix, this.defaultOptions, 0),
-      viewport: view.viewport,
-      controlPoints: view.controlPoints,
-      boundingBox: view.boundingBox,
-      content: this.serializeValue(view.content, this.defaultOptions, 0),
-      children: view.children.map((child) => this.serializeValue(child, this.defaultOptions, 0)),
-    };
-
-    // 序列化生命周期回调函数
-    const lifecycleCallbacks: any = {};
-    if (view.onCreate) {
-      lifecycleCallbacks.onCreate = view.onCreate.toString();
-    }
-    if (view.onAttach) {
-      lifecycleCallbacks.onAttach = view.onAttach.toString();
-    }
-    if (view.onDestroy) {
-      lifecycleCallbacks.onDestroy = view.onDestroy.toString();
-    }
-
-    if (Object.keys(lifecycleCallbacks).length > 0) {
-      result.lifecycleCallbacks = lifecycleCallbacks;
-    }
-
-    return result;
-  }
-
-  /**
-   * 反序列化CombinedView对象
-   */
-  private deserializeCombinedView(data: any): CombinedView {
-    const content = data.content.map((childData: any) => this.deserializeValue(childData, this.defaultOptions));
-    const view = new CombinedView(content);
-
-    // 设置基本属性
-    view.id = data.id;
-    view.layer = data.layer;
-    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
-    view.data = this.deserializeValue(data.data, this.defaultOptions);
-    view.style = this.deserializeValue(data.style, this.defaultOptions);
-    view.selected = data.selected;
-    view.actived = data.actived;
-    view.freezed = data.freezed;
-    view.visible = data.visible;
-    view.matrix = this.deserializeValue(data.matrix, this.defaultOptions);
-    view.viewport = data.viewport;
-    view.controlPoints = data.controlPoints;
-    view.boundingBox = data.boundingBox;
-
-    // 反序列化生命周期回调函数
-    if (data.lifecycleCallbacks) {
-      Object.keys(data.lifecycleCallbacks).forEach((callbackName) => {
-        try {
-          const callbackString = data.lifecycleCallbacks[callbackName];
-          if (typeof callbackString === "string") {
-            const callback = new Function("return " + callbackString)();
-            switch (callbackName) {
-              case "onCreate":
-                view.onCreate = callback;
-                break;
-              case "onAttach":
-                view.onAttach = callback;
-                break;
-              case "onDestroy":
-                view.onDestroy = callback;
-                break;
+            return {
+                $type: typeName,
+                $value: typeInfo.serializer(value),
             }
-          }
-        } catch (error) {
-          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
         }
-      });
-    }
 
-    return view;
-  }
-
-  /**
-   * 序列化GraphView对象
-   */
-  private serializeGraphView(view: GraphView): any {
-    const result: any = {
-      id: view.id,
-      type: view.type,
-      layer: view.layer,
-      properties: this.serializeValue(view.properties, this.defaultOptions, 0),
-      data: this.serializeValue(view.data, this.defaultOptions, 0),
-      style: this.serializeValue(view.style, this.defaultOptions, 0),
-      selected: view.selected,
-      actived: view.actived,
-      freezed: view.freezed,
-      visible: view.visible,
-      matrix: this.serializeValue(view.matrix, this.defaultOptions, 0),
-      viewport: view.viewport,
-      controlPoints: view.controlPoints,
-      boundingBox: view.boundingBox,
-      content: this.serializeValue(view.content, this.defaultOptions, 0),
-    };
-
-    // 序列化生命周期回调函数
-    const lifecycleCallbacks: any = {};
-    if (view.onCreate) {
-      lifecycleCallbacks.onCreate = view.onCreate.toString();
-    }
-    if (view.onAttach) {
-      lifecycleCallbacks.onAttach = view.onAttach.toString();
-    }
-    if (view.onDestroy) {
-      lifecycleCallbacks.onDestroy = view.onDestroy.toString();
-    }
-
-    if (Object.keys(lifecycleCallbacks).length > 0) {
-      result.lifecycleCallbacks = lifecycleCallbacks;
-    }
-
-    return result;
-  }
-
-  /**
-   * 反序列化GraphView对象
-   */
-  private deserializeGraphView(data: any): GraphView {
-    const content = this.deserializeValue(data.content, this.defaultOptions);
-    const view = new GraphView(content);
-
-    // 设置基本属性
-    view.id = data.id;
-    view.layer = data.layer;
-    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
-    view.data = this.deserializeValue(data.data, this.defaultOptions);
-    view.style = this.deserializeValue(data.style, this.defaultOptions);
-    view.selected = data.selected;
-    view.actived = data.actived;
-    view.freezed = data.freezed;
-    view.visible = data.visible;
-    view.matrix = this.deserializeValue(data.matrix, this.defaultOptions);
-    view.viewport = data.viewport;
-    view.controlPoints = data.controlPoints;
-    view.boundingBox = data.boundingBox;
-
-    // 反序列化生命周期回调函数
-    if (data.lifecycleCallbacks) {
-      Object.keys(data.lifecycleCallbacks).forEach((callbackName) => {
-        try {
-          const callbackString = data.lifecycleCallbacks[callbackName];
-          if (typeof callbackString === "string") {
-            const callback = new Function("return " + callbackString)();
-            switch (callbackName) {
-              case "onCreate":
-                view.onCreate = callback;
-                break;
-              case "onAttach":
-                view.onAttach = callback;
-                break;
-              case "onDestroy":
-                view.onDestroy = callback;
-                break;
+        // 实现了 ISerializable 但未注册的对象（兜底）
+        if (typeof value === 'object' && typeof value.toJSON === 'function') {
+            if (options.handleCircularRefs) {
+                this.circularRefs.set(value, `ref_${++this.refCounter}`)
             }
-          }
-        } catch (error) {
-          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
-        }
-      });
-    }
-
-    return view;
-  }
-
-  /**
-   * 序列化TextView对象
-   */
-  private serializeTextView(view: TextView): any {
-    const result: any = {
-      id: view.id,
-      type: view.type,
-      layer: view.layer,
-      properties: this.serializeValue(view.properties, this.defaultOptions, 0),
-      data: this.serializeValue(view.data, this.defaultOptions, 0),
-      style: this.serializeValue(view.style, this.defaultOptions, 0),
-      selected: view.selected,
-      actived: view.actived,
-      freezed: view.freezed,
-      visible: view.visible,
-      matrix: this.serializeValue(view.matrix, this.defaultOptions, 0),
-      viewport: view.viewport,
-      controlPoints: view.controlPoints,
-      boundingBox: view.boundingBox,
-      content: this.serializeValue(view.content, this.defaultOptions, 0),
-    };
-
-    // 序列化生命周期回调函数
-    const lifecycleCallbacks: any = {};
-    if (view.onCreate) {
-      lifecycleCallbacks.onCreate = view.onCreate.toString();
-    }
-    if (view.onAttach) {
-      lifecycleCallbacks.onAttach = view.onAttach.toString();
-    }
-    if (view.onDestroy) {
-      lifecycleCallbacks.onDestroy = view.onDestroy.toString();
-    }
-
-    if (Object.keys(lifecycleCallbacks).length > 0) {
-      result.lifecycleCallbacks = lifecycleCallbacks;
-    }
-
-    return result;
-  }
-
-  /**
-   * 反序列化TextView对象
-   */
-  private deserializeTextView(data: any): TextView {
-    const content = this.deserializeValue(data.content, this.defaultOptions);
-    const view = new TextView(content);
-
-    // 设置基本属性
-    view.id = data.id;
-    view.layer = data.layer;
-    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
-    view.data = this.deserializeValue(data.data, this.defaultOptions);
-    view.style = this.deserializeValue(data.style, this.defaultOptions);
-    view.selected = data.selected;
-    view.actived = data.actived;
-    view.freezed = data.freezed;
-    view.visible = data.visible;
-    view.matrix = this.deserializeValue(data.matrix, this.defaultOptions);
-    view.viewport = data.viewport;
-    view.controlPoints = data.controlPoints;
-    view.boundingBox = data.boundingBox;
-
-    // 反序列化生命周期回调函数
-    if (data.lifecycleCallbacks) {
-      Object.keys(data.lifecycleCallbacks).forEach((callbackName) => {
-        try {
-          const callbackString = data.lifecycleCallbacks[callbackName];
-          if (typeof callbackString === "string") {
-            const callback = new Function("return " + callbackString)();
-            switch (callbackName) {
-              case "onCreate":
-                view.onCreate = callback;
-                break;
-              case "onAttach":
-                view.onAttach = callback;
-                break;
-              case "onDestroy":
-                view.onDestroy = callback;
-                break;
+            return {
+                $type: typeName,
+                $value: value.toJSON(),
             }
-          }
-        } catch (error) {
-          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
         }
-      });
-    }
 
-    return view;
-  }
-
-  /**
-   * 序列化ImageView对象
-   */
-  private serializeImageView(view: ImageView): any {
-    const result: any = {
-      id: view.id,
-      type: view.type,
-      layer: view.layer,
-      properties: this.serializeValue(view.properties, this.defaultOptions, 0),
-      data: this.serializeValue(view.data, this.defaultOptions, 0),
-      style: this.serializeValue(view.style, this.defaultOptions, 0),
-      selected: view.selected,
-      actived: view.actived,
-      freezed: view.freezed,
-      visible: view.visible,
-      matrix: this.serializeValue(view.matrix, this.defaultOptions, 0),
-      viewport: view.viewport,
-      controlPoints: view.controlPoints,
-      boundingBox: view.boundingBox,
-      content: this.serializeValue(view.content, this.defaultOptions, 0),
-    };
-
-    // 序列化生命周期回调函数
-    const lifecycleCallbacks: any = {};
-    if (view.onCreate) {
-      lifecycleCallbacks.onCreate = view.onCreate.toString();
-    }
-    if (view.onAttach) {
-      lifecycleCallbacks.onAttach = view.onAttach.toString();
-    }
-    if (view.onDestroy) {
-      lifecycleCallbacks.onDestroy = view.onDestroy.toString();
-    }
-
-    if (Object.keys(lifecycleCallbacks).length > 0) {
-      result.lifecycleCallbacks = lifecycleCallbacks;
-    }
-
-    return result;
-  }
-
-  /**
-   * 反序列化ImageView对象
-   */
-  private deserializeImageView(data: any): ImageView {
-    const content = this.deserializeValue(data.content, this.defaultOptions);
-    const view = new ImageView(content);
-
-    // 设置基本属性
-    view.id = data.id;
-    view.layer = data.layer;
-    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
-    view.data = this.deserializeValue(data.data, this.defaultOptions);
-    view.style = this.deserializeValue(data.style, this.defaultOptions);
-    view.selected = data.selected;
-    view.actived = data.actived;
-    view.freezed = data.freezed;
-    view.visible = data.visible;
-    view.matrix = this.deserializeValue(data.matrix, this.defaultOptions);
-    view.viewport = data.viewport;
-    view.controlPoints = data.controlPoints;
-    view.boundingBox = data.boundingBox;
-
-    // 反序列化生命周期回调函数
-    if (data.lifecycleCallbacks) {
-      Object.keys(data.lifecycleCallbacks).forEach((callbackName) => {
-        try {
-          const callbackString = data.lifecycleCallbacks[callbackName];
-          if (typeof callbackString === "string") {
-            const callback = new Function("return " + callbackString)();
-            switch (callbackName) {
-              case "onCreate":
-                view.onCreate = callback;
-                break;
-              case "onAttach":
-                view.onAttach = callback;
-                break;
-              case "onDestroy":
-                view.onDestroy = callback;
-                break;
+        // 普通对象 — 浅遍历 entries
+        if (typeof value === 'object') {
+            if (options.handleCircularRefs) {
+                this.circularRefs.set(value, `ref_${++this.refCounter}`)
             }
-          }
-        } catch (error) {
-          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
-        }
-      });
-    }
 
-    return view;
-  }
-
-  /**
-   * 序列化VideoView对象
-   */
-  private serializeVideoView(view: VideoView): any {
-    const result: any = {
-      id: view.id,
-      type: view.type,
-      layer: view.layer,
-      properties: this.serializeValue(view.properties, this.defaultOptions, 0),
-      data: this.serializeValue(view.data, this.defaultOptions, 0),
-      style: this.serializeValue(view.style, this.defaultOptions, 0),
-      selected: view.selected,
-      actived: view.actived,
-      freezed: view.freezed,
-      visible: view.visible,
-      matrix: this.serializeValue(view.matrix, this.defaultOptions, 0),
-      viewport: view.viewport,
-      controlPoints: view.controlPoints,
-      boundingBox: view.boundingBox,
-      content: this.serializeValue(view.content, this.defaultOptions, 0),
-    };
-
-    // 序列化生命周期回调函数
-    const lifecycleCallbacks: any = {};
-    if (view.onCreate) {
-      lifecycleCallbacks.onCreate = view.onCreate.toString();
-    }
-    if (view.onAttach) {
-      lifecycleCallbacks.onAttach = view.onAttach.toString();
-    }
-    if (view.onDestroy) {
-      lifecycleCallbacks.onDestroy = view.onDestroy.toString();
-    }
-
-    if (Object.keys(lifecycleCallbacks).length > 0) {
-      result.lifecycleCallbacks = lifecycleCallbacks;
-    }
-
-    return result;
-  }
-
-  /**
-   * 反序列化VideoView对象
-   */
-  private deserializeVideoView(data: any): VideoView {
-    const content = this.deserializeValue(data.content, this.defaultOptions);
-    const view = new VideoView(content);
-
-    // 设置基本属性
-    view.id = data.id;
-    view.layer = data.layer;
-    view.properties = this.deserializeValue(data.properties, this.defaultOptions);
-    view.data = this.deserializeValue(data.data, this.defaultOptions);
-    view.style = this.deserializeValue(data.style, this.defaultOptions);
-    view.selected = data.selected;
-    view.actived = data.actived;
-    view.freezed = data.freezed;
-    view.visible = data.visible;
-    view.matrix = this.deserializeValue(data.matrix, this.defaultOptions);
-    view.viewport = data.viewport;
-    view.controlPoints = data.controlPoints;
-    view.boundingBox = data.boundingBox;
-
-    // 反序列化生命周期回调函数
-    if (data.lifecycleCallbacks) {
-      Object.keys(data.lifecycleCallbacks).forEach((callbackName) => {
-        try {
-          const callbackString = data.lifecycleCallbacks[callbackName];
-          if (typeof callbackString === "string") {
-            const callback = new Function("return " + callbackString)();
-            switch (callbackName) {
-              case "onCreate":
-                view.onCreate = callback;
-                break;
-              case "onAttach":
-                view.onAttach = callback;
-                break;
-              case "onDestroy":
-                view.onDestroy = callback;
-                break;
+            const result: any = {}
+            for (const [key, val] of Object.entries(value)) {
+                if (!options.includePrivate && key.startsWith('_')) {
+                    continue
+                }
+                const serializedVal = this.serializeValue(
+                    val,
+                    options,
+                    depth + 1
+                )
+                if (serializedVal !== undefined) {
+                    result[key] = serializedVal
+                }
             }
-          }
-        } catch (error) {
-          console.warn(`Failed to deserialize lifecycle callback ${callbackName}:`, error);
+            return result
         }
-      });
+
+        return value
     }
 
-    return view;
-  }
+    /**
+     * 反序列化值（递归核心）
+     */
+    private deserializeValue(value: any, options: SerializerOptions): any {
+        if (value === null || value === undefined) {
+            return value
+        }
+
+        // 循环引用占位
+        if (value.$ref) {
+            return value
+        }
+
+        // $type/$value 包装
+        if (value.$type) {
+            if (value.$type === 'Date') {
+                return new Date(value.$value)
+            }
+
+            const typeInfo = this.typeRegistry.get(value.$type)
+            if (typeInfo && typeInfo.deserializer) {
+                return typeInfo.deserializer(value.$value)
+            }
+            // 未注册的 $type 原样返回 $value
+            return value.$value
+        }
+
+        // 数组
+        if (Array.isArray(value)) {
+            return value.map((item) => this.deserializeValue(item, options))
+        }
+
+        // 对象 — 递归属性
+        if (typeof value === 'object') {
+            const result: any = {}
+            for (const [key, val] of Object.entries(value)) {
+                result[key] = this.deserializeValue(val, options)
+            }
+            return result
+        }
+
+        return value
+    }
+
+    /**
+     * 获取对象类型名
+     * 优先使用对象的 type 枚举属性（稳定标识），回退到 constructor.name
+     */
+    private getObjectType(obj: any): string {
+        if (obj === null || obj === undefined) return 'null'
+        if (typeof obj.type === 'string' && obj.type) return obj.type
+        if (obj.constructor && obj.constructor.name) return obj.constructor.name
+        return typeof obj
+    }
+
 }

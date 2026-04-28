@@ -2,13 +2,13 @@ import { GRAPHTYPE } from "@/core/constants";
 import MediaElement from "./MediaElement";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
-import type { IVideoElement } from '@/core/interfaces';
+import { IVideoElement, ISerializable } from '@/core/interfaces';
 
 /**
  * VideoElement 类 - 视频元素
  * 继承自 MediaElement，用于在画布中绘制视频
  */
-export default class VideoElement extends MediaElement implements IVideoElement {
+export default class VideoElement extends MediaElement implements IVideoElement, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.VIDEO;
 
   // 视频相关属性
@@ -265,6 +265,39 @@ export default class VideoElement extends MediaElement implements IVideoElement 
    */
   public isVideoElement(): boolean {
     return true;
+  }
+
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      id: this.id,
+      type: this.type,
+      src: this.src,
+      x: this.x,
+      y: this.y,
+      width: this.width,
+      height: this.height,
+      autoplay: this.autoplay,
+      loop: this.loop,
+      muted: this.muted,
+      style: this.style.toJSON(),
+    }
+  }
+
+  static fromJSON(data: any): VideoElement {
+    const el = new VideoElement(
+      data.src,
+      data.x,
+      data.y,
+      data.width,
+      data.height,
+      Style.fromJSON(data.style),
+    );
+    el.id = data.id;
+    el.autoplay = data.autoplay ?? false;
+    el.loop = data.loop ?? false;
+    el.muted = data.muted ?? false;
+    return el;
   }
 
 }

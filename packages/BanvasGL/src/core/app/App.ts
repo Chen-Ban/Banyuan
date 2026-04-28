@@ -1,7 +1,7 @@
 import Scene from '@/core/scene/Scene'
 import Serializer from '@/core/serializer'
 import Renderer from '@/core/renderer/Renderer'
-import type { IAppOptions, INavigationOptions, IRendererOptions } from '@/core/interfaces'
+import { IAppOptions, INavigationOptions, IRendererOptions } from '@/core/interfaces'
 
 export default class App {
     // 基本属性

@@ -84,6 +84,29 @@ export default class TextOptions {
     return new TextOptions(color, family, size, 0, FontStyle.NORMAL, FontWeight.NORMAL);
   }
 
+  // ── 序列化 ──
+  toJSON(): any {
+    return {
+      color: this.color.toJSON(),
+      family: this.family,
+      size: this.size,
+      letterSpacing: this.letterSpacing,
+      style: this.style,
+      weight: this.weight,
+    }
+  }
+
+  static fromJSON(data: any): TextOptions {
+    return new TextOptions(
+      Color.fromJSON(data.color),
+      data.family,
+      data.size,
+      data.letterSpacing,
+      data.style,
+      data.weight,
+    )
+  }
+
   /**
    * 预定义文字选项
    */

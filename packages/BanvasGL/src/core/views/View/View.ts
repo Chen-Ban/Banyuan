@@ -2,8 +2,7 @@ import { VIEWTYPE } from '@/core/constants'
 import Matrix4 from '@/core/math/Matrix4'
 import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
 import { v4 as uuidv4 } from 'uuid'
-import type { ISceneNode, IView, IViewStyle, IViewAddon, ExtraData } from '@/core/interfaces'
-import { Action, Cursor } from '@/core/interfaces'
+import { Action, Cursor, ISceneNode, IView, IViewStyle, IViewAddon, ExtraData, ISerializable, IGraph } from '@/core/interfaces'
 
 // 导入图形相关类型
 import { Graph, Line, Rectangle } from '@/core/graph'
@@ -40,14 +39,14 @@ const RESIZE_ORIGIN_MAP = [
 
 export interface InteractResult {
     view: IView | null
-    content: Graph | IViewAddon | null
+    content: IGraph | IViewAddon | null
     extraData: ExtraData | null
 }
 
 // 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
 export interface ViewOptions<T extends object = any> {
     id?: string
-    content?: Graph // 改为Graph，多图形用组合图形替代
+    content?: IGraph // 改为IGraph，多图形用组合图形替代
     children?: View[]
     parent?: ISceneNode | View
     data?: T
@@ -61,13 +60,13 @@ export interface ViewOptions<T extends object = any> {
 }
 
 // TODO：不同容器的默认样式表
-export default abstract class View<T extends object = any> implements IView {
+export default abstract class View<T extends object = any> implements IView, ISerializable {
     // 基本属性
     public layer: number = 0
     public id: string = ''
     public properties: T = {} as T
     public data: T = {} as T
-    public content: Graph | null
+    public content: IGraph | null
     public children: View[] = []
     public parent: ISceneNode | View | null = null
 
@@ -656,6 +655,34 @@ export default abstract class View<T extends object = any> implements IView {
             this.scrollBarVertical = new Rectangle(barX, barY, barWidth, barHeight)
         } else {
             this.scrollBarVertical = null
+        }
+    }
+
+    // ==================== 序列化 ====================
+
+    /**
+     * 将 View 实例序列化为纯数据对象。
+     * 子类如无额外持久化字段，可直接继承此方法。
+     */
+    public toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            layer: this.layer,
+            visible: this.visible,
+            freezed: this.freezed,
+            properties: this.properties,
+            data: this.data,
+            style: this.style,
+            matrix: this.matrix.toJSON(),
+            viewport: this.viewport.toJSON(),
+            content: this.content
+                ? { $type: (this.content as any).type, $value: (this.content as any).toJSON() }
+                : null,
+            children: this.children.map(child => ({
+                $type: child.type,
+                $value: child.toJSON(),
+            })),
         }
     }
 
