@@ -1,6 +1,6 @@
 import { GRAPHTYPE } from '@/core/constants'
 import Style from '@/core/style/Style'
-import { Point3, Vector3, Matrix4 } from '@/core/math'
+import { Point3, Vector3, Matrix4, GeometryUtils } from '@/core/math'
 import Graph from '@/core/graph/base/Graph'
 import Bounds from '@/core/graph/base/Bounds'
 import { isGraphType, isAnalyticGraph, isMediaElement, isCombinedGraph as isCombinedGraphGuard } from '@/core/interfaces'
@@ -44,7 +44,7 @@ export default class CombinedGraph extends Graph implements ICombinedGraph {
     public getCentroid(): Point3 {
         return this.graphs
             .map((g) => g.getCentroid())
-            .reduce((a, b) => Point3.midpoint(a, b))
+            .reduce((a, b) => GeometryUtils.midpoint(a, b))
     }
 
     public getLength(tStart: number, tEnd: number): number {

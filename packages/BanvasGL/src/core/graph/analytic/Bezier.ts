@@ -187,7 +187,7 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
   public transform(matrix: Matrix4): Graph {
     const centroid = this.getCentroid()
     for (const [i] of this.controlPoints.entries()) {
-      this.controlPoints[i] = matrix.multiply(this.controlPoints[i].add(Point3.orgin.subtract(centroid))).add(centroid.subtract(Point3.orgin));
+      this.controlPoints[i] = matrix.multiply(this.controlPoints[i].add(Point3.origin.subtract(centroid))).add(centroid.subtract(Point3.origin));
     }
     this.bounds = this.updateBounds()
     return this;
@@ -198,7 +198,7 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
     const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
     const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
 
-    for (const p of this.controlPoints) {
+    for (const [i, p] of this.controlPoints.entries()) {
       // 变化比例，TOFIX： 缩放比例应该和坐标无关（需要将referenceVector拆分成两个点，这样甚至不用判断，直接取固定点）
       const scaleX = Math.abs(p.x - fixedPoint.x) / width;
       const scaleY = Math.abs(p.y - fixedPoint.y) / height;
@@ -207,7 +207,7 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
       const dx = resizeVector.x * scaleX;
       const dy = resizeVector.y * scaleY;
 
-      p.add(new Vector3(dx, dy, 0))
+      this.controlPoints[i] = p.add(new Vector3(dx, dy, 0))
     }
 
     this.bounds = this.updateBounds()

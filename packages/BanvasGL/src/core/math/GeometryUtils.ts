@@ -1,52 +1,14 @@
 import MathUtils from "./MathUtils";
-import Vector3 from "./Vector3";
+import Point3 from "./Point3";
 
-export default class Point3 {
-  private transform: Float32Array;
-  constructor(x: number, y: number, z: number) {
-    this.transform = new Float32Array(3);
-    this.transform[0] = x;
-    this.transform[1] = y;
-    this.transform[2] = z;
-  }
-  get x(): number {
-    return this.transform[0];
-  }
-  get y(): number {
-    return this.transform[1];
-  }
-  get z(): number {
-    return this.transform[2];
-  }
-  static get origin() {
-    return new Point3(0, 0, 0)
-  }
-  /** @deprecated Use Point3.origin instead */
-  static get orgin() {
-    return Point3.origin
-  }
-  add(v: Vector3): Point3 {
-    return new Point3(this.x + v.x, this.y + v.y, this.z + v.z);
-  }
-  subtract(p: Point3): Vector3 {
-    return new Vector3(this.x - p.x, this.y - p.y, this.z - p.z);
-  }
-  copy(): Point3 {
-    return new Point3(this.x, this.y, this.z);
-  }
-  toString(): string {
-    return `(${this.x},${this.y},${this.z})`;
-  }
-  distance(p: Point3): number {
-    const dx = p.x - this.x;
-    const dy = p.y - this.y;
-    const dz = p.z - this.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
-  }
-  isSame(p: Point3): boolean {
-    return MathUtils.isEqual(this.x, p.x) && MathUtils.isEqual(this.y, p.y) && MathUtils.isEqual(this.z, p.z);
-  }
-  /** @deprecated Use GeometryUtils.midpoint instead */
+/**
+ * 几何工具类
+ * 提供常用的几何计算方法：中点、点线距离、直线/线段交点等
+ */
+export default class GeometryUtils {
+  /**
+   * 计算两点的中点
+   */
   public static midpoint(p1: Point3, p2: Point3): Point3 {
     return new Point3(
       (p1.x + p2.x) / 2,
@@ -54,7 +16,10 @@ export default class Point3 {
       (p1.z + p2.z) / 2
     );
   }
-  /** @deprecated Use GeometryUtils.distancePointToLine instead */
+
+  /**
+   * 计算点到直线的距离
+   */
   public static distancePointToLine(point: Point3, lineStart: Point3, lineEnd: Point3): number {
     const lineVector = lineEnd.subtract(lineStart);
     const pointVector = point.subtract(lineStart);
@@ -74,7 +39,11 @@ export default class Point3 {
     return point.distance(projection);
   }
 
-  /** @deprecated Use GeometryUtils.distancePointToLineSegment instead */
+  /**
+   * 计算点到线段的距离
+   * @param restraint 为 true 时将 t 限制在 [0,1]（始终返回有限距离），
+   *                  为 false 时若投影落在线段外则返回 Infinity
+   */
   public static distancePointToLineSegment(
     point: Point3,
     lineStart: Point3,
@@ -103,7 +72,9 @@ export default class Point3 {
     return point.distance(projection);
   }
 
-  /** @deprecated Use GeometryUtils.lineIntersection instead */
+  /**
+   * 计算两条直线的交点
+   */
   public static lineIntersection(
     line1Start: Point3,
     line1End: Point3,
@@ -126,12 +97,14 @@ export default class Point3 {
     }
 
     const t1 = (d1d2 * wd2 - d2d2 * wd1) / denominator;
-    const t2 = (d1d1 * wd2 - d1d2 * wd1) / denominator;
 
     return new Point3(line1Start.x + t1 * d1.x, line1Start.y + t1 * d1.y, line1Start.z + t1 * d1.z);
   }
 
-  /** @deprecated Use GeometryUtils.lineSegmentIntersection instead */
+  /**
+   * 计算两条线段的交点
+   * 利用 lineIntersection 的计算逻辑，但检查交点是否在两个线段上
+   */
   public static lineSegmentIntersection(
     seg1Start: Point3,
     seg1End: Point3,
@@ -162,13 +135,5 @@ export default class Point3 {
     }
 
     return null; // 交点不在线段上
-  }
-  static fromArray(points: Float32Array): Point3[] {
-    const res = []
-    const len = points.length
-    for (let i = 0; i + 2 < len; i += 3) {
-      res.push(new Point3(points[i], points[i + 1], points[i + 2]))
-    }
-    return res
   }
 }

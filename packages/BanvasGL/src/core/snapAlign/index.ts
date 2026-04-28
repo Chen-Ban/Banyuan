@@ -1,5 +1,5 @@
 import { Line } from '@/core/graph'
-import { Point3, Vector3, MathUtils } from '@/core/math'
+import { Point3, Vector3, MathUtils, GeometryUtils } from '@/core/math'
 import { View } from '@/core/views'
 
 /**
@@ -131,7 +131,7 @@ class SnapAlignManager {
         // 2. 点对线吸附
         for (const sourcePoint of sourcePoints) {
             for (const targetLine of targetLines) {
-                const distance = Point3.distancePointToLineSegment(
+                const distance = GeometryUtils.distancePointToLineSegment(
                     sourcePoint,
                     targetLine.startPoint,
                     targetLine.endPoint
@@ -150,7 +150,7 @@ class SnapAlignManager {
         // 3. 线对点吸附
         for (const sourceLine of sourceLines) {
             for (const targetPoint of targetPoints) {
-                const distance = Point3.distancePointToLineSegment(
+                const distance = GeometryUtils.distancePointToLineSegment(
                     targetPoint,
                     sourceLine.startPoint,
                     sourceLine.endPoint
@@ -209,7 +209,7 @@ class SnapAlignManager {
         // 如果叉积长度接近0，说明两条线平行
         if (MathUtils.isZero(crossLength)) {
             // 平行线，计算点到线的距离
-            return Point3.distancePointToLineSegment(
+            return GeometryUtils.distancePointToLineSegment(
                 line1.startPoint,
                 line2.startPoint,
                 line2.endPoint

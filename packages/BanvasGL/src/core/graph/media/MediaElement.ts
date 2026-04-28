@@ -353,7 +353,7 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
         const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity
         const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity
 
-        for (const p of this.controlPoints) {
+        for (const [i, p] of this.controlPoints.entries()) {
             // 变化比例
             const scaleX = Math.abs(p.x - fixedPoint.x) / width
             const scaleY = Math.abs(p.y - fixedPoint.y) / height
@@ -362,7 +362,7 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
             const dx = resizeVector.x * scaleX
             const dy = resizeVector.y * scaleY
 
-            p.add(new Vector3(dx, dy, 0))
+            this.controlPoints[i] = p.add(new Vector3(dx, dy, 0))
         }
         const referenceVector = dynamicPoint.subtract(fixedPoint)
         this.bounds = this.updateBounds(

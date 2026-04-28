@@ -1,4 +1,4 @@
-import { Point3 } from "@/core/math";
+import { Point3, GeometryUtils } from "@/core/math";
 import MathUtils from "@/core/math/MathUtils";
 import { GRAPHTYPE } from "@/core/constants";
 import type { IAnalyticGraph, ILine, IArc, ICircle, IQuadraticBezier, ICubicBezier } from "@/core/interfaces";
@@ -257,7 +257,7 @@ function numericalIntersection(
  * 线-线相交
  */
 function lineLineIntersect(a: ILine, b: ILine): Point3[] {
-  const intersection = Point3.lineSegmentIntersection(a.startPoint, a.endPoint, b.startPoint, b.endPoint);
+  const intersection = GeometryUtils.lineSegmentIntersection(a.startPoint, a.endPoint, b.startPoint, b.endPoint);
   return intersection ? [intersection] : [];
 }
 

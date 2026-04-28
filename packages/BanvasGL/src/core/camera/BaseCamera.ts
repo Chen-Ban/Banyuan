@@ -70,7 +70,7 @@ export default class BaseCamera {
     }
 
     translate(x: number, y: number, z: number): this {
-        this._position.add(new Vector3(x, y, z))
+        this._position = this._position.add(new Vector3(x, y, z))
         this._dirty = true
         return this
     }
@@ -142,7 +142,7 @@ export default class BaseCamera {
     // 相机移动方法
     moveForward(distance: number): this {
         const direction = this.getDirection()
-        this._position.add(new Vector3(
+        this._position = this._position.add(new Vector3(
             direction.x * distance,
             direction.y * distance,
             direction.z * distance
@@ -157,7 +157,7 @@ export default class BaseCamera {
 
     moveRight(distance: number): this {
         const right = this.getRight()
-        this._position.add(new Vector3(
+        this._position = this._position.add(new Vector3(
             right.x * distance,
             right.y * distance,
             right.z * distance
@@ -171,7 +171,7 @@ export default class BaseCamera {
     }
 
     moveUp(distance: number): this {
-        this._position.add(new Vector3(
+        this._position = this._position.add(new Vector3(
             this._up.x * distance,
             this._up.y * distance,
             this._up.z * distance

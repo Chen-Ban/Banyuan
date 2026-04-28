@@ -38,7 +38,7 @@ export default class TextFields extends Graph implements ITextFields {
         this.paragraphs = paragraphs
         this.controlPoints = []
         this.bounds = Bounds.empty()
-        this.transfromOrigin = Point3.orgin
+        this.transfromOrigin = Point3.origin
     }
 
     /**
@@ -373,7 +373,7 @@ export default class TextFields extends Graph implements ITextFields {
 
         // 调整段落内所有TextElement的位置
         for (const textElement of paragraph.texts) {
-            textElement.controlPoints[0].add(offsetVector)
+            textElement.controlPoints[0] = textElement.controlPoints[0].add(offsetVector)
             textElement.applyLayout(
                 textElement.controlPoints[0],
                 textElement.lineHeight
@@ -409,7 +409,7 @@ export default class TextFields extends Graph implements ITextFields {
 
         if (offsetY === 0) return
 
-        const offsetVector = new Vector3(0, offsetY, 0)
+        let offsetVector = new Vector3(0, offsetY, 0)
         // 调整所有段落内文字元素的位置
         for (const paragraph of paragraphs) {
             for (const textElement of paragraph.texts) {
@@ -418,7 +418,7 @@ export default class TextFields extends Graph implements ITextFields {
                     textElement.lineHeight
                 )
             }
-            offsetVector.add(new Vector3(0, paragraph.bounds.height, 0))
+            offsetVector = offsetVector.add(new Vector3(0, paragraph.bounds.height, 0))
         }
     }
 

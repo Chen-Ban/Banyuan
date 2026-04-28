@@ -44,7 +44,7 @@ export default class TextParagraph extends Graph implements ITextParagraph {
         // 初始化时不设置控制点和包围盒，等待布局时设置
         this.controlPoints = []
         this.bounds = Bounds.empty()
-        this.transfromOrigin = Point3.orgin
+        this.transfromOrigin = Point3.origin
     }
 
     get length(): number {
