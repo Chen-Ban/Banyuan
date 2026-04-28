@@ -118,3 +118,25 @@ dist_electron/
 
 # Local development
 .local
+
+# AI tools config (may contain appkey/secrets)
+.cursor/
+.cursorignore
+.cursorrules
+.catpaw/
+.copilot/
+.github/copilot-*
+.augment*
+.cline/
+.aider*
+.continue/
+*.mdc
+
+# Legacy root files (migrated to packages/)
+/src/
+/public/
+/desktop/
+/__test__/
+/.husky/
+/coverage/
+/package-lock.json
