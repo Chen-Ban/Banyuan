@@ -140,3 +140,16 @@ dist_electron/
 /.husky/
 /coverage/
 /package-lock.json
+/.eslintrc.cjs
+/.prettierrc
+/.prettierignore
+/LICENSE
+/TODO.md
+/README.md
+/babel.config.ts
+/commitlint.config.cjs
+/jest.config.ts
+/vite.config.ts
+/tsconfig.json
+/tsconfig.node.json
+/index.html
