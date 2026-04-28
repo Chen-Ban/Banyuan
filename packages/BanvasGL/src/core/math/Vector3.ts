@@ -20,31 +20,20 @@ export default class Vector3 {
   }
   get normalized(): Vector3 {
     const length = this.length;
+    if (length === 0) return new Vector3(0, 0, 0);
     return new Vector3(this.x / length, this.y / length, this.z / length);
   }
   add(v: Vector3): Vector3 {
-    this.transform[0] += v.x;
-    this.transform[1] += v.y;
-    this.transform[2] += v.z;
-    return this;
+    return new Vector3(this.x + v.x, this.y + v.y, this.z + v.z);
   }
   scale(s: number): Vector3 {
-    this.transform[0] *= s;
-    this.transform[1] *= s;
-    this.transform[2] *= s;
-    return this;
+    return new Vector3(this.x * s, this.y * s, this.z * s);
   }
   subtract(v: Vector3): Vector3 {
-    this.transform[0] -= v.x;
-    this.transform[1] -= v.y;
-    this.transform[2] -= v.z;
-    return this;
+    return new Vector3(this.x - v.x, this.y - v.y, this.z - v.z);
   }
   inverse(): Vector3 {
-    this.transform[0] = -this.x;
-    this.transform[1] = -this.y;
-    this.transform[2] = -this.z;
-    return this;
+    return new Vector3(-this.x, -this.y, -this.z);
   }
   dot(v: Vector3): number {
     return this.x * v.x + this.y * v.y + this.z * v.z;
@@ -56,6 +45,6 @@ export default class Vector3 {
     return new Vector3(this.x, this.y, this.z);
   }
   toString(): string {
-    return `(${this.x},${this.y})`;
+    return `(${this.x},${this.y},${this.z})`;
   }
 }

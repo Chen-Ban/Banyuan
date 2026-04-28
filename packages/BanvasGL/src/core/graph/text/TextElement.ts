@@ -36,7 +36,7 @@ export default abstract class TextElement extends Graph implements ITextElement 
         this._style = style
         this.controlPoints = []
         this.bounds = Bounds.empty()
-        this.transfromOrigin = Point3.orgin
+        this.transfromOrigin = Point3.origin
     }
 
     /**
@@ -66,25 +66,21 @@ export default abstract class TextElement extends Graph implements ITextElement 
             )
             const points = [
                 startPoint,
-                startPoint
-                    .copy()
-                    .add(
-                        new Vector3(
-                            this.width + this.options.letterSpacing,
-                            0,
-                            0
-                        )
-                    ),
-                startPoint
-                    .copy()
-                    .add(
-                        new Vector3(
-                            this.width + this.options.letterSpacing,
-                            this.lineHeight,
-                            0
-                        )
-                    ),
-                startPoint.copy().add(new Vector3(0, this.lineHeight, 0)),
+                startPoint.add(
+                    new Vector3(
+                        this.width + this.options.letterSpacing,
+                        0,
+                        0
+                    )
+                ),
+                startPoint.add(
+                    new Vector3(
+                        this.width + this.options.letterSpacing,
+                        this.lineHeight,
+                        0
+                    )
+                ),
+                startPoint.add(new Vector3(0, this.lineHeight, 0)),
             ]
             return Bounds.fromPoints(
                 points,
@@ -372,9 +368,9 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
         // 计算包围盒并设置正确的controlPoints
         this.bounds = this.updateBounds()
         // 将变换原点放到左上角
-        this.transfromOrigin = position
-            .copy()
-            .add(new Vector3(0, this.height - lineHeight, 0))
+        this.transfromOrigin = position.add(
+            new Vector3(0, this.height - lineHeight, 0)
+        )
         return this
     }
 
@@ -488,7 +484,7 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
         this.isLayouted = true
         //由于height为0，计算时y值在包围盒左下角，将它移动到左上角
         this.controlPoints = [
-            position.copy().add(new Vector3(0, -lineHeight, 0)),
+            position.add(new Vector3(0, -lineHeight, 0)),
         ]
         // 高度和行高保持一致，此时控制点在包围盒左上角
         this.height = lineHeight

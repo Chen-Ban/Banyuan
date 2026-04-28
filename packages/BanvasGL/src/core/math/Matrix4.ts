@@ -35,14 +35,17 @@ export default class Matrix4 {
     return new Matrix4(new Float32Array(this.data));
   }
 
-  // 矩阵乘法
-  multiply<T extends Matrix4 | Point3 | Vector3>(factor: T): T {
+  // 矩阵乘法（函数重载）
+  multiply(factor: Matrix4): Matrix4;
+  multiply(factor: Point3): Point3;
+  multiply(factor: Vector3): Vector3;
+  multiply(factor: Matrix4 | Point3 | Vector3): Matrix4 | Point3 | Vector3 {
     if (factor instanceof Matrix4) {
-      return this.multiplyMatrix(factor) as T;
+      return this.multiplyMatrix(factor);
     } else if (factor instanceof Point3) {
-      return this.multiplyPoint(factor) as T;
+      return this.multiplyPoint(factor);
     } else if (factor instanceof Vector3) {
-      return this.multiplyVector(factor) as T;
+      return this.multiplyVector(factor);
     }
     throw new Error("Invalid factor type");
   }
@@ -169,7 +172,7 @@ export default class Matrix4 {
 
   // 计算行列式
   get determinant(): number {
-    const m = this.transform;
+    const m = this.data;
     return (
       m[0] *
         (m[5] * (m[10] * m[15] - m[11] * m[14]) -

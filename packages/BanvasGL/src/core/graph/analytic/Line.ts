@@ -170,8 +170,8 @@ export default class Line extends AnalyticGraph implements ILine {
    */
   public transform(matrix: Matrix4): AnalyticGraph {
     const transfromOrigin = this.transfromOrigin
-    const transformedStart = matrix.multiply(this.startPoint.add(Point3.orgin.subtract(transfromOrigin))).add(transfromOrigin.subtract(Point3.orgin));
-    const transformedEnd = matrix.multiply(this.endPoint.add(Point3.orgin.subtract(transfromOrigin))).add(transfromOrigin.subtract(Point3.orgin));
+    const transformedStart = matrix.multiply(this.startPoint.add(Point3.origin.subtract(transfromOrigin))).add(transfromOrigin.subtract(Point3.origin));
+    const transformedEnd = matrix.multiply(this.endPoint.add(Point3.origin.subtract(transfromOrigin))).add(transfromOrigin.subtract(Point3.origin));
     this.controlPoints[0] = transformedStart;
     this.controlPoints[1] = transformedEnd;
     this.bounds = this.updateBounds()

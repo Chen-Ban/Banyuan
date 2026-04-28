@@ -311,7 +311,7 @@ export default class Arc extends AnalyticGraph implements IArc {
 
   public transform(matrix: Matrix4): AnalyticGraph {
     const transfromOrigin = this.transfromOrigin
-    const newCenter = matrix.multiply(Point3.orgin).add(transfromOrigin.subtract(Point3.orgin));
+    const newCenter = matrix.multiply(Point3.origin).add(transfromOrigin.subtract(Point3.origin));
 
     this.center = newCenter;
     const up = new Vector3(0, 1, 0)

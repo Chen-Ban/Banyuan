@@ -60,8 +60,8 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
             new Point3(0, center.y, 0)
         ).normalized
         const startPoint = new Point3(center.x, 0, 0)
-        const endPoint = startPoint.copy().add(up.copy().scale(15))
-        const circleCenter = startPoint.copy().add(up.copy().scale(20))
+        const endPoint = startPoint.add(up.scale(15))
+        const circleCenter = startPoint.add(up.scale(20))
         const line = new Line(
             startPoint,
             endPoint,
