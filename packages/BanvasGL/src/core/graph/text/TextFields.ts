@@ -1,0 +1,881 @@
+import { GRAPHTYPE, HORIZONTALALIGN, VERTICALALIGN } from '@/core/constants'
+import Graph from '@/core/graph/base/Graph'
+import { Point3, Vector3, Matrix4 } from '@/core/math'
+import { Style } from '@/core/style'
+import TextParagraph from './TextParagraph'
+import TextFieldsOptions from './TextFieldsOptions'
+import Bounds from '@/core/graph/base/Bounds'
+import { Rectangle } from '@/core/graph/combined'
+import TextElement, { isNonPrintableTextElement } from './TextElement'
+import TextOptions from './TextOptions'
+import { ITextFields, ISerializable } from '@/core/interfaces'
+
+//文本选区三元组： 段落号，字序号，字前｜字后
+export type TextIndex = [number, number, 0 | 1]
+
+/**
+ * 文本域类
+ * 表示一个文本域，包含多个段落
+ * 是文本内容的最外层容器
+ */
+export default class TextFields extends Graph implements ITextFields, ISerializable {
+    public type: GRAPHTYPE = GRAPHTYPE.TEXTFIELDS
+    public controlPoints: Point3[]
+    public style: Style
+    public options: TextFieldsOptions
+    public paragraphs: TextParagraph[]
+    public bounds: Bounds
+    public transfromOrigin: Point3
+
+    constructor(
+        paragraphs: TextParagraph[] = [],
+        options: TextFieldsOptions = TextFieldsOptions.DEFAULT,
+        style: Style = Style.DEFAULT
+    ) {
+        super()
+        this.options = options
+        this.style = style
+        this.paragraphs = paragraphs
+        this.controlPoints = []
+        this.bounds = Bounds.empty()
+        this.transfromOrigin = Point3.origin
+    }
+
+    /**
+     * 获取段落数量
+     */
+    get paragraphCount(): number {
+        return this.paragraphs.length
+    }
+
+    /**
+     * 获取所有文本内容
+     */
+    get textContent(): string[] {
+        return this.paragraphs.map((paragraph) =>
+            paragraph.texts.map((text) => text.content).join('')
+        )
+    }
+
+    /**
+     * 添加段落
+     */
+    addParagraph(paragraph: TextParagraph): TextFields {
+        this.paragraphs.push(paragraph)
+        return this
+    }
+
+    /**
+     * 在指定位置插入段落
+     */
+    insertParagraph(index: number, paragraph: TextParagraph): TextFields {
+        this.paragraphs.splice(index, 0, paragraph)
+        return this
+    }
+
+    /**
+     * 移除段落
+     */
+    removeParagraph(paragraph: TextParagraph): TextFields {
+        const index = this.paragraphs.indexOf(paragraph)
+        if (index > -1) {
+            this.paragraphs.splice(index, 1)
+        }
+        return this
+    }
+
+    /**
+     * 根据索引移除段落
+     */
+    removeParagraphAt(index: number): TextFields {
+        if (index >= 0 && index < this.paragraphs.length) {
+            this.paragraphs.splice(index, 1)
+        }
+        return this
+    }
+
+    /**
+     * 清空所有段落
+     */
+    clearParagraphs(): TextFields {
+        this.paragraphs = []
+        return this
+    }
+
+    /**
+     * 获取指定索引的段落
+     */
+    getParagraph(index: number): TextParagraph | undefined {
+        return this.paragraphs[index]
+    }
+
+    /**
+     * 根据文本索引获取文本选项
+     * @param textIndex 文本索引 [段落号, 字序号, 字前|字后]
+     * @returns 文本选项
+     */
+    getTextOptionsByIndex(textIndex: TextIndex): TextOptions {
+        const [paragraphIndex, textIndexInParagraph, position] = textIndex
+        const paragraph = this.paragraphs[paragraphIndex]
+
+        if (!paragraph) {
+            return TextOptions.DEFAULT
+        }
+
+        const insertIndex = textIndexInParagraph + position
+
+        if (insertIndex > 0 && paragraph.texts[insertIndex - 1]) {
+            // 使用前一个文本元素的选项
+            return paragraph.texts[insertIndex - 1].options.copy()
+        } else if (paragraph.texts.length > 0 && paragraph.texts[0]) {
+            // 使用第一个文本元素的选项
+            return paragraph.texts[0].options.copy()
+        } else {
+            // 使用默认选项
+            return TextOptions.DEFAULT
+        }
+    }
+
+    /**
+     * 更新包围盒
+     */
+    public updateBounds(): Bounds {
+        if (this.paragraphs.length === 0) {
+            return Bounds.empty()
+        }
+
+        const paragraphBounds = this.paragraphs.map((p) => p.bounds)
+        const contentBounds = Bounds.union(...paragraphBounds)
+
+        return contentBounds
+    }
+
+    /**
+     * 布局文本域
+     * 根据 constraintBounds（排版约束区域）进行文本布局
+     */
+    public layout(): TextFields {
+        const layoutArea = this.constraintBounds.copy()
+        // 如果没有固定宽度则选择最长段落宽度作为布局宽度，让所有段落能够一行展示
+        if (!this.options.fixedWidth) {
+            const widths = this.paragraphs.map(
+                (paragraph, i) =>
+                    paragraph.texts.reduce(
+                        (a, b) => a + b.width + b.options.letterSpacing,
+                        0
+                    ) +
+                    paragraph.options.preWidth + // 段前宽度
+                    (i === 0 ? this.calculateIndentationWidth(paragraph) : 0) // 第一行需要加上缩进
+            )
+            const maxWidth = Math.max(...widths)
+            layoutArea.width = Math.sign(layoutArea.width) * maxWidth
+        }
+        // 执行深度优先布局
+        this.layoutParagraphs(this.paragraphs, Rectangle.fromBounds(layoutArea))
+        this.bounds = this.updateBounds()
+        return this
+    }
+
+    private layoutParagraphs(
+        paragraphs: TextParagraph[],
+        layoutArea: Rectangle
+    ): void {
+        // 从layoutArea左上角开始布局
+        let currentY = layoutArea.getTopLeft().y
+
+        // 遍历所有段落进行布局
+        for (const paragraph of paragraphs) {
+            this.layoutParagraph(
+                paragraph,
+                layoutArea.getTopLeft().x,
+                currentY,
+                layoutArea.width
+            )
+            const paragraphBounds = paragraph.bounds
+            currentY += paragraphBounds.height
+        }
+
+        this.adjustParagraphVerticalAlignment(paragraphs, layoutArea)
+    }
+
+    /**
+     * 布局TextParagraph - 处理单个段落
+     */
+    private layoutParagraph(
+        paragraph: TextParagraph,
+        startX: number,
+        startY: number,
+        maxWidth: number
+    ): void {
+        // 计算基于首字符宽度的缩进
+        const indentationWidth = this.calculateIndentationWidth(paragraph)
+
+        // 考虑段落的前宽度，但不在这里加缩进(因为只有第一行有缩进)
+        const actualStartX = startX + paragraph.options.preWidth
+        const actualMaxWidth = maxWidth - paragraph.options.preWidth
+
+        const actualStartY = startY + paragraph.options.preHeight
+
+        // 布局段落内的所有TextElement，传递缩进信息
+        this.layoutTextElementsInParagraph(
+            paragraph,
+            actualStartX,
+            actualStartY,
+            actualMaxWidth,
+            indentationWidth
+        )
+
+        // 设置段落的布局状态（先设置位置，再调整对齐）
+        paragraph.applyLayout(new Point3(startX, startY, 0))
+
+        // 根据段落的水平对齐方式调整段落内元素位置
+        this.adjustParagraphHorizontalAlignment(paragraph, maxWidth)
+    }
+
+    /**
+     * 布局段落内的TextElement - 处理换行和字符间距
+     */
+    private layoutTextElementsInParagraph(
+        paragraph: TextParagraph,
+        startX: number,
+        startY: number,
+        maxWidth: number,
+        indentationWidth: number = 0
+    ): void {
+        // 第一步：根据字体宽度进行分行
+        const lines = this.breakTextIntoLines(
+            paragraph,
+            startX,
+            maxWidth,
+            indentationWidth
+        )
+        // 第二步：计算每行的行高和位置
+        let currentY = startY
+
+        const lineHeight = Math.max(
+            ...lines.map((line) =>
+                this.calculateLineHeight(line, paragraph.options.leading)
+            )
+        )
+
+        for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+            const line = lines[lineIndex]
+
+            let currentX = line.startX
+
+            for (const textElement of line.elements) {
+                const position = new Point3(
+                    currentX,
+                    currentY + lineHeight - textElement.height,
+                    0
+                )
+                textElement.applyLayout(position, lineHeight)
+
+                // 更新X位置
+                currentX +=
+                    textElement.width + textElement.options.letterSpacing
+            }
+
+            // 更新Y位置到下一行
+            currentY += lineHeight
+        }
+    }
+
+    /**
+     * 将文本元素分行
+     */
+    private breakTextIntoLines(
+        paragraph: TextParagraph,
+        startX: number,
+        maxWidth: number,
+        indentationWidth: number = 0
+    ): Array<{ elements: TextElement[]; startX: number }> {
+        const lines: Array<{ elements: TextElement[]; startX: number }> = []
+
+        // 边界条件：空段落
+        if (paragraph.texts.length === 0) {
+            return lines
+        }
+
+        let currentLine: TextElement[] = []
+        let currentX = startX + indentationWidth // 第一行加上缩进
+        let isFirstLine = true
+
+        for (const textElement of paragraph.texts) {
+            const actualWidth = textElement.width
+
+            // 边界条件：单个文字宽度超过布局区域
+            // 如果当前行是空的，但文字宽度超过可用空间，仍然要添加这个文字
+            if (currentLine.length === 0) {
+                // 当前行为空，直接添加文字（即使超出边界）
+                currentLine.push(textElement)
+                currentX += actualWidth + textElement.options.letterSpacing
+            } else {
+                // 当前行不为空，检查是否需要换行
+                if (currentX + actualWidth > startX + maxWidth) {
+                    // 保存当前行
+                    lines.push({
+                        elements: currentLine,
+                        startX: isFirstLine
+                            ? startX + indentationWidth
+                            : startX,
+                    })
+
+                    // 开始新行
+                    currentLine = [textElement]
+                    currentX =
+                        startX + actualWidth + textElement.options.letterSpacing
+                    isFirstLine = false
+                } else {
+                    // 添加到当前行
+                    currentLine.push(textElement)
+                    currentX += actualWidth + textElement.options.letterSpacing
+                }
+            }
+        }
+
+        // 添加最后一行
+        if (currentLine.length > 0) {
+            lines.push({
+                elements: currentLine,
+                startX: isFirstLine ? startX + indentationWidth : startX,
+            })
+        }
+
+        return lines
+    }
+
+    /**
+     * 调整段落的水平对齐
+     */
+    private adjustParagraphHorizontalAlignment(
+        paragraph: TextParagraph,
+        maxWidth: number
+    ): void {
+        const paragraphBounds = paragraph.bounds
+        if (!paragraphBounds) return
+
+        let offsetX = 0
+
+        switch (paragraph.options.horizontalAlign) {
+            case HORIZONTALALIGN.CENTER:
+                offsetX = (maxWidth - paragraphBounds.width) / 2
+                break
+            case HORIZONTALALIGN.RIGHT:
+                offsetX = maxWidth - paragraphBounds.width
+                break
+            case HORIZONTALALIGN.LEFT:
+            default:
+                offsetX = 0
+                break
+        }
+        const offsetVector = new Vector3(offsetX, 0, 0)
+
+        // 调整段落内所有TextElement的位置
+        for (const textElement of paragraph.texts) {
+            textElement.controlPoints[0] = textElement.controlPoints[0].add(offsetVector)
+            textElement.applyLayout(
+                textElement.controlPoints[0],
+                textElement.lineHeight
+            )
+        }
+    }
+
+    /**
+     * 调整Texts的垂直对齐
+     */
+    private adjustParagraphVerticalAlignment(
+        paragraphs: TextParagraph[],
+        layoutArea: Rectangle
+    ): void {
+        const textsBounds = Bounds.union(
+            ...paragraphs.map((paragraph) => paragraph.bounds)
+        )
+        if (!textsBounds) return
+
+        let offsetY = 0
+        switch (this.options.verticalAlign) {
+            case VERTICALALIGN.MIDDLE:
+                offsetY = (layoutArea.height - textsBounds.height) / 2
+                break
+            case VERTICALALIGN.BOTTOM:
+                offsetY = layoutArea.height - textsBounds.height
+                break
+            case VERTICALALIGN.TOP:
+            default:
+                offsetY = 0
+                break
+        }
+
+        if (offsetY === 0) return
+
+        let offsetVector = new Vector3(0, offsetY, 0)
+        // 调整所有段落内文字元素的位置
+        for (const paragraph of paragraphs) {
+            for (const textElement of paragraph.texts) {
+                textElement.applyLayout(
+                    textElement.controlPoints[0].add(offsetVector),
+                    textElement.lineHeight
+                )
+            }
+            offsetVector = offsetVector.add(new Vector3(0, paragraph.bounds.height, 0))
+        }
+    }
+
+    /**
+     * 计算行的行高
+     */
+    private calculateLineHeight(
+        line: { elements: TextElement[]; startX: number },
+        leading: number
+    ): number {
+        if (line.elements.length === 0) {
+            return 0
+        }
+
+        // 找到该行中最大的字体大小
+        const maxFontSize = Math.max(
+            ...line.elements.map((element) => element.options.size)
+        )
+
+        // 行高 = 字体大小 * leading
+        return maxFontSize * leading
+    }
+
+    /**
+     * 计算基于首字符宽度的缩进
+     */
+    private calculateIndentationWidth(paragraph: TextParagraph): number {
+        if (paragraph.texts.length === 0) {
+            return 0
+        }
+
+        // 获取首字符
+        const firstTextElement = paragraph.texts[0]
+
+        const firstCharWidth = firstTextElement.width
+
+        // 根据段落选项中的indentation值（作为倍数）计算实际缩进宽度
+        return firstCharWidth * paragraph.options.indentation
+    }
+
+    /**
+     * 根据点选中TextElement
+     * @param relativePoint 相对坐标
+     */
+    public point2TextElement(relativePoint: Point3): TextElement | null {
+        const hitedParagraph = this.paragraphs.find(
+            (paragraph: TextParagraph) =>
+                paragraph.isPointInPath(relativePoint) ||
+                paragraph.isPointOnCurve(relativePoint, 5)
+        )
+        if (hitedParagraph) {
+            // 准确命中某个文字
+            for (const t of hitedParagraph.texts) {
+                const tb = t.bounds
+                const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height)
+                const hitText = tRect.isPointInPath(relativePoint)
+                if (hitText) {
+                    return t
+                }
+            }
+            const hitedTextElement = this.probeTextElement(
+                hitedParagraph.texts,
+                relativePoint
+            )
+            return hitedTextElement
+        }
+
+        const layout = Rectangle.fromBounds(this.bounds)
+        // 未命中段落，命中布局区域
+        const hitedLayoutArea =
+            layout.isPointInPath(relativePoint) ||
+            layout.isPointOnCurve(relativePoint, 5)
+        if (hitedLayoutArea) {
+            return this.probeTextElement(
+                this.paragraphs.flatMap((paragraph) => paragraph.texts),
+                relativePoint
+            )
+        }
+        return null
+    }
+
+    /**
+     * 文本转换为TextIndex,p作为辅助判断是下一个还是当前
+     * @param textElement 文本元素
+     * @param relativePoint 相对坐标点
+     */
+    public element2Index(
+        textElement: TextElement,
+        relativePoint: Point3
+    ): TextIndex {
+        const bounds = textElement.bounds
+        for (const [i, p] of this.paragraphs.entries()) {
+            for (const [j, t] of p.texts.entries()) {
+                if (t === textElement) {
+                    const midPoint = new Point3(
+                        bounds.x + bounds.width / 2,
+                        bounds.y + bounds.height / 2,
+                        0
+                    )
+                    const index: TextIndex = [i, j, 0]
+                    if (relativePoint.x >= midPoint.x) {
+                        index[2] = 1
+                    }
+                    if (isNonPrintableTextElement(t)) {
+                        index[1] -= 1
+                    }
+                    return index
+                }
+            }
+        }
+        return [0, 0, 0]
+    }
+
+    /**
+     * 探测文本元素（优先级：左上、右下、左下、右上）
+     * @param textElements 需要探测的文本元素数组
+     * @param p 相对坐标点
+     * @returns 命中文本元素
+     */
+    private probeTextElement(
+        textElements: TextElement[],
+        p: Point3
+    ): TextElement {
+        const leftTop = textElements.filter((b) => {
+            const bounds = b.bounds
+            return bounds.x < p.x && bounds.y < p.y
+        })
+        const rightTop = textElements.filter((b) => {
+            const bounds = b.bounds
+            return (
+                bounds.x + bounds.width > p.x && bounds.y + bounds.height < p.y
+            )
+        })
+
+        const rightBottom = textElements.filter((b) => {
+            const bounds = b.bounds
+            return (
+                bounds.x + bounds.width > p.x && bounds.y + bounds.height > p.y
+            )
+        })
+        const leftBottom = textElements.filter((b) => {
+            const bounds = b.bounds
+            return bounds.x < p.x && bounds.y + bounds.height > p.y
+        })
+
+        // 找到leftBottom和rightTop中离relativePoint最近的textElement
+        const leftBottomDistance = leftBottom.map((b) => {
+            const center = Rectangle.fromBounds(b.bounds).getCenter()
+            return p.distance(new Point3(center.x, center.y, 0))
+        })
+        const rightTopDistance = rightTop.map((b) => {
+            const center = Rectangle.fromBounds(b.bounds).getCenter()
+            return p.distance(new Point3(center.x, center.y, 0))
+        })
+        const minLeftBottomDistance = Math.min(...leftBottomDistance)
+        const minRightTopDistance = Math.min(...rightTopDistance)
+        const minLeftBottomIndex = leftBottomDistance.indexOf(
+            minLeftBottomDistance
+        )
+        const minRightTopIndex = rightTopDistance.indexOf(minRightTopDistance)
+        // 优先级左上、右下、左下、右上
+        const hitedTextElement =
+            leftTop[leftTop.length - 1] ||
+            rightBottom[0] ||
+            leftBottom[minLeftBottomIndex] ||
+            rightTop[minRightTopIndex] ||
+            null
+        return hitedTextElement
+    }
+
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+        dependent && ctx.beginPath()
+        const bounds = this.bounds
+        ctx.moveTo(bounds.x, bounds.y)
+        ctx.lineTo(bounds.x + bounds.width, bounds.y)
+        ctx.lineTo(bounds.x + bounds.width, bounds.y + bounds.height)
+        ctx.lineTo(bounds.x, bounds.y + bounds.height)
+        ctx.lineTo(bounds.x, bounds.y)
+    }
+
+    isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
+        const bounds = this.bounds
+        return new Rectangle(
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height
+        ).isPointOnCurve(point, tolerance)
+    }
+
+    public getPointAt(t: number): Point3 {
+        const bounds = this.bounds
+        const perimeter = 2 * (bounds.width + bounds.height)
+        const clampedT = Math.max(0, Math.min(1, t))
+        let currentLength = clampedT * perimeter
+
+        // 上边
+        if (currentLength <= bounds.width) {
+            return new Point3(bounds.x + currentLength, bounds.y, 0)
+        }
+        currentLength -= bounds.width
+
+        // 右边
+        if (currentLength <= bounds.height) {
+            return new Point3(
+                bounds.x + bounds.width,
+                bounds.y + currentLength,
+                0
+            )
+        }
+        currentLength -= bounds.height
+
+        // 下边
+        if (currentLength <= bounds.width) {
+            return new Point3(
+                bounds.x + bounds.width - currentLength,
+                bounds.y + bounds.height,
+                0
+            )
+        }
+        currentLength -= bounds.width
+
+        // 左边
+        return new Point3(bounds.x, bounds.y + bounds.height - currentLength, 0)
+    }
+
+    public getLength(tStart: number, tEnd: number): number {
+        const bounds = this.bounds
+        return 2 * (bounds.width + bounds.height) * Math.abs(tEnd - tStart)
+    }
+
+    public getTangentAt(t: number): Vector3 {
+        const bounds = this.bounds
+        const perimeter = 2 * (bounds.width + bounds.height)
+        let currentLength = 0
+
+        // 上边：向右
+        if (t * perimeter <= bounds.width) {
+            return new Vector3(1, 0, 0)
+        }
+        currentLength += bounds.width
+
+        // 右边：向下
+        if (t * perimeter <= currentLength + bounds.height) {
+            return new Vector3(0, 1, 0)
+        }
+        currentLength += bounds.height
+
+        // 下边：向左
+        if (t * perimeter <= currentLength + bounds.width) {
+            return new Vector3(-1, 0, 0)
+        }
+
+        // 左边：向上
+        return new Vector3(0, -1, 0)
+    }
+
+    public getNormalAt(t: number): Vector3 {
+        const tangent = this.getTangentAt(t)
+        return new Vector3(-tangent.y, tangent.x, 0)
+    }
+
+    public getClosestPoint(point: Point3): {
+        distance: number
+        closestPoint: Point3
+        parameter: number
+    } {
+        const bounds = this.bounds
+        const closestX = Math.max(
+            bounds.x,
+            Math.min(point.x, bounds.x + bounds.width)
+        )
+        const closestY = Math.max(
+            bounds.y,
+            Math.min(point.y, bounds.y + bounds.height)
+        )
+        const closestPoint = new Point3(closestX, closestY, 0)
+        const distance = Math.sqrt(
+            Math.pow(point.x - closestPoint.x, 2) +
+                Math.pow(point.y - closestPoint.y, 2)
+        )
+
+        // 计算参数t（基于周长）
+        const perimeter = 2 * (bounds.width + bounds.height)
+        let t = 0
+        if (closestX === bounds.x + bounds.width && closestY === bounds.y) {
+            t = bounds.width / perimeter
+        } else if (
+            closestX === bounds.x + bounds.width &&
+            closestY === bounds.y + bounds.height
+        ) {
+            t = (bounds.width + bounds.height) / perimeter
+        } else if (
+            closestX === bounds.x &&
+            closestY === bounds.y + bounds.height
+        ) {
+            t = (2 * bounds.width + bounds.height) / perimeter
+        } else if (closestX === bounds.x && closestY === bounds.y) {
+            t = 0
+        } else if (closestY === bounds.y) {
+            t = (closestX - bounds.x) / perimeter
+        } else if (closestX === bounds.x + bounds.width) {
+            t = (bounds.width + closestY - bounds.y) / perimeter
+        } else if (closestY === bounds.y + bounds.height) {
+            t =
+                (bounds.width +
+                    bounds.height +
+                    bounds.width -
+                    (closestX - bounds.x)) /
+                perimeter
+        } else {
+            t =
+                (2 * bounds.width +
+                    bounds.height +
+                    bounds.height -
+                    (closestY - bounds.y)) /
+                perimeter
+        }
+
+        return { distance, closestPoint, parameter: t }
+    }
+
+    public getArea(): number {
+        const bounds = this.bounds
+        return bounds.width * bounds.height
+    }
+
+    public getCentroid(): Point3 {
+        const bounds = this.bounds
+        return new Point3(
+            bounds.x + bounds.width / 2,
+            bounds.y + bounds.height / 2,
+            0
+        )
+    }
+
+    public transform(matrix: Matrix4): Graph {
+        if (this.controlPoints.length > 0) {
+            this.controlPoints[0] = matrix.multiply(this.controlPoints[0])
+            // 变换所有段落
+            for (const paragraph of this.paragraphs) {
+                paragraph.transform(matrix)
+            }
+            this.bounds = this.updateBounds()
+        }
+        return this
+    }
+
+    public intersect(other: Graph): Point3[] {
+        // 暂未实现
+        return []
+    }
+
+    /**
+     * 渲染文本域
+     */
+    public render(ctx: CanvasRenderingContext2D): void {
+        ctx.save()
+
+        // 应用样式
+        const bounds = this.bounds
+        this.style.applyToContext(ctx, bounds.width, bounds.height)
+
+        // 渲染背景（如果有）
+        this.renderPath(ctx, true)
+        ctx.stroke()
+
+        // 渲染所有段落
+        for (const paragraph of this.paragraphs) {
+            paragraph.render(ctx)
+        }
+
+        ctx.restore()
+    }
+
+    /**
+     * 复制文本域
+     */
+    public copy(): this {
+        const copiedParagraphs = this.paragraphs.map((p) => p.copy())
+        const newTextFields = new TextFields(
+            copiedParagraphs,
+            this.options.copy(),
+            this.style.copy()
+        )
+
+        // 如果原对象已经布局，则复制布局信息
+        if (this.controlPoints.length > 0) {
+            newTextFields.controlPoints = [this.controlPoints[0].copy()]
+            newTextFields.bounds = this.bounds.copy()
+            newTextFields.transfromOrigin = this.transfromOrigin.copy()
+        }
+
+        return newTextFields as this
+    }
+
+    public resize(
+        fixedPoint: Point3,
+        dynamicPoint: Point3,
+        resizeVector: Vector3
+    ): void {
+        for (const paragraph of this.paragraphs) {
+            paragraph.resize(fixedPoint, dynamicPoint, resizeVector)
+        }
+        // resize 后同步更新排版约束区域为最新的实际内容边界
+        this.constraintBounds = this.bounds.copy()
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            id: this.id,
+            type: this.type,
+            paragraphs: this.paragraphs.map(p => p.toJSON()),
+            options: this.options.toJSON(),
+            style: this.style.toJSON(),
+        }
+    }
+
+    static fromJSON(data: any): TextFields {
+        const paragraphs = data.paragraphs.map((p: any) => TextParagraph.fromJSON(p))
+        const fields = new TextFields(
+            paragraphs,
+            TextFieldsOptions.fromJSON(data.options),
+            Style.fromJSON(data.style),
+        )
+        fields.id = data.id
+        return fields
+    }
+
+    /**
+     * 静态工厂方法 - 创建简单文本域
+     */
+    static simple(content: string, options?: TextFieldsOptions): TextFields {
+        const paragraph = TextParagraph.simple(content)
+        return new TextFields([paragraph], options)
+    }
+
+    /**
+     * 静态工厂方法 - 创建多段落文本域
+     */
+    static fromStrings(
+        contents: string[],
+        options?: TextFieldsOptions
+    ): TextFields {
+        const paragraphs = contents.map((content) =>
+            TextParagraph.simple(content)
+        )
+        return new TextFields(paragraphs, options)
+    }
+}
+
+// 类型守卫函数
+export function isTextFields(graph: any): graph is TextFields {
+    return (
+        graph !== null &&
+        graph !== undefined &&
+        graph.type === GRAPHTYPE.TEXTFIELDS
+    )
+}

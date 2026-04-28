@@ -1,0 +1,8 @@
+export { default as FillStyle } from './FillStyle'
+export { default as StrokeStyle } from './StrokeStyle'
+export { default as ShadowStyle } from './ShadowStyle'
+export { default as Gradient } from './Gradient'
+export { default as Image } from './Image'
+export { default as Video } from './Video'
+export { default as Style } from './Style'
+export { default as Color } from './Color'

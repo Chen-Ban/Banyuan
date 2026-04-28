@@ -1,0 +1,22 @@
+.left-drawer-trigger {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 20px;
+  height: 100vh;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.left-drawer-root {
+  pointer-events: auto;
+}
+
+.left-drawer {
+  pointer-events: auto;
+}
+
+.left-drawer .ant-drawer-body {
+  padding: 16px;
+}
+
