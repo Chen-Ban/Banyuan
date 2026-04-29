@@ -7,6 +7,7 @@ import Graph from "@/core/graph/base/Graph";
 import { intersect } from "./IntersectionUtils";
 import { IArc } from '@/core/interfaces';
 import type { ISerializable } from '@/core/interfaces';
+import { generateId } from '@/core/utils';
 
 export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.ARC;
@@ -51,6 +52,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
 
     // 逆时针时为正向扩展
     this.bounds = this.updateBounds(!clockwise, !clockwise)
+    if (!id) this.id = generateId(this.type)
   }
 
   // 计算控制点

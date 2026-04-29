@@ -12,6 +12,7 @@ import {
     isPrintableTextElement,
 } from './TextElement'
 import { ITextParagraph, ISerializable } from '@/core/interfaces'
+import { generateId } from '@/core/utils'
 
 export type TextParagraphContent = [
     ...PrintableTextElement[],
@@ -45,6 +46,7 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         this.controlPoints = []
         this.bounds = Bounds.empty()
         this.transfromOrigin = Point3.origin
+        this.id = generateId(this.type)
     }
 
     get length(): number {

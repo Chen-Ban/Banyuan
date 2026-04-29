@@ -7,6 +7,7 @@ import { Point3, Vector3, Matrix4 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
 import { Rectangle } from '@/core/graph/combined'
 import { ITextElement, IPrintableTextElement, INonPrintableTextElement, ISerializable } from '@/core/interfaces'
+import { generateId } from '@/core/utils'
 
 /**
  * 文字元素基类
@@ -327,6 +328,7 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
             )
 
         this.calculateActualDimensions()
+        this.id = generateId(this.type)
     }
 
     /**
@@ -497,6 +499,7 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
     constructor() {
         super('', TextOptions.DEFAULT, Style.DEFAULT)
         this.calculateActualDimensions()
+        this.id = generateId(this.type)
     }
 
     // ── 序列化 ──

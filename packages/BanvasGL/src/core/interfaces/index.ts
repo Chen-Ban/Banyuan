@@ -85,13 +85,18 @@ export type {
 
 // ── Scene 接口 ──
 export type {
-    IDiff,
-    IOperation,
     IOperationStack,
     IScene,
+    Diff,
+    ModifyDiff,
+    AddDiff,
+    RemoveDiff,
+    ReorderDiff,
+    PropChange,
+    ApplyDirection,
 } from './IScene'
 
-export { OperationType } from './IScene'
+export { DiffType, Operation } from './IScene'
 
 // ── App 接口 ──
 export type {

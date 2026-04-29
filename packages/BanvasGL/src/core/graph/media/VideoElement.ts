@@ -3,6 +3,7 @@ import MediaElement from "./MediaElement";
 import { Point3 } from "@/core/math";
 import { Style } from "@/core/style";
 import { IVideoElement, ISerializable } from '@/core/interfaces';
+import { generateId } from '@/core/utils';
 
 /**
  * VideoElement 类 - 视频元素
@@ -20,6 +21,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
 
   constructor(src: string, x: number, y: number, width: number, height: number, style: Style = Style.DEFAULT) {
     super(src, x, y, width, height, style);
+    this.id = generateId(this.type)
   }
   /**
    * 加载视频

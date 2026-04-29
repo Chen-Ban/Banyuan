@@ -30,7 +30,7 @@ import {
     IViewAddon,
     IGraph,
 } from '@/core/interfaces'
-import { clearAllStates } from '@/core/scene/ViewTree'
+import { clearAllStates } from '@/core/scene/operations'
 import { InteractionDispatcher } from './InteractionDispatcher'
 import type { InteractionContext } from './InteractionDispatcher'
 
@@ -109,7 +109,30 @@ export function useCanvasEvents({
                         height: canvasRef.current?.height,
                     },
                 })
-                scene.addChild(selectionRectViewRef.current)
+                scene.addChild(selectionRectViewRef.current, false)
+            } else {
+                // 对于会修改 View 属性的持续性操作，开启事务
+                const action = actionRef.current
+                if (
+                    action === Action.MOVE ||
+                    action === Action.RESIZE ||
+                    action === Action.ROTATE ||
+                    action === Action.EDIT_POINT
+                ) {
+                    // 收集参与操作的 View ids
+                    const indicateView = indicateViewRef.current
+                    let viewIds: string[]
+                    if (indicateView && !indicateView.actived) {
+                        // 未激活的单个 View（拖动时会被自动激活）
+                        viewIds = [indicateView.id]
+                    } else {
+                        // 已激活的所有 View
+                        viewIds = scene.getAllActived().map((v: View) => v.id)
+                    }
+                    if (viewIds.length > 0) {
+                        scene.beginTransaction(viewIds)
+                    }
+                }
             }
         },
         [app]
@@ -192,7 +215,7 @@ export function useCanvasEvents({
             }
         }
         for (const selectBoxView of selectBoxViews) {
-            scene.removeChild(selectBoxView)
+                    scene.removeChild(selectBoxView, false)
         }
         selectionRectViewRef.current = null
     }, [app, canvasRef])
@@ -284,15 +307,22 @@ export function useCanvasEvents({
         [app, canvasRef, inputRef, onMouseLeave]
     )
 
-    // 鼠标抬起，记录抬起点
+    // 鼠标抬起，记录抬起点，提交事务
     const onMouseUp = useCallback(
         (e: MouseEvent) => {
             mouseUpPointRef.current = event2Point(e)
+            // 提交进行中的操作事务（move/resize/rotate/editPoint）
+            if (app) {
+                const scene = app.getCurrentScene()
+                if (scene) {
+                    scene.commitTransaction()
+                }
+            }
             if (e.ctrlKey) {
                 onClick(e)
             }
         },
-        [onClick]
+        [app, onClick]
     )
 
     // 双击事件处理

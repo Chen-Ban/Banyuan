@@ -4,6 +4,7 @@ import { Point3, Vector3 } from '@/core/math'
 import { Style } from '@/core/style'
 import { IQuadraticBezier } from '@/core/interfaces'
 import type { ISerializable } from '@/core/interfaces'
+import { generateId } from '@/core/utils'
 
 export default class QuadraticBezier extends Bezier implements IQuadraticBezier, ISerializable {
     public type: GRAPHTYPE = GRAPHTYPE.QUADRATIC_BEZIER
@@ -16,6 +17,7 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
         id?: string
     ) {
         super([startPoint, controlPoint, endPoint], style, id)
+        if (!id) this.id = generateId(this.type)
     }
 
     // 获取控制点

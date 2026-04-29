@@ -4,6 +4,7 @@ import { Point3, Vector3 } from "@/core/math";
 import CombinedGraph from "@/core/graph/combined/CombinedGraph";
 import Line from "@/core/graph/analytic/Line";
 import { isGraphType, IPolygon, ISerializable } from '@/core/interfaces';
+import { generateId } from '@/core/utils';
 
 /**
  * Polygon类 - 多边形图形基类
@@ -30,6 +31,7 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
     super(lines, style);
     this.vertices = vs;
     this.isClosed = isClosed;
+    this.id = generateId(this.type)
   }
 
   /**

@@ -9,6 +9,7 @@ import { Rectangle } from '@/core/graph/combined'
 import TextElement, { isNonPrintableTextElement } from './TextElement'
 import TextOptions from './TextOptions'
 import { ITextFields, ISerializable } from '@/core/interfaces'
+import { generateId } from '@/core/utils'
 
 //文本选区三元组： 段落号，字序号，字前｜字后
 export type TextIndex = [number, number, 0 | 1]
@@ -39,6 +40,7 @@ export default class TextFields extends Graph implements ITextFields, ISerializa
         this.controlPoints = []
         this.bounds = Bounds.empty()
         this.transfromOrigin = Point3.origin
+        this.id = generateId(this.type)
     }
 
     /**

@@ -1,4 +1,13 @@
 export { default as Scene } from './Scene'
-export { OperationStack } from './utils'
+export { OperationStack, DiffType, Operation, TransactionManager } from './operations'
 export type { SceneOptions } from './Scene'
-export type { Operation } from './utils'
+export type {
+  Diff,
+  ModifyDiff,
+  AddDiff,
+  RemoveDiff,
+  ReorderDiff,
+  PropChange,
+  ApplyDirection,
+  OperationApplier,
+} from './operations'
