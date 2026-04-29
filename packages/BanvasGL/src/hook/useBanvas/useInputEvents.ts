@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef } from 'react'
 import { Point3 } from '@/core/math'
 import { App } from '@/core/app'
 import { isTextView, ITextView } from '@/core/interfaces'
-import { flattenViewTree } from '@/core/scene/ViewTree'
+import { flattenViewTree } from '@/core/scene/operations'
+import type { Scene } from '@/core/scene'
 
 export interface UseInputEventsOptions {
     inputRef: React.RefObject<HTMLInputElement | null>
@@ -11,15 +12,15 @@ export interface UseInputEventsOptions {
 }
 
 /**
- * 获取当前选中的 TextView
+ * 获取当前选中的 TextView 和 Scene
  */
-function getSelectedTextView(app: App | null): ITextView | null {
+function getSelectedTextViewAndScene(app: App | null): { view: ITextView; scene: Scene } | null {
     const scene = app?.getCurrentScene()
     if (!scene) return null
 
     const selectedView = scene.getSelectedView()
 
-    return isTextView(selectedView) ? selectedView : null
+    return isTextView(selectedView) ? { view: selectedView, scene } : null
 }
 
 /**
@@ -35,10 +36,10 @@ export function useInputEvents({
     // 处理普通文本输入（非合成输入）
     const onInput = useCallback(
         (e: Event) => {
-            const selectedView = getSelectedTextView(app)
+            const result = getSelectedTextViewAndScene(app)
             if (
-                !selectedView ||
-                !selectedView.selection.isSelection ||
+                !result ||
+                !result.view.selection.isSelection ||
                 !inputRef.current
             )
                 return
@@ -49,7 +50,10 @@ export function useInputEvents({
             if (e.inputType === 'insertText') {
                 const insertedText = e.data || ''
                 if (insertedText.length > 0) {
-                    selectedView.input(insertedText, false)
+                    // 包裹事务：快照 → 输入 → 提交
+                    result.scene.beginTransaction([result.view.id])
+                    result.view.input(insertedText, false)
+                    result.scene.commitTransaction()
                 }
             }
             // 其他 inputType（删除、换行等）由 onKeyDown 处理
@@ -60,14 +64,19 @@ export function useInputEvents({
     // 处理合成输入（中文输入法等）
     const onCompositionStart = useCallback(() => {
         isComposingRef.current = true
-    }, [])
+        // 合成输入开始时开启事务
+        const result = getSelectedTextViewAndScene(app)
+        if (result && result.view.selection.isSelection) {
+            result.scene.beginTransaction([result.view.id])
+        }
+    }, [app])
 
     const onCompositionUpdate = useCallback(
         (e: CompositionEvent) => {
-            const selectedView = getSelectedTextView(app)
+            const result = getSelectedTextViewAndScene(app)
             if (
-                !selectedView ||
-                !selectedView.selection.isSelection ||
+                !result ||
+                !result.view.selection.isSelection ||
                 !inputRef.current
             )
                 return
@@ -75,8 +84,8 @@ export function useInputEvents({
             // 合成输入更新时，使用 e.data 获取正在输入的文本
             const compositionText = e.data || ''
             if (compositionText.length > 0) {
-                // 使用 input 方法更新文本（合成输入中）
-                selectedView.input(compositionText, true)
+                // 使用 input 方法更新文本（合成输入中，事务已在 compositionStart 开启）
+                result.view.input(compositionText, true)
             }
         },
         [app, inputRef]
@@ -85,10 +94,10 @@ export function useInputEvents({
     const onCompositionEnd = useCallback(
         (e: CompositionEvent) => {
             isComposingRef.current = false
-            const selectedView = getSelectedTextView(app)
+            const result = getSelectedTextViewAndScene(app)
             if (
-                !selectedView ||
-                !selectedView.selection.isSelection ||
+                !result ||
+                !result.view.selection.isSelection ||
                 !inputRef.current
             )
                 return
@@ -97,8 +106,10 @@ export function useInputEvents({
             const finalText = e.data || ''
             if (finalText.length > 0) {
                 // 合成输入结束，最终更新文本（非合成输入）
-                selectedView.input(finalText, false)
+                result.view.input(finalText, false)
             }
+            // 合成输入结束时提交事务
+            result.scene.commitTransaction()
         },
         [app, inputRef]
     )
@@ -106,14 +117,17 @@ export function useInputEvents({
     // 处理非输入按键（方向键、删除键、换行等)，合成事件中的按钮按下不会出发keydown
     const onKeyDown = useCallback(
         (e: KeyboardEvent) => {
-            const selectedView = getSelectedTextView(app)
+            const result = getSelectedTextViewAndScene(app)
 
             if (
-                !selectedView ||
-                !selectedView.selection.isSelection ||
+                !result ||
+                !result.view.selection.isSelection ||
                 !inputRef.current
             )
                 return
+
+            const selectedView = result.view
+            const scene = result.scene
 
             // 合成输入过程中，不处理按键（除了 Escape）
             if (isComposingRef.current && e.key !== 'Escape') {
@@ -147,18 +161,24 @@ export function useInputEvents({
 
                 case 'Backspace':
                     // 退格键：删除光标前的字符
+                    scene.beginTransaction([selectedView.id])
                     selectedView.delete(true)
+                    scene.commitTransaction()
                     break
 
                 case 'Delete':
                     // Delete 键：删除光标后的字符
+                    scene.beginTransaction([selectedView.id])
                     selectedView.delete(false)
+                    scene.commitTransaction()
                     break
 
                 case 'Enter':
                     e.preventDefault()
                     // 回车键：创建新段落
+                    scene.beginTransaction([selectedView.id])
                     selectedView.newLine()
+                    scene.commitTransaction()
                     break
                 case 'Escape':
                     // 失活当前选中的容器

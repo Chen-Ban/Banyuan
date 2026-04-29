@@ -2,6 +2,7 @@ import View, { InteractResult, ViewOptions } from '@/core/views/View/View'
 import { Graph, Line } from '@/core/graph'
 import { isGraphType, isAnalyticGraph, ExtraData, IGraphView, ISerializable } from '@/core/interfaces'
 import { VIEWTYPE } from '@/core/constants'
+import { generateId } from '@/core/utils'
 import { Point3 } from '@/core/math'
 import { VertexAddon } from '@/core/views/addon'
 import Matrix4 from '@/core/math/Matrix4'
@@ -23,6 +24,7 @@ export default class GraphView extends View implements IGraphView, ISerializable
     constructor(graph: Graph, options: GraphViewOptions = {}) {
         // 将graph作为content传递给父类构造函数
         super({ ...options })
+        this.id = options.id || generateId(this.type)
         this.content = graph
 
         // TOREVIEW: 多个插件的展示、交互、优先级是怎么样的
@@ -74,9 +76,7 @@ export default class GraphView extends View implements IGraphView, ISerializable
     public copy(): GraphView {
         const newView = new GraphView(this.content)
 
-        // 复制基本属性
-        newView.layer = this.layer
-        newView.id = this.id
+        // 复制基本属性（id 由构造器自动生成新的）
         newView.properties = { ...this.properties }
         newView.data = { ...this.data }
         newView.style = {
@@ -111,7 +111,6 @@ export default class GraphView extends View implements IGraphView, ISerializable
     static fromJSON(data: any): GraphView {
         const view = new GraphView(data.content)
         view.id = data.id
-        view.layer = data.layer
         view.visible = data.visible
         view.freezed = data.freezed
         if (data.properties) view.properties = data.properties

@@ -4,6 +4,7 @@ import { Point3 } from "@/core/math";
 import Polygon from "./Polygon";
 import Bounds from "@/core/graph/base/Bounds";
 import { IRectangle, ISerializable } from '@/core/interfaces';
+import { generateId } from '@/core/utils';
 
 /**
  * Rectangle类 - 矩形
@@ -24,6 +25,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
     super(vertices, style, true);
     this.width = width;
     this.height = height;
+    this.id = generateId(this.type)
   }
 
   /**

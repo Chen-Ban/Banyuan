@@ -6,6 +6,7 @@ import { Point3, Vector3 } from '@/core/math'
 import { Action, Cursor, ITextView, ISerializable } from '@/core/interfaces'
 import Selection from './Selection'
 import { VERTICALALIGN, VIEWTYPE } from '@/core/constants'
+import { generateId } from '@/core/utils'
 import Matrix4 from '@/core/math/Matrix4'
 import Bounds from '@/core/graph/base/Bounds'
 import {
@@ -35,6 +36,7 @@ export default class TextView extends View implements ITextView, ISerializable {
     constructor(text: TextFields, options: TextViewOptions = {}) {
         // 将text作为content传递给父类构造函数
         super({ ...options, content: text })
+        this.id = options.id || generateId(this.type)
         this.content = text
         this.verticalAlign = options?.verticalAlign ?? VERTICALALIGN.TOP
         this.editable = options?.editable ?? true
@@ -447,9 +449,7 @@ export default class TextView extends View implements ITextView, ISerializable {
     public copy(): TextView {
         const newView = new TextView(this.content, { editable: this.editable })
 
-        // 复制基本属性
-        newView.layer = this.layer
-        newView.id = this.id
+        // 复制基本属性（id 由构造器自动生成新的）
         newView.properties = { ...this.properties }
         newView.data = { ...this.data }
         newView.style = {
@@ -507,7 +507,6 @@ export default class TextView extends View implements ITextView, ISerializable {
             verticalAlign: data.verticalAlign,
         })
         view.id = data.id
-        view.layer = data.layer
         view.visible = data.visible
         view.freezed = data.freezed
         if (data.properties) view.properties = data.properties

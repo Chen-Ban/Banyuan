@@ -2,6 +2,7 @@ import View, { ViewOptions } from '@/core/views/View/View'
 import { ImageElement } from '@/core/graph/media'
 import { VIEWTYPE } from '@/index.backend'
 import { IImageView, ISerializable } from '@/core/interfaces'
+import { generateId } from '@/core/utils'
 import Matrix4 from '@/core/math/Matrix4'
 import Bounds from '@/core/graph/base/Bounds'
 
@@ -20,15 +21,14 @@ export default class ImageView extends View implements IImageView, ISerializable
     constructor(image: ImageElement, options: ImageViewOptions = {}) {
         // 将image作为content传递给父类构造函数
         super({ ...options, content: image })
+        this.id = options.id || generateId(this.type)
         this.content = image
     }
 
     public copy(): ImageView {
         const newView = new ImageView(this.content)
 
-        // 复制基本属性
-        newView.layer = this.layer
-        newView.id = this.id
+        // 复制基本属性（id 由构造器自动生成新的）
         newView.properties = { ...this.properties }
         newView.data = { ...this.data }
         newView.style = {
@@ -60,7 +60,6 @@ export default class ImageView extends View implements IImageView, ISerializable
     static fromJSON(data: any): ImageView {
         const view = new ImageView(data.content)
         view.id = data.id
-        view.layer = data.layer
         view.visible = data.visible
         view.freezed = data.freezed
         if (data.properties) view.properties = data.properties

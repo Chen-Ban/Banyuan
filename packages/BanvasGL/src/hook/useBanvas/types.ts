@@ -18,4 +18,12 @@ export interface UseBanvasResult {
   selectedViewId: string,
   setSelectedScene: (scene: Scene) => void
   setSelectedViewId: (id: string) => void
+  /** 撤销上一步操作 */
+  undo: () => boolean
+  /** 重做上一步被撤销的操作 */
+  redo: () => boolean
+  /** 是否可以撤销 */
+  canUndo: boolean
+  /** 是否可以重做 */
+  canRedo: boolean
 }

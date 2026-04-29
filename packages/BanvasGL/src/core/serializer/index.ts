@@ -270,6 +270,16 @@ export default class Serializer {
     }
 
     /**
+     * 从纯数据对象恢复实例（公共方法）
+     *
+     * 支持 { $type, $value } 包装格式和普通值。
+     * 用于操作栈的 applyDiff 等场景，无需经过 JSON.stringify/parse。
+     */
+    public revive<T = any>(data: any): T {
+        return this.deserializeValue(data, this.defaultOptions) as T
+    }
+
+    /**
      * 序列化值（递归核心）
      */
     private serializeValue(

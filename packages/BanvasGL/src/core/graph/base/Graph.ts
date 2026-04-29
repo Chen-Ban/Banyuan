@@ -1,4 +1,3 @@
-import { v4 as uuid } from 'uuid'
 import { GRAPHTYPE } from '@/core/constants'
 import Style from '@/core/style/Style'
 import { Matrix4, Point3, Vector3 } from '@/core/math'
@@ -24,7 +23,7 @@ export default abstract class Graph implements IGraph, ISerializable {
     public abstract transfromOrigin: Point3
     //构造函数
     constructor(id?: string) {
-        this.id = id ?? uuid()
+        this.id = id ?? ''
     }
 
     // ── 序列化（子类必须实现） ──

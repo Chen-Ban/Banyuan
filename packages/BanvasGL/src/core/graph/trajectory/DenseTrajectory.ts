@@ -6,6 +6,7 @@ import Bounds from "@/core/graph/base/Bounds";
 import { Line } from "@/core/graph/analytic";
 import { IDenseTrajectory, ISerializable } from '@/core/interfaces';
 import type { ITransferable, TransferableData } from '@/core/interfaces';
+import { generateId } from '@/core/utils';
 
 export default class DenseTrajectory extends Graph implements IDenseTrajectory, ISerializable, ITransferable {
   public type: GRAPHTYPE = GRAPHTYPE.DENSETRAJECTORY;
@@ -20,6 +21,7 @@ export default class DenseTrajectory extends Graph implements IDenseTrajectory, 
     this.controlPoints = Float32Array.from(points);
     this.bounds = this.updateBounds()
     this.transfromOrigin = new Point3(this.controlPoints[0], this.controlPoints[1], 0)
+    this.id = generateId(this.type)
   }
 
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
