@@ -5,6 +5,7 @@ import Graph from '@/core/graph/base/Graph'
 import Bounds from '@/core/graph/base/Bounds'
 import { isGraphType, isAnalyticGraph, isMediaElement, isCombinedGraph, ICombinedGraph } from '@/core/interfaces'
 import type { ISerializable } from '@/core/interfaces'
+import { generateId } from '@/core/utils'
 
 /**
  * CombinedGraph类 - 组合多个图形元素的复合图形
@@ -25,6 +26,7 @@ export default class CombinedGraph extends Graph implements ICombinedGraph, ISer
 
         // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
         this.bounds = this.updateBounds(true, true)
+        this.id = generateId(this.type)
     }
 
     public getArea(): number {

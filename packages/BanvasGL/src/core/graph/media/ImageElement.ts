@@ -3,6 +3,7 @@ import MediaElement from './MediaElement'
 import { Style } from '@/core/style'
 import { Point3 } from '@/index.backend'
 import { IImageElement, ISerializable } from '@/core/interfaces'
+import { generateId } from '@/core/utils'
 
 /**
  * ImageElement 类 - 图片元素
@@ -23,6 +24,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
         style: Style = Style.DEFAULT
     ) {
         super(src, x, y, width, height, style)
+        this.id = generateId(this.type)
     }
 
     /**

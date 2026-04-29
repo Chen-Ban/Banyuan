@@ -8,6 +8,7 @@ import Graph from "@/core/graph/base/Graph";
 import { intersect } from "./IntersectionUtils";
 import { ILine } from '@/core/interfaces';
 import type { ISerializable } from '@/core/interfaces';
+import { generateId } from '@/core/utils';
 
 export default class Line extends AnalyticGraph implements ILine, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.LINE;
@@ -24,6 +25,7 @@ export default class Line extends AnalyticGraph implements ILine, ISerializable 
 
     // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
     this.bounds = this.updateBounds()
+    if (!id) this.id = generateId(this.type)
   }
 
   // 获取起始点
