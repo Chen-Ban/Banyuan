@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasInit } from './useCanvasInit'
 import { useCanvasEvents } from './useCanvasEvents'
 import { useInputEvents } from './useInputEvents'
@@ -40,6 +40,20 @@ export default function useBanvas(
         setSelectedViewId,
     })
 
+    // 操作栈管理
+    const undo = useCallback(() => {
+        const scene = app?.getCurrentScene()
+        return scene ? scene.undo() : false
+    }, [app])
+
+    const redo = useCallback(() => {
+        const scene = app?.getCurrentScene()
+        return scene ? scene.redo() : false
+    }, [app])
+
+    const canUndo = app?.getCurrentScene()?.canUndo ?? false
+    const canRedo = app?.getCurrentScene()?.canRedo ?? false
+
     const canvasEl = useMemo(
         () => (
             <div
@@ -79,5 +93,9 @@ export default function useBanvas(
         selectedScene,
         setSelectedScene,
         setSelectedViewId,
+        undo,
+        redo,
+        canUndo,
+        canRedo,
     }
 }

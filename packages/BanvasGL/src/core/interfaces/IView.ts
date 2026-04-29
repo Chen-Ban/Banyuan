@@ -24,7 +24,6 @@ import type { IGraph, ITextElement, ITextFields, TextIndex } from './IGraph'
 export interface IView {
     id: string
     readonly type: VIEWTYPE
-    layer: number
     parent: ISceneNode | IView | null
     children: IView[]
     matrix: Matrix4
@@ -79,7 +78,6 @@ export interface IView {
     setSelected(selected: boolean): IView
     setVisible(visible: boolean): IView
     setFreezed(freezed: boolean): IView
-    setLayer(layer: number): IView
 
     // 生命周期
     onAttach(): void

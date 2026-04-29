@@ -1,6 +1,7 @@
 import { VIEWTYPE } from '@/core/constants'
 import View, { ViewOptions } from '@/core/views/View/View'
 import { ICombinedView, ISerializable } from '@/core/interfaces'
+import { generateId } from '@/core/utils'
 import Matrix4 from '@/core/math/Matrix4'
 import Bounds from '@/core/graph/base/Bounds'
 
@@ -12,6 +13,7 @@ export default class CombinedView extends View implements ICombinedView, ISerial
 
     constructor(options: ViewOptions = {}) {
         super({ ...options })
+        this.id = options.id || generateId(this.type)
     }
 
     public copy(): CombinedView {
@@ -19,9 +21,7 @@ export default class CombinedView extends View implements ICombinedView, ISerial
             children: this.children.map((view) => view.copy()),
         })
 
-        // 复制基本属性
-        newView.layer = this.layer
-        newView.id = this.id
+        // 复制基本属性（id 由构造器自动生成新的）
         newView.properties = { ...this.properties }
         newView.data = { ...this.data }
         newView.style = {
@@ -78,7 +78,6 @@ export default class CombinedView extends View implements ICombinedView, ISerial
     static fromJSON(data: any): CombinedView {
         const view = new CombinedView({})
         view.id = data.id
-        view.layer = data.layer
         view.visible = data.visible
         view.freezed = data.freezed
         if (data.properties) view.properties = data.properties

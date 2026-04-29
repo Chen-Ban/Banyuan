@@ -1,7 +1,6 @@
 import { VIEWTYPE } from '@/core/constants'
 import Matrix4 from '@/core/math/Matrix4'
 import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
-import { v4 as uuidv4 } from 'uuid'
 import { Action, Cursor, ISceneNode, IView, IViewStyle, IViewAddon, ExtraData, ISerializable, IGraph } from '@/core/interfaces'
 
 // 导入图形相关类型
@@ -62,7 +61,6 @@ export interface ViewOptions<T extends object = any> {
 // TODO：不同容器的默认样式表
 export default abstract class View<T extends object = any> implements IView, ISerializable {
     // 基本属性
-    public layer: number = 0
     public id: string = ''
     public properties: T = {} as T
     public data: T = {} as T
@@ -181,19 +179,15 @@ export default abstract class View<T extends object = any> implements IView, ISe
         const contentResult = this.interactContent(scrolledPoint)
         if (contentResult.view) return contentResult
 
-        // 4. 递归检查子视图，取最高 layer 的结果
+        // 4. 递归检查子视图，数组靠后的 View 绘制在上方，优先命中
         //    将 scrolledPoint 转回世界坐标传给子视图，子视图再用自己的 MVP 逆矩阵转本地坐标
         const adjustedWorldPoint = this.getMVPMatrix().multiply(scrolledPoint)
         let best: InteractResult = { view: null, content: null, extraData: null }
-        let bestLayer = -1
         for (const child of this.children) {
             const childResult = child.interact(adjustedWorldPoint)
             if (childResult.view && childResult.content && childResult.extraData) {
-                // layer 相同时，后加入的 View 胜出（对应视觉上"后绘制 = 在上方"的约定）
-                if (childResult.view.layer >= bestLayer) {
-                    bestLayer = childResult.view.layer
-                    best = childResult
-                }
+                // 数组中靠后的 child 绘制在上方，后遍历的胜出
+                best = childResult
             }
         }
 
@@ -205,7 +199,7 @@ export default abstract class View<T extends object = any> implements IView, ISe
             throw new Error('子视图必须属于同一个父视图')
         }
         // 属性初始化
-        this.id = options.id || this.generateId()
+        this.id = options.id || ''
         this.data = options.data || ({} as T)
         this.properties = options.properties || ({} as T)
         this.style = {
@@ -566,11 +560,6 @@ export default abstract class View<T extends object = any> implements IView, ISe
         return this
     }
 
-    public setLayer(layer: number): View {
-        this.layer = layer
-        return this
-    }
-
     // 布局管理
     public layout(): void {
         // 1、执行布局,获取最新的内容布局区域并更新
@@ -668,7 +657,6 @@ export default abstract class View<T extends object = any> implements IView, ISe
         return {
             id: this.id,
             type: this.type,
-            layer: this.layer,
             visible: this.visible,
             freezed: this.freezed,
             properties: this.properties,
@@ -703,8 +691,4 @@ export default abstract class View<T extends object = any> implements IView, ISe
         this.onDestroy()
     }
 
-    // 生成唯一ID
-    private generateId(): string {
-        return uuidv4()
-    }
 }

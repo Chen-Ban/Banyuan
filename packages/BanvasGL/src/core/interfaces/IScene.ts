@@ -6,38 +6,43 @@
  *
  * 设计要点：
  *   - IScene 只引用 IView 和 ICamera，不引用具体类
- *   - OperationStack/Operation/Diff 作为独立的值类型接口在此处定义
+ *   - Diff/Operation 相关类型从 utils 直接 re-export
  */
 
 import type { IView } from './IView'
 import type { ICamera } from './ICamera'
 
 // ────────────────────────────────────────────
-//  操作栈相关接口
+//  操作栈相关类型（re-export）
 // ────────────────────────────────────────────
 
-/** 操作类型枚举 */
-export { OperationType } from '@/core/scene/utils'
+export {
+  DiffType,
+  Operation,
+} from '@/core/scene/operations'
 
-/** 操作差异记录 */
-export interface IDiff {
-    parentId: string
-    id: string
-    content: IView
-    operationType: string // OperationType
-}
+export type {
+  Diff,
+  ModifyDiff,
+  AddDiff,
+  RemoveDiff,
+  ReorderDiff,
+  PropChange,
+  ApplyDirection,
+} from '@/core/scene/operations'
 
-/** 操作记录 */
-export interface IOperation {
-    diffs: IDiff[]
-}
+// ────────────────────────────────────────────
+//  操作栈接口
+// ────────────────────────────────────────────
 
 /** 操作栈接口 */
 export interface IOperationStack {
-    do(operation: IOperation): boolean
+    do(operation: import('@/core/scene/operations').Operation): boolean
     undo(): boolean
     redo(): boolean
     clear(): void
+    readonly canUndo: boolean
+    readonly canRedo: boolean
 }
 
 // ────────────────────────────────────────────
@@ -50,7 +55,6 @@ export interface IScene {
     children: IView[]
     camera: ICamera
     data: any
-    operationStack: IOperationStack
 
     // 生命周期
     onLoad(params: any): void
@@ -73,9 +77,15 @@ export interface IScene {
     clearChildren(): IScene
 
     // 操作栈
-    recordOperation(operation: IOperation): boolean
     undo(): boolean
     redo(): boolean
+    readonly canUndo: boolean
+    readonly canRedo: boolean
+
+    // 事务管理
+    beginTransaction(viewIds: string[]): void
+    commitTransaction(): boolean
+    rollbackTransaction(): void
 
     // 数据
     setData(data: any): IScene
@@ -93,10 +103,8 @@ export interface IScene {
     findViewById(id: string): IView | undefined
 
     // 层级管理
-    getChildrenSortedByLayer(): IView[]
     bringToFront(view: IView): IScene
     sendToBack(view: IView): IScene
     bringForward(view: IView): IScene
     sendBackward(view: IView): IScene
-    setLayer(view: IView, layer: number): IScene
 }

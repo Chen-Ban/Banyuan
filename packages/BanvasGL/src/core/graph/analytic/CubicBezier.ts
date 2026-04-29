@@ -5,6 +5,7 @@ import { Point3, Vector3, Matrix4 } from "@/core/math";
 import { Style } from "@/core/style";
 import { ICubicBezier } from '@/core/interfaces';
 import type { ISerializable } from '@/core/interfaces';
+import { generateId } from '@/core/utils';
 
 export default class CubicBezier extends Bezier implements ICubicBezier, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.CUBIC_BEZIER;
@@ -18,6 +19,7 @@ export default class CubicBezier extends Bezier implements ICubicBezier, ISerial
     id?:string
   ) {
     super([startPoint, controlPoint1, controlPoint2, endPoint], style,id);
+    if (!id) this.id = generateId(this.type)
   }
 
   // 获取第一个控制点
