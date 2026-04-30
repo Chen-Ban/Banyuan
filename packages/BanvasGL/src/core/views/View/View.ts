@@ -10,6 +10,8 @@ import { Graph, Line, Rectangle } from '@/core/graph'
 import { BoundingBoxAddon } from '@/core/views/addon'
 import { MathUtils, Point3, Vector3 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
+import Animation from '@/core/animation/Animation'
+import type { AnimationOptions, Keyframe, KeyframeProps, AnimatableValue } from '@/core/animation/types'
 
 const RESIZE_SIZE_MAP = [
     { width: true, height: true },
@@ -95,6 +97,106 @@ export default abstract class View<T extends object = any> implements IView, ISe
     public abstract readonly type: VIEWTYPE
     //抽象方法
     public abstract copy(): View
+
+    // ==================== 动画系统 ====================
+    private _animations: Animation[] = []
+
+    /**
+     * 创建并播放动画，或挂载已有 Animation 实例并播放
+     * @example
+     * // 方式1：传入 Animation 实例
+     * const anim = new Animation([{ offset: 0, x: 0 }, { offset: 1, x: 200 }], { duration: 1000 })
+     * view.animate(anim)
+     *
+     * // 方式2：简写，移动到目标值
+     * view.animate({ x: 200, y: 300 }, { duration: 500, easing: Easings.easeOutCubic })
+     *
+     * // 方式3：指定起始和终止值
+     * view.animate({ from: { opacity: 0 }, to: { opacity: 1 } }, { duration: 300 })
+     *
+     * // 方式4：多关键帧
+     * view.animate([
+     *   { offset: 0, x: 0, y: 0 },
+     *   { offset: 0.5, x: 100, y: -50 },
+     *   { offset: 1, x: 200, y: 0 },
+     * ], { duration: 1000, iterations: Infinity, direction: 'alternate' })
+     */
+    public animate(animation: Animation): Animation
+    public animate(keyframes: Keyframe[], options: AnimationOptions): Animation
+    public animate(to: KeyframeProps, options: AnimationOptions): Animation
+    public animate(keyframes: { from: KeyframeProps; to: KeyframeProps }, options: AnimationOptions): Animation
+    public animate(
+        keyframesOrAnimation: Animation | Keyframe[] | KeyframeProps | { from: KeyframeProps; to: KeyframeProps },
+        options?: AnimationOptions
+    ): Animation {
+        // 如果传入的是 Animation 实例，直接绑定并播放
+        if (keyframesOrAnimation instanceof Animation) {
+            const anim = keyframesOrAnimation
+            anim._bindTarget(this)
+            anim.play()
+            return anim
+        }
+
+        // 否则创建新的 Animation 实例
+        const anim = new Animation(this, keyframesOrAnimation as any, options!)
+        anim.play()
+        return anim
+    }
+
+    /**
+     * 获取渲染时应使用的属性值（动画计算值优先）
+     * 从后向前遍历动画列表，后注册的动画优先级更高
+     */
+    public getAnimatedValue(prop: string): AnimatableValue | undefined {
+        for (let i = this._animations.length - 1; i >= 0; i--) {
+            const anim = this._animations[i]
+            if (anim.isActive) {
+                const val = anim.getComputedValue(prop)
+                if (val !== undefined) return val
+            }
+        }
+        return undefined
+    }
+
+    /**
+     * 取消该 View 上的所有动画
+     */
+    public cancelAnimations(): void {
+        const anims = [...this._animations]
+        for (const anim of anims) {
+            anim.cancel()
+        }
+    }
+
+    /**
+     * 立即完成该 View 上的所有动画
+     */
+    public finishAnimations(): void {
+        const anims = [...this._animations]
+        for (const anim of anims) {
+            anim.finish()
+        }
+    }
+
+    /** @internal 由 Animation 调用 */
+    _addAnimation(anim: Animation): void {
+        if (!this._animations.includes(anim)) {
+            this._animations.push(anim)
+        }
+    }
+
+    /** @internal 由 Animation 调用 */
+    _removeAnimation(anim: Animation): void {
+        const index = this._animations.indexOf(anim)
+        if (index !== -1) {
+            this._animations.splice(index, 1)
+        }
+    }
+
+    /** @internal 由 Animation 调用 */
+    _getAnimations(): Animation[] {
+        return this._animations
+    }
 
     // 获取内容
     public layoutContent(): Bounds {
@@ -480,16 +582,18 @@ export default abstract class View<T extends object = any> implements IView, ISe
 
     // 获取世界矩阵（考虑父view的matrix）
     public getWorldMatrix(parent?: View): Matrix4 {
+        // 优先使用动画计算的 matrix
+        const localMatrix = (this.getAnimatedValue('matrix') as Matrix4) ?? this.matrix
         if (
             this.parent &&
             this.parent instanceof View &&
             this.parent !== parent
         ) {
             // 如果有父view，则世界矩阵 = 父view的世界矩阵 * 当前view的matrix
-            return this.parent.getWorldMatrix().copy().multiply(this.matrix)
+            return this.parent.getWorldMatrix().copy().multiply(localMatrix)
         } else {
             // 如果没有父view，则世界矩阵就是当前view的matrix
-            return this.matrix.copy()
+            return localMatrix.copy()
         }
     }
 

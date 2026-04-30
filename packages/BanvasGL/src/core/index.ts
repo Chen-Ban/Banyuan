@@ -6,5 +6,6 @@ export * from "./scene";
 export * from "./renderer";
 export * from "./app";
 export * from "./graph";
+export * from "./animation";
 export * from "./constants";
 export * from "./serializer";
