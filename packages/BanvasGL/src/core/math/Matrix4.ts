@@ -520,6 +520,29 @@ export default class Matrix4 implements ISerializable {
     return matrix;
   }
 
+  // ── 2D TRS 分解 ──
+
+  /**
+   * 提取 2D 平移分量
+   *
+   * 行主序布局下：data[3] = tx, data[7] = ty
+   */
+  extractTranslation2D(): { x: number; y: number } {
+    return { x: this.data[3], y: this.data[7] }
+  }
+
+  /**
+   * 提取 Z 轴旋转角度（弧度）
+   *
+   * 利用行主序布局：
+   *   data[0] = sx * cos(θ)
+   *   data[4] = -sx * sin(θ)
+   * atan2(-data[4], data[0]) = atan2(sx*sin(θ), sx*cos(θ)) = θ
+   */
+  extractRotationZ(): number {
+    return Math.atan2(-this.data[4], this.data[0])
+  }
+
   // 静态方法：创建视图矩阵
   static lookAt(
     eye: [number, number, number],

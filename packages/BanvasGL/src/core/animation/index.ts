@@ -9,16 +9,22 @@ export {
     interpolateKeyframes,
 } from './interpolators'
 export type { ResolvedKeyframeSegment } from './interpolators'
+export {
+    getAdapter,
+    getPropertyCategory,
+    detectConflict,
+    SPATIAL_PROPERTIES,
+    SIZE_PROPERTIES,
+} from './adapters'
+export type { PropertyAdapter, PropertyCategory } from './adapters'
+export { extractTranslation, extractRotationZ, lerpAngle } from './trs'
 export type {
     EasingFunction,
     FillMode,
     PlaybackDirection,
     AnimationState,
     AnimatableValue,
-    Keyframe,
-    KeyframeProps,
-    KeyframeShorthand,
-    KeyframeInput,
+    KeyframeDefinition,
     AnimationOptions,
     Interpolator,
     AnimationTarget,

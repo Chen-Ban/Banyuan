@@ -2,14 +2,23 @@ import { generateId } from '@/core/utils'
 import { interpolateKeyframes, type ResolvedKeyframeSegment } from './interpolators'
 import { Easings } from './easings'
 import AnimationManager from './AnimationManager'
+import Matrix4 from '@/core/math/Matrix4'
+import {
+    getAdapter,
+    getPropertyCategory,
+    detectConflict,
+    SPATIAL_PROPERTIES,
+    SIZE_PROPERTIES,
+    type PropertyCategory,
+} from './adapters'
+import { extractTranslation, extractRotationZ, lerpAngle } from './trs'
 import type {
     AnimationOptions,
     AnimationState,
     AnimatableValue,
     Keyframe,
     KeyframeProps,
-    KeyframeShorthand,
-    KeyframeInput,
+    KeyframeDefinition,
     FillMode,
     PlaybackDirection,
     EasingFunction,
@@ -20,23 +29,32 @@ import type View from '@/core/views/View/View'
  * Animation 类
  *
  * 核心设计原则：
- * 1. 动画运行期间不修改 View 的基础属性
- * 2. 每帧计算结果存入 computedValues，渲染时优先读取
- * 3. 动画结束时根据 fillMode 一次性提交终态到 View
+ * 1. 动画运行期间不修改 View 的基础属性（空间属性通过 computedValues['matrix'] 覆盖渲染）
+ * 2. 尺寸属性每帧真正 resize（viewport + content），模拟 Ctrl+拖拽效果
+ * 3. 动画结束时根据 fillMode 提交终态
  * 4. 同属性冲突时，后者打断前者，从当前计算值无缝衔接
  *
- * 使用方式：
- * 1. 独立创建后挂载：
- *    const anim = new Animation([...keyframes], options)
- *    view.animate(anim)
+ * 属性映射层：
+ * - 空间属性（x/y/rotation）→ 修改 matrix
+ * - 尺寸属性（width/height/scaleX/scaleY）→ 通过 resize 修改 viewport + content
+ * - 直通属性 → 直接读写 View 同名属性
  *
- * 2. 带 target 创建并手动 play：
- *    const anim = new Animation(view, [...keyframes], options)
- *    anim.play()
+ * 参考系：
+ * - 不传 referenceFrame：相对变换，to 中的值是增量
+ * - 传祖先 View：绝对变换，to 中的值是在该祖先坐标系下的目标
  *
- * 3. View 快捷 API（内部创建 Animation）：
- *    view.animate([...keyframes], options)
- *    view.animate({ x: 100 }, options)
+ * @example
+ * // 相对偏移
+ * view.animate({ to: { x: 100, y: 50 } }, { duration: 1000 })
+ *
+ * // 在父坐标系下绝对定位
+ * view.animate({ to: { x: 200 } }, { duration: 1000, referenceFrame: parentView })
+ *
+ * // 尺寸动画
+ * view.animate({ to: { width: 400, height: 300 } }, { duration: 600 })
+ *
+ * // 缩放动画（等价于按比例改尺寸）
+ * view.animate({ to: { scaleX: 2 } }, { duration: 600 })
  */
 export default class Animation {
     public readonly id: string
@@ -57,6 +75,7 @@ export default class Animation {
     public readonly direction: PlaybackDirection
     public readonly iterations: number
     public readonly easing: EasingFunction
+    public readonly referenceFrame: View | undefined
 
     // 回调
     public onStart: (() => void) | null = null
@@ -76,8 +95,21 @@ export default class Animation {
     // 计算结果——渲染时读取此对象
     public computedValues: Record<string, AnimatableValue> = {}
 
-    // 快照——play() 时从 View 读取的原始值
+    // 快照——play() 时从 View 读取的原始值（用于 direct 属性）
     private _snapshotValues: KeyframeProps = {}
+
+    // 属性分类缓存
+    private _spatialProps: string[] = []
+    private _sizeProps: string[] = []
+    private _directProps: string[] = []
+
+    // 空间属性快照（从 matrix 分解出的起始 TRS 值）
+    private _spatialSnapshot: { x: number; y: number; rotation: number } = { x: 0, y: 0, rotation: 0 }
+    // 空间属性的 matrix 快照（相对模式时作为基矩阵）
+    private _matrixSnapshot: Matrix4 = Matrix4.identity()
+
+    // 尺寸属性快照
+    private _sizeSnapshot: { width: number; height: number } = { width: 0, height: 0 }
 
     // Promise 支持
     private _finishResolve: (() => void) | null = null
@@ -89,45 +121,30 @@ export default class Animation {
     /**
      * 不绑定 target 创建（后续通过 view.animate(anim) 挂载）
      */
-    constructor(keyframes: Keyframe[], options: AnimationOptions)
-    constructor(to: KeyframeProps, options: AnimationOptions)
-    constructor(keyframes: KeyframeShorthand, options: AnimationOptions)
+    constructor(definition: KeyframeDefinition, options: AnimationOptions)
 
     /**
      * 绑定 target 创建（后续手动调用 play()）
      */
-    constructor(target: View, keyframes: Keyframe[], options: AnimationOptions)
-    constructor(target: View, to: KeyframeProps, options: AnimationOptions)
-    constructor(target: View, keyframes: KeyframeShorthand, options: AnimationOptions)
+    constructor(target: View, definition: KeyframeDefinition, options: AnimationOptions)
 
     constructor(...args: any[]) {
         this.id = generateId()
 
         // 解析参数：判断第一个参数是否是 View（有 _addAnimation 方法）
         let target: View | null = null
-        let keyframesOrTo: KeyframeInput
+        let definition: KeyframeDefinition
         let options: AnimationOptions
 
         if (args.length === 3 && args[0] && typeof args[0] === 'object' && '_addAnimation' in args[0]) {
-            // (target, keyframes, options) 形式
+            // (target, definition, options) 形式
             target = args[0] as View
-            keyframesOrTo = args[1]
+            definition = args[1] as KeyframeDefinition
             options = args[2]
         } else if (args.length === 2) {
-            // (keyframes, options) 形式
-            keyframesOrTo = args[0]
+            // (definition, options) 形式
+            definition = args[0] as KeyframeDefinition
             options = args[1]
-        } else if (args.length === 3) {
-            // 兜底：尝试判断第一个参数
-            if (args[0] && typeof args[0] === 'object' && '_addAnimation' in args[0]) {
-                target = args[0] as View
-                keyframesOrTo = args[1]
-                options = args[2]
-            } else {
-                // 不可能的情况，但防御处理
-                keyframesOrTo = args[0]
-                options = args[1]
-            }
         } else {
             throw new Error('Animation: invalid constructor arguments')
         }
@@ -139,6 +156,7 @@ export default class Animation {
         this.direction = options.direction ?? 'normal'
         this.iterations = options.iterations ?? 1
         this.easing = options.easing ?? Easings.linear
+        this.referenceFrame = options.referenceFrame
 
         this.onStart = options.onStart ?? null
         this.onUpdate = options.onUpdate ?? null
@@ -146,8 +164,8 @@ export default class Animation {
         this.onCancel = options.onCancel ?? null
         this.onIteration = options.onIteration ?? null
 
-        // 统一转换为关键帧数组
-        this._keyframes = this._normalizeKeyframes(keyframesOrTo)
+        // 解析 KeyframeDefinition 为内部关键帧数组
+        this._keyframes = this._parseDefinition(definition)
 
         // 收集所有涉及的属性名
         const propSet = new Set<string>()
@@ -159,6 +177,24 @@ export default class Animation {
             }
         }
         this.properties = Array.from(propSet)
+
+        // 冲突检测
+        const conflict = detectConflict(this.properties)
+        if (conflict) {
+            throw new Error(conflict)
+        }
+
+        // 分类属性
+        for (const prop of this.properties) {
+            const category = getPropertyCategory(prop)
+            if (category === 'spatial') {
+                this._spatialProps.push(prop)
+            } else if (category === 'size') {
+                this._sizeProps.push(prop)
+            } else {
+                this._directProps.push(prop)
+            }
+        }
 
         // 创建 finished Promise
         this.finished = new Promise<void>((resolve, reject) => {
@@ -206,12 +242,39 @@ export default class Animation {
 
         const target = this.target
 
-        // 快照 View 当前基础属性
-        for (const prop of this.properties) {
+        // ---- 快照空间属性 ----
+        if (this._spatialProps.length > 0) {
+            if (this.referenceFrame) {
+                // 绝对模式：从 View 到 referenceFrame 之间的矩阵提取当前位置
+                const relativeMatrix = target.getWorldMatrix(this.referenceFrame)
+                this._spatialSnapshot = {
+                    x: extractTranslation(relativeMatrix).x,
+                    y: extractTranslation(relativeMatrix).y,
+                    rotation: extractRotationZ(relativeMatrix),
+                }
+            } else {
+                // 相对模式：起始值为 0（增量语义）
+                this._spatialSnapshot = { x: 0, y: 0, rotation: 0 }
+            }
+            // 记录当前 matrix 快照（相对模式时用作基矩阵）
+            this._matrixSnapshot = target.matrix.copy()
+        }
+
+        // ---- 快照尺寸属性 ----
+        if (this._sizeProps.length > 0) {
+            const viewport = target.viewport
+            this._sizeSnapshot = {
+                width: viewport.width,
+                height: viewport.height,
+            }
+        }
+
+        // ---- 快照直通属性 ----
+        for (const prop of this._directProps) {
             this._snapshotValues[prop] = target[prop]
         }
 
-        // 处理同属性冲突 + 构建关键帧段
+        // ---- 处理同属性冲突 + 构建关键帧段 ----
         this._resolveConflictsAndBuildSegments()
 
         this._state = 'running'
@@ -262,6 +325,11 @@ export default class Animation {
     cancel(): Animation {
         if (this._state === 'finished' || this._state === 'cancelled') return this
 
+        // 如果尺寸动画已经改了 viewport/content，需要恢复到快照状态
+        if (this._sizeProps.length > 0 && this.target) {
+            this.target._animationResize(this._sizeSnapshot.width, this._sizeSnapshot.height)
+        }
+
         this._state = 'cancelled'
         this.computedValues = {}
         this.target?._removeAnimation(this)
@@ -291,11 +359,11 @@ export default class Animation {
      * @internal
      */
     private _doFinish(): void {
+        this.onUpdate?.(1)
         this._commit()
         this._state = 'finished'
         this.target?._removeAnimation(this)
         AnimationManager.getInstance().remove(this)
-        this.onUpdate?.(1)
         this.onFinish?.()
         this._finishResolve?.()
     }
@@ -371,121 +439,54 @@ export default class Animation {
     // ========== 内部方法 ==========
 
     /**
-     * 将输入统一转换为 Keyframe[]
-     *
-     * 支持三种输入形式：
-     * 1. Keyframe[] — 直接使用
-     * 2. KeyframeProps — 仅目标值，from 帧在 play() 时从快照补全
-     * 3. KeyframeShorthand — 类 CSS @keyframes 对象，支持 from/to + 百分比混用
-     *
-     * @example KeyframeShorthand 形式
-     * {
-     *   from: { x: 0 },
-     *   '10': { x: 50 },
-     *   '50': { x: 100, easing: Easings.easeInOut },
-     *   '90': { x: 150 },
-     *   to: { x: 200 }
-     * }
-     */
-    private _normalizeKeyframes(input: KeyframeInput): Keyframe[] {
-        // 形式1：Keyframe 数组，直接返回
-        if (Array.isArray(input)) {
-            return input
-        }
-
-        // 判断是否为 KeyframeShorthand（含 from/to 键，或含数字百分比键）
-        if (this._isKeyframeShorthand(input)) {
-            return this._parseKeyframeShorthand(input as KeyframeShorthand)
-        }
-
-        // 形式2：KeyframeProps — 仅目标值简写
-        // from 帧为空，play() 时从快照填充
-        return [
-            { offset: 0 },
-            { offset: 1, ...(input as KeyframeProps) },
-        ]
-    }
-
-    /**
-     * 判断输入是否为 KeyframeShorthand 形式
-     *
-     * 区分规则：
-     * - KeyframeShorthand 的值是对象（KeyframeProps），如 { from: { x: 0 }, to: { x: 100 } }
-     * - KeyframeProps 的值是原始值（number/Matrix4），如 { x: 100, y: 200 }
-     *
-     * 仅当 from/to/数字键对应的值是非 null 对象时才判定为 shorthand，
-     * 避免把 { to: 100 }（动画 to 属性到 100）误判为 shorthand
-     */
-    private _isKeyframeShorthand(input: object): boolean {
-        const obj = input as Record<string, any>
-        // 含有 from 或 to 键，且值为对象类型
-        if ('from' in obj && obj.from !== null && typeof obj.from === 'object') return true
-        if ('to' in obj && obj.to !== null && typeof obj.to === 'object') return true
-        // 含有数字键（百分比）且值为对象类型
-        return Object.keys(obj).some(
-            k => /^\d+(\.\d+)?$/.test(k) && obj[k] !== null && typeof obj[k] === 'object'
-        )
-    }
-
-    /**
-     * 解析 KeyframeShorthand 为标准 Keyframe[]
+     * 解析 KeyframeDefinition 为内部 Keyframe[]
      *
      * 规则：
-     * - 'from' 键 → offset: 0
-     * - 'to' 键 → offset: 1
-     * - 数字键（如 '10', '50', '90'）→ offset: 数字/100
+     * - 'to' 键 → offset: 1（终态，必填）
+     * - 数字键（如 '25', '50', '75'）→ offset: 数字/100
+     * - 自动补 offset:0 的空帧（play 时从 View 快照填充起始值）
      * - 结果按 offset 升序排列
-     * - 如果没有 from 帧（offset:0），自动补空帧（play 时从快照填充）
-     * - 如果没有 to 帧（offset:1），自动补空帧（取最后关键帧值）
      */
-    private _parseKeyframeShorthand(input: KeyframeShorthand): Keyframe[] {
+    private _parseDefinition(input: KeyframeDefinition): Keyframe[] {
         const keyframes: Keyframe[] = []
 
         for (const [key, value] of Object.entries(input)) {
             if (value === undefined) continue
 
             let offset: number
-            if (key === 'from') {
-                offset = 0
-            } else if (key === 'to') {
+            if (key === 'to') {
                 offset = 1
             } else if (/^\d+(\.\d+)?$/.test(key)) {
                 offset = parseFloat(key) / 100
-                // 限制在 0-1 范围内
                 offset = Math.max(0, Math.min(1, offset))
             } else {
-                // 非法键名，跳过
                 continue
             }
 
             keyframes.push({ offset, ...value })
         }
 
-        // 按 offset 升序排列
         keyframes.sort((a, b) => (a.offset ?? 0) - (b.offset ?? 0))
 
-        // 如果没有 offset:0 的帧，补空帧（play 时从快照填充）
         if (keyframes.length === 0 || (keyframes[0].offset ?? 0) !== 0) {
             keyframes.unshift({ offset: 0 })
-        }
-
-        // 如果没有 offset:1 的帧，补空帧
-        if (keyframes.length === 0 || (keyframes[keyframes.length - 1].offset ?? 0) !== 1) {
-            keyframes.push({ offset: 1 })
         }
 
         return keyframes
     }
 
     /**
-     * 处理冲突并构建关键帧分段
+     * 处理同属性冲突并构建关键帧分段
+     *
+     * 对于 spatial 和 size 类属性，快照值从 adapter 获取；
+     * 对于 direct 类属性，快照值从 _snapshotValues 获取。
      */
     private _resolveConflictsAndBuildSegments(): void {
         if (!this.target) return
         this._segments.clear()
 
         for (const prop of this.properties) {
-            // 检查冲突
+            // 检查冲突（后到的动画打断先到的）
             const existingAnim = this._findConflictingAnimation(prop)
             let overrideFromValue: AnimatableValue | undefined
 
@@ -493,6 +494,9 @@ export default class Animation {
                 overrideFromValue = existingAnim.computedValues[prop]
                 existingAnim._removeProperty(prop)
             }
+
+            // 确定起始值
+            const fromValue = overrideFromValue ?? this._getSnapshotValue(prop)
 
             // 收集该属性在各关键帧中的值
             const keyframeValues: { offset: number; value: AnimatableValue; easing?: EasingFunction }[] = []
@@ -506,11 +510,10 @@ export default class Animation {
                         easing: kf.easing as EasingFunction | undefined,
                     })
                 } else if (kf.offset === 0 || (keyframeValues.length === 0 && kf === this._keyframes[0])) {
-                    const fromVal = overrideFromValue ?? this._snapshotValues[prop]
-                    if (fromVal !== undefined) {
+                    if (fromValue !== undefined) {
                         keyframeValues.push({
                             offset: kf.offset ?? 0,
-                            value: fromVal,
+                            value: fromValue,
                             easing: kf.easing as EasingFunction | undefined,
                         })
                     }
@@ -519,9 +522,8 @@ export default class Animation {
 
             // 如果第一帧缺值，补充快照值
             if (keyframeValues.length > 0 && keyframeValues[0].offset !== 0) {
-                const fromVal = overrideFromValue ?? this._snapshotValues[prop]
-                if (fromVal !== undefined) {
-                    keyframeValues.unshift({ offset: 0, value: fromVal })
+                if (fromValue !== undefined) {
+                    keyframeValues.unshift({ offset: 0, value: fromValue })
                 }
             } else if (keyframeValues.length > 0 && keyframeValues[0].offset === -1) {
                 keyframeValues[0].offset = 0
@@ -546,6 +548,24 @@ export default class Animation {
                 this._segments.set(prop, segments)
             }
         }
+    }
+
+    /**
+     * 获取属性的快照值（用于 segment 构建时补全起始帧）
+     */
+    private _getSnapshotValue(prop: string): AnimatableValue | undefined {
+        const category = getPropertyCategory(prop)
+        if (category === 'spatial') {
+            // 空间属性：起始值来自 _spatialSnapshot
+            return this._spatialSnapshot[prop as keyof typeof this._spatialSnapshot]
+        } else if (category === 'size') {
+            // 尺寸属性：起始值来自 _sizeSnapshot
+            if (prop === 'width') return this._sizeSnapshot.width
+            if (prop === 'height') return this._sizeSnapshot.height
+            if (prop === 'scaleX' || prop === 'scaleY') return 1
+        }
+        // 直通属性
+        return this._snapshotValues[prop]
     }
 
     /**
@@ -601,32 +621,187 @@ export default class Animation {
     }
 
     /**
-     * 根据进度计算所有属性的值并写入 computedValues
+     * 根据进度计算所有属性的值并应用
+     *
+     * 处理三类属性：
+     * - spatial: 各分量插值 → 合成矩阵 → 写入 computedValues['matrix']
+     * - size: 插值当前宽高 → 调用 _animationResize 真正修改 viewport + content
+     * - direct: 线性插值 → 写入 computedValues[prop]
      */
     private _applyAtProgress(progress: number): void {
-        for (const [prop, segments] of this._segments) {
-            this.computedValues[prop] = interpolateKeyframes(segments, progress)
+        if (!this.target) return
+
+        // ---- 空间属性：分量插值 → 合成矩阵 ----
+        if (this._spatialProps.length > 0) {
+            // 从 segments 插值各空间分量
+            const currentX = this._interpolateSpatialProp('x', progress)
+            const currentY = this._interpolateSpatialProp('y', progress)
+            const currentRotation = this._interpolateSpatialProp('rotation', progress)
+
+            if (this.referenceFrame) {
+                // 绝对模式：在参考系坐标空间中构造目标矩阵，再反算本地 matrix
+                const targetInRef = Matrix4.identity()
+                    .translate(currentX, currentY, 0)
+                    .rotateZ(currentRotation)
+
+                // localMatrix = (parent→ref).inverse() × targetInRef
+                const parent = this.target.parent
+                let parentToRef = Matrix4.identity()
+                if (parent && typeof parent === 'object' && 'getWorldMatrix' in parent) {
+                    parentToRef = (parent as View).getWorldMatrix(this.referenceFrame)
+                }
+                const animatedMatrix = parentToRef.inverse().multiplyMatrix(targetInRef)
+                this.computedValues['matrix'] = animatedMatrix
+            } else {
+                // 相对模式：构造增量矩阵，左乘到快照 matrix 上
+                // deltaMatrix = T(deltaX, deltaY) × R(deltaRotation)
+                const deltaMatrix = Matrix4.identity()
+                    .translate(currentX, currentY, 0)
+                    .rotateZ(currentRotation)
+                const animatedMatrix = deltaMatrix.multiplyMatrix(this._matrixSnapshot)
+                this.computedValues['matrix'] = animatedMatrix
+            }
+        }
+
+        // ---- 尺寸属性：插值 → 每帧 resize ----
+        if (this._sizeProps.length > 0) {
+            const currentWidth = this._interpolateSizeProp('width', progress)
+            const currentHeight = this._interpolateSizeProp('height', progress)
+
+            // 调用 _animationResize 直接修改 viewport + content
+            this.target._animationResize(currentWidth, currentHeight)
+        }
+
+        // ---- 直通属性：线性插值 → computedValues ----
+        for (const prop of this._directProps) {
+            const segments = this._segments.get(prop)
+            if (segments) {
+                this.computedValues[prop] = interpolateKeyframes(segments, progress)
+            }
         }
     }
 
     /**
-     * 终态提交
+     * 插值空间属性分量
+     * 如果该属性未被动画控制，返回快照值（无变化）
+     */
+    private _interpolateSpatialProp(prop: 'x' | 'y' | 'rotation', progress: number): number {
+        const segments = this._segments.get(prop)
+        if (!segments) {
+            // 该属性未被动画控制，返回快照值
+            return this._spatialSnapshot[prop]
+        }
+        // 使用短弧插值 for rotation，线性插值 for x/y
+        if (prop === 'rotation') {
+            return this._interpolateRotationSegments(segments, progress)
+        }
+        return interpolateKeyframes(segments, progress) as number
+    }
+
+    /**
+     * 对 rotation 分段进行短弧插值
+     */
+    private _interpolateRotationSegments(segments: ResolvedKeyframeSegment[], progress: number): number {
+        // 找到当前进度所在的分段
+        for (const seg of segments) {
+            if (progress >= seg.startOffset && progress <= seg.endOffset) {
+                const segDuration = seg.endOffset - seg.startOffset
+                const segProgress = segDuration > 0
+                    ? (progress - seg.startOffset) / segDuration
+                    : 1
+                // 应用段级 easing
+                const easedSeg = seg.easing ? seg.easing(segProgress) : segProgress
+                return lerpAngle(seg.startValue as number, seg.endValue as number, easedSeg)
+            }
+        }
+        // 超出范围时返回最后一段的终值
+        if (segments.length > 0) {
+            const lastSeg = segments[segments.length - 1]
+            return progress <= segments[0].startOffset
+                ? segments[0].startValue as number
+                : lastSeg.endValue as number
+        }
+        return 0
+    }
+
+    /**
+     * 插值尺寸属性
+     * scaleX/scaleY 被转化为 width/height 目标值后，统一按 width/height 插值
+     */
+    private _interpolateSizeProp(prop: 'width' | 'height', progress: number): number {
+        // 尺寸属性的 segments 可能以 width/height/scaleX/scaleY 为 key
+        // 但在 play() 阶段已经将 scaleX/scaleY 转化为了 width/height 的目标值
+        // 这里直接线性插值 snapshot → target
+        const segments = this._segments.get(prop)
+        if (segments) {
+            return interpolateKeyframes(segments, progress) as number
+        }
+        // 如果 segments 中没有直接的 width/height，检查 scaleX/scaleY
+        if (prop === 'width') {
+            const scaleSegs = this._segments.get('scaleX')
+            if (scaleSegs) {
+                const scale = interpolateKeyframes(scaleSegs, progress) as number
+                return this._sizeSnapshot.width * scale
+            }
+            return this._sizeSnapshot.width
+        }
+        if (prop === 'height') {
+            const scaleSegs = this._segments.get('scaleY')
+            if (scaleSegs) {
+                const scale = interpolateKeyframes(scaleSegs, progress) as number
+                return this._sizeSnapshot.height * scale
+            }
+            return this._sizeSnapshot.height
+        }
+        return 0
+    }
+
+    /**
+     * 提交终态：动画结束时将最终值写入 View 的真实属性
+     *
+     * 根据 fillMode：
+     * - 'none': 清除 computedValues，View 恢复原状（spatial）
+     * - 'forwards'/'both': 保留终态写入 View 真实属性
      */
     private _commit(): void {
         if (!this.target) return
-        if (this.fillMode === 'forwards' || this.fillMode === 'both') {
-            for (const prop of this.properties) {
-                const endValue = this.computedValues[prop]
-                if (endValue !== undefined) {
-                    this.target[prop] = endValue
+
+        const shouldPersist = this.fillMode === 'forwards' || this.fillMode === 'both'
+
+        if (shouldPersist) {
+            // 空间属性：将计算出的 matrix 写入 View.matrix
+            if (this._spatialProps.length > 0 && this.computedValues['matrix']) {
+                this.target.matrix = this.computedValues['matrix'] as Matrix4
+            }
+
+            // 尺寸属性：已经每帧真实修改了 viewport + content，无需额外操作
+
+            // 直通属性：写入 View 对应属性
+            for (const prop of this._directProps) {
+                if (this.computedValues[prop] !== undefined) {
+                    ;(this.target as any)[prop] = this.computedValues[prop]
                 }
             }
+        } else {
+            // fillMode = 'none' 或 'backwards'
+            // 空间属性：恢复到快照 matrix
+            if (this._spatialProps.length > 0) {
+                this.target.matrix = this._matrixSnapshot.copy()
+            }
+
+            // 尺寸属性：恢复到快照尺寸
+            if (this._sizeProps.length > 0) {
+                this.target._animationResize(this._sizeSnapshot.width, this._sizeSnapshot.height)
+            }
         }
+
+        // 清除 computedValues（动画不再驱动渲染）
         this.computedValues = {}
     }
 
     /**
-     * 查找正在控制指定属性的其他活跃动画
+     * 查找同一 View 上控制相同属性的正在运行的动画
+     * 用于冲突解决（后到的动画打断先到的同属性动画）
      */
     private _findConflictingAnimation(prop: string): Animation | null {
         if (!this.target) return null
@@ -640,24 +815,22 @@ export default class Animation {
     }
 
     /**
-     * 移除对某属性的控制（被新动画打断时调用）
+     * 移除动画对某个属性的控制（被更高优先级动画打断时调用）
+     * @internal
      */
     _removeProperty(prop: string): void {
-        const index = this.properties.indexOf(prop)
-        if (index !== -1) {
-            this.properties.splice(index, 1)
-            delete this.computedValues[prop]
-            this._segments.delete(prop)
-        }
+        this.properties = this.properties.filter(p => p !== prop)
+        this._segments.delete(prop)
+        delete this.computedValues[prop]
+
+        // 从分类缓存中移除
+        this._spatialProps = this._spatialProps.filter(p => p !== prop)
+        this._sizeProps = this._sizeProps.filter(p => p !== prop)
+        this._directProps = this._directProps.filter(p => p !== prop)
+
+        // 如果所有属性都被打断了，自动取消这个动画
         if (this.properties.length === 0) {
             this.cancel()
         }
-    }
-
-    /**
-     * 获取某属性的当前动画计算值
-     */
-    getComputedValue(prop: string): AnimatableValue | undefined {
-        return this.computedValues[prop]
     }
 }

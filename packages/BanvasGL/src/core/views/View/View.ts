@@ -11,7 +11,7 @@ import { BoundingBoxAddon } from '@/core/views/addon'
 import { MathUtils, Point3, Vector3 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
 import Animation from '@/core/animation/Animation'
-import type { AnimationOptions, Keyframe, KeyframeProps, KeyframeShorthand, KeyframeInput, AnimatableValue } from '@/core/animation/types'
+import type { AnimationOptions, KeyframeDefinition, AnimatableValue } from '@/core/animation/types'
 
 const RESIZE_SIZE_MAP = [
     { width: true, height: true },
@@ -105,40 +105,31 @@ export default abstract class View<T extends object = any> implements IView, ISe
      * 创建并播放动画，或挂载已有 Animation 实例并播放
      * @example
      * // 方式1：传入 Animation 实例
-     * const anim = new Animation([{ offset: 0, x: 0 }, { offset: 1, x: 200 }], { duration: 1000 })
+     * const anim = new Animation({ to: { x: 200 } }, { duration: 1000 })
      * view.animate(anim)
      *
-     * // 方式2：简写，移动到目标值
-     * view.animate({ x: 200, y: 300 }, { duration: 500, easing: Easings.easeOutCubic })
+     * // 方式2：KeyframeDefinition + options（自动创建 Animation）
+     * view.animate({ to: { x: 200, y: 300 } }, { duration: 500, easing: Easings.easeOutCubic })
      *
-     * // 方式3：类 CSS @keyframes 对象形式（from/to + 百分比混用）
-     * view.animate({ from: { x: 0 }, '10': { x: 50 }, '90': { x: 150 }, to: { x: 200 } }, { duration: 1000 })
-     *
-     * // 方式4：多关键帧数组
-     * view.animate([
-     *   { offset: 0, x: 0, y: 0 },
-     *   { offset: 0.5, x: 100, y: -50 },
-     *   { offset: 1, x: 200, y: 0 },
-     * ], { duration: 1000, iterations: Infinity, direction: 'alternate' })
+     * // 方式3：带中间帧
+     * view.animate({ '25': { x: 80 }, '75': { x: 180 }, to: { x: 200 } }, { duration: 1000 })
      */
     public animate(animation: Animation): Animation
-    public animate(keyframes: Keyframe[], options: AnimationOptions): Animation
-    public animate(to: KeyframeProps, options: AnimationOptions): Animation
-    public animate(keyframes: KeyframeShorthand, options: AnimationOptions): Animation
+    public animate(definition: KeyframeDefinition, options: AnimationOptions): Animation
     public animate(
-        keyframesOrAnimation: Animation | KeyframeInput,
+        definitionOrAnimation: Animation | KeyframeDefinition,
         options?: AnimationOptions
     ): Animation {
         // 如果传入的是 Animation 实例，直接绑定并播放
-        if (keyframesOrAnimation instanceof Animation) {
-            const anim = keyframesOrAnimation
+        if (definitionOrAnimation instanceof Animation) {
+            const anim = definitionOrAnimation
             anim._bindTarget(this)
             anim.play()
             return anim
         }
 
         // 否则创建新的 Animation 实例
-        const anim = new Animation(this, keyframesOrAnimation as any, options!)
+        const anim = new Animation(this, definitionOrAnimation, options!)
         anim.play()
         return anim
     }
@@ -151,7 +142,7 @@ export default abstract class View<T extends object = any> implements IView, ISe
         for (let i = this._animations.length - 1; i >= 0; i--) {
             const anim = this._animations[i]
             if (anim.isActive) {
-                const val = anim.getComputedValue(prop)
+                const val = anim.computedValues[prop]
                 if (val !== undefined) return val
             }
         }
@@ -196,6 +187,71 @@ export default abstract class View<T extends object = any> implements IView, ISe
     /** @internal 由 Animation 调用 */
     _getAnimations(): Animation[] {
         return this._animations
+    }
+
+    /**
+     * 动画专用 resize 方法
+     *
+     * 模拟从右下角拖拽 + Ctrl 按下的效果：
+     * 同时修改 viewport 尺寸和 content，等比缩放所有内容。
+     *
+     * @param targetWidth 目标宽度
+     * @param targetHeight 目标高度
+     * @internal
+     */
+    _animationResize(targetWidth: number, targetHeight: number): void {
+        const viewport = this.viewport
+        if (!viewport) return
+
+        const oldWidth = viewport.width
+        const oldHeight = viewport.height
+
+        // 避免尺寸为 0
+        if (targetWidth === 0 || targetHeight === 0) return
+        if (oldWidth === 0 || oldHeight === 0) return
+
+        // 计算增量 delta
+        const deltaX = targetWidth - oldWidth
+        const deltaY = targetHeight - oldHeight
+
+        // 更新 viewport 尺寸（固定左上角，向右下角拓展）
+        viewport.setSize(targetWidth, targetHeight)
+        this.boundingBox?.updateSize()
+
+        // resize content（模拟 needResizeContent = true 的效果）
+        if (this.content) {
+            // fixedPoint: viewport 起点（左上角）
+            // dynamicPoint: viewport 右下角
+            const fixedPoint = new Point3(viewport.x, viewport.y, 0)
+            const dynamicPoint = new Point3(
+                viewport.x + oldWidth,
+                viewport.y + oldHeight,
+                0
+            )
+            // resizeVector: 尺寸变化量（本地坐标系）
+            const resizeVector = new Vector3(deltaX, deltaY, 0)
+
+            this.content.resize(fixedPoint, dynamicPoint, resizeVector)
+
+            // 更新布局区域
+            this.layoutArea = Bounds.union(
+                this.content.bounds ?? Bounds.empty(),
+                this.measureChildren()
+            )
+            this.layout()
+        }
+
+        // 递归子 View（子 View 等比缩放）
+        const scaleX = targetWidth / oldWidth
+        const scaleY = targetHeight / oldHeight
+        this.children.forEach(child => {
+            const childViewport = child.viewport
+            if (!childViewport) return
+            child._animationResize(
+                childViewport.width * scaleX,
+                childViewport.height * scaleY
+            )
+        })
     }
 
     // 获取内容
