@@ -41,7 +41,8 @@ import type View from '@/core/views/View/View'
 export default class Animation {
     public readonly id: string
     public target: View | null = null
-    public readonly properties: string[]
+    /** 动画控制的属性列表（外部只读，内部可被冲突解决修改） */
+    public properties: string[]
 
     // 已解析的关键帧段（每个属性独立一组段）
     private _segments: Map<string, ResolvedKeyframeSegment[]> = new Map()
@@ -68,6 +69,7 @@ export default class Animation {
     private _state: AnimationState = 'idle'
     private _startTime: number = -1
     private _pausedElapsed: number = 0
+    private _lastTimestamp: number = -1
     private _startedCallback: boolean = false
     private _lastIteration: number = 0
 
@@ -163,6 +165,8 @@ export default class Animation {
             this._finishResolve = resolve
             this._finishReject = reject
         })
+        // 防止 cancel() 时产生 unhandled promise rejection
+        this.finished.catch(() => {})
     }
 
     // ========== 状态访问 ==========
@@ -233,6 +237,10 @@ export default class Animation {
      */
     pause(): Animation {
         if (this._state !== 'running') return this
+        // 记录暂停时已经过的时间
+        if (this._startTime !== -1 && this._lastTimestamp !== -1) {
+            this._pausedElapsed = this._lastTimestamp - this._startTime
+        }
         this._state = 'paused'
         return this
     }
@@ -243,6 +251,7 @@ export default class Animation {
     resume(): Animation {
         if (this._state !== 'paused') return this
         this._state = 'running'
+        // 重置 startTime，下一次 tick 时会根据 _pausedElapsed 重新计算
         this._startTime = -1
         return this
     }
@@ -270,18 +279,25 @@ export default class Animation {
         if (this._state === 'finished' || this._state === 'cancelled') return this
         if (!this.target) return this
 
-        // 计算最终进度对应的值
         const finalProgress = this._getFinalDirectedProgress()
         this._applyAtProgress(finalProgress)
-
-        this._commit()
-        this._state = 'finished'
-        this.target._removeAnimation(this)
-        AnimationManager.getInstance().remove(this)
-        this.onFinish?.()
-        this._finishResolve?.()
+        this._doFinish()
 
         return this
+    }
+
+    /**
+     * 统一的动画完成处理（tick 自然结束和手动 finish 共用）
+     * @internal
+     */
+    private _doFinish(): void {
+        this._commit()
+        this._state = 'finished'
+        this.target?._removeAnimation(this)
+        AnimationManager.getInstance().remove(this)
+        this.onUpdate?.(1)
+        this.onFinish?.()
+        this._finishResolve?.()
     }
 
     // ========== 帧驱动 ==========
@@ -301,6 +317,9 @@ export default class Animation {
             }
         }
 
+        // 记录最后一次 tick 的时间戳（供 pause 时计算已过时间）
+        this._lastTimestamp = timestamp
+
         const elapsed = timestamp - this._startTime
         if (elapsed < 0) return true // 还在 delay 中
 
@@ -315,16 +334,9 @@ export default class Animation {
 
         // 检查是否所有迭代已完成
         if (this.iterations !== Infinity && elapsed >= totalDuration) {
-            // 动画完成
             const finalProgress = this._getFinalDirectedProgress()
             this._applyAtProgress(finalProgress)
-
-            this._commit()
-            this._state = 'finished'
-            this.target?._removeAnimation(this)
-            this.onUpdate?.(1)
-            this.onFinish?.()
-            this._finishResolve?.()
+            this._doFinish()
             return false
         }
 
@@ -396,14 +408,23 @@ export default class Animation {
 
     /**
      * 判断输入是否为 KeyframeShorthand 形式
-     * 通过检查是否包含 from/to 键或数字百分比键来判定
+     *
+     * 区分规则：
+     * - KeyframeShorthand 的值是对象（KeyframeProps），如 { from: { x: 0 }, to: { x: 100 } }
+     * - KeyframeProps 的值是原始值（number/Matrix4），如 { x: 100, y: 200 }
+     *
+     * 仅当 from/to/数字键对应的值是非 null 对象时才判定为 shorthand，
+     * 避免把 { to: 100 }（动画 to 属性到 100）误判为 shorthand
      */
     private _isKeyframeShorthand(input: object): boolean {
-        const keys = Object.keys(input)
-        // 含有 from 或 to 键
-        if (keys.includes('from') || keys.includes('to')) return true
-        // 含有数字键（百分比）
-        return keys.some(k => /^\d+(\.\d+)?$/.test(k))
+        const obj = input as Record<string, any>
+        // 含有 from 或 to 键，且值为对象类型
+        if ('from' in obj && obj.from !== null && typeof obj.from === 'object') return true
+        if ('to' in obj && obj.to !== null && typeof obj.to === 'object') return true
+        // 含有数字键（百分比）且值为对象类型
+        return Object.keys(obj).some(
+            k => /^\d+(\.\d+)?$/.test(k) && obj[k] !== null && typeof obj[k] === 'object'
+        )
     }
 
     /**

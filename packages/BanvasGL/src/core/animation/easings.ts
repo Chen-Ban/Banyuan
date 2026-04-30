@@ -102,9 +102,10 @@ export const Easings = {
  * 与 CSS cubic-bezier() 一致
  */
 export function cubicBezier(x1: number, y1: number, x2: number, y2: number): EasingFunction {
-    // 牛顿迭代法求解 t 对应的 x
-    const sampleCurveX = (t: number) => ((1 - 3 * x2 + 3 * x1) * t + (3 * x2 - 6 * x1)) * t * (3 * x1) * t
-    const sampleCurveY = (t: number) => ((1 - 3 * y2 + 3 * y1) * t + (3 * y2 - 6 * y1)) * t + (3 * y1) * t
+    // 三次贝塞尔曲线采样（Horner 法则展开）
+    // B(t) = 3(1-t)²t·P1 + 3(1-t)t²·P2 + t³ 展开为: (1-3P2+3P1)t³ + (3P2-6P1)t² + 3P1·t
+    const sampleCurveX = (t: number) => (((1 - 3 * x2 + 3 * x1) * t + (3 * x2 - 6 * x1)) * t + 3 * x1) * t
+    const sampleCurveY = (t: number) => (((1 - 3 * y2 + 3 * y1) * t + (3 * y2 - 6 * y1)) * t + 3 * y1) * t
     const sampleCurveDerivativeX = (t: number) => (3 * (1 - 3 * x2 + 3 * x1) * t + 2 * (3 * x2 - 6 * x1)) * t + 3 * x1
 
     function solveCurveX(x: number): number {

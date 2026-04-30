@@ -17,6 +17,8 @@ export type {
     AnimatableValue,
     Keyframe,
     KeyframeProps,
+    KeyframeShorthand,
+    KeyframeInput,
     AnimationOptions,
     Interpolator,
     AnimationTarget,

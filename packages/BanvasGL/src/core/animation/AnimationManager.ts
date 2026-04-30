@@ -45,7 +45,10 @@ export default class AnimationManager {
      * @param timestamp requestAnimationFrame 传入的时间戳
      */
     tick(timestamp: number): void {
-        for (const anim of this._animations) {
+        // 快照当前动画列表，避免遍历时增删 Set 导致的不确定行为
+        // （回调中可能创建新动画、动画完成时会从 Set 中移除自身）
+        const snapshot = [...this._animations]
+        for (const anim of snapshot) {
             const alive = anim.tick(timestamp)
             if (!alive) {
                 this._animations.delete(anim)
