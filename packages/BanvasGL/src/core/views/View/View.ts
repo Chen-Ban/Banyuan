@@ -4,7 +4,7 @@ import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
 import { Action, Cursor, ISceneNode, IView, IViewStyle, IViewAddon, ExtraData, ISerializable, IGraph } from '@/core/interfaces'
 
 // 导入图形相关类型
-import { Graph, Line, Rectangle } from '@/core/graph'
+import { Line, Rectangle } from '@/core/graph'
 
 // 导入addon类型
 import { BoundingBoxAddon } from '@/core/views/addon'
@@ -76,8 +76,6 @@ export default abstract class View<T extends object = any> implements IView, ISe
     public actived: boolean = false
     public freezed: boolean = false
     public visible: boolean = true
-    // 边框图形
-    public borderGraph: Rectangle | null = null
     // 滚动条图形
     public scrollBarHorization: Rectangle | null = null
     public scrollBarVertical: Rectangle | null = null
@@ -436,15 +434,6 @@ export default abstract class View<T extends object = any> implements IView, ISe
         })
     }
 
-    splitChildren() {
-        this.children.forEach((child) => {
-            child.parent = this.parent
-            child.matrix = this.matrix.multiply(child.matrix)
-        })
-        if (this.parent) {
-            this.parent.children = this.children
-        }
-    }
 
     // 自定义属性（索引签名）
     [funcName: string]: any

@@ -1,7 +1,6 @@
 import type View from '@/core/views/View/View'
 import type Matrix4 from '@/core/math/Matrix4'
 import { extractTranslation, extractRotationZ, lerpAngle } from './trs'
-import type { AnimatableValue } from './types'
 
 /**
  * 动画属性类别

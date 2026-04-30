@@ -34,8 +34,9 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
       const point = this.getPointAt(i / length);
       points.push(point);
     }
-    points.push()
-    return Bounds.fromPoints(points, orientationX ?? this.controlPoints[-1].x - this.controlPoints[0].x > 0, orientationY ?? this.controlPoints[-1].y - this.controlPoints[0].y > 0)
+    points.push(this.getPointAt(1))
+    const lastPoint = this.controlPoints[this.controlPoints.length - 1]
+    return Bounds.fromPoints(points, orientationX ?? lastPoint.x - this.controlPoints[0].x > 0, orientationY ?? lastPoint.y - this.controlPoints[0].y > 0)
   }
 
   // 获取起始点

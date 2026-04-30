@@ -4,12 +4,8 @@ import { Easings } from './easings'
 import AnimationManager from './AnimationManager'
 import Matrix4 from '@/core/math/Matrix4'
 import {
-    getAdapter,
     getPropertyCategory,
     detectConflict,
-    SPATIAL_PROPERTIES,
-    SIZE_PROPERTIES,
-    type PropertyCategory,
 } from './adapters'
 import { extractTranslation, extractRotationZ, lerpAngle } from './trs'
 import type {

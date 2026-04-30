@@ -6,7 +6,7 @@ import { Rectangle } from '@/core/graph'
 import { clearAllStates } from '@/core/scene/operations'
 import snapAlignManager from '@/core/snapAlign'
 import Bounds from '@/core/graph/base/Bounds'
-import { isNonPrintableTextElement, isPrintableTextElement, Graph } from '@/core/graph'
+import { isNonPrintableTextElement, isPrintableTextElement } from '@/core/graph'
 
 export interface InteractionContext {
     /** Get the current indicated (hovered) view */

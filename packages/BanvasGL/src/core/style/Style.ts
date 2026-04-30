@@ -123,28 +123,6 @@ export default class Style implements ISerializable {
       this.shadowStyle.equals(other.shadowStyle)
   }
 
-  // 静态工厂方法
-  static fromFillColor(color: Color): Style {
-    return new Style({
-      fillStyle: new FillStyle({ fillType: 'color', color }),
-    })
-  }
-
-  static fromStrokeColor(color: Color, width: number = 1): Style {
-    return new Style({
-      fillStyle: new FillStyle({ fillType: 'color', color: Color.TRANSPARENT }),
-      strokeStyle: new StrokeStyle({ strokeType: 'color', color, width }),
-    })
-  }
-
-  static fromFillAndStroke(fillColor: Color, strokeColor: Color, strokeWidth: number = 1): Style {
-    return new Style({
-      fillStyle: new FillStyle({ fillType: 'color', color: fillColor }),
-      strokeStyle: new StrokeStyle({ strokeType: 'color', color: strokeColor, width: strokeWidth }),
-    })
-  }
-
-
   // 预定义样式
   static readonly DEFAULT = new Style()
   static readonly FILL_ONLY = new Style({

@@ -1,6 +1,6 @@
 import View, { InteractResult, ViewOptions } from '@/core/views/View/View'
 import { Graph, Line } from '@/core/graph'
-import { isGraphType, isAnalyticGraph, ExtraData, IGraphView, ISerializable } from '@/core/interfaces'
+import { isAnalyticGraph, IGraphView, ISerializable } from '@/core/interfaces'
 import { VIEWTYPE } from '@/core/constants'
 import { generateId } from '@/core/utils'
 import { Point3 } from '@/core/math'

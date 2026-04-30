@@ -1,5 +1,4 @@
 import DenseTrajectory from "@/core/graph/trajectory/DenseTrajectory";
-import { Point3, Vector3 } from "@/core/math";
 import { WorkerHandler, WorkerHandlerResult } from "@/workers/types";
 import type { TransferableData } from "@/core/interfaces";
 

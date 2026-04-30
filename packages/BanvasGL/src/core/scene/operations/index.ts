@@ -2,7 +2,6 @@ export {
   default as OperationStack,
   DiffType,
   Operation,
-  LinkNode,
 } from './OperationStack'
 
 export type {
@@ -24,12 +23,7 @@ export { default as LayerManager } from './LayerManager'
 
 export {
   flattenViewTree,
-  findViewPath,
   isViewInTree,
-  getViewDepths,
-  getActiveViews,
-  getSelectedViews,
-  clearActiveStates,
   clearSelectedStates,
   clearAllStates,
 } from './ViewTree'
