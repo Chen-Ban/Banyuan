@@ -1,5 +1,4 @@
 import type Animation from './Animation'
-import type View from '@/core/views/View/View'
 
 let _instance: AnimationManager | null = null
 
@@ -54,57 +53,6 @@ export default class AnimationManager {
                 this._animations.delete(anim)
             }
         }
-    }
-
-    /**
-     * 查询某 View 上是否有活跃动画在控制指定属性
-     */
-    getActiveAnimation(view: View, property: string): Animation | undefined {
-        for (const anim of this._animations) {
-            if (anim.target === view && anim.isActive && anim.properties.includes(property)) {
-                return anim
-            }
-        }
-        return undefined
-    }
-
-    /**
-     * 取消某 View 上的所有动画
-     */
-    cancelAllForView(view: View): void {
-        for (const anim of this._animations) {
-            if (anim.target === view) {
-                anim.cancel()
-            }
-        }
-    }
-
-    /**
-     * 立即完成某 View 上的所有动画
-     */
-    finishAllForView(view: View): void {
-        for (const anim of this._animations) {
-            if (anim.target === view) {
-                anim.finish()
-            }
-        }
-    }
-
-    /**
-     * 取消所有动画
-     */
-    cancelAll(): void {
-        for (const anim of this._animations) {
-            anim.cancel()
-        }
-    }
-
-    /**
-     * 当前是否有任何活跃动画
-     * 可用于优化：无动画时 tick 是空操作
-     */
-    get hasActiveAnimations(): boolean {
-        return this._animations.size > 0
     }
 
     /**

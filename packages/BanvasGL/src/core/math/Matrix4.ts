@@ -170,17 +170,6 @@ export default class Matrix4 implements ISerializable {
     return this;
   }
 
-  // 矩阵转置
-  transpose(): Matrix4 {
-    const result = new Matrix4();
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        result.data[j * 4 + i] = this.data[i * 4 + j];
-      }
-    }
-    return result;
-  }
-
   // 计算行列式
   get determinant(): number {
     const m = this.data;
@@ -378,11 +367,6 @@ export default class Matrix4 implements ISerializable {
     matrix.data[10] = 1;
     matrix.data[15] = 1;
     return matrix;
-  }
-
-  // 静态方法：创建零矩阵
-  static zeros(): Matrix4 {
-    return new Matrix4();
   }
 
   // 静态方法：创建平移矩阵 (行主序，平移分量在位置3、7、11)

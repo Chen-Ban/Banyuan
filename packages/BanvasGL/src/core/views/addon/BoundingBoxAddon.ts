@@ -1,7 +1,7 @@
 import Bounds from '@/core/graph/base/Bounds'
 import Rectangle from '@/core/graph/combined/Polygon/Rectangle'
 import Style from '@/core/style/Style'
-import { Point3, Vector3 } from '@/core/math'
+import { Point3 } from '@/core/math'
 import { Action, Cursor, cursorMap, ExtraData, IBoundingBoxAddon } from '@/core/interfaces'
 import { ADDONTYPE } from '@/core/constants'
 import { Circle, Line } from '@/core/graph'

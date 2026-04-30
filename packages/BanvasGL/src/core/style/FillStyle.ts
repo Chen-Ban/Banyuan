@@ -111,11 +111,6 @@ export default class FillStyle implements ISerializable {
     });
   }
 
-  // 克隆并修改
-  clone(): FillStyle {
-    return this.copy();
-  }
-
   // 比较是否相等
   equals(other: FillStyle): boolean {
     if (this.fillType !== other.fillType) return false;

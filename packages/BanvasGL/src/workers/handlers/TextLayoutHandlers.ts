@@ -1,5 +1,5 @@
 import Serializer from '@/core/serializer'
-import { VERTICALALIGN } from '@/core/constants'
+import type { VERTICALALIGN } from '@/core/constants'
 import { WorkerHandler, WorkerHandlerResult } from '@/workers/types'
 import Bounds from '@/core/graph/base/Bounds'
 
@@ -41,14 +41,17 @@ export const textLayoutHandler: WorkerHandler<
     const {
         paragraphs: paragraphsJson,
         layoutArea: layoutAreaJson,
-        verticalAlign = VERTICALALIGN.TOP,
-        fixedWidth = false,
-        fixedHeight = false,
+        verticalAlign,
+        fixedWidth,
+        fixedHeight,
     } = payload
 
     // Worker 端反序列化重建实例
     const paragraphs = serializer.deserialize(paragraphsJson)
     const layoutArea = serializer.deserialize(layoutAreaJson)
+
+    // TODO: 待完整实现时启用，当前占位
+    void verticalAlign; void fixedWidth; void fixedHeight; void layoutArea
 
     // TODO: 当 Worker 环境支持 CanvasContext 时启用完整布局
     // 当前返回空布局结果，因为 Worker 中没有 Canvas 上下文

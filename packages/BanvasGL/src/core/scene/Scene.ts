@@ -31,9 +31,7 @@ export default class Scene implements ISerializable {
   private layerManager: LayerManager;
 
   // 私有属性
-  private _isLoaded: boolean = false;
   private _isVisible: boolean = false;
-  private _loadParams: any = null;
 
   // 传入的生命周期回调函数
   private _onLoad?: (params: any) => void;
@@ -69,9 +67,6 @@ export default class Scene implements ISerializable {
 
   // 生命周期方法
   public onLoad(params: any): void {
-    this._loadParams = params;
-    this._isLoaded = true;
-
     // 执行用户提供的回调函数
     if (this._onLoad) {
       this._onLoad(params);
@@ -79,9 +74,6 @@ export default class Scene implements ISerializable {
   }
 
   public onUnload(): void {
-    this._isLoaded = false;
-    this._loadParams = null;
-
     // 清理子视图
     this.clearChildren();
     // 清空操作栈

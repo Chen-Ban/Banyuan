@@ -363,7 +363,6 @@ export default class Color implements ISerializable {
 
     const delta = 6/29
     const delta2 = delta * delta
-    const delta3 = delta2 * delta
 
     const x = fx > delta ? Math.pow(fx, 3) : 3 * delta2 * (fx - 4/29)
     const y = fy > delta ? Math.pow(fy, 3) : 3 * delta2 * (fy - 4/29)

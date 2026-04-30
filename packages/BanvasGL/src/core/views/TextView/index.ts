@@ -380,7 +380,6 @@ export default class TextView extends View implements ITextView, ISerializable {
                     const currentParagraph = paragraph
                     const nextParagraph =
                         this.content.paragraphs[fixedParagraphIndex + 1]
-                    const currentTextCount = currentParagraph.texts.length
 
                     // 将下一个段落的内容合并到当前段落
                     currentParagraph.texts = currentParagraph.texts
