@@ -8,6 +8,8 @@ import type {
     AnimatableValue,
     Keyframe,
     KeyframeProps,
+    KeyframeShorthand,
+    KeyframeInput,
     FillMode,
     PlaybackDirection,
     EasingFunction,
@@ -87,21 +89,21 @@ export default class Animation {
      */
     constructor(keyframes: Keyframe[], options: AnimationOptions)
     constructor(to: KeyframeProps, options: AnimationOptions)
-    constructor(keyframes: { from: KeyframeProps; to: KeyframeProps }, options: AnimationOptions)
+    constructor(keyframes: KeyframeShorthand, options: AnimationOptions)
 
     /**
      * 绑定 target 创建（后续手动调用 play()）
      */
     constructor(target: View, keyframes: Keyframe[], options: AnimationOptions)
     constructor(target: View, to: KeyframeProps, options: AnimationOptions)
-    constructor(target: View, keyframes: { from: KeyframeProps; to: KeyframeProps }, options: AnimationOptions)
+    constructor(target: View, keyframes: KeyframeShorthand, options: AnimationOptions)
 
     constructor(...args: any[]) {
         this.id = generateId()
 
         // 解析参数：判断第一个参数是否是 View（有 _addAnimation 方法）
         let target: View | null = null
-        let keyframesOrTo: Keyframe[] | KeyframeProps | { from: KeyframeProps; to: KeyframeProps }
+        let keyframesOrTo: KeyframeInput
         let options: AnimationOptions
 
         if (args.length === 3 && args[0] && typeof args[0] === 'object' && '_addAnimation' in args[0]) {
@@ -358,25 +360,100 @@ export default class Animation {
 
     /**
      * 将输入统一转换为 Keyframe[]
+     *
+     * 支持三种输入形式：
+     * 1. Keyframe[] — 直接使用
+     * 2. KeyframeProps — 仅目标值，from 帧在 play() 时从快照补全
+     * 3. KeyframeShorthand — 类 CSS @keyframes 对象，支持 from/to + 百分比混用
+     *
+     * @example KeyframeShorthand 形式
+     * {
+     *   from: { x: 0 },
+     *   '10': { x: 50 },
+     *   '50': { x: 100, easing: Easings.easeInOut },
+     *   '90': { x: 150 },
+     *   to: { x: 200 }
+     * }
      */
-    private _normalizeKeyframes(
-        input: Keyframe[] | KeyframeProps | { from: KeyframeProps; to: KeyframeProps }
-    ): Keyframe[] {
+    private _normalizeKeyframes(input: KeyframeInput): Keyframe[] {
+        // 形式1：Keyframe 数组，直接返回
         if (Array.isArray(input)) {
             return input
         }
-        if ('from' in input && 'to' in input) {
-            const kfInput = input as { from: KeyframeProps; to: KeyframeProps }
-            return [
-                { offset: 0, ...kfInput.from },
-                { offset: 1, ...kfInput.to },
-            ]
+
+        // 判断是否为 KeyframeShorthand（含 from/to 键，或含数字百分比键）
+        if (this._isKeyframeShorthand(input)) {
+            return this._parseKeyframeShorthand(input as KeyframeShorthand)
         }
-        // 仅 to：from 将在 play() 时从快照填充
+
+        // 形式2：KeyframeProps — 仅目标值简写
+        // from 帧为空，play() 时从快照填充
         return [
-            { offset: 0 }, // 空帧，play 时填充
+            { offset: 0 },
             { offset: 1, ...(input as KeyframeProps) },
         ]
+    }
+
+    /**
+     * 判断输入是否为 KeyframeShorthand 形式
+     * 通过检查是否包含 from/to 键或数字百分比键来判定
+     */
+    private _isKeyframeShorthand(input: object): boolean {
+        const keys = Object.keys(input)
+        // 含有 from 或 to 键
+        if (keys.includes('from') || keys.includes('to')) return true
+        // 含有数字键（百分比）
+        return keys.some(k => /^\d+(\.\d+)?$/.test(k))
+    }
+
+    /**
+     * 解析 KeyframeShorthand 为标准 Keyframe[]
+     *
+     * 规则：
+     * - 'from' 键 → offset: 0
+     * - 'to' 键 → offset: 1
+     * - 数字键（如 '10', '50', '90'）→ offset: 数字/100
+     * - 结果按 offset 升序排列
+     * - 如果没有 from 帧（offset:0），自动补空帧（play 时从快照填充）
+     * - 如果没有 to 帧（offset:1），自动补空帧（取最后关键帧值）
+     */
+    private _parseKeyframeShorthand(input: KeyframeShorthand): Keyframe[] {
+        const keyframes: Keyframe[] = []
+
+        for (const [key, value] of Object.entries(input)) {
+            if (value === undefined) continue
+
+            let offset: number
+            if (key === 'from') {
+                offset = 0
+            } else if (key === 'to') {
+                offset = 1
+            } else if (/^\d+(\.\d+)?$/.test(key)) {
+                offset = parseFloat(key) / 100
+                // 限制在 0-1 范围内
+                offset = Math.max(0, Math.min(1, offset))
+            } else {
+                // 非法键名，跳过
+                continue
+            }
+
+            keyframes.push({ offset, ...value })
+        }
+
+        // 按 offset 升序排列
+        keyframes.sort((a, b) => (a.offset ?? 0) - (b.offset ?? 0))
+
+        // 如果没有 offset:0 的帧，补空帧（play 时从快照填充）
+        if (keyframes.length === 0 || (keyframes[0].offset ?? 0) !== 0) {
+            keyframes.unshift({ offset: 0 })
+        }
+
+        // 如果没有 offset:1 的帧，补空帧
+        if (keyframes.length === 0 || (keyframes[keyframes.length - 1].offset ?? 0) !== 1) {
+            keyframes.push({ offset: 1 })
+        }
+
+        return keyframes
     }
 
     /**

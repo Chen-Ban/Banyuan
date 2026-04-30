@@ -11,7 +11,7 @@ import { BoundingBoxAddon } from '@/core/views/addon'
 import { MathUtils, Point3, Vector3 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
 import Animation from '@/core/animation/Animation'
-import type { AnimationOptions, Keyframe, KeyframeProps, AnimatableValue } from '@/core/animation/types'
+import type { AnimationOptions, Keyframe, KeyframeProps, KeyframeShorthand, KeyframeInput, AnimatableValue } from '@/core/animation/types'
 
 const RESIZE_SIZE_MAP = [
     { width: true, height: true },
@@ -111,10 +111,10 @@ export default abstract class View<T extends object = any> implements IView, ISe
      * // 方式2：简写，移动到目标值
      * view.animate({ x: 200, y: 300 }, { duration: 500, easing: Easings.easeOutCubic })
      *
-     * // 方式3：指定起始和终止值
-     * view.animate({ from: { opacity: 0 }, to: { opacity: 1 } }, { duration: 300 })
+     * // 方式3：类 CSS @keyframes 对象形式（from/to + 百分比混用）
+     * view.animate({ from: { x: 0 }, '10': { x: 50 }, '90': { x: 150 }, to: { x: 200 } }, { duration: 1000 })
      *
-     * // 方式4：多关键帧
+     * // 方式4：多关键帧数组
      * view.animate([
      *   { offset: 0, x: 0, y: 0 },
      *   { offset: 0.5, x: 100, y: -50 },
@@ -124,9 +124,9 @@ export default abstract class View<T extends object = any> implements IView, ISe
     public animate(animation: Animation): Animation
     public animate(keyframes: Keyframe[], options: AnimationOptions): Animation
     public animate(to: KeyframeProps, options: AnimationOptions): Animation
-    public animate(keyframes: { from: KeyframeProps; to: KeyframeProps }, options: AnimationOptions): Animation
+    public animate(keyframes: KeyframeShorthand, options: AnimationOptions): Animation
     public animate(
-        keyframesOrAnimation: Animation | Keyframe[] | KeyframeProps | { from: KeyframeProps; to: KeyframeProps },
+        keyframesOrAnimation: Animation | KeyframeInput,
         options?: AnimationOptions
     ): Animation {
         // 如果传入的是 Animation 实例，直接绑定并播放
