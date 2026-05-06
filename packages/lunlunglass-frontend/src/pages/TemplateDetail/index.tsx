@@ -5,7 +5,7 @@ import { Button } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import styles from './index.module.scss'
 import ComponentPalette from './components/ComponentPalette'
-import ComponentPanel from './components/ComponentPanel'
+import PropertyPanel from './components/PropertyPanel'
 import SceneList from './components/SceneList'
 import ContextMenu from './components/ContextMenu'
 
@@ -57,9 +57,7 @@ const TemplateDetail = () => {
                     <div className={styles.canvasSection}>
                         <div className={styles.canvasWrapper}>{Banvas}</div>
                     </div>
-                    <ComponentPanel
-                        pages={pages}
-                        currentPageId={currentPageId}
+                    <PropertyPanel
                         selectedViewId={selectedViewId}
                         actions={actions}
                     />

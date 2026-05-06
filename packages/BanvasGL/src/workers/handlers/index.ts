@@ -2,3 +2,4 @@
 export * from "./TextLayoutHandlers";
 export * from "./GraphIntersectionHandlers";
 export * from "./TrajectoryHandlers";
+export * from "./SnapshotDiffHandlers";
