@@ -59,6 +59,8 @@ export interface UseCanvasEventsOptions {
     setSelectedViewId: (id: string) => void
     /** 右键菜单命中回调 */
     onContextMenuHit?: (hit: ContextMenuHitResult) => void
+    /** 画布交互结束回调（mouseUp 后触发，用于通知面板刷新） */
+    onInteractionEnd?: () => void
 }
 
 /**
@@ -70,6 +72,7 @@ export function useCanvasEvents({
     inputRef,
     setSelectedViewId,
     onContextMenuHit,
+    onInteractionEnd,
 }: UseCanvasEventsOptions) {
     const mouseDownPointRef = useRef<Point3 | null>(null)
     const lastPointRef = useRef<Point3 | null>(null)
@@ -344,8 +347,10 @@ export function useCanvasEvents({
             if (e.ctrlKey) {
                 onClick(e)
             }
+            // 通知 React 层刷新（PropertyPanel 等依赖 View 属性的组件）
+            onInteractionEnd?.()
         },
-        [app, onClick]
+        [app, onClick, onInteractionEnd]
     )
 
     // 双击事件处理

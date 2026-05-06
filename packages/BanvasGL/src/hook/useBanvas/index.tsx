@@ -118,6 +118,7 @@ export default function useBanvas(
         inputRef,
         setSelectedViewId,
         onContextMenuHit,
+        onInteractionEnd: onViewChange,
     })
 
     // Input 事件绑定
