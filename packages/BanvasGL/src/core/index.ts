@@ -9,3 +9,4 @@ export * from "./graph";
 export * from "./animation";
 export * from "./constants";
 export * from "./serializer";
+export * from "./interfaces";

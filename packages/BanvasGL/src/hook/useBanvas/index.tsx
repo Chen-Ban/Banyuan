@@ -2,28 +2,71 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useCanvasInit } from './useCanvasInit'
 import { useCanvasEvents } from './useCanvasEvents'
 import { useInputEvents } from './useInputEvents'
-import { SerializedSceneJSON, UseBanvasOptions, UseBanvasResult } from './types'
-import { Scene } from '@/core/scene'
+import { SerializedSceneJSON, UseBanvasOptions } from './types'
+import { buildPageNodes } from './builders'
+import { createBanvasActions } from './actions'
+import type { IPageNode, IUseBanvasResult } from '@/core/interfaces'
 
 export default function useBanvas(
     serializedScenes: SerializedSceneJSON[],
     _options: UseBanvasOptions
-): UseBanvasResult {
+): IUseBanvasResult {
     const containerRef = useRef<HTMLDivElement | null>(null)
     const inputRef = useRef<HTMLInputElement | null>(null)
 
-    const [selectedScene, setSelectedScene] = useState<Scene | null>(null)
-    const [selectedViewId, setSelectedViewId] = useState<string>('')
+    const [selectedViewId, setSelectedViewId] = useState<string | null>(null)
+    const [currentPageId, setCurrentPageId] = useState<string | null>(null)
+    const [pages, setPages] = useState<IPageNode[]>([])
+
+    // 刷新计数器，用于触发 pages 重建
+    const [, setTick] = useState(0)
+    const forceUpdate = useCallback(() => setTick((t) => t + 1), [])
 
     // Canvas 初始化
     const { app, canvasRef } = useCanvasInit(serializedScenes, _options)
 
-    useEffect(() => {
-        const scene = app?.getCurrentPage()
-        if (scene) {
-            setSelectedScene(scene)
+    // 获取 App 引用的稳定闭包（供 actions 使用）
+    const appRef = useRef(app)
+    appRef.current = app
+    const getApp = useCallback(() => appRef.current, [])
+
+    // 视图/页面变更回调
+    const onViewChange = useCallback(() => {
+        forceUpdate()
+    }, [forceUpdate])
+
+    const onPageChange = useCallback(() => {
+        forceUpdate()
+        // 更新 currentPageId
+        const currentScene = appRef.current?.getCurrentScene()
+        if (currentScene) {
+            setCurrentPageId(currentScene.id)
         }
-    }, [app, setSelectedScene])
+    }, [forceUpdate])
+
+    // 创建 actions（稳定引用，内部通过 getApp 获取最新 app）
+    const actions = useMemo(
+        () => createBanvasActions(getApp, onViewChange, onPageChange),
+        [getApp, onViewChange, onPageChange]
+    )
+
+    // 初始化 currentPageId
+    useEffect(() => {
+        const scene = app?.getCurrentScene()
+        if (scene) {
+            setCurrentPageId(scene.id)
+        }
+    }, [app])
+
+    // 重建 pages 树（当 app/tick 变化时）
+    useEffect(() => {
+        if (!app) {
+            setPages([])
+            return
+        }
+        const pageNodes = buildPageNodes(app)
+        setPages(pageNodes)
+    }, [app, currentPageId, selectedViewId, /* tick trigger */ forceUpdate])
 
     // Canvas 事件绑定
     useCanvasEvents({
@@ -39,20 +82,6 @@ export default function useBanvas(
         inputRef,
         setSelectedViewId,
     })
-
-    // 操作栈管理
-    const undo = useCallback(() => {
-        const scene = app?.getCurrentScene()
-        return scene ? scene.undo() : false
-    }, [app])
-
-    const redo = useCallback(() => {
-        const scene = app?.getCurrentScene()
-        return scene ? scene.redo() : false
-    }, [app])
-
-    const canUndo = app?.getCurrentScene()?.canUndo ?? false
-    const canRedo = app?.getCurrentScene()?.canRedo ?? false
 
     const canvasEl = useMemo(
         () => (
@@ -88,14 +117,9 @@ export default function useBanvas(
 
     return {
         Banvas: canvasEl,
-        app,
+        pages,
+        currentPageId,
         selectedViewId,
-        selectedScene,
-        setSelectedScene,
-        setSelectedViewId,
-        undo,
-        redo,
-        canUndo,
-        canRedo,
+        actions,
     }
 }
