@@ -1,7 +1,7 @@
 import GraphView, { GraphViewOptions } from './index'
 import { Rectangle } from '@/core/graph'
 import { VIEWTYPE } from '@/core/constants'
-import { generateId } from '@/core/utils'
+import { generateId, generateName } from '@/core/utils'
 import { Point3 } from '@/core/math'
 import { Color, FillStyle, StrokeStyle, Style } from '@/core/style'
 import { ISelectBoxView } from '@/core/interfaces'
@@ -35,6 +35,7 @@ export default class SelectBoxView extends GraphView implements ISelectBoxView {
 
         super(selectionRect, options)
         this.id = options.id || generateId(this.type)
+        this.name = options.name || generateName(this.type)
         // 框选视图不应该被激活或选中
         this.actived = false
         this.selected = false

@@ -170,17 +170,6 @@ export default class Matrix4 implements ISerializable {
     return this;
   }
 
-  // 矩阵转置
-  transpose(): Matrix4 {
-    const result = new Matrix4();
-    for (let i = 0; i < 4; i++) {
-      for (let j = 0; j < 4; j++) {
-        result.data[j * 4 + i] = this.data[i * 4 + j];
-      }
-    }
-    return result;
-  }
-
   // 计算行列式
   get determinant(): number {
     const m = this.data;
@@ -380,11 +369,6 @@ export default class Matrix4 implements ISerializable {
     return matrix;
   }
 
-  // 静态方法：创建零矩阵
-  static zeros(): Matrix4 {
-    return new Matrix4();
-  }
-
   // 静态方法：创建平移矩阵 (行主序，平移分量在位置3、7、11)
   static translation(x: number, y: number, z: number): Matrix4 {
     const matrix = Matrix4.identity();
@@ -518,6 +502,29 @@ export default class Matrix4 implements ISerializable {
     matrix.data[10] = -2 / (far - near);
     matrix.data[11] = -(far + near) / (far - near);
     return matrix;
+  }
+
+  // ── 2D TRS 分解 ──
+
+  /**
+   * 提取 2D 平移分量
+   *
+   * 行主序布局下：data[3] = tx, data[7] = ty
+   */
+  extractTranslation2D(): { x: number; y: number } {
+    return { x: this.data[3], y: this.data[7] }
+  }
+
+  /**
+   * 提取 Z 轴旋转角度（弧度）
+   *
+   * 利用行主序布局：
+   *   data[0] = sx * cos(θ)
+   *   data[4] = -sx * sin(θ)
+   * atan2(-data[4], data[0]) = atan2(sx*sin(θ), sx*cos(θ)) = θ
+   */
+  extractRotationZ(): number {
+    return Math.atan2(-this.data[4], this.data[0])
   }
 
   // 静态方法：创建视图矩阵

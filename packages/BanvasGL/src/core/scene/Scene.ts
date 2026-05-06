@@ -1,7 +1,7 @@
 import View from "@/core/views/View/View";
 import { BaseCamera } from "@/core/camera";
 import { LayerManager, TransactionManager } from "./operations";
-import { generateId } from "@/core/utils";
+import { generateId, generateName } from "@/core/utils";
 import {
   flattenViewTree,
   clearAllStates,
@@ -12,6 +12,7 @@ import { ISerializable } from "@/core/interfaces";
 import { SCENETYPE } from "@/core/constants";
 
 export interface SceneOptions {
+  name?: string;
   camera?: BaseCamera;
   data?: any;
   onLoad?: (params: any) => void;
@@ -24,6 +25,7 @@ export default class Scene implements ISerializable {
   // 基本属性
   public readonly type: SCENETYPE = SCENETYPE.SCENE;
   public id: string = "";
+  public name: string = "";
   public children: View[] = [];
   public camera: BaseCamera;
   public data: any = {};
@@ -31,9 +33,7 @@ export default class Scene implements ISerializable {
   private layerManager: LayerManager;
 
   // 私有属性
-  private _isLoaded: boolean = false;
   private _isVisible: boolean = false;
-  private _loadParams: any = null;
 
   // 传入的生命周期回调函数
   private _onLoad?: (params: any) => void;
@@ -65,13 +65,11 @@ export default class Scene implements ISerializable {
 
     // 生成唯一ID
     this.id = generateId(this.type);
+    this.name = options.name || generateName(this.type);
   }
 
   // 生命周期方法
   public onLoad(params: any): void {
-    this._loadParams = params;
-    this._isLoaded = true;
-
     // 执行用户提供的回调函数
     if (this._onLoad) {
       this._onLoad(params);
@@ -79,9 +77,6 @@ export default class Scene implements ISerializable {
   }
 
   public onUnload(): void {
-    this._isLoaded = false;
-    this._loadParams = null;
-
     // 清理子视图
     this.clearChildren();
     // 清空操作栈

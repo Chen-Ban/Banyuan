@@ -113,6 +113,19 @@ export type { ISerializable, SerializableStatic } from './ISerializable'
 // ── Worker 传输接口 ──
 export type { ITransferable, TransferableData } from './ITransferable'
 
+// ── Hook 公共接口 ──
+export type {
+    ComponentCategory,
+    IComponentTemplate,
+    IViewNode,
+    IPageNode,
+    IViewActions,
+    IPageActions,
+    IHistoryActions,
+    IBanvasActions,
+    IUseBanvasResult,
+} from './IHook'
+
 // ── 统一类型守卫 ──
 export {
     isGraphType,

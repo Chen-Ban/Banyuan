@@ -39,7 +39,7 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    * 计算三角形的高
    */
   public getHeight(): number {
-    const { p1, p2, p3 } = this.getVertices();
+    const { p1, p2, p3: _p3 } = this.getVertices();
     const base = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
     const area = this.getArea();
     return (2 * area) / base;

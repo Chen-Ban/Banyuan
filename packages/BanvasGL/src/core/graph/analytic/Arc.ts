@@ -73,13 +73,6 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
     return points;
   }
 
-  // 标准化角度到0-2π范围
-  private normalizeAngle(angle: number): number {
-    while (angle < 0) angle += 2 * Math.PI;
-    while (angle >= 2 * Math.PI) angle -= 2 * Math.PI;
-    return angle;
-  }
-
   // 设置中心点
   setCenter(center: Point3): Arc {
     this.center = center;
@@ -219,24 +212,6 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
     return Bounds.fromPoints(points, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds?.height > 0)
   }
 
-  private getParameterFromAngle(angle: number): number {
-    const startNorm = this.normalizeAngle(this.startAngle);
-    const endNorm = this.normalizeAngle(this.endAngle);
-    const angleNorm = this.normalizeAngle(angle);
-
-    if (this.clockwise) {
-      if (angleNorm <= startNorm && angleNorm >= endNorm) {
-        return (startNorm - angleNorm) / (startNorm - endNorm);
-      }
-    } else {
-      if (angleNorm >= startNorm && angleNorm <= endNorm) {
-        return (angleNorm - startNorm) / (endNorm - startNorm);
-      }
-    }
-
-    return 0;
-  }
-
   // ========== AnalyticGraph 抽象方法实现 ==========
 
   public getPointAt(t: number): Point3 {
@@ -297,14 +272,6 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
     closestPoint: Point3;
     parameter: number;
   } {
-    // 将点转换到椭圆的局部坐标系
-    const dx = point.x - this.center.x;
-    const dy = point.y - this.center.y;
-    const cos = Math.cos(-this.rotation);
-    const sin = Math.sin(-this.rotation);
-    const localX = dx * cos - dy * sin;
-    const localY = dx * sin + dy * cos;
-
     // 在局部坐标系中计算最近点（使用数值方法）
     let closestT = 0;
     let minDistance = Infinity;

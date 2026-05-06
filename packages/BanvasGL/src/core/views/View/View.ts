@@ -4,12 +4,14 @@ import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
 import { Action, Cursor, ISceneNode, IView, IViewStyle, IViewAddon, ExtraData, ISerializable, IGraph } from '@/core/interfaces'
 
 // 导入图形相关类型
-import { Graph, Line, Rectangle } from '@/core/graph'
+import { Line, Rectangle } from '@/core/graph'
 
 // 导入addon类型
 import { BoundingBoxAddon } from '@/core/views/addon'
 import { MathUtils, Point3, Vector3 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
+import Animation from '@/core/animation/Animation'
+import type { AnimationOptions, KeyframeDefinition, AnimatableValue } from '@/core/animation/types'
 
 const RESIZE_SIZE_MAP = [
     { width: true, height: true },
@@ -45,6 +47,7 @@ export interface InteractResult {
 // 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
 export interface ViewOptions<T extends object = any> {
     id?: string
+    name?: string
     content?: IGraph // 改为IGraph，多图形用组合图形替代
     children?: View[]
     parent?: ISceneNode | View
@@ -62,6 +65,7 @@ export interface ViewOptions<T extends object = any> {
 export default abstract class View<T extends object = any> implements IView, ISerializable {
     // 基本属性
     public id: string = ''
+    public name: string = ''
     public properties: T = {} as T
     public data: T = {} as T
     public content: IGraph | null
@@ -74,8 +78,6 @@ export default abstract class View<T extends object = any> implements IView, ISe
     public actived: boolean = false
     public freezed: boolean = false
     public visible: boolean = true
-    // 边框图形
-    public borderGraph: Rectangle | null = null
     // 滚动条图形
     public scrollBarHorization: Rectangle | null = null
     public scrollBarVertical: Rectangle | null = null
@@ -95,6 +97,162 @@ export default abstract class View<T extends object = any> implements IView, ISe
     public abstract readonly type: VIEWTYPE
     //抽象方法
     public abstract copy(): View
+
+    // ==================== 动画系统 ====================
+    private _animations: Animation[] = []
+
+    /**
+     * 创建并播放动画，或挂载已有 Animation 实例并播放
+     * @example
+     * // 方式1：传入 Animation 实例
+     * const anim = new Animation({ to: { x: 200 } }, { duration: 1000 })
+     * view.animate(anim)
+     *
+     * // 方式2：KeyframeDefinition + options（自动创建 Animation）
+     * view.animate({ to: { x: 200, y: 300 } }, { duration: 500, easing: Easings.easeOutCubic })
+     *
+     * // 方式3：带中间帧
+     * view.animate({ '25': { x: 80 }, '75': { x: 180 }, to: { x: 200 } }, { duration: 1000 })
+     */
+    public animate(animation: Animation): Animation
+    public animate(definition: KeyframeDefinition, options: AnimationOptions): Animation
+    public animate(
+        definitionOrAnimation: Animation | KeyframeDefinition,
+        options?: AnimationOptions
+    ): Animation {
+        // 如果传入的是 Animation 实例，直接绑定并播放
+        if (definitionOrAnimation instanceof Animation) {
+            const anim = definitionOrAnimation
+            anim._bindTarget(this)
+            anim.play()
+            return anim
+        }
+
+        // 否则创建新的 Animation 实例
+        const anim = new Animation(this, definitionOrAnimation, options!)
+        anim.play()
+        return anim
+    }
+
+    /**
+     * 获取渲染时应使用的属性值（动画计算值优先）
+     * 从后向前遍历动画列表，后注册的动画优先级更高
+     */
+    public getAnimatedValue(prop: string): AnimatableValue | undefined {
+        for (let i = this._animations.length - 1; i >= 0; i--) {
+            const anim = this._animations[i]
+            if (anim.isActive) {
+                const val = anim.computedValues[prop]
+                if (val !== undefined) return val
+            }
+        }
+        return undefined
+    }
+
+    /**
+     * 取消该 View 上的所有动画
+     */
+    public cancelAnimations(): void {
+        const anims = [...this._animations]
+        for (const anim of anims) {
+            anim.cancel()
+        }
+    }
+
+    /**
+     * 立即完成该 View 上的所有动画
+     */
+    public finishAnimations(): void {
+        const anims = [...this._animations]
+        for (const anim of anims) {
+            anim.finish()
+        }
+    }
+
+    /** @internal 由 Animation 调用 */
+    _addAnimation(anim: Animation): void {
+        if (!this._animations.includes(anim)) {
+            this._animations.push(anim)
+        }
+    }
+
+    /** @internal 由 Animation 调用 */
+    _removeAnimation(anim: Animation): void {
+        const index = this._animations.indexOf(anim)
+        if (index !== -1) {
+            this._animations.splice(index, 1)
+        }
+    }
+
+    /** @internal 由 Animation 调用 */
+    _getAnimations(): Animation[] {
+        return this._animations
+    }
+
+    /**
+     * 动画专用 resize 方法
+     *
+     * 模拟从右下角拖拽 + Ctrl 按下的效果：
+     * 同时修改 viewport 尺寸和 content，等比缩放所有内容。
+     *
+     * @param targetWidth 目标宽度
+     * @param targetHeight 目标高度
+     * @internal
+     */
+    _animationResize(targetWidth: number, targetHeight: number): void {
+        const viewport = this.viewport
+        if (!viewport) return
+
+        const oldWidth = viewport.width
+        const oldHeight = viewport.height
+
+        // 避免尺寸为 0
+        if (targetWidth === 0 || targetHeight === 0) return
+        if (oldWidth === 0 || oldHeight === 0) return
+
+        // 计算增量 delta
+        const deltaX = targetWidth - oldWidth
+        const deltaY = targetHeight - oldHeight
+
+        // 更新 viewport 尺寸（固定左上角，向右下角拓展）
+        viewport.setSize(targetWidth, targetHeight)
+        this.boundingBox?.updateSize()
+
+        // resize content（模拟 needResizeContent = true 的效果）
+        if (this.content) {
+            // fixedPoint: viewport 起点（左上角）
+            // dynamicPoint: viewport 右下角
+            const fixedPoint = new Point3(viewport.x, viewport.y, 0)
+            const dynamicPoint = new Point3(
+                viewport.x + oldWidth,
+                viewport.y + oldHeight,
+                0
+            )
+            // resizeVector: 尺寸变化量（本地坐标系）
+            const resizeVector = new Vector3(deltaX, deltaY, 0)
+
+            this.content.resize(fixedPoint, dynamicPoint, resizeVector)
+
+            // 更新布局区域
+            this.layoutArea = Bounds.union(
+                this.content.bounds ?? Bounds.empty(),
+                this.measureChildren()
+            )
+            this.layout()
+        }
+
+        // 递归子 View（子 View 等比缩放）
+        const scaleX = targetWidth / oldWidth
+        const scaleY = targetHeight / oldHeight
+        this.children.forEach(child => {
+            const childViewport = child.viewport
+            if (!childViewport) return
+            child._animationResize(
+                childViewport.width * scaleX,
+                childViewport.height * scaleY
+            )
+        })
+    }
 
     // 获取内容
     public layoutContent(): Bounds {
@@ -278,15 +436,6 @@ export default abstract class View<T extends object = any> implements IView, ISe
         })
     }
 
-    splitChildren() {
-        this.children.forEach((child) => {
-            child.parent = this.parent
-            child.matrix = this.matrix.multiply(child.matrix)
-        })
-        if (this.parent) {
-            this.parent.children = this.children
-        }
-    }
 
     // 自定义属性（索引签名）
     [funcName: string]: any
@@ -480,16 +629,18 @@ export default abstract class View<T extends object = any> implements IView, ISe
 
     // 获取世界矩阵（考虑父view的matrix）
     public getWorldMatrix(parent?: View): Matrix4 {
+        // 优先使用动画计算的 matrix
+        const localMatrix = (this.getAnimatedValue('matrix') as Matrix4) ?? this.matrix
         if (
             this.parent &&
             this.parent instanceof View &&
             this.parent !== parent
         ) {
             // 如果有父view，则世界矩阵 = 父view的世界矩阵 * 当前view的matrix
-            return this.parent.getWorldMatrix().copy().multiply(this.matrix)
+            return this.parent.getWorldMatrix().copy().multiply(localMatrix)
         } else {
             // 如果没有父view，则世界矩阵就是当前view的matrix
-            return this.matrix.copy()
+            return localMatrix.copy()
         }
     }
 
