@@ -8,8 +8,9 @@ import {
   clearSelectedStates,
   isViewInTree,
 } from "./operations";
-import { ISerializable } from "@/core/interfaces";
+import { ISerializable, isCombinedView } from "@/core/interfaces";
 import { SCENETYPE } from "@/core/constants";
+import CombinedView from "@/core/views/CombinedViews";
 
 export interface SceneOptions {
   name?: string;
@@ -342,6 +343,86 @@ export default class Scene implements ISerializable {
     const changes = this.layerManager.sendBackward(view);
     this.transactionManager.recordReorder(changes);
     return this;
+  }
+
+  // ==================== 组合/取消组合 ====================
+
+  /**
+   * 将多个 View 组合为一个 CombinedView。
+   * 组合后的 CombinedView 插入到原最高层级 View 的位置。
+   */
+  public group(views: View[]): CombinedView | null {
+    if (views.length < 2) return null;
+
+    // 校验：所有 view 必须拥有同一个父容器
+    const parent = views[0].parent;
+    if (!parent || !views.every((v) => v.parent === parent)) return null;
+
+    // 过滤出确实在当前 scene children 中的 view
+    const validViews = views.filter((v) => this.children.includes(v));
+    if (validViews.length < 2) return null;
+
+    // 找到最高层级位置（最大 index），用于确定插入点
+    let maxIndex = -1;
+    for (const v of validViews) {
+      const idx = this.children.indexOf(v);
+      if (idx > maxIndex) maxIndex = idx;
+    }
+
+    // 从 scene 中移除这些 view（不录入操作栈，整体作为一次组合操作录入）
+    for (const v of validViews) {
+      this.removeChild(v, false);
+    }
+
+    // 创建 CombinedView 并添加子 view
+    const combined = new CombinedView({});
+    for (const v of validViews) {
+      combined.addChild(v);
+    }
+
+    // 在原最高位置插入（考虑移除后 index 可能变小）
+    const insertIndex = Math.min(maxIndex, this.children.length);
+    this.children.splice(insertIndex, 0, combined);
+    combined.parent = this;
+    combined.setVPMatrix(this.camera.viewProjectionMatrix);
+    combined.onAttach();
+
+    // 录入操作栈
+    this.transactionManager.recordAdd(this.id, combined, insertIndex);
+
+    return combined;
+  }
+
+  /**
+   * 取消组合：将 CombinedView 解散，其子 View 回到 Scene 的 children 中。
+   * 子 View 插入到 CombinedView 原来的位置。
+   */
+  public ungroup(view: View): View[] | null {
+    if (!isCombinedView(view)) return null;
+    if (!this.children.includes(view)) return null;
+
+    const index = this.children.indexOf(view);
+    const children = [...view.children];
+
+    // 从 CombinedView 中移除子 view（不触发 onDestroy）
+    for (const child of children) {
+      view.removeChild(child);
+    }
+
+    // 从 scene 中移除 CombinedView
+    this.removeChild(view, false);
+
+    // 将子 view 按顺序插入到原位置
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i];
+      const insertAt = Math.min(index + i, this.children.length);
+      this.children.splice(insertAt, 0, child);
+      child.parent = this;
+      child.setVPMatrix(this.camera.viewProjectionMatrix);
+      child.onAttach();
+    }
+
+    return children;
   }
 
   // ==================== 序列化 ====================

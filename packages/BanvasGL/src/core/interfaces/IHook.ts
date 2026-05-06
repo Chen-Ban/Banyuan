@@ -101,6 +101,8 @@ export interface IViewActions {
     select(viewId: string): void
     /** 取消所有选中 */
     deselect(): void
+    /** 全选当前页面所有视图 */
+    selectAll(): void
     /** 滚动画布使指定视图进入视口 */
     scrollTo(viewId: string): void
     /** 删除指定视图 */
@@ -115,6 +117,18 @@ export interface IViewActions {
     setLocked(viewId: string, locked: boolean): void
     /** 重命名视图 */
     rename(viewId: string, name: string): void
+    /** 复制视图到内部剪贴板 */
+    copy(viewId: string): void
+    /** 粘贴视图（替换指定视图，或粘贴到指定位置） */
+    paste(target: { viewId: string } | { position: { x: number; y: number } }): string | null
+    /** 将视图置于顶层 */
+    bringToFront(viewId: string): void
+    /** 将视图置于底层 */
+    sendToBack(viewId: string): void
+    /** 将多个视图组合为一个 CombinedView */
+    group(viewIds: string[]): string | null
+    /** 取消组合（解散 CombinedView，子视图回到场景中） */
+    ungroup(viewId: string): string[] | null
 }
 
 /** 页面操作 */
@@ -158,6 +172,40 @@ export interface IBanvasActions {
 }
 
 // ────────────────────────────────────────────
+//  右键菜单（Context Menu）
+// ────────────────────────────────────────────
+
+/** 单个菜单项 */
+export interface IContextMenuItem {
+    /** 唯一标识 */
+    key: string
+    /** 显示文本 */
+    label: string
+    /** 执行操作 */
+    handler: () => void
+    /** 是否禁用 */
+    disabled?: boolean
+    /** 该项前显示分割线 */
+    divider?: boolean
+}
+
+/** 右键菜单上下文状态 */
+export interface IContextMenuState {
+    /** 是否可见 */
+    visible: boolean
+    /** 右键位置（相对于画布容器） */
+    position: { x: number; y: number }
+    /** 命中目标类型 */
+    target: 'canvas' | 'view'
+    /** 命中的 View ID（target 为 'view' 时有值） */
+    viewId: string | null
+    /** 预生成的菜单项列表 */
+    items: IContextMenuItem[]
+    /** 关闭菜单 */
+    dismiss: () => void
+}
+
+// ────────────────────────────────────────────
 //  Hook 返回值
 // ────────────────────────────────────────────
 
@@ -181,4 +229,6 @@ export interface IUseBanvasResult {
     selectedViewId: string
     /** 命名空间化的操作接口 */
     actions: IBanvasActions
+    /** 右键菜单上下文 */
+    contextMenu: IContextMenuState
 }
