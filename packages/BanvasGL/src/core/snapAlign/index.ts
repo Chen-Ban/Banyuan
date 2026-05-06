@@ -1,224 +1,97 @@
-import { Line } from '@/core/graph'
-import { Point3, Vector3, MathUtils, GeometryUtils } from '@/core/math'
-import { View } from '@/core/views'
+import type { View } from '@/core/views'
+import type Scene from '@/core/scene/Scene'
+import { Point3 } from '@/core/math'
+import Bounds from '@/core/graph/base/Bounds'
+import { SnapCache } from './SnapCache'
+import { SnapSolver } from './SnapSolver'
+import { SnapOverlay } from './SnapOverlay'
+import type { SnapResult } from './types'
 
-/**
- * 吸附结果
- */
-export interface SnapResult {
-    /** 吸附偏移量 */
-    offset: Vector3
-    /** 是否发生了吸附 */
-    snapped: boolean
-}
+export type { SnapResult } from './types'
+export { SnapOverlay } from './SnapOverlay'
 
 /**
  * 吸附对齐管理器
- * @description 管理场景中的吸附点/线，在视图拖拽时提供吸附对齐功能
+ * 生命周期：begin(mousedown) → snap(mousemove) → end(mouseup)
  */
-class SnapAlignManager {
-    /** 吸附阈值（像素） */
-    public threshold: number = 5
+export class SnapAlignManager {
+  private cache = new SnapCache()
+  private solver: SnapSolver
+  public readonly overlay = new SnapOverlay()
 
-    /** 吸附点（世界坐标） */
-    private snapPoints: Map<View, Point3[]> = new Map()
-    /** 吸附线（世界坐标） */
-    private snapLines: Map<View, Line[]> = new Map()
+  private activeIds = new Set<string>()
+  private active = false
 
-    /**
-     * 设置吸附阈值
-     */
-    setThreshold(threshold: number): this {
-        this.threshold = threshold
-        return this
-    }
+  constructor(threshold: number = 5) {
+    this.solver = new SnapSolver(threshold)
+  }
 
-    /**
-     * 注册视图的吸附对象
-     */
-    registerView(view: View): void {
-        const [points, lines] = view.getSnapObjects()
-        this.snapPoints.set(view, points)
-        this.snapLines.set(view, lines)
-    }
+  /** 设置吸附阈值 */
+  setThreshold(px: number): void {
+    this.solver = new SnapSolver(px)
+  }
 
-    /**
-     * 更新视图的吸附对象
-     */
-    updateView(view: View): void {
-        const [points, lines] = view.getSnapObjects()
-        this.snapPoints.set(view, points)
-        this.snapLines.set(view, lines)
-    }
+  /**
+   * mousedown 时调用：构建缓存，排除当前操作的 view
+   */
+  begin(scene: Scene, activeViews: View[]): void {
+    this.activeIds = new Set(activeViews.map(v => v.id))
+    this.cache.build(scene.children, this.activeIds)
+    this.active = true
+  }
 
-    /**
-     * 移除视图的吸附对象
-     */
-    unregisterView(view: View): void {
-        this.snapPoints.delete(view)
-        this.snapLines.delete(view)
-    }
+  /**
+   * mousemove 时调用：计算吸附偏移和对齐线
+   * @param source 当前拖拽的主 view（用于计算世界 AABB）
+   */
+  snap(source: View): SnapResult {
+    const empty: SnapResult = { offsetX: 0, offsetY: 0, guidelines: [] }
+    if (!this.active) return empty
 
-    /**
-     * 清空所有吸附对象
-     */
-    clear(): void {
-        this.snapPoints.clear()
-        this.snapLines.clear()
-    }
+    const bounds = this.computeWorldBounds(source)
+    if (!bounds) return empty
 
-    /**
-     * 获取所有吸附点（排除指定视图）
-     */
-    private getAllSnapPoints(excludeView?: View): Point3[] {
-        const points: Point3[] = []
-        this.snapPoints.forEach((viewPoints, view) => {
-            if (view !== excludeView) {
-                points.push(...viewPoints)
-            }
-        })
-        return points
-    }
+    const candidates = this.cache.getAll()
+    const guidelines = this.solver.solve(bounds, candidates)
 
-    /**
-     * 获取所有吸附线（排除指定视图）
-     */
-    private getAllSnapLines(excludeView?: View): Line[] {
-        const lines: Line[] = []
-        this.snapLines.forEach((viewLines, view) => {
-            if (view !== excludeView) {
-                lines.push(...viewLines)
-            }
-        })
-        return lines
-    }
+    let offsetX = 0
+    let offsetY = 0
 
-    /**
-     * 吸附对齐
-     * @param view 当前操作的视图
-     * @param worldPoint 当前鼠标世界坐标点
-     * @returns 吸附结果
-     */
-    snapAlign(view: View, worldPoint: Point3): SnapResult {
-        const result: SnapResult = {
-            offset: new Vector3(0, 0, 0),
-            snapped: false,
-        }
+    const guideX = guidelines.find(g => g.axis === 0) // SnapAxis.X
+    const guideY = guidelines.find(g => g.axis === 1) // SnapAxis.Y
 
-        // 获取当前视图的吸附对象
-        const [sourcePoints, sourceLines] = view.getSnapObjects()
+    if (guideX) offsetX = guideX.offset
+    if (guideY) offsetY = guideY.offset
 
-        // 获取其他视图的吸附对象
-        const targetPoints = this.getAllSnapPoints(view)
-        const targetLines = this.getAllSnapLines(view)
+    const result: SnapResult = { offsetX, offsetY, guidelines }
+    this.overlay.update(result)
+    return result
+  }
 
-        // 记录最小距离和对应的偏移向量
-        let minDistance = Infinity
-        let minOffset = new Vector3(0, 0, 0)
+  /**
+   * mouseup 时调用：清理状态
+   */
+  end(): void {
+    this.active = false
+    this.activeIds.clear()
+    this.overlay.clear()
+  }
 
-        // 1. 点对点吸附
-        for (const sourcePoint of sourcePoints) {
-            for (const targetPoint of targetPoints) {
-                const distance = sourcePoint.distance(targetPoint)
-                if (distance <= this.threshold && distance < minDistance) {
-                    minDistance = distance
-                    minOffset = targetPoint.subtract(sourcePoint)
-                    result.snapped = true
-                }
-            }
-        }
+  /**
+   * 计算 View 的世界坐标 AABB
+   */
+  private computeWorldBounds(view: View): Bounds | null {
+    const vp = view.viewport
+    if (!vp || vp.width === 0 || vp.height === 0) return null
 
-        // 2. 点对线吸附
-        for (const sourcePoint of sourcePoints) {
-            for (const targetLine of targetLines) {
-                const distance = GeometryUtils.distancePointToLineSegment(
-                    sourcePoint,
-                    targetLine.startPoint,
-                    targetLine.endPoint
-                )
-                if (distance <= this.threshold && distance < minDistance) {
-                    // 计算投影点，得到偏移向量
-                    const closestResult =
-                        targetLine.getClosestPoint(sourcePoint)
-                    minDistance = distance
-                    minOffset = closestResult.closestPoint.subtract(sourcePoint)
-                    result.snapped = true
-                }
-            }
-        }
-
-        // 3. 线对点吸附
-        for (const sourceLine of sourceLines) {
-            for (const targetPoint of targetPoints) {
-                const distance = GeometryUtils.distancePointToLineSegment(
-                    targetPoint,
-                    sourceLine.startPoint,
-                    sourceLine.endPoint
-                )
-                if (distance <= this.threshold && distance < minDistance) {
-                    // 计算源线上最近的点，得到偏移向量
-                    const closestResult =
-                        sourceLine.getClosestPoint(targetPoint)
-                    minDistance = distance
-                    // 源线上的点需要移动到目标点位置
-                    minOffset = targetPoint.subtract(closestResult.closestPoint)
-                    result.snapped = true
-                }
-            }
-        }
-
-        // 4. 线对线吸附
-        for (const sourceLine of sourceLines) {
-            for (const targetLine of targetLines) {
-                const distance = this.distanceLineToLine(sourceLine, targetLine)
-                if (distance <= this.threshold && distance < minDistance) {
-                    // 平行线：计算偏移向量
-                    // 找到源线上一点到目标线的投影
-                    const closestResult = targetLine.getClosestPoint(
-                        sourceLine.startPoint
-                    )
-                    minDistance = distance
-                    minOffset = closestResult.closestPoint.subtract(
-                        sourceLine.startPoint
-                    )
-                    result.snapped = true
-                }
-            }
-        }
-
-        // 设置最终偏移量
-        if (result.snapped) {
-            result.offset = minOffset
-        }
-
-        return result
-    }
-
-    /**
-     * 计算两条线段之间的距离
-     * @description 如果两条线平行，返回它们之间的距离；如果不平行，返回无穷大
-     */
-    private distanceLineToLine(line1: Line, line2: Line): number {
-        const d1 = line1.endPoint.subtract(line1.startPoint)
-        const d2 = line2.endPoint.subtract(line2.startPoint)
-
-        // 计算方向向量的叉积
-        const cross = d1.cross(d2)
-        const crossLength = cross.length
-
-        // 如果叉积长度接近0，说明两条线平行
-        if (MathUtils.isZero(crossLength)) {
-            // 平行线，计算点到线的距离
-            return GeometryUtils.distancePointToLineSegment(
-                line1.startPoint,
-                line2.startPoint,
-                line2.endPoint
-            )
-        }
-
-        // 不平行，距离为无穷大
-        return Infinity
-    }
+    const worldMatrix = view.getWorldMatrix()
+    const corners = [
+      new Point3(vp.x, vp.y, 0),
+      new Point3(vp.right, vp.y, 0),
+      new Point3(vp.right, vp.bottom, 0),
+      new Point3(vp.x, vp.bottom, 0),
+    ]
+    const worldCorners = corners.map(p => worldMatrix.multiply(p))
+    return Bounds.fromPoints(worldCorners)
+  }
 }
-
-export default new SnapAlignManager()
