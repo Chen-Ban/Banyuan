@@ -26,7 +26,15 @@ import {
     ImageView,
 } from '@/core/views'
 import { VIEWTYPE } from '@/core/constants'
-import { clearAllStates } from '@/core/scene/operations'
+import { clearAllStates, flattenViewTree } from '@/core/scene/operations'
+
+/** 内部剪贴板（模块级单例） */
+let clipboard: View | null = null
+
+/** 获取当前剪贴板内容（供 contextMenu 判断是否可粘贴） */
+export function getClipboard(): View | null {
+    return clipboard
+}
 
 /**
  * 创建 ViewActions 实例
@@ -52,6 +60,16 @@ export function createViewActions(
             const scene = getScene()
             if (!scene) return
             clearAllStates(scene)
+            onViewChange()
+        },
+
+        selectAll(): void {
+            const scene = getScene()
+            if (!scene) return
+            const allViews = flattenViewTree(scene)
+            allViews.forEach((view) => {
+                scene.select(view, true)
+            })
             onViewChange()
         },
 
@@ -184,6 +202,90 @@ export function createViewActions(
                 view.name = name
                 onViewChange()
             }
+        },
+
+        copy(viewId: string): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (view) {
+                clipboard = view.copy()
+            }
+        },
+
+        paste(target: { viewId: string } | { position: { x: number; y: number } }): string | null {
+            const scene = getScene()
+            if (!scene || !clipboard) return null
+
+            const newView = clipboard.copy()
+
+            if ('viewId' in target) {
+                // 替换模式：用剪贴板内容替换目标 view
+                const targetView = scene.findViewById(target.viewId)
+                if (!targetView) return null
+
+                // 继承目标的位置矩阵
+                newView.matrix = targetView.matrix.copy()
+                // 在目标的同一位置插入新 view 并移除旧 view
+                scene.addChild(newView)
+                scene.removeChild(targetView)
+            } else {
+                // 位置模式：粘贴到指定坐标
+                newView.translate(target.position.x, target.position.y, 0)
+                scene.addChild(newView)
+            }
+
+            scene.select(newView)
+            onViewChange()
+            return newView.id
+        },
+
+        bringToFront(viewId: string): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (view) {
+                scene.bringToFront(view)
+                onViewChange()
+            }
+        },
+
+        sendToBack(viewId: string): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (view) {
+                scene.sendToBack(view)
+                onViewChange()
+            }
+        },
+
+        group(viewIds: string[]): string | null {
+            const scene = getScene()
+            if (!scene) return null
+            const views = viewIds
+                .map((id) => scene.findViewById(id))
+                .filter((v): v is View => v !== undefined)
+            if (views.length < 2) return null
+            const combined = scene.group(views)
+            if (combined) {
+                onViewChange()
+                return combined.id
+            }
+            return null
+        },
+
+        ungroup(viewId: string): string[] | null {
+            const scene = getScene()
+            if (!scene) return null
+            const view = scene.findViewById(viewId)
+            if (!view) return null
+            const children = scene.ungroup(view)
+            if (children) {
+                onViewChange()
+                return children.map((c) => c.id)
+            }
+            return null
         },
     }
 }

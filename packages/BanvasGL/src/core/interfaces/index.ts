@@ -123,6 +123,8 @@ export type {
     IPageActions,
     IHistoryActions,
     IBanvasActions,
+    IContextMenuItem,
+    IContextMenuState,
     IUseBanvasResult,
 } from './IHook'
 
