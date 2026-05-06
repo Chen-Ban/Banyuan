@@ -2,7 +2,7 @@ import View, { InteractResult, ViewOptions } from '@/core/views/View/View'
 import { Graph, Line } from '@/core/graph'
 import { isAnalyticGraph, IGraphView, ISerializable } from '@/core/interfaces'
 import { VIEWTYPE } from '@/core/constants'
-import { generateId } from '@/core/utils'
+import { generateId, generateName } from '@/core/utils'
 import { Point3 } from '@/core/math'
 import { VertexAddon } from '@/core/views/addon'
 import Matrix4 from '@/core/math/Matrix4'
@@ -25,6 +25,7 @@ export default class GraphView extends View implements IGraphView, ISerializable
         // 将graph作为content传递给父类构造函数
         super({ ...options })
         this.id = options.id || generateId(this.type)
+        this.name = options.name || generateName(this.type)
         this.content = graph
 
         // TOREVIEW: 多个插件的展示、交互、优先级是怎么样的

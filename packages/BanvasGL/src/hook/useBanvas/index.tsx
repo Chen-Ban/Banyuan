@@ -14,7 +14,7 @@ export default function useBanvas(
     const containerRef = useRef<HTMLDivElement | null>(null)
     const inputRef = useRef<HTMLInputElement | null>(null)
 
-    const [selectedViewId, setSelectedViewId] = useState<string | null>(null)
+    const [selectedViewId, setSelectedViewId] = useState<string>('')
     const [currentPageId, setCurrentPageId] = useState<string | null>(null)
     const [pages, setPages] = useState<IPageNode[]>([])
 
