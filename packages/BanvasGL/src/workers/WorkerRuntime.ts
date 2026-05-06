@@ -1,5 +1,5 @@
 import { WorkerHandler, WorkerHandlerResult, WorkerResult, WorkerTask } from "./types";
-import { textLayoutHandler, graphIntersectionUnifiedHandler, trajectorySampleHandler } from "./handlers";
+import { textLayoutHandler, graphIntersectionUnifiedHandler, trajectorySampleHandler, snapshotDiffHandler } from "./handlers";
 
 /**
  * WorkerRuntime 在 Web Worker 环境中运行：
@@ -13,6 +13,7 @@ const handlers: Map<string, WorkerHandler<any, any>> = new Map();
 handlers.set("text/layout", textLayoutHandler);
 handlers.set("graph/intersection", graphIntersectionUnifiedHandler);
 handlers.set("graph/trajectory", trajectorySampleHandler);
+handlers.set("scene/diff", snapshotDiffHandler);
 
 const ctx: any = self as any;
 

@@ -5,6 +5,7 @@ export type WorkerTaskType =
   | "text/layout"
   | "graph/intersection"
   | "graph/trajectory"
+  | "scene/diff"
   | "custom";
 
 /**
