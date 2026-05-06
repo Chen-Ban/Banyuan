@@ -27,7 +27,7 @@ const TemplateDetail = () => {
         []
     )
 
-    const { Banvas, app, selectedViewId, selectedScene } = useBanvas(
+    const { Banvas, pages, currentPageId, selectedViewId, actions } = useBanvas(
         [],
         banvasOptions
     )
@@ -46,13 +46,22 @@ const TemplateDetail = () => {
             <div className={styles.templateDetailContainer}>
                 <div className={styles.mainContent}>
                     <div>
-                        <SceneList app={app} scene={selectedScene} />
+                        <SceneList
+                            pages={pages}
+                            currentPageId={currentPageId}
+                            actions={actions}
+                        />
                         <ComponentPalette />
                     </div>
                     <div className={styles.canvasSection}>
                         <div className={styles.canvasWrapper}>{Banvas}</div>
                     </div>
-                    <ComponentPanel scene={selectedScene} id={selectedViewId} />
+                    <ComponentPanel
+                        pages={pages}
+                        currentPageId={currentPageId}
+                        selectedViewId={selectedViewId}
+                        actions={actions}
+                    />
                 </div>
             </div>
         </div>
