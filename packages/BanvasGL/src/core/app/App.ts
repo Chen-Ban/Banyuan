@@ -2,12 +2,14 @@ import Scene from '@/core/scene/Scene'
 import Serializer from '@/core/serializer'
 import Renderer from '@/core/renderer/Renderer'
 import { IAppOptions, INavigationOptions, IRendererOptions } from '@/core/interfaces'
+import AnimationManager from '@/core/animation/AnimationManager'
 
 export default class App {
     // 基本属性
     public scenes: Scene[] = []
     public renderer: Renderer
     public pageStack: Scene[] = []
+    public readonly animationManager: AnimationManager = AnimationManager.getInstance()
 
     // 私有属性
     private _currentScene: Scene | null = null
@@ -485,6 +487,10 @@ export default class App {
         // 检查是否应该渲染这一帧（基于目标FPS）
         if (timestamp - this._lastRenderTime >= this._frameInterval) {
             this._isRendering = true
+
+            // 动画 tick —— 在渲染之前驱动所有动画计算
+            this.animationManager.tick(timestamp)
+
             this.render()
             this._lastRenderTime = timestamp
             this._isRendering = false

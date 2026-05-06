@@ -137,7 +137,6 @@ export default class Point3 implements ISerializable {
     }
 
     const t1 = (d1d2 * wd2 - d2d2 * wd1) / denominator;
-    const t2 = (d1d1 * wd2 - d1d2 * wd1) / denominator;
 
     return new Point3(line1Start.x + t1 * d1.x, line1Start.y + t1 * d1.y, line1Start.z + t1 * d1.z);
   }

@@ -249,13 +249,5 @@ export function destroyGlobalCanvasContext(): void {
   }
 }
 
-/**
- * 检查全局 CanvasContext 是否已初始化
- * @returns 是否已初始化
- */
-export function isGlobalCanvasContextInitialized(): boolean {
-  return globalCanvasContext !== null;
-}
-
 // 导出类定义
 export default CanvasContext;

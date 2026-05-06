@@ -43,6 +43,22 @@ export class MathUtils {
   }
 
   /**
+   * 角度短弧插值
+   *
+   * 将角度差归一化到 [-π, π] 范围，确保走最短弧线路径。
+   *
+   * @param from 起始角度（弧度）
+   * @param to 目标角度（弧度）
+   * @param t 进度 0-1
+   */
+  public static lerpAngle(from: number, to: number, t: number): number {
+    let delta = to - from
+    // O(1) 归一化到 [-π, π]，走短弧
+    delta = ((delta + Math.PI) % MathUtils.TWO_PI + MathUtils.TWO_PI) % MathUtils.TWO_PI - Math.PI
+    return from + delta * t
+  }
+
+  /**
    * 判断角度是否在圆弧范围内
    * @param angle 已标准化的角度 [0, 2π)
    * @param startAngle 起始角度

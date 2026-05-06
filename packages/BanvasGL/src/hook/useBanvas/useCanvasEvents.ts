@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { App } from '@/core/app'
 import { Point3 } from '@/core/math'
 import { Style } from '@/core/style'
-import { Scene } from '@/core/scene'
+import type { Scene } from '@/core/scene'
 import {
     Graph,
     Line,

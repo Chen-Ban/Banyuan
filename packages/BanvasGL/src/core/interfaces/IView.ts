@@ -41,7 +41,6 @@ export interface IView {
     // 样式与滚动
     style: IViewStyle
     scrollOffset: { x: number; y: number }
-    borderGraph: Rectangle | null
     scrollBarHorization: Rectangle | null
     scrollBarVertical: Rectangle | null
 

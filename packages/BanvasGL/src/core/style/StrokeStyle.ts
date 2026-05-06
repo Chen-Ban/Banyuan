@@ -66,20 +66,6 @@ export default class StrokeStyle implements ISerializable {
     return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${this.opacity})`
   }
 
-  // 获取 Canvas 描边样式
-  get canvasStyle(): string | CanvasGradient | CanvasPattern | null {
-    switch (this.strokeType) {
-      case 'color':
-        return this.cssColor
-      case 'gradient':
-        return null // 需要 Canvas 上下文来创建渐变
-      case 'image':
-        return null // 需要 Canvas 上下文来创建图案
-      default:
-        return this.cssColor
-    }
-  }
-
   // 设置为纯色描边
   setColor(color: Color): StrokeStyle {
     this.strokeType = 'color'
@@ -224,11 +210,6 @@ export default class StrokeStyle implements ISerializable {
       dashArray: this.dashArray,
       dashOffset: this.dashOffset,
     })
-  }
-
-  // 克隆并修改
-  clone(): StrokeStyle {
-    return this.copy()
   }
 
   // 比较是否相等

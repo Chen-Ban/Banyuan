@@ -1,7 +1,6 @@
 import { GRAPHTYPE } from "@/core/constants";
 import Bezier from "./Bezier";
-import AnalyticGraph from "./AnalyticGraph";
-import { Point3, Vector3, Matrix4 } from "@/core/math";
+import { Point3, Vector3 } from "@/core/math";
 import { Style } from "@/core/style";
 import { ICubicBezier } from '@/core/interfaces';
 import type { ISerializable } from '@/core/interfaces';

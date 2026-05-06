@@ -1,7 +1,7 @@
 import { VIEWTYPE } from '@/core/constants'
 import View, { ViewOptions } from '@/core/views/View/View'
 import { ICombinedView, ISerializable } from '@/core/interfaces'
-import { generateId } from '@/core/utils'
+import { generateId, generateName } from '@/core/utils'
 import Matrix4 from '@/core/math/Matrix4'
 import Bounds from '@/core/graph/base/Bounds'
 
@@ -14,6 +14,7 @@ export default class CombinedView extends View implements ICombinedView, ISerial
     constructor(options: ViewOptions = {}) {
         super({ ...options })
         this.id = options.id || generateId(this.type)
+        this.name = options.name || generateName(this.type)
     }
 
     public copy(): CombinedView {
