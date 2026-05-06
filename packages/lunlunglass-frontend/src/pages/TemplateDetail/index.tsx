@@ -7,6 +7,7 @@ import styles from './index.module.scss'
 import ComponentPalette from './components/ComponentPalette'
 import ComponentPanel from './components/ComponentPanel'
 import SceneList from './components/SceneList'
+import ContextMenu from './components/ContextMenu'
 
 const TemplateDetail = () => {
     const { id } = useParams<{ id: string }>()
@@ -27,7 +28,7 @@ const TemplateDetail = () => {
         []
     )
 
-    const { Banvas, pages, currentPageId, selectedViewId, actions } = useBanvas(
+    const { Banvas, pages, currentPageId, selectedViewId, actions, contextMenu } = useBanvas(
         [],
         banvasOptions
     )
@@ -64,6 +65,7 @@ const TemplateDetail = () => {
                     />
                 </div>
             </div>
+            <ContextMenu state={contextMenu} />
         </div>
     )
 }

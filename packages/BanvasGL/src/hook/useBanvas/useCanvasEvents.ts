@@ -41,11 +41,24 @@ const event2Point = (e: MouseEvent): Point3 => {
     return new Point3(offsetX * ratio, offsetY * ratio, 0)
 }
 
+export interface ContextMenuHitResult {
+    /** 命中的目标类型 */
+    target: 'canvas' | 'view'
+    /** 命中的 View（如有） */
+    view: View | null
+    /** 屏幕坐标（clientX/clientY，用于 fixed 定位菜单 UI） */
+    position: { x: number; y: number }
+    /** 画布内坐标（物理像素，用于粘贴等操作） */
+    canvasPosition: { x: number; y: number }
+}
+
 export interface UseCanvasEventsOptions {
     app: App | null
     canvasRef: React.RefObject<HTMLCanvasElement | null>
     inputRef: React.RefObject<HTMLInputElement | null>
     setSelectedViewId: (id: string) => void
+    /** 右键菜单命中回调 */
+    onContextMenuHit?: (hit: ContextMenuHitResult) => void
 }
 
 /**
@@ -56,6 +69,7 @@ export function useCanvasEvents({
     canvasRef,
     inputRef,
     setSelectedViewId,
+    onContextMenuHit,
 }: UseCanvasEventsOptions) {
     const mouseDownPointRef = useRef<Point3 | null>(null)
     const lastPointRef = useRef<Point3 | null>(null)
@@ -362,7 +376,32 @@ export function useCanvasEvents({
 
     const onContextMenu = useCallback((e: MouseEvent) => {
         e.preventDefault()
-    }, [])
+        if (!app || !canvasRef.current || !onContextMenuHit) return
+        const scene = app.getCurrentScene()
+        if (!scene) return
+
+        // 页面绝对坐标（clientX/clientY，用于 fixed 定位弹出菜单）
+        const cssX = e.clientX
+        const cssY = e.clientY
+
+        // 物理像素坐标（用于命中检测）
+        const point = event2Point(e)
+        let hitView: View | null = null
+
+        for (const view of scene.children) {
+            const { view: _view } = view.interact(point)
+            if (_view) {
+                hitView = _view as View
+            }
+        }
+
+        onContextMenuHit({
+            target: hitView ? 'view' : 'canvas',
+            view: hitView,
+            position: { x: cssX, y: cssY },
+            canvasPosition: { x: point.x, y: point.y },
+        })
+    }, [app, canvasRef, onContextMenuHit])
 
     // 拖拽事件
     const onDragOver = useCallback((e: DragEvent) => {
