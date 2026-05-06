@@ -4,7 +4,6 @@ import { Point3 } from '@/core/math'
 import { Action, Cursor, isTextView, ExtraData, IViewAddon, IGraph } from '@/core/interfaces'
 import { Rectangle } from '@/core/graph'
 import { clearAllStates } from '@/core/scene/operations'
-import snapAlignManager from '@/core/snapAlign'
 import Bounds from '@/core/graph/base/Bounds'
 import { isNonPrintableTextElement, isPrintableTextElement } from '@/core/graph'
 
@@ -72,20 +71,22 @@ export class InteractionDispatcher {
         )
         const indicateView = this.ctx.getIndicateView()
         if (!indicateView) return
-        if (indicateView && !indicateView.actived) {
+
+        if (!indicateView.actived) {
             scene.select(indicateView)
             this.ctx.setSelectedViewId(indicateView.id)
-            indicateView.translate(moveVector.x, moveVector.y, 0)
-        } else {
-            for (const activeView of scene.getAllActived()) {
-                activeView.translate(moveVector.x, moveVector.y, 0)
-            }
         }
-        // 吸附对齐
-        const res = snapAlignManager.snapAlign(indicateView, point)
-        if (res.snapped) {
+
+        // 先移动
+        for (const activeView of scene.getAllActived()) {
+            activeView.translate(moveVector.x, moveVector.y, 0)
+        }
+
+        // 再吸附（X/Y 轴独立）
+        const result = scene.snapAlign.snap(indicateView)
+        if (result.offsetX !== 0 || result.offsetY !== 0) {
             for (const activeView of scene.getAllActived()) {
-                activeView.translate(res.offset.x, res.offset.y, 0)
+                activeView.translate(result.offsetX, result.offsetY, 0)
             }
         }
     }

@@ -54,6 +54,20 @@ export default class Bounds implements ISerializable {
   }
 
   /**
+   * 获取水平中点
+   */
+  get midX(): number {
+    return this.x + this.width / 2;
+  }
+
+  /**
+   * 获取垂直中点
+   */
+  get midY(): number {
+    return this.y + this.height / 2;
+  }
+
+  /**
    * 扩展边界框以包含指定点
    */
   expandToInclude(x: number, y: number): Bounds {

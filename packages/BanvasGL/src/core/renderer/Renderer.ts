@@ -46,6 +46,13 @@ export default class Renderer {
         ctx.scale(this.dpr, this.dpr);
         scene.render();
         ctx.restore();
+
+        // 渲染吸附对齐辅助线（在场景之上，不受 dpr scale 影响）
+        if (scene.snapAlign.overlay.hasContent()) {
+          const vpMatrix = scene.camera.viewProjectionMatrix;
+          const { width, height } = canvasContext.getSize();
+          scene.snapAlign.overlay.render(ctx, vpMatrix, width, height);
+        }
       }
 
       // 更新FPS

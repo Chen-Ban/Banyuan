@@ -146,6 +146,14 @@ export function useCanvasEvents({
                     if (viewIds.length > 0) {
                         scene.beginTransaction(viewIds)
                     }
+
+                    // Move 操作时初始化吸附对齐
+                    if (action === Action.MOVE) {
+                        const activeViews = indicateView && !indicateView.actived
+                            ? [indicateView]
+                            : scene.getAllActived()
+                        scene.snapAlign.begin(scene, activeViews)
+                    }
                 }
             }
         },
@@ -330,6 +338,7 @@ export function useCanvasEvents({
                 const scene = app.getCurrentScene()
                 if (scene) {
                     scene.commitTransaction()
+                    scene.snapAlign.end()
                 }
             }
             if (e.ctrlKey) {
