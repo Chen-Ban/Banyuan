@@ -11,6 +11,7 @@ import {
 import { ISerializable, isCombinedView } from "@/core/interfaces";
 import { SCENETYPE } from "@/core/constants";
 import CombinedView from "@/core/views/CombinedViews";
+import { SnapAlignManager } from "@/core/snapAlign";
 
 export interface SceneOptions {
   name?: string;
@@ -30,6 +31,7 @@ export default class Scene implements ISerializable {
   public children: View[] = [];
   public camera: BaseCamera;
   public data: any = {};
+  public readonly snapAlign = new SnapAlignManager();
   private transactionManager: TransactionManager;
   private layerManager: LayerManager;
 
