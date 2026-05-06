@@ -8,6 +8,7 @@
  */
 
 import type { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
+import type View from '@/core/views/View/View'
 
 // ────────────────────────────────────────────
 //  组件模板数据（Component Template）
@@ -129,6 +130,29 @@ export interface IViewActions {
     group(viewIds: string[]): string | null
     /** 取消组合（解散 CombinedView，子视图回到场景中） */
     ungroup(viewId: string): string[] | null
+
+    // ── 属性面板支持 ──
+
+    /** 获取 View 实例（供 PropertyPanel 读取属性） */
+    getViewInstance(viewId: string): View | null
+    /** 获取所有 actived 的 View ID 列表（多选时用于偏移应用） */
+    getActivedViewIds(): string[]
+    /**
+     * 修改属性（含偏移应用到其他 actived View + 事务）
+     *
+     * 对 selected View 设置绝对值，对其他 actived View 应用偏移：
+     * - spatial/direct 属性：加法偏移（delta = newValue - oldValue）
+     * - size 属性：乘法缩放（ratio = newValue / oldValue）
+     */
+    setProperty(prop: string, value: number): void
+    /** 批量修改属性 */
+    setProperties(props: Record<string, number>): void
+    /** 开始属性编辑事务（输入框聚焦时调用） */
+    beginPropertyEdit(): void
+    /** 提交属性编辑事务（输入框失焦/回车时调用） */
+    commitPropertyEdit(): void
+    /** 回滚属性编辑事务（按 Esc 时调用） */
+    rollbackPropertyEdit(): void
 }
 
 /** 页面操作 */

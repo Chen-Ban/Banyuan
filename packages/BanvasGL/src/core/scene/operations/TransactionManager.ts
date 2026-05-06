@@ -2,6 +2,9 @@ import type { Diff, PropChange, AddDiff, RemoveDiff, ReorderDiff, ReorderChange 
 import { DiffType, Operation } from './OperationStack'
 import OperationStack from './OperationStack'
 import DiffApplier from './DiffApplier'
+import { getDefaultWorkerExecutor } from '@/workers/WorkerExecutor'
+import type { WorkerTask } from '@/workers/types'
+import type { SnapshotDiffInput, SnapshotDiffOutput, ViewDiffRequest } from '@/workers/handlers/snapshot/types'
 
 // ============ 快照相关类型 ============
 
@@ -115,6 +118,7 @@ export default class TransactionManager {
   private operationStack: OperationStack
   private scene: SceneAccessor
   private pending: PendingTransaction | null = null
+  private taskIdCounter: number = 0
 
   /**
    * @param scene Scene 的访问接口（viewFinder、removeChild、insertChildAt）
@@ -123,6 +127,10 @@ export default class TransactionManager {
     this.scene = scene
     const diffApplier = new DiffApplier(scene)
     this.operationStack = new OperationStack(diffApplier.apply.bind(diffApplier))
+  }
+
+  private generateTaskId(): string {
+    return `scene-diff-${++this.taskIdCounter}-${Date.now()}`
   }
 
   // ==================== 持续性操作事务 ====================
@@ -183,6 +191,89 @@ export default class TransactionManager {
 
     if (diffs.length === 0) return false
 
+    return this.operationStack.do(new Operation(diffs))
+  }
+
+  /**
+   * 异步提交事务：将 diff 计算 offload 到 Worker 线程
+   *
+   * 适用于大型场景（复杂图形、深层嵌套子视图），避免 JSON.stringify 对比
+   * 阻塞主线程。快照拍摄仍在主线程完成（需要访问 View 实例），
+   * 但耗时的字符串对比在 Worker 中执行。
+   *
+   * @returns Promise<boolean> 是否成功提交（false 表示无变更或无事务）
+   */
+  async commitTransactionAsync(): Promise<boolean> {
+    if (!this.pending) return false
+
+    const views: ViewDiffRequest[] = []
+
+    for (const [viewId, beforeSnapshot] of this.pending.beforeSnapshots) {
+      const view = this.scene.findViewById(viewId)
+      if (!view) continue
+
+      const afterSnapshot = snapshotView(view)
+      views.push({ viewId, before: beforeSnapshot, after: afterSnapshot })
+    }
+
+    this.pending = null
+
+    if (views.length === 0) return false
+
+    // 构造 Worker 任务
+    const payload: SnapshotDiffInput = { views }
+    const task: WorkerTask<SnapshotDiffInput> = {
+      id: this.generateTaskId(),
+      type: 'scene/diff',
+      payload,
+    }
+
+    // 发送到 Worker 执行 diff 计算
+    const workerResult = await getDefaultWorkerExecutor().execute<SnapshotDiffInput, SnapshotDiffOutput>(task)
+
+    if (workerResult.error) {
+      console.error('Worker diff 计算失败，回退到同步模式:', workerResult.error)
+      // 降级：使用同步方式重新计算
+      return this.commitTransactionSync(views)
+    }
+
+    const diffOutput = workerResult.result
+    if (!diffOutput.hasChanges) return false
+
+    // 将 Worker 返回的 diff 结果转换为 Operation
+    const diffs: Diff[] = []
+    for (const viewResult of diffOutput.results) {
+      if (viewResult.changes.length > 0) {
+        diffs.push({
+          type: DiffType.MODIFY,
+          viewId: viewResult.viewId,
+          changes: viewResult.changes,
+        })
+      }
+    }
+
+    if (diffs.length === 0) return false
+
+    return this.operationStack.do(new Operation(diffs))
+  }
+
+  /**
+   * 同步 diff 计算（作为 Worker 失败时的降级方案）
+   */
+  private commitTransactionSync(views: ViewDiffRequest[]): boolean {
+    const diffs: Diff[] = []
+
+    for (const { viewId, before, after } of views) {
+      const changes = diffSnapshots(
+        before as ViewSnapshot,
+        after as ViewSnapshot
+      )
+      if (changes.length > 0) {
+        diffs.push({ type: DiffType.MODIFY, viewId, changes })
+      }
+    }
+
+    if (diffs.length === 0) return false
     return this.operationStack.do(new Operation(diffs))
   }
 

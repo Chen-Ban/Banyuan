@@ -27,6 +27,7 @@ import {
 } from '@/core/views'
 import { VIEWTYPE } from '@/core/constants'
 import { clearAllStates, flattenViewTree } from '@/core/scene/operations'
+import { getProperty, setProperty, getPropertyCategory } from '@/core/propadapters'
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null
@@ -286,6 +287,101 @@ export function createViewActions(
                 return children.map((c) => c.id)
             }
             return null
+        },
+
+        // ── 属性面板支持 ──
+
+        getViewInstance(viewId: string): View | null {
+            const scene = getScene()
+            if (!scene) return null
+            return scene.findViewById(viewId) ?? null
+        },
+
+        getActivedViewIds(): string[] {
+            const scene = getScene()
+            if (!scene) return []
+            return scene.getAllActived().map((v) => v.id)
+        },
+
+        setProperty(prop: string, value: number): void {
+            const scene = getScene()
+            if (!scene) return
+            const selectedView = scene.getSelectedView()
+            if (!selectedView) return
+
+            const oldValue = getProperty(selectedView, prop)
+            const category = getPropertyCategory(prop)
+
+            // 对 selected View 设置绝对值
+            setProperty(selectedView, prop, value)
+
+            // 对其他 actived View 应用偏移
+            const activedViews = scene.getAllActived()
+            for (const view of activedViews) {
+                if (view.id === selectedView.id) continue
+                const currentVal = getProperty(view, prop)
+                if (category === 'size') {
+                    // 乘法缩放
+                    const ratio = oldValue !== 0 ? value / oldValue : 1
+                    setProperty(view, prop, currentVal * ratio)
+                } else {
+                    // 加法偏移（spatial / direct）
+                    const delta = value - oldValue
+                    setProperty(view, prop, currentVal + delta)
+                }
+            }
+
+            onViewChange()
+        },
+
+        setProperties(props: Record<string, number>): void {
+            const scene = getScene()
+            if (!scene) return
+            const selectedView = scene.getSelectedView()
+            if (!selectedView) return
+
+            const activedViews = scene.getAllActived()
+
+            for (const [prop, value] of Object.entries(props)) {
+                const oldValue = getProperty(selectedView, prop)
+                const category = getPropertyCategory(prop)
+
+                setProperty(selectedView, prop, value)
+
+                for (const view of activedViews) {
+                    if (view.id === selectedView.id) continue
+                    const currentVal = getProperty(view, prop)
+                    if (category === 'size') {
+                        const ratio = oldValue !== 0 ? value / oldValue : 1
+                        setProperty(view, prop, currentVal * ratio)
+                    } else {
+                        const delta = value - oldValue
+                        setProperty(view, prop, currentVal + delta)
+                    }
+                }
+            }
+
+            onViewChange()
+        },
+
+        beginPropertyEdit(): void {
+            const scene = getScene()
+            if (!scene) return
+            const activedIds = scene.getAllActived().map((v) => v.id)
+            if (activedIds.length === 0) return
+            scene.beginTransaction(activedIds)
+        },
+
+        commitPropertyEdit(): void {
+            const scene = getScene()
+            if (!scene) return
+            scene.commitTransaction()
+        },
+
+        rollbackPropertyEdit(): void {
+            const scene = getScene()
+            if (!scene) return
+            scene.rollbackTransaction()
         },
     }
 }
