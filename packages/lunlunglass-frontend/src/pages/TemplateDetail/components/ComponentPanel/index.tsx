@@ -4,7 +4,7 @@ import type { IPageNode, IViewNode, IBanvasActions } from 'banvasgl'
 interface ComponentPanelProps {
     pages: IPageNode[]
     currentPageId: string | null
-    selectedViewId: string | null
+    selectedViewId: string
     actions: IBanvasActions
 }
 

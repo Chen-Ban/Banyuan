@@ -181,7 +181,7 @@ export function createViewActions(
             if (!scene) return
             const view = scene.findViewById(viewId)
             if (view) {
-                ;(view as any)._displayName = name
+                view.name = name
                 onViewChange()
             }
         },
@@ -210,10 +210,7 @@ export function createPageActions(
             const app = getApp()
             if (!app) return null
             const camera = new BaseCamera()
-            const scene = new Scene(camera)
-            if (name) {
-                ;(scene as any)._displayName = name
-            }
+            const scene = new Scene(camera, { name })
             app.addScene(scene)
             app.navigateTo(scene)
             onPageChange()
@@ -235,7 +232,7 @@ export function createPageActions(
             if (!app) return
             const scene = app.getScene(pageId)
             if (scene) {
-                ;(scene as any)._displayName = name
+                scene.name = name
                 onPageChange()
             }
         },

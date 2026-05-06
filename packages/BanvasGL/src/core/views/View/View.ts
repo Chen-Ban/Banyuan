@@ -47,6 +47,7 @@ export interface InteractResult {
 // 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
 export interface ViewOptions<T extends object = any> {
     id?: string
+    name?: string
     content?: IGraph // 改为IGraph，多图形用组合图形替代
     children?: View[]
     parent?: ISceneNode | View
@@ -64,6 +65,7 @@ export interface ViewOptions<T extends object = any> {
 export default abstract class View<T extends object = any> implements IView, ISerializable {
     // 基本属性
     public id: string = ''
+    public name: string = ''
     public properties: T = {} as T
     public data: T = {} as T
     public content: IGraph | null

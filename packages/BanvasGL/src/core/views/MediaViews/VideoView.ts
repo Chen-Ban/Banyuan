@@ -2,7 +2,7 @@ import View, { ViewOptions } from '@/core/views/View/View'
 import { VideoElement } from '@/core/graph/media'
 import { VIEWTYPE } from '@/index.backend'
 import { IVideoView, ISerializable } from '@/core/interfaces'
-import { generateId } from '@/core/utils'
+import { generateId, generateName } from '@/core/utils'
 import Matrix4 from '@/core/math/Matrix4'
 import Bounds from '@/core/graph/base/Bounds'
 
@@ -22,6 +22,7 @@ export default class VideoView extends View implements IVideoView, ISerializable
         // 将video作为content传递给父类构造函数
         super({ ...options, content: video })
         this.id = options.id || generateId(this.type)
+        this.name = options.name || generateName(this.type)
         this.content = video
     }
 

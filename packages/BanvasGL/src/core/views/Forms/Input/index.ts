@@ -1,7 +1,7 @@
 import { TextFields, VIEWTYPE } from '@/index.backend'
 import TextView, { TextViewOptions } from '@/core/views/TextView'
 import { IInput } from '@/core/interfaces'
-import { generateId } from '@/core/utils'
+import { generateId, generateName } from '@/core/utils'
 
 // 输入框选项接口
 export interface InputOptions extends TextViewOptions {}
@@ -16,6 +16,7 @@ export default class Input extends TextView implements IInput {
     constructor(text: TextFields, options: InputOptions = {}) {
         super(text, { ...options, editable: true })
         this.id = options.id || generateId(this.type)
+        this.name = options.name || generateName(this.type)
     }
 }
 

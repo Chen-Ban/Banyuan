@@ -177,8 +177,8 @@ export interface IUseBanvasResult {
     pages: IPageNode[]
     /** 当前活跃页面 ID */
     currentPageId: string | null
-    /** 当前选中视图 ID */
-    selectedViewId: string | null
+    /** 当前选中视图 ID（空字符串表示未选中） */
+    selectedViewId: string
     /** 命名空间化的操作接口 */
     actions: IBanvasActions
 }

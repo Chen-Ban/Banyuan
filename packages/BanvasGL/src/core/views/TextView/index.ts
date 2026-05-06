@@ -6,7 +6,7 @@ import { Point3, Vector3 } from '@/core/math'
 import { Action, Cursor, ITextView, ISerializable } from '@/core/interfaces'
 import Selection from './Selection'
 import { VERTICALALIGN, VIEWTYPE } from '@/core/constants'
-import { generateId } from '@/core/utils'
+import { generateId, generateName } from '@/core/utils'
 import Matrix4 from '@/core/math/Matrix4'
 import Bounds from '@/core/graph/base/Bounds'
 import {
@@ -37,6 +37,7 @@ export default class TextView extends View implements ITextView, ISerializable {
         // 将text作为content传递给父类构造函数
         super({ ...options, content: text })
         this.id = options.id || generateId(this.type)
+        this.name = options.name || generateName(this.type)
         this.content = text
         this.verticalAlign = options?.verticalAlign ?? VERTICALALIGN.TOP
         this.editable = options?.editable ?? true
