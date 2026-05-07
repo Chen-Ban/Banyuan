@@ -225,7 +225,7 @@ const OrderPage = () => {
                       notFoundContent={userSearchLoading ? "搜索中..." : "暂无数据"}
                     >
                       {userOptions.map((user) => (
-                        <Option key={user.id} value={user.userId}>
+                        <Option key={user.userId} value={user.userId}>
                           {user.username} ({user.userId})
                         </Option>
                       ))}
