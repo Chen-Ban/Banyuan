@@ -1,12 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Form, Input, InputNumber, Select, Button, Card, Row, Col, message, Space } from "antd";
 import { ArrowLeftOutlined, SaveOutlined, UserAddOutlined, PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import type { FormProps } from "antd";
+import { userApi, orderApi } from "@/api";
+import { getErrorMessage } from "@/utils/error";
 import type { User, OrderFormData } from "@/types";
 import styles from "./index.module.scss";
 
 const { Option } = Select;
+
+interface OrderItemFormValue {
+  productId?: string;
+  quantity?: number;
+  price?: number;
+}
 
 const OrderPage = () => {
   const navigate = useNavigate();
@@ -20,32 +28,48 @@ const OrderPage = () => {
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
 
-  // 模拟搜索用户
-  const searchUsers = async (searchText?: string) => {
+  // 搜索用户
+  const searchUsers = useCallback(async (searchText?: string) => {
     setUserSearchLoading(true);
     try {
-      // 模拟API调用
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // 模拟数据
-      const mockUsers: User[] = Array.from({ length: 20 }, (_, i) => {
-        const index = i + 1;
-        return {
-          id: `user_${index}`,
-          userId: `user_${index}`,
-          username: searchText ? `${searchText}_${index}` : `用户${index}`,
-          email: `user${index}@example.com`,
-          phone: `138${String(index).padStart(8, "0")}`,
-        };
-      });
-
-      setUserOptions(mockUsers);
-    } catch (error) {
+      const res = await userApi.searchUsers(searchText || '');
+      setUserOptions(res.data.users);
+    } catch {
       message.error("搜索用户失败");
     } finally {
       setUserSearchLoading(false);
     }
-  };
+  }, []);
+
+  // 加载订单数据（编辑模式）
+  const loadOrderData = useCallback(async (orderId: string) => {
+    setInitialLoading(true);
+    try {
+      const res = await orderApi.fetchOrder(orderId);
+      const order = res.data!;
+
+      const orderFormData: OrderFormData = {
+        userInfo: {
+          userId: order.userId,
+          username: order.username,
+        },
+        orderInfo: {
+          items: order.items.map(item => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          status: order.status,
+        },
+      };
+
+      form.setFieldsValue(orderFormData);
+    } catch {
+      message.error("加载订单数据失败");
+    } finally {
+      setInitialLoading(false);
+    }
+  }, [form]);
 
   // 处理从用户页返回的情况
   useEffect(() => {
@@ -60,7 +84,6 @@ const OrderPage = () => {
         },
       });
       setSelectedUserId(newUser.userId);
-      // 清除state，避免刷新时重复填充
       window.history.replaceState({}, document.title);
     }
   }, [location.state, id, form]);
@@ -74,61 +97,13 @@ const OrderPage = () => {
       setIsEditMode(false);
       form.setFieldsValue({
         orderInfo: {
-          items: [
-            {
-              productId: "",
-              quantity: 1,
-              price: 0,
-            },
-          ],
+          items: [{ productId: "", quantity: 1, price: 0 }],
           status: "pending",
         },
       });
-      // 初始化时加载用户列表
       searchUsers();
     }
-  }, [id]);
-
-  // 加载订单数据（编辑模式）
-  const loadOrderData = async (orderId: string) => {
-    setInitialLoading(true);
-    try {
-      // 模拟API调用
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // 模拟数据
-      const mockOrderData: OrderFormData = {
-        userInfo: {
-          userId: `user_${orderId}`,
-          username: `用户${orderId}`,
-          email: `user${orderId}@example.com`,
-          phone: `138${String(orderId).padStart(8, "0")}`,
-        },
-        orderInfo: {
-          items: [
-            {
-              productId: `prod_${orderId}_1`,
-              quantity: 2,
-              price: 199.99,
-            },
-            {
-              productId: `prod_${orderId}_2`,
-              quantity: 1,
-              price: 299.99,
-            },
-          ],
-          status: "pending",
-          remark: "备注信息",
-        },
-      };
-
-      form.setFieldsValue(mockOrderData);
-    } catch (error) {
-      message.error("加载订单数据失败");
-    } finally {
-      setInitialLoading(false);
-    }
-  };
+  }, [id, form, loadOrderData, searchUsers]);
 
   const handleBack = () => {
     navigate("/list");
@@ -137,18 +112,16 @@ const OrderPage = () => {
   const handleSubmit: FormProps<OrderFormData>["onFinish"] = async (values) => {
     setLoading(true);
     try {
-      // 模拟API调用
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      console.log("订单数据:", values);
-      message.success(isEditMode ? "订单更新成功！" : "订单创建成功！");
-
-      // 跳转到订单列表
-      setTimeout(() => {
-        navigate("/list");
-      }, 1500);
-    } catch (error) {
-      message.error(isEditMode ? "订单更新失败，请重试" : "订单创建失败，请重试");
+      if (isEditMode) {
+        await orderApi.updateOrder(id!, values);
+        message.success("订单更新成功！");
+      } else {
+        await orderApi.createOrder(values);
+        message.success("订单创建成功！");
+      }
+      setTimeout(() => { navigate("/list"); }, 1000);
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -156,20 +129,12 @@ const OrderPage = () => {
 
   const handleReset = () => {
     if (isEditMode) {
-      // 编辑模式下，重置为原始数据
       loadOrderData(id!);
     } else {
-      // 新增模式下，清空表单
       form.resetFields();
       form.setFieldsValue({
         orderInfo: {
-          items: [
-            {
-              productId: "",
-              quantity: 1,
-              price: 0,
-            },
-          ],
+          items: [{ productId: "", quantity: 1, price: 0 }],
           status: "pending",
         },
       });
@@ -177,7 +142,6 @@ const OrderPage = () => {
     }
   };
 
-  // 处理用户选择
   const handleUserSelect = (userId: string | null) => {
     if (userId) {
       setSelectedUserId(userId);
@@ -193,41 +157,24 @@ const OrderPage = () => {
         });
       }
     } else {
-      // 清空选择
       setSelectedUserId(undefined);
       form.setFieldsValue({
-        userInfo: {
-          userId: undefined,
-          username: undefined,
-          email: undefined,
-          phone: undefined,
-        },
+        userInfo: { userId: undefined, username: undefined, email: undefined, phone: undefined },
       });
     }
   };
 
-  // 处理用户搜索
   const handleUserSearch = (value: string) => {
-    if (value) {
-      searchUsers(value);
-    } else {
-      searchUsers();
-    }
+    searchUsers(value || undefined);
   };
 
-  // 跳转到新建用户页
   const handleCreateNewUser = () => {
-    navigate("/user", {
-      state: {
-        returnTo: "/order",
-      },
-    });
+    navigate("/user", { state: { returnTo: "/order" } });
   };
 
-  // 监听商品项变化，计算总金额
-  const items = Form.useWatch(["orderInfo", "items"], form) || [];
+  const items: OrderItemFormValue[] = Form.useWatch(["orderInfo", "items"], form) || [];
   const totalAmount = items
-    .reduce((sum: number, item: any) => {
+    .reduce((sum: number, item: OrderItemFormValue | undefined) => {
       const quantity = item?.quantity || 0;
       const price = item?.price || 0;
       return sum + quantity * price;
@@ -254,19 +201,12 @@ const OrderPage = () => {
         className={styles.orderPageForm}
         initialValues={{
           orderInfo: {
-            items: [
-              {
-                productId: "",
-                quantity: 1,
-                price: 0,
-              },
-            ],
+            items: [{ productId: "", quantity: 1, price: 0 }],
             status: "pending",
           },
         }}
       >
         <Row gutter={24}>
-          {/* 用户信息 */}
           <Col xs={24} lg={12}>
             <Card title="用户信息" className={styles.formSectionCard}>
               {!isEditMode && (
@@ -338,7 +278,6 @@ const OrderPage = () => {
             </Card>
           </Col>
 
-          {/* 订单信息 */}
           <Col xs={24} lg={12}>
             <Card title="订单信息" className={styles.formSectionCard}>
               <Form.List name={["orderInfo", "items"]}>
@@ -415,7 +354,7 @@ const OrderPage = () => {
               </Form.List>
 
               <Form.Item label="总金额">
-                <Input value={`¥${totalAmount}`} disabled className={styles.totalAmountInput} />
+                <Input value={`\u00A5${totalAmount}`} disabled className={styles.totalAmountInput} />
               </Form.Item>
 
               <Form.Item
