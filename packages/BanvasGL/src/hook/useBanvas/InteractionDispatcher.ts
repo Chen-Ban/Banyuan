@@ -199,10 +199,11 @@ export class InteractionDispatcher {
                 if (isSelectBoxView(view)) continue
                 const worldMatrix = view.getWorldMatrix()
 
-                // 1. 检查框选矩形与 content（实际图形内容）的交点
+                // 1. 检查框选矩形与 content bounds 的交点
                 const content = view.content
-                if (content) {
-                    const transformedContent = content.transform(worldMatrix) as Graph
+                if (content && content.bounds) {
+                    const contentRect = Rectangle.fromBounds(content.bounds)
+                    const transformedContent = contentRect.transform(worldMatrix) as Graph
                     if (selectionRect.intersect(transformedContent).length > 0) {
                         viewsToActivate.push(view)
                         continue
