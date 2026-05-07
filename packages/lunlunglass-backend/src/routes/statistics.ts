@@ -1,4 +1,4 @@
-import Router from 'koa-router'
+import Router from '@koa/router'
 import statisticsController from '../controllers/StatisticsController'
 
 const router = new Router({
