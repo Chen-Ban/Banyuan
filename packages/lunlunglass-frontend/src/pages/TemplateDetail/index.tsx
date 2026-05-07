@@ -54,6 +54,8 @@ const TemplateDetail = () => {
         const el = canvasSectionRef.current
         if (!el) return
 
+        let timer: ReturnType<typeof setTimeout> | null = null
+
         const updateSize = () => {
             const { clientWidth, clientHeight } = el
             if (clientWidth > 0 && clientHeight > 0) {
@@ -61,11 +63,20 @@ const TemplateDetail = () => {
             }
         }
 
+        // 立即同步一次初始尺寸
         updateSize()
 
-        const observer = new ResizeObserver(() => updateSize())
+        const debouncedUpdate = () => {
+            if (timer) clearTimeout(timer)
+            timer = setTimeout(updateSize, 100)
+        }
+
+        const observer = new ResizeObserver(debouncedUpdate)
         observer.observe(el)
-        return () => observer.disconnect()
+        return () => {
+            if (timer) clearTimeout(timer)
+            observer.disconnect()
+        }
     }, [])
 
     const banvasOptions = useMemo(
