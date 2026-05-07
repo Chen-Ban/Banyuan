@@ -20,7 +20,6 @@ import {
     IGraph,
 } from '@/core/interfaces'
 import type { IBanvasActions } from '@/core/interfaces'
-import { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import { clearAllStates } from '@/core/scene/operations'
 import { InteractionDispatcher } from './InteractionDispatcher'
 import type { InteractionContext } from './InteractionDispatcher'
@@ -429,24 +428,12 @@ export function useCanvasEvents({
                 const dataStr = e.dataTransfer.getData('application/json')
                 if (!dataStr) return
 
-                const dragData = JSON.parse(dataStr) as {
-                    viewType: 'GraphView' | 'TextView' | 'ImageView'
-                    graphType?: 'Line' | 'Circle' | 'Rectangle'
-                    constructorParams: Record<string, any>
+                // dragData 直接携带 IComponentTemplate（枚举值已序列化为字符串，
+                // 反序列化后与枚举值完全一致，因为 GRAPHTYPE/VIEWTYPE 均为字符串枚举）
+                const { template } = JSON.parse(dataStr) as {
+                    template: import('@/core/interfaces').IComponentTemplate
                 }
-                const { viewType, graphType, constructorParams } = dragData
-
-                // 映射前端类型字符串到引擎枚举
-                const viewTypeMap: Record<string, VIEWTYPE> = {
-                    GraphView: VIEWTYPE.GRAPHVIEW,
-                    TextView: VIEWTYPE.TEXTVIEW,
-                    ImageView: VIEWTYPE.IMAGEVIEW,
-                }
-                const graphTypeMap: Record<string, GRAPHTYPE> = {
-                    Line: GRAPHTYPE.LINE,
-                    Circle: GRAPHTYPE.CIRCLE,
-                    Rectangle: GRAPHTYPE.RECTANGLE,
-                }
+                if (!template) return
 
                 // 获取拖拽位置（相对于 canvas，物理像素）
                 const rect = canvasRef.current.getBoundingClientRect()
@@ -454,22 +441,9 @@ export function useCanvasEvents({
                 const x = (e.clientX - rect.left) * ratio
                 const y = (e.clientY - rect.top) * ratio
 
-                // 构建 IComponentTemplate 并调用 actions.view.create
-                const newViewId = actions.view.create(
-                    {
-                        id: `drag_${Date.now()}`,
-                        viewType: viewTypeMap[viewType] ?? VIEWTYPE.GRAPHVIEW,
-                        graphType: graphType ? graphTypeMap[graphType] : undefined,
-                        name: graphType || viewType,
-                        category: 'basic',
-                        defaultProps: constructorParams,
-                    },
-                    { x, y }
-                )
-
-                void newViewId // actions.view.create 内部已调用 notify()
+                actions.view.create(template, { x, y })
             } catch (error) {
-                console.error('拖拽创建组件失败:', error)
+                console.error('[BanvasGL] 拖拽创建组件失败:', error)
             }
         },
         [actions, canvasRef]

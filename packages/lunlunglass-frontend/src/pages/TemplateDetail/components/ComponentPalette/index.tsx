@@ -1,13 +1,8 @@
 import React, { useState } from 'react'
 import { Button, Tooltip, Popover } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined } from '@ant-design/icons'
+import type { IComponentDefinition } from 'banvasgl'
 import styles from './index.module.scss'
-
-export interface ComponentDragData {
-    viewType: 'GraphView' | 'TextView' | 'ImageView'
-    graphType?: 'Line' | 'Circle' | 'Rectangle'
-    constructorParams: Record<string, unknown>
-}
 
 interface ComponentPaletteProps {
     templateName: string
@@ -18,83 +13,31 @@ interface ComponentPaletteProps {
     onDescriptionChange: (value: string) => void
     onSave: () => void
     onBack: () => void
+    /** 引擎内置物料，直接来自 useBanvas().builtinComponents */
+    builtinComponents: IComponentDefinition[]
+    /**
+     * 用户自定义物料（可选）
+     *
+     * 格式与内置物料完全一致，source 建议设为 'user'。
+     * 未来社区物料也通过同一接口接入，面板无需改动。
+     */
+    userComponents?: IComponentDefinition[]
 }
 
-/** 组件定义 */
-const COMPONENTS: Array<{
-    key: string
-    label: string
-    dragData: ComponentDragData
-    icon: React.ReactNode
-}> = [
-    {
-        key: 'line',
-        label: '直线',
-        dragData: { viewType: 'GraphView', graphType: 'Line', constructorParams: {} },
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24">
-                <line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" strokeWidth="2" />
-            </svg>
-        ),
-    },
-    {
-        key: 'circle',
-        label: '圆形',
-        dragData: {
-            viewType: 'GraphView',
-            graphType: 'Circle',
-            constructorParams: { center: { x: 50, y: 50, z: 0 }, radius: 50 },
-        },
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" />
-            </svg>
-        ),
-    },
-    {
-        key: 'rectangle',
-        label: '矩形',
-        dragData: {
-            viewType: 'GraphView',
-            graphType: 'Rectangle',
-            constructorParams: { x: 0, y: 0, width: 100, height: 100 },
-        },
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24">
-                <rect x="4" y="4" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" />
-            </svg>
-        ),
-    },
-    {
-        key: 'text',
-        label: '文本',
-        dragData: { viewType: 'TextView', constructorParams: { text: '文本' } },
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24">
-                <text x="12" y="17" textAnchor="middle" fontSize="14" fill="currentColor" fontWeight="bold">
-                    T
-                </text>
-            </svg>
-        ),
-    },
-    {
-        key: 'image',
-        label: '图片',
-        dragData: {
-            viewType: 'ImageView',
-            constructorParams: { x: 0, y: 0, imageSrc: 'https://picsum.photos/200/300' },
-        },
-        icon: (
-            <svg width="20" height="20" viewBox="0 0 24 24">
-                <rect x="3" y="5" width="18" height="14" fill="none" stroke="currentColor" strokeWidth="2" rx="1" />
-                <circle cx="8" cy="10" r="2" fill="currentColor" />
-                <polyline points="3,16 9,12 14,15 18,11 21,14" fill="none" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-        ),
-    },
-]
+/** 渲染物料图标 */
+const ComponentIcon: React.FC<{ icon: IComponentDefinition['icon'] }> = ({ icon }) => {
+    if (icon.type === 'svg') {
+        return (
+            <span
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                dangerouslySetInnerHTML={{ __html: icon.content }}
+            />
+        )
+    }
+    return <img src={icon.src} width={20} height={20} alt="" style={{ objectFit: 'contain' }} />
+}
 
-/** 栅格最多展示 3列x2行 = 6 个 */
+/** 栅格最多展示 6 个，超出折叠到「更多」 */
 const MAX_VISIBLE = 6
 
 const ComponentPalette: React.FC<ComponentPaletteProps> = ({
@@ -106,32 +49,37 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     onDescriptionChange,
     onSave,
     onBack,
+    builtinComponents,
+    userComponents = [],
 }) => {
     const [moreOpen, setMoreOpen] = useState(false)
 
-    const handleDragStart = (e: React.DragEvent, data: ComponentDragData) => {
-        e.dataTransfer.setData('application/json', JSON.stringify(data))
+    // 合并所有物料：内置在前，用户自定义在后
+    const allComponents = [...builtinComponents, ...userComponents]
+    const visibleComponents = allComponents.slice(0, MAX_VISIBLE)
+    const overflowComponents = allComponents.slice(MAX_VISIBLE)
+
+    const handleDragStart = (e: React.DragEvent, def: IComponentDefinition) => {
+        // 只序列化 template（创建数据），不传 icon/label 等展示信息
+        e.dataTransfer.setData('application/json', JSON.stringify({ template: def.template }))
         e.dataTransfer.effectAllowed = 'copy'
     }
 
-    const visibleComponents = COMPONENTS.slice(0, MAX_VISIBLE)
-    const overflowComponents = COMPONENTS.slice(MAX_VISIBLE)
-
-    const renderComponentItem = (comp: typeof COMPONENTS[number]) => (
-        <Tooltip key={comp.key} title={comp.label} placement="bottom">
+    const renderItem = (def: IComponentDefinition) => (
+        <Tooltip key={def.id} title={def.description ?? def.label} placement="bottom">
             <div
                 className={styles.componentItem}
                 draggable
-                onDragStart={e => handleDragStart(e, comp.dragData)}
+                onDragStart={e => handleDragStart(e, def)}
             >
-                {comp.icon}
+                <ComponentIcon icon={def.icon} />
             </div>
         </Tooltip>
     )
 
     const overflowPanel = (
         <div className={styles.overflowGrid}>
-            {overflowComponents.map(renderComponentItem)}
+            {overflowComponents.map(renderItem)}
         </div>
     )
 
@@ -174,10 +122,10 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
             {/* 分隔线 */}
             <div className={styles.divider} />
 
-            {/* 右侧：组件区域（3x3 栅格） */}
+            {/* 右侧：组件区域（3x2 栅格 + 更多） */}
             <div className={styles.componentsSection}>
                 <div className={styles.componentsGrid}>
-                    {visibleComponents.map(renderComponentItem)}
+                    {visibleComponents.map(renderItem)}
                 </div>
                 {overflowComponents.length > 0 && (
                     <Popover

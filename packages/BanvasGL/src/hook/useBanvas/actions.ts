@@ -15,7 +15,7 @@ import { Style } from '@/core/style'
 import {
     Line,
     Circle,
-    Rectangle,
+    RoundedRect,
     ImageElement,
     TextParagraph,
     TextFields,
@@ -27,7 +27,7 @@ import {
     TextView,
     ImageView,
 } from '@/core/views'
-import { VIEWTYPE } from '@/core/constants'
+import { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import { clearAllStates, flattenViewTree } from '@/core/scene/operations'
 import { getProperty, setProperty, getPropertyCategory } from '@/core/propadapters'
 
@@ -123,23 +123,26 @@ export function createViewActions(
             if (viewType === VIEWTYPE.GRAPHVIEW) {
                 let graph: Graph | null = null
 
-                if (graphType === 'LINE') {
+                if (graphType === GRAPHTYPE.LINE) {
                     graph = new Line(
                         new Point3(0, 0, 0),
                         new Point3(50, 50, 0),
                         Style.DEFAULT,
                     )
-                } else if (graphType === 'CIRCLE') {
+                } else if (graphType === GRAPHTYPE.CIRCLE) {
                     const radius = defaultProps.radius ?? 50
                     graph = new Circle(
                         new Point3(radius, radius, 0),
                         radius,
                         Style.DEFAULT,
                     )
-                } else if (graphType === 'RECTANGLE') {
+                } else if (graphType === GRAPHTYPE.ROUNDED_RECT) {
                     const width = defaultProps.width ?? 100
                     const height = defaultProps.height ?? 100
-                    graph = new Rectangle(0, 0, width, height, Style.DEFAULT)
+                    const radii = defaultProps.radii ?? 12
+                    graph = new RoundedRect(0, 0, width, height, radii as any, Style.DEFAULT)
+                } else if (graphType !== undefined) {
+                    console.warn(`[BanvasGL] actions.view.create: 未知 graphType "${graphType}"，已跳过`)
                 }
 
                 if (graph) {
