@@ -208,7 +208,16 @@ export default class CombinedGraph extends Graph implements ICombinedGraph, ISer
         return allPoints
     }
 
+    /**
+     * CombinedGraph 的控制点是所有子图形控制点的聚合，不支持直接按索引编辑
+     * 子类（如 Polygon）应 override 此方法实现具体逻辑
+     */
+    public setControlPoint(_index: number, _point: Point3): void {
+        // no-op：CombinedGraph 本身不维护独立的控制点数组
+    }
+
     public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+
         dependent && ctx.beginPath()
         if (this.graphs.length === 0) {
             return

@@ -829,6 +829,9 @@ export default class TextFields extends Graph implements ITextFields, ISerializa
         this.constraintBounds = this.bounds.copy()
     }
 
+    /** 文本域不支持顶点编辑 */
+    public setControlPoint(_index: number, _point: Point3): void {}
+
     // ── 序列化 ──
     toJSON(): any {
         return {
