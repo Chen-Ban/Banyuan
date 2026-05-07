@@ -150,7 +150,7 @@ const SceneList: React.FC<SceneListProps> = ({
     return keys;
   }, [selectedViewId, currentPageId]);
 
-  // 展开所有页面
+  // 始终展开所有页面节点（受控模式，响应 pages 变化）
   const expandedKeys = useMemo(() => pages.map((p) => p.id), [pages]);
 
   const handleSelect = (keys: React.Key[]) => {
@@ -190,7 +190,7 @@ const SceneList: React.FC<SceneListProps> = ({
           treeData={treeData}
           titleRender={titleRender}
           selectedKeys={selectedKeys}
-          defaultExpandedKeys={expandedKeys}
+          expandedKeys={expandedKeys}
           onSelect={handleSelect}
           blockNode
           showLine={{ showLeafIcon: false }}
