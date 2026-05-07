@@ -24,8 +24,6 @@ export interface InteractionContext {
     selectView(scene: Scene, view: View, setSelected: boolean): void
     /** Clear selection state */
     clearSelection(scene: Scene): void
-    /** Set the selected view ID (React state setter) */
-    setSelectedViewId(id: string): void
 }
 
 export class InteractionDispatcher {
@@ -74,7 +72,6 @@ export class InteractionDispatcher {
 
         if (!indicateView.actived) {
             scene.select(indicateView)
-            this.ctx.setSelectedViewId(indicateView.id)
         }
 
         // 先移动
@@ -103,7 +100,6 @@ export class InteractionDispatcher {
             const { content } = indicateView.interact(point)
             if (!indicateView.actived) {
                 scene.select(indicateView as unknown as View)
-                this.ctx.setSelectedViewId(indicateView.id)
                 const fixedIndex = indicateView.element2Index(
                     indicateContent,
                     point

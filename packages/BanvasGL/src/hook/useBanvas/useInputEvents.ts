@@ -8,7 +8,6 @@ import type { Scene } from '@/core/scene'
 export interface UseInputEventsOptions {
     inputRef: React.RefObject<HTMLInputElement | null>
     app: App | null
-    setSelectedViewId: (id: string) => void
 }
 
 /**
@@ -29,7 +28,6 @@ function getSelectedTextViewAndScene(app: App | null): { view: ITextView; scene:
 export function useInputEvents({
     inputRef,
     app,
-    setSelectedViewId,
 }: UseInputEventsOptions) {
     const isComposingRef = useRef<boolean>(false)
 
@@ -215,7 +213,7 @@ export function useInputEvents({
                                 const nextView = editableViews[nextIndex]
                                 // 激活下一个容器
                                 scene.select(nextView)
-                                setSelectedViewId(nextView.id)
+                                app.notify()
                                 // 更新输入框位置到新选中的容器
                                 const bounds = nextView.getBounds()
                                 if (bounds) {
