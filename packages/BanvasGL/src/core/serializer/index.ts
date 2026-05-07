@@ -24,6 +24,7 @@ import Polygon from '@/core/graph/combined/Polygon/Polygon'
 import Triangle from '@/core/graph/combined/Polygon/Triangle'
 import Rectangle from '@/core/graph/combined/Polygon/Rectangle'
 import RegularPolygon from '@/core/graph/combined/Polygon/RegularPolygon'
+import RoundedRect from '@/core/graph/combined/RoundedRect'
 
 // Media / Text 图形类型
 import ImageElement from '@/core/graph/media/ImageElement'
@@ -200,6 +201,7 @@ export default class Serializer {
         this.registerSerializable(GRAPHTYPE.TRIANGLE, Triangle as any)
         this.registerSerializable(GRAPHTYPE.RECTANGLE, Rectangle as any)
         this.registerSerializable(GRAPHTYPE.REGULAR_POLYGON, RegularPolygon as any)
+        this.registerSerializable(GRAPHTYPE.ROUNDED_RECT, RoundedRect as any)
         this.registerSerializable(GRAPHTYPE.IMAGE, ImageElement as any)
         this.registerSerializable(GRAPHTYPE.VIDEO, VideoElement as any)
         this.registerSerializable(GRAPHTYPE.TEXTFIELDS, TextFields as any)
