@@ -9,7 +9,7 @@ import styles from './index.module.scss'
 export interface ComponentDragData {
     viewType: 'GraphView' | 'TextView' | 'ImageView'
     graphType?: 'Line' | 'Circle' | 'Rectangle'
-    constructorParams: any
+    constructorParams: Record<string, unknown>
 }
 
 const ComponentPalette: React.FC = () => {

@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Table, Pagination, Button, Popconfirm, Modal, Descriptions, Space, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { EyeOutlined, DeleteOutlined, PrinterOutlined, EditOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { orderApi } from '@/api'
+import { getErrorMessage } from '@/utils/error'
 import type { Order, OrderFilters, OrderItem } from '@/types'
 import styles from './index.module.scss'
 
@@ -44,7 +46,7 @@ const OrderTable = ({ filters }: OrderTableProps) => {
       title: '商品',
       key: 'products',
       width: 300,
-      render: (_: any, record: Order) => {
+      render: (_: unknown, record: Order) => {
         if (record.items.length === 0) return '-'
         if (record.items.length === 1) {
           return `${record.items[0].product.name} x${record.items[0].quantity}`
@@ -57,7 +59,7 @@ const OrderTable = ({ filters }: OrderTableProps) => {
       key: 'totalQuantity',
       width: 100,
       align: 'right',
-      render: (_: any, record: Order) => {
+      render: (_: unknown, record: Order) => {
         return record.items.reduce((sum, item) => sum + item.quantity, 0)
       },
     },
@@ -101,7 +103,7 @@ const OrderTable = ({ filters }: OrderTableProps) => {
       key: 'action',
       width: 240,
       fixed: 'right',
-      render: (_, record: Order) => (
+      render: (_: unknown, record: Order) => (
         <Space size="small">
           <Button
             type="link"
@@ -135,7 +137,7 @@ const OrderTable = ({ filters }: OrderTableProps) => {
           <Button
             type="link"
             icon={<PrinterOutlined />}
-            onClick={() => handlePrint(record)}
+            onClick={() => handlePrint()}
           >
             打印
           </Button>
@@ -145,58 +147,22 @@ const OrderTable = ({ filters }: OrderTableProps) => {
   ]
 
   // 获取订单数据
-  const fetchOrders = async (page: number, size: number) => {
+  const fetchOrders = useCallback(async (page: number, size: number) => {
     setLoading(true)
-    
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 500))
-    
-    // 模拟数据
-    const mockOrders: Order[] = Array.from({ length: size }, (_, i) => {
-      const index = (page - 1) * size + i + 1
-      const productId = filters.productId || `prod_${index}`
-      const basePrice = Math.floor(Math.random() * 1000) + 100
-      const quantity = Math.floor(Math.random() * 5) + 1
-      
-      // 模拟订单包含1-3个商品
-      const itemCount = Math.floor(Math.random() * 3) + 1
-      const items: OrderItem[] = Array.from({ length: itemCount }, (_, i) => {
-        const itemPrice = basePrice + i * 50
-        const itemQuantity = i === 0 ? quantity : Math.floor(Math.random() * 3) + 1
-        return {
-          product: {
-            id: `${productId}_${i + 1}`,
-            name: `商品${index}-${i + 1}`,
-            unitPrice: itemPrice,
-          },
-          quantity: itemQuantity,
-          price: itemPrice,
-          subtotal: itemPrice * itemQuantity,
-        }
-      })
-      
-      const totalAmount = items.reduce((sum, item) => sum + item.subtotal, 0)
-      
-      return {
-        id: `order_${index}`,
-        orderId: filters.orderId || `ORD${String(index).padStart(8, '0')}`,
-        userId: filters.userId || `user_${index}`,
-        username: filters.username || `用户${index}`,
-        items,
-        totalAmount,
-        status: ['pending', 'processing', 'completed', 'cancelled'][Math.floor(Math.random() * 4)],
-        createdAt: new Date().toISOString(),
-      }
-    })
-
-    setOrders(mockOrders)
-    setTotal(200) // 模拟总数
-    setLoading(false)
-  }
+    try {
+      const res = await orderApi.fetchOrders(page, size, filters)
+      setOrders(res.data.orders)
+      setTotal(res.data.total)
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error))
+    } finally {
+      setLoading(false)
+    }
+  }, [filters])
 
   useEffect(() => {
     fetchOrders(currentPage, pageSize)
-  }, [filters, currentPage, pageSize])
+  }, [fetchOrders, currentPage, pageSize])
 
   const handlePageChange = (page: number, size?: number) => {
     setCurrentPage(page)
@@ -217,16 +183,18 @@ const OrderTable = ({ filters }: OrderTableProps) => {
   }
 
   // 删除订单
-  const handleDelete = (order: Order) => {
-    // 模拟删除操作
-    setOrders(prevOrders => prevOrders.filter(item => item.id !== order.id))
-    message.success('订单删除成功')
-    // 这里应该调用API删除订单
+  const handleDelete = async (order: Order) => {
+    try {
+      await orderApi.deleteOrder(order.id)
+      message.success('订单删除成功')
+      fetchOrders(currentPage, pageSize)
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error))
+    }
   }
 
   // 打印订单
-  const handlePrint = (_order: Order) => {
-    // 暂不处理
+  const handlePrint = () => {
     message.info('打印功能暂未实现')
   }
 
@@ -327,4 +295,3 @@ const OrderTable = ({ filters }: OrderTableProps) => {
 }
 
 export default OrderTable
-
