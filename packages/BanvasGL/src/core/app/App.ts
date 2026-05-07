@@ -33,6 +33,10 @@ export default class App {
   private _targetFPS: number = 60;
   private _frameInterval: number = 1000 / 60; // 16.67ms for 60fps
 
+  // 外部订阅（useSyncExternalStore 支持）
+  private _listeners: Set<() => void> = new Set();
+  private _version: number = 0;
+
   // 用户自定义生命周期回调函数
   private _userOnLaunch?: (params: any) => void;
   private _userOnUnlaunch?: () => void;
@@ -677,6 +681,35 @@ export default class App {
   public toString() {
     return Serializer.getInstance().serialize(this);
   }
+
+  // ──── 外部订阅（useSyncExternalStore）────
+
+  /**
+   * 订阅状态变更通知。返回取消订阅函数。
+   * 用法：useSyncExternalStore(app.subscribe, app.getVersion)
+   */
+  public subscribe = (listener: () => void): (() => void) => {
+    this._listeners.add(listener);
+    return () => {
+      this._listeners.delete(listener);
+    };
+  };
+
+  /**
+   * 通知所有订阅者状态已变更。
+   * 在 actions 修改引擎状态后调用。
+   */
+  public notify(): void {
+    this._version++;
+    this._listeners.forEach((l) => l());
+  }
+
+  /**
+   * 返回当前版本号，用作 useSyncExternalStore 的 snapshot。
+   */
+  public getVersion = (): number => {
+    return this._version;
+  };
 
   // 静态方法：创建应用
   public static create(
