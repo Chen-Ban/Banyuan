@@ -56,10 +56,13 @@ const TemplateDetail = () => {
 
         let timer: ReturnType<typeof setTimeout> | null = null
 
+        const PADDING = 12
         const updateSize = () => {
             const { clientWidth, clientHeight } = el
-            if (clientWidth > 0 && clientHeight > 0) {
-                setCanvasSize({ width: clientWidth, height: clientHeight })
+            const w = clientWidth - PADDING * 2
+            const h = clientHeight - PADDING * 2
+            if (w > 0 && h > 0) {
+                setCanvasSize({ width: w, height: h })
             }
         }
 
