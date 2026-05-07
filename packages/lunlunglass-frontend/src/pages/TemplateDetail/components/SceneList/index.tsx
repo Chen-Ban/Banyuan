@@ -23,6 +23,17 @@ function isPageKey(pages: IPageNode[], key: string): boolean {
   return pages.some((p) => p.id === key);
 }
 
+/** 查找 view 所属的页面 ID */
+function findOwnerPageId(pages: IPageNode[], viewId: string): string | null {
+  for (const page of pages) {
+    const found = (function search(nodes: IViewNode[]): boolean {
+      return nodes.some((n) => n.id === viewId || (n.children && search(n.children)));
+    })(page.children || []);
+    if (found) return page.id;
+  }
+  return null;
+}
+
 /** 独立的 InlineEdit 组件 */
 const InlineEdit: React.FC<{
   defaultValue: string;
@@ -150,9 +161,15 @@ const SceneList: React.FC<SceneListProps> = ({
     }
 
     if (isPageKey(pages, key)) {
+      // 点击页面节点：切换页面并取消选中
       actions.page.navigateTo(key);
       actions.view.deselect();
     } else {
+      // 点击 view 节点：若不在当前页面则先切换
+      const ownerPageId = findOwnerPageId(pages, key);
+      if (ownerPageId && ownerPageId !== currentPageId) {
+        actions.page.navigateTo(ownerPageId);
+      }
       actions.view.select(key);
     }
   };
