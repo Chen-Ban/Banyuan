@@ -506,5 +506,11 @@ export function createBanvasActions(
         view: createViewActions(getApp, onViewChange),
         page: createPageActions(getApp, onPageChange),
         history: createHistoryActions(getApp, onViewChange),
+
+        getSerializedScenes(): string[] {
+            const app = getApp()
+            if (!app) return []
+            return app.getSerializedScenes()
+        },
     }
 }

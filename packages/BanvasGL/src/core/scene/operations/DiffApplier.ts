@@ -1,9 +1,8 @@
 import type { Diff, ApplyDirection } from './OperationStack'
 import { DiffType, Operation } from './OperationStack'
-import type { SceneAccessor } from './TransactionManager'
+import type { SceneAccessor, ReviverFactory } from './types'
 import { Matrix4 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
-import Serializer from '@/core/serializer'
 
 /**
  * Diff 回放执行器
@@ -16,9 +15,11 @@ import Serializer from '@/core/serializer'
  */
 export default class DiffApplier {
   private scene: SceneAccessor
+  private getReviver: ReviverFactory
 
-  constructor(scene: SceneAccessor) {
+  constructor(scene: SceneAccessor, getReviver: ReviverFactory) {
     this.scene = scene
+    this.getReviver = getReviver
   }
 
   /**
@@ -74,8 +75,7 @@ export default class DiffApplier {
       }
     } else {
       // 重做添加 = 从快照恢复
-      const serializer = Serializer.getInstance()
-      const view = serializer.revive(diff.snapshot)
+      const view = this.getReviver().revive(diff.snapshot)
       this.scene.insertChildAt(view, diff.index)
     }
   }
@@ -83,8 +83,7 @@ export default class DiffApplier {
   private applyRemoveDiff(diff: Extract<Diff, { type: DiffType.REMOVE }>, direction: ApplyDirection): void {
     if (direction === 'undo') {
       // 撤销删除 = 从快照恢复
-      const serializer = Serializer.getInstance()
-      const view = serializer.revive(diff.snapshot)
+      const view = this.getReviver().revive(diff.snapshot)
       this.scene.insertChildAt(view, diff.index)
     } else {
       // 重做删除 = 再次删除
@@ -140,14 +139,12 @@ export default class DiffApplier {
           view.content = null
           break
         }
-        const serializer = Serializer.getInstance()
-        view.content = serializer.revive(value)
+        view.content = this.getReviver().revive(value)
         break
       }
       case 'children': {
-        const serializer = Serializer.getInstance()
         view.children = (value || []).map((child: any) => {
-          const childView = serializer.revive(child)
+          const childView = this.getReviver().revive(child)
           childView.parent = view
           return childView
         })
