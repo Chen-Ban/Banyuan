@@ -142,13 +142,27 @@ const SceneList: React.FC<SceneListProps> = ({
     );
   };
 
-  // 选中高亮
+  // 选中高亮：收集所有 actived 的节点
   const selectedKeys = useMemo(() => {
     const keys: string[] = [];
-    if (selectedViewId) keys.push(selectedViewId);
-    else if (currentPageId) keys.push(currentPageId);
+    function collectActived(nodes: IViewNode[]) {
+      for (const node of nodes) {
+        if (node.actived) keys.push(node.id);
+        if (node.children) collectActived(node.children);
+      }
+    }
+    for (const page of pages) {
+      if (page.isCurrent && keys.length === 0 && !pages.some(p => p.children?.some(c => c.actived))) {
+        // 如果当前页面没有任何 actived 节点，高亮页面本身
+      }
+      collectActived(page.children || []);
+    }
+    // 如果没有任何 actived 节点，高亮当前页面
+    if (keys.length === 0 && currentPageId) {
+      keys.push(currentPageId);
+    }
     return keys;
-  }, [selectedViewId, currentPageId]);
+  }, [pages, currentPageId]);
 
   // 始终展开所有页面节点（受控模式，响应 pages 变化）
   const expandedKeys = useMemo(() => pages.map((p) => p.id), [pages]);
@@ -192,6 +206,7 @@ const SceneList: React.FC<SceneListProps> = ({
           selectedKeys={selectedKeys}
           expandedKeys={expandedKeys}
           onSelect={handleSelect}
+          multiple
           blockNode
           showLine={{ showLeafIcon: false }}
           switcherIcon={(props: TreeNodeProps) =>
