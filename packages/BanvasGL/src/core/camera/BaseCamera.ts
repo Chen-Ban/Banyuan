@@ -1,5 +1,6 @@
 import Matrix4 from '@/core/math/Matrix4'
 import Vector3 from '@/core/math/Vector3'
+import { CAMERATYPE } from '@/core/constants'
 
 export interface BaseCameraOptions {
     position?: [number, number, number]
@@ -8,6 +9,7 @@ export interface BaseCameraOptions {
 }
 
 export default class BaseCamera {
+    public readonly type: CAMERATYPE = CAMERATYPE.BASE
     protected _position: Vector3
     protected _target: Vector3
     protected _up: Vector3
@@ -320,6 +322,23 @@ export default class BaseCamera {
         const worldPos = this.applyMatrixToVector(viewPos, invViewMatrix)
 
         return [worldPos.x, worldPos.y, worldPos.z]
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            position: [this._position.x, this._position.y, this._position.z],
+            target: [this._target.x, this._target.y, this._target.z],
+            up: [this._up.x, this._up.y, this._up.z],
+        }
+    }
+
+    static fromJSON(data: any): BaseCamera {
+        return new BaseCamera({
+            position: data.position,
+            target: data.target,
+            up: data.up,
+        })
     }
 
     // 重置相机

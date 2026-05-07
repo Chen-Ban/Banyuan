@@ -591,7 +591,8 @@ export default abstract class View<T extends object = any> implements IView, ISe
 
         this.renderContent(offscreenCtx)
         this.children.forEach((view) => {
-            view.render()
+            if (!view.visible) return
+            view.rederToOffScreen()
         })
 
         offscreenCtx.restore() // 恢复 scroll translate

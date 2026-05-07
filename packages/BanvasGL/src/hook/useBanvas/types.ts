@@ -1,4 +1,5 @@
-import type { IAppOptions, IRendererOptions } from "@/core/interfaces";
+import type { IAppOptions } from "@/core/interfaces";
+import type { IRendererOptions } from "@/core/interfaces/IRenderer";
 
 export interface UseBanvasOptions {
   width: number;

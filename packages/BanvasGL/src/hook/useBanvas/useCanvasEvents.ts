@@ -1,25 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { App } from '@/core/app'
 import { Point3 } from '@/core/math'
-import { Style } from '@/core/style'
 import type { Scene } from '@/core/scene'
 import {
-    Graph,
-    Line,
-    Circle,
-    Rectangle,
-    ImageElement,
-    TextParagraph,
-    TextFields,
     isNonPrintableTextElement,
     isPrintableTextElement,
 } from '@/core/graph'
 import {
     View,
     SelectBoxView,
-    GraphView,
-    TextView,
-    ImageView,
 } from '@/core/views'
 import {
     isTextView,
@@ -30,6 +19,8 @@ import {
     IViewAddon,
     IGraph,
 } from '@/core/interfaces'
+import type { IBanvasActions } from '@/core/interfaces'
+import { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import { clearAllStates } from '@/core/scene/operations'
 import { InteractionDispatcher } from './InteractionDispatcher'
 import type { InteractionContext } from './InteractionDispatcher'
@@ -57,6 +48,8 @@ export interface UseCanvasEventsOptions {
     canvasRef: React.RefObject<HTMLCanvasElement | null>
     inputRef: React.RefObject<HTMLInputElement | null>
     setSelectedViewId: (id: string) => void
+    /** actions 引用，用于拖拽创建等需要走统一通道的操作 */
+    actions: IBanvasActions | null
     /** 右键菜单命中回调 */
     onContextMenuHit?: (hit: ContextMenuHitResult) => void
     /** 画布交互结束回调（mouseUp 后触发，用于通知面板刷新） */
@@ -71,6 +64,7 @@ export function useCanvasEvents({
     canvasRef,
     inputRef,
     setSelectedViewId,
+    actions,
     onContextMenuHit,
     onInteractionEnd,
 }: UseCanvasEventsOptions) {
@@ -425,12 +419,9 @@ export function useCanvasEvents({
     const onDrop = useCallback(
         (e: DragEvent) => {
             e.preventDefault()
-            if (!app || !canvasRef.current) return
-            const scene = app.getCurrentScene()
-            if (!scene) return
+            if (!actions || !canvasRef.current) return
 
             try {
-                // 获取拖拽数据
                 if (!e.dataTransfer) return
                 const dataStr = e.dataTransfer.getData('application/json')
                 if (!dataStr) return
@@ -438,101 +429,49 @@ export function useCanvasEvents({
                 const dragData = JSON.parse(dataStr) as {
                     viewType: 'GraphView' | 'TextView' | 'ImageView'
                     graphType?: 'Line' | 'Circle' | 'Rectangle'
-                    constructorParams: any
+                    constructorParams: Record<string, any>
                 }
                 const { viewType, graphType, constructorParams } = dragData
 
-                // 获取拖拽位置（相对于 canvas）
+                // 映射前端类型字符串到引擎枚举
+                const viewTypeMap: Record<string, VIEWTYPE> = {
+                    GraphView: VIEWTYPE.GRAPHVIEW,
+                    TextView: VIEWTYPE.TEXTVIEW,
+                    ImageView: VIEWTYPE.IMAGEVIEW,
+                }
+                const graphTypeMap: Record<string, GRAPHTYPE> = {
+                    Line: GRAPHTYPE.LINE,
+                    Circle: GRAPHTYPE.CIRCLE,
+                    Rectangle: GRAPHTYPE.RECTANGLE,
+                }
+
+                // 获取拖拽位置（相对于 canvas，物理像素）
                 const rect = canvasRef.current.getBoundingClientRect()
                 const ratio = window.devicePixelRatio
                 const x = (e.clientX - rect.left) * ratio
                 const y = (e.clientY - rect.top) * ratio
 
-                let newView: View | null = null
+                // 构建 IComponentTemplate 并调用 actions.view.create
+                const newViewId = actions.view.create(
+                    {
+                        id: `drag_${Date.now()}`,
+                        viewType: viewTypeMap[viewType] ?? VIEWTYPE.GRAPHVIEW,
+                        graphType: graphType ? graphTypeMap[graphType] : undefined,
+                        name: graphType || viewType,
+                        category: 'basic',
+                        defaultProps: constructorParams,
+                    },
+                    { x, y }
+                )
 
-                // 根据 viewType 创建对应的 view
-                if (viewType === 'GraphView') {
-                    let graph: Graph | null = null
-
-                    // 根据 graphType 创建对应的 graph
-                    if (graphType === 'Line') {
-                        const end = new Point3(50, 50, 0)
-                        graph = new Line(
-                            new Point3(0, 0, 0),
-                            end,
-                            Style.DEFAULT
-                        )
-                    } else if (graphType === 'Circle') {
-                        const { radius } = constructorParams
-
-                        graph = new Circle(
-                            new Point3(radius, radius, 0),
-                            radius || 50,
-                            Style.DEFAULT
-                        )
-                    } else if (graphType === 'Rectangle') {
-                        const { width, height } = constructorParams
-                        // 使用 dropPoint 作为矩形左上角
-                        graph = new Rectangle(
-                            0,
-                            0,
-                            width || 100,
-                            height || 100,
-                            Style.DEFAULT
-                        )
-                    }
-
-                    if (graph) {
-                        newView = new GraphView(graph, {
-                            style: {
-                                width: graph.bounds.width,
-                                height: graph.bounds.height,
-                            },
-                        }).translate(x, y, 0)
-                    }
-                } else if (viewType === 'TextView') {
-                    const { text } = constructorParams
-                    const textParagraph = TextParagraph.simple(text || '文本')
-                    const textFields = new TextFields([textParagraph])
-                    newView = new TextView(textFields, {
-                        style: {
-                            width: 200,
-                            height: 24,
-                        },
-                        shouldLayout: true,
-                    }).translate(x, y, 0)
-                } else if (viewType === 'ImageView') {
-                    const { imageSrc } = constructorParams
-                    const width = 200
-                    const height = 300
-                    // 使用 dropPoint 作为图片左上角
-                    const imageElement = new ImageElement(
-                        imageSrc || '',
-                        0,
-                        0,
-                        width,
-                        height,
-                        Style.DEFAULT
-                    )
-                    newView = new ImageView(imageElement, {
-                        style: {
-                            width,
-                            height,
-                        },
-                    }).translate(x, y, 0)
-                }
-
-                // 将新创建的 view 添加到场景中
-                if (newView) {
-                    scene.addChild(newView)
-                    scene.select(newView)
-                    setSelectedViewId(newView.id)
+                if (newViewId) {
+                    setSelectedViewId(newViewId)
                 }
             } catch (error) {
                 console.error('拖拽创建组件失败:', error)
             }
         },
-        [app, canvasRef]
+        [actions, canvasRef, setSelectedViewId]
     )
 
     useEffect(() => {

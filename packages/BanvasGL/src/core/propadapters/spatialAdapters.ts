@@ -6,7 +6,8 @@
  * 读取（get）：从 matrix 中分解出对应分量
  * 写入（set）：分解当前 matrix 为 TRS → 修改目标分量 → 重新合成 matrix
  *
- * 合成顺序：T * R（先旋转后平移），与引擎渲染管线一致。
+ * 合成顺序：T(x,y) * T(cx,cy) * R(θ) * T(-cx,-cy)
+ * 即绕 viewport 中心旋转，再平移到目标位置。
  */
 
 import type View from '@/core/views/View/View'
@@ -15,20 +16,48 @@ import { Matrix4 as Matrix4Class } from '@/core/math'
 import type { PropertyAdapter } from './types'
 
 /**
- * 从 matrix 分解出完整的 2D TRS 参数
+ * 获取 View 的变换中心（viewport 中心）
  */
-function decomposeTRS(matrix: Matrix4): { x: number; y: number; rotation: number } {
-    const { x, y } = matrix.extractTranslation2D()
+function getOrigin(view: View): { cx: number; cy: number } {
+    const vp = view.viewport
+    return { cx: vp.midX, cy: vp.midY }
+}
+
+/**
+ * 从 matrix 分解出完整的 2D TRS 参数
+ * 矩阵结构：T(x,y) * T(cx,cy) * R(θ) * T(-cx,-cy)
+ *
+ * 分解步骤：
+ * 1. rotation 直接从矩阵的旋转分量提取
+ * 2. position 从 translation 分量反推（去除 origin 引入的偏移）
+ */
+function decomposeTRS(matrix: Matrix4, cx: number, cy: number): { x: number; y: number; rotation: number } {
     const rotation = matrix.extractRotationZ()
+    const { x: tx, y: ty } = matrix.extractTranslation2D()
+
+    // 反推位置：tx = x + cx - cx*cos(θ) + cy*sin(θ)
+    //           ty = y + cy - cx*sin(θ) - cy*cos(θ)
+    const cos = Math.cos(rotation)
+    const sin = Math.sin(rotation)
+    const x = tx - cx + cx * cos - cy * sin
+    const y = ty - cy + cx * sin + cy * cos
+
     return { x, y, rotation }
 }
 
 /**
  * 从 TRS 参数合成 matrix
- * 合成顺序：Translation * RotationZ
+ * 合成顺序：T(x,y) * T(cx,cy) * R(θ) * T(-cx,-cy)
+ *
+ * 由于 translate/rotateZ 都是左乘，代码从右往左调用：
+ * identity → translate(-cx,-cy) → rotateZ(θ) → translate(cx,cy) → translate(x,y)
  */
-function composeTRS(x: number, y: number, rotation: number): Matrix4 {
-    return Matrix4Class.identity().translate(x, y, 0).rotateZ(rotation)
+function composeTRS(x: number, y: number, rotation: number, cx: number, cy: number): Matrix4 {
+    return Matrix4Class.identity()
+        .translate(-cx, -cy, 0)
+        .rotateZ(rotation)
+        .translate(cx, cy, 0)
+        .translate(x, y, 0)
 }
 
 export const xAdapter: PropertyAdapter = {
@@ -36,12 +65,14 @@ export const xAdapter: PropertyAdapter = {
 
     get(view: View, relativeMatrix?: Matrix4): number {
         const m = relativeMatrix ?? view.matrix
-        return m.extractTranslation2D().x
+        const { cx, cy } = getOrigin(view)
+        return decomposeTRS(m, cx, cy).x
     },
 
     set(view: View, value: number): void {
-        const { y, rotation } = decomposeTRS(view.matrix)
-        view.matrix = composeTRS(value, y, rotation)
+        const { cx, cy } = getOrigin(view)
+        const { y, rotation } = decomposeTRS(view.matrix, cx, cy)
+        view.matrix = composeTRS(value, y, rotation, cx, cy)
     },
 }
 
@@ -50,12 +81,14 @@ export const yAdapter: PropertyAdapter = {
 
     get(view: View, relativeMatrix?: Matrix4): number {
         const m = relativeMatrix ?? view.matrix
-        return m.extractTranslation2D().y
+        const { cx, cy } = getOrigin(view)
+        return decomposeTRS(m, cx, cy).y
     },
 
     set(view: View, value: number): void {
-        const { x, rotation } = decomposeTRS(view.matrix)
-        view.matrix = composeTRS(x, value, rotation)
+        const { cx, cy } = getOrigin(view)
+        const { x, rotation } = decomposeTRS(view.matrix, cx, cy)
+        view.matrix = composeTRS(x, value, rotation, cx, cy)
     },
 }
 
@@ -72,8 +105,9 @@ export const rotationAdapter: PropertyAdapter = {
     },
 
     set(view: View, value: number): void {
-        const { x, y } = decomposeTRS(view.matrix)
-        view.matrix = composeTRS(x, y, value)
+        const { cx, cy } = getOrigin(view)
+        const { x, y } = decomposeTRS(view.matrix, cx, cy)
+        view.matrix = composeTRS(x, y, value, cx, cy)
     },
 }
 

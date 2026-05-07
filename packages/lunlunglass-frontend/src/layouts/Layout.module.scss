@@ -1,7 +1,8 @@
 .layout {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .layoutHeader {
@@ -43,7 +44,7 @@
 
 .layoutMain {
   flex: 1;
-  padding: 2rem;
+  min-height: 0;
   background-color: #f8f9fa;
 }
 

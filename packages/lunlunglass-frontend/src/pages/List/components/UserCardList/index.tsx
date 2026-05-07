@@ -82,7 +82,7 @@ const UserCardList = ({ filters }: UserCardListProps) => {
     <div className={styles.userCardList}>
       <div className={styles.userCardGrid}>
         {users.map((user) => (
-          <UserCard key={user.id} user={user} />
+          <UserCard key={user.userId} user={user} />
         ))}
       </div>
       {loading && (
