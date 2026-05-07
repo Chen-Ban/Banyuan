@@ -1,8 +1,7 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useBanvas } from 'banvasgl'
-import { Button, Input, message, Space } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
+import { message } from 'antd'
 import { templateApi } from '@/api'
 import { getErrorMessage } from '@/utils/error'
 import styles from './index.module.scss'
@@ -10,6 +9,8 @@ import ComponentPalette from './components/ComponentPalette'
 import PropertyPanel from './components/PropertyPanel'
 import SceneList from './components/SceneList'
 import ContextMenu from './components/ContextMenu'
+
+const AUTO_SAVE_DELAY = 800
 
 const TemplateDetail = () => {
     const { id } = useParams<{ id: string }>()
@@ -21,6 +22,13 @@ const TemplateDetail = () => {
     const [initialScenes, setInitialScenes] = useState<string[]>([])
     const [loaded, setLoaded] = useState(isNew)
     const [saving, setSaving] = useState(false)
+
+    // 用于自动保存名称/描述的 debounce
+    const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const nameRef = useRef(templateName)
+    const descRef = useRef(templateDescription)
+    nameRef.current = templateName
+    descRef.current = templateDescription
 
     // 加载模板数据
     useEffect(() => {
@@ -58,7 +66,44 @@ const TemplateDetail = () => {
         banvasOptions
     )
 
-    // 保存模板
+    /**
+     * 自动保存名称/描述（仅已有模板，debounce）
+     */
+    const triggerAutoSaveMeta = useCallback(() => {
+        if (isNew || !id) return
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+        autoSaveTimer.current = setTimeout(async () => {
+            try {
+                await templateApi.updateTemplate(id, {
+                    name: nameRef.current,
+                    description: descRef.current,
+                })
+            } catch {
+                // 静默失败，不打扰用户
+            }
+        }, AUTO_SAVE_DELAY)
+    }, [isNew, id])
+
+    const handleNameChange = useCallback((value: string) => {
+        setTemplateName(value)
+        triggerAutoSaveMeta()
+    }, [triggerAutoSaveMeta])
+
+    const handleDescChange = useCallback((value: string) => {
+        setTemplateDescription(value)
+        triggerAutoSaveMeta()
+    }, [triggerAutoSaveMeta])
+
+    // 清理 timer
+    useEffect(() => {
+        return () => {
+            if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+        }
+    }, [])
+
+    /**
+     * 保存整个模板（含 scenes 画布数据）
+     */
     const handleSave = useCallback(async () => {
         if (!templateName.trim()) {
             message.warning('请输入模板名称')
@@ -85,7 +130,7 @@ const TemplateDetail = () => {
                     description: templateDescription,
                     scenes,
                 })
-                message.success('模板保存成功')
+                message.success('模板已保存')
             }
         } catch (error: unknown) {
             message.error(getErrorMessage(error))
@@ -104,49 +149,30 @@ const TemplateDetail = () => {
 
     return (
         <div className={styles.templateDetailPage}>
-            <div className={styles.templateDetailHeader}>
-                <Space>
-                    <Button icon={<ArrowLeftOutlined />} onClick={handleBack}>
-                        返回
-                    </Button>
-                    <Input
-                        placeholder="模板名称"
-                        value={templateName}
-                        onChange={e => setTemplateName(e.target.value)}
-                        style={{ width: 200 }}
-                    />
-                    <Input
-                        placeholder="模板描述（可选）"
-                        value={templateDescription}
-                        onChange={e => setTemplateDescription(e.target.value)}
-                        style={{ width: 260 }}
-                    />
-                </Space>
-                <Button
-                    type="primary"
-                    icon={<SaveOutlined />}
-                    loading={saving}
-                    onClick={handleSave}
-                >
-                    {isNew ? '创建模板' : '保存'}
-                </Button>
-            </div>
-            <div className={styles.templateDetailContainer}>
-                <ComponentPalette />
-                <div className={styles.mainContent}>
-                    <SceneList
-                        pages={pages}
-                        currentPageId={currentPageId}
-                        actions={actions}
-                    />
-                    <div className={styles.canvasSection}>
-                        <div className={styles.canvasWrapper}>{Banvas}</div>
-                    </div>
-                    <PropertyPanel
-                        selectedViewId={selectedViewId}
-                        actions={actions}
-                    />
+            <ComponentPalette
+                templateName={templateName}
+                templateDescription={templateDescription}
+                saving={saving}
+                isNew={isNew}
+                onNameChange={handleNameChange}
+                onDescriptionChange={handleDescChange}
+                onSave={handleSave}
+                onBack={handleBack}
+            />
+            <div className={styles.mainContent}>
+                <SceneList
+                    pages={pages}
+                    currentPageId={currentPageId}
+                    selectedViewId={selectedViewId}
+                    actions={actions}
+                />
+                <div className={styles.canvasSection}>
+                    <div className={styles.canvasWrapper}>{Banvas}</div>
                 </div>
+                <PropertyPanel
+                    selectedViewId={selectedViewId}
+                    actions={actions}
+                />
             </div>
             <ContextMenu state={contextMenu} />
         </div>
