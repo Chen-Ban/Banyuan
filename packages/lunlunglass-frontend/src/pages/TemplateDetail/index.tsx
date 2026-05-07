@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useBanvas } from 'banvasgl'
 import { message } from 'antd'
@@ -46,10 +46,32 @@ const TemplateDetail = () => {
         }
     }, [id, isNew])
 
+    // 自适应画布尺寸：监听 canvasSection 容器大小
+    const canvasSectionRef = useRef<HTMLDivElement>(null)
+    const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 })
+
+    useLayoutEffect(() => {
+        const el = canvasSectionRef.current
+        if (!el) return
+
+        const updateSize = () => {
+            const { clientWidth, clientHeight } = el
+            if (clientWidth > 0 && clientHeight > 0) {
+                setCanvasSize({ width: clientWidth, height: clientHeight })
+            }
+        }
+
+        updateSize()
+
+        const observer = new ResizeObserver(() => updateSize())
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [])
+
     const banvasOptions = useMemo(
         () => ({
-            width: 800,
-            height: 600,
+            width: canvasSize.width,
+            height: canvasSize.height,
             appOptions: {
                 enablePageStack: true,
                 maxPageStackSize: 50,
@@ -58,7 +80,7 @@ const TemplateDetail = () => {
                 clearColor: '#fff',
             },
         }),
-        []
+        [canvasSize.width, canvasSize.height]
     )
 
     const { Banvas, pages, currentPageId, selectedViewId, actions, contextMenu } = useBanvas(
@@ -166,8 +188,8 @@ const TemplateDetail = () => {
                     selectedViewId={selectedViewId}
                     actions={actions}
                 />
-                <div className={styles.canvasSection}>
-                    <div className={styles.canvasWrapper}>{Banvas}</div>
+                <div className={styles.canvasSection} ref={canvasSectionRef}>
+                    {Banvas}
                 </div>
                 <PropertyPanel
                     selectedViewId={selectedViewId}
