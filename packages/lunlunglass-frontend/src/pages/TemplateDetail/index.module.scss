@@ -13,16 +13,7 @@
 
 .canvasSection {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-}
-
-.canvasWrapper {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  overflow: hidden;
   background-color: #f8f9fa;
-  border: 1px solid #e9ecef;
+  position: relative;
 }
