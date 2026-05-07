@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Tabs } from 'antd'
+import { Tabs, Tooltip } from 'antd'
 import type { IBanvasActions } from 'banvasgl'
 import styles from './index.module.scss'
 
@@ -177,13 +177,14 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </div>
                 <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>ID</span>
-                    <span
-                        className={styles.infoValueId}
-                        title="点击复制"
-                        onClick={() => navigator.clipboard?.writeText(view.id)}
-                    >
-                        {view.id.slice(0, 8)}...
-                    </span>
+                    <Tooltip title={view.id}>
+                        <span
+                            className={styles.infoValueId}
+                            onClick={() => navigator.clipboard?.writeText(view.id)}
+                        >
+                            {view.id}
+                        </span>
+                    </Tooltip>
                 </div>
                 <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>名称</span>
