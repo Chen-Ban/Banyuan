@@ -2,7 +2,7 @@ import { View, SelectBoxView } from '@/core/views'
 import type Scene from '@/core/scene/Scene'
 import { Point3 } from '@/core/math'
 import { Action, Cursor, isTextView, isSelectBoxView, ExtraData, IViewAddon, IGraph } from '@/core/interfaces'
-import { Rectangle } from '@/core/graph'
+import { Rectangle, Graph } from '@/core/graph'
 import { clearAllStates } from '@/core/scene/operations'
 import Bounds from '@/core/graph/base/Bounds'
 import { isNonPrintableTextElement, isPrintableTextElement } from '@/core/graph'
@@ -194,25 +194,32 @@ export class InteractionDispatcher {
             const selectionRect = selectionRectView.content
             const viewsToActivate: View[] = []
             const allViews = scene.children
-            // 遍历所有视图，检查是否与框选矩形相交或被包含（跳过 SelectBoxView 自身）
+            // 遍历所有视图，判断是否被框选命中（跳过 SelectBoxView 自身）
             for (const view of allViews) {
                 if (isSelectBoxView(view)) continue
-                const viewBounds =
-                    view.style.overflow !== 'visible'
-                        ? (view.viewport ?? Bounds.empty())
-                        : (view.layoutArea ?? Bounds.empty())
-                const viewRect = Rectangle.fromBounds(viewBounds)
-                const transformedViewRect = viewRect.transform(view.getWorldMatrix())
+                const worldMatrix = view.getWorldMatrix()
 
-                // 检查边相交
-                const intersection = selectionRect.intersect(transformedViewRect)
-                if (intersection.length > 0) {
+                // 1. 检查框选矩形与 content（实际图形内容）的交点
+                const content = view.content
+                if (content) {
+                    const transformedContent = content.transform(worldMatrix) as Graph
+                    if (selectionRect.intersect(transformedContent).length > 0) {
+                        viewsToActivate.push(view)
+                        continue
+                    }
+                }
+
+                // 2. 检查框选矩形与视口矩形（viewport）的交点
+                const viewport = view.viewport ?? Bounds.empty()
+                const viewportRect = Rectangle.fromBounds(viewport)
+                const transformedViewport = viewportRect.transform(worldMatrix) as Graph
+                if (selectionRect.intersect(transformedViewport).length > 0) {
                     viewsToActivate.push(view)
                     continue
                 }
 
-                // 检查框选框是否完全包含容器（用容器中心点判断）
-                const vBounds = transformedViewRect.bounds
+                // 3. 检查框选矩形是否完全包含视口矩形
+                const vBounds = transformedViewport.bounds
                 const center = new Point3(
                     vBounds.x + vBounds.width / 2,
                     vBounds.y + vBounds.height / 2,
