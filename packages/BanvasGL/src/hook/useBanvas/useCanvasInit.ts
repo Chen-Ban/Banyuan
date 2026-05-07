@@ -76,6 +76,9 @@ export function useCanvasInit(
       app.addScene(scene);
       app.navigateTo(scene);
     }
+
+    // 通知订阅者初始状态已就绪，触发 pages 构建
+    app.notify();
   }, [app, serializedScenes]);
 
   // ===== Effect 3: 尺寸/dpr 变化时更新画布 =====

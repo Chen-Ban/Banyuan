@@ -1,11 +1,5 @@
-import React, {
-  useMemo,
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-} from "react";
-import { Tree, Button } from "antd";
+import React, { useMemo, useState, useRef, useEffect } from "react";
+import { Tree, Button, TreeNodeProps } from "antd";
 import { PlusOutlined, DownOutlined, RightOutlined } from "@ant-design/icons";
 import type { IPageNode, IViewNode, IBanvasActions } from "banvasgl";
 import styles from "./index.module.scss";
@@ -29,28 +23,68 @@ function isPageKey(pages: IPageNode[], key: string): boolean {
   return pages.some((p) => p.id === key);
 }
 
-/** 查找节点原始名称 */
-function findNodeName(pages: IPageNode[], key: string): string {
+/** 查找 view 所属的页面 ID */
+function findOwnerPageId(pages: IPageNode[], viewId: string): string | null {
   for (const page of pages) {
-    if (page.id === key) return page.name;
-    const found = findViewName(page.children, key);
-    if (found) return found;
-  }
-  return "";
-}
-
-function findViewName(
-  views: IViewNode[] | undefined,
-  key: string,
-): string | null {
-  if (!views) return null;
-  for (const v of views) {
-    if (v.id === key) return v.name || v.type;
-    const found = findViewName(v.children, key);
-    if (found) return found;
+    const found = (function search(nodes: IViewNode[]): boolean {
+      return nodes.some((n) => n.id === viewId || (n.children && search(n.children)));
+    })(page.children || []);
+    if (found) return page.id;
   }
   return null;
 }
+
+/** 独立的 InlineEdit 组件 */
+const InlineEdit: React.FC<{
+  defaultValue: string;
+  onCommit: (value: string) => void;
+  onCancel: () => void;
+}> = ({ defaultValue, onCommit, onCancel }) => {
+  const ref = useRef<HTMLInputElement>(null);
+  const [committed, setCommitted] = useState(false);
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      if (ref.current) {
+        ref.current.focus();
+        ref.current.select();
+      }
+    });
+  }, []);
+
+  const doCommit = () => {
+    if (committed) return;
+    setCommitted(true);
+    const value = ref.current?.value ?? "";
+    const trimmed = value.trim();
+    if (trimmed) {
+      onCommit(trimmed);
+    } else {
+      onCancel();
+    }
+  };
+
+  return (
+    <input
+      ref={ref}
+      className={styles.renameInput}
+      defaultValue={defaultValue}
+      onBlur={doCommit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          doCommit();
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+    />
+  );
+};
 
 const SceneList: React.FC<SceneListProps> = ({
   pages,
@@ -59,44 +93,8 @@ const SceneList: React.FC<SceneListProps> = ({
   actions,
 }) => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  // 双击进入编辑时自动聚焦
-  useEffect(() => {
-    if (editingKey) {
-      // 延迟一帧确保 DOM 已渲染
-      requestAnimationFrame(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-          inputRef.current.select();
-        }
-      });
-    }
-  }, [editingKey]);
-
-  /** 提交重命名 */
-  const commitRename = useCallback(() => {
-    if (!editingKey) return;
-    const trimmed = editingValue.trim();
-    if (trimmed) {
-      if (isPageKey(pages, editingKey)) {
-        actions.page.rename(editingKey, trimmed);
-      } else {
-        actions.view.rename(editingKey, trimmed);
-      }
-    }
-    setEditingKey(null);
-    setEditingValue("");
-  }, [editingKey, editingValue, pages, actions]);
-
-  /** 取消编辑 */
-  const cancelRename = useCallback(() => {
-    setEditingKey(null);
-    setEditingValue("");
-  }, []);
-
-  /** 构建纯数据树（title 为 string） */
+  /** 构建纯数据 treeData（title 为字符串） */
   const treeData: TreeNode[] = useMemo(() => {
     function viewToNode(v: IViewNode): TreeNode {
       return {
@@ -113,77 +111,82 @@ const SceneList: React.FC<SceneListProps> = ({
     }));
   }, [pages]);
 
-  // 选中高亮
+  /** titleRender：根据编辑状态渲染节点 */
+  const titleRender = (node: TreeNode) => {
+    if (editingKey === node.key) {
+      return (
+        <InlineEdit
+          defaultValue={node.title}
+          onCommit={(val) => {
+            if (isPageKey(pages, node.key)) {
+              actions.page.rename(node.key, val);
+            } else {
+              actions.view.rename(node.key, val);
+            }
+            setEditingKey(null);
+          }}
+          onCancel={() => setEditingKey(null)}
+        />
+      );
+    }
+    return (
+      <span
+        className={styles.nodeTitle}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          setEditingKey(node.key);
+        }}
+      >
+        {node.title}
+      </span>
+    );
+  };
+
+  // 选中高亮：收集所有 actived 的节点
   const selectedKeys = useMemo(() => {
     const keys: string[] = [];
-    if (selectedViewId) keys.push(selectedViewId);
-    else if (currentPageId) keys.push(currentPageId);
+    function collectActived(nodes: IViewNode[]) {
+      for (const node of nodes) {
+        if (node.actived) keys.push(node.id);
+        if (node.children) collectActived(node.children);
+      }
+    }
+    for (const page of pages) {
+      if (page.isCurrent && keys.length === 0 && !pages.some(p => p.children?.some(c => c.actived))) {
+        // 如果当前页面没有任何 actived 节点，高亮页面本身
+      }
+      collectActived(page.children || []);
+    }
+    // 如果没有任何 actived 节点，高亮当前页面
+    if (keys.length === 0 && currentPageId) {
+      keys.push(currentPageId);
+    }
     return keys;
-  }, [selectedViewId, currentPageId]);
+  }, [pages, currentPageId]);
 
-  // 展开所有页面
+  // 始终展开所有页面节点（受控模式，响应 pages 变化）
   const expandedKeys = useMemo(() => pages.map((p) => p.id), [pages]);
 
   const handleSelect = (keys: React.Key[]) => {
     const key = (keys.length > 0 ? keys[0] : null) as string | null;
     if (!key) {
-      // 点击已选中节点取消选中
       actions.view.deselect();
       return;
     }
 
     if (isPageKey(pages, key)) {
+      // 点击页面节点：切换页面并取消选中
       actions.page.navigateTo(key);
       actions.view.deselect();
     } else {
+      // 点击 view 节点：若不在当前页面则先切换
+      const ownerPageId = findOwnerPageId(pages, key);
+      if (ownerPageId && ownerPageId !== currentPageId) {
+        actions.page.navigateTo(ownerPageId);
+      }
       actions.view.select(key);
     }
   };
-
-  /** 自定义 titleRender：支持双击编辑 */
-  const titleRender = useCallback(
-    (nodeData: TreeNode) => {
-      const { key, title } = nodeData;
-
-      if (editingKey === key) {
-        return (
-          <input
-            ref={inputRef}
-            className={styles.renameInput}
-            value={editingValue}
-            onChange={(e) => setEditingValue(e.target.value)}
-            onBlur={() => commitRename()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                commitRename();
-              }
-              if (e.key === "Escape") {
-                e.preventDefault();
-                cancelRename();
-              }
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
-          />
-        );
-      }
-
-      return (
-        <span
-          className={styles.nodeTitle}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            setEditingKey(key);
-            setEditingValue(title);
-          }}
-        >
-          {title}
-        </span>
-      );
-    },
-    [editingKey, editingValue, commitRename, cancelRename],
-  );
 
   return (
     <div className={styles.sceneList}>
@@ -199,13 +202,14 @@ const SceneList: React.FC<SceneListProps> = ({
       <div className={styles.treeWrapper}>
         <Tree<TreeNode>
           treeData={treeData}
-          selectedKeys={selectedKeys}
-          defaultExpandedKeys={expandedKeys}
-          onSelect={handleSelect}
           titleRender={titleRender}
+          selectedKeys={selectedKeys}
+          expandedKeys={expandedKeys}
+          onSelect={handleSelect}
+          multiple
           blockNode
           showLine={{ showLeafIcon: false }}
-          switcherIcon={(props: any) =>
+          switcherIcon={(props: TreeNodeProps) =>
             props.expanded ? (
               <DownOutlined style={{ fontSize: 10 }} />
             ) : (

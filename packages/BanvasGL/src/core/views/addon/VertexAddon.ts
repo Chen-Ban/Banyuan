@@ -6,7 +6,7 @@ export default class VertexAddon implements IVertexAddon {
     public readonly type = ADDONTYPE.VERTEX
     public vertices: Point3[]
     public activeVertex: Point3 | null = null
-    isEditing: boolean = false
+    isEditing: boolean = true
 
     constructor(vertices: Point3[] = []) {
         this.vertices = [...vertices]
