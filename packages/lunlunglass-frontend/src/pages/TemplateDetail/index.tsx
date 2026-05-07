@@ -132,15 +132,13 @@ const TemplateDetail = () => {
                 </Button>
             </div>
             <div className={styles.templateDetailContainer}>
+                <ComponentPalette />
                 <div className={styles.mainContent}>
-                    <div>
-                        <SceneList
-                            pages={pages}
-                            currentPageId={currentPageId}
-                            actions={actions}
-                        />
-                        <ComponentPalette />
-                    </div>
+                    <SceneList
+                        pages={pages}
+                        currentPageId={currentPageId}
+                        actions={actions}
+                    />
                     <div className={styles.canvasSection}>
                         <div className={styles.canvasWrapper}>{Banvas}</div>
                     </div>
