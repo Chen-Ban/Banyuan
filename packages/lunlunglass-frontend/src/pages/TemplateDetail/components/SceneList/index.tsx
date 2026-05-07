@@ -5,7 +5,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { Tree, Button } from "antd";
+import { Tree, Button, TreeNodeProps } from "antd";
 import { PlusOutlined, DownOutlined, RightOutlined } from "@ant-design/icons";
 import type { IPageNode, IViewNode, IBanvasActions } from "banvasgl";
 import styles from "./index.module.scss";
@@ -27,29 +27,6 @@ interface TreeNode {
 /** 判断 key 是否为页面节点 */
 function isPageKey(pages: IPageNode[], key: string): boolean {
   return pages.some((p) => p.id === key);
-}
-
-/** 查找节点原始名称 */
-function findNodeName(pages: IPageNode[], key: string): string {
-  for (const page of pages) {
-    if (page.id === key) return page.name;
-    const found = findViewName(page.children, key);
-    if (found) return found;
-  }
-  return "";
-}
-
-function findViewName(
-  views: IViewNode[] | undefined,
-  key: string,
-): string | null {
-  if (!views) return null;
-  for (const v of views) {
-    if (v.id === key) return v.name || v.type;
-    const found = findViewName(v.children, key);
-    if (found) return found;
-  }
-  return null;
 }
 
 const SceneList: React.FC<SceneListProps> = ({
@@ -205,7 +182,7 @@ const SceneList: React.FC<SceneListProps> = ({
           titleRender={titleRender}
           blockNode
           showLine={{ showLeafIcon: false }}
-          switcherIcon={(props: any) =>
+          switcherIcon={(props: TreeNodeProps) =>
             props.expanded ? (
               <DownOutlined style={{ fontSize: 10 }} />
             ) : (
