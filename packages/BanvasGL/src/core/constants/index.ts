@@ -62,8 +62,13 @@ export const enum STYLETYPE {
 // 场景类型枚举
 export const enum SCENETYPE {
     SCENE = 'SCENE',
-    ORTHOGRAPHIC_CAMERA = 'ORTHOGRAPHIC_CAMERA',
-    PERSPECTIVE_CAMERA = 'PERSPECTIVE_CAMERA',
+}
+
+// 相机类型枚举
+export const enum CAMERATYPE {
+    BASE = 'BASE_CAMERA',
+    ORTHOGRAPHIC = 'ORTHOGRAPHIC_CAMERA',
+    PERSPECTIVE = 'PERSPECTIVE_CAMERA',
 }
 
 // 插件类型枚举

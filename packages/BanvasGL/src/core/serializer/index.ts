@@ -44,12 +44,13 @@ import ImageView from '@/core/views/MediaViews/ImageView'
 import VideoView from '@/core/views/MediaViews/VideoView'
 
 // 相机类型
+import BaseCamera from '@/core/camera/BaseCamera'
 import OrthographicCamera from '@/core/camera/OrthographicCamera'
 import PerspectiveCamera from '@/core/camera/PerspectiveCamera'
 
 // ISerializable
 import type { ISerializable, SerializableStatic } from '@/core/interfaces'
-import { MATHTYPE, STYLETYPE, GRAPHTYPE, VIEWTYPE, SCENETYPE } from '@/core/constants'
+import { MATHTYPE, STYLETYPE, GRAPHTYPE, VIEWTYPE, SCENETYPE, CAMERATYPE } from '@/core/constants'
 
 /**
  * 序列化配置选项
@@ -221,8 +222,9 @@ export default class Serializer {
         // 场景
         this.registerSerializable(SCENETYPE.SCENE, Scene as any)
         // 相机
-        this.registerSerializable(SCENETYPE.ORTHOGRAPHIC_CAMERA, OrthographicCamera as any)
-        this.registerSerializable(SCENETYPE.PERSPECTIVE_CAMERA, PerspectiveCamera as any)
+        this.registerSerializable(CAMERATYPE.BASE, BaseCamera as any)
+        this.registerSerializable(CAMERATYPE.ORTHOGRAPHIC, OrthographicCamera as any)
+        this.registerSerializable(CAMERATYPE.PERSPECTIVE, PerspectiveCamera as any)
 
     }
 
@@ -404,10 +406,12 @@ export default class Serializer {
 
             const typeInfo = this.typeRegistry.get(value.$type)
             if (typeInfo && typeInfo.deserializer) {
-                return typeInfo.deserializer(value.$value)
+                // 先递归反序列化 $value 内部的嵌套结构，再交给 fromJSON
+                const resolvedValue = this.deserializeValue(value.$value, options)
+                return typeInfo.deserializer(resolvedValue)
             }
             // 未注册的 $type 原样返回 $value
-            return value.$value
+            return this.deserializeValue(value.$value, options)
         }
 
         // 数组

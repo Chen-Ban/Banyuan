@@ -1,6 +1,6 @@
 import BaseCamera, { BaseCameraOptions } from './BaseCamera'
 import { Matrix4, Vector3 } from '@/core/math'
-import { SCENETYPE } from '@/core/constants'
+import { CAMERATYPE } from '@/core/constants'
 
 export interface PerspectiveCameraOptions extends BaseCameraOptions {
     fov?: number
@@ -12,7 +12,7 @@ export interface PerspectiveCameraOptions extends BaseCameraOptions {
 }
 
 export default class PerspectiveCamera extends BaseCamera {
-    public readonly type: SCENETYPE = SCENETYPE.PERSPECTIVE_CAMERA
+    public readonly type: CAMERATYPE = CAMERATYPE.PERSPECTIVE
     private _fov: number
     private _aspect: number
     private _width: number
@@ -292,6 +292,33 @@ export default class PerspectiveCamera extends BaseCamera {
             this._near,
             this._far
         )
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            ...super.toJSON(),
+            fov: this._fov,
+            aspect: this._aspect,
+            width: this._width,
+            height: this._height,
+            near: this._near,
+            far: this._far,
+        }
+    }
+
+    static fromJSON(data: any): PerspectiveCamera {
+        return new PerspectiveCamera({
+            position: data.position,
+            target: data.target,
+            up: data.up,
+            fov: data.fov,
+            aspect: data.aspect,
+            width: data.width,
+            height: data.height,
+            near: data.near,
+            far: data.far,
+        })
     }
 
     // 复制相机

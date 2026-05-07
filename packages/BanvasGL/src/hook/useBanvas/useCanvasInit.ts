@@ -1,15 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App } from "@/core/app";
-import {
-  BaseCamera,
-  Scene,
-} from "@/core";
+import { BaseCamera, Scene } from "@/core";
 import type { UseBanvasOptions, SerializedSceneJSON } from "./types";
 import { useBOMProperties } from "./useBOMProperties";
 
 export interface UseCanvasInitResult {
   app: App | null;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  canvasCallbackRef: (node: HTMLCanvasElement | null) => void;
 }
 
 /**
@@ -19,84 +17,73 @@ export function useCanvasInit(
   serializedScenes: SerializedSceneJSON[],
   options: UseBanvasOptions,
 ): UseCanvasInitResult {
-  // 获取 BOM 属性
   const { dpr } = useBOMProperties();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [canvasNode, setCanvasNode] = useState<HTMLCanvasElement | null>(null);
   const [app, setApp] = useState<App | null>(null);
-  const initializedRef = useRef<boolean>(false);
+
+  // callback ref：同步更新 canvasRef + 触发 state 变化
+  const canvasCallbackRef = useCallback((node: HTMLCanvasElement | null) => {
+    canvasRef.current = node;
+    setCanvasNode(node);
+  }, []);
 
   // 统一设置画布逻辑尺寸与样式尺寸
   const applyCanvasSize = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    // 传入的尺寸是样式尺寸
-    const styleWidth = options.width
-    const styleHeight = options.height
-    // 样式尺寸 = 传入的尺寸
-    canvas.style.width = `${styleWidth}px`;
-    canvas.style.height = `${styleHeight}px`;
-    // 实际像素尺寸 = 样式尺寸 * dpr
-    canvas.width = styleWidth * dpr
-    canvas.height = styleHeight * dpr
-  }, [options.width, options.height, dpr]);
+    if (!canvasNode) return;
+    const styleWidth = options.width;
+    const styleHeight = options.height;
+    canvasNode.style.width = `${styleWidth}px`;
+    canvasNode.style.height = `${styleHeight}px`;
+    canvasNode.width = styleWidth * dpr;
+    canvasNode.height = styleHeight * dpr;
+  }, [canvasNode, options.width, options.height, dpr]);
 
+  // ===== Effect 1: App 初始化（canvas 就绪后创建壳子） =====
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || initializedRef.current) return;
+    if (!canvasNode) return;
+
     applyCanvasSize();
-    // 初始化 App 与 Renderer，将 dpr 传递给 rendererOptions
-    const _app = App.create(canvas, options.appOptions ?? {}, {
+
+    const _app = App.create(canvasNode, options.appOptions ?? {}, {
       ...options.rendererOptions,
       dpr,
     });
     _app.launch({});
-    // 通过序列化的 Scene JSON 初始化
-    if (Array.isArray(serializedScenes) && serializedScenes.length > 0) {
-      _app.initFromSerializedScenes(serializedScenes);
-    }
     setApp(_app);
-    initializedRef.current = true;
-
-    try {
-      // 创建基础相机
-      const camera = new BaseCamera();
-
-      // 创建新页面（场景）
-      const scene = new Scene(camera);
-
-      // 添加场景到应用
-      _app.addScene(scene);
-
-      // 导航到新页面
-      _app.navigateTo(scene);
-
-      // 循环渲染会自动处理渲染，无需手动调用
-    } catch (error) {
-      console.error("Failed to create page and draw content:", error);
-    }
 
     return () => {
-      // 清理函数
-      if (_app) {
-        try {
-          _app.destroy();
-        } catch (error) {
-          console.warn("Failed to destroy app in cleanup:", error);
-        }
-      }
+      _app.destroy();
       setApp(null);
-      initializedRef.current = false;
     };
-  }, []); // 空依赖数组，只在组件挂载时执行一次
+  }, [canvasNode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 当尺寸参数或 dpr 变化时，更新画布尺寸与渲染器
+  // ===== Effect 2: Scene 初始化（将 scenes 填充到 app 中） =====
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !app || !initializedRef.current) return;
+    if (!app) return;
+
+    // 清除已有的 scenes
+    const existingScenes = app.getScenes();
+    existingScenes.forEach((scene) => app.removeScene(scene));
+
+    if (Array.isArray(serializedScenes) && serializedScenes.length > 0) {
+      // 有序列化数据，反序列化加载
+      app.initFromSerializedScenes(serializedScenes);
+    } else {
+      // 无数据，创建默认空白页面
+      const camera = new BaseCamera();
+      const scene = new Scene(camera);
+      app.addScene(scene);
+      app.navigateTo(scene);
+    }
+  }, [app, serializedScenes]);
+
+  // ===== Effect 3: 尺寸/dpr 变化时更新画布 =====
+  useEffect(() => {
+    if (!canvasNode || !app) return;
     applyCanvasSize();
-    // 更新 renderer 的 dpr
     app.renderer.setDPR(dpr);
   }, [app, applyCanvasSize, dpr]);
 
-  return { app, canvasRef };
+  return { app, canvasRef, canvasCallbackRef };
 }

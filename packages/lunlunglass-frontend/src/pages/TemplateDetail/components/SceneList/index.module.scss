@@ -1,0 +1,79 @@
+.sceneList {
+  width: 200px;
+  min-width: 200px;
+  background-color: #fafafa;
+  border-right: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #595959;
+}
+
+.nodeTitle {
+  user-select: none;
+}
+
+.renameInput {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #1677ff;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  padding: 0 2px;
+  line-height: 22px;
+  color: #262626;
+}
+
+.treeWrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+
+  // 覆盖 antd Tree 样式以适配紧凑面板
+  :global {
+    .ant-tree {
+      background: transparent;
+      font-size: 12px;
+    }
+
+    .ant-tree .ant-tree-node-content-wrapper {
+      padding: 2px 4px;
+      border-radius: 4px;
+      min-height: 24px;
+      line-height: 24px;
+    }
+
+    .ant-tree .ant-tree-node-content-wrapper:hover {
+      background-color: #f0f0f0;
+    }
+
+    .ant-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
+      background-color: #e6f4ff;
+      color: #1677ff;
+      font-weight: 500;
+    }
+
+    .ant-tree .ant-tree-switcher {
+      width: 20px;
+    }
+
+    .ant-tree .ant-tree-indent-unit {
+      width: 12px;
+    }
+  }
+}

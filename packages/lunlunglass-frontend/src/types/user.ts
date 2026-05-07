@@ -6,7 +6,7 @@
  * 用户基础信息
  */
 export interface User {
-  id: string
+  _id?: string
   userId: string
   username: string
   avatar?: string
