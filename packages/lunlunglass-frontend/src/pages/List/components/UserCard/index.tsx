@@ -16,7 +16,7 @@ const UserCard = ({ user }: UserCardProps) => {
   }
 
   const handleEdit = () => {
-    navigate(`/user/${user.id}`)
+    navigate(`/user/${user.userId}`)
   }
 
   return (
@@ -31,7 +31,7 @@ const UserCard = ({ user }: UserCardProps) => {
         </div>
         <div className={styles.userInfo}>
           <h3 className={styles.userName}>{user.username}</h3>
-          <p className={styles.userId}>ID: {user.id}</p>
+          <p className={styles.userId}>ID: {user.userId}</p>
         </div>
       </div>
       <div className={styles.userCardBody}>
