@@ -33,7 +33,7 @@ export default class GraphView
 
     // TOREVIEW: 多个插件的展示、交互、优先级是怎么样的
     if (isAnalyticGraph(graph)) {
-        this.boundingBox = null
+      this.boundingBox = null;
     }
 
     // graph独有的控制点插件
@@ -61,6 +61,7 @@ export default class GraphView
 
   public renderPlugins(ctx: CanvasRenderingContext2D): void {
     super.renderPlugins(ctx);
+    if (!this.actived) return;
     this.controlPoints?.render(ctx);
   }
 
