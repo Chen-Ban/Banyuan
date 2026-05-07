@@ -1,4 +1,4 @@
-import type Animation from './Animation'
+import type { IAnimation } from '@/core/interfaces'
 
 let _instance: AnimationManager | null = null
 
@@ -23,19 +23,19 @@ export default class AnimationManager {
         return _instance
     }
 
-    private _animations: Set<Animation> = new Set()
+    private _animations: Set<IAnimation> = new Set()
 
     /**
      * 注册动画
      */
-    add(animation: Animation): void {
+    add(animation: IAnimation): void {
         this._animations.add(animation)
     }
 
     /**
      * 移除动画
      */
-    remove(animation: Animation): void {
+    remove(animation: IAnimation): void {
         this._animations.delete(animation)
     }
 
