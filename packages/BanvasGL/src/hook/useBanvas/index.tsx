@@ -138,6 +138,7 @@ export default function useBanvas(
     canvasRef,
     inputRef,
     setSelectedViewId,
+    actions,
     onContextMenuHit,
     onInteractionEnd: onViewChange,
   });
