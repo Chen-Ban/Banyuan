@@ -19,6 +19,7 @@ export type {
     ICombinedGraph,
     IPolygon,
     ITriangle,
+    IQuadrilateral,
     IRectangle,
     IRegularPolygon,
     IDenseTrajectory,

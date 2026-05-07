@@ -182,8 +182,19 @@ export interface ITriangle extends IPolygon {
     getCircumcenter(): Point3
 }
 
+/** Quadrilateral 接口 — 自由四边形，4 个顶点无约束 */
+export interface IQuadrilateral extends IPolygon {
+    getQuadrilateralType(): 'rectangle' | 'square' | 'rhombus' | 'parallelogram' | 'trapezoid' | 'general'
+    isRectangle(tolerance?: number): boolean
+    isSquare(tolerance?: number): boolean
+    isParallelogram(tolerance?: number): boolean
+    isRhombus(tolerance?: number): boolean
+    isTrapezoid(tolerance?: number): boolean
+}
+
 /** Rectangle 接口 */
 export interface IRectangle extends IPolygon {
+
     width: number
     height: number
 
@@ -371,6 +382,7 @@ export interface GraphTypeMap {
     [GRAPHTYPE.COMBINED_GRAPH]: ICombinedGraph & { readonly type: GRAPHTYPE.COMBINED_GRAPH }
     [GRAPHTYPE.POLYGON]: IPolygon & { readonly type: GRAPHTYPE.POLYGON }
     [GRAPHTYPE.TRIANGLE]: ITriangle & { readonly type: GRAPHTYPE.TRIANGLE }
+    [GRAPHTYPE.QUADRILATERAL]: IQuadrilateral & { readonly type: GRAPHTYPE.QUADRILATERAL }
     [GRAPHTYPE.RECTANGLE]: IRectangle & { readonly type: GRAPHTYPE.RECTANGLE }
     [GRAPHTYPE.REGULAR_POLYGON]: IRegularPolygon & { readonly type: GRAPHTYPE.REGULAR_POLYGON }
     [GRAPHTYPE.DENSETRAJECTORY]: IDenseTrajectory & { readonly type: GRAPHTYPE.DENSETRAJECTORY }
