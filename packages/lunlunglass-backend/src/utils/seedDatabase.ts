@@ -1,5 +1,5 @@
 import { connectDatabase, disconnectDatabase } from '../config/database'
-import { User, Product, Order, OrderStatus, IUser, IProduct } from '../models'
+import { User, Product, Order, Template, OrderStatus, IUser, IProduct } from '../models'
 
 /**
  * 生成随机字符串
@@ -28,6 +28,31 @@ function randomDate(): Date {
   const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
   const randomTime = oneYearAgo.getTime() + Math.random() * (now.getTime() - oneYearAgo.getTime())
   return new Date(randomTime)
+}
+
+/**
+ * 生成模拟的 BanvasGL 序列化场景 JSON
+ */
+function generateMockSceneJSON(sceneName: string): string {
+  return JSON.stringify({
+    type: 'Scene',
+    version: '1.0.0',
+    data: {
+      $type: 'Scene',
+      $value: {
+        name: sceneName,
+        children: [],
+        camera: {
+          $type: 'OrthographicCamera',
+          $value: { zoom: 1, position: { x: 0, y: 0, z: 0 } },
+        },
+      },
+    },
+    metadata: {
+      timestamp: Date.now(),
+      source: 'BanvasGL Serializer (seed)',
+    },
+  })
 }
 
 /**
@@ -201,6 +226,66 @@ async function seedOrders(count: number = 50, users: IUser[], products: IProduct
 }
 
 /**
+ * 填充模板数据
+ */
+async function seedTemplates(count: number = 10) {
+  console.log(`开始填充 ${count} 个模板...`)
+  const templates = []
+
+  const templateNames = [
+    '经典圆框模板',
+    '商务方框模板',
+    '运动风镜模板',
+    '复古猫眼模板',
+    '儿童趣味模板',
+    '简约无框模板',
+    '潮流半框模板',
+    '飞行员款模板',
+    '学生款模板',
+    '高端定制模板',
+  ]
+
+  const tagPool = ['经典', '商务', '运动', '复古', '儿童', '简约', '潮流', '高端', '日常', '特殊']
+
+  for (let i = 0; i < count; i++) {
+    const name = templateNames[i % templateNames.length]
+    const id = `TPL${String(i + 1).padStart(6, '0')}`
+
+    // 每个模板 1~3 个场景页面
+    const sceneCount = randomNumber(1, 3)
+    const scenes: string[] = []
+    for (let s = 0; s < sceneCount; s++) {
+      scenes.push(generateMockSceneJSON(`${name} - 页面${s + 1}`))
+    }
+
+    // 随机 1~3 个标签
+    const tagCount = randomNumber(1, 3)
+    const tags: string[] = []
+    for (let t = 0; t < tagCount; t++) {
+      const tag = tagPool[Math.floor(Math.random() * tagPool.length)]
+      if (!tags.includes(tag)) tags.push(tag)
+    }
+
+    templates.push({
+      id,
+      name,
+      description: `这是一个${name}，适用于${tags.join('、')}风格的眼镜配置。`,
+      thumbnail: '',
+      scenes,
+      tags,
+      version: 1,
+      createdBy: `USER${String(randomNumber(1, 20)).padStart(6, '0')}`,
+      updatedBy: `USER${String(randomNumber(1, 20)).padStart(6, '0')}`,
+      createdAt: randomDate(),
+    })
+  }
+
+  await Template.insertMany(templates)
+  console.log(`✓ 成功填充 ${count} 个模板`)
+  return templates
+}
+
+/**
  * 主函数：填充数据库
  */
 async function seedDatabase() {
@@ -216,6 +301,7 @@ async function seedDatabase() {
       await User.deleteMany({})
       await Product.deleteMany({})
       await Order.deleteMany({})
+      await Template.deleteMany({})
       console.log('✓ 数据已清空')
     }
 
@@ -223,11 +309,13 @@ async function seedDatabase() {
     const users = await seedUsers(20)
     const products = await seedProducts(30)
     const orders = await seedOrders(50, users, products)
+    const templates = await seedTemplates(10)
 
     console.log('\n数据库填充完成！')
     console.log(`- 用户: ${users.length} 个`)
     console.log(`- 商品: ${products.length} 个`)
     console.log(`- 订单: ${orders.length} 个`)
+    console.log(`- 模板: ${templates.length} 个`)
 
     await disconnectDatabase()
     process.exit(0)
@@ -243,4 +331,3 @@ if (require.main === module) {
 }
 
 export default seedDatabase
-

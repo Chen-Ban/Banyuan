@@ -26,4 +26,8 @@ export {
   isViewInTree,
   clearSelectedStates,
   clearAllStates,
+  groupViews,
+  ungroupView,
 } from './ViewTree'
+export type { GroupResult, UngroupResult } from './ViewTree'
+export type { SceneAccessor as SceneAccessorType } from './types'

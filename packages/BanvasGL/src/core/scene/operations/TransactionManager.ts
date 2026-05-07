@@ -2,6 +2,7 @@ import type { Diff, PropChange, AddDiff, RemoveDiff, ReorderDiff, ReorderChange 
 import { DiffType, Operation } from './OperationStack'
 import OperationStack from './OperationStack'
 import DiffApplier from './DiffApplier'
+import type { ReviverFactory } from './types'
 import { getDefaultWorkerExecutor } from '@/workers/WorkerExecutor'
 import type { WorkerTask } from '@/workers/types'
 import type { SnapshotDiffInput, SnapshotDiffOutput, ViewDiffRequest } from '@/workers/handlers/snapshot/types'
@@ -37,23 +38,9 @@ interface PendingTransaction {
   beforeSnapshots: Map<string, ViewSnapshot>
 }
 
-/**
- * Scene 向操作栈体系提供的访问能力
- * 通过接口注入，避免直接依赖 Scene 类
- */
-export interface SceneAccessor {
-  /** 通过 id 查找 View 实例 */
-  findViewById(id: string): any | undefined
-  /** 从场景中移除子视图 */
-  removeChild(child: any): void
-  /** 在指定位置插入子视图（设置 parent、VP矩阵、onAttach） */
-  insertChildAt(child: any, index: number): void
-  /**
-   * 通过 id 查找容器节点（可能是 Scene 或 View）
-   * 返回的对象需要有 children 数组
-   */
-  findContainerById(id: string): { children: any[] } | undefined
-}
+// SceneAccessor 接口已提取至 ./types.ts
+import type { SceneAccessor } from './types'
+export type { SceneAccessor } from './types'
 
 // ============ 快照工具函数 ============
 
@@ -123,9 +110,9 @@ export default class TransactionManager {
   /**
    * @param scene Scene 的访问接口（viewFinder、removeChild、insertChildAt）
    */
-  constructor(scene: SceneAccessor) {
+  constructor(scene: SceneAccessor, getReviver: ReviverFactory) {
     this.scene = scene
-    const diffApplier = new DiffApplier(scene)
+    const diffApplier = new DiffApplier(scene, getReviver)
     this.operationStack = new OperationStack(diffApplier.apply.bind(diffApplier))
   }
 

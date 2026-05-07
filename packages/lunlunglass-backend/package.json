@@ -10,7 +10,8 @@
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
     "seed": "tsx src/utils/seedDatabase.ts",
-    "seed:clear": "tsx src/utils/seedDatabase.ts --clear"
+    "seed:clear": "tsx src/utils/seedDatabase.ts --clear",
+    "migrate:templates": "tsx src/utils/migrateTemplates.ts"
   },
   "keywords": [],
   "author": "",
@@ -20,17 +21,18 @@
     "@koa/router": "^13.0.0",
     "dotenv": "^16.4.5",
     "koa": "^2.15.0",
-    "koa-bodyparser": "^4.4.1",
+    "koa-body": "^6.0.1",
     "koa-json": "^2.0.2",
     "koa-logger": "^3.1.0",
+    "koa-static": "^5.0.0",
     "mongoose": "^8.7.0"
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",
-    "@types/koa-bodyparser": "^4.3.12",
     "@types/koa-json": "^2.0.20",
     "@types/koa-logger": "^3.1.0",
     "@types/koa-router": "^7.4.8",
+    "@types/koa-static": "^4.0.4",
     "@types/koa__cors": "^5.0.1",
     "@types/node": "^22.10.1",
     "tsx": "^4.19.2",
