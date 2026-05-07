@@ -1,0 +1,39 @@
+.sceneList {
+  width: 160px;
+  min-width: 160px;
+  background-color: #fafafa;
+  border-right: 1px solid #e0e0e0;
+  padding: 0.75rem;
+  overflow-y: auto;
+
+  .title {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .pageItem {
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    color: #555;
+    transition: background-color 0.15s;
+
+    &:hover {
+      background-color: #e8e8e8;
+    }
+
+    &.active {
+      background-color: #e6f4ff;
+      color: #1677ff;
+      font-weight: 600;
+    }
+  }
+
+  .addButton {
+    margin-top: 0.5rem;
+    width: 100%;
+  }
+}

@@ -9,8 +9,9 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  margin-bottom: 1.5rem;
-  padding: 0 1rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #e9ecef;
+  justify-content: space-between;
 
   h2 {
     margin: 0;
@@ -37,7 +38,6 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 1rem;
   overflow: auto;
 
   h3 {
@@ -49,28 +49,10 @@
 }
 
 .canvasWrapper {
+  flex: 1;
   display: flex;
   justify-content: center;
-  margin-bottom: 1rem;
-  padding: 1rem;
+  align-items: center;
   background-color: #f8f9fa;
-  border-radius: 8px;
   border: 1px solid #e9ecef;
 }
-
-.canvasInfo {
-  display: flex;
-  gap: 2rem;
-  padding: 1rem;
-  background-color: #e8f4f8;
-  border-radius: 6px;
-  border-left: 4px solid #3498db;
-
-  p {
-    margin: 0;
-    font-size: 0.9rem;
-    color: #2c3e50;
-    font-weight: 500;
-  }
-}
-
