@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Tabs, Tooltip } from 'antd'
 import type { IBanvasActions } from 'banvasgl'
 import styles from './index.module.scss'
 
@@ -12,9 +13,6 @@ interface PropertyPanelProps {
 const radiansToDegrees = (rad: number) => rad * (180 / Math.PI)
 const degreesToRadians = (deg: number) => deg * (Math.PI / 180)
 
-/**
- * 格式化数值显示（保留指定小数位，去除尾部零）
- */
 function formatNumber(value: number, precision: number = 2): string {
     return parseFloat(value.toFixed(precision)).toString()
 }
@@ -52,7 +50,6 @@ const NumberInput: React.FC<NumberInputProps> = ({
     const [isFocused, setIsFocused] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
 
-    // 外部值变化时同步（非聚焦状态）
     useEffect(() => {
         if (!isFocused) {
             setLocalValue(formatNumber(value, precision))
@@ -77,7 +74,6 @@ const NumberInput: React.FC<NumberInputProps> = ({
     const handleFocus = () => {
         setIsFocused(true)
         onFocus()
-        // 全选文本
         setTimeout(() => inputRef.current?.select(), 0)
     }
 
@@ -134,7 +130,6 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
 }) => {
     const view = selectedViewId ? actions.view.getViewInstance(selectedViewId) : null
 
-    // 事务管理：记录是否已开启事务
     const isEditingRef = useRef(false)
 
     const handleFocus = useCallback(() => {
@@ -162,7 +157,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         )
     }
 
-    // 读取属性（每次 render 实时从 View 读取）
+    // 读取属性
     const x = view.matrix.extractTranslation2D().x
     const y = view.matrix.extractTranslation2D().y
     const rotation = view.matrix.extractRotationZ()
@@ -170,9 +165,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     const width = view.viewport.width
     const height = view.viewport.height
 
-    return (
-        <div className={styles.panel}>
-            {/* 区块 1：基础信息 */}
+    // Tab 1: 属性（基础信息 + 变换 + 状态）
+    const propertiesTab = (
+        <div className={styles.tabContent}>
+            {/* 基础信息 */}
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>基础信息</div>
                 <div className={styles.infoRow}>
@@ -181,13 +177,14 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </div>
                 <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>ID</span>
-                    <span
-                        className={styles.infoValueId}
-                        title="点击复制"
-                        onClick={() => navigator.clipboard?.writeText(view.id)}
-                    >
-                        {view.id.slice(0, 8)}...
-                    </span>
+                    <Tooltip title={view.id}>
+                        <span
+                            className={styles.infoValueId}
+                            onClick={() => navigator.clipboard?.writeText(view.id)}
+                        >
+                            {view.id}
+                        </span>
+                    </Tooltip>
                 </div>
                 <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>名称</span>
@@ -199,7 +196,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </div>
             </section>
 
-            {/* 区块 2：空间变换 */}
+            {/* 变换 */}
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>变换</div>
                 <div className={styles.transformGrid}>
@@ -259,7 +256,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 </div>
             </section>
 
-            {/* 区块 3：状态 */}
+            {/* 状态 */}
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>状态</div>
                 <div className={styles.stateRow}>
@@ -281,8 +278,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     </label>
                 </div>
             </section>
+        </div>
+    )
 
-            {/* 区块 4：样式 */}
+    // Tab 2: 样式
+    const styleTab = (
+        <div className={styles.tabContent}>
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>样式</div>
                 <div className={styles.infoRow}>
@@ -302,6 +303,32 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     </select>
                 </div>
             </section>
+        </div>
+    )
+
+    // Tab 3: 占位
+    const extensionTab = (
+        <div className={styles.tabContent}>
+            <div className={styles.emptyState}>
+                更多功能开发中...
+            </div>
+        </div>
+    )
+
+    const tabItems = [
+        { key: 'properties', label: '属性', children: propertiesTab },
+        { key: 'style', label: '样式', children: styleTab },
+        { key: 'extensions', label: '扩展', children: extensionTab },
+    ]
+
+    return (
+        <div className={styles.panel}>
+            <Tabs
+                items={tabItems}
+                size="small"
+                className={styles.tabs}
+                defaultActiveKey="properties"
+            />
         </div>
     )
 }

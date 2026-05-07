@@ -16,12 +16,13 @@ $palette-height: 74px;
 
 .headerSection {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   flex-shrink: 0;
 }
 
 .backBtn {
+  margin-top: 2px;
   color: #8c8c8c;
   &:hover {
     color: #1677ff;
@@ -146,12 +147,8 @@ $palette-height: 74px;
 
 /* ===== 保存按钮 ===== */
 
-.saveSection {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
 .saveBtn {
+  margin-left: auto;
   color: #8c8c8c;
   font-size: 16px;
 

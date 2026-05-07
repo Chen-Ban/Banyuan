@@ -1,9 +1,9 @@
 import React, {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { useCanvasInit } from "./useCanvasInit";
 import { useCanvasEvents } from "./useCanvasEvents";
@@ -30,14 +30,6 @@ export default function useBanvas(
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const [selectedViewId, setSelectedViewId] = useState<string>("");
-  const [currentPageId, setCurrentPageId] = useState<string | null>(null);
-  const [pages, setPages] = useState<IPageNode[]>([]);
-
-  // 刷新计数器，用于触发 pages 重建
-  const [, setTick] = useState(0);
-  const forceUpdate = useCallback(() => setTick((t) => t + 1), []);
-
   // Canvas 初始化
   const { app, canvasRef, canvasCallbackRef } = useCanvasInit(serializedScenes, _options);
 
@@ -46,25 +38,43 @@ export default function useBanvas(
   appRef.current = app;
   const getApp = useCallback(() => appRef.current, []);
 
-  // 视图/页面变更回调
-  const onViewChange = useCallback(() => {
-    forceUpdate();
-  }, [forceUpdate]);
+  // ──── useSyncExternalStore：监听 app 状态变更 ────
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      if (!app) return () => {};
+      return app.subscribe(onStoreChange);
+    },
+    [app],
+  );
 
-  const onPageChange = useCallback(() => {
-    forceUpdate();
-    // 更新 currentPageId
-    const currentScene = appRef.current?.getCurrentScene();
-    if (currentScene) {
-      setCurrentPageId(currentScene.id);
-    }
-  }, [forceUpdate]);
+  const getSnapshot = useCallback(() => {
+    if (!app) return 0;
+    return app.getVersion();
+  }, [app]);
+
+  // version 变化 → React 重新渲染
+  const _version = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 
   // 创建 actions（稳定引用，内部通过 getApp 获取最新 app）
   const actions = useMemo(
-    () => createBanvasActions(getApp, onViewChange, onPageChange),
-    [getApp, onViewChange, onPageChange],
+    () => createBanvasActions(getApp),
+    [getApp],
   );
+
+  // ──── 从引擎状态派生 selectedViewId / currentPageId ────
+  const selectedViewId = useMemo(() => {
+    if (!app) return "";
+    const scene = app.getCurrentScene();
+    if (!scene) return "";
+    const selected = scene.getSelectedView();
+    return selected?.id ?? "";
+  }, [app, _version]);
+
+  const currentPageId = useMemo(() => {
+    if (!app) return null;
+    const scene = app.getCurrentScene();
+    return scene?.id ?? null;
+  }, [app, _version]);
 
   // ───── 右键菜单状态 ─────
   const defaultContextMenu: IContextMenuState = useMemo(
@@ -114,40 +124,26 @@ export default function useBanvas(
     [actions, dismissContextMenu],
   );
 
-  // 初始化 currentPageId
-  useEffect(() => {
-    const scene = app?.getCurrentScene();
-    if (scene) {
-      setCurrentPageId(scene.id);
-    }
-  }, [app]);
-
-  // 重建 pages 树（当 app/tick 变化时）
-  useEffect(() => {
-    if (!app) {
-      setPages([]);
-      return;
-    }
-    const pageNodes = buildPageNodes(app);
-    setPages(pageNodes);
-  }, [app, currentPageId, selectedViewId, /* tick trigger */ forceUpdate]);
+  // 构建 pages 树（当 app 状态变更时自动更新）
+  const pages: IPageNode[] = useMemo(() => {
+    if (!app) return [];
+    return buildPageNodes(app);
+  }, [app, _version]);
 
   // Canvas 事件绑定
   useCanvasEvents({
     app,
     canvasRef,
     inputRef,
-    setSelectedViewId,
     actions,
     onContextMenuHit,
-    onInteractionEnd: onViewChange,
+    onInteractionEnd: () => app?.notify(),
   });
 
   // Input 事件绑定
   useInputEvents({
     app,
     inputRef,
-    setSelectedViewId,
   });
 
   const canvasEl = useMemo(

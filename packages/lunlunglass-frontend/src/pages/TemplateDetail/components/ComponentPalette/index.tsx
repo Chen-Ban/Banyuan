@@ -160,6 +160,15 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                         onChange={e => onDescriptionChange(e.target.value)}
                     />
                 </div>
+                <Tooltip title={isNew ? '创建模板' : '保存模板'}>
+                    <Button
+                        type="text"
+                        icon={<SaveOutlined />}
+                        loading={saving}
+                        onClick={onSave}
+                        className={styles.saveBtn}
+                    />
+                </Tooltip>
             </div>
 
             {/* 分隔线 */}
@@ -183,19 +192,6 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                         </div>
                     </Popover>
                 )}
-            </div>
-
-            {/* 最右侧：保存按钮 */}
-            <div className={styles.saveSection}>
-                <Tooltip title={isNew ? '创建模板' : '保存模板'}>
-                    <Button
-                        type="text"
-                        icon={<SaveOutlined />}
-                        loading={saving}
-                        onClick={onSave}
-                        className={styles.saveBtn}
-                    />
-                </Tooltip>
             </div>
         </div>
     )

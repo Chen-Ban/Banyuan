@@ -1,7 +1,7 @@
 import { View, SelectBoxView } from '@/core/views'
 import type Scene from '@/core/scene/Scene'
 import { Point3 } from '@/core/math'
-import { Action, Cursor, isTextView, ExtraData, IViewAddon, IGraph } from '@/core/interfaces'
+import { Action, Cursor, isTextView, isSelectBoxView, ExtraData, IViewAddon, IGraph } from '@/core/interfaces'
 import { Rectangle } from '@/core/graph'
 import { clearAllStates } from '@/core/scene/operations'
 import Bounds from '@/core/graph/base/Bounds'
@@ -24,8 +24,6 @@ export interface InteractionContext {
     selectView(scene: Scene, view: View, setSelected: boolean): void
     /** Clear selection state */
     clearSelection(scene: Scene): void
-    /** Set the selected view ID (React state setter) */
-    setSelectedViewId(id: string): void
 }
 
 export class InteractionDispatcher {
@@ -74,7 +72,6 @@ export class InteractionDispatcher {
 
         if (!indicateView.actived) {
             scene.select(indicateView)
-            this.ctx.setSelectedViewId(indicateView.id)
         }
 
         // 先移动
@@ -103,7 +100,6 @@ export class InteractionDispatcher {
             const { content } = indicateView.interact(point)
             if (!indicateView.actived) {
                 scene.select(indicateView as unknown as View)
-                this.ctx.setSelectedViewId(indicateView.id)
                 const fixedIndex = indicateView.element2Index(
                     indicateContent,
                     point
@@ -198,8 +194,9 @@ export class InteractionDispatcher {
             const selectionRect = selectionRectView.content
             const viewsToActivate: View[] = []
             const allViews = scene.children
-            // 遍历所有视图，检查是否与框选矩形相交
+            // 遍历所有视图，检查是否与框选矩形相交（跳过 SelectBoxView 自身）
             for (const view of allViews) {
+                if (isSelectBoxView(view)) continue
                 let graph =
                     view.style.overflow !== 'visible'
                         ? Rectangle.fromBounds(
@@ -219,9 +216,6 @@ export class InteractionDispatcher {
             for (const view of viewsToActivate) {
                 scene.select(view, true)
             }
-            this.ctx.setSelectedViewId(
-                viewsToActivate[viewsToActivate.length - 1]?.id ?? ''
-            )
         }
     }
 }
