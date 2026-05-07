@@ -9,6 +9,7 @@ import type { IViewNode, IPageNode } from '@/core/interfaces'
 import type View from '@/core/views/View/View'
 import type Scene from '@/core/scene/Scene'
 import type { App } from '@/core/app'
+import { VIEWTYPE } from '@/core/constants'
 
 /**
  * 根据 View type 和 id 生成默认显示名称
@@ -47,7 +48,9 @@ export function buildPageNode(scene: Scene, index: number, isCurrent: boolean): 
         name: sceneName,
         isCurrent,
         index,
-        children: scene.children.map((child) => buildViewNode(child as View, 0)),
+        children: scene.children
+            .filter((child) => (child as View).type !== VIEWTYPE.SELECTBOXVIEW)
+            .map((child) => buildViewNode(child as View, 0)),
     }
 }
 
