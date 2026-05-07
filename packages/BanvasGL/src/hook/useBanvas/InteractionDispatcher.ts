@@ -194,21 +194,31 @@ export class InteractionDispatcher {
             const selectionRect = selectionRectView.content
             const viewsToActivate: View[] = []
             const allViews = scene.children
-            // 遍历所有视图，检查是否与框选矩形相交（跳过 SelectBoxView 自身）
+            // 遍历所有视图，检查是否与框选矩形相交或被包含（跳过 SelectBoxView 自身）
             for (const view of allViews) {
                 if (isSelectBoxView(view)) continue
-                let graph =
+                const viewBounds =
                     view.style.overflow !== 'visible'
-                        ? Rectangle.fromBounds(
-                              view.viewport ?? Bounds.empty()
-                          )
-                        : Rectangle.fromBounds(
-                              view.layoutArea ?? Bounds.empty()
-                          )
-                const intersection = selectionRect.intersect(
-                    graph.transform(view.getWorldMatrix())
-                )
+                        ? (view.viewport ?? Bounds.empty())
+                        : (view.layoutArea ?? Bounds.empty())
+                const viewRect = Rectangle.fromBounds(viewBounds)
+                const transformedViewRect = viewRect.transform(view.getWorldMatrix())
+
+                // 检查边相交
+                const intersection = selectionRect.intersect(transformedViewRect)
                 if (intersection.length > 0) {
+                    viewsToActivate.push(view)
+                    continue
+                }
+
+                // 检查框选框是否完全包含容器（用容器中心点判断）
+                const vBounds = transformedViewRect.bounds
+                const center = new Point3(
+                    vBounds.x + vBounds.width / 2,
+                    vBounds.y + vBounds.height / 2,
+                    0
+                )
+                if ((selectionRect as Rectangle).containsPoint(center)) {
                     viewsToActivate.push(view)
                 }
             }
