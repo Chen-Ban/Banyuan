@@ -3,6 +3,8 @@
  *
  * 将 App / Scene / View 的内部操作封装为安全的命名空间化 API。
  * 业务层通过 actions.view.select(id) 等形式调用，不直接接触实例。
+ *
+ * 所有变更操作在完成后调用 app.notify() 通知外部订阅者（useSyncExternalStore）。
  */
 
 import type { IViewActions, IPageActions, IHistoryActions, IBanvasActions, IComponentTemplate } from '@/core/interfaces'
@@ -42,9 +44,9 @@ export function getClipboard(): View | null {
  */
 export function createViewActions(
     getApp: () => App | null,
-    onViewChange: () => void,
 ): IViewActions {
     const getScene = () => getApp()?.getCurrentScene() ?? null
+    const notify = () => getApp()?.notify()
 
     return {
         select(viewId: string): void {
@@ -53,7 +55,7 @@ export function createViewActions(
             const view = scene.findViewById(viewId)
             if (view) {
                 scene.select(view)
-                onViewChange()
+                notify()
             }
         },
 
@@ -61,7 +63,7 @@ export function createViewActions(
             const scene = getScene()
             if (!scene) return
             clearAllStates(scene)
-            onViewChange()
+            notify()
         },
 
         selectAll(): void {
@@ -71,7 +73,7 @@ export function createViewActions(
             allViews.forEach((view) => {
                 scene.select(view, true)
             })
-            onViewChange()
+            notify()
         },
 
         scrollTo(viewId: string): void {
@@ -86,7 +88,7 @@ export function createViewActions(
             const view = scene.findViewById(viewId)
             if (view) {
                 scene.removeChild(view)
-                onViewChange()
+                notify()
             }
         },
 
@@ -105,7 +107,7 @@ export function createViewActions(
             siblings.splice(currentIndex, 1)
             const safeIndex = Math.min(newIndex, siblings.length)
             siblings.splice(safeIndex, 0, view)
-            onViewChange()
+            notify()
         },
 
         create(template: IComponentTemplate, position: { x: number; y: number }): string | null {
@@ -169,7 +171,7 @@ export function createViewActions(
             if (newView) {
                 scene.addChild(newView)
                 scene.select(newView)
-                onViewChange()
+                notify()
                 return newView.id
             }
             return null
@@ -181,7 +183,7 @@ export function createViewActions(
             const view = scene.findViewById(viewId)
             if (view) {
                 view.visible = visible
-                onViewChange()
+                notify()
             }
         },
 
@@ -191,7 +193,7 @@ export function createViewActions(
             const view = scene.findViewById(viewId)
             if (view) {
                 view.freezed = locked
-                onViewChange()
+                notify()
             }
         },
 
@@ -201,7 +203,7 @@ export function createViewActions(
             const view = scene.findViewById(viewId)
             if (view) {
                 view.name = name
-                onViewChange()
+                notify()
             }
         },
 
@@ -237,7 +239,7 @@ export function createViewActions(
             }
 
             scene.select(newView)
-            onViewChange()
+            notify()
             return newView.id
         },
 
@@ -247,7 +249,7 @@ export function createViewActions(
             const view = scene.findViewById(viewId)
             if (view) {
                 scene.bringToFront(view)
-                onViewChange()
+                notify()
             }
         },
 
@@ -257,7 +259,7 @@ export function createViewActions(
             const view = scene.findViewById(viewId)
             if (view) {
                 scene.sendToBack(view)
-                onViewChange()
+                notify()
             }
         },
 
@@ -270,7 +272,7 @@ export function createViewActions(
             if (views.length < 2) return null
             const combined = scene.group(views)
             if (combined) {
-                onViewChange()
+                notify()
                 return combined.id
             }
             return null
@@ -283,7 +285,7 @@ export function createViewActions(
             if (!view) return null
             const children = scene.ungroup(view)
             if (children) {
-                onViewChange()
+                notify()
                 return children.map((c) => c.id)
             }
             return null
@@ -331,7 +333,7 @@ export function createViewActions(
                 }
             }
 
-            onViewChange()
+            notify()
         },
 
         setProperties(props: Record<string, number>): void {
@@ -361,7 +363,7 @@ export function createViewActions(
                 }
             }
 
-            onViewChange()
+            notify()
         },
 
         beginPropertyEdit(): void {
@@ -391,8 +393,9 @@ export function createViewActions(
  */
 export function createPageActions(
     getApp: () => App | null,
-    onPageChange: () => void,
 ): IPageActions {
+    const notify = () => getApp()?.notify()
+
     return {
         navigateTo(pageId: string): void {
             const app = getApp()
@@ -400,7 +403,7 @@ export function createPageActions(
             const scene = app.getScene(pageId)
             if (scene) {
                 app.navigateTo(scene as Scene)
-                onPageChange()
+                notify()
             }
         },
 
@@ -411,7 +414,7 @@ export function createPageActions(
             const scene = new Scene(camera, { name })
             app.addScene(scene)
             app.navigateTo(scene)
-            onPageChange()
+            notify()
             return scene.id
         },
 
@@ -421,7 +424,7 @@ export function createPageActions(
             const scene = app.getScene(pageId)
             if (scene) {
                 app.removeScene(scene)
-                onPageChange()
+                notify()
             }
         },
 
@@ -431,7 +434,7 @@ export function createPageActions(
             const scene = app.getScene(pageId)
             if (scene) {
                 scene.name = name
-                onPageChange()
+                notify()
             }
         },
 
@@ -444,7 +447,7 @@ export function createPageActions(
             const [scene] = app.scenes.splice(currentIndex, 1)
             const safeIndex = Math.min(newIndex, app.scenes.length)
             app.scenes.splice(safeIndex, 0, scene)
-            onPageChange()
+            notify()
         },
 
         duplicate(pageId: string): string | null {
@@ -455,7 +458,7 @@ export function createPageActions(
 
             const newScene = scene.copy()
             app.addScene(newScene)
-            onPageChange()
+            notify()
             return newScene.id
         },
     }
@@ -466,13 +469,15 @@ export function createPageActions(
  *
  * 注意：canUndo / canRedo 是 getter，每次访问时实时计算。
  */
-export function createHistoryActions(getApp: () => App | null, onViewChange: () => void): IHistoryActions {
+export function createHistoryActions(getApp: () => App | null): IHistoryActions {
+    const notify = () => getApp()?.notify()
+
     return {
         undo(): boolean {
             const scene = getApp()?.getCurrentScene()
             if (!scene) return false
             const result = scene.undo()
-            if (result) onViewChange()
+            if (result) notify()
             return result
         },
 
@@ -480,7 +485,7 @@ export function createHistoryActions(getApp: () => App | null, onViewChange: () 
             const scene = getApp()?.getCurrentScene()
             if (!scene) return false
             const result = scene.redo()
-            if (result) onViewChange()
+            if (result) notify()
             return result
         },
 
@@ -499,13 +504,11 @@ export function createHistoryActions(getApp: () => App | null, onViewChange: () 
  */
 export function createBanvasActions(
     getApp: () => App | null,
-    onViewChange: () => void,
-    onPageChange: () => void,
 ): IBanvasActions {
     return {
-        view: createViewActions(getApp, onViewChange),
-        page: createPageActions(getApp, onPageChange),
-        history: createHistoryActions(getApp, onViewChange),
+        view: createViewActions(getApp),
+        page: createPageActions(getApp),
+        history: createHistoryActions(getApp),
 
         getSerializedScenes(): string[] {
             const app = getApp()
