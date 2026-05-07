@@ -123,10 +123,8 @@ export class InteractionDispatcher {
         this.ctx.setCursor(Cursor.Grabbing)
         const extraData = this.ctx.getExtraData()
         if (extraData && extraData.action === Action.EDIT_POINT) {
-            this.ctx.getIndicateView()?.editPoint(
-                point,
-                point.subtract(this.ctx.getLastPoint() || mouseDownPoint)
-            )
+            const delta = point.subtract(this.ctx.getLastPoint() || mouseDownPoint)
+            this.ctx.getIndicateView()?.editPoint(point, delta)
         }
     }
 

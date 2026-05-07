@@ -3,7 +3,7 @@ import { Graph, Line } from "@/core/graph";
 import { isAnalyticGraph, IGraphView, ISerializable } from "@/core/interfaces";
 import { VIEWTYPE } from "@/core/constants";
 import { generateId, generateName } from "@/core/utils";
-import { Point3 } from "@/core/math";
+import { Point3, Vector3 } from "@/core/math";
 import { VertexAddon } from "@/core/views/addon";
 import Matrix4 from "@/core/math/Matrix4";
 import Bounds from "@/core/graph/base/Bounds";
@@ -63,6 +63,56 @@ export default class GraphView
     super.renderPlugins(ctx);
     if (!this.actived) return;
     this.controlPoints?.render(ctx);
+  }
+
+  /**
+   * 编辑顶点：拖拽控制点时更新 VertexAddon 和 content 的 controlPoints
+   * @param _point 当前鼠标位置（屏幕坐标，暂未使用）
+   * @param delta 位移向量（屏幕坐标）
+   */
+  public editPoint(_point: Point3, delta: Vector3): void {
+    if (!this.controlPoints?.activeVertex) return
+
+    // 屏幕坐标 → 局部坐标：通过 MVP 逆矩阵转换 delta
+    const mvp = this.getMVPMatrix()
+    const inverseMVP = mvp.inverse()
+    const originLocal = inverseMVP.multiply(Point3.origin)
+    const deltaEndLocal = inverseMVP.multiply(new Point3(delta.x, delta.y, delta.z))
+    const localDelta = deltaEndLocal.subtract(originLocal)
+
+    // 找到活跃顶点在数组中的索引
+    const vertex = this.controlPoints.activeVertex
+    const index = this.controlPoints.vertices.indexOf(vertex)
+    if (index < 0) return
+
+    // 计算新顶点位置
+    const newVertex = new Point3(
+      vertex.x + localDelta.x,
+      vertex.y + localDelta.y,
+      vertex.z
+    )
+
+    // 更新 VertexAddon 中的顶点
+    this.controlPoints.vertices[index] = newVertex
+    this.controlPoints.activeVertex = newVertex
+
+    // 同步到 content 的 controlPoints
+    const cp = this.content.controlPoints
+    if (cp instanceof Float32Array) {
+      cp[index * 3] = newVertex.x
+      cp[index * 3 + 1] = newVertex.y
+      cp[index * 3 + 2] = newVertex.z
+    } else {
+      cp[index] = newVertex.copy()
+    }
+
+    // 重算 bounds 和 layoutArea
+    this.content.bounds = this.content.updateBounds()
+    this.layoutArea = Bounds.union(
+      this.content.bounds ?? Bounds.empty(),
+      this.measureChildren()
+    )
+    this.layout()
   }
 
   public getSnapObjects(): [Point3[], Line[]] {
