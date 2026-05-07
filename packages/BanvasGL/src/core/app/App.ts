@@ -648,6 +648,14 @@ export default class App {
         return this
     }
 
+    /**
+     * 获取所有 Scene 的序列化 JSON 字符串数组
+     * 每个元素是一个 Scene 的完整序列化 JSON，可直接存入后端
+     */
+    public getSerializedScenes(): string[] {
+        return this.scenes.map(scene => Serializer.getInstance().serialize(scene))
+    }
+
     public toString() {
        return Serializer.getInstance().serialize(this)
     }
