@@ -24,6 +24,7 @@ export function useCanvasInit(
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [app, setApp] = useState<App | null>(null);
   const initializedRef = useRef<boolean>(false);
+  const scenesLoadedRef = useRef<boolean>(false);
 
   // 统一设置画布逻辑尺寸与样式尺寸
   const applyCanvasSize = useCallback(() => {
@@ -40,6 +41,7 @@ export function useCanvasInit(
     canvas.height = styleHeight * dpr
   }, [options.width, options.height, dpr]);
 
+  // App 初始化（只执行一次）
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || initializedRef.current) return;
@@ -50,30 +52,25 @@ export function useCanvasInit(
       dpr,
     });
     _app.launch({});
-    // 通过序列化的 Scene JSON 初始化
+
+    // 如果已有序列化数据，直接加载
     if (Array.isArray(serializedScenes) && serializedScenes.length > 0) {
       _app.initFromSerializedScenes(serializedScenes);
+      scenesLoadedRef.current = true;
+    } else {
+      // 没有序列化数据时，创建默认空白页面
+      try {
+        const camera = new BaseCamera();
+        const scene = new Scene(camera);
+        _app.addScene(scene);
+        _app.navigateTo(scene);
+      } catch (error) {
+        console.error("Failed to create default page:", error);
+      }
     }
+
     setApp(_app);
     initializedRef.current = true;
-
-    try {
-      // 创建基础相机
-      const camera = new BaseCamera();
-
-      // 创建新页面（场景）
-      const scene = new Scene(camera);
-
-      // 添加场景到应用
-      _app.addScene(scene);
-
-      // 导航到新页面
-      _app.navigateTo(scene);
-
-      // 循环渲染会自动处理渲染，无需手动调用
-    } catch (error) {
-      console.error("Failed to create page and draw content:", error);
-    }
 
     return () => {
       // 清理函数
@@ -86,8 +83,24 @@ export function useCanvasInit(
       }
       setApp(null);
       initializedRef.current = false;
+      scenesLoadedRef.current = false;
     };
   }, []); // 空依赖数组，只在组件挂载时执行一次
+
+  // 响应 serializedScenes 异步加载：当 app 已初始化但 scenes 尚未加载时，加载新数据
+  useEffect(() => {
+    if (!app || !initializedRef.current) return;
+    if (scenesLoadedRef.current) return;
+    if (!Array.isArray(serializedScenes) || serializedScenes.length === 0) return;
+
+    // 清除之前创建的默认空白页面
+    const existingScenes = app.getScenes();
+    existingScenes.forEach(scene => app.removeScene(scene));
+
+    // 加载序列化数据
+    app.initFromSerializedScenes(serializedScenes);
+    scenesLoadedRef.current = true;
+  }, [app, serializedScenes]);
 
   // 当尺寸参数或 dpr 变化时，更新画布尺寸与渲染器
   useEffect(() => {

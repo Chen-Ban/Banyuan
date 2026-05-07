@@ -78,7 +78,7 @@ const TemplateDetail = () => {
                     scenes,
                 })
                 message.success('模板创建成功')
-                navigate(`/template/${newId}`, { replace: true })
+                navigate('/template', { replace: true })
             } else {
                 await templateApi.updateTemplate(id!, {
                     name: templateName,
