@@ -193,6 +193,8 @@ export interface IBanvasActions {
     view: IViewActions
     page: IPageActions
     history: IHistoryActions
+    /** 获取所有场景的序列化 JSON 字符串数组（用于持久化存储） */
+    getSerializedScenes(): string[]
 }
 
 // ────────────────────────────────────────────

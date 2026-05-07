@@ -7,16 +7,43 @@ import { Types } from 'mongoose'
 export interface ITemplateQuery {
   name?: string
   id?: string
+  tags?: string
+  createdBy?: string
 }
 
 /**
  * 模板查询结果
  */
 export interface ITemplateListResult {
-  templates: ITemplate[]
+  templates: Partial<ITemplate>[]
   total: number
   page: number
   pageSize: number
+}
+
+/**
+ * 创建模板数据
+ */
+export interface ICreateTemplateData {
+  id: string
+  name: string
+  description?: string
+  scenes: string[]
+  thumbnail?: string
+  tags?: string[]
+  createdBy?: string
+}
+
+/**
+ * 更新模板数据
+ */
+export interface IUpdateTemplateData {
+  name?: string
+  description?: string
+  scenes?: string[]
+  thumbnail?: string
+  tags?: string[]
+  updatedBy?: string
 }
 
 /**
@@ -24,10 +51,7 @@ export interface ITemplateListResult {
  */
 class TemplateService {
   /**
-   * 查询模板列表
-   * @param query 查询条件
-   * @param page 页码（从1开始）
-   * @param pageSize 每页数量
+   * 查询模板列表（不返回 scenes 字段，减少传输量）
    */
   async getTemplateList(
     query: ITemplateQuery = {},
@@ -35,7 +59,6 @@ class TemplateService {
     pageSize: number = 12
   ): Promise<ITemplateListResult> {
     try {
-      // 构建查询条件
       const filter: any = {}
 
       if (query.name) {
@@ -46,21 +69,29 @@ class TemplateService {
         filter.id = { $regex: query.id, $options: 'i' }
       }
 
-      // 计算跳过的数量
+      if (query.tags) {
+        filter.tags = { $in: [query.tags] }
+      }
+
+      if (query.createdBy) {
+        filter.createdBy = query.createdBy
+      }
+
       const skip = (page - 1) * pageSize
 
-      // 并行查询总数和列表
+      // 列表不返回 scenes（体积大），只返回元信息
       const [total, templates] = await Promise.all([
         Template.countDocuments(filter),
         Template.find(filter)
-          .sort({ createdAt: -1 }) // 按创建时间倒序
+          .select('-scenes')
+          .sort({ createdAt: -1 })
           .skip(skip)
           .limit(pageSize)
-          .lean(), // 返回纯 JavaScript 对象
+          .lean(),
       ])
 
       return {
-        templates: templates as unknown as ITemplate[],
+        templates: templates as unknown as Partial<ITemplate>[],
         total,
         page,
         pageSize,
@@ -71,18 +102,15 @@ class TemplateService {
   }
 
   /**
-   * 根据ID获取模板
-   * @param id 模板ID（MongoDB _id 或 id）
+   * 根据ID获取模板详情（含 scenes）
    */
   async getTemplateById(id: string): Promise<ITemplate | null> {
     try {
-      // 先尝试作为 MongoDB ObjectId 查询
       if (Types.ObjectId.isValid(id)) {
         const template = await Template.findById(id).lean()
         if (template) return template as unknown as ITemplate
       }
 
-      // 如果不是 ObjectId 或查询失败，尝试作为 id 查询
       const template = await Template.findOne({ id }).lean()
       return template as unknown as ITemplate | null
     } catch (error) {
@@ -92,21 +120,19 @@ class TemplateService {
 
   /**
    * 创建模板
-   * @param templateData 模板数据
    */
-  async createTemplate(templateData: {
-    id: string
-    name: string
-    template: string
-  }): Promise<ITemplate> {
+  async createTemplate(templateData: ICreateTemplateData): Promise<ITemplate> {
     try {
-      // 检查 id 是否已存在
       const existingTemplate = await Template.findOne({ id: templateData.id })
       if (existingTemplate) {
         throw new Error(`Template with id "${templateData.id}" already exists`)
       }
 
-      const template = new Template(templateData)
+      const template = new Template({
+        ...templateData,
+        version: 1,
+        updatedBy: templateData.createdBy || '',
+      })
       await template.save()
       return template.toObject() as unknown as ITemplate
     } catch (error: any) {
@@ -118,25 +144,18 @@ class TemplateService {
   }
 
   /**
-   * 更新模板
-   * @param id 模板ID（MongoDB _id 或 id）
-   * @param updateData 更新数据（不能包含 id）
+   * 更新模板（version 自增）
    */
   async updateTemplate(
     id: string,
-    updateData: {
-      name?: string
-      template?: string
-    }
+    updateData: IUpdateTemplateData
   ): Promise<ITemplate | null> {
     try {
       let template
 
-      // 先尝试作为 MongoDB ObjectId 查询
       if (Types.ObjectId.isValid(id)) {
         template = await Template.findById(id)
       } else {
-        // 如果不是 ObjectId，尝试作为 id 查询
         template = await Template.findOne({ id })
       }
 
@@ -148,9 +167,24 @@ class TemplateService {
       if (updateData.name !== undefined) {
         template.name = updateData.name
       }
-      if (updateData.template !== undefined) {
-        template.template = updateData.template
+      if (updateData.description !== undefined) {
+        template.description = updateData.description
       }
+      if (updateData.scenes !== undefined) {
+        template.scenes = updateData.scenes
+      }
+      if (updateData.thumbnail !== undefined) {
+        template.thumbnail = updateData.thumbnail
+      }
+      if (updateData.tags !== undefined) {
+        template.tags = updateData.tags
+      }
+      if (updateData.updatedBy !== undefined) {
+        template.updatedBy = updateData.updatedBy
+      }
+
+      // 版本自增
+      template.version = (template.version || 0) + 1
 
       await template.save()
       return template.toObject() as unknown as ITemplate
@@ -161,17 +195,14 @@ class TemplateService {
 
   /**
    * 删除模板
-   * @param id 模板ID（MongoDB _id 或 id）
    */
   async deleteTemplate(id: string): Promise<boolean> {
     try {
       let template
 
-      // 先尝试作为 MongoDB ObjectId 查询
       if (Types.ObjectId.isValid(id)) {
         template = await Template.findById(id)
       } else {
-        // 如果不是 ObjectId，尝试作为 id 查询
         template = await Template.findOne({ id })
       }
 
@@ -188,4 +219,3 @@ class TemplateService {
 }
 
 export default new TemplateService()
-

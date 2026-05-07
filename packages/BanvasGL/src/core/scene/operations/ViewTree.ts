@@ -1,6 +1,5 @@
 import View from "@/core/views/View/View";
-import type { ISceneNode, IView } from "@/core/interfaces";
-import { TextView } from "@/core/views";
+import { isTextView, isCombinedView, type ISceneNode, type IView } from "@/core/interfaces";
 
 /** 视图树节点：可以是 Scene、View 或任何实现了 IView 的对象 */
 type TreeNode = ISceneNode | IView | View;
@@ -134,8 +133,126 @@ export function clearAllStates(root: TreeNode, excludeView: View | undefined = u
     v.setActived(false);
     v.setSelected(false);
 
-    if (v instanceof TextView) {
-      v.setSelection(undefined, undefined);
+    if (isTextView(v)) {
+      (v as any).setSelection(undefined, undefined);
     }
   });
+}
+
+// ==================== 组合/取消组合（纯树操作） ====================
+
+/** groupViews 的返回结果 */
+export interface GroupResult {
+  /** 新创建的 CombinedView */
+  combined: View
+  /** 插入位置的索引 */
+  insertIndex: number
+}
+
+/**
+ * 将多个 View 组合为一个 CombinedView（纯树操作，不含事务）。
+ *
+ * @param views 要组合的视图列表（必须拥有同一个父容器）
+ * @param combined 已创建好的 CombinedView 实例
+ * @param vpMatrix VP 矩阵，用于设置组合视图的视图投影矩阵
+ * @returns 组合结果，或 null（不满足条件时）
+ */
+export function groupViews(
+  views: View[],
+  combined: View,
+  vpMatrix: any
+): GroupResult | null {
+  if (views.length < 2) return null;
+
+  // 校验：所有 view 必须拥有同一个父容器
+  const parent = views[0].parent;
+  if (!parent || !views.every((v) => v.parent === parent)) return null;
+
+  const children = parent.children as View[];
+
+  // 过滤出确实在当前 children 中的 view
+  const validViews = views.filter((v) => children.includes(v));
+  if (validViews.length < 2) return null;
+
+  // 找到最高层级位置（最大 index），用于确定插入点
+  let maxIndex = -1;
+  for (const v of validViews) {
+    const idx = children.indexOf(v);
+    if (idx > maxIndex) maxIndex = idx;
+  }
+
+  // 从 children 中移除这些 view
+  for (const v of validViews) {
+    const idx = children.indexOf(v);
+    if (idx > -1) {
+      children.splice(idx, 1);
+      v.parent = null;
+    }
+  }
+
+  // 将 view 添加到 CombinedView
+  for (const v of validViews) {
+    combined.addChild(v);
+  }
+
+  // 在原最高位置插入（考虑移除后 index 可能变小）
+  const insertIndex = Math.min(maxIndex, children.length);
+  children.splice(insertIndex, 0, combined);
+  combined.parent = parent;
+  combined.setVPMatrix(vpMatrix);
+  combined.onAttach();
+
+  return { combined, insertIndex };
+}
+
+/** ungroupView 的返回结果 */
+export interface UngroupResult {
+  /** 解散出的子 View 列表 */
+  children: View[]
+  /** CombinedView 被移除前的索引位置 */
+  index: number
+}
+
+/**
+ * 取消组合：将 CombinedView 解散，其子 View 回到父容器的 children 中（纯树操作，不含事务）。
+ *
+ * @param view 要解散的视图（必须是 CombinedView）
+ * @param vpMatrix VP 矩阵，用于设置解散后子视图的视图投影矩阵
+ * @returns 解散结果，或 null
+ */
+export function ungroupView(
+  view: View,
+  vpMatrix: any
+): UngroupResult | null {
+  if (!isCombinedView(view)) return null;
+
+  const parent = view.parent;
+  if (!parent) return null;
+
+  const parentChildren = parent.children as View[];
+  if (!parentChildren.includes(view)) return null;
+
+  const index = parentChildren.indexOf(view);
+  const childViews = [...view.children] as View[];
+
+  // 从 CombinedView 中移除子 view
+  for (const child of childViews) {
+    (view as any).removeChild(child);
+  }
+
+  // 从 children 中移除 CombinedView
+  parentChildren.splice(index, 1);
+  view.parent = null;
+
+  // 将子 view 按顺序插入到原位置
+  for (let i = 0; i < childViews.length; i++) {
+    const child = childViews[i];
+    const insertAt = Math.min(index + i, parentChildren.length);
+    parentChildren.splice(insertAt, 0, child);
+    child.parent = parent;
+    child.setVPMatrix(vpMatrix);
+    child.onAttach();
+  }
+
+  return { children: childViews, index };
 }

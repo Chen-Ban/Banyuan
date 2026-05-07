@@ -6,7 +6,7 @@ import ListPage from "@/pages/List"
 import OrderPage from "@/pages/OrderPage"
 import UserPage from "@/pages/UserPage"
 
-export const routes: RouteObject[] = [
+const routes: RouteObject[] = [
   {
     path: '/',
     element: <HomePage />,
@@ -49,4 +49,3 @@ export function AppRoutes() {
   const element = useRoutes(routes)
   return element
 }
-

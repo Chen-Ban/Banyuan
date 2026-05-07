@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document, Types } from 'mongoose'
-import { IProduct } from './Product'
 
 /**
  * 订单项（订单中的单个商品项）

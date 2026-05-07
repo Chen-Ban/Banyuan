@@ -107,6 +107,9 @@ export type {
     IAppStatic,
 } from './IApp'
 
+// ── Animation 接口 ──
+export type { IAnimation, IAnimationManager } from './IAnimation'
+
 // ── 序列化接口 ──
 export type { ISerializable, SerializableStatic } from './ISerializable'
 
