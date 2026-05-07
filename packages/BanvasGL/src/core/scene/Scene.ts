@@ -396,19 +396,7 @@ export default class Scene implements ISerializable {
       data: this.data,
       camera: {
         $type: (this.camera as any).type,
-        $value: {
-          position: [
-            this.camera.position.x,
-            this.camera.position.y,
-            this.camera.position.z,
-          ],
-          target: [
-            this.camera.target.x,
-            this.camera.target.y,
-            this.camera.target.z,
-          ],
-          up: [this.camera.up.x, this.camera.up.y, this.camera.up.z],
-        },
+        $value: (this.camera as any).toJSON(),
       },
       children: this.children.map((child) => ({
         $type: child.type,
@@ -417,10 +405,6 @@ export default class Scene implements ISerializable {
     };
   }
 
-  /**
-   * 从纯数据对象恢复 Scene 实例。
-   * data.camera 和 data.children 应由 Serializer 预先解析为实例后传入。
-   */
   /**
    * 通过 id 查找容器节点（可能是 Scene 自身或嵌套的 View）
    * 供 DiffApplier 回放 ReorderDiff 时定位 parent
@@ -433,13 +417,17 @@ export default class Scene implements ISerializable {
     return undefined;
   }
 
+  /**
+   * 从纯数据对象恢复 Scene 实例。
+   * data.camera 和 data.children 应由 Serializer 预先解析为实例后传入。
+   */
   static fromJSON(data: any): Scene {
+    // data.camera 已经由递归反序列化恢复为 BaseCamera 实例
     const scene = new Scene(data.camera);
     scene.id = data.id;
     if (data.data) scene.data = data.data;
     if (data.children) {
       data.children.forEach((child: View) => {
-        // 层级现在由数组顺序决定，直接按序添加即可
         scene.addChild(child, false);
       });
     }

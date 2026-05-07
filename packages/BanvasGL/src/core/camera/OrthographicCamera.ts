@@ -1,7 +1,7 @@
 import BaseCamera, { BaseCameraOptions } from './BaseCamera'
 import Matrix4 from '@/core/math/Matrix4'
 import Vector3 from '@/core/math/Vector3'
-import { SCENETYPE } from '@/core/constants'
+import { CAMERATYPE } from '@/core/constants'
 
 export interface OrthographicCameraOptions extends BaseCameraOptions {
     left?: number
@@ -14,7 +14,7 @@ export interface OrthographicCameraOptions extends BaseCameraOptions {
 }
 
 export default class OrthographicCamera extends BaseCamera {
-    public readonly type: SCENETYPE = SCENETYPE.ORTHOGRAPHIC_CAMERA
+    public readonly type: CAMERATYPE = CAMERATYPE.ORTHOGRAPHIC
     private _left: number
     private _right: number
     private _bottom: number
@@ -286,6 +286,33 @@ export default class OrthographicCamera extends BaseCamera {
             this._near,
             this._far
         )
+    }
+
+    // ── 序列化 ──
+    toJSON(): any {
+        return {
+            ...super.toJSON(),
+            left: this._left,
+            right: this._right,
+            bottom: this._bottom,
+            top: this._top,
+            near: this._near,
+            far: this._far,
+        }
+    }
+
+    static fromJSON(data: any): OrthographicCamera {
+        return new OrthographicCamera({
+            position: data.position,
+            target: data.target,
+            up: data.up,
+            left: data.left,
+            right: data.right,
+            bottom: data.bottom,
+            top: data.top,
+            near: data.near,
+            far: data.far,
+        })
     }
 
     // 复制相机
