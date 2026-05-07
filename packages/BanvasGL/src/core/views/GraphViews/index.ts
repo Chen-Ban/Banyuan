@@ -66,7 +66,7 @@ export default class GraphView
   }
 
   /**
-   * 编辑顶点：拖拽控制点时更新 VertexAddon 和 content 的 controlPoints
+   * 编辑顶点：拖拽控制点时更新 VertexAddon 和 content
    * @param _point 当前鼠标位置（屏幕坐标，暂未使用）
    * @param delta 位移向量（屏幕坐标）
    */
@@ -92,22 +92,14 @@ export default class GraphView
       vertex.z
     )
 
-    // 更新 VertexAddon 中的顶点
+    // 更新 VertexAddon 中的顶点（保持 activeVertex 引用同步）
     this.controlPoints.vertices[index] = newVertex
     this.controlPoints.activeVertex = newVertex
 
-    // 同步到 content 的 controlPoints
-    const cp = this.content.controlPoints
-    if (cp instanceof Float32Array) {
-      cp[index * 3] = newVertex.x
-      cp[index * 3 + 1] = newVertex.y
-      cp[index * 3 + 2] = newVertex.z
-    } else {
-      cp[index] = newVertex.copy()
-    }
+    // 委托给 content.setControlPoint，由各子类处理自身约束
+    this.content.setControlPoint(index, newVertex)
 
-    // 重算 bounds 和 layoutArea
-    this.content.bounds = this.content.updateBounds()
+    // 重算 layoutArea
     this.layoutArea = Bounds.union(
       this.content.bounds ?? Bounds.empty(),
       this.measureChildren()

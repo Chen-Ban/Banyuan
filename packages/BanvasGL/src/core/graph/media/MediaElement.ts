@@ -365,9 +365,13 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
             this.controlPoints[i] = p.add(new Vector3(dx, dy, 0))
         }
         const referenceVector = dynamicPoint.subtract(fixedPoint)
+
         this.bounds = this.updateBounds(
             referenceVector.x - resizeVector.x > 0,
             referenceVector.y - resizeVector.y > 0
         )
     }
+
+    /** 媒体元素不支持顶点编辑 */
+    public setControlPoint(_index: number, _point: Point3): void {}
 }

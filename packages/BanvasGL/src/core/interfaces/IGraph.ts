@@ -124,7 +124,7 @@ export interface IBezier extends IAnalyticGraph {
 
     setControlPoints(controlPoints: Point3[]): IBezier
     getControlPoint(index: number): Point3 | null
-    setControlPoint(index: number, point: Point3): IBezier
+    setControlPoint(index: number, point: Point3): void
     getBezierType(): string
 }
 

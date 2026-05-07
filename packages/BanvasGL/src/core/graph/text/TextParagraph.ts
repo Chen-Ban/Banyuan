@@ -424,10 +424,13 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         dynamicPoint: Point3,
         resizeVector: Vector3
     ): void {
-        this.texts.forEach((text) =>
-            text.resize(fixedPoint, dynamicPoint, resizeVector)
-        )
-    }
+    this.texts.forEach((text) =>
+      text.resize(fixedPoint, dynamicPoint, resizeVector)
+    )
+  }
+
+  /** 段落不支持顶点编辑 */
+  public setControlPoint(_index: number, _point: Point3): void {}
 }
 
 // 类型守卫函数
