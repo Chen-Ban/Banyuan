@@ -336,6 +336,16 @@ export function useCanvasEvents({
                 if (scene) {
                     scene.commitTransaction()
                     scene.snapAlign.end()
+
+                    // 框选结束后，将最后一个 actived view 设为 selectedViewId
+                    if (actionRef.current === Action.SELECT) {
+                        const activedViews = scene.getAllActived()
+                        setSelectedViewId(
+                            activedViews.length > 0
+                                ? activedViews[activedViews.length - 1].id
+                                : ''
+                        )
+                    }
                 }
             }
             if (e.ctrlKey) {
@@ -344,7 +354,7 @@ export function useCanvasEvents({
             // 通知 React 层刷新（PropertyPanel 等依赖 View 属性的组件）
             onInteractionEnd?.()
         },
-        [app, onClick, onInteractionEnd]
+        [app, onClick, onInteractionEnd, setSelectedViewId]
     )
 
     // 双击事件处理
