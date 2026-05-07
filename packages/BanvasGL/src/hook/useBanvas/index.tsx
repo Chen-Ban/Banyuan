@@ -31,9 +31,6 @@ export default function useBanvas(
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const [selectedViewId, setSelectedViewId] = useState<string>("");
-  const [currentPageId, setCurrentPageId] = useState<string | null>(null);
-
   // Canvas 初始化
   const { app, canvasRef, canvasCallbackRef } = useCanvasInit(serializedScenes, _options);
 
@@ -64,6 +61,21 @@ export default function useBanvas(
     () => createBanvasActions(getApp),
     [getApp],
   );
+
+  // ──── 从引擎状态派生 selectedViewId / currentPageId ────
+  const selectedViewId = useMemo(() => {
+    if (!app) return "";
+    const scene = app.getCurrentScene();
+    if (!scene) return "";
+    const selected = scene.getSelectedView();
+    return selected?.id ?? "";
+  }, [app, _version]);
+
+  const currentPageId = useMemo(() => {
+    if (!app) return null;
+    const scene = app.getCurrentScene();
+    return scene?.id ?? null;
+  }, [app, _version]);
 
   // ───── 右键菜单状态 ─────
   const defaultContextMenu: IContextMenuState = useMemo(
@@ -113,36 +125,17 @@ export default function useBanvas(
     [actions, dismissContextMenu],
   );
 
-  // 初始化 currentPageId
-  useEffect(() => {
-    const scene = app?.getCurrentScene();
-    if (scene) {
-      setCurrentPageId(scene.id);
-    }
-  }, [app]);
-
-  // 同步 currentPageId（当 version 变化时）
-  useEffect(() => {
-    if (!app) return;
-    const currentScene = app.getCurrentScene();
-    if (currentScene && currentScene.id !== currentPageId) {
-      setCurrentPageId(currentScene.id);
-    }
-  }, [app, _version]);
-
   // 构建 pages 树（当 app 状态变更时自动更新）
   const pages: IPageNode[] = useMemo(() => {
     if (!app) return [];
     return buildPageNodes(app);
-    // _version 变化驱动重算; selectedViewId 变化也需要更新选中状态
-  }, [app, _version, selectedViewId]);
+  }, [app, _version]);
 
   // Canvas 事件绑定
   useCanvasEvents({
     app,
     canvasRef,
     inputRef,
-    setSelectedViewId,
     actions,
     onContextMenuHit,
     onInteractionEnd: () => app?.notify(),
@@ -152,7 +145,6 @@ export default function useBanvas(
   useInputEvents({
     app,
     inputRef,
-    setSelectedViewId,
   });
 
   const canvasEl = useMemo(

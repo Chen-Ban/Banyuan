@@ -47,7 +47,6 @@ export interface UseCanvasEventsOptions {
     app: App | null
     canvasRef: React.RefObject<HTMLCanvasElement | null>
     inputRef: React.RefObject<HTMLInputElement | null>
-    setSelectedViewId: (id: string) => void
     /** actions 引用，用于拖拽创建等需要走统一通道的操作 */
     actions: IBanvasActions | null
     /** 右键菜单命中回调 */
@@ -63,7 +62,6 @@ export function useCanvasEvents({
     app,
     canvasRef,
     inputRef,
-    setSelectedViewId,
     actions,
     onContextMenuHit,
     onInteractionEnd,
@@ -93,15 +91,13 @@ export function useCanvasEvents({
             },
             selectView: (scene: Scene, view: View) => {
                 scene.select(view)
-                setSelectedViewId(view.id)
             },
             clearSelection: (scene: Scene) => {
                 clearAllStates(scene)
             },
-            setSelectedViewId,
         }
         return new InteractionDispatcher(ctx)
-    }, [canvasRef, setSelectedViewId])
+    }, [canvasRef])
 
     // 鼠标落下，判定操作类型
     const onMouseDown = useCallback(
@@ -299,7 +295,6 @@ export function useCanvasEvents({
                         }
                     }
                     scene.select(indicateView, e.ctrlKey)
-                    setSelectedViewId(indicateView.id)
                 } else {
                     clearAllStates(scene)
                     // 隐藏输入框
@@ -307,7 +302,6 @@ export function useCanvasEvents({
                     if (input) {
                         input.style.display = 'none'
                     }
-                    setSelectedViewId('')
                 }
                 lastClickTimeRef.current = Date.now()
             }
@@ -337,14 +331,13 @@ export function useCanvasEvents({
                     scene.commitTransaction()
                     scene.snapAlign.end()
 
-                    // 框选结束后，将最后一个 actived view 设为 selectedViewId
+                    // 框选结束后，将最后一个 actived view 设为 selected
                     if (actionRef.current === Action.SELECT) {
                         const activedViews = scene.getAllActived()
-                        setSelectedViewId(
-                            activedViews.length > 0
-                                ? activedViews[activedViews.length - 1].id
-                                : ''
-                        )
+                        if (activedViews.length > 0) {
+                            const lastView = activedViews[activedViews.length - 1]
+                            lastView.setSelected(true)
+                        }
                     }
                 }
             }
@@ -354,7 +347,7 @@ export function useCanvasEvents({
             // 通知 React 层刷新（PropertyPanel 等依赖 View 属性的组件）
             onInteractionEnd?.()
         },
-        [app, onClick, onInteractionEnd, setSelectedViewId]
+        [app, onClick, onInteractionEnd]
     )
 
     // 双击事件处理
@@ -474,14 +467,12 @@ export function useCanvasEvents({
                     { x, y }
                 )
 
-                if (newViewId) {
-                    setSelectedViewId(newViewId)
-                }
+                void newViewId // actions.view.create 内部已调用 notify()
             } catch (error) {
                 console.error('拖拽创建组件失败:', error)
             }
         },
-        [actions, canvasRef, setSelectedViewId]
+        [actions, canvasRef]
     )
 
     useEffect(() => {
