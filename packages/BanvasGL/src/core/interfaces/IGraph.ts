@@ -227,6 +227,32 @@ export interface IRegularPolygon extends IPolygon {
 }
 
 // ────────────────────────────────────────────
+//  圆角矩形
+// ────────────────────────────────────────────
+
+/**
+ * RoundedRect 接口 — 带圆角的矩形，与 Polygon 平级，直接继承 ICombinedGraph
+ *
+ * 控制点布局（共 8 个）：
+ *   0=左上角点  1=右上角点  2=右下角点  3=左下角点   （拖拽改变宽高）
+ *   4=左上圆角  5=右上圆角  6=右下圆角  7=左下圆角   （拖拽改变对应角半径）
+ */
+export interface IRoundedRect extends ICombinedGraph {
+    x: number
+    y: number
+    width: number
+    height: number
+    /** 四个角的圆角半径 [左上, 右上, 右下, 左下] */
+    radii: [number, number, number, number]
+
+    setPosition(x: number, y: number): IRoundedRect
+    setSize(width: number, height: number): IRoundedRect
+    setRadius(index: 0 | 1 | 2 | 3, radius: number): IRoundedRect
+    setAllRadii(radius: number): IRoundedRect
+    getCenter(): Point3
+}
+
+// ────────────────────────────────────────────
 //  轨迹
 // ────────────────────────────────────────────
 
@@ -385,6 +411,7 @@ export interface GraphTypeMap {
     [GRAPHTYPE.QUADRILATERAL]: IQuadrilateral & { readonly type: GRAPHTYPE.QUADRILATERAL }
     [GRAPHTYPE.RECTANGLE]: IRectangle & { readonly type: GRAPHTYPE.RECTANGLE }
     [GRAPHTYPE.REGULAR_POLYGON]: IRegularPolygon & { readonly type: GRAPHTYPE.REGULAR_POLYGON }
+    [GRAPHTYPE.ROUNDED_RECT]: IRoundedRect & { readonly type: GRAPHTYPE.ROUNDED_RECT }
     [GRAPHTYPE.DENSETRAJECTORY]: IDenseTrajectory & { readonly type: GRAPHTYPE.DENSETRAJECTORY }
     [GRAPHTYPE.IMAGE]: IImageElement & { readonly type: GRAPHTYPE.IMAGE }
     [GRAPHTYPE.VIDEO]: IVideoElement & { readonly type: GRAPHTYPE.VIDEO }
