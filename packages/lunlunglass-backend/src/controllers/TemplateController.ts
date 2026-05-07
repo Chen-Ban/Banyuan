@@ -7,7 +7,11 @@ import templateService from '../services/TemplateService'
 interface CreateTemplateRequest {
   id: string
   name: string
-  template: string
+  description?: string
+  scenes: string[]
+  thumbnail?: string
+  tags?: string[]
+  createdBy?: string
 }
 
 /**
@@ -15,7 +19,11 @@ interface CreateTemplateRequest {
  */
 interface UpdateTemplateRequest {
   name?: string
-  template?: string
+  description?: string
+  scenes?: string[]
+  thumbnail?: string
+  tags?: string[]
+  updatedBy?: string
 }
 
 /**
@@ -25,13 +33,15 @@ class TemplateController {
   /**
    * 获取模板列表
    * GET /api/templates
-   * Query参数: name, id, page, pageSize
+   * Query参数: name, id, tags, createdBy, page, pageSize
    */
   async getTemplateList(ctx: Context) {
     try {
       const {
         name,
         id,
+        tags,
+        createdBy,
         page = '1',
         pageSize = '12',
       } = ctx.query
@@ -39,6 +49,8 @@ class TemplateController {
       const query = {
         name: name as string | undefined,
         id: id as string | undefined,
+        tags: tags as string | undefined,
+        createdBy: createdBy as string | undefined,
       }
 
       // 移除 undefined 值
@@ -107,11 +119,20 @@ class TemplateController {
       const templateData = ctx.request.body as CreateTemplateRequest
 
       // 验证必填字段
-      if (!templateData.id || !templateData.name || !templateData.template) {
+      if (!templateData.id || !templateData.name || !templateData.scenes) {
         ctx.status = 400
         ctx.body = {
           success: false,
-          message: 'id, name and template are required',
+          message: 'id, name and scenes are required',
+        }
+        return
+      }
+
+      if (!Array.isArray(templateData.scenes)) {
+        ctx.status = 400
+        ctx.body = {
+          success: false,
+          message: 'scenes must be an array of strings',
         }
         return
       }
@@ -212,4 +233,3 @@ class TemplateController {
 }
 
 export default new TemplateController()
-
