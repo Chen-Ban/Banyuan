@@ -213,6 +213,20 @@
   }
 }
 
+// ── 圆角半径区域 ──
+
+.radiiControls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radiiUniform {
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #ecf0f1;
+}
+
 // ── 样式区域 ──
 
 .selectInput {

@@ -178,6 +178,13 @@ export interface IViewActions {
     setProperty(prop: string, value: number): void
     /** 批量修改属性 */
     setProperties(props: Record<string, number>): void
+    /**
+     * 修改 View.content 上的属性（如 RoundedRect 的 radii）
+     *
+     * @param method - content 上的方法名（如 'setAllRadii', 'setRadius'）
+     * @param args - 传给方法的参数
+     */
+    setContentMethod(method: string, args: any[]): void
     /** 开始属性编辑事务（输入框聚焦时调用） */
     beginPropertyEdit(): void
     /** 提交属性编辑事务（输入框失焦/回车时调用） */
