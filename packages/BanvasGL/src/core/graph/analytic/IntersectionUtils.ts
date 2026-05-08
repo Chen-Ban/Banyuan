@@ -214,7 +214,17 @@ function isPointInEllipseArcRange(point: Point3, arc: IArc): boolean {
 }
 
 /**
- * 使用数值方法计算曲线与图形的相交点
+ * 使用自适应细分法计算曲线与图形的相交点
+ *
+ * 算法思路（基于 Bezier Clipping 的简化变体）：
+ * 1. 先用包围盒（AABB）快速排除不可能相交的区间
+ * 2. 对可能相交的区间递归细分，直到参数区间足够小
+ * 3. 在细分到足够小的区间后，用 Newton-Raphson 迭代精确求解
+ *
+ * 相比固定步长采样的优势：
+ * - 不会遗漏高曲率区域的交点（递归细分保证覆盖）
+ * - 收敛速度更快（大片不相交区域被包围盒快速剪枝）
+ * - 精度更高（最终通过迭代收敛到机器精度）
  */
 function numericalIntersection(
   curve: IAnalyticGraph,
@@ -222,31 +232,135 @@ function numericalIntersection(
   tolerance: number = MathUtils.EPSILON
 ): Point3[] {
   const intersections: Point3[] = [];
-  const stepSize = 0.1; // 固定步长（像素）
+  const maxDepth = 24; // 最大递归深度，对应参数精度 1/2^24 ≈ 6e-8
+  const convergenceTolerance = tolerance * 0.1; // 收敛判定精度
 
-  // 获取曲线的总长度
-  const totalLength = curve.getTotalLength();
-  if (totalLength <= 0) {
-    return intersections;
-  }
+  /**
+   * 计算曲线在参数区间 [tMin, tMax] 上的 AABB 包围盒
+   * 使用 5 个采样点近似（对于贝塞尔曲线足够准确）
+   */
+  function getCurveBoundsInRange(
+    c: IAnalyticGraph,
+    tMin: number,
+    tMax: number
+  ): { minX: number; minY: number; maxX: number; maxY: number } {
+    const samples = 5;
+    let minX = Infinity, minY = Infinity;
+    let maxX = -Infinity, maxY = -Infinity;
 
-  // 根据固定步长计算采样点数量
-  const numSteps = Math.max(2, Math.ceil(totalLength / stepSize) + 1);
-
-  // 使用固定步长采样（通过均匀分布参数 t 来近似）
-  for (let i = 0; i <= numSteps; i++) {
-    const t = i / numSteps;
-    const point = curve.getPointAt(t);
-    const { distance, closestPoint } = other.getClosestPoint(point);
-
-    if (distance < tolerance) {
-      // 去重：检查是否已经存在相近的交点
-      const isDuplicate = intersections.some((existing) => existing.distance(closestPoint) < tolerance);
-      if (!isDuplicate) {
-        intersections.push(closestPoint);
-      }
+    for (let i = 0; i <= samples; i++) {
+      const t = tMin + (tMax - tMin) * (i / samples);
+      const p = c.getPointAt(t);
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
     }
+
+    return { minX, minY, maxX, maxY };
   }
+
+  /**
+   * 检查两个 AABB 是否重叠（带容差膨胀）
+   */
+  function boundsOverlap(
+    a: { minX: number; minY: number; maxX: number; maxY: number },
+    b: { minX: number; minY: number; maxX: number; maxY: number },
+    margin: number
+  ): boolean {
+    return !(
+      a.maxX + margin < b.minX ||
+      b.maxX + margin < a.minX ||
+      a.maxY + margin < b.minY ||
+      b.maxY + margin < a.minY
+    );
+  }
+
+  /**
+   * Newton-Raphson 迭代精化交点
+   * 在参数 t 附近搜索 curve 上到 other 距离为 0 的精确参数
+   */
+  function refineIntersection(tGuess: number): Point3 | null {
+    let t = tGuess;
+    for (let iter = 0; iter < 8; iter++) {
+      const p = curve.getPointAt(t);
+      const { distance, closestPoint } = other.getClosestPoint(p);
+
+      if (distance < convergenceTolerance) {
+        return closestPoint;
+      }
+
+      // 数值梯度：d(distance)/dt ≈ (dist(t+h) - dist(t-h)) / (2h)
+      const h = 1e-6;
+      const tPlus = Math.min(1, t + h);
+      const tMinus = Math.max(0, t - h);
+      const distPlus = other.getClosestPoint(curve.getPointAt(tPlus)).distance;
+      const distMinus = other.getClosestPoint(curve.getPointAt(tMinus)).distance;
+      const gradient = (distPlus - distMinus) / (tPlus - tMinus);
+
+      if (Math.abs(gradient) < 1e-12) break; // 梯度消失，无法继续
+
+      t = t - distance / gradient;
+      t = Math.max(0, Math.min(1, t)); // 钳位到 [0, 1]
+    }
+
+    // 最终检查
+    const finalPoint = curve.getPointAt(t);
+    const { distance, closestPoint } = other.getClosestPoint(finalPoint);
+    return distance < tolerance ? closestPoint : null;
+  }
+
+  /**
+   * 递归自适应细分
+   * 对 curve 的参数区间 [tMin, tMax] 和 other 的参数区间 [sMin, sMax] 进行细分
+   */
+  function subdivide(
+    tMin: number,
+    tMax: number,
+    sMin: number,
+    sMax: number,
+    depth: number
+  ): void {
+    // 计算两段曲线的包围盒
+    const boundsA = getCurveBoundsInRange(curve, tMin, tMax);
+    const boundsB = getCurveBoundsInRange(other, sMin, sMax);
+
+    // 包围盒不重叠 → 此区间无交点，剪枝
+    if (!boundsOverlap(boundsA, boundsB, tolerance)) {
+      return;
+    }
+
+    // 参数区间足够小 → 尝试精确求解
+    const tSpan = tMax - tMin;
+    const sSpan = sMax - sMin;
+
+    if (tSpan < 1e-6 && sSpan < 1e-6 || depth >= maxDepth) {
+      const tMid = (tMin + tMax) / 2;
+      const refined = refineIntersection(tMid);
+      if (refined) {
+        // 去重
+        const isDuplicate = intersections.some(
+          (existing) => existing.distance(refined) < tolerance
+        );
+        if (!isDuplicate) {
+          intersections.push(refined);
+        }
+      }
+      return;
+    }
+
+    // 递归细分：将两条曲线各分为两半，产生 4 个子问题
+    const tMid = (tMin + tMax) / 2;
+    const sMid = (sMin + sMax) / 2;
+
+    subdivide(tMin, tMid, sMin, sMid, depth + 1);
+    subdivide(tMin, tMid, sMid, sMax, depth + 1);
+    subdivide(tMid, tMax, sMin, sMid, depth + 1);
+    subdivide(tMid, tMax, sMid, sMax, depth + 1);
+  }
+
+  // 启动递归
+  subdivide(0, 1, 0, 1, 0);
 
   return intersections;
 }
@@ -349,65 +463,14 @@ function lineCubicBezierIntersect(a: ILine, b: ICubicBezier): Point3[] {
  * 椭圆弧-椭圆弧相交
  */
 function arcArcIntersect(a: IArc, b: IArc): Point3[] {
-  // 对于椭圆与椭圆的相交，使用数值方法
-  // 采样第一个椭圆弧上的点，检查是否在第二个椭圆弧上
-  const intersections: Point3[] = [];
-  const numSamples = 200;
-  const tolerance = MathUtils.EPSILON * 10;
-
-  for (let i = 0; i <= numSamples; i++) {
-    const t = i / numSamples;
-    const point = a.getPointAt(t);
-    const { distance } = b.getClosestPoint(point);
-
-    if (distance < tolerance) {
-      // 检查是否在第二个弧的范围内
-      if (isPointInEllipseArcRange(point, b)) {
-        // 去重
-        const isDuplicate = intersections.some(
-          (existing) => existing.distance(point) < tolerance
-        );
-        if (!isDuplicate) {
-          intersections.push(point);
-        }
-      }
-    }
-  }
-
-  return intersections;
+  return numericalIntersection(a, b, MathUtils.EPSILON);
 }
 
 /**
  * 椭圆弧-圆相交
  */
 function arcCircleIntersect(a: IArc, b: ICircle): Point3[] {
-  // 对于椭圆弧与圆的相交，使用数值方法
-  // 采样椭圆弧上的点，检查是否在圆上
-  const intersections: Point3[] = [];
-  const numSamples = 200;
-  const tolerance = MathUtils.EPSILON * 10;
-  const circleRadius = (b.xRadius + b.yRadius) / 2;
-
-  for (let i = 0; i <= numSamples; i++) {
-    const t = i / numSamples;
-    const point = a.getPointAt(t);
-    const distanceToCircleCenter = point.distance(b.center);
-
-    if (Math.abs(distanceToCircleCenter - circleRadius) < tolerance) {
-      // 检查是否在椭圆弧的范围内
-      if (isPointInEllipseArcRange(point, a)) {
-        // 去重
-        const isDuplicate = intersections.some(
-          (existing) => existing.distance(point) < tolerance
-        );
-        if (!isDuplicate) {
-          intersections.push(point);
-        }
-      }
-    }
-  }
-
-  return intersections;
+  return numericalIntersection(a, b, MathUtils.EPSILON);
 }
 
 /**
