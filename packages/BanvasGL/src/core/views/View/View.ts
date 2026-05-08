@@ -460,7 +460,7 @@ export default abstract class View<T extends object = any>
    * 尺寸变化方向由三个因素决定：
    * 1. 视口当前尺寸方向（正/负）
    * 2. 参考向量的方向（本地坐标系下容器的变化方向）
-   * 3. 传入向量的方向（预期变化方向，拖拽方向，是屏幕坐标系下的向量）
+   * 3. 传入向量的方向（预期变化方向，拖拽方向）
    */
   private calulateDimensionDelta(
     dimension: number,
@@ -486,7 +486,7 @@ export default abstract class View<T extends object = any>
     needResizeContent?: boolean,
   ) {
     const mvp = this.getMVPMatrix();
-    // 拖拽方向只和屏幕坐标系有关，所以需要转换到世界坐标
+    // 世界坐标系转换到本地坐标系
     const relativeVector = mvp.inverse().multiply(vector);
     const handles = this.boundingBox?.handles;
     const viewport = this.viewport;
