@@ -7,7 +7,7 @@
  * 所有变更操作在完成后调用 app.notify() 通知外部订阅者（useSyncExternalStore）。
  */
 
-import type { IViewActions, IPageActions, IHistoryActions, IBanvasActions, IComponentTemplate } from '@/core/interfaces'
+import type { IViewActions, IPageActions, IHistoryActions, IBanvasActions, IComponentTemplate, IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from '@/core/interfaces'
 import type { App } from '@/core/app'
 import { BaseCamera, Scene } from '@/core'
 import { Point3 } from '@/core/math'
@@ -159,7 +159,6 @@ export function createViewActions(
                 const textFields = new TextFields([textParagraph])
                 newView = new TextView(textFields, {
                     style: { width: 200, height: 24 },
-                    shouldLayout: true,
                 }).translate(x, y, 0)
             } else if (viewType === VIEWTYPE.IMAGEVIEW) {
                 const imageSrc = defaultProps.imageSrc ?? ''
@@ -300,6 +299,112 @@ export function createViewActions(
             const scene = getScene()
             if (!scene) return null
             return scene.findViewById(viewId) ?? null
+        },
+
+        getViewData(viewId: string): IFieldSchemaMap {
+            const scene = getScene()
+            if (!scene) return {}
+            const view = scene.findViewById(viewId)
+            return view ? ({ ...view.data } as IFieldSchemaMap) : {}
+        },
+
+        setViewData(viewId: string, key: string, schema: IFieldSchema): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            view.data = { ...view.data, [key]: schema }
+            notify()
+        },
+
+        deleteViewData(viewId: string, key: string): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            const next = { ...view.data } as IFieldSchemaMap
+            delete next[key]
+            view.data = next
+            notify()
+        },
+
+        getViewProperties(viewId: string): IFieldSchemaMap {
+            const scene = getScene()
+            if (!scene) return {}
+            const view = scene.findViewById(viewId)
+            return view ? ({ ...view.properties } as IFieldSchemaMap) : {}
+        },
+
+        setViewProperty(viewId: string, key: string, schema: IFieldSchema): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            view.properties = { ...view.properties, [key]: schema }
+            notify()
+        },
+
+        deleteViewProperty(viewId: string, key: string): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            const next = { ...view.properties } as IFieldSchemaMap
+            delete next[key]
+            view.properties = next
+            notify()
+        },
+
+        // ── 事件与生命周期 ──
+
+        getViewEvents(viewId: string): IViewEvents {
+            const scene = getScene()
+            if (!scene) return { onClick: null, onDoubleClick: null, onMouseEnter: null, onMouseLeave: null, onMouseDown: null, onMouseUp: null }
+            const view = scene.findViewById(viewId)
+            return view ? { ...view.events } : { onClick: null, onDoubleClick: null, onMouseEnter: null, onMouseLeave: null, onMouseDown: null, onMouseUp: null }
+        },
+
+        setViewEvent(viewId: string, eventName: keyof IViewEvents, handler: EventHandler): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            view.events = { ...view.events, [eventName]: handler }
+            notify()
+        },
+
+        deleteViewEvent(viewId: string, eventName: keyof IViewEvents): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            view.events = { ...view.events, [eventName]: null }
+            notify()
+        },
+
+        getViewLifetimes(viewId: string): IViewLifetimes {
+            const scene = getScene()
+            if (!scene) return { onCreated: null, onAttach: null, onDestroy: null }
+            const view = scene.findViewById(viewId)
+            return view ? { ...view.lifetimes } : { onCreated: null, onAttach: null, onDestroy: null }
+        },
+
+        setViewLifetime(viewId: string, lifetimeName: keyof IViewLifetimes, handler: EventHandler): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            view.lifetimes = { ...view.lifetimes, [lifetimeName]: handler }
+            notify()
+        },
+
+        deleteViewLifetime(viewId: string, lifetimeName: keyof IViewLifetimes): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            view.lifetimes = { ...view.lifetimes, [lifetimeName]: null }
+            notify()
         },
 
         getProperty(viewId: string, prop: string): number | undefined {
@@ -484,6 +589,33 @@ export function createPageActions(
             app.addScene(newScene)
             notify()
             return newScene.id
+        },
+
+        getPageData(pageId: string): IFieldSchemaMap {
+            const app = getApp()
+            if (!app) return {}
+            const scene = app.getScene(pageId)
+            return scene ? ({ ...scene.data } as IFieldSchemaMap) : {}
+        },
+
+        setPageData(pageId: string, key: string, schema: IFieldSchema): void {
+            const app = getApp()
+            if (!app) return
+            const scene = app.getScene(pageId)
+            if (!scene) return
+            scene.data = { ...scene.data, [key]: schema }
+            notify()
+        },
+
+        deletePageData(pageId: string, key: string): void {
+            const app = getApp()
+            if (!app) return
+            const scene = app.getScene(pageId)
+            if (!scene) return
+            const next = { ...scene.data } as IFieldSchemaMap
+            delete next[key]
+            scene.data = next
+            notify()
         },
     }
 }
