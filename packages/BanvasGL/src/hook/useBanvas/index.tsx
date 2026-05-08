@@ -12,6 +12,7 @@ import { useInputEvents } from "./useInputEvents";
 import { SerializedSceneJSON, UseBanvasOptions } from "./types";
 import { buildPageNodes } from "./builders";
 import { createBanvasActions } from "./actions";
+import { BUILTIN_COMPONENTS } from "./builtinComponents";
 import {
   buildViewContextMenuItems,
   buildCanvasContextMenuItems,
@@ -31,7 +32,10 @@ export default function useBanvas(
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Canvas 初始化
-  const { app, canvasRef, canvasCallbackRef } = useCanvasInit(serializedScenes, _options);
+  const { app, canvasRef, canvasCallbackRef } = useCanvasInit(
+    serializedScenes,
+    _options,
+  );
 
   // 获取 App 引用的稳定闭包（供 actions 使用）
   const appRef = useRef(app);
@@ -53,13 +57,10 @@ export default function useBanvas(
   }, [app]);
 
   // version 变化 → React 重新渲染
-  const _version = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const _version = useSyncExternalStore(subscribe, getSnapshot);
 
   // 创建 actions（稳定引用，内部通过 getApp 获取最新 app）
-  const actions = useMemo(
-    () => createBanvasActions(getApp),
-    [getApp],
-  );
+  const actions = useMemo(() => createBanvasActions(getApp), [getApp]);
 
   // ──── 从引擎状态派生 selectedViewId / currentPageId ────
   const selectedViewId = useMemo(() => {
@@ -185,5 +186,7 @@ export default function useBanvas(
     selectedViewId,
     actions,
     contextMenu,
+    // 稳定引用：模块级常量，不随渲染变化
+    builtinComponents: BUILTIN_COMPONENTS,
   };
 }

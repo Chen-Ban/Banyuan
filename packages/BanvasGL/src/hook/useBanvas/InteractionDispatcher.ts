@@ -2,7 +2,7 @@ import { View, SelectBoxView } from '@/core/views'
 import type Scene from '@/core/scene/Scene'
 import { Point3 } from '@/core/math'
 import { Action, Cursor, isTextView, isSelectBoxView, ExtraData, IViewAddon, IGraph } from '@/core/interfaces'
-import { Rectangle } from '@/core/graph'
+import { Rectangle, Graph } from '@/core/graph'
 import { clearAllStates } from '@/core/scene/operations'
 import Bounds from '@/core/graph/base/Bounds'
 import { isNonPrintableTextElement, isPrintableTextElement } from '@/core/graph'
@@ -123,10 +123,8 @@ export class InteractionDispatcher {
         this.ctx.setCursor(Cursor.Grabbing)
         const extraData = this.ctx.getExtraData()
         if (extraData && extraData.action === Action.EDIT_POINT) {
-            this.ctx.getIndicateView()?.editPoint(
-                point,
-                point.subtract(this.ctx.getLastPoint() || mouseDownPoint)
-            )
+            const delta = point.subtract(this.ctx.getLastPoint() || mouseDownPoint)
+            this.ctx.getIndicateView()?.editPoint(point, delta)
         }
     }
 
@@ -194,21 +192,39 @@ export class InteractionDispatcher {
             const selectionRect = selectionRectView.content
             const viewsToActivate: View[] = []
             const allViews = scene.children
-            // 遍历所有视图，检查是否与框选矩形相交（跳过 SelectBoxView 自身）
+            // 遍历所有视图，判断是否被框选命中（跳过 SelectBoxView 自身）
             for (const view of allViews) {
                 if (isSelectBoxView(view)) continue
-                let graph =
-                    view.style.overflow !== 'visible'
-                        ? Rectangle.fromBounds(
-                              view.viewport ?? Bounds.empty()
-                          )
-                        : Rectangle.fromBounds(
-                              view.layoutArea ?? Bounds.empty()
-                          )
-                const intersection = selectionRect.intersect(
-                    graph.transform(view.getWorldMatrix())
+                const worldMatrix = view.getWorldMatrix()
+
+                // 1. 检查框选矩形与 content bounds 的交点
+                const content = view.content
+                if (content && content.bounds) {
+                    const contentRect = Rectangle.fromBounds(content.bounds)
+                    const transformedContent = contentRect.transform(worldMatrix) as Graph
+                    if (selectionRect.intersect(transformedContent).length > 0) {
+                        viewsToActivate.push(view)
+                        continue
+                    }
+                }
+
+                // 2. 检查框选矩形与视口矩形（viewport）的交点
+                const viewport = view.viewport ?? Bounds.empty()
+                const viewportRect = Rectangle.fromBounds(viewport)
+                const transformedViewport = viewportRect.transform(worldMatrix) as Graph
+                if (selectionRect.intersect(transformedViewport).length > 0) {
+                    viewsToActivate.push(view)
+                    continue
+                }
+
+                // 3. 检查框选矩形是否完全包含视口矩形
+                const vBounds = transformedViewport.bounds
+                const center = new Point3(
+                    vBounds.x + vBounds.width / 2,
+                    vBounds.y + vBounds.height / 2,
+                    0
                 )
-                if (intersection.length > 0) {
+                if ((selectionRect as Rectangle).containsPoint(center)) {
                     viewsToActivate.push(view)
                 }
             }

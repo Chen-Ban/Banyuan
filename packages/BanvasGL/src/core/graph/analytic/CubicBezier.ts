@@ -44,11 +44,11 @@ export default class CubicBezier extends Bezier implements ICubicBezier, ISerial
   }
 
   // 设置指定位置的控制点（重写基类方法）
-  setControlPoint(index: number, point: Point3): CubicBezier {
+  public override setControlPoint(index: number, point: Point3): void {
     if (index >= 0 && index < this.controlPoints.length) {
-      this.controlPoints[index] = point;
+      this.controlPoints[index] = point.copy()
     }
-    return this;
+    this.bounds = this.updateBounds()
   }
 
   // 计算三次贝塞尔曲线上的点

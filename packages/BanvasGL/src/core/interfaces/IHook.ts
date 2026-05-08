@@ -11,33 +11,64 @@ import type { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import type View from '@/core/views/View/View'
 
 // ────────────────────────────────────────────
-//  组件模板数据（Component Template）
+//  组件物料（Component Definition）
 // ────────────────────────────────────────────
 
-/** 组件模板分类 */
-export type ComponentCategory = 'basic' | 'text' | 'media' | 'container' | 'custom'
-
 /**
- * 组件模板描述
+ * 组件模板 —— 描述如何创建一个 View 实例
  *
- * 代表组件物料面板中的一项，用户拖拽模板到画布即可创建对应 View 实例。
- * 画布库不持有模板列表，由业务层注册和管理。
+ * 这是传给 actions.view.create() 的最小数据集，
+ * 不包含任何 UI 展示信息（label/icon 等）。
  */
 export interface IComponentTemplate {
-    /** 模板唯一标识 */
-    id: string
     /** 对应创建的视图类型 */
     viewType: VIEWTYPE
     /** 对应的图形类型（仅 GRAPHVIEW 需要） */
     graphType?: GRAPHTYPE
-    /** 面板中显示的名称 */
-    name: string
-    /** 面板中显示的图标（URL 或 icon name） */
-    icon?: string
-    /** 分类 */
-    category: ComponentCategory
     /** 创建实例时的默认构造参数 */
     defaultProps?: Record<string, any>
+}
+
+/**
+ * 物料图标 —— 框架无关，引擎包不依赖任何 UI 框架
+ *
+ * - svg：内联 SVG 字符串，前端直接 dangerouslySetInnerHTML 渲染
+ * - url：远程图片地址，社区物料使用
+ */
+export type ComponentIcon =
+    | { type: 'svg'; content: string }
+    | { type: 'url'; src: string }
+
+/**
+ * 物料来源
+ *
+ * - builtin：引擎内置，随库版本升级
+ * - user：业务层自定义
+ * - community：社区/远程，通过网络拉取
+ */
+export type ComponentSource = 'builtin' | 'user' | 'community'
+
+/**
+ * 物料定义 —— 面板展示 + 拖拽创建的完整描述
+ *
+ * 三层物料（内置 / 用户自定义 / 社区远程）共用同一接口，
+ * 面板只负责渲染和合并，不关心来源。
+ */
+export interface IComponentDefinition {
+    /** 唯一标识，建议格式：'{source}.{name}'，如 'builtin.rounded-rect' */
+    id: string
+    /** 面板中显示的名称 */
+    label: string
+    /** 悬浮提示（可选） */
+    description?: string
+    /** 图标 */
+    icon: ComponentIcon
+    /** 来源 */
+    source: ComponentSource
+    /** 版本号（社区物料用于缓存/更新判断） */
+    version?: string
+    /** 拖拽创建时传给 actions.view.create 的数据 */
+    template: IComponentTemplate
 }
 
 // ────────────────────────────────────────────
@@ -257,4 +288,11 @@ export interface IUseBanvasResult {
     actions: IBanvasActions
     /** 右键菜单上下文 */
     contextMenu: IContextMenuState
+    /**
+     * 引擎内置物料列表（稳定引用，不随渲染变化）
+     *
+     * 业务层可直接传给物料面板，也可与自定义物料合并后传入。
+     * 引擎升级时此列表自动更新，业务层无需手动维护。
+     */
+    builtinComponents: IComponentDefinition[]
 }

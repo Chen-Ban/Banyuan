@@ -470,6 +470,15 @@ export default abstract class View<T extends object = any>
     return Math.sign(dimension * reference * delta) * Math.abs(delta);
   }
 
+  /**
+   * 编辑顶点 — 子类可 override 实现具体逻辑
+   * @param point 当前鼠标位置（屏幕坐标）
+   * @param delta 位移向量（屏幕坐标）
+   */
+  public editPoint(_point: Point3, _delta: Vector3): void {
+    // 默认不做任何事，由 GraphView 等子类 override
+  }
+
   public resize(
     fixedPoint: Point3,
     dynamicPoint: Point3,

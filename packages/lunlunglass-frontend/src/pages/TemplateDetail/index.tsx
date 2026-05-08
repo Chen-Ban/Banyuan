@@ -97,7 +97,7 @@ const TemplateDetail = () => {
         [canvasSize.width, canvasSize.height]
     )
 
-    const { Banvas, pages, currentPageId, selectedViewId, actions, contextMenu } = useBanvas(
+    const { Banvas, pages, currentPageId, selectedViewId, actions, contextMenu, builtinComponents } = useBanvas(
         loaded ? initialScenes : [],
         banvasOptions
     )
@@ -194,6 +194,7 @@ const TemplateDetail = () => {
                 onDescriptionChange={handleDescChange}
                 onSave={handleSave}
                 onBack={handleBack}
+                builtinComponents={builtinComponents}
             />
             <div className={styles.mainContent}>
                 <SceneList

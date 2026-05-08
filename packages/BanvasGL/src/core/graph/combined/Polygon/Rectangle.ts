@@ -150,6 +150,62 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
     return this.width / this.height;
   }
 
+  /**
+   * 设置指定索引的控制点，联动更新其他顶点以保持矩形约束
+   *
+   * 顶点布局：0=左上，1=右上，2=右下，3=左下
+   * 拖拽某顶点时，对角顶点固定，相邻顶点各取一个轴跟随：
+   *   拖 0(左上)：顶点1.y = 新y，顶点3.x = 新x，顶点2 不变
+   *   拖 1(右上)：顶点0.y = 新y，顶点2.x = 新x，顶点3 不变
+   *   拖 2(右下)：顶点3.y = 新y，顶点1.x = 新x，顶点0 不变
+   *   拖 3(左下)：顶点2.y = 新y，顶点0.x = 新x，顶点1 不变
+   */
+  public override setControlPoint(index: number, point: Point3): void {
+    if (index < 0 || index >= 4) return
+
+    const v = this.vertices
+    switch (index) {
+      case 0: // 左上 → 对角是右下(2)
+        this.vertices = [
+          new Point3(point.x, point.y, 0),
+          new Point3(v[2].x,  point.y, 0),
+          new Point3(v[2].x,  v[2].y,  0),
+          new Point3(point.x, v[2].y,  0),
+        ]
+        break
+      case 1: // 右上 → 对角是左下(3)
+        this.vertices = [
+          new Point3(v[3].x,  point.y, 0),
+          new Point3(point.x, point.y, 0),
+          new Point3(point.x, v[3].y,  0),
+          new Point3(v[3].x,  v[3].y,  0),
+        ]
+        break
+      case 2: // 右下 → 对角是左上(0)
+        this.vertices = [
+          new Point3(v[0].x,  v[0].y,  0),
+          new Point3(point.x, v[0].y,  0),
+          new Point3(point.x, point.y, 0),
+          new Point3(v[0].x,  point.y, 0),
+        ]
+        break
+      case 3: // 左下 → 对角是右上(1)
+        this.vertices = [
+          new Point3(point.x, v[1].y,  0),
+          new Point3(v[1].x,  v[1].y,  0),
+          new Point3(v[1].x,  point.y, 0),
+          new Point3(point.x, point.y, 0),
+        ]
+        break
+    }
+
+    // 重新计算 width/height（允许负值翻转后取绝对值）
+    this.width  = Math.abs(this.vertices[2].x - this.vertices[0].x)
+    this.height = Math.abs(this.vertices[2].y - this.vertices[0].y)
+    this.buildPolygonFromVertices(this.width > 0, this.height > 0)
+    this.bounds = this.updateBounds(this.width > 0, this.height > 0)
+  }
+
   // ── 序列化 ──
   public toJSON(): any {
     const topLeft = this.getTopLeft()

@@ -19,8 +19,10 @@ export type {
     ICombinedGraph,
     IPolygon,
     ITriangle,
+    IQuadrilateral,
     IRectangle,
     IRegularPolygon,
+    IRoundedRect,
     IDenseTrajectory,
     IMediaElement,
     IImageElement,
@@ -118,8 +120,10 @@ export type { ITransferable, TransferableData } from './ITransferable'
 
 // ── Hook 公共接口 ──
 export type {
-    ComponentCategory,
     IComponentTemplate,
+    ComponentIcon,
+    ComponentSource,
+    IComponentDefinition,
     IViewNode,
     IPageNode,
     IViewActions,

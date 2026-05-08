@@ -124,7 +124,7 @@ export interface IBezier extends IAnalyticGraph {
 
     setControlPoints(controlPoints: Point3[]): IBezier
     getControlPoint(index: number): Point3 | null
-    setControlPoint(index: number, point: Point3): IBezier
+    setControlPoint(index: number, point: Point3): void
     getBezierType(): string
 }
 
@@ -182,8 +182,19 @@ export interface ITriangle extends IPolygon {
     getCircumcenter(): Point3
 }
 
+/** Quadrilateral 接口 — 自由四边形，4 个顶点无约束 */
+export interface IQuadrilateral extends IPolygon {
+    getQuadrilateralType(): 'rectangle' | 'square' | 'rhombus' | 'parallelogram' | 'trapezoid' | 'general'
+    isRectangle(tolerance?: number): boolean
+    isSquare(tolerance?: number): boolean
+    isParallelogram(tolerance?: number): boolean
+    isRhombus(tolerance?: number): boolean
+    isTrapezoid(tolerance?: number): boolean
+}
+
 /** Rectangle 接口 */
 export interface IRectangle extends IPolygon {
+
     width: number
     height: number
 
@@ -213,6 +224,32 @@ export interface IRegularPolygon extends IPolygon {
     getSideLength(): number
     getInradius(): number
     getVertex(index: number): Point3
+}
+
+// ────────────────────────────────────────────
+//  圆角矩形
+// ────────────────────────────────────────────
+
+/**
+ * RoundedRect 接口 — 带圆角的矩形，与 Polygon 平级，直接继承 ICombinedGraph
+ *
+ * 控制点布局（共 8 个）：
+ *   0=左上角点  1=右上角点  2=右下角点  3=左下角点   （拖拽改变宽高）
+ *   4=左上圆角  5=右上圆角  6=右下圆角  7=左下圆角   （拖拽改变对应角半径）
+ */
+export interface IRoundedRect extends ICombinedGraph {
+    x: number
+    y: number
+    width: number
+    height: number
+    /** 四个角的圆角半径 [左上, 右上, 右下, 左下] */
+    radii: [number, number, number, number]
+
+    setPosition(x: number, y: number): IRoundedRect
+    setSize(width: number, height: number): IRoundedRect
+    setRadius(index: 0 | 1 | 2 | 3, radius: number): IRoundedRect
+    setAllRadii(radius: number): IRoundedRect
+    getCenter(): Point3
 }
 
 // ────────────────────────────────────────────
@@ -371,8 +408,10 @@ export interface GraphTypeMap {
     [GRAPHTYPE.COMBINED_GRAPH]: ICombinedGraph & { readonly type: GRAPHTYPE.COMBINED_GRAPH }
     [GRAPHTYPE.POLYGON]: IPolygon & { readonly type: GRAPHTYPE.POLYGON }
     [GRAPHTYPE.TRIANGLE]: ITriangle & { readonly type: GRAPHTYPE.TRIANGLE }
+    [GRAPHTYPE.QUADRILATERAL]: IQuadrilateral & { readonly type: GRAPHTYPE.QUADRILATERAL }
     [GRAPHTYPE.RECTANGLE]: IRectangle & { readonly type: GRAPHTYPE.RECTANGLE }
     [GRAPHTYPE.REGULAR_POLYGON]: IRegularPolygon & { readonly type: GRAPHTYPE.REGULAR_POLYGON }
+    [GRAPHTYPE.ROUNDED_RECT]: IRoundedRect & { readonly type: GRAPHTYPE.ROUNDED_RECT }
     [GRAPHTYPE.DENSETRAJECTORY]: IDenseTrajectory & { readonly type: GRAPHTYPE.DENSETRAJECTORY }
     [GRAPHTYPE.IMAGE]: IImageElement & { readonly type: GRAPHTYPE.IMAGE }
     [GRAPHTYPE.VIDEO]: IVideoElement & { readonly type: GRAPHTYPE.VIDEO }

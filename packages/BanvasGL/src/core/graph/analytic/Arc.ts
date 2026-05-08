@@ -73,6 +73,13 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
     return points;
   }
 
+  /**
+   * Arc 的控制点由参数（center/radius/angle）派生，不支持直接编辑
+   */
+  public setControlPoint(_index: number, _point: Point3): void {
+    // no-op：Arc 顶点编辑应通过 setCenter/setXRadius/setYRadius 等参数化接口实现
+  }
+
   // 设置中心点
   setCenter(center: Point3): Arc {
     this.center = center;

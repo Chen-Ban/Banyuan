@@ -300,6 +300,9 @@ export default abstract class TextElement extends Graph implements ITextElement 
         )
     }
 
+    /** 文字元素不支持顶点编辑 */
+    public setControlPoint(_index: number, _point: Point3): void {}
+
     /**
      * 复制文字元素（由子类实现）
      */

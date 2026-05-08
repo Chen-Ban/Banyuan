@@ -148,10 +148,30 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
   }
 
   /**
-   * 获取所有控制点（返回顶点）
+   * 获取所有控制点（返回顶点副本数组）
    */
   public get controlPoints(): Point3[] {
     return this.vertices.map((v) => v.copy());
+  }
+
+  /**
+   * 获取指定索引的顶点（带边界检查）
+   */
+  public getVertex(index: number): Point3 {
+    if (index < 0 || index >= this.vertices.length) {
+      throw new Error(`顶点索引越界：${index}，共 ${this.vertices.length} 个顶点`)
+    }
+    return this.vertices[index].copy()
+  }
+
+  /**
+   * 设置指定索引的控制点，直接修改 vertices 并重建多边形
+   */
+  public setControlPoint(index: number, point: Point3): void {
+    if (index < 0 || index >= this.vertices.length) return
+    this.vertices[index] = point.copy()
+    this.buildPolygonFromVertices()
+    this.bounds = this.updateBounds()
   }
 
   /**

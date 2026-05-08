@@ -322,5 +322,8 @@ export default class DenseTrajectory extends Graph implements IDenseTrajectory, 
     const referenceVector = dynamicPoint.subtract(fixedPoint)
     this.updateBounds(referenceVector.x - resizeVector.x > 0, referenceVector.y - resizeVector.y > 0)
   }
+
+  /** 密集轨迹不支持单点顶点编辑 */
+  public setControlPoint(_index: number, _point: Point3): void {}
 }
 
