@@ -9,6 +9,7 @@
 
 import type { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import type View from '@/core/views/View/View'
+import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from './IView'
 
 // ────────────────────────────────────────────
 //  组件物料（Component Definition）
@@ -119,6 +120,8 @@ export interface IPageNode {
     isCurrent: boolean
     /** 在页面栈中的索引 */
     index: number
+    /** 页面级数据（字段定义表） */
+    data: IFieldSchemaMap
     /** 该页面下的视图容器树 */
     children: IViewNode[]
 }
@@ -166,6 +169,34 @@ export interface IViewActions {
 
     /** 获取 View 实例（供 PropertyPanel 读取属性） */
     getViewInstance(viewId: string): View | null
+    /** 获取 View 的 data 字段定义表 */
+    getViewData(viewId: string): IFieldSchemaMap
+    /** 设置 View 的单个 data 字段（新增或更新） */
+    setViewData(viewId: string, key: string, schema: IFieldSchema): void
+    /** 删除 View 的单个 data 字段 */
+    deleteViewData(viewId: string, key: string): void
+    /** 获取 View 的 properties 字段定义表 */
+    getViewProperties(viewId: string): IFieldSchemaMap
+    /** 设置 View 的单个 property 字段（新增或更新） */
+    setViewProperty(viewId: string, key: string, schema: IFieldSchema): void
+    /** 删除 View 的单个 property 字段 */
+    deleteViewProperty(viewId: string, key: string): void
+
+    // ── 事件与生命周期 ──
+
+    /** 获取 View 的事件绑定表 */
+    getViewEvents(viewId: string): IViewEvents
+    /** 设置 View 的单个事件处理器 */
+    setViewEvent(viewId: string, eventName: keyof IViewEvents, handler: EventHandler): void
+    /** 删除（清空）View 的单个事件处理器 */
+    deleteViewEvent(viewId: string, eventName: keyof IViewEvents): void
+    /** 获取 View 的生命周期钩子表 */
+    getViewLifetimes(viewId: string): IViewLifetimes
+    /** 设置 View 的单个生命周期钩子 */
+    setViewLifetime(viewId: string, lifetimeName: keyof IViewLifetimes, handler: EventHandler): void
+    /** 删除（清空）View 的单个生命周期钩子 */
+    deleteViewLifetime(viewId: string, lifetimeName: keyof IViewLifetimes): void
+
     /**
      * 读取 View 的属性值（通过 propadapters 正确分解）
      *
@@ -214,6 +245,12 @@ export interface IPageActions {
     reorder(pageId: string, newIndex: number): void
     /** 复制页面 */
     duplicate(pageId: string): string | null
+    /** 获取页面级 data 字段定义表 */
+    getPageData(pageId: string): IFieldSchemaMap
+    /** 设置页面级单个 data 字段（新增或更新） */
+    setPageData(pageId: string, key: string, schema: IFieldSchema): void
+    /** 删除页面级单个 data 字段 */
+    deletePageData(pageId: string, key: string): void
 }
 
 /** 历史操作（撤销/重做） */
