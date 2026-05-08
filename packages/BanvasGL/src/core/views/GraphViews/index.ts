@@ -1,7 +1,7 @@
 import View, { InteractResult, ViewOptions } from "@/core/views/View/View";
 import { Graph, Line } from "@/core/graph";
 import { isAnalyticGraph, IGraphView, ISerializable } from "@/core/interfaces";
-import { VIEWTYPE } from "@/core/constants";
+import { VIEWTYPE, GRAPHTYPE } from "@/core/constants";
 import { generateId, generateName } from "@/core/utils";
 import { Point3, Vector3 } from "@/core/math";
 import { VertexAddon } from "@/core/views/addon";
@@ -41,7 +41,9 @@ export default class GraphView
       this.content.controlPoints instanceof Float32Array
         ? Point3.fromArray(this.content.controlPoints)
         : this.content.controlPoints;
-    this.controlPoints = new VertexAddon(vertics);
+    // RoundedRect: 前4个为角点，后4个为圆角控制点
+    const radiusStartIndex = graph.type === GRAPHTYPE.ROUNDED_RECT ? 4 : -1;
+    this.controlPoints = new VertexAddon(vertics, radiusStartIndex);
   }
 
   protected interactPlugins(relativePoint: Point3): InteractResult {
