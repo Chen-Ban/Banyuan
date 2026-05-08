@@ -58,14 +58,16 @@ export function isViewType<T extends keyof ViewTypeMap>(
 //  便捷守卫（高频使用的快捷方式）
 // ────────────────────────────────────────────
 
-/** 快捷判断：是否为 CombinedGraph（含 Polygon 等子类） */
+/** 快捷判断：是否为 CombinedGraph（含所有组合子类） */
 export function isCombinedGraph(graph: IGraph): graph is GraphTypeMap[GRAPHTYPE.COMBINED_GRAPH] {
     return (
         graph.type === GRAPHTYPE.COMBINED_GRAPH ||
         graph.type === GRAPHTYPE.POLYGON ||
         graph.type === GRAPHTYPE.TRIANGLE ||
+        graph.type === GRAPHTYPE.QUADRILATERAL ||
         graph.type === GRAPHTYPE.RECTANGLE ||
-        graph.type === GRAPHTYPE.REGULAR_POLYGON
+        graph.type === GRAPHTYPE.REGULAR_POLYGON ||
+        graph.type === GRAPHTYPE.ROUNDED_RECT
     )
 }
 

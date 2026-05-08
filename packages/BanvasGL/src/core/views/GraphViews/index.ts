@@ -1,6 +1,6 @@
 import View, { InteractResult, ViewOptions } from "@/core/views/View/View";
 import { Graph, Line } from "@/core/graph";
-import { isAnalyticGraph, IGraphView, ISerializable } from "@/core/interfaces";
+import { isAnalyticGraph, isCombinedGraph, IGraphView, ISerializable } from "@/core/interfaces";
 import { VIEWTYPE, GRAPHTYPE } from "@/core/constants";
 import { generateId, generateName } from "@/core/utils";
 import { Point3, Vector3 } from "@/core/math";
@@ -32,7 +32,7 @@ export default class GraphView
     this.content = graph;
 
     // TOREVIEW: 多个插件的展示、交互、优先级是怎么样的
-    if (isAnalyticGraph(graph)) {
+    if (isAnalyticGraph(graph) || isCombinedGraph(graph)) {
       this.boundingBox = null;
     }
 
