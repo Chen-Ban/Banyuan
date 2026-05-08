@@ -173,6 +173,8 @@ export default class GraphView
     view.freezed = data.freezed;
     if (data.properties) view.properties = data.properties;
     if (data.data) view.data = data.data;
+    if (data.events) Object.assign(view.events, data.events);
+    if (data.lifetimes) Object.assign(view.lifetimes, data.lifetimes);
     if (data.style) view.style = data.style;
     if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix);
     if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport);
