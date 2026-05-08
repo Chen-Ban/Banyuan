@@ -506,37 +506,32 @@ export default abstract class View<T extends object = any>
       relativeVector.y,
     );
 
-    for (let [i, handler] of handles.entries()) {
-      const v = handler.getCenter().subtract(handles[(i + 4) % 8].getCenter());
-      //判断两个向量是否同向，用于判断是否可以修改尺寸（仅水平/垂直修改）
-      if (
-        1 - v.normalized.dot(referenceVector.normalized) <
-        MathUtils.EPSILON
-      ) {
-        const canResize = RESIZE_SIZE_MAP[i];
-        const newWidth = viewport.width + Number(canResize.width) * deltaX;
-        const newHeight = viewport.height + Number(canResize.height) * deltaY;
+    // 通过 dynamicPoint 直接定位当前拖拽的手柄索引，避免方向匹配在极端比例下误判
+    const dynamicIndex = handles.findIndex((h) =>
+      h.getCenter().isSame(dynamicPoint),
+    );
+    if (dynamicIndex !== -1) {
+      const canResize = RESIZE_SIZE_MAP[dynamicIndex];
+      const newWidth = viewport.width + Number(canResize.width) * deltaX;
+      const newHeight = viewport.height + Number(canResize.height) * deltaY;
 
-        // 当resize结果为0时，不进行操作，避免后续计算出错
-        // 1、calulateDimensionDelta出错导致视口不变化
-        // 2、graph resize在边界时比例失调
-        if (newWidth === 0 || newHeight === 0) return;
+      // 当resize结果为0时，不进行操作，避免后续计算出错
+      // 1、calulateDimensionDelta出错导致视口不变化
+      // 2、graph resize在边界时比例失调
+      if (newWidth === 0 || newHeight === 0) return;
 
-        // 根据手柄位置决定是否移动视口起点
-        // 拖左侧/上方手柄时，起点需要反向偏移以保持固定点不动
-        const canMoveOrigin = RESIZE_ORIGIN_MAP[i];
-        this.viewport.setPosition(
-          viewport.x + (canMoveOrigin.x ? -deltaX : 0),
-          viewport.y + (canMoveOrigin.y ? -deltaY : 0),
-        );
+      // 根据手柄位置决定是否移动视口起点
+      // 拖左侧/上方手柄时，起点需要反向偏移以保持固定点不动
+      const canMoveOrigin = RESIZE_ORIGIN_MAP[dynamicIndex];
+      this.viewport.setPosition(
+        viewport.x + (canMoveOrigin.x ? -deltaX : 0),
+        viewport.y + (canMoveOrigin.y ? -deltaY : 0),
+      );
 
-        this.viewport?.setSize(newWidth, newHeight);
+      this.viewport?.setSize(newWidth, newHeight);
 
-        // boundingBox 直接从 viewport 引用读取最新位置和尺寸
-        this.boundingBox?.updateSize();
-
-        break;
-      }
+      // boundingBox 直接从 viewport 引用读取最新位置和尺寸
+      this.boundingBox?.updateSize();
     }
 
     // 修改子容器。
@@ -562,14 +557,14 @@ export default abstract class View<T extends object = any>
     if (!this.visible) {
       return;
     }
-    this.rederToOffScreen();
+    this.renderToOffScreen();
 
     // TODO：这里可以利用离屏画布内容对每个容器做监控
 
     this.renderFromCache();
   }
 
-  private rederToOffScreen(): void {
+  private renderToOffScreen(): void {
     const canvasContext = getGlobalCanvasContext();
 
     const offscreenCtx = canvasContext.getBufferContext();
@@ -613,7 +608,7 @@ export default abstract class View<T extends object = any>
     this.renderContent(offscreenCtx);
     this.children.forEach((view) => {
       if (!view.visible) return;
-      view.rederToOffScreen();
+      view.renderToOffScreen();
     });
 
     offscreenCtx.restore(); // 恢复 scroll translate
