@@ -369,6 +369,19 @@ export function createViewActions(
             notify()
         },
 
+        setContentMethod(method: string, args: any[]): void {
+            const scene = getScene()
+            if (!scene) return
+            const selectedView = scene.getSelectedView()
+            if (!selectedView) return
+
+            const content = selectedView.content
+            if (!content || typeof (content as any)[method] !== 'function') return
+
+            ;(content as any)[method](...args)
+            notify()
+        },
+
         beginPropertyEdit(): void {
             const scene = getScene()
             if (!scene) return

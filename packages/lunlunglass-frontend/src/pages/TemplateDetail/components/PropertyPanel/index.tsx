@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Tabs, Tooltip } from 'antd'
 import type { IBanvasActions } from 'banvasgl'
+import { GRAPHTYPE } from 'banvasgl'
 import styles from './index.module.scss'
 
 interface PropertyPanelProps {
@@ -165,6 +166,11 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     const width = view.viewport.width
     const height = view.viewport.height
 
+    // 检测是否为圆角矩形
+    const content = view.content as any
+    const isRoundedRect = content && content.type === GRAPHTYPE.ROUNDED_RECT
+    const radii: [number, number, number, number] = isRoundedRect ? content.radii : [0, 0, 0, 0]
+
     // Tab 1: 属性（基础信息 + 变换 + 状态）
     const propertiesTab = (
         <div className={styles.tabContent}>
@@ -278,6 +284,84 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     </label>
                 </div>
             </section>
+
+            {/* 圆角半径（仅圆角矩形显示） */}
+            {isRoundedRect && (
+                <section className={styles.section}>
+                    <div className={styles.sectionHeader}>圆角</div>
+                    <div className={styles.radiiControls}>
+                        <div className={styles.radiiUniform}>
+                            <NumberInput
+                                label="统一圆角"
+                                value={radii[0]}
+                                onChange={(v) => {
+                                    actions.view.setContentMethod('setAllRadii', [v])
+                                }}
+                                onFocus={handleFocus}
+                                onBlur={handleBlur}
+                                min={0}
+                                step={1}
+                                precision={1}
+                                suffix="px"
+                            />
+                        </div>
+                        <div className={styles.transformGrid}>
+                            <NumberInput
+                                label="左上"
+                                value={radii[0]}
+                                onChange={(v) => {
+                                    actions.view.setContentMethod('setRadius', [0, v])
+                                }}
+                                onFocus={handleFocus}
+                                onBlur={handleBlur}
+                                min={0}
+                                step={1}
+                                precision={1}
+                                suffix="px"
+                            />
+                            <NumberInput
+                                label="右上"
+                                value={radii[1]}
+                                onChange={(v) => {
+                                    actions.view.setContentMethod('setRadius', [1, v])
+                                }}
+                                onFocus={handleFocus}
+                                onBlur={handleBlur}
+                                min={0}
+                                step={1}
+                                precision={1}
+                                suffix="px"
+                            />
+                            <NumberInput
+                                label="右下"
+                                value={radii[2]}
+                                onChange={(v) => {
+                                    actions.view.setContentMethod('setRadius', [2, v])
+                                }}
+                                onFocus={handleFocus}
+                                onBlur={handleBlur}
+                                min={0}
+                                step={1}
+                                precision={1}
+                                suffix="px"
+                            />
+                            <NumberInput
+                                label="左下"
+                                value={radii[3]}
+                                onChange={(v) => {
+                                    actions.view.setContentMethod('setRadius', [3, v])
+                                }}
+                                onFocus={handleFocus}
+                                onBlur={handleBlur}
+                                min={0}
+                                step={1}
+                                precision={1}
+                                suffix="px"
+                            />
+                        </div>
+                    </div>
+                </section>
+            )}
         </div>
     )
 
