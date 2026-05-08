@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Tabs, Tooltip } from 'antd'
-import type { IBanvasActions } from 'banvasgl'
+import type { IBanvasActions, IPageNode, IFieldSchema, IFieldSchemaMap } from 'banvasgl'
 import { GRAPHTYPE } from 'banvasgl'
 import styles from './index.module.scss'
 
 interface PropertyPanelProps {
     selectedViewId: string
     actions: IBanvasActions
+    pages: IPageNode[]
+    currentPageId: string | null
 }
 
 // ── 工具函数 ──
@@ -123,11 +125,191 @@ const NumberInput: React.FC<NumberInputProps> = ({
     )
 }
 
+// ── 字段类型选项 ──
+
+const FIELD_TYPE_OPTIONS: IFieldSchema['type'][] = ['string', 'number', 'boolean', 'object']
+
+// ── 单行字段展示组件 ──
+
+interface FieldRowProps {
+    fieldKey: string
+    schema: IFieldSchema
+    onUpdate: (key: string, schema: IFieldSchema) => void
+    onDelete: (key: string) => void
+}
+
+const FieldRow: React.FC<FieldRowProps> = ({ fieldKey, schema, onUpdate, onDelete }) => {
+    const [editingDefault, setEditingDefault] = useState(
+        schema.type === 'object'
+            ? JSON.stringify(schema.default ?? null)
+            : String(schema.default ?? '')
+    )
+    const [isFocused, setIsFocused] = useState(false)
+
+    // 外部 schema 变化时同步（未聚焦时）
+    useEffect(() => {
+        if (!isFocused) {
+            setEditingDefault(
+                schema.type === 'object'
+                    ? JSON.stringify(schema.default ?? null)
+                    : String(schema.default ?? '')
+            )
+        }
+    }, [schema, isFocused])
+
+    const handleTypeChange = (newType: IFieldSchema['type']) => {
+        // 切换类型时重置 default 为对应类型的零值
+        const defaultMap: Record<IFieldSchema['type'], any> = {
+            string: '',
+            number: 0,
+            boolean: false,
+            object: null,
+        }
+        onUpdate(fieldKey, { type: newType, default: defaultMap[newType] })
+    }
+
+    const commitDefault = () => {
+        let parsed: any = editingDefault
+        if (schema.type === 'number') {
+            const n = parseFloat(editingDefault)
+            parsed = isNaN(n) ? 0 : n
+        } else if (schema.type === 'boolean') {
+            parsed = editingDefault === 'true'
+        } else if (schema.type === 'object') {
+            try { parsed = JSON.parse(editingDefault) } catch { parsed = null }
+        }
+        onUpdate(fieldKey, { ...schema, default: parsed })
+    }
+
+    return (
+        <div className={styles.fieldRow}>
+            <span className={styles.fieldKey} title={fieldKey}>{fieldKey}</span>
+            <select
+                className={styles.fieldTypeSelect}
+                value={schema.type}
+                onChange={(e) => handleTypeChange(e.target.value as IFieldSchema['type'])}
+            >
+                {FIELD_TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                ))}
+            </select>
+            <input
+                className={styles.fieldDefaultInput}
+                value={editingDefault}
+                placeholder="默认值"
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => { setIsFocused(false); commitDefault() }}
+                onChange={(e) => setEditingDefault(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') { commitDefault(); (e.target as HTMLInputElement).blur() }
+                }}
+            />
+            <button
+                className={styles.fieldDeleteBtn}
+                onClick={() => onDelete(fieldKey)}
+                title="删除字段"
+            >×</button>
+        </div>
+    )
+}
+
+// ── 新增字段行 ──
+
+interface AddFieldRowProps {
+    onAdd: (key: string, schema: IFieldSchema) => void
+}
+
+const AddFieldRow: React.FC<AddFieldRowProps> = ({ onAdd }) => {
+    const [key, setKey] = useState('')
+    const [type, setType] = useState<IFieldSchema['type']>('string')
+
+    const handleAdd = () => {
+        const trimmed = key.trim()
+        if (!trimmed) return
+        const defaultMap: Record<IFieldSchema['type'], any> = {
+            string: '',
+            number: 0,
+            boolean: false,
+            object: null,
+        }
+        onAdd(trimmed, { type, default: defaultMap[type] })
+        setKey('')
+        setType('string')
+    }
+
+    return (
+        <div className={styles.addFieldRow}>
+            <input
+                className={styles.addFieldKeyInput}
+                value={key}
+                placeholder="字段名"
+                onChange={(e) => setKey(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
+            />
+            <select
+                className={styles.fieldTypeSelect}
+                value={type}
+                onChange={(e) => setType(e.target.value as IFieldSchema['type'])}
+            >
+                {FIELD_TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                ))}
+            </select>
+            <button
+                className={styles.addFieldBtn}
+                onClick={handleAdd}
+                disabled={!key.trim()}
+            >+</button>
+        </div>
+    )
+}
+
+// ── 字段定义表展示组件（data 或 properties 通用） ──
+
+interface FieldSchemaMapEditorProps {
+    title: string
+    schemaMap: IFieldSchemaMap
+    onUpdate: (key: string, schema: IFieldSchema) => void
+    onDelete: (key: string) => void
+    onAdd: (key: string, schema: IFieldSchema) => void
+}
+
+const FieldSchemaMapEditor: React.FC<FieldSchemaMapEditorProps> = ({
+    title,
+    schemaMap,
+    onUpdate,
+    onDelete,
+    onAdd,
+}) => {
+    const entries = Object.entries(schemaMap)
+
+    return (
+        <section className={styles.section}>
+            <div className={styles.sectionHeader}>{title}</div>
+            {entries.length === 0 && (
+                <div className={styles.emptyFields}>暂无字段</div>
+            )}
+            {entries.map(([key, schema]) => (
+                <FieldRow
+                    key={key}
+                    fieldKey={key}
+                    schema={schema}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                />
+            ))}
+            <AddFieldRow onAdd={onAdd} />
+        </section>
+    )
+}
+
 // ── 主面板组件 ──
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
     selectedViewId,
     actions,
+    pages,
+    currentPageId,
 }) => {
     const view = selectedViewId ? actions.view.getViewInstance(selectedViewId) : null
 
@@ -147,18 +329,42 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         }
     }, [actions])
 
-    // 无选中时的空状态
+    // ── 无选中时：展示当前页面数据面板 ──
     if (!view) {
+        const currentPage = pages.find((p) => p.id === currentPageId) ?? null
+        const pageData = currentPage ? currentPage.data : {}
+
+        const pageDataTab = (
+            <div className={styles.tabContent}>
+                <FieldSchemaMapEditor
+                    title="页面数据 (data)"
+                    schemaMap={pageData}
+                    onUpdate={(key, schema) => {
+                        if (currentPageId) actions.page.setPageData(currentPageId, key, schema)
+                    }}
+                    onDelete={(key) => {
+                        if (currentPageId) actions.page.deletePageData(currentPageId, key)
+                    }}
+                    onAdd={(key, schema) => {
+                        if (currentPageId) actions.page.setPageData(currentPageId, key, schema)
+                    }}
+                />
+            </div>
+        )
+
         return (
             <div className={styles.panel}>
-                <div className={styles.emptyState}>
-                    未选中任何元素
-                </div>
+                <Tabs
+                    items={[{ key: 'data', label: '数据', children: pageDataTab }]}
+                    size="small"
+                    className={styles.tabs}
+                    defaultActiveKey="data"
+                />
             </div>
         )
     }
 
-    // 读取属性（通过 propadapters 正确分解，避免旋转时 x/y 偏差）
+    // ── 有选中时：读取属性 ──
     const x = actions.view.getProperty(selectedViewId, 'x') ?? 0
     const y = actions.view.getProperty(selectedViewId, 'y') ?? 0
     const rotation = actions.view.getProperty(selectedViewId, 'rotation') ?? 0
@@ -166,10 +372,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     const width = view.viewport.width
     const height = view.viewport.height
 
-    // 检测是否为圆角矩形
     const content = view.content as any
     const isRoundedRect = content && content.type === GRAPHTYPE.ROUNDED_RECT
     const radii: [number, number, number, number] = isRoundedRect ? content.radii : [0, 0, 0, 0]
+
+    // 读取 data / properties（从 actions 获取，保证响应式）
+    const viewData = actions.view.getViewData(selectedViewId)
+    const viewProperties = actions.view.getViewProperties(selectedViewId)
 
     // Tab 1: 属性（基础信息 + 变换 + 状态）
     const propertiesTab = (
@@ -390,19 +599,30 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         </div>
     )
 
-    // Tab 3: 占位
-    const extensionTab = (
+    // Tab 3: 数据（data + properties 字段定义）
+    const dataTab = (
         <div className={styles.tabContent}>
-            <div className={styles.emptyState}>
-                更多功能开发中...
-            </div>
+            <FieldSchemaMapEditor
+                title="数据 (data)"
+                schemaMap={viewData}
+                onUpdate={(key, schema) => actions.view.setViewData(selectedViewId, key, schema)}
+                onDelete={(key) => actions.view.deleteViewData(selectedViewId, key)}
+                onAdd={(key, schema) => actions.view.setViewData(selectedViewId, key, schema)}
+            />
+            <FieldSchemaMapEditor
+                title="属性 (properties)"
+                schemaMap={viewProperties}
+                onUpdate={(key, schema) => actions.view.setViewProperty(selectedViewId, key, schema)}
+                onDelete={(key) => actions.view.deleteViewProperty(selectedViewId, key)}
+                onAdd={(key, schema) => actions.view.setViewProperty(selectedViewId, key, schema)}
+            />
         </div>
     )
 
     const tabItems = [
         { key: 'properties', label: '属性', children: propertiesTab },
         { key: 'style', label: '样式', children: styleTab },
-        { key: 'extensions', label: '扩展', children: extensionTab },
+        { key: 'data', label: '数据', children: dataTab },
     ]
 
     return (

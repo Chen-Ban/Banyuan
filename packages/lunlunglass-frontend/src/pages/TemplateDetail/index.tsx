@@ -209,6 +209,8 @@ const TemplateDetail = () => {
                 <PropertyPanel
                     selectedViewId={selectedViewId}
                     actions={actions}
+                    pages={pages}
+                    currentPageId={currentPageId}
                 />
             </div>
             <ContextMenu state={contextMenu} />
