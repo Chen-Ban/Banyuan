@@ -17,6 +17,64 @@ import type { Line, Rectangle, Circle } from '@/core/graph'
 import type { IGraph, ITextElement, ITextFields, TextIndex } from './IGraph'
 
 // ────────────────────────────────────────────
+//  IFieldSchema —— data / properties 的字段定义
+// ────────────────────────────────────────────
+
+/** 字段类型 */
+export type FieldType = 'string' | 'number' | 'boolean' | 'object'
+
+/**
+ * 单个字段的 Schema 定义
+ *
+ * View.data / View.properties 中每个 key 对应一个 IFieldSchema。
+ * - type：字段数据类型，用于面板渲染对应输入控件
+ * - default：设计时配置的默认值，运行时初始化时使用
+ */
+export interface IFieldSchema {
+    type: FieldType
+    default: any
+}
+
+/** 字段定义表 —— View.data 和 View.properties 的实际类型 */
+export type IFieldSchemaMap = Record<string, IFieldSchema>
+
+// ────────────────────────────────────────────
+//  IViewEvents / IViewLifetimes —— 事件与生命周期
+// ────────────────────────────────────────────
+
+/** 事件处理器：设计时为脚本字符串，运行时为函数，未绑定为 null */
+export type EventHandler = ((...args: any[]) => void) | string | null
+
+/**
+ * View 交互事件表 —— 所有 View 共有的用户交互事件
+ *
+ * 设计时：值为 string（用户编写的脚本代码）或 null（未绑定）
+ * 运行时：值为实际函数或 null
+ * hook 层根据 mode 决定是否触发
+ */
+export interface IViewEvents {
+    onClick: EventHandler
+    onDoubleClick: EventHandler
+    onMouseEnter: EventHandler
+    onMouseLeave: EventHandler
+    onMouseDown: EventHandler
+    onMouseUp: EventHandler
+}
+
+/**
+ * View 生命周期钩子 —— 用户自定义的生命周期回调
+ *
+ * 与引擎内部的生命周期方法（onAttach/onDestroy）分离：
+ * - 引擎内部方法：由 Scene/CombinedView 等在合适时机调用，处理引擎逻辑
+ * - lifetimes：用户在设计时绑定的自定义逻辑，由引擎内部方法在执行时附带调用
+ */
+export interface IViewLifetimes {
+    onCreated: EventHandler
+    onAttach: EventHandler
+    onDestroy: EventHandler
+}
+
+// ────────────────────────────────────────────
 //  IView —— View 的公共接口
 // ────────────────────────────────────────────
 
@@ -55,8 +113,14 @@ export interface IView {
     // 交互
     interact(worldPoint: Point3): IInteractResult
 
-    // 数据
-    setData(data: Partial<any>): void
+    // 数据与属性
+    data: IFieldSchemaMap
+    properties: IFieldSchemaMap
+    setData(data: Partial<IFieldSchemaMap>): void
+
+    // 事件与生命周期
+    events: IViewEvents
+    lifetimes: IViewLifetimes
 
     // 变换
     resize(
@@ -86,7 +150,7 @@ export interface IView {
     // 辅助
     getSnapObjects(): [Point3[], Line[]]
 
-    // 索引签名
+    // 索引签名（子类可能有额外属性，如 verticalAlign、fixedWidth 等）
     [key: string]: any
 }
 

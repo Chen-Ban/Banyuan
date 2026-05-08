@@ -8,10 +8,12 @@ import {
   IView,
   IViewStyle,
   IViewAddon,
+  IFieldSchemaMap,
   ExtraData,
   ISerializable,
   IGraph,
 } from "@/core/interfaces";
+import type { IViewEvents, IViewLifetimes } from "@/core/interfaces";
 
 // 导入图形相关类型
 import { Line, Rectangle } from "@/core/graph";
@@ -59,34 +61,47 @@ export interface InteractResult {
 }
 
 // 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
-export interface ViewOptions<T extends object = any> {
+export interface ViewOptions<D extends IFieldSchemaMap = any, P extends IFieldSchemaMap = any> {
   id?: string;
   name?: string;
   content?: IGraph; // 改为IGraph，多图形用组合图形替代
   children?: View[];
   parent?: ISceneNode | View;
-  data?: T;
-  properties?: T;
+  data?: D;
+  properties?: P;
   style?: IViewStyle;
   matrix?: Matrix4;
-  onCreated?: () => void;
-  onAttach?: () => void;
-  onDestroy?: () => void;
-  [funcName: string]: any;
+  lifetimes?: Partial<IViewLifetimes>;
+  events?: Partial<IViewEvents>;
 }
 
 // TODO：不同容器的默认样式表
-export default abstract class View<T extends object = any>
+export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap, P extends IFieldSchemaMap = IFieldSchemaMap>
   implements IView, ISerializable
 {
   // 基本属性
   public id: string = "";
   public name: string = "";
-  public properties: T = {} as T;
-  public data: T = {} as T;
+  public properties: P = {} as P;
+  public data: D = {} as D;
   public content: IGraph | null;
   public children: View[] = [];
   public parent: ISceneNode | View | null = null;
+
+  // 事件与生命周期
+  public events: IViewEvents = {
+    onClick: null,
+    onDoubleClick: null,
+    onMouseEnter: null,
+    onMouseLeave: null,
+    onMouseDown: null,
+    onMouseUp: null,
+  };
+  public lifetimes: IViewLifetimes = {
+    onCreated: null,
+    onAttach: null,
+    onDestroy: null,
+  };
 
   // 样式和状态
   public style: IViewStyle = {};
@@ -369,14 +384,14 @@ export default abstract class View<T extends object = any>
     return best;
   }
 
-  constructor(options: ViewOptions<T>) {
+  constructor(options: ViewOptions<D, P>) {
     if (new Set(options?.children?.map((view) => view.parent)).size > 1) {
       throw new Error("子视图必须属于同一个父视图");
     }
     // 属性初始化
     this.id = options.id || "";
-    this.data = options.data || ({} as T);
-    this.properties = options.properties || ({} as T);
+    this.data = options.data || ({} as D);
+    this.properties = options.properties || ({} as P);
     this.style = {
       overflow: "visible",
       needStructViewport: false,
@@ -387,13 +402,13 @@ export default abstract class View<T extends object = any>
     this.children = options.children ?? [];
     this.parent = options.parent ?? null;
 
-    this.onCreated = options.onCreated || (() => {});
-    this.onAttach = options.onAttach || (() => {});
-    this.onDestroy = options.onDestroy || (() => {});
-
-    Object.keys(options).forEach((key) => {
-      this[key] = options[key];
-    });
+    // 生命周期与事件绑定
+    if (options.lifetimes) {
+      Object.assign(this.lifetimes, options.lifetimes);
+    }
+    if (options.events) {
+      Object.assign(this.events, options.events);
+    }
 
     // 开始布局相关
     // 步骤1: 初始化视口
@@ -421,16 +436,24 @@ export default abstract class View<T extends object = any>
 
     this.initRef(this.children);
 
-    this.onCreated();
+    // 触发用户自定义 onCreated 生命周期
+    if (typeof this.lifetimes.onCreated === 'function') {
+      this.lifetimes.onCreated();
+    }
   }
 
   // 设置数据
-  public setData(data: Partial<T>): void {
+  public setData(data: Partial<D>): void {
     this.data = { ...this.data, ...data };
   }
 
-  // 生命周期回调
-  public onCreated(): void {}
+  // 生命周期方法（引擎内部调用，附带触发用户自定义 lifetimes）
+
+  public onAttach(): void {
+    if (typeof this.lifetimes.onAttach === 'function') {
+      this.lifetimes.onAttach();
+    }
+  }
 
   public onDestroy(): void {
     // 清理引用
@@ -443,9 +466,11 @@ export default abstract class View<T extends object = any>
     this.setEditingVertex(false);
     this.setEditingViewport(false);
     this.setEditingVertex(false);
+    // 触发用户自定义 onDestroy 生命周期
+    if (typeof this.lifetimes.onDestroy === 'function') {
+      this.lifetimes.onDestroy();
+    }
   }
-
-  public onAttach(): void {}
 
   initRef(children: View[]) {
     children.forEach((child) => {
@@ -453,8 +478,8 @@ export default abstract class View<T extends object = any>
     });
   }
 
-  // 自定义属性（索引签名）
-  [funcName: string]: any;
+  // 索引签名（子类可能有额外属性，如 verticalAlign、fixedWidth 等）
+  [key: string]: any;
 
   /**
    * 尺寸变化方向由三个因素决定：
@@ -836,6 +861,16 @@ export default abstract class View<T extends object = any>
    * 子类如无额外持久化字段，可直接继承此方法。
    */
   public toJSON(): any {
+    // 序列化事件/生命周期：只保留 string | null（函数不可序列化）
+    const serializeHandlers = (map: Record<string, any>) => {
+      const result: Record<string, string | null> = {};
+      for (const key of Object.keys(map)) {
+        const v = map[key];
+        result[key] = typeof v === 'string' ? v : null;
+      }
+      return result;
+    };
+
     return {
       id: this.id,
       type: this.type,
@@ -843,6 +878,8 @@ export default abstract class View<T extends object = any>
       freezed: this.freezed,
       properties: this.properties,
       data: this.data,
+      events: serializeHandlers(this.events),
+      lifetimes: serializeHandlers(this.lifetimes),
       style: this.style,
       matrix: this.matrix.toJSON(),
       viewport: this.viewport.toJSON(),
