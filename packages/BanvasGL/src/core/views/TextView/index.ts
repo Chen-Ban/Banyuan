@@ -20,6 +20,7 @@ import { TextIndex } from '@/core/graph/text/TextFields'
 // 文本视图选项接口
 export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
     editable?: boolean
+    verticalAlign?: string
 }
 
 /**
@@ -511,6 +512,8 @@ export default class TextView extends View implements ITextView, ISerializable {
         view.freezed = data.freezed
         if (data.properties) view.properties = data.properties
         if (data.data) view.data = data.data
+        if (data.events) Object.assign(view.events, data.events)
+        if (data.lifetimes) Object.assign(view.lifetimes, data.lifetimes)
         if (data.style) view.style = data.style
         if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
         if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)

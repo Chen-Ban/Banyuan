@@ -40,6 +40,12 @@ export type { TextIndex } from './IGraph'
 
 // ── View 接口 ──
 export type {
+    FieldType,
+    IFieldSchema,
+    IFieldSchemaMap,
+    EventHandler,
+    IViewEvents,
+    IViewLifetimes,
     IAddonBase,
     IBoundingBoxAddon,
     IVertexAddon,
