@@ -189,7 +189,7 @@ export class InteractionDispatcher {
         const selectionRectView = this.ctx.getSelectionRectView()
         if (selectionRectView && mouseDownPoint) {
             selectionRectView.updateSelect(mouseDownPoint, point)
-            const selectionRect = selectionRectView.content
+            const selectionRect = selectionRectView.content as Rectangle
             const viewsToActivate: View[] = []
             const allViews = scene.children
             // 遍历所有视图，判断是否被框选命中（跳过 SelectBoxView 自身）
@@ -197,35 +197,50 @@ export class InteractionDispatcher {
                 if (isSelectBoxView(view)) continue
                 const worldMatrix = view.getWorldMatrix()
 
-                // 1. 检查框选矩形与 content bounds 的交点
                 const content = view.content
                 if (content && content.bounds) {
+                    // 有 content：判断框选矩形与 content 相交或包含 content
                     const contentRect = Rectangle.fromBounds(content.bounds)
                     const transformedContent = contentRect.transform(worldMatrix) as Graph
+
+                    // 相交判断
                     if (selectionRect.intersect(transformedContent).length > 0) {
                         viewsToActivate.push(view)
                         continue
                     }
-                }
 
-                // 2. 检查框选矩形与视口矩形（viewport）的交点
-                const viewport = view.viewport ?? Bounds.empty()
-                const viewportRect = Rectangle.fromBounds(viewport)
-                const transformedViewport = viewportRect.transform(worldMatrix) as Graph
-                if (selectionRect.intersect(transformedViewport).length > 0) {
-                    viewsToActivate.push(view)
-                    continue
-                }
+                    // 包含判断：框选矩形包含 content 中心点
+                    const cBounds = transformedContent.bounds
+                    const contentCenter = new Point3(
+                        cBounds.x + cBounds.width / 2,
+                        cBounds.y + cBounds.height / 2,
+                        0
+                    )
+                    if (selectionRect.containsPoint(contentCenter)) {
+                        viewsToActivate.push(view)
+                    }
+                } else {
+                    // 无 content 的纯容器：fallback 到 viewport 判断
+                    const viewport = view.viewport ?? Bounds.empty()
+                    const viewportRect = Rectangle.fromBounds(viewport)
+                    const transformedViewport = viewportRect.transform(worldMatrix) as Graph
 
-                // 3. 检查框选矩形是否完全包含视口矩形
-                const vBounds = transformedViewport.bounds
-                const center = new Point3(
-                    vBounds.x + vBounds.width / 2,
-                    vBounds.y + vBounds.height / 2,
-                    0
-                )
-                if ((selectionRect as Rectangle).containsPoint(center)) {
-                    viewsToActivate.push(view)
+                    // 相交判断
+                    if (selectionRect.intersect(transformedViewport).length > 0) {
+                        viewsToActivate.push(view)
+                        continue
+                    }
+
+                    // 包含判断：框选矩形包含 viewport 中心点
+                    const vBounds = transformedViewport.bounds
+                    const viewportCenter = new Point3(
+                        vBounds.x + vBounds.width / 2,
+                        vBounds.y + vBounds.height / 2,
+                        0
+                    )
+                    if (selectionRect.containsPoint(viewportCenter)) {
+                        viewsToActivate.push(view)
+                    }
                 }
             }
             clearAllStates(scene)
