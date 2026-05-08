@@ -158,10 +158,10 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         )
     }
 
-    // 读取属性
-    const x = view.matrix.extractTranslation2D().x
-    const y = view.matrix.extractTranslation2D().y
-    const rotation = view.matrix.extractRotationZ()
+    // 读取属性（通过 propadapters 正确分解，避免旋转时 x/y 偏差）
+    const x = actions.view.getProperty(selectedViewId, 'x') ?? 0
+    const y = actions.view.getProperty(selectedViewId, 'y') ?? 0
+    const rotation = actions.view.getProperty(selectedViewId, 'rotation') ?? 0
     const rotationDeg = radiansToDegrees(rotation)
     const width = view.viewport.width
     const height = view.viewport.height
