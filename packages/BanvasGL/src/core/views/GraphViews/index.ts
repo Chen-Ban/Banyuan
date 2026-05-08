@@ -87,19 +87,28 @@ export default class GraphView
     const index = this.controlPoints.vertices.indexOf(vertex)
     if (index < 0) return
 
+    // 圆角控制点约束：只允许沿边线方向移动（水平方向）
+    const isRadiusControl = this.controlPoints.radiusControlStartIndex >= 0
+      && index >= this.controlPoints.radiusControlStartIndex
+    const dx = localDelta.x
+    const dy = isRadiusControl ? 0 : localDelta.y
+
     // 计算新顶点位置
     const newVertex = new Point3(
-      vertex.x + localDelta.x,
-      vertex.y + localDelta.y,
+      vertex.x + dx,
+      vertex.y + dy,
       vertex.z
     )
 
-    // 更新 VertexAddon 中的顶点（保持 activeVertex 引用同步）
-    this.controlPoints.vertices[index] = newVertex
-    this.controlPoints.activeVertex = newVertex
-
-    // 委托给 content.setControlPoint，由各子类处理自身约束
+    // 委托给 content.setControlPoint，由各子类处理自身约束（含 clamp）
     this.content.setControlPoint(index, newVertex)
+
+    // setControlPoint 内部会 clamp，需要从 content 重新读取实际控制点位置
+    const actualPoints = this.content.controlPoints instanceof Float32Array
+      ? Point3.fromArray(this.content.controlPoints)
+      : this.content.controlPoints
+    this.controlPoints.vertices = actualPoints
+    this.controlPoints.activeVertex = actualPoints[index]
 
     // 重算 layoutArea
     this.layoutArea = Bounds.union(

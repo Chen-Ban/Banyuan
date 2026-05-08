@@ -165,22 +165,28 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
             this.x = point.x
             this.width = Math.max(0, newW)
             this.height = Math.max(0, newH)
-        } else if (index === 4) {
-            // 左上圆角：水平距离 = 切点 x - 矩形左边
-            const r = Math.max(0, point.x - this.x)
-            this.radii[0] = r
-        } else if (index === 5) {
-            // 右上圆角：水平距离 = 矩形右边 - 切点 x
-            const r = Math.max(0, (this.x + this.width) - point.x)
-            this.radii[1] = r
-        } else if (index === 6) {
-            // 右下圆角：水平距离 = 矩形右边 - 切点 x
-            const r = Math.max(0, (this.x + this.width) - point.x)
-            this.radii[2] = r
-        } else if (index === 7) {
-            // 左下圆角：水平距离 = 切点 x - 矩形左边
-            const r = Math.max(0, point.x - this.x)
-            this.radii[3] = r
+        } else if (index >= 4 && index <= 7) {
+            // 圆角控制点：限制最大半径为相邻两边中较短边的一半
+            const maxRadius = Math.min(this.width, this.height) / 2
+            let r: number
+
+            if (index === 4) {
+                // 左上圆角：水平距离 = 切点 x - 矩形左边
+                r = point.x - this.x
+            } else if (index === 5) {
+                // 右上圆角：水平距离 = 矩形右边 - 切点 x
+                r = (this.x + this.width) - point.x
+            } else if (index === 6) {
+                // 右下圆角：水平距离 = 矩形右边 - 切点 x
+                r = (this.x + this.width) - point.x
+            } else {
+                // 左下圆角：水平距离 = 切点 x - 矩形左边
+                r = point.x - this.x
+            }
+
+            // clamp: [0, maxRadius]
+            r = Math.max(0, Math.min(r, maxRadius))
+            this.radii[index - 4] = r
         }
 
         this.radii = this._clampRadii(this.radii)
