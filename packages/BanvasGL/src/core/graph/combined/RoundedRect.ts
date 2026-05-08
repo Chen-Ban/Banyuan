@@ -95,6 +95,15 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
         return new Point3(this.x + this.width / 2, this.y + this.height / 2, 0)
     }
 
+    /**
+     * Override CombinedGraph.getCentroid()
+     * 父类构造函数会在 graphs 为空时调用此方法（reduce 需要初始值），
+     * 这里直接基于自身的 x/y/width/height 返回中心点，不依赖 graphs。
+     */
+    public getCentroid(): Point3 {
+        return this.getCenter()
+    }
+
     // ─────────────────────────────────────────────
     //  控制点
     // ─────────────────────────────────────────────

@@ -44,6 +44,9 @@ export default class CombinedGraph extends Graph implements ICombinedGraph, ISer
     }
 
     public getCentroid(): Point3 {
+        if (this.graphs.length === 0) {
+            return new Point3(0, 0, 0)
+        }
         return this.graphs
             .map((g) => g.getCentroid())
             .reduce((a, b) => GeometryUtils.midpoint(a, b))
