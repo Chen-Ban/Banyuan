@@ -11,7 +11,7 @@ import {
 } from "@/core/interfaces";
 import { ADDONTYPE } from "@/core/constants";
 import { Circle, Line } from "@/core/graph";
-import { Color, StrokeStyle } from "@/core/style";
+import { Color, FillStyle, StrokeStyle } from "@/core/style";
 
 export default class BoundingBoxAddon implements IBoundingBoxAddon {
   public readonly type = ADDONTYPE.BOUNDING_BOX;
@@ -73,6 +73,7 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
     return Rectangle.fromBounds(
       this.viewport.copy(),
       new Style({
+        fillStyle: new FillStyle({ fillType: "color", color: Color.TRANSPARENT }),
         strokeStyle: new StrokeStyle({
           strokeType: "color",
           color: new Color(0, 1, 0, 1),

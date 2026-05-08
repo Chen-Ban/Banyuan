@@ -573,9 +573,11 @@ export default abstract class View<T extends object = any>
     if (!viewport) {
       return;
     }
-    offscreenCtx.save();
 
     const transform = this.getMVPMatrix().transform;
+
+    // ── 第一阶段：渲染内容和子节点（受 clip 约束） ──
+    offscreenCtx.save();
     offscreenCtx.setTransform(
       transform[0],
       transform[4],
@@ -585,11 +587,8 @@ export default abstract class View<T extends object = any>
       transform[7],
     );
 
-    // 渲染插件到离屏画布(不受裁剪作用的影响)
-    this.renderPlugins(offscreenCtx);
-
     if (this.style.overflow !== "visible") {
-      // 设置视口裁剪区域,offset通过viewport和layoutArea计算得出
+      // 设置视口裁剪区域
       offscreenCtx.beginPath();
       offscreenCtx.rect(
         viewport.x,
@@ -601,7 +600,6 @@ export default abstract class View<T extends object = any>
     }
 
     // 应用 scroll 偏移后渲染内容和子节点
-    // clip 已经建立，translate 只影响内容绘制位置，不影响裁剪区域
     offscreenCtx.save();
     offscreenCtx.translate(this.scrollOffset.x, this.scrollOffset.y);
 
@@ -612,8 +610,20 @@ export default abstract class View<T extends object = any>
     });
 
     offscreenCtx.restore(); // 恢复 scroll translate
+    offscreenCtx.restore(); // 恢复 MVP + clip（clip 随 save/restore 出栈）
 
-    offscreenCtx.restore(); // 恢复 MVP setTransform
+    // ── 第二阶段：渲染插件（不受 clip 约束，始终在内容之上） ──
+    offscreenCtx.save();
+    offscreenCtx.setTransform(
+      transform[0],
+      transform[4],
+      transform[1],
+      transform[5],
+      transform[3],
+      transform[7],
+    );
+    this.renderPlugins(offscreenCtx);
+    offscreenCtx.restore();
   }
 
   // 从缓存渲染到主画布
