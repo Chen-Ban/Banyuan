@@ -166,6 +166,13 @@ export interface IViewActions {
 
     /** 获取 View 实例（供 PropertyPanel 读取属性） */
     getViewInstance(viewId: string): View | null
+    /**
+     * 读取 View 的属性值（通过 propadapters 正确分解）
+     *
+     * 对于 spatial 属性（x/y/rotation），会从矩阵中正确分解出逻辑值，
+     * 而非直接读取矩阵的原始分量。
+     */
+    getProperty(viewId: string, prop: string): number | undefined
     /** 获取所有 actived 的 View ID 列表（多选时用于偏移应用） */
     getActivedViewIds(): string[]
     /**

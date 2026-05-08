@@ -55,6 +55,8 @@ export type {
     NoneData,
     IInteractResult,
     IViewStyle,
+    TransformOriginKeyword,
+    TransformOrigin,
     IView,
     ISceneNode,
     IGraphView,

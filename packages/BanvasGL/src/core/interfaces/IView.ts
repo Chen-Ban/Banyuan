@@ -276,6 +276,34 @@ export interface IInteractResult {
     extraData: ExtraData | null
 }
 
+/**
+ * 变换原点关键字
+ *
+ * 相对于 viewport 的预设位置：
+ * - 'center': 视口中心（默认值）
+ * - 'topLeft': 视口左上角
+ * - 'top': 视口上边中点
+ * - 'topRight': 视口右上角
+ * - 'left': 视口左边中点
+ * - 'right': 视口右边中点
+ * - 'bottomLeft': 视口左下角
+ * - 'bottom': 视口下边中点
+ * - 'bottomRight': 视口右下角
+ */
+export type TransformOriginKeyword =
+    | 'center'
+    | 'topLeft'
+    | 'top'
+    | 'topRight'
+    | 'left'
+    | 'right'
+    | 'bottomLeft'
+    | 'bottom'
+    | 'bottomRight'
+
+/** 变换原点：可以是关键字或自定义坐标点 */
+export type TransformOrigin = TransformOriginKeyword | Point3
+
 /** 视图样式 */
 export interface IViewStyle {
     width?: number
@@ -283,7 +311,8 @@ export interface IViewStyle {
     overflow?: 'visible' | 'hidden' | 'scroll'
     scrollX?: number
     scrollY?: number
-    transformOrigin?: Point3
+    /** 变换原点，默认为 'center'（视口中心） */
+    transformOrigin?: TransformOrigin
     needStructViewport?: boolean
 }
 

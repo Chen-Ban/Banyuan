@@ -302,6 +302,14 @@ export function createViewActions(
             return scene.findViewById(viewId) ?? null
         },
 
+        getProperty(viewId: string, prop: string): number | undefined {
+            const scene = getScene()
+            if (!scene) return undefined
+            const view = scene.findViewById(viewId)
+            if (!view) return undefined
+            return getProperty(view, prop)
+        },
+
         getActivedViewIds(): string[] {
             const scene = getScene()
             if (!scene) return []
