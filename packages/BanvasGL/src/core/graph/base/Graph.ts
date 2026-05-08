@@ -155,4 +155,12 @@ export default abstract class Graph implements IGraph, ISerializable {
         dynamicPoint: Point3,
         resizeVector: Vector3
     ): void
+
+    /**
+     * 设置指定索引的控制点，并触发图形内部状态更新
+     * 各子类根据自身约束实现（如矩形需联动其他顶点保持直角）
+     * @param index 控制点索引
+     * @param point 新的控制点坐标（局部坐标系）
+     */
+    public abstract setControlPoint(index: number, point: Point3): void
 }

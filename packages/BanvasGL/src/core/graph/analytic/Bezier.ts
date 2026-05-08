@@ -49,11 +49,21 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
     return this.controlPoints[this.controlPoints.length - 1];
   }
 
-  // 设置控制点
+  // 设置控制点（批量）
   setControlPoints(controlPoints: Point3[]): Bezier {
     this.controlPoints = controlPoints;
     this.bounds = this.updateBounds()
     return this;
+  }
+
+  /**
+   * 设置指定索引的单个控制点
+   */
+  public setControlPoint(index: number, point: Point3): void {
+    if (index < 0 || index >= this.controlPoints.length) return
+    this.controlPoints[index] = point.copy()
+    this.transfromOrigin = this.getCentroid()
+    this.bounds = this.updateBounds()
   }
 
   // 获取指定位置的控制点
@@ -64,14 +74,6 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
     return this.controlPoints[index];
   }
 
-  // 设置指定位置的控制点
-  setControlPoint(index: number, point: Point3): Bezier {
-    if (index >= 0 && index < this.controlPoints.length) {
-      this.controlPoints[index] = point;
-    }
-    this.bounds = this.updateBounds()
-    return this;
-  }
 
   // 计算贝塞尔曲线的近似长度（使用数值积分）
   protected calculateApproximateLength(steps: number = 100): number {

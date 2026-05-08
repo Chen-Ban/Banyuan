@@ -130,6 +130,19 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
     return this.vertices[index].copy();
   }
 
+  /**
+   * 设置控制点：拖拽任意顶点时，以该顶点到中心的距离更新 radius，
+   * 保持正多边形约束（所有顶点等距中心）
+   */
+  public override setControlPoint(_index: number, point: Point3): void {
+    const newRadius = Math.sqrt(
+      Math.pow(point.x - this.center.x, 2) +
+      Math.pow(point.y - this.center.y, 2)
+    )
+    if (newRadius < 1) return // 防止退化
+    this.setRadius(newRadius)
+  }
+
   // ── 序列化 ──
   public toJSON(): any {
     return {

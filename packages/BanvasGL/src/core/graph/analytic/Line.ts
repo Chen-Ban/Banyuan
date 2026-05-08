@@ -50,6 +50,16 @@ export default class Line extends AnalyticGraph implements ILine, ISerializable 
     this.updateBounds()
   }
 
+  /**
+   * 设置指定索引的控制点（0=起点，1=终点）
+   */
+  public setControlPoint(index: number, point: Point3): void {
+    if (index < 0 || index >= this.controlPoints.length) return
+    this.controlPoints[index] = point.copy()
+    this.transfromOrigin = this.getPointAt(0.5)
+    this.bounds = this.updateBounds()
+  }
+
 
   // 计算线条的包围盒
   public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
