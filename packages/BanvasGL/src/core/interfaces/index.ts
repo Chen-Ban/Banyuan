@@ -43,6 +43,17 @@ export type {
     FieldType,
     IFieldSchema,
     IFieldSchemaMap,
+    FlowValue,
+    FlowCondition,
+    FlowSetDataNode,
+    FlowNavigateNode,
+    FlowAnimateNode,
+    FlowConditionNode,
+    FlowDelayNode,
+    FlowSetVisibleNode,
+    FlowNode,
+    FlowEdge,
+    FlowSchema,
     EventHandler,
     IViewEvents,
     IViewLifetimes,
@@ -95,6 +106,7 @@ export type {
 
 // ── Scene 接口 ──
 export type {
+    ISceneLifetimes,
     IOperationStack,
     IScene,
     Diff,
@@ -110,6 +122,7 @@ export { DiffType, Operation } from './IScene'
 
 // ── App 接口 ──
 export type {
+    AppMode,
     IPage,
     IAppOptions,
     INavigationOptions,

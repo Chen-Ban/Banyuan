@@ -28,6 +28,9 @@ import type {
   KeyframeDefinition,
   AnimatableValue,
 } from "@/core/animation/types";
+import { FlowRunner } from "@/core/runtime/FlowRunner";
+import type { RuntimeContext } from "@/core/runtime/RuntimeContext";
+import type Scene from "@/core/scene/Scene";
 
 const RESIZE_SIZE_MAP = [
   { width: true, height: true },
@@ -61,14 +64,13 @@ export interface InteractResult {
 }
 
 // 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
-export interface ViewOptions<D extends IFieldSchemaMap = any, P extends IFieldSchemaMap = any> {
+export interface ViewOptions<D extends IFieldSchemaMap = any> {
   id?: string;
   name?: string;
   content?: IGraph; // 改为IGraph，多图形用组合图形替代
   children?: View[];
   parent?: ISceneNode | View;
   data?: D;
-  properties?: P;
   style?: IViewStyle;
   matrix?: Matrix4;
   lifetimes?: Partial<IViewLifetimes>;
@@ -76,13 +78,12 @@ export interface ViewOptions<D extends IFieldSchemaMap = any, P extends IFieldSc
 }
 
 // TODO：不同容器的默认样式表
-export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap, P extends IFieldSchemaMap = IFieldSchemaMap>
+export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   implements IView, ISerializable
 {
   // 基本属性
   public id: string = "";
   public name: string = "";
-  public properties: P = {} as P;
   public data: D = {} as D;
   public content: IGraph | null;
   public children: View[] = [];
@@ -90,12 +91,23 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap, 
 
   // 事件与生命周期
   public events: IViewEvents = {
-    onClick: null,
+    // 点击类
+    onClick:       null,
     onDoubleClick: null,
-    onMouseEnter: null,
-    onMouseLeave: null,
-    onMouseDown: null,
-    onMouseUp: null,
+    onContextMenu: null,
+    // 鼠标移动类
+    onMouseEnter:  null,
+    onMouseLeave:  null,
+    onMouseMove:   null,
+    onMouseDown:   null,
+    onMouseUp:     null,
+    // 拖拽类
+    onDragStart:   null,
+    onDrag:        null,
+    onDragEnd:     null,
+    // 焦点类
+    onFocus:       null,
+    onBlur:        null,
   };
   public lifetimes: IViewLifetimes = {
     onCreated: null,
@@ -221,6 +233,53 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap, 
   /** @internal 由 Animation 调用 */
   _getAnimations(): Animation[] {
     return this._animations;
+  }
+
+  // ── 预定义动画注册表 ──
+
+  /**
+   * 预定义动画注册表
+   *
+   * key：用户在设计时指定的动画 id（字符串）
+   * value：Animation 实例（尚未播放，每次 playAnimation 时重新 play）
+   *
+   * 由 registerAnimation 写入，由 FlowRunner 的 animate 节点通过 playAnimation 触发。
+   */
+  private _presetAnimations: Map<string, Animation> = new Map();
+
+  /**
+   * 注册一个预定义动画，供 FlowSchema 的 animate 节点按 id 触发
+   *
+   * 同一 id 重复注册时覆盖旧值。
+   *
+   * @param id         动画唯一标识，在同一 View 内不可重复
+   * @param animation  Animation 实例（尚未播放）
+   */
+  public registerAnimation(id: string, animation: Animation): void {
+    this._presetAnimations.set(id, animation);
+  }
+
+  /**
+   * 按 id 播放已注册的预定义动画
+   *
+   * 每次调用都从头播放（cancel 当前进度后重新 play）。
+   *
+   * @param id  registerAnimation 时使用的 id
+   * @returns   找到并播放返回 true，id 不存在返回 false
+   */
+  public playAnimation(id: string): boolean {
+    const anim = this._presetAnimations.get(id);
+    if (!anim) {
+      console.warn(`[View] playAnimation: 找不到预定义动画 "${id}"`);
+      return false;
+    }
+    // 若动画已在运行，先取消再重播，确保从头开始
+    if (anim.isActive) {
+      anim.cancel();
+    }
+    // 绑定 target（首次播放时绑定，后续重播无需重绑）
+    this.animate(anim);
+    return true;
   }
 
   /**
@@ -384,14 +443,13 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap, 
     return best;
   }
 
-  constructor(options: ViewOptions<D, P>) {
+  constructor(options: ViewOptions<D>) {
     if (new Set(options?.children?.map((view) => view.parent)).size > 1) {
       throw new Error("子视图必须属于同一个父视图");
     }
     // 属性初始化
     this.id = options.id || "";
     this.data = options.data || ({} as D);
-    this.properties = options.properties || ({} as P);
     this.style = {
       overflow: "visible",
       needStructViewport: false,
@@ -437,22 +495,65 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap, 
     this.initRef(this.children);
 
     // 触发用户自定义 onCreated 生命周期
-    if (typeof this.lifetimes.onCreated === 'function') {
-      this.lifetimes.onCreated();
-    }
+    // onCreated 在构造期触发，此时尚未挂载到 Scene，_triggerLifetime 内部会静默跳过
+    this._triggerLifetime(this.lifetimes.onCreated)
   }
 
-  // 设置数据
-  public setData(data: Partial<D>): void {
-    this.data = { ...this.data, ...data };
+  /**
+   * 触发用户自定义生命周期钩子
+   *
+   * 向上查找最近的 Scene，构建 RuntimeContext 后交由 FlowRunner 执行。
+   * 找不到 Scene 时（如 onCreated 在构造期触发）静默跳过。
+   *
+   * @param schema  对应 lifetimes 字段的 FlowSchema（null 时直接返回）
+   * @param eventArgs 传入的事件参数（生命周期通常为空数组）
+   */
+  private _triggerLifetime(
+    schema: import('@/core/interfaces').FlowSchema | null,
+    eventArgs: unknown[] = [],
+  ): void {
+    if (!schema) return
+
+    // 向上找 Scene（parent 可能是 Scene 或另一个 View）
+    let node: any = this.parent
+    while (node && !('camera' in node)) {
+      node = node.parent
+    }
+    const page = node as Scene | null
+    if (!page) return  // 尚未挂载到 Scene，静默跳过
+
+    const ctx: RuntimeContext = {
+      self: this,
+      page,
+      view: (id) => page.findViewById(id) as View | null,
+      eventArgs,
+    }
+
+    FlowRunner.run(schema, ctx).catch((err) => {
+      console.error('[FlowRunner] 生命周期执行出错:', err)
+    })
+  }
+
+  /**
+   * 设置运行时字段值
+   *
+   * 只写入各字段的 value，不修改 default 和 type。
+   * key 不存在于 data 中时静默忽略。
+   */
+  public setData(values: Record<string, string | number | boolean | object>): void {
+    // 通过基类型 IFieldSchemaMap 操作，绕过泛型 D 的写入限制
+    const data = this.data as IFieldSchemaMap
+    for (const key of Object.keys(values)) {
+      if (key in data) {
+        data[key] = { ...data[key], value: values[key] }
+      }
+    }
   }
 
   // 生命周期方法（引擎内部调用，附带触发用户自定义 lifetimes）
 
   public onAttach(): void {
-    if (typeof this.lifetimes.onAttach === 'function') {
-      this.lifetimes.onAttach();
-    }
+    this._triggerLifetime(this.lifetimes.onAttach)
   }
 
   public onDestroy(): void {
@@ -466,10 +567,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap, 
     this.setEditingVertex(false);
     this.setEditingViewport(false);
     this.setEditingVertex(false);
-    // 触发用户自定义 onDestroy 生命周期
-    if (typeof this.lifetimes.onDestroy === 'function') {
-      this.lifetimes.onDestroy();
-    }
+    this._triggerLifetime(this.lifetimes.onDestroy)
   }
 
   initRef(children: View[]) {
@@ -861,25 +959,14 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap, 
    * 子类如无额外持久化字段，可直接继承此方法。
    */
   public toJSON(): any {
-    // 序列化事件/生命周期：只保留 string | null（函数不可序列化）
-    const serializeHandlers = (map: Record<string, any>) => {
-      const result: Record<string, string | null> = {};
-      for (const key of Object.keys(map)) {
-        const v = map[key];
-        result[key] = typeof v === 'string' ? v : null;
-      }
-      return result;
-    };
-
     return {
       id: this.id,
       type: this.type,
       visible: this.visible,
       freezed: this.freezed,
-      properties: this.properties,
       data: this.data,
-      events: serializeHandlers(this.events),
-      lifetimes: serializeHandlers(this.lifetimes),
+      events: this.events,
+      lifetimes: this.lifetimes,
       style: this.style,
       matrix: this.matrix.toJSON(),
       viewport: this.viewport.toJSON(),
