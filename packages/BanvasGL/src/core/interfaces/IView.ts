@@ -326,22 +326,6 @@ export interface IView {
     setVisible(visible: boolean): IView
     setFreezed(freezed: boolean): IView
 
-    // 预定义动画
-    /**
-     * 注册一个预定义动画，供 FlowSchema 的 animate 节点按 id 触发
-     *
-     * @param id         动画唯一标识，在同一 View 内不可重复
-     * @param animation  Animation 实例（尚未播放）
-     */
-    registerAnimation(id: string, animation: import('@/core/animation/Animation').default): void
-    /**
-     * 按 id 播放已注册的预定义动画
-     *
-     * @param id  registerAnimation 时使用的 id
-     * @returns   找到并播放返回 true，id 不存在返回 false
-     */
-    playAnimation(id: string): boolean
-
     // 生命周期
     onAttach(): void
     onDestroy(): void

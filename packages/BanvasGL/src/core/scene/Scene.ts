@@ -11,6 +11,7 @@ import {
   ungroupView,
 } from "./operations";
 import { ISerializable, isCombinedView, type ISceneLifetimes } from "@/core/interfaces";
+import Animation from "@/core/animation/Animation";
 import { SCENETYPE } from "@/core/constants";
 import { SnapAlignManager } from "@/core/snapAlign";
 import Serializer from "@/core/serializer";
@@ -48,6 +49,19 @@ export default class Scene implements ISerializable {
 
   // 用户自定义生命周期回调
   public lifetimes: ISceneLifetimes;
+
+  /**
+   * 运行时动画注册表
+   *
+   * key 格式：`${viewId}:${animationId}`
+   * value：Animation 实例（尚未播放，每次 playAnimation 时重新 play）
+   *
+   * 与 View.data / View.events 等设计时 schema 不同，
+   * Animation 实例是纯运行时对象，不可序列化，因此统一托管在 Scene 而非 View 上。
+   * 由外部（用户代码或引擎初始化逻辑）调用 registerAnimation 写入，
+   * 由 FlowRunner 的 animate 节点通过 playAnimation 触发。
+   */
+  private _animationRegistry: Map<string, Animation> = new Map();
 
   constructor(camera: BaseCamera, options: SceneOptions = {}) {
     this.camera = camera;
@@ -164,6 +178,48 @@ export default class Scene implements ISerializable {
     this.children.forEach((view) => {
       view.render();
     });
+  }
+
+  // ── 运行时动画注册表 ──
+
+  /**
+   * 注册一个预定义动画，供 FlowSchema 的 animate 节点按 id 触发
+   *
+   * 同一 viewId + animationId 组合重复注册时覆盖旧值。
+   *
+   * @param viewId      目标 View 的 id
+   * @param animationId 动画唯一标识（在同一 View 内不可重复）
+   * @param animation   Animation 实例（尚未播放）
+   */
+  public registerAnimation(viewId: string, animationId: string, animation: Animation): void {
+    this._animationRegistry.set(`${viewId}:${animationId}`, animation);
+  }
+
+  /**
+   * 按 viewId + animationId 播放已注册的预定义动画
+   *
+   * 每次调用都从头播放（cancel 当前进度后重新 play）。
+   *
+   * @param viewId      目标 View 的 id（FlowRunner 传入时 'self' 已由调用方展开为实际 id）
+   * @param animationId registerAnimation 时使用的 animationId
+   * @returns           找到并播放返回 true，view 或 animation 不存在返回 false
+   */
+  public playAnimation(viewId: string, animationId: string): boolean {
+    const anim = this._animationRegistry.get(`${viewId}:${animationId}`);
+    if (!anim) {
+      console.warn(`[Scene] playAnimation: 找不到动画 "${viewId}:${animationId}"`);
+      return false;
+    }
+    const view = this.findViewById(viewId);
+    if (!view) {
+      console.warn(`[Scene] playAnimation: 找不到 View "${viewId}"`);
+      return false;
+    }
+    if (anim.isActive) {
+      anim.cancel();
+    }
+    view.animate(anim);
+    return true;
   }
 
   /**

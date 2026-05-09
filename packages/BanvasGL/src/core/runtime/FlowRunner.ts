@@ -119,11 +119,8 @@ async function executeNode(
         }
 
         case 'animate': {
-            const target = node.viewId === 'self'
-                ? ctx.self
-                : ctx.view(node.viewId)
-            if (!target) break
-            target.playAnimation(node.animationId)
+            const viewId = node.viewId === 'self' ? ctx.self.id : node.viewId
+            ctx.page.playAnimation(viewId, node.animationId)
             break
         }
 
