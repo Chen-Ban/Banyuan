@@ -319,9 +319,9 @@ export default class Animation {
     cancel(): Animation {
         if (this._state === 'finished' || this._state === 'cancelled') return this
 
-        // 如果尺寸动画已经改了 viewport/content，需要恢复到快照状态
+        // 清空覆盖层，View 自动恢复真实 viewport，无需快照恢复
         if (this._sizeProps.length > 0 && this.target) {
-            this.target._animationResize(this._sizeSnapshot.width, this._sizeSnapshot.height)
+            this.target._clearAnimatedViewport()
         }
 
         this._state = 'cancelled'
@@ -749,13 +749,19 @@ export default class Animation {
                     ;(this.target as any)[prop] = this.computedValues[prop]
                 }
             }
+
+            // 将覆盖视口提交为真实 viewport（执行完整 resize + content + layout）
+            if (this._sizeProps.length > 0) {
+                this.target._commitAnimatedViewport()
+            }
         } else {
             if (this._spatialProps.length > 0) {
                 this.target.matrix = this._matrixSnapshot.copy()
             }
 
+            // 直接清空覆盖层，View 恢复真实 viewport，无需快照恢复
             if (this._sizeProps.length > 0) {
-                this.target._animationResize(this._sizeSnapshot.width, this._sizeSnapshot.height)
+                this.target._clearAnimatedViewport()
             }
         }
 
