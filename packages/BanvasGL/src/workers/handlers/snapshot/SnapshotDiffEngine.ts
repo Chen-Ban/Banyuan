@@ -43,7 +43,6 @@ const SNAPSHOT_PATHS: (keyof ViewSnapshotData)[] = [
     'viewport',
     'style',
     'data',
-    'properties',
     // 高复杂度（可能非常大）
     'content',
     'children',

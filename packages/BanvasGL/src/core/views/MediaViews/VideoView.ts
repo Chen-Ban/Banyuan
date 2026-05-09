@@ -30,7 +30,6 @@ export default class VideoView extends View implements IVideoView, ISerializable
         const newView = new VideoView(this.content)
 
         // 复制基本属性（id 由构造器自动生成新的）
-        newView.properties = { ...this.properties }
         newView.data = { ...this.data }
         newView.style = {
             ...this.style,
@@ -63,8 +62,9 @@ export default class VideoView extends View implements IVideoView, ISerializable
         view.id = data.id
         view.visible = data.visible
         view.freezed = data.freezed
-        if (data.properties) view.properties = data.properties
         if (data.data) view.data = data.data
+        if (data.events) Object.assign(view.events, data.events)
+        if (data.lifetimes) Object.assign(view.lifetimes, data.lifetimes)
         if (data.style) view.style = data.style
         if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
         if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)

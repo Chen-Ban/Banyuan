@@ -5,7 +5,7 @@
  * 供 React 层渲染 Layers 面板使用。
  */
 
-import type { IViewNode, IPageNode } from '@/core/interfaces'
+import type { IViewNode, IPageNode, IFieldSchemaMap } from '@/core/interfaces'
 import type View from '@/core/views/View/View'
 import type Scene from '@/core/scene/Scene'
 import type { App } from '@/core/app'
@@ -48,6 +48,7 @@ export function buildPageNode(scene: Scene, index: number, isCurrent: boolean): 
         name: sceneName,
         isCurrent,
         index,
+        data: (scene.data ?? {}) as IFieldSchemaMap,
         children: scene.children
             .filter((child) => (child as View).type !== VIEWTYPE.SELECTBOXVIEW)
             .map((child) => buildViewNode(child as View, 0)),

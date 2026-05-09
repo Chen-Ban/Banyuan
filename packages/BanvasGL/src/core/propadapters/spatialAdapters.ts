@@ -7,20 +7,53 @@
  * 写入（set）：分解当前 matrix 为 TRS → 修改目标分量 → 重新合成 matrix
  *
  * 合成顺序：T(x,y) * T(cx,cy) * R(θ) * T(-cx,-cy)
- * 即绕 viewport 中心旋转，再平移到目标位置。
+ * 即绕 transformOrigin 旋转，再平移到目标位置。
  */
 
 import type View from '@/core/views/View/View'
 import type Matrix4 from '@/core/math/Matrix4'
 import { Matrix4 as Matrix4Class } from '@/core/math'
+import type { TransformOrigin } from '@/core/interfaces'
 import type { PropertyAdapter } from './types'
 
 /**
- * 获取 View 的变换中心（viewport 中心）
+ * 根据 style.transformOrigin 和 viewport 解析出实际的变换中心坐标
+ *
+ * - 未设置或 'center'：viewport 中心（默认行为）
+ * - 关键字：相对于 viewport 的预设位置
+ * - Point3：直接使用坐标值
  */
 function getOrigin(view: View): { cx: number; cy: number } {
     const vp = view.viewport
-    return { cx: vp.midX, cy: vp.midY }
+    const origin: TransformOrigin = view.style.transformOrigin ?? 'center'
+
+    // Point3 对象（有 x/y 属性）
+    if (typeof origin === 'object' && 'x' in origin && 'y' in origin) {
+        return { cx: origin.x, cy: origin.y }
+    }
+
+    // 关键字
+    switch (origin) {
+        case 'topLeft':
+            return { cx: vp.x, cy: vp.y }
+        case 'top':
+            return { cx: vp.midX, cy: vp.y }
+        case 'topRight':
+            return { cx: vp.x + vp.width, cy: vp.y }
+        case 'left':
+            return { cx: vp.x, cy: vp.midY }
+        case 'right':
+            return { cx: vp.x + vp.width, cy: vp.midY }
+        case 'bottomLeft':
+            return { cx: vp.x, cy: vp.y + vp.height }
+        case 'bottom':
+            return { cx: vp.midX, cy: vp.y + vp.height }
+        case 'bottomRight':
+            return { cx: vp.x + vp.width, cy: vp.y + vp.height }
+        case 'center':
+        default:
+            return { cx: vp.midX, cy: vp.midY }
+    }
 }
 
 /**

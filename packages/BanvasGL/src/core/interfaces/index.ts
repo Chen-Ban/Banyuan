@@ -40,6 +40,23 @@ export type { TextIndex } from './IGraph'
 
 // ── View 接口 ──
 export type {
+    FieldType,
+    IFieldSchema,
+    IFieldSchemaMap,
+    FlowValue,
+    FlowCondition,
+    FlowSetDataNode,
+    FlowNavigateNode,
+    FlowAnimateNode,
+    FlowConditionNode,
+    FlowDelayNode,
+    FlowSetVisibleNode,
+    FlowNode,
+    FlowEdge,
+    FlowSchema,
+    EventHandler,
+    IViewEvents,
+    IViewLifetimes,
     IAddonBase,
     IBoundingBoxAddon,
     IVertexAddon,
@@ -55,6 +72,8 @@ export type {
     NoneData,
     IInteractResult,
     IViewStyle,
+    TransformOriginKeyword,
+    TransformOrigin,
     IView,
     ISceneNode,
     IGraphView,
@@ -87,6 +106,7 @@ export type {
 
 // ── Scene 接口 ──
 export type {
+    ISceneLifetimes,
     IOperationStack,
     IScene,
     Diff,
@@ -102,6 +122,7 @@ export { DiffType, Operation } from './IScene'
 
 // ── App 接口 ──
 export type {
+    AppMode,
     IPage,
     IAppOptions,
     INavigationOptions,

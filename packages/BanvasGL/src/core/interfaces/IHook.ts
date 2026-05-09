@@ -9,6 +9,8 @@
 
 import type { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import type View from '@/core/views/View/View'
+import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from './IView'
+import type { ISceneLifetimes } from './IScene'
 
 // ────────────────────────────────────────────
 //  组件物料（Component Definition）
@@ -119,6 +121,8 @@ export interface IPageNode {
     isCurrent: boolean
     /** 在页面栈中的索引 */
     index: number
+    /** 页面级数据（字段定义表） */
+    data: IFieldSchemaMap
     /** 该页面下的视图容器树 */
     children: IViewNode[]
 }
@@ -166,6 +170,34 @@ export interface IViewActions {
 
     /** 获取 View 实例（供 PropertyPanel 读取属性） */
     getViewInstance(viewId: string): View | null
+    /** 获取 View 的 data 字段定义表 */
+    getViewData(viewId: string): IFieldSchemaMap
+    /** 设置 View 的单个 data 字段（新增或更新） */
+    setViewData(viewId: string, key: string, schema: IFieldSchema): void
+    /** 删除 View 的单个 data 字段 */
+    deleteViewData(viewId: string, key: string): void
+    // ── 事件与生命周期 ──
+
+    /** 获取 View 的事件绑定表 */
+    getViewEvents(viewId: string): IViewEvents
+    /** 设置 View 的单个事件处理器 */
+    setViewEvent(viewId: string, eventName: keyof IViewEvents, handler: EventHandler): void
+    /** 删除（清空）View 的单个事件处理器 */
+    deleteViewEvent(viewId: string, eventName: keyof IViewEvents): void
+    /** 获取 View 的生命周期钩子表 */
+    getViewLifetimes(viewId: string): IViewLifetimes
+    /** 设置 View 的单个生命周期钩子 */
+    setViewLifetime(viewId: string, lifetimeName: keyof IViewLifetimes, handler: EventHandler): void
+    /** 删除（清空）View 的单个生命周期钩子 */
+    deleteViewLifetime(viewId: string, lifetimeName: keyof IViewLifetimes): void
+
+    /**
+     * 读取 View 的属性值（通过 propadapters 正确分解）
+     *
+     * 对于 spatial 属性（x/y/rotation），会从矩阵中正确分解出逻辑值，
+     * 而非直接读取矩阵的原始分量。
+     */
+    getProperty(viewId: string, prop: string): number | undefined
     /** 获取所有 actived 的 View ID 列表（多选时用于偏移应用） */
     getActivedViewIds(): string[]
     /**
@@ -178,6 +210,13 @@ export interface IViewActions {
     setProperty(prop: string, value: number): void
     /** 批量修改属性 */
     setProperties(props: Record<string, number>): void
+    /**
+     * 修改 View.content 上的属性（如 RoundedRect 的 radii）
+     *
+     * @param method - content 上的方法名（如 'setAllRadii', 'setRadius'）
+     * @param args - 传给方法的参数
+     */
+    setContentMethod(method: string, args: any[]): void
     /** 开始属性编辑事务（输入框聚焦时调用） */
     beginPropertyEdit(): void
     /** 提交属性编辑事务（输入框失焦/回车时调用） */
@@ -200,6 +239,21 @@ export interface IPageActions {
     reorder(pageId: string, newIndex: number): void
     /** 复制页面 */
     duplicate(pageId: string): string | null
+    /** 获取页面级 data 字段定义表 */
+    getPageData(pageId: string): IFieldSchemaMap
+    /** 设置页面级单个 data 字段（新增或更新） */
+    setPageData(pageId: string, key: string, schema: IFieldSchema): void
+    /** 删除页面级单个 data 字段 */
+    deletePageData(pageId: string, key: string): void
+
+    // ── 页面生命周期 ──
+
+    /** 获取页面的生命周期钩子表 */
+    getPageLifetimes(pageId: string): ISceneLifetimes
+    /** 设置页面的单个生命周期钩子 */
+    setPageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes, handler: EventHandler): void
+    /** 删除（清空）页面的单个生命周期钩子 */
+    deletePageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes): void
 }
 
 /** 历史操作（撤销/重做） */

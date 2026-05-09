@@ -51,10 +51,10 @@ export default class DenseTrajectory extends Graph implements IDenseTrajectory, 
   public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
     let points = []
     const length = this.controlPoints.length
-    for (let i = 0; i < length - 2; i + 3) {
+    for (let i = 0; i < length - 2; i += 3) {
       points.push(new Point3(this.controlPoints[i], this.controlPoints[i + 1], this.controlPoints[i + 2]))
     }
-    return Bounds.fromPoints(points, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds.height > 0)
+    return Bounds.fromPoints(points, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds?.height > 0)
   }
 
   public isPointOnCurve(p: Point3, tolerance: number = 1e-6): boolean {
