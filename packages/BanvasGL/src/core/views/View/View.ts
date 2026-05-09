@@ -29,7 +29,7 @@ import type {
   AnimatableValue,
 } from "@/core/animation/types";
 import { FlowRunner } from "@/core/runtime/FlowRunner";
-import type { RuntimeContext } from "@/core/runtime/RuntimeContext";
+import type { RuntimeContext } from "@/core/interfaces";
 import Scene from "@/core/scene/Scene";
 
 const RESIZE_SIZE_MAP = [

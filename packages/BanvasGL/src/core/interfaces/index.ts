@@ -156,6 +156,9 @@ export type {
     IUseBanvasResult,
 } from './IHook'
 
+// ── Runtime 接口 ──
+export type { RuntimeContext } from './IRuntime'
+
 // ── 统一类型守卫 ──
 export {
     isGraphType,
