@@ -1,8 +1,8 @@
 /**
- * RuntimeContext —— FlowRunner 执行时的上下文
+ * IRuntime —— FlowRunner 运行时相关接口
  *
- * 每次事件触发时由 useRuntimeEvents 构建，执行完毕后即弃。
- * 持有本次执行所需的全部数据源，FlowRunner 通过它解析 FlowValue。
+ * 每次事件触发时由调用方（useRuntimeEvents / View._triggerLifetime）构建，
+ * 执行完毕后即弃。持有本次执行所需的全部数据源，FlowRunner 通过它解析 FlowValue。
  *
  * 设计要点：
  *   - 纯数据对象，不持有 React 状态，不触发 React 重渲染

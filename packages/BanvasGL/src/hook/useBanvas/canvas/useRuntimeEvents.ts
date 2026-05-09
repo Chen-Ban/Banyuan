@@ -18,8 +18,7 @@ import { Point3 } from '@/core/math'
 import type View from '@/core/views/View/View'
 import type Scene from '@/core/scene/Scene'
 import { FlowRunner } from '@/core/runtime/FlowRunner'
-import type { RuntimeContext } from '@/core/runtime/RuntimeContext'
-import type { FlowSchema } from '@/core/interfaces'
+import type { FlowSchema, RuntimeContext } from '@/core/interfaces'
 
 // 拖拽判定阈值（物理像素）
 const DRAG_THRESHOLD = 4

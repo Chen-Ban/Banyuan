@@ -18,8 +18,8 @@ import type {
     FlowEdge,
     FlowValue,
     FlowCondition,
+    RuntimeContext,
 } from '@/core/interfaces'
-import type { RuntimeContext } from './RuntimeContext'
 
 // 单次 run 最多执行的节点数，防止死循环
 const MAX_STEPS = 1000
