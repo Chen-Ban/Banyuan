@@ -79,7 +79,6 @@ export default class SelectBoxView extends GraphView implements ISelectBoxView {
         const newView = new SelectBoxView()
 
         // 复制基本属性（id 由构造器自动生成新的）
-        newView.properties = { ...this.properties }
         newView.data = { ...this.data }
         newView.style = {
             ...this.style,

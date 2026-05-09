@@ -451,8 +451,7 @@ export default class TextView extends View implements ITextView, ISerializable {
         const newView = new TextView(this.content, { editable: this.editable })
 
         // 复制基本属性（id 由构造器自动生成新的）
-        newView.properties = { ...this.properties }
-        newView.data = { ...this.data }
+newView.data = { ...this.data }
         newView.style = {
             ...this.style,
         }
@@ -510,8 +509,7 @@ export default class TextView extends View implements ITextView, ISerializable {
         view.id = data.id
         view.visible = data.visible
         view.freezed = data.freezed
-        if (data.properties) view.properties = data.properties
-        if (data.data) view.data = data.data
+if (data.data) view.data = data.data
         if (data.events) Object.assign(view.events, data.events)
         if (data.lifetimes) Object.assign(view.lifetimes, data.lifetimes)
         if (data.style) view.style = data.style
