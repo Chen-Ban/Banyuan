@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App } from "@/core/app";
 import { BaseCamera, Scene } from "@/core";
-import type { UseBanvasOptions, SerializedSceneJSON } from "./types";
+import type { UseBanvasOptions, SerializedSceneJSON } from "../types";
 import { useBOMProperties } from "./useBOMProperties";
 
 export interface UseCanvasInitResult {
