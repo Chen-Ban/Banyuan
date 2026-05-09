@@ -11,7 +11,7 @@ import {
   ungroupView,
 } from "./operations";
 import { ISerializable, isCombinedView, type ISceneLifetimes } from "@/core/interfaces";
-import Animation from "@/core/animation/Animation";
+import { Animation } from "@/core/animation";
 import { SCENETYPE } from "@/core/constants";
 import { SnapAlignManager } from "@/core/snapAlign";
 import Serializer from "@/core/serializer";

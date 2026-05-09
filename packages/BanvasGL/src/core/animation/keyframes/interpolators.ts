@@ -1,5 +1,5 @@
 import Matrix4 from '@/core/math/Matrix4'
-import type { Interpolator, AnimatableValue, EasingFunction } from './types'
+import type { Interpolator, AnimatableValue, EasingFunction } from '../types'
 
 /**
  * 数值插值器

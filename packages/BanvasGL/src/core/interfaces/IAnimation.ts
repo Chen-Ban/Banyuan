@@ -10,6 +10,7 @@
 
 import type Matrix4 from '@/core/math/Matrix4'
 import type View from '@/core/views/View/View'
+import type Bounds from '@/core/graph/base/Bounds'
 
 // ── 基础值类型 ──────────────────────────────────────────────────────────────
 
@@ -205,4 +206,32 @@ export interface IAnimationManager {
     tick(timestamp: number): void
     /** 当前活跃动画数量 */
     readonly count: number
+}
+
+// ── 动画系统内部契约 ─────────────────────────────────────────────────────────
+
+/**
+ * IAnimatable —— 动画系统与 View 之间的内部契约
+ *
+ * View 实现此接口，Animation 通过它操作目标 View，
+ * 业务层无需感知这些方法的存在。
+ *
+ * @internal
+ */
+export interface IAnimatable {
+    // ── 动画列表管理 ──
+    /** 将动画注册到 View 的活跃列表 @internal */
+    _addAnimation(anim: IAnimation): void
+    /** 将动画从 View 的活跃列表移除 @internal */
+    _removeAnimation(anim: IAnimation): void
+    /** 获取 View 当前所有活跃动画（用于冲突检测） @internal */
+    _getAnimations(): IAnimation[]
+    /** 动画专用 resize，直接修改 viewport + content @internal */
+    _animationResize(targetWidth: number, targetHeight: number): void
+
+    // ── Animation 内部计算所需的 View 属性 ──
+    matrix: Matrix4
+    viewport: Bounds
+    parent: unknown
+    getWorldMatrix(parent?: any): Matrix4
 }

@@ -1,6 +1,6 @@
-export { default as Animation } from './Animation'
-export { default as AnimationManager } from './AnimationManager'
-export { Easings } from './easings'
+export { default as Animation } from './core/Animation'
+export { default as AnimationManager } from './core/AnimationManager'
+export { Easings } from './keyframes/easings'
 export type {
     EasingFunction,
     FillMode,
