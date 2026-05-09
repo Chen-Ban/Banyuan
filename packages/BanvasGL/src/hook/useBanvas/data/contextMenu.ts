@@ -9,7 +9,7 @@ import type { IContextMenuItem, IBanvasActions } from '@/core/interfaces'
 import { isCombinedView } from '@/core/interfaces'
 import type View from '@/core/views/View/View'
 import type Scene from '@/core/scene/Scene'
-import { getClipboard } from './actions'
+import { getClipboard } from '../actions'
 
 /**
  * 生成右键点击 View 时的菜单项
