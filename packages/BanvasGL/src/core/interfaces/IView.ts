@@ -333,9 +333,6 @@ export interface IView {
 
     // 辅助
     getSnapObjects(): [Point3[], Line[]]
-
-    // 索引签名（子类可能有额外属性，如 verticalAlign、fixedWidth 等）
-    [key: string]: any
 }
 
 // ────────────────────────────────────────────
