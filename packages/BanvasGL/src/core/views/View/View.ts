@@ -23,13 +23,13 @@ import { BoundingBoxAddon } from "@/core/views/addon";
 import { MathUtils, Point3, Vector3 } from "@/core/math";
 import Bounds from "@/core/graph/base/Bounds";
 import Animation from "@/core/animation/Animation";
+import { FlowRunner } from "@/core/runtime/FlowRunner";
 import type {
+  RuntimeContext,
   AnimationOptions,
   KeyframeDefinition,
   AnimatableValue,
-} from "@/core/animation/types";
-import { FlowRunner } from "@/core/runtime/FlowRunner";
-import type { RuntimeContext } from "@/core/interfaces";
+} from "@/core/interfaces";
 import Scene from "@/core/scene/Scene";
 
 const RESIZE_SIZE_MAP = [

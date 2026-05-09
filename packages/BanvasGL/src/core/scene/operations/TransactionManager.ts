@@ -37,9 +37,8 @@ interface PendingTransaction {
   beforeSnapshots: Map<string, ViewSnapshot>
 }
 
-// SceneAccessor 接口已提取至 ./types.ts
+// SceneAccessor 接口已迁移至 @/core/interfaces
 import type { SceneAccessor } from './types'
-export type { SceneAccessor } from './types'
 
 // ============ 快照工具函数 ============
 

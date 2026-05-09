@@ -109,6 +109,7 @@ export type {
     ISceneLifetimes,
     IOperationStack,
     IScene,
+    SceneAccessor,
     Diff,
     ModifyDiff,
     AddDiff,
@@ -131,7 +132,19 @@ export type {
 } from './IApp'
 
 // ── Animation 接口 ──
-export type { IAnimation, IAnimationManager } from './IAnimation'
+export type {
+    EasingFunction,
+    FillMode,
+    PlaybackDirection,
+    AnimationState,
+    AnimatableValue,
+    KeyframeProps,
+    KeyframeDefinition,
+    AnimationOptions,
+    Interpolator,
+    IAnimation,
+    IAnimationManager,
+} from './IAnimation'
 
 // ── 序列化接口 ──
 export type { ISerializable, SerializableStatic } from './ISerializable'
@@ -155,6 +168,21 @@ export type {
     IContextMenuState,
     IUseBanvasResult,
 } from './IHook'
+
+// ── PropertyAdapter 接口 ──
+export type {
+    PropertyCategory,
+    PropertyAdapter,
+    PropertyDescriptor,
+    ConflictGroup,
+} from './IPropertyAdapter'
+
+// ── Worker 接口 ──
+export type {
+    WorkerTaskType,
+    WorkerTask,
+    WorkerResult,
+} from './IWorker'
 
 // ── Runtime 接口 ──
 export type { RuntimeContext } from './IRuntime'
