@@ -20,6 +20,7 @@ import type {
     EasingFunction,
 } from './types'
 import type View from '@/core/views/View/View'
+import type { IAnimatable } from './IAnimatable'
 
 /**
  * Animation 类
@@ -54,7 +55,7 @@ import type View from '@/core/views/View/View'
  */
 export default class Animation {
     public readonly id: string
-    public target: View | null = null
+    public target: IAnimatable | null = null
     /** 动画控制的属性列表（外部只读，内部可被冲突解决修改） */
     public properties: string[]
 
@@ -71,7 +72,7 @@ export default class Animation {
     public readonly direction: PlaybackDirection
     public readonly iterations: number
     public readonly easing: EasingFunction
-    public readonly referenceFrame: View | undefined
+    public readonly referenceFrame: View | undefined  // 仅用于坐标系计算，保留 View 类型
 
     // 回调
     public onStart: (() => void) | null = null
@@ -122,19 +123,19 @@ export default class Animation {
     /**
      * 绑定 target 创建（后续手动调用 play()）
      */
-    constructor(target: View, definition: KeyframeDefinition, options: AnimationOptions)
+    constructor(target: IAnimatable, definition: KeyframeDefinition, options: AnimationOptions)
 
     constructor(...args: any[]) {
         this.id = generateId()
 
         // 解析参数：判断第一个参数是否是 View（有 _addAnimation 方法）
-        let target: View | null = null
+        let target: IAnimatable | null = null
         let definition: KeyframeDefinition
         let options: AnimationOptions
 
         if (args.length === 3 && args[0] && typeof args[0] === 'object' && '_addAnimation' in args[0]) {
             // (target, definition, options) 形式
-            target = args[0] as View
+            target = args[0] as IAnimatable
             definition = args[1] as KeyframeDefinition
             options = args[2]
         } else if (args.length === 2) {
@@ -217,7 +218,7 @@ export default class Animation {
      * 绑定动画目标（由 view.animate(anim) 内部调用）
      * @internal
      */
-    _bindTarget(view: View): void {
+    _bindTarget(view: IAnimatable): void {
         if (this.target && this.target !== view) {
             throw new Error('Animation already bindTarget to another View. Create a new Animation instance.')
         }
@@ -267,7 +268,7 @@ export default class Animation {
 
         // ---- 快照直通属性 ----
         for (const prop of this._directProps) {
-            this._snapshotValues[prop] = target[prop]
+            this._snapshotValues[prop] = (target as any)[prop]
         }
 
         // ---- 处理同属性冲突 + 构建关键帧段 ----

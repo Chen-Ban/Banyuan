@@ -516,10 +516,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     this.children.forEach((child) => child.onDestroy());
     this.children = [];
     this.boundingBox = null;
-    this.controlPoints = null;
-    this.setEditingVertex(false);
-    this.setEditingViewport(false);
-    this.setEditingVertex(false);
     this._triggerLifetime(this.lifetimes.onDestroy)
   }
 
@@ -528,9 +524,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       child.parent = this;
     });
   }
-
-  // 索引签名（子类可能有额外属性，如 verticalAlign、fixedWidth 等）
-  [key: string]: any;
 
   /**
    * 尺寸变化方向由三个因素决定：

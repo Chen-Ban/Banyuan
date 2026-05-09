@@ -33,6 +33,8 @@ export default class TextView extends View implements ITextView, ISerializable {
     public selection: Selection = new Selection(undefined, undefined)
 
     public editable: boolean
+    public verticalAlign: string = VERTICALALIGN.TOP
+    public fixedWidth: boolean = false
 
     constructor(text: TextFields, options: TextViewOptions = {}) {
         // 将text作为content传递给父类构造函数
