@@ -11,6 +11,7 @@
 
 import type { IView, FlowSchema } from './IView'
 import type { ICamera } from './ICamera'
+import type Animation from '@/core/animation/Animation'
 
 // ────────────────────────────────────────────
 //  操作栈相关类型（re-export）
@@ -100,6 +101,24 @@ export interface IScene {
     getAllActived(): IView[]
     getSelectedView(): IView | undefined
     select(view?: IView, multiple?: boolean, deselect?: boolean): void
+
+    // 运行时动画注册表
+    /**
+     * 注册一个预定义动画，供 FlowSchema 的 animate 节点按 id 触发
+     *
+     * @param viewId      目标 View 的 id
+     * @param animationId 动画唯一标识（在同一 View 内不可重复）
+     * @param animation   Animation 实例（尚未播放）
+     */
+    registerAnimation(viewId: string, animationId: string, animation: Animation): void
+    /**
+     * 按 viewId + animationId 播放已注册的预定义动画
+     *
+     * @param viewId      目标 View 的 id
+     * @param animationId registerAnimation 时使用的 animationId
+     * @returns           找到并播放返回 true，view 或 animation 不存在返回 false
+     */
+    playAnimation(viewId: string, animationId: string): boolean
 
     // 渲染
     render(): void

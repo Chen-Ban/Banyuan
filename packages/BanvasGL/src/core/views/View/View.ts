@@ -30,7 +30,7 @@ import type {
 } from "@/core/animation/types";
 import { FlowRunner } from "@/core/runtime/FlowRunner";
 import type { RuntimeContext } from "@/core/runtime/RuntimeContext";
-import type Scene from "@/core/scene/Scene";
+import Scene from "@/core/scene/Scene";
 
 const RESIZE_SIZE_MAP = [
   { width: true, height: true },
@@ -233,53 +233,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   /** @internal 由 Animation 调用 */
   _getAnimations(): Animation[] {
     return this._animations;
-  }
-
-  // ── 预定义动画注册表 ──
-
-  /**
-   * 预定义动画注册表
-   *
-   * key：用户在设计时指定的动画 id（字符串）
-   * value：Animation 实例（尚未播放，每次 playAnimation 时重新 play）
-   *
-   * 由 registerAnimation 写入，由 FlowRunner 的 animate 节点通过 playAnimation 触发。
-   */
-  private _presetAnimations: Map<string, Animation> = new Map();
-
-  /**
-   * 注册一个预定义动画，供 FlowSchema 的 animate 节点按 id 触发
-   *
-   * 同一 id 重复注册时覆盖旧值。
-   *
-   * @param id         动画唯一标识，在同一 View 内不可重复
-   * @param animation  Animation 实例（尚未播放）
-   */
-  public registerAnimation(id: string, animation: Animation): void {
-    this._presetAnimations.set(id, animation);
-  }
-
-  /**
-   * 按 id 播放已注册的预定义动画
-   *
-   * 每次调用都从头播放（cancel 当前进度后重新 play）。
-   *
-   * @param id  registerAnimation 时使用的 id
-   * @returns   找到并播放返回 true，id 不存在返回 false
-   */
-  public playAnimation(id: string): boolean {
-    const anim = this._presetAnimations.get(id);
-    if (!anim) {
-      console.warn(`[View] playAnimation: 找不到预定义动画 "${id}"`);
-      return false;
-    }
-    // 若动画已在运行，先取消再重播，确保从头开始
-    if (anim.isActive) {
-      anim.cancel();
-    }
-    // 绑定 target（首次播放时绑定，后续重播无需重绑）
-    this.animate(anim);
-    return true;
   }
 
   /**
