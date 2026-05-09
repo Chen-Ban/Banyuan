@@ -453,6 +453,19 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   /**
+   * 向上遍历父节点，返回当前 View 所属的 Scene。
+   *
+   * 若 View 尚未挂载到任何 Scene（如在构造期调用），返回 null。
+   */
+  public getScene(): Scene | null {
+    let node: unknown = this.parent
+    while (node && !('camera' in (node as object))) {
+      node = (node as { parent?: unknown }).parent
+    }
+    return (node as Scene | null) ?? null
+  }
+
+  /**
    * 触发用户自定义生命周期钩子
    *
    * 向上查找最近的 Scene，构建 RuntimeContext 后交由 FlowRunner 执行。
@@ -467,12 +480,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   ): void {
     if (!schema) return
 
-    // 向上找 Scene（parent 可能是 Scene 或另一个 View）
-    let node: any = this.parent
-    while (node && !('camera' in node)) {
-      node = node.parent
-    }
-    const page = node as Scene | null
+    const page = this.getScene()
     if (!page) return  // 尚未挂载到 Scene，静默跳过
 
     const ctx: RuntimeContext = {
