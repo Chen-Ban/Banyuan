@@ -144,6 +144,7 @@ export type {
     Interpolator,
     IAnimation,
     IAnimationManager,
+    IAnimatable,
 } from './IAnimation'
 
 // ── 序列化接口 ──

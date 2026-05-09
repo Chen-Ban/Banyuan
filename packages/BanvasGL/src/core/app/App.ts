@@ -7,7 +7,7 @@ import {
   IRendererOptions,
   type AppMode,
 } from "@/core/interfaces";
-import AnimationManager from "@/core/animation/AnimationManager";
+import { AnimationManager } from "@/core/animation";
 
 export default class App {
   // 基本属性

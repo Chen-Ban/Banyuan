@@ -1,26 +1,26 @@
 import { generateId } from '@/core/utils'
-import { interpolateKeyframes, type ResolvedKeyframeSegment } from './interpolators'
-import { Easings } from './easings'
+import { interpolateKeyframes, type ResolvedKeyframeSegment } from '../keyframes/interpolators'
+import { Easings } from '../keyframes/easings'
 import AnimationManager from './AnimationManager'
 import Matrix4 from '@/core/math/Matrix4'
 import {
     getPropertyCategory,
     detectConflict,
-} from './adapters'
-import { extractTranslation, extractRotationZ, lerpAngle } from './trs'
+} from '../adapters/adapters'
+import { extractTranslation, extractRotationZ, lerpAngle } from '../adapters/trs'
 import type {
     AnimationOptions,
     AnimationState,
     AnimatableValue,
-    Keyframe,
     KeyframeProps,
     KeyframeDefinition,
     FillMode,
     PlaybackDirection,
     EasingFunction,
-} from './types'
+    IAnimatable,
+} from '@/core/interfaces'
+import type { Keyframe } from '../types'
 import type View from '@/core/views/View/View'
-import type { IAnimatable } from './IAnimatable'
 
 /**
  * Animation 类
@@ -553,15 +553,12 @@ export default class Animation {
     private _getSnapshotValue(prop: string): AnimatableValue | undefined {
         const category = getPropertyCategory(prop)
         if (category === 'spatial') {
-            // 空间属性：起始值来自 _spatialSnapshot
             return this._spatialSnapshot[prop as keyof typeof this._spatialSnapshot]
         } else if (category === 'size') {
-            // 尺寸属性：起始值来自 _sizeSnapshot
             if (prop === 'width') return this._sizeSnapshot.width
             if (prop === 'height') return this._sizeSnapshot.height
             if (prop === 'scaleX' || prop === 'scaleY') return 1
         }
-        // 直通属性
         return this._snapshotValues[prop]
     }
 
@@ -630,7 +627,6 @@ export default class Animation {
 
         // ---- 空间属性：分量插值 → 合成矩阵 ----
         if (this._spatialProps.length > 0) {
-            // 从 segments 插值各空间分量
             const currentX = this._interpolateSpatialProp('x', progress)
             const currentY = this._interpolateSpatialProp('y', progress)
             const currentRotation = this._interpolateSpatialProp('rotation', progress)
@@ -641,7 +637,6 @@ export default class Animation {
                     .translate(currentX, currentY, 0)
                     .rotateZ(currentRotation)
 
-                // localMatrix = (parent→ref).inverse() × targetInRef
                 const parent = this.target.parent
                 let parentToRef = Matrix4.identity()
                 if (parent && typeof parent === 'object' && 'getWorldMatrix' in parent) {
@@ -651,7 +646,6 @@ export default class Animation {
                 this.computedValues['matrix'] = animatedMatrix
             } else {
                 // 相对模式：构造增量矩阵，左乘到快照 matrix 上
-                // deltaMatrix = T(deltaX, deltaY) × R(deltaRotation)
                 const deltaMatrix = Matrix4.identity()
                     .translate(currentX, currentY, 0)
                     .rotateZ(currentRotation)
@@ -664,8 +658,6 @@ export default class Animation {
         if (this._sizeProps.length > 0) {
             const currentWidth = this._interpolateSizeProp('width', progress)
             const currentHeight = this._interpolateSizeProp('height', progress)
-
-            // 调用 _animationResize 直接修改 viewport + content
             this.target._animationResize(currentWidth, currentHeight)
         }
 
@@ -680,15 +672,12 @@ export default class Animation {
 
     /**
      * 插值空间属性分量
-     * 如果该属性未被动画控制，返回快照值（无变化）
      */
     private _interpolateSpatialProp(prop: 'x' | 'y' | 'rotation', progress: number): number {
         const segments = this._segments.get(prop)
         if (!segments) {
-            // 该属性未被动画控制，返回快照值
             return this._spatialSnapshot[prop]
         }
-        // 使用短弧插值 for rotation，线性插值 for x/y
         if (prop === 'rotation') {
             return this._interpolateRotationSegments(segments, progress)
         }
@@ -699,19 +688,16 @@ export default class Animation {
      * 对 rotation 分段进行短弧插值
      */
     private _interpolateRotationSegments(segments: ResolvedKeyframeSegment[], progress: number): number {
-        // 找到当前进度所在的分段
         for (const seg of segments) {
             if (progress >= seg.startOffset && progress <= seg.endOffset) {
                 const segDuration = seg.endOffset - seg.startOffset
                 const segProgress = segDuration > 0
                     ? (progress - seg.startOffset) / segDuration
                     : 1
-                // 应用段级 easing
                 const easedSeg = seg.easing ? seg.easing(segProgress) : segProgress
                 return lerpAngle(seg.startValue as number, seg.endValue as number, easedSeg)
             }
         }
-        // 超出范围时返回最后一段的终值
         if (segments.length > 0) {
             const lastSeg = segments[segments.length - 1]
             return progress <= segments[0].startOffset
@@ -723,17 +709,12 @@ export default class Animation {
 
     /**
      * 插值尺寸属性
-     * scaleX/scaleY 被转化为 width/height 目标值后，统一按 width/height 插值
      */
     private _interpolateSizeProp(prop: 'width' | 'height', progress: number): number {
-        // 尺寸属性的 segments 可能以 width/height/scaleX/scaleY 为 key
-        // 但在 play() 阶段已经将 scaleX/scaleY 转化为了 width/height 的目标值
-        // 这里直接线性插值 snapshot → target
         const segments = this._segments.get(prop)
         if (segments) {
             return interpolateKeyframes(segments, progress) as number
         }
-        // 如果 segments 中没有直接的 width/height，检查 scaleX/scaleY
         if (prop === 'width') {
             const scaleSegs = this._segments.get('scaleX')
             if (scaleSegs) {
@@ -755,10 +736,6 @@ export default class Animation {
 
     /**
      * 提交终态：动画结束时将最终值写入 View 的真实属性
-     *
-     * 根据 fillMode：
-     * - 'none': 清除 computedValues，View 恢复原状（spatial）
-     * - 'forwards'/'both': 保留终态写入 View 真实属性
      */
     private _commit(): void {
         if (!this.target) return
@@ -766,46 +743,37 @@ export default class Animation {
         const shouldPersist = this.fillMode === 'forwards' || this.fillMode === 'both'
 
         if (shouldPersist) {
-            // 空间属性：将计算出的 matrix 写入 View.matrix
             if (this._spatialProps.length > 0 && this.computedValues['matrix']) {
                 this.target.matrix = this.computedValues['matrix'] as Matrix4
             }
 
-            // 尺寸属性：已经每帧真实修改了 viewport + content，无需额外操作
-
-            // 直通属性：写入 View 对应属性
             for (const prop of this._directProps) {
                 if (this.computedValues[prop] !== undefined) {
                     ;(this.target as any)[prop] = this.computedValues[prop]
                 }
             }
         } else {
-            // fillMode = 'none' 或 'backwards'
-            // 空间属性：恢复到快照 matrix
             if (this._spatialProps.length > 0) {
                 this.target.matrix = this._matrixSnapshot.copy()
             }
 
-            // 尺寸属性：恢复到快照尺寸
             if (this._sizeProps.length > 0) {
                 this.target._animationResize(this._sizeSnapshot.width, this._sizeSnapshot.height)
             }
         }
 
-        // 清除 computedValues（动画不再驱动渲染）
         this.computedValues = {}
     }
 
     /**
      * 查找同一 View 上控制相同属性的正在运行的动画
-     * 用于冲突解决（后到的动画打断先到的同属性动画）
      */
     private _findConflictingAnimation(prop: string): Animation | null {
         if (!this.target) return null
         const animations = this.target._getAnimations()
         for (const anim of animations) {
-            if (anim !== this && anim.isActive && anim.properties.includes(prop)) {
-                return anim
+            if (anim !== (this as any) && anim.isActive && anim.properties.includes(prop)) {
+                return anim as Animation
             }
         }
         return null
@@ -820,12 +788,10 @@ export default class Animation {
         this._segments.delete(prop)
         delete this.computedValues[prop]
 
-        // 从分类缓存中移除
         this._spatialProps = this._spatialProps.filter(p => p !== prop)
         this._sizeProps = this._sizeProps.filter(p => p !== prop)
         this._directProps = this._directProps.filter(p => p !== prop)
 
-        // 如果所有属性都被打断了，自动取消这个动画
         if (this.properties.length === 0) {
             this.cancel()
         }

@@ -22,13 +22,14 @@ import { Line, Rectangle } from "@/core/graph";
 import { BoundingBoxAddon } from "@/core/views/addon";
 import { MathUtils, Point3, Vector3 } from "@/core/math";
 import Bounds from "@/core/graph/base/Bounds";
-import Animation from "@/core/animation/Animation";
+import { Animation } from "@/core/animation";
 import { FlowRunner } from "@/core/runtime/FlowRunner";
 import type {
   RuntimeContext,
   AnimationOptions,
   KeyframeDefinition,
   AnimatableValue,
+  IAnimation,
 } from "@/core/interfaces";
 import Scene from "@/core/scene/Scene";
 
@@ -142,7 +143,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public abstract copy(): View;
 
   // ==================== 动画系统 ====================
-  private _animations: Animation[] = [];
+  private _animations: IAnimation[] = [];
 
   /**
    * 创建并播放动画，或挂载已有 Animation 实例并播放
@@ -216,14 +217,14 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   /** @internal 由 Animation 调用 */
-  _addAnimation(anim: Animation): void {
+  _addAnimation(anim: IAnimation): void {
     if (!this._animations.includes(anim)) {
       this._animations.push(anim);
     }
   }
 
   /** @internal 由 Animation 调用 */
-  _removeAnimation(anim: Animation): void {
+  _removeAnimation(anim: IAnimation): void {
     const index = this._animations.indexOf(anim);
     if (index !== -1) {
       this._animations.splice(index, 1);
@@ -231,7 +232,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   /** @internal 由 Animation 调用 */
-  _getAnimations(): Animation[] {
+  _getAnimations(): IAnimation[] {
     return this._animations;
   }
 
