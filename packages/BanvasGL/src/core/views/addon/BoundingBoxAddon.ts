@@ -11,7 +11,27 @@ import {
 } from "@/core/interfaces";
 import { ADDONTYPE } from "@/core/constants";
 import { Circle, Line } from "@/core/graph";
-import { Color, StrokeStyle } from "@/core/style";
+import { Color, FillStyle, StrokeStyle } from "@/core/style";
+
+/**
+ * 主题色常量（PPT 风格）
+ */
+const THEME = {
+  /** 主色调：柔和蓝 */
+  primary: new Color(74, 144, 217, 1),
+  /** 主色调半透明（用于边框） */
+  primaryLight: new Color(74, 144, 217, 0.6),
+  /** 手柄填充：白色 */
+  handleFill: new Color(255, 255, 255, 1),
+  /** 手柄描边：主色调 */
+  handleStroke: new Color(74, 144, 217, 1),
+  /** 旋转手柄填充：浅绿 */
+  rotateFill: new Color(255, 255, 255, 1),
+  /** 旋转手柄描边：绿色 */
+  rotateStroke: new Color(76, 175, 80, 1),
+  /** 旋转连接线颜色 */
+  rotateLine: new Color(76, 175, 80, 0.8),
+} as const;
 
 export default class BoundingBoxAddon implements IBoundingBoxAddon {
   public readonly type = ADDONTYPE.BOUNDING_BOX;
@@ -49,9 +69,9 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
     ];
 
     const handleStyle = new Style()
-      .setStrokeWidth(1)
-      .setFillColor(new Color(0, 255, 0, 1))
-      .setStrokeColor(new Color(0, 255, 0, 0.2));
+      .setStrokeWidth(1.5)
+      .setFillColor(THEME.handleFill)
+      .setStrokeColor(THEME.handleStroke);
     return points.map(
       (p) => new Rectangle(p.x - half, p.y - half, size, size, handleStyle),
     );
@@ -64,8 +84,19 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
     const startPoint = center.add(up.scale(Math.abs(this.region.height) / 2));
     const endPoint = startPoint.add(up.scale(15));
     const circleCenter = startPoint.add(up.scale(20));
-    const line = new Line(startPoint, endPoint, new Style().setStrokeWidth(1));
-    const circle = new Circle(circleCenter, 5, new Style().setStrokeWidth(1));
+    const lineStyle = new Style({
+      strokeStyle: new StrokeStyle({
+        strokeType: "color",
+        color: THEME.rotateLine,
+        width: 1,
+      }),
+    });
+    const circleStyle = new Style()
+      .setStrokeWidth(1.5)
+      .setFillColor(THEME.rotateFill)
+      .setStrokeColor(THEME.rotateStroke);
+    const line = new Line(startPoint, endPoint, lineStyle);
+    const circle = new Circle(circleCenter, 5, circleStyle);
     return [line, circle];
   }
 
@@ -73,10 +104,11 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
     return Rectangle.fromBounds(
       this.viewport.copy(),
       new Style({
+        fillStyle: new FillStyle({ fillType: "color", color: Color.TRANSPARENT }),
         strokeStyle: new StrokeStyle({
           strokeType: "color",
-          color: new Color(0, 1, 0, 1),
-          dashArray: [5, 5],
+          color: THEME.primary,
+          width: 1,
         }),
       }),
     );

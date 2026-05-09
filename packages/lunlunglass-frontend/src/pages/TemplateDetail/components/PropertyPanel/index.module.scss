@@ -213,6 +213,20 @@
   }
 }
 
+// ── 圆角半径区域 ──
+
+.radiiControls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radiiUniform {
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #ecf0f1;
+}
+
 // ── 样式区域 ──
 
 .selectInput {
@@ -229,5 +243,186 @@
 
   &:focus {
     border-color: #3498db;
+  }
+}
+
+// ── 数据面板 ──
+
+.emptyFields {
+  font-size: 11px;
+  color: #bdc3c7;
+  padding: 4px 0 8px;
+}
+
+// 字段行（已有字段）
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 72px 1fr 20px;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.fieldKey {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: #2c3e50;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fieldTypeSelect {
+  padding: 2px 4px;
+  border: 1px solid #dfe6e9;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #34495e;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  width: 100%;
+
+  &:focus {
+    border-color: #3498db;
+  }
+}
+
+.fieldDefaultInput {
+  padding: 2px 5px;
+  border: 1px solid #dfe6e9;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: #2c3e50;
+  background: #fff;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+
+  &:focus {
+    border-color: #3498db;
+  }
+
+  &::placeholder {
+    color: #bdc3c7;
+  }
+}
+
+.fieldDeleteBtn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: #bdc3c7;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: #e74c3c;
+    background: #fdecea;
+  }
+}
+
+// ── 事件面板 ──
+
+.eventRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  min-height: 26px;
+}
+
+.eventName {
+  font-size: 11px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: #2c3e50;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+
+.eventPreview {
+  flex: 1;
+  font-size: 10px;
+  color: #95a5a6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.addEventRow {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #ecf0f1;
+}
+
+// 新增字段行
+.addFieldRow {
+  display: grid;
+  grid-template-columns: 1fr 72px 20px;
+  gap: 4px;
+  align-items: center;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #ecf0f1;
+}
+
+.addFieldKeyInput {
+  padding: 2px 5px;
+  border: 1px solid #dfe6e9;
+  border-radius: 3px;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: #2c3e50;
+  background: #fff;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+
+  &:focus {
+    border-color: #3498db;
+  }
+
+  &::placeholder {
+    color: #bdc3c7;
+  }
+}
+
+.addFieldBtn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #3498db;
+  border-radius: 3px;
+  background: #3498db;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #2980b9;
+    border-color: #2980b9;
+  }
+
+  &:disabled {
+    background: #dfe6e9;
+    border-color: #dfe6e9;
+    cursor: not-allowed;
   }
 }

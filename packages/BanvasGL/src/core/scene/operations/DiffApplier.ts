@@ -155,7 +155,6 @@ export default class DiffApplier {
       case 'freezed':
       case 'style':
       case 'data':
-      case 'properties':
       case 'editable':
       case 'verticalAlign':
         view[path] = value

@@ -8,10 +8,12 @@ import {
   IView,
   IViewStyle,
   IViewAddon,
+  IFieldSchemaMap,
   ExtraData,
   ISerializable,
   IGraph,
 } from "@/core/interfaces";
+import type { IViewEvents, IViewLifetimes } from "@/core/interfaces";
 
 // 导入图形相关类型
 import { Line, Rectangle } from "@/core/graph";
@@ -26,6 +28,9 @@ import type {
   KeyframeDefinition,
   AnimatableValue,
 } from "@/core/animation/types";
+import { FlowRunner } from "@/core/runtime/FlowRunner";
+import type { RuntimeContext } from "@/core/runtime/RuntimeContext";
+import Scene from "@/core/scene/Scene";
 
 const RESIZE_SIZE_MAP = [
   { width: true, height: true },
@@ -59,34 +64,56 @@ export interface InteractResult {
 }
 
 // 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
-export interface ViewOptions<T extends object = any> {
+export interface ViewOptions<D extends IFieldSchemaMap = any> {
   id?: string;
   name?: string;
   content?: IGraph; // 改为IGraph，多图形用组合图形替代
   children?: View[];
   parent?: ISceneNode | View;
-  data?: T;
-  properties?: T;
+  data?: D;
   style?: IViewStyle;
   matrix?: Matrix4;
-  onCreated?: () => void;
-  onAttach?: () => void;
-  onDestroy?: () => void;
-  [funcName: string]: any;
+  lifetimes?: Partial<IViewLifetimes>;
+  events?: Partial<IViewEvents>;
 }
 
 // TODO：不同容器的默认样式表
-export default abstract class View<T extends object = any>
+export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   implements IView, ISerializable
 {
   // 基本属性
   public id: string = "";
   public name: string = "";
-  public properties: T = {} as T;
-  public data: T = {} as T;
+  public data: D = {} as D;
   public content: IGraph | null;
   public children: View[] = [];
   public parent: ISceneNode | View | null = null;
+
+  // 事件与生命周期
+  public events: IViewEvents = {
+    // 点击类
+    onClick:       null,
+    onDoubleClick: null,
+    onContextMenu: null,
+    // 鼠标移动类
+    onMouseEnter:  null,
+    onMouseLeave:  null,
+    onMouseMove:   null,
+    onMouseDown:   null,
+    onMouseUp:     null,
+    // 拖拽类
+    onDragStart:   null,
+    onDrag:        null,
+    onDragEnd:     null,
+    // 焦点类
+    onFocus:       null,
+    onBlur:        null,
+  };
+  public lifetimes: IViewLifetimes = {
+    onCreated: null,
+    onAttach: null,
+    onDestroy: null,
+  };
 
   // 样式和状态
   public style: IViewStyle = {};
@@ -369,14 +396,13 @@ export default abstract class View<T extends object = any>
     return best;
   }
 
-  constructor(options: ViewOptions<T>) {
+  constructor(options: ViewOptions<D>) {
     if (new Set(options?.children?.map((view) => view.parent)).size > 1) {
       throw new Error("子视图必须属于同一个父视图");
     }
     // 属性初始化
     this.id = options.id || "";
-    this.data = options.data || ({} as T);
-    this.properties = options.properties || ({} as T);
+    this.data = options.data || ({} as D);
     this.style = {
       overflow: "visible",
       needStructViewport: false,
@@ -387,13 +413,13 @@ export default abstract class View<T extends object = any>
     this.children = options.children ?? [];
     this.parent = options.parent ?? null;
 
-    this.onCreated = options.onCreated || (() => {});
-    this.onAttach = options.onAttach || (() => {});
-    this.onDestroy = options.onDestroy || (() => {});
-
-    Object.keys(options).forEach((key) => {
-      this[key] = options[key];
-    });
+    // 生命周期与事件绑定
+    if (options.lifetimes) {
+      Object.assign(this.lifetimes, options.lifetimes);
+    }
+    if (options.events) {
+      Object.assign(this.events, options.events);
+    }
 
     // 开始布局相关
     // 步骤1: 初始化视口
@@ -421,16 +447,67 @@ export default abstract class View<T extends object = any>
 
     this.initRef(this.children);
 
-    this.onCreated();
+    // 触发用户自定义 onCreated 生命周期
+    // onCreated 在构造期触发，此时尚未挂载到 Scene，_triggerLifetime 内部会静默跳过
+    this._triggerLifetime(this.lifetimes.onCreated)
   }
 
-  // 设置数据
-  public setData(data: Partial<T>): void {
-    this.data = { ...this.data, ...data };
+  /**
+   * 触发用户自定义生命周期钩子
+   *
+   * 向上查找最近的 Scene，构建 RuntimeContext 后交由 FlowRunner 执行。
+   * 找不到 Scene 时（如 onCreated 在构造期触发）静默跳过。
+   *
+   * @param schema  对应 lifetimes 字段的 FlowSchema（null 时直接返回）
+   * @param eventArgs 传入的事件参数（生命周期通常为空数组）
+   */
+  private _triggerLifetime(
+    schema: import('@/core/interfaces').FlowSchema | null,
+    eventArgs: unknown[] = [],
+  ): void {
+    if (!schema) return
+
+    // 向上找 Scene（parent 可能是 Scene 或另一个 View）
+    let node: any = this.parent
+    while (node && !('camera' in node)) {
+      node = node.parent
+    }
+    const page = node as Scene | null
+    if (!page) return  // 尚未挂载到 Scene，静默跳过
+
+    const ctx: RuntimeContext = {
+      self: this,
+      page,
+      view: (id) => page.findViewById(id) as View | null,
+      eventArgs,
+    }
+
+    FlowRunner.run(schema, ctx).catch((err) => {
+      console.error('[FlowRunner] 生命周期执行出错:', err)
+    })
   }
 
-  // 生命周期回调
-  public onCreated(): void {}
+  /**
+   * 设置运行时字段值
+   *
+   * 只写入各字段的 value，不修改 default 和 type。
+   * key 不存在于 data 中时静默忽略。
+   */
+  public setData(values: Record<string, string | number | boolean | object>): void {
+    // 通过基类型 IFieldSchemaMap 操作，绕过泛型 D 的写入限制
+    const data = this.data as IFieldSchemaMap
+    for (const key of Object.keys(values)) {
+      if (key in data) {
+        data[key] = { ...data[key], value: values[key] }
+      }
+    }
+  }
+
+  // 生命周期方法（引擎内部调用，附带触发用户自定义 lifetimes）
+
+  public onAttach(): void {
+    this._triggerLifetime(this.lifetimes.onAttach)
+  }
 
   public onDestroy(): void {
     // 清理引用
@@ -443,9 +520,8 @@ export default abstract class View<T extends object = any>
     this.setEditingVertex(false);
     this.setEditingViewport(false);
     this.setEditingVertex(false);
+    this._triggerLifetime(this.lifetimes.onDestroy)
   }
-
-  public onAttach(): void {}
 
   initRef(children: View[]) {
     children.forEach((child) => {
@@ -453,8 +529,8 @@ export default abstract class View<T extends object = any>
     });
   }
 
-  // 自定义属性（索引签名）
-  [funcName: string]: any;
+  // 索引签名（子类可能有额外属性，如 verticalAlign、fixedWidth 等）
+  [key: string]: any;
 
   /**
    * 尺寸变化方向由三个因素决定：
@@ -506,37 +582,32 @@ export default abstract class View<T extends object = any>
       relativeVector.y,
     );
 
-    for (let [i, handler] of handles.entries()) {
-      const v = handler.getCenter().subtract(handles[(i + 4) % 8].getCenter());
-      //判断两个向量是否同向，用于判断是否可以修改尺寸（仅水平/垂直修改）
-      if (
-        1 - v.normalized.dot(referenceVector.normalized) <
-        MathUtils.EPSILON
-      ) {
-        const canResize = RESIZE_SIZE_MAP[i];
-        const newWidth = viewport.width + Number(canResize.width) * deltaX;
-        const newHeight = viewport.height + Number(canResize.height) * deltaY;
+    // 通过 dynamicPoint 直接定位当前拖拽的手柄索引，避免方向匹配在极端比例下误判
+    const dynamicIndex = handles.findIndex((h) =>
+      h.getCenter().isSame(dynamicPoint),
+    );
+    if (dynamicIndex !== -1) {
+      const canResize = RESIZE_SIZE_MAP[dynamicIndex];
+      const newWidth = viewport.width + Number(canResize.width) * deltaX;
+      const newHeight = viewport.height + Number(canResize.height) * deltaY;
 
-        // 当resize结果为0时，不进行操作，避免后续计算出错
-        // 1、calulateDimensionDelta出错导致视口不变化
-        // 2、graph resize在边界时比例失调
-        if (newWidth === 0 || newHeight === 0) return;
+      // 当resize结果为0时，不进行操作，避免后续计算出错
+      // 1、calulateDimensionDelta出错导致视口不变化
+      // 2、graph resize在边界时比例失调
+      if (newWidth === 0 || newHeight === 0) return;
 
-        // 根据手柄位置决定是否移动视口起点
-        // 拖左侧/上方手柄时，起点需要反向偏移以保持固定点不动
-        const canMoveOrigin = RESIZE_ORIGIN_MAP[i];
-        this.viewport.setPosition(
-          viewport.x + (canMoveOrigin.x ? -deltaX : 0),
-          viewport.y + (canMoveOrigin.y ? -deltaY : 0),
-        );
+      // 根据手柄位置决定是否移动视口起点
+      // 拖左侧/上方手柄时，起点需要反向偏移以保持固定点不动
+      const canMoveOrigin = RESIZE_ORIGIN_MAP[dynamicIndex];
+      this.viewport.setPosition(
+        viewport.x + (canMoveOrigin.x ? -deltaX : 0),
+        viewport.y + (canMoveOrigin.y ? -deltaY : 0),
+      );
 
-        this.viewport?.setSize(newWidth, newHeight);
+      this.viewport?.setSize(newWidth, newHeight);
 
-        // boundingBox 直接从 viewport 引用读取最新位置和尺寸
-        this.boundingBox?.updateSize();
-
-        break;
-      }
+      // boundingBox 直接从 viewport 引用读取最新位置和尺寸
+      this.boundingBox?.updateSize();
     }
 
     // 修改子容器。
@@ -562,14 +633,14 @@ export default abstract class View<T extends object = any>
     if (!this.visible) {
       return;
     }
-    this.rederToOffScreen();
+    this.renderToOffScreen();
 
     // TODO：这里可以利用离屏画布内容对每个容器做监控
 
     this.renderFromCache();
   }
 
-  private rederToOffScreen(): void {
+  private renderToOffScreen(): void {
     const canvasContext = getGlobalCanvasContext();
 
     const offscreenCtx = canvasContext.getBufferContext();
@@ -578,9 +649,11 @@ export default abstract class View<T extends object = any>
     if (!viewport) {
       return;
     }
-    offscreenCtx.save();
 
     const transform = this.getMVPMatrix().transform;
+
+    // ── 第一阶段：渲染内容和子节点（受 clip 约束） ──
+    offscreenCtx.save();
     offscreenCtx.setTransform(
       transform[0],
       transform[4],
@@ -590,11 +663,8 @@ export default abstract class View<T extends object = any>
       transform[7],
     );
 
-    // 渲染插件到离屏画布(不受裁剪作用的影响)
-    this.renderPlugins(offscreenCtx);
-
     if (this.style.overflow !== "visible") {
-      // 设置视口裁剪区域,offset通过viewport和layoutArea计算得出
+      // 设置视口裁剪区域
       offscreenCtx.beginPath();
       offscreenCtx.rect(
         viewport.x,
@@ -606,19 +676,30 @@ export default abstract class View<T extends object = any>
     }
 
     // 应用 scroll 偏移后渲染内容和子节点
-    // clip 已经建立，translate 只影响内容绘制位置，不影响裁剪区域
     offscreenCtx.save();
     offscreenCtx.translate(this.scrollOffset.x, this.scrollOffset.y);
 
     this.renderContent(offscreenCtx);
     this.children.forEach((view) => {
       if (!view.visible) return;
-      view.rederToOffScreen();
+      view.renderToOffScreen();
     });
 
     offscreenCtx.restore(); // 恢复 scroll translate
+    offscreenCtx.restore(); // 恢复 MVP + clip（clip 随 save/restore 出栈）
 
-    offscreenCtx.restore(); // 恢复 MVP setTransform
+    // ── 第二阶段：渲染插件（不受 clip 约束，始终在内容之上） ──
+    offscreenCtx.save();
+    offscreenCtx.setTransform(
+      transform[0],
+      transform[4],
+      transform[1],
+      transform[5],
+      transform[3],
+      transform[7],
+    );
+    this.renderPlugins(offscreenCtx);
+    offscreenCtx.restore();
   }
 
   // 从缓存渲染到主画布
@@ -836,8 +917,9 @@ export default abstract class View<T extends object = any>
       type: this.type,
       visible: this.visible,
       freezed: this.freezed,
-      properties: this.properties,
       data: this.data,
+      events: this.events,
+      lifetimes: this.lifetimes,
       style: this.style,
       matrix: this.matrix.toJSON(),
       viewport: this.viewport.toJSON(),

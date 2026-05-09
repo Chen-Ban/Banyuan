@@ -22,7 +22,6 @@ export interface ViewSnapshotData {
     freezed?: boolean
     style?: any
     data?: any
-    properties?: any
     children?: any
     editable?: boolean
     verticalAlign?: any

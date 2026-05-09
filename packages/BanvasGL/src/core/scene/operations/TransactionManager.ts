@@ -18,7 +18,6 @@ interface ViewSnapshot {
   freezed: boolean
   style: any
   data: any
-  properties: any
   children: any
   // 子类扩展字段（TextView）
   editable?: boolean
@@ -28,7 +27,7 @@ interface ViewSnapshot {
 /** 需要快照的属性路径列表 */
 const SNAPSHOT_PATHS: (keyof ViewSnapshot)[] = [
   'matrix', 'viewport', 'content',
-  'visible', 'freezed', 'style', 'data', 'properties', 'children',
+  'visible', 'freezed', 'style', 'data', 'children',
   'editable', 'verticalAlign',
 ]
 
@@ -58,7 +57,6 @@ function snapshotView(view: { toJSON(): any }): ViewSnapshot {
     freezed: json.freezed,
     style: json.style,
     data: json.data,
-    properties: json.properties,
     children: json.children,
     editable: json.editable,
     verticalAlign: json.verticalAlign,

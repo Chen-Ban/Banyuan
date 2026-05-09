@@ -1,7 +1,7 @@
 import View, { InteractResult, ViewOptions } from "@/core/views/View/View";
 import { Graph, Line } from "@/core/graph";
-import { isAnalyticGraph, IGraphView, ISerializable } from "@/core/interfaces";
-import { VIEWTYPE } from "@/core/constants";
+import { isAnalyticGraph, isCombinedGraph, IGraphView, ISerializable } from "@/core/interfaces";
+import { VIEWTYPE, GRAPHTYPE } from "@/core/constants";
 import { generateId, generateName } from "@/core/utils";
 import { Point3, Vector3 } from "@/core/math";
 import { VertexAddon } from "@/core/views/addon";
@@ -32,7 +32,7 @@ export default class GraphView
     this.content = graph;
 
     // TOREVIEW: 多个插件的展示、交互、优先级是怎么样的
-    if (isAnalyticGraph(graph)) {
+    if (isAnalyticGraph(graph) || isCombinedGraph(graph)) {
       this.boundingBox = null;
     }
 
@@ -41,7 +41,9 @@ export default class GraphView
       this.content.controlPoints instanceof Float32Array
         ? Point3.fromArray(this.content.controlPoints)
         : this.content.controlPoints;
-    this.controlPoints = new VertexAddon(vertics);
+    // RoundedRect: 前4个为角点，后4个为圆角控制点
+    const radiusStartIndex = graph.type === GRAPHTYPE.ROUNDED_RECT ? 4 : -1;
+    this.controlPoints = new VertexAddon(vertics, radiusStartIndex);
   }
 
   protected interactPlugins(relativePoint: Point3): InteractResult {
@@ -85,19 +87,28 @@ export default class GraphView
     const index = this.controlPoints.vertices.indexOf(vertex)
     if (index < 0) return
 
+    // 圆角控制点约束：只允许沿边线方向移动（水平方向）
+    const isRadiusControl = this.controlPoints.radiusControlStartIndex >= 0
+      && index >= this.controlPoints.radiusControlStartIndex
+    const dx = localDelta.x
+    const dy = isRadiusControl ? 0 : localDelta.y
+
     // 计算新顶点位置
     const newVertex = new Point3(
-      vertex.x + localDelta.x,
-      vertex.y + localDelta.y,
+      vertex.x + dx,
+      vertex.y + dy,
       vertex.z
     )
 
-    // 更新 VertexAddon 中的顶点（保持 activeVertex 引用同步）
-    this.controlPoints.vertices[index] = newVertex
-    this.controlPoints.activeVertex = newVertex
-
-    // 委托给 content.setControlPoint，由各子类处理自身约束
+    // 委托给 content.setControlPoint，由各子类处理自身约束（含 clamp）
     this.content.setControlPoint(index, newVertex)
+
+    // setControlPoint 内部会 clamp，需要从 content 重新读取实际控制点位置
+    const actualPoints = this.content.controlPoints instanceof Float32Array
+      ? Point3.fromArray(this.content.controlPoints)
+      : this.content.controlPoints
+    this.controlPoints.vertices = actualPoints
+    this.controlPoints.activeVertex = actualPoints[index]
 
     // 重算 layoutArea
     this.layoutArea = Bounds.union(
@@ -124,8 +135,7 @@ export default class GraphView
     const newView = new GraphView(this.content);
 
     // 复制基本属性（id 由构造器自动生成新的）
-    newView.properties = { ...this.properties };
-    newView.data = { ...this.data };
+newView.data = { ...this.data };
     newView.style = {
       ...this.style,
     };
@@ -160,8 +170,9 @@ export default class GraphView
     view.id = data.id;
     view.visible = data.visible;
     view.freezed = data.freezed;
-    if (data.properties) view.properties = data.properties;
-    if (data.data) view.data = data.data;
+if (data.data) view.data = data.data;
+    if (data.events) Object.assign(view.events, data.events);
+    if (data.lifetimes) Object.assign(view.lifetimes, data.lifetimes);
     if (data.style) view.style = data.style;
     if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix);
     if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport);
