@@ -7,7 +7,7 @@
  * 所有变更操作在完成后调用 app.notify() 通知外部订阅者（useSyncExternalStore）。
  */
 
-import type { IViewActions, IPageActions, IHistoryActions, IBanvasActions, IComponentTemplate, IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from '@/core/interfaces'
+import type { IViewActions, IPageActions, IHistoryActions, IBanvasActions, IComponentTemplate, IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes, ISceneLifetimes } from '@/core/interfaces'
 import type { App } from '@/core/app'
 import { BaseCamera, Scene } from '@/core'
 import { Point3 } from '@/core/math'
@@ -328,40 +328,19 @@ export function createViewActions(
             notify()
         },
 
-        getViewProperties(viewId: string): IFieldSchemaMap {
-            const scene = getScene()
-            if (!scene) return {}
-            const view = scene.findViewById(viewId)
-            return view ? ({ ...view.properties } as IFieldSchemaMap) : {}
-        },
-
-        setViewProperty(viewId: string, key: string, schema: IFieldSchema): void {
-            const scene = getScene()
-            if (!scene) return
-            const view = scene.findViewById(viewId)
-            if (!view) return
-            view.properties = { ...view.properties, [key]: schema }
-            notify()
-        },
-
-        deleteViewProperty(viewId: string, key: string): void {
-            const scene = getScene()
-            if (!scene) return
-            const view = scene.findViewById(viewId)
-            if (!view) return
-            const next = { ...view.properties } as IFieldSchemaMap
-            delete next[key]
-            view.properties = next
-            notify()
-        },
-
         // ── 事件与生命周期 ──
 
         getViewEvents(viewId: string): IViewEvents {
             const scene = getScene()
-            if (!scene) return { onClick: null, onDoubleClick: null, onMouseEnter: null, onMouseLeave: null, onMouseDown: null, onMouseUp: null }
+            const empty: IViewEvents = {
+                onClick: null, onDoubleClick: null, onContextMenu: null,
+                onMouseEnter: null, onMouseLeave: null, onMouseMove: null, onMouseDown: null, onMouseUp: null,
+                onDragStart: null, onDrag: null, onDragEnd: null,
+                onFocus: null, onBlur: null,
+            }
+            if (!scene) return empty
             const view = scene.findViewById(viewId)
-            return view ? { ...view.events } : { onClick: null, onDoubleClick: null, onMouseEnter: null, onMouseLeave: null, onMouseDown: null, onMouseUp: null }
+            return view ? { ...view.events } : empty
         },
 
         setViewEvent(viewId: string, eventName: keyof IViewEvents, handler: EventHandler): void {
@@ -615,6 +594,32 @@ export function createPageActions(
             const next = { ...scene.data } as IFieldSchemaMap
             delete next[key]
             scene.data = next
+            notify()
+        },
+
+        getPageLifetimes(pageId: string): ISceneLifetimes {
+            const app = getApp()
+            if (!app) return { onLoad: null, onUnload: null, onShow: null, onHide: null }
+            const scene = app.getScene(pageId)
+            if (!scene) return { onLoad: null, onUnload: null, onShow: null, onHide: null }
+            return { ...scene.lifetimes }
+        },
+
+        setPageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes, handler: EventHandler): void {
+            const app = getApp()
+            if (!app) return
+            const scene = app.getScene(pageId)
+            if (!scene) return
+            scene.lifetimes = { ...scene.lifetimes, [lifetimeName]: handler }
+            notify()
+        },
+
+        deletePageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes): void {
+            const app = getApp()
+            if (!app) return
+            const scene = app.getScene(pageId)
+            if (!scene) return
+            scene.lifetimes = { ...scene.lifetimes, [lifetimeName]: null }
             notify()
         },
     }

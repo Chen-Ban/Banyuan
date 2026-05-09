@@ -10,6 +10,7 @@
 import type { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import type View from '@/core/views/View/View'
 import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from './IView'
+import type { ISceneLifetimes } from './IScene'
 
 // ────────────────────────────────────────────
 //  组件物料（Component Definition）
@@ -175,13 +176,6 @@ export interface IViewActions {
     setViewData(viewId: string, key: string, schema: IFieldSchema): void
     /** 删除 View 的单个 data 字段 */
     deleteViewData(viewId: string, key: string): void
-    /** 获取 View 的 properties 字段定义表 */
-    getViewProperties(viewId: string): IFieldSchemaMap
-    /** 设置 View 的单个 property 字段（新增或更新） */
-    setViewProperty(viewId: string, key: string, schema: IFieldSchema): void
-    /** 删除 View 的单个 property 字段 */
-    deleteViewProperty(viewId: string, key: string): void
-
     // ── 事件与生命周期 ──
 
     /** 获取 View 的事件绑定表 */
@@ -251,6 +245,15 @@ export interface IPageActions {
     setPageData(pageId: string, key: string, schema: IFieldSchema): void
     /** 删除页面级单个 data 字段 */
     deletePageData(pageId: string, key: string): void
+
+    // ── 页面生命周期 ──
+
+    /** 获取页面的生命周期钩子表 */
+    getPageLifetimes(pageId: string): ISceneLifetimes
+    /** 设置页面的单个生命周期钩子 */
+    setPageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes, handler: EventHandler): void
+    /** 删除（清空）页面的单个生命周期钩子 */
+    deletePageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes): void
 }
 
 /** 历史操作（撤销/重做） */
