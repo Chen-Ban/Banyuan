@@ -98,13 +98,4 @@ for (const prop of SIZE_PROPERTIES) {
     animationAdapterRegistry.register(prop)
 }
 
-// ========== 便捷函数（向后兼容） ==========
-
-/** @deprecated 请直接使用 animationAdapterRegistry */
-export const getAdapter = (prop: string) => animationAdapterRegistry.getAdapter(prop)
-/** @deprecated 请直接使用 animationAdapterRegistry */
-export const getPropertyCategory = (prop: string) => animationAdapterRegistry.getCategory(prop)
-/** @deprecated 请直接使用 animationAdapterRegistry */
-export const detectConflict = (properties: string[]) => animationAdapterRegistry.detectConflict(properties)
-
 export { SPATIAL_PROPERTIES, SIZE_PROPERTIES }

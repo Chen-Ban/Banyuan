@@ -33,7 +33,7 @@ import {
 } from '@/core/views'
 import { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import { clearAllStates, flattenViewTree } from '@/core/scene/operations'
-import { getProperty, setProperty, getPropertyCategory } from '@/core/propadapters'
+import { adapterRegistry } from '@/core/propadapters'
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null
@@ -394,7 +394,7 @@ export function createViewActions(
             if (!scene) return undefined
             const view = scene.findViewById(viewId)
             if (!view) return undefined
-            return getProperty(view, prop)
+            return adapterRegistry.get(view, prop)
         },
 
         getActivedViewIds(): string[] {
@@ -409,21 +409,21 @@ export function createViewActions(
             const selectedView = scene.getSelectedView()
             if (!selectedView) return
 
-            const oldValue = getProperty(selectedView, prop)
-            const category = getPropertyCategory(prop)
+            const oldValue = adapterRegistry.get(selectedView, prop)
+            const category = adapterRegistry.getCategory(prop)
 
-            setProperty(selectedView, prop, value)
+            adapterRegistry.set(selectedView, prop, value)
 
             const activedViews = scene.getAllActived()
             for (const view of activedViews) {
                 if (view.id === selectedView.id) continue
-                const currentVal = getProperty(view, prop)
+                const currentVal = adapterRegistry.get(view, prop)
                 if (category === 'size') {
                     const ratio = oldValue !== 0 ? value / oldValue : 1
-                    setProperty(view, prop, currentVal * ratio)
+                    adapterRegistry.set(view, prop, currentVal * ratio)
                 } else {
                     const delta = value - oldValue
-                    setProperty(view, prop, currentVal + delta)
+                    adapterRegistry.set(view, prop, currentVal + delta)
                 }
             }
 
@@ -439,20 +439,20 @@ export function createViewActions(
             const activedViews = scene.getAllActived()
 
             for (const [prop, value] of Object.entries(props)) {
-                const oldValue = getProperty(selectedView, prop)
-                const category = getPropertyCategory(prop)
+                const oldValue = adapterRegistry.get(selectedView, prop)
+                const category = adapterRegistry.getCategory(prop)
 
-                setProperty(selectedView, prop, value)
+                adapterRegistry.set(selectedView, prop, value)
 
                 for (const view of activedViews) {
                     if (view.id === selectedView.id) continue
-                    const currentVal = getProperty(view, prop)
+                    const currentVal = adapterRegistry.get(view, prop)
                     if (category === 'size') {
                         const ratio = oldValue !== 0 ? value / oldValue : 1
-                        setProperty(view, prop, currentVal * ratio)
+                        adapterRegistry.set(view, prop, currentVal * ratio)
                     } else {
                         const delta = value - oldValue
-                        setProperty(view, prop, currentVal + delta)
+                        adapterRegistry.set(view, prop, currentVal + delta)
                     }
                 }
             }

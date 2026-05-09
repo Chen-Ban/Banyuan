@@ -3,10 +3,7 @@ import { interpolateKeyframes, type ResolvedKeyframeSegment } from '../keyframes
 import { Easings } from '../keyframes/easings'
 import AnimationManager from './AnimationManager'
 import Matrix4 from '@/core/math/Matrix4'
-import {
-    getPropertyCategory,
-    detectConflict,
-} from '../adapters/adapters'
+import { animationAdapterRegistry } from '../adapters/adapters'
 import { extractTranslation, extractRotationZ, lerpAngle } from '../adapters/trs'
 import type {
     AnimationOptions,
@@ -176,14 +173,14 @@ export default class Animation {
         this.properties = Array.from(propSet)
 
         // 冲突检测
-        const conflict = detectConflict(this.properties)
+        const conflict = animationAdapterRegistry.detectConflict(this.properties)
         if (conflict) {
             throw new Error(conflict)
         }
 
         // 分类属性
         for (const prop of this.properties) {
-            const category = getPropertyCategory(prop)
+            const category = animationAdapterRegistry.getCategory(prop)
             if (category === 'spatial') {
                 this._spatialProps.push(prop)
             } else if (category === 'size') {
@@ -551,7 +548,7 @@ export default class Animation {
      * 获取属性的快照值（用于 segment 构建时补全起始帧）
      */
     private _getSnapshotValue(prop: string): AnimatableValue | undefined {
-        const category = getPropertyCategory(prop)
+        const category = animationAdapterRegistry.getCategory(prop)
         if (category === 'spatial') {
             return this._spatialSnapshot[prop as keyof typeof this._spatialSnapshot]
         } else if (category === 'size') {
