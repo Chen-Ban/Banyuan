@@ -226,8 +226,12 @@ export interface IAnimatable {
     _removeAnimation(anim: IAnimation): void
     /** 获取 View 当前所有活跃动画（用于冲突检测） @internal */
     _getAnimations(): IAnimation[]
-    /** 动画专用 resize，直接修改 viewport + content @internal */
+    /** 动画运行期间更新覆盖视口（不修改真实 viewport）@internal */
     _animationResize(targetWidth: number, targetHeight: number): void
+    /** 将覆盖视口提交为真实 viewport（fillMode: forwards 时调用）@internal */
+    _commitAnimatedViewport(): void
+    /** 清空覆盖视口，恢复使用真实 viewport（fillMode: none 时调用）@internal */
+    _clearAnimatedViewport(): void
 
     // ── Animation 内部计算所需的 View 属性 ──
     matrix: Matrix4

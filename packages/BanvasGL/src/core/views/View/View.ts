@@ -135,6 +135,16 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public boundingBox: BoundingBoxAddon | null = null;
   // 视口
   public viewport: Bounds;
+  /**
+   * 动画覆盖视口（动画运行期间由动画系统写入，渲染时优先读取）
+   * 动画结束后由 _commitAnimatedViewport / _clearAnimatedViewport 处理
+   * @internal
+   */
+  _animatedViewport: Bounds | null = null;
+  /** 渲染时使用的视口：动画覆盖层优先，否则取真实 viewport */
+  get renderViewport(): Bounds {
+    return this._animatedViewport ?? this.viewport
+  }
   // 内容布局区域
   public layoutArea: Bounds;
   // 类型
@@ -239,48 +249,66 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   /**
    * 动画专用 resize 方法
    *
-   * 模拟从右下角拖拽 + Ctrl 按下的效果：
-   * 同时修改 viewport 尺寸和 content，等比缩放所有内容。
+   * 只更新 _animatedViewport 覆盖层，不修改真实 viewport。
+   * 渲染时通过 renderViewport getter 优先读取覆盖层。
+   * 子 View 同样只更新覆盖层，保持等比缩放关系。
    *
    * @param targetWidth 目标宽度
    * @param targetHeight 目标高度
    * @internal
    */
   _animationResize(targetWidth: number, targetHeight: number): void {
+    const baseViewport = this.viewport;
+    if (!baseViewport) return;
+    if (targetWidth === 0 || targetHeight === 0) return;
+
+    // 写入覆盖层（复用已有对象避免每帧 GC，首次创建）
+    if (!this._animatedViewport) {
+      this._animatedViewport = baseViewport.copy();
+    }
+    this._animatedViewport.setSize(targetWidth, targetHeight);
+
+    // 递归子 View（基于真实 viewport 计算缩放比，保持相对比例）
+    const scaleX = targetWidth / baseViewport.width;
+    const scaleY = targetHeight / baseViewport.height;
+    this.children.forEach((child) => {
+      const childVp = child.viewport;
+      if (!childVp) return;
+      child._animationResize(childVp.width * scaleX, childVp.height * scaleY);
+    });
+  }
+
+  /**
+   * 将动画覆盖视口提交为真实 viewport（fillMode: forwards 时调用）
+   *
+   * 执行完整的 resize 逻辑：更新 viewport、content、布局区域，
+   * 然后清空覆盖层。
+   * @internal
+   */
+  _commitAnimatedViewport(): void {
+    if (!this._animatedViewport) return;
+    const targetWidth = this._animatedViewport.width;
+    const targetHeight = this._animatedViewport.height;
+    this._animatedViewport = null;
+
     const viewport = this.viewport;
     if (!viewport) return;
-
     const oldWidth = viewport.width;
     const oldHeight = viewport.height;
-
-    // 避免尺寸为 0
-    if (targetWidth === 0 || targetHeight === 0) return;
     if (oldWidth === 0 || oldHeight === 0) return;
+    if (targetWidth === 0 || targetHeight === 0) return;
 
-    // 计算增量 delta
     const deltaX = targetWidth - oldWidth;
     const deltaY = targetHeight - oldHeight;
 
-    // 更新 viewport 尺寸（固定左上角，向右下角拓展）
     viewport.setSize(targetWidth, targetHeight);
     this.boundingBox?.updateSize();
 
-    // resize content（模拟 needResizeContent = true 的效果）
     if (this.content) {
-      // fixedPoint: viewport 起点（左上角）
-      // dynamicPoint: viewport 右下角
       const fixedPoint = new Point3(viewport.x, viewport.y, 0);
-      const dynamicPoint = new Point3(
-        viewport.x + oldWidth,
-        viewport.y + oldHeight,
-        0,
-      );
-      // resizeVector: 尺寸变化量（本地坐标系）
+      const dynamicPoint = new Point3(viewport.x + oldWidth, viewport.y + oldHeight, 0);
       const resizeVector = new Vector3(deltaX, deltaY, 0);
-
       this.content.resize(fixedPoint, dynamicPoint, resizeVector);
-
-      // 更新布局区域
       this.layoutArea = Bounds.union(
         this.content.bounds ?? Bounds.empty(),
         this.measureChildren(),
@@ -288,17 +316,27 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       this.layout();
     }
 
-    // 递归子 View（子 View 等比缩放）
+    // 递归提交子 View
     const scaleX = targetWidth / oldWidth;
     const scaleY = targetHeight / oldHeight;
     this.children.forEach((child) => {
-      const childViewport = child.viewport;
-      if (!childViewport) return;
-      child._animationResize(
-        childViewport.width * scaleX,
-        childViewport.height * scaleY,
-      );
+      // 先把子 View 的覆盖层设置为提交目标尺寸，再提交
+      const childVp = child.viewport;
+      if (!childVp) return;
+      child._animatedViewport = child._animatedViewport ?? childVp.copy();
+      child._animatedViewport.setSize(childVp.width * scaleX, childVp.height * scaleY);
+      child._commitAnimatedViewport();
     });
+  }
+
+  /**
+   * 清空动画覆盖视口（fillMode: none/backwards 时调用）
+   * 直接丢弃覆盖层，View 恢复使用真实 viewport，无需任何恢复操作。
+   * @internal
+   */
+  _clearAnimatedViewport(): void {
+    this._animatedViewport = null;
+    this.children.forEach((child) => child._clearAnimatedViewport());
   }
 
   // 获取内容
@@ -646,7 +684,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     const canvasContext = getGlobalCanvasContext();
 
     const offscreenCtx = canvasContext.getBufferContext();
-    const viewport = this.viewport;
+    const viewport = this.renderViewport;
 
     if (!viewport) {
       return;
