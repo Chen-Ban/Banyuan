@@ -12,6 +12,16 @@ import type { IRenderer, IRendererOptions } from './IRenderer'
 //  App 相关类型
 // ────────────────────────────────────────────
 
+/**
+ * 应用运行模式
+ *
+ * - edit：    编辑模式（默认）。canvas 事件由编辑器拦截，处理 select/move/resize 等设计操作；
+ *             View 上的用户事件（onClick 等）不触发，FlowSchema 不执行。
+ * - preview： 预览/运行模式。canvas 事件交由运行时处理，命中 View 后触发对应 FlowSchema；
+ *             编辑器交互（BoundingBox、选中框等）不响应。
+ */
+export type AppMode = 'edit' | 'preview'
+
 /** 页面类型（等价于 IScene） */
 export type IPage = IScene
 
@@ -39,6 +49,11 @@ export interface IApp {
     scenes: IScene[]
     renderer: IRenderer
     pageStack: IScene[]
+
+    /** 当前运行模式，默认 'edit' */
+    mode: AppMode
+    /** 切换运行模式 */
+    setMode(mode: AppMode): IApp
 
     // 生命周期
     onLaunch(params: any): void

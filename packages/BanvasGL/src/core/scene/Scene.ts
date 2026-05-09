@@ -10,7 +10,7 @@ import {
   groupViews,
   ungroupView,
 } from "./operations";
-import { ISerializable, isCombinedView } from "@/core/interfaces";
+import { ISerializable, isCombinedView, type ISceneLifetimes } from "@/core/interfaces";
 import { SCENETYPE } from "@/core/constants";
 import { SnapAlignManager } from "@/core/snapAlign";
 import Serializer from "@/core/serializer";
@@ -20,10 +20,7 @@ export interface SceneOptions {
   name?: string;
   camera?: BaseCamera;
   data?: any;
-  onLoad?: (params: any) => void;
-  onUnload?: () => void;
-  onShow?: () => void;
-  onHide?: () => void;
+  lifetimes?: Partial<ISceneLifetimes>;
 }
 
 export default class Scene implements ISerializable {
@@ -41,11 +38,16 @@ export default class Scene implements ISerializable {
   // 私有属性
   private _isVisible: boolean = false;
 
-  // 传入的生命周期回调函数
-  private _onLoad?: (params: any) => void;
-  private _onUnload?: () => void;
-  private _onShow?: () => void;
-  private _onHide?: () => void;
+  /**
+   * 反向引用持有本 Scene 的 App 实例
+   *
+   * 由 App.addScene 注入，供 FlowRunner 执行 navigate 节点和 markDirty 使用。
+   * 使用 any 避免循环依赖（Scene → App → Scene）。
+   */
+  public _app: any = null;
+
+  // 用户自定义生命周期回调
+  public lifetimes: ISceneLifetimes;
 
   constructor(camera: BaseCamera, options: SceneOptions = {}) {
     this.camera = camera;
@@ -67,11 +69,13 @@ export default class Scene implements ISerializable {
       this.data = options.data;
     }
 
-    // 保存生命周期回调函数
-    this._onLoad = options.onLoad;
-    this._onUnload = options.onUnload;
-    this._onShow = options.onShow;
-    this._onHide = options.onHide;
+    // 初始化生命周期回调
+    this.lifetimes = {
+      onLoad: options.lifetimes?.onLoad ?? null,
+      onUnload: options.lifetimes?.onUnload ?? null,
+      onShow: options.lifetimes?.onShow ?? null,
+      onHide: options.lifetimes?.onHide ?? null,
+    };
 
     // 生成唯一ID
     this.id = generateId(this.type);
@@ -80,10 +84,7 @@ export default class Scene implements ISerializable {
 
   // 生命周期方法
   public onLoad(params: any): void {
-    // 执行用户提供的回调函数
-    if (this._onLoad) {
-      this._onLoad(params);
-    }
+    // TODO: 接入 FlowRunner，将 this.lifetimes.onLoad 编译执行（params 作为 eventArg 传入）
   }
 
   public onUnload(): void {
@@ -92,28 +93,19 @@ export default class Scene implements ISerializable {
     // 清空操作栈
     this.transactionManager.clear();
 
-    // 执行用户提供的回调函数
-    if (this._onUnload) {
-      this._onUnload();
-    }
+    // TODO: 接入 FlowRunner，将 this.lifetimes.onUnload 编译执行
   }
 
   public onShow(): void {
     this._isVisible = true;
 
-    // 执行用户提供的回调函数
-    if (this._onShow) {
-      this._onShow();
-    }
+    // TODO: 接入 FlowRunner，将 this.lifetimes.onShow 编译执行
   }
 
   public onHide(): void {
     this._isVisible = false;
 
-    // 执行用户提供的回调函数
-    if (this._onHide) {
-      this._onHide();
-    }
+    // TODO: 接入 FlowRunner，将 this.lifetimes.onHide 编译执行
   }
 
   public getAllActived() {
@@ -172,6 +164,19 @@ export default class Scene implements ISerializable {
     this.children.forEach((view) => {
       view.render();
     });
+  }
+
+  /**
+   * 标记某个 View 的状态已变更，需要重绘
+   *
+   * 运行时（FlowRunner）在 setData / setVisible 等节点执行后调用。
+   * App 已有 60fps 循环渲染，此处直接触发一次即时渲染确保变更立即可见，
+   * 无需等待下一帧。
+   *
+   * @param _view 发生变更的 View（保留参数，未来可做局部重绘优化）
+   */
+  public markDirty(_view?: View): void {
+    this._app?.render()
   }
 
   /**
@@ -394,6 +399,7 @@ export default class Scene implements ISerializable {
     return {
       id: this.id,
       data: this.data,
+      lifetimes: this.lifetimes,
       camera: {
         $type: (this.camera as any).type,
         $value: (this.camera as any).toJSON(),
@@ -423,7 +429,9 @@ export default class Scene implements ISerializable {
    */
   static fromJSON(data: any): Scene {
     // data.camera 已经由递归反序列化恢复为 BaseCamera 实例
-    const scene = new Scene(data.camera);
+    const scene = new Scene(data.camera, {
+      lifetimes: data.lifetimes ?? undefined,
+    });
     scene.id = data.id;
     if (data.data) scene.data = data.data;
     if (data.children) {
