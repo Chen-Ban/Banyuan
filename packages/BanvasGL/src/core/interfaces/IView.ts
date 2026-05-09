@@ -17,7 +17,7 @@ import type { Line, Rectangle, Circle } from '@/core/graph'
 import type { IGraph, ITextElement, ITextFields, TextIndex } from './IGraph'
 
 // ────────────────────────────────────────────
-//  IFieldSchema —— data / properties 的字段定义
+//  IFieldSchema —— data 的字段定义
 // ────────────────────────────────────────────
 
 /** 字段类型 */
@@ -26,51 +26,228 @@ export type FieldType = 'string' | 'number' | 'boolean' | 'object'
 /**
  * 单个字段的 Schema 定义
  *
- * View.data / View.properties 中每个 key 对应一个 IFieldSchema。
- * - type：字段数据类型，用于面板渲染对应输入控件
- * - default：设计时配置的默认值，运行时初始化时使用
+ * View.data 中每个 key 对应一个 IFieldSchema。
+ * - type：    字段数据类型，用于面板渲染对应输入控件
+ * - default： 字段的默认值，设计时配置，运行时不可修改
+ * - value：   运行时实际值；未设置时读取方应回退到 default
+ *
+ * 读取约定：`field.value ?? field.default`
+ * 写入约定：FlowRunner 的 setData 节点只写 value，default 永远不变
  */
 export interface IFieldSchema {
-    type: FieldType
-    default: any
+    type:     FieldType
+    default:  string | number | boolean | object
+    value?:   string | number | boolean | object
 }
 
-/** 字段定义表 —— View.data 和 View.properties 的实际类型 */
+/** 字段定义表 —— View.data 的实际类型 */
 export type IFieldSchemaMap = Record<string, IFieldSchema>
+
+// ────────────────────────────────────────────
+//  FlowSchema —— 可视化事件编排的结构化描述
+// ────────────────────────────────────────────
+
+/**
+ * 动态值 —— FlowNode 参数的值来源
+ *
+ * - literal:     字面量，直接使用 value 字段的值
+ * - dataRef:     引用某个 View 的 data 字段（'self' 表示当前 View）
+ * - pageDataRef: 引用当前页面的 data 字段
+ * - eventArg:    引用触发事件时传入的参数（如点击坐标），index 为参数位置
+ */
+export type FlowValue =
+    | { kind: 'literal';     value: string | number | boolean }
+    | { kind: 'dataRef';     viewId: string; key: string }
+    | { kind: 'pageDataRef'; key: string }
+    | { kind: 'eventArg';    index: number }
+
+/**
+ * 条件表达式 —— 用于 condition 节点的分支判断
+ */
+export interface FlowCondition {
+    left:  FlowValue
+    op:    '==' | '!=' | '>' | '>=' | '<' | '<='
+    right: FlowValue
+}
+
+// ── FlowNode 判别联合 ──
+
+/** 设置 View 的 data 字段值（'self' 表示当前 View） */
+export interface FlowSetDataNode {
+    kind:   'setData'
+    viewId: string
+    key:    string
+    value:  FlowValue
+}
+
+/** 导航到另一个页面 */
+export interface FlowNavigateNode {
+    kind:   'navigate'
+    pageId: string
+}
+
+/** 播放预定义动画 */
+export interface FlowAnimateNode {
+    kind:        'animate'
+    viewId:      string
+    animationId: string
+}
+
+/** 条件分支（出边通过 FlowEdge.branch 区分 'true' | 'false'） */
+export interface FlowConditionNode {
+    kind:      'condition'
+    condition: FlowCondition
+}
+
+/** 延迟等待（毫秒） */
+export interface FlowDelayNode {
+    kind: 'delay'
+    ms:   number
+}
+
+/** 设置 View 的可见性 */
+export interface FlowSetVisibleNode {
+    kind:    'setVisible'
+    viewId:  string
+    visible: boolean
+}
+
+/**
+ * FlowNode —— 动作节点
+ *
+ * 每个节点代表一个原子动作，通过 kind 字段做判别联合收窄。
+ * x/y 为编辑器画布中的布局坐标，仅用于面板渲染，不影响运行时逻辑。
+ */
+export type FlowNode = {
+    id: string
+    x?: number
+    y?: number
+} & (
+    | FlowSetDataNode
+    | FlowNavigateNode
+    | FlowAnimateNode
+    | FlowConditionNode
+    | FlowDelayNode
+    | FlowSetVisibleNode
+)
+
+/**
+ * FlowEdge —— 节点间的有向连线，描述执行顺序
+ *
+ * - from: 源节点 ID，特殊值 '__start__' 表示流程入口
+ * - to:   目标节点 ID
+ * - branch: 仅 condition 节点的出边需要，区分 true/false 分支
+ */
+export interface FlowEdge {
+    id:      string
+    from:    string
+    to:      string
+    branch?: 'true' | 'false'
+}
+
+/**
+ * FlowSchema —— 可视化事件编排的完整描述
+ *
+ * 用有向图表达"触发事件后执行哪些动作、按什么顺序、满足什么条件"。
+ * 用户通过可视化面板编排，引擎在运行时将其编译为可执行逻辑。
+ * 本身是纯 JSON 数据，可直接序列化/反序列化，无需特殊处理。
+ */
+export interface FlowSchema {
+    nodes: FlowNode[]
+    edges: FlowEdge[]
+}
 
 // ────────────────────────────────────────────
 //  IViewEvents / IViewLifetimes —— 事件与生命周期
 // ────────────────────────────────────────────
 
-/** 事件处理器：设计时为脚本字符串，运行时为函数，未绑定为 null */
-export type EventHandler = ((...args: any[]) => void) | string | null
+/**
+ * 事件处理器 —— 可视化编排的结构化描述，或未绑定（null）
+ *
+ * 用户通过可视化面板编排动作流，引擎在运行时将 FlowSchema 编译执行。
+ * 不支持手写脚本字符串，所有逻辑均通过 FlowSchema 节点表达。
+ */
+export type EventHandler = FlowSchema | null
 
 /**
- * View 交互事件表 —— 所有 View 共有的用户交互事件
+ * View 交互事件表 —— 覆盖桌面端常用交互
  *
- * 设计时：值为 string（用户编写的脚本代码）或 null（未绑定）
- * 运行时：值为实际函数或 null
- * hook 层根据 mode 决定是否触发
+ * 所有事件仅在运行模式下触发，编辑模式下引擎拦截，不执行用户逻辑。
+ *
+ * ── 点击类 ──
+ * onClick        用户完成一次点击（mousedown + mouseup 在同一元素上抬起）
+ * onDoubleClick  用户在短时间内连续点击两次
+ * onContextMenu  用户右键点击（或长按触发上下文菜单）
+ *
+ * ── 鼠标移动类 ──
+ * onMouseEnter   鼠标指针首次进入 View 命中区域（不冒泡）
+ * onMouseLeave   鼠标指针离开 View 命中区域（不冒泡）
+ * onMouseMove    鼠标指针在 View 命中区域内移动（高频触发，慎用复杂逻辑）
+ * onMouseDown    鼠标按键在 View 上按下
+ * onMouseUp      鼠标按键在 View 上抬起
+ *
+ * ── 拖拽类 ──
+ * onDragStart    用户开始拖拽（mousedown 后移动距离超过阈值时触发）
+ * onDrag         拖拽进行中（高频触发，慎用复杂逻辑）
+ * onDragEnd      拖拽结束（mouseup 时触发）
+ *
+ * ── 焦点类（仅对可聚焦 View 如 Input 有效） ──
+ * onFocus        View 获得焦点
+ * onBlur         View 失去焦点
  */
 export interface IViewEvents {
-    onClick: EventHandler
+    // 点击类
+    onClick:       EventHandler
     onDoubleClick: EventHandler
-    onMouseEnter: EventHandler
-    onMouseLeave: EventHandler
-    onMouseDown: EventHandler
-    onMouseUp: EventHandler
+    onContextMenu: EventHandler
+    // 鼠标移动类
+    onMouseEnter:  EventHandler
+    onMouseLeave:  EventHandler
+    onMouseMove:   EventHandler
+    onMouseDown:   EventHandler
+    onMouseUp:     EventHandler
+    // 拖拽类
+    onDragStart:   EventHandler
+    onDrag:        EventHandler
+    onDragEnd:     EventHandler
+    // 焦点类
+    onFocus:       EventHandler
+    onBlur:        EventHandler
 }
 
 /**
- * View 生命周期钩子 —— 用户自定义的生命周期回调
+ * View 用户生命周期钩子 —— 用户在设计时绑定的自定义逻辑
  *
- * 与引擎内部的生命周期方法（onAttach/onDestroy）分离：
- * - 引擎内部方法：由 Scene/CombinedView 等在合适时机调用，处理引擎逻辑
- * - lifetimes：用户在设计时绑定的自定义逻辑，由引擎内部方法在执行时附带调用
+ * 与引擎内部生命周期方法（View.onAttach / View.onDestroy）的区别：
+ * - 引擎内部方法：由 Scene/CombinedView 在合适时机调用，处理引擎自身逻辑
+ *   （注册到渲染树、释放资源等），业务层不可覆盖
+ * - lifetimes：在引擎内部方法执行完毕后附带调用，供用户绑定业务逻辑
+ *
+ * 触发顺序（以一个 View 被添加到页面为例）：
+ *   1. new View()           → onCreated 触发
+ *   2. scene.addChild(view) → 引擎内部 onAttach 执行完毕 → onAttach 触发
+ *   3. scene.removeChild()  → 引擎内部 onDestroy 执行完毕 → onDestroy 触发
+ *
+ * ── 各钩子说明 ──
+ *
+ * onCreated
+ *   触发时机：View 实例构造完成后立即触发，此时 View 尚未挂载到任何场景
+ *   典型用途：初始化 View 自身的 data 字段默认值
+ *   注意：此时 parent、scene 均为 null，不可访问其他 View 或页面数据
+ *
+ * onAttach
+ *   触发时机：View 被添加到 Scene 或 CombinedView 的子树后触发
+ *   典型用途：读取页面数据、订阅其他 View 的状态、启动定时动画
+ *   注意：此时可通过 page.data 访问页面数据，可通过 view(id) 访问同页面其他 View
+ *
+ * onDestroy
+ *   触发时机：View 从场景中移除并销毁前触发
+ *   典型用途：清理定时器、取消订阅、释放用户侧资源
+ *   注意：触发后 View 实例即将失效，不应再持有其引用
  */
 export interface IViewLifetimes {
     onCreated: EventHandler
-    onAttach: EventHandler
+    onAttach:  EventHandler
     onDestroy: EventHandler
 }
 
@@ -113,10 +290,17 @@ export interface IView {
     // 交互
     interact(worldPoint: Point3): IInteractResult
 
-    // 数据与属性
+    // 数据
     data: IFieldSchemaMap
-    properties: IFieldSchemaMap
-    setData(data: Partial<IFieldSchemaMap>): void
+    /**
+     * 设置运行时字段值
+     *
+     * 只写入各字段的 value，不修改 default 和 type。
+     * key 不存在于 data 中时静默忽略。
+     *
+     * @param values  { [fieldKey]: 新值 }
+     */
+    setData(values: Record<string, string | number | boolean | object>): void
 
     // 事件与生命周期
     events: IViewEvents
@@ -141,6 +325,22 @@ export interface IView {
     setSelected(selected: boolean): IView
     setVisible(visible: boolean): IView
     setFreezed(freezed: boolean): IView
+
+    // 预定义动画
+    /**
+     * 注册一个预定义动画，供 FlowSchema 的 animate 节点按 id 触发
+     *
+     * @param id         动画唯一标识，在同一 View 内不可重复
+     * @param animation  Animation 实例（尚未播放）
+     */
+    registerAnimation(id: string, animation: import('@/core/animation/Animation').default): void
+    /**
+     * 按 id 播放已注册的预定义动画
+     *
+     * @param id  registerAnimation 时使用的 id
+     * @returns   找到并播放返回 true，id 不存在返回 false
+     */
+    playAnimation(id: string): boolean
 
     // 生命周期
     onAttach(): void

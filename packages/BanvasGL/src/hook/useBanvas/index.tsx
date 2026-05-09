@@ -8,6 +8,7 @@ import React, {
 import { useCanvasInit } from "./useCanvasInit";
 import { useCanvasEvents } from "./useCanvasEvents";
 import type { ContextMenuHitResult } from "./useCanvasEvents";
+import { useRuntimeEvents } from "./useRuntimeEvents";
 import { useInputEvents } from "./useInputEvents";
 import { SerializedSceneJSON, UseBanvasOptions } from "./types";
 import { buildPageNodes } from "./builders";
@@ -131,14 +132,22 @@ export default function useBanvas(
     return buildPageNodes(app);
   }, [app, _version]);
 
-  // Canvas 事件绑定
+  // 当前运行模式（随 app.mode 变化）
+  const mode = app?.mode ?? 'edit';
+
+  // Canvas 事件绑定 —— 编辑模式：编辑器交互；预览模式：运行时事件
   useCanvasEvents({
-    app,
+    app: mode === 'edit' ? app : null,
     canvasRef,
     inputRef,
     actions,
     onContextMenuHit,
     onInteractionEnd: () => app?.notify(),
+  });
+
+  useRuntimeEvents({
+    app: mode === 'preview' ? app : null,
+    canvasRef,
   });
 
   // Input 事件绑定
