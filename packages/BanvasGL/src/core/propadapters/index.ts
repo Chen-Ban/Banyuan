@@ -160,28 +160,6 @@ export const adapterRegistry = new PropertyAdapterRegistry({
     .addConflictGroup(['width', 'scaleX'])
     .addConflictGroup(['height', 'scaleY'])
 
-// ========== 便捷函数（向后兼容） ==========
-
-/** @deprecated 请直接使用 adapterRegistry */
-export const getAdapter = (prop: string) => adapterRegistry.getAdapter(prop)
-/** @deprecated 请直接使用 adapterRegistry */
-export const getPropertyCategory = (prop: string) => adapterRegistry.getCategory(prop)
-/** @deprecated 请直接使用 adapterRegistry */
-export const getProperty = (view: View, prop: string, relativeMatrix?: Matrix4) =>
-    adapterRegistry.get(view, prop, relativeMatrix)
-/** @deprecated 请直接使用 adapterRegistry */
-export const setProperty = (view: View, prop: string, value: number) =>
-    adapterRegistry.set(view, prop, value)
-/** @deprecated 请直接使用 adapterRegistry */
-export const setProperties = (view: View, props: Record<string, number>) =>
-    adapterRegistry.setMany(view, props)
-/** @deprecated 请直接使用 adapterRegistry */
-export const getProperties = (view: View, propNames: string[], relativeMatrix?: Matrix4) =>
-    adapterRegistry.getMany(view, propNames, relativeMatrix)
-/** @deprecated 请直接使用 adapterRegistry */
-export const detectConflict = (properties: string[]) =>
-    adapterRegistry.detectConflict(properties)
-
 // ========== 属性列表常量 ==========
 
 /** 空间属性列表（x/y/rotation → matrix） */
