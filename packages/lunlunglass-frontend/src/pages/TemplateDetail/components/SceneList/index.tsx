@@ -7,7 +7,6 @@ import styles from "./index.module.scss";
 interface SceneListProps {
   pages: IPageNode[];
   currentPageId: string | null;
-  selectedViewId: string;
   actions: IBanvasActions;
 }
 
@@ -27,7 +26,9 @@ function isPageKey(pages: IPageNode[], key: string): boolean {
 function findOwnerPageId(pages: IPageNode[], viewId: string): string | null {
   for (const page of pages) {
     const found = (function search(nodes: IViewNode[]): boolean {
-      return nodes.some((n) => n.id === viewId || (n.children && search(n.children)));
+      return nodes.some(
+        (n) => n.id === viewId || (n.children && search(n.children)),
+      );
     })(page.children || []);
     if (found) return page.id;
   }
@@ -89,7 +90,6 @@ const InlineEdit: React.FC<{
 const SceneList: React.FC<SceneListProps> = ({
   pages,
   currentPageId,
-  selectedViewId,
   actions,
 }) => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -152,7 +152,11 @@ const SceneList: React.FC<SceneListProps> = ({
       }
     }
     for (const page of pages) {
-      if (page.isCurrent && keys.length === 0 && !pages.some(p => p.children?.some(c => c.actived))) {
+      if (
+        page.isCurrent &&
+        keys.length === 0 &&
+        !pages.some((p) => p.children?.some((c) => c.actived))
+      ) {
         // 如果当前页面没有任何 actived 节点，高亮页面本身
       }
       collectActived(page.children || []);
@@ -167,24 +171,39 @@ const SceneList: React.FC<SceneListProps> = ({
   // 始终展开所有页面节点（受控模式，响应 pages 变化）
   const expandedKeys = useMemo(() => pages.map((p) => p.id), [pages]);
 
-  const handleSelect = (keys: React.Key[]) => {
-    const key = (keys.length > 0 ? keys[0] : null) as string | null;
+  const handleSelect = (
+    _keys: React.Key[],
+    info: { node: { key: React.Key }; nativeEvent: MouseEvent },
+  ) => {
+    const key = info.node.key as string;
     if (!key) {
       actions.view.deselect();
       return;
     }
 
+    // macOS 上 Ctrl+Click 会触发系统右键菜单，多选应使用 Cmd(metaKey)
+    // Windows/Linux 上多选使用 Ctrl(ctrlKey)
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+    const isCtrl = isMac ? info.nativeEvent.metaKey : info.nativeEvent.ctrlKey;
+    console.log(isCtrl);
+
     if (isPageKey(pages, key)) {
       // 点击页面节点：切换页面并取消选中
-      actions.page.navigateTo(key);
       actions.view.deselect();
+      actions.page.navigateTo(key);
     } else {
-      // 点击 view 节点：若不在当前页面则先切换
+      // 点击 view 节点
       const ownerPageId = findOwnerPageId(pages, key);
       if (ownerPageId && ownerPageId !== currentPageId) {
+        // 跨页面：不允许多选，先清除再切换页面后单选
+        actions.view.deselect();
         actions.page.navigateTo(ownerPageId);
+        actions.view.select(key);
+      } else {
+        // 同页面：Ctrl 多选，否则单选
+        actions.view.select(key, isCtrl);
+        console.log(actions.view.getActivedViewIds());
       }
-      actions.view.select(key);
     }
   };
 

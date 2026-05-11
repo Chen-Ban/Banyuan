@@ -1,15 +1,19 @@
 /**
- * Actions 实现
+ * View 级别操作
  *
- * 将 App / Scene / View 的内部操作封装为安全的命名空间化 API。
- * 业务层通过 actions.view.select(id) 等形式调用，不直接接触实例。
- *
- * 所有变更操作在完成后调用 app.notify() 通知外部订阅者（useSyncExternalStore）。
+ * 封装对单个 View 的增删改查、选中、层级、分组、属性、事件、生命周期等操作。
  */
 
-import type { IViewActions, IPageActions, IHistoryActions, IBanvasActions, IComponentTemplate, IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes, ISceneLifetimes } from '@/core/interfaces'
+import type {
+    IViewActions,
+    IComponentTemplate,
+    IFieldSchema,
+    IFieldSchemaMap,
+    EventHandler,
+    IViewEvents,
+    IViewLifetimes,
+} from '@/core/interfaces'
 import type { App } from '@/core/app'
-import { BaseCamera, Scene } from '@/core'
 import { Point3 } from '@/core/math'
 import { Style } from '@/core/style'
 import {
@@ -29,7 +33,7 @@ import {
 } from '@/core/views'
 import { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import { clearAllStates, flattenViewTree } from '@/core/scene/operations'
-import { getProperty, setProperty, getPropertyCategory } from '@/core/propadapters'
+import { adapterRegistry } from '@/core/property'
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null
@@ -49,12 +53,12 @@ export function createViewActions(
     const notify = () => getApp()?.notify()
 
     return {
-        select(viewId: string): void {
+        select(viewId: string, multiple?: boolean): void {
             const scene = getScene()
             if (!scene) return
             const view = scene.findViewById(viewId)
             if (view) {
-                scene.select(view)
+                scene.select(view, multiple)
                 notify()
             }
         },
@@ -103,7 +107,6 @@ export function createViewActions(
             const currentIndex = siblings.indexOf(view)
             if (currentIndex === -1 || currentIndex === newIndex) return
 
-            // 移动到新位置
             siblings.splice(currentIndex, 1)
             const safeIndex = Math.min(newIndex, siblings.length)
             siblings.splice(safeIndex, 0, view)
@@ -391,7 +394,7 @@ export function createViewActions(
             if (!scene) return undefined
             const view = scene.findViewById(viewId)
             if (!view) return undefined
-            return getProperty(view, prop)
+            return adapterRegistry.get(view, prop)
         },
 
         getActivedViewIds(): string[] {
@@ -406,25 +409,21 @@ export function createViewActions(
             const selectedView = scene.getSelectedView()
             if (!selectedView) return
 
-            const oldValue = getProperty(selectedView, prop)
-            const category = getPropertyCategory(prop)
+            const oldValue = adapterRegistry.get(selectedView, prop)
+            const category = adapterRegistry.getCategory(prop)
 
-            // 对 selected View 设置绝对值
-            setProperty(selectedView, prop, value)
+            adapterRegistry.set(selectedView, prop, value)
 
-            // 对其他 actived View 应用偏移
             const activedViews = scene.getAllActived()
             for (const view of activedViews) {
                 if (view.id === selectedView.id) continue
-                const currentVal = getProperty(view, prop)
+                const currentVal = adapterRegistry.get(view, prop)
                 if (category === 'size') {
-                    // 乘法缩放
                     const ratio = oldValue !== 0 ? value / oldValue : 1
-                    setProperty(view, prop, currentVal * ratio)
+                    adapterRegistry.set(view, prop, currentVal * ratio)
                 } else {
-                    // 加法偏移（spatial / direct）
                     const delta = value - oldValue
-                    setProperty(view, prop, currentVal + delta)
+                    adapterRegistry.set(view, prop, currentVal + delta)
                 }
             }
 
@@ -440,20 +439,20 @@ export function createViewActions(
             const activedViews = scene.getAllActived()
 
             for (const [prop, value] of Object.entries(props)) {
-                const oldValue = getProperty(selectedView, prop)
-                const category = getPropertyCategory(prop)
+                const oldValue = adapterRegistry.get(selectedView, prop)
+                const category = adapterRegistry.getCategory(prop)
 
-                setProperty(selectedView, prop, value)
+                adapterRegistry.set(selectedView, prop, value)
 
                 for (const view of activedViews) {
                     if (view.id === selectedView.id) continue
-                    const currentVal = getProperty(view, prop)
+                    const currentVal = adapterRegistry.get(view, prop)
                     if (category === 'size') {
                         const ratio = oldValue !== 0 ? value / oldValue : 1
-                        setProperty(view, prop, currentVal * ratio)
+                        adapterRegistry.set(view, prop, currentVal * ratio)
                     } else {
                         const delta = value - oldValue
-                        setProperty(view, prop, currentVal + delta)
+                        adapterRegistry.set(view, prop, currentVal + delta)
                     }
                 }
             }
@@ -492,189 +491,6 @@ export function createViewActions(
             const scene = getScene()
             if (!scene) return
             scene.rollbackTransaction()
-        },
-    }
-}
-
-/**
- * 创建 PageActions 实例
- */
-export function createPageActions(
-    getApp: () => App | null,
-): IPageActions {
-    const notify = () => getApp()?.notify()
-
-    return {
-        navigateTo(pageId: string): void {
-            const app = getApp()
-            if (!app) return
-            const scene = app.getScene(pageId)
-            if (scene) {
-                app.navigateTo(scene as Scene)
-                notify()
-            }
-        },
-
-        add(name?: string): string | null {
-            const app = getApp()
-            if (!app) return null
-            const camera = new BaseCamera()
-            const scene = new Scene(camera, { name })
-            app.addScene(scene)
-            app.navigateTo(scene)
-            notify()
-            return scene.id
-        },
-
-        remove(pageId: string): void {
-            const app = getApp()
-            if (!app) return
-            const scene = app.getScene(pageId)
-            if (scene) {
-                app.removeScene(scene)
-                notify()
-            }
-        },
-
-        rename(pageId: string, name: string): void {
-            const app = getApp()
-            if (!app) return
-            const scene = app.getScene(pageId)
-            if (scene) {
-                scene.name = name
-                notify()
-            }
-        },
-
-        reorder(pageId: string, newIndex: number): void {
-            const app = getApp()
-            if (!app) return
-            const currentIndex = app.scenes.findIndex((s) => s.id === pageId)
-            if (currentIndex === -1 || currentIndex === newIndex) return
-
-            const [scene] = app.scenes.splice(currentIndex, 1)
-            const safeIndex = Math.min(newIndex, app.scenes.length)
-            app.scenes.splice(safeIndex, 0, scene)
-            notify()
-        },
-
-        duplicate(pageId: string): string | null {
-            const app = getApp()
-            if (!app) return null
-            const scene = app.getScene(pageId)
-            if (!scene) return null
-
-            const newScene = scene.copy()
-            app.addScene(newScene)
-            notify()
-            return newScene.id
-        },
-
-        getPageData(pageId: string): IFieldSchemaMap {
-            const app = getApp()
-            if (!app) return {}
-            const scene = app.getScene(pageId)
-            return scene ? ({ ...scene.data } as IFieldSchemaMap) : {}
-        },
-
-        setPageData(pageId: string, key: string, schema: IFieldSchema): void {
-            const app = getApp()
-            if (!app) return
-            const scene = app.getScene(pageId)
-            if (!scene) return
-            scene.data = { ...scene.data, [key]: schema }
-            notify()
-        },
-
-        deletePageData(pageId: string, key: string): void {
-            const app = getApp()
-            if (!app) return
-            const scene = app.getScene(pageId)
-            if (!scene) return
-            const next = { ...scene.data } as IFieldSchemaMap
-            delete next[key]
-            scene.data = next
-            notify()
-        },
-
-        getPageLifetimes(pageId: string): ISceneLifetimes {
-            const app = getApp()
-            if (!app) return { onLoad: null, onUnload: null, onShow: null, onHide: null }
-            const scene = app.getScene(pageId)
-            if (!scene) return { onLoad: null, onUnload: null, onShow: null, onHide: null }
-            return { ...scene.lifetimes }
-        },
-
-        setPageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes, handler: EventHandler): void {
-            const app = getApp()
-            if (!app) return
-            const scene = app.getScene(pageId)
-            if (!scene) return
-            scene.lifetimes = { ...scene.lifetimes, [lifetimeName]: handler }
-            notify()
-        },
-
-        deletePageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes): void {
-            const app = getApp()
-            if (!app) return
-            const scene = app.getScene(pageId)
-            if (!scene) return
-            scene.lifetimes = { ...scene.lifetimes, [lifetimeName]: null }
-            notify()
-        },
-    }
-}
-
-/**
- * 创建 HistoryActions 实例
- *
- * 注意：canUndo / canRedo 是 getter，每次访问时实时计算。
- */
-export function createHistoryActions(getApp: () => App | null): IHistoryActions {
-    const notify = () => getApp()?.notify()
-
-    return {
-        undo(): boolean {
-            const scene = getApp()?.getCurrentScene()
-            if (!scene) return false
-            const result = scene.undo()
-            if (result) notify()
-            return result
-        },
-
-        redo(): boolean {
-            const scene = getApp()?.getCurrentScene()
-            if (!scene) return false
-            const result = scene.redo()
-            if (result) notify()
-            return result
-        },
-
-        get canUndo(): boolean {
-            return getApp()?.getCurrentScene()?.canUndo ?? false
-        },
-
-        get canRedo(): boolean {
-            return getApp()?.getCurrentScene()?.canRedo ?? false
-        },
-    }
-}
-
-/**
- * 组装完整的 BanvasActions
- */
-export function createBanvasActions(
-    getApp: () => App | null,
-): IBanvasActions {
-    return {
-        view: createViewActions(getApp),
-        page: createPageActions(getApp),
-        history: createHistoryActions(getApp),
-
-        getSerializedScenes(): string[] {
-            const app = getApp()
-            if (!app) return []
-            return app.getSerializedScenes()
         },
     }
 }

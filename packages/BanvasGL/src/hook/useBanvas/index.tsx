@@ -5,19 +5,19 @@ import React, {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useCanvasInit } from "./useCanvasInit";
-import { useCanvasEvents } from "./useCanvasEvents";
-import type { ContextMenuHitResult } from "./useCanvasEvents";
-import { useRuntimeEvents } from "./useRuntimeEvents";
-import { useInputEvents } from "./useInputEvents";
+import { useCanvasInit } from "./canvas/useCanvasInit";
+import { useCanvasEvents } from "./canvas/useCanvasEvents";
+import type { ContextMenuHitResult } from "./canvas/useCanvasEvents";
+import { useRuntimeEvents } from "./canvas/useRuntimeEvents";
+import { useInputEvents } from "./canvas/useInputEvents";
 import { SerializedSceneJSON, UseBanvasOptions } from "./types";
-import { buildPageNodes } from "./builders";
+import { buildPageNodes } from "./data/builders";
 import { createBanvasActions } from "./actions";
-import { BUILTIN_COMPONENTS } from "./builtinComponents";
+import { BUILTIN_COMPONENTS } from "./data/builtinComponents";
 import {
   buildViewContextMenuItems,
   buildCanvasContextMenuItems,
-} from "./contextMenu";
+} from "./data/contextMenu";
 import type {
   IPageNode,
   IUseBanvasResult,

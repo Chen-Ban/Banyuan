@@ -1,4 +1,4 @@
-import type { EasingFunction } from './types'
+import type { EasingFunction } from '../types'
 
 /**
  * 内置缓动函数集合

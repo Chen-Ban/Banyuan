@@ -14,7 +14,7 @@ import type View from '@/core/views/View/View'
 import type Matrix4 from '@/core/math/Matrix4'
 import { Matrix4 as Matrix4Class } from '@/core/math'
 import type { TransformOrigin } from '@/core/interfaces'
-import type { PropertyAdapter } from './types'
+import type { PropertyAdapter } from '@/core/interfaces'
 
 /**
  * 根据 style.transformOrigin 和 viewport 解析出实际的变换中心坐标

@@ -1,5 +1,5 @@
 /**
- * 属性适配器类型定义
+ * IPropertyAdapter —— 属性适配器公共接口
  *
  * 属性适配器解决的核心问题：
  * 用户语义属性（x, y, rotation, width, height）与引擎内部数据结构（matrix, viewport）

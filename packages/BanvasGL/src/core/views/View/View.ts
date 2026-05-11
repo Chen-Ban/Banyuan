@@ -22,14 +22,13 @@ import { Line, Rectangle } from "@/core/graph";
 import { BoundingBoxAddon } from "@/core/views/addon";
 import { MathUtils, Point3, Vector3 } from "@/core/math";
 import Bounds from "@/core/graph/base/Bounds";
-import Animation from "@/core/animation/Animation";
+import { AnimationDescriptor, AnimationManager } from "@/core/animation";
 import type {
   AnimationOptions,
   KeyframeDefinition,
   AnimatableValue,
-} from "@/core/animation/types";
-import { FlowRunner } from "@/core/runtime/FlowRunner";
-import type { RuntimeContext } from "@/core/runtime/RuntimeContext";
+  IAnimationDescriptor,
+} from "@/core/interfaces";
 import Scene from "@/core/scene/Scene";
 
 const RESIZE_SIZE_MAP = [
@@ -134,6 +133,16 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public boundingBox: BoundingBoxAddon | null = null;
   // 视口
   public viewport: Bounds;
+  /**
+   * 动画覆盖视口（动画运行期间由动画系统写入，渲染时优先读取）
+   * 动画结束后由 _commitAnimatedViewport / _clearAnimatedViewport 处理
+   * @internal
+   */
+  _animatedViewport: Bounds | null = null;
+  /** 渲染时使用的视口：动画覆盖层优先，否则取真实 viewport */
+  get renderViewport(): Bounds {
+    return this._animatedViewport ?? this.viewport
+  }
   // 内容布局区域
   public layoutArea: Bounds;
   // 类型
@@ -142,42 +151,25 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public abstract copy(): View;
 
   // ==================== 动画系统 ====================
-  private _animations: Animation[] = [];
+  private _animations: IAnimationDescriptor[] = [];
 
   /**
-   * 创建并播放动画，或挂载已有 Animation 实例并播放
+   * 创建并播放动画
    * @example
-   * // 方式1：传入 Animation 实例
-   * const anim = new Animation({ to: { x: 200 } }, { duration: 1000 })
-   * view.animate(anim)
-   *
-   * // 方式2：KeyframeDefinition + options（自动创建 Animation）
+   * // KeyframeDefinition + options
    * view.animate({ to: { x: 200, y: 300 } }, { duration: 500, easing: Easings.easeOutCubic })
    *
-   * // 方式3：带中间帧
+   * // 带中间帧
    * view.animate({ '25': { x: 80 }, '75': { x: 180 }, to: { x: 200 } }, { duration: 1000 })
    */
-  public animate(animation: Animation): Animation;
   public animate(
     definition: KeyframeDefinition,
     options: AnimationOptions,
-  ): Animation;
-  public animate(
-    definitionOrAnimation: Animation | KeyframeDefinition,
-    options?: AnimationOptions,
-  ): Animation {
-    // 如果传入的是 Animation 实例，直接绑定并播放
-    if (definitionOrAnimation instanceof Animation) {
-      const anim = definitionOrAnimation;
-      anim._bindTarget(this);
-      anim.play();
-      return anim;
-    }
-
-    // 否则创建新的 Animation 实例
-    const anim = new Animation(this, definitionOrAnimation, options!);
-    anim.play();
-    return anim;
+  ): AnimationDescriptor {
+    const descriptor = new AnimationDescriptor(definition, options);
+    descriptor.play();
+    AnimationManager.getInstance().add(descriptor, this);
+    return descriptor;
   }
 
   /**
@@ -215,71 +207,89 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     }
   }
 
-  /** @internal 由 Animation 调用 */
-  _addAnimation(anim: Animation): void {
+  /** @internal 由 AnimationExecutor 调用 */
+  _addAnimation(anim: IAnimationDescriptor): void {
     if (!this._animations.includes(anim)) {
       this._animations.push(anim);
     }
   }
 
-  /** @internal 由 Animation 调用 */
-  _removeAnimation(anim: Animation): void {
+  /** @internal 由 AnimationExecutor 调用 */
+  _removeAnimation(anim: IAnimationDescriptor): void {
     const index = this._animations.indexOf(anim);
     if (index !== -1) {
       this._animations.splice(index, 1);
     }
   }
 
-  /** @internal 由 Animation 调用 */
-  _getAnimations(): Animation[] {
+  /** @internal 由 AnimationExecutor 调用 */
+  _getAnimations(): IAnimationDescriptor[] {
     return this._animations;
   }
 
   /**
    * 动画专用 resize 方法
    *
-   * 模拟从右下角拖拽 + Ctrl 按下的效果：
-   * 同时修改 viewport 尺寸和 content，等比缩放所有内容。
+   * 只更新 _animatedViewport 覆盖层，不修改真实 viewport。
+   * 渲染时通过 renderViewport getter 优先读取覆盖层。
+   * 子 View 同样只更新覆盖层，保持等比缩放关系。
    *
    * @param targetWidth 目标宽度
    * @param targetHeight 目标高度
    * @internal
    */
   _animationResize(targetWidth: number, targetHeight: number): void {
+    const baseViewport = this.viewport;
+    if (!baseViewport) return;
+    if (targetWidth === 0 || targetHeight === 0) return;
+
+    // 写入覆盖层（复用已有对象避免每帧 GC，首次创建）
+    if (!this._animatedViewport) {
+      this._animatedViewport = baseViewport.copy();
+    }
+    this._animatedViewport.setSize(targetWidth, targetHeight);
+
+    // 递归子 View（基于真实 viewport 计算缩放比，保持相对比例）
+    const scaleX = targetWidth / baseViewport.width;
+    const scaleY = targetHeight / baseViewport.height;
+    this.children.forEach((child) => {
+      const childVp = child.viewport;
+      if (!childVp) return;
+      child._animationResize(childVp.width * scaleX, childVp.height * scaleY);
+    });
+  }
+
+  /**
+   * 将动画覆盖视口提交为真实 viewport（fillMode: forwards 时调用）
+   *
+   * 执行完整的 resize 逻辑：更新 viewport、content、布局区域，
+   * 然后清空覆盖层。
+   * @internal
+   */
+  _commitAnimatedViewport(): void {
+    if (!this._animatedViewport) return;
+    const targetWidth = this._animatedViewport.width;
+    const targetHeight = this._animatedViewport.height;
+    this._animatedViewport = null;
+
     const viewport = this.viewport;
     if (!viewport) return;
-
     const oldWidth = viewport.width;
     const oldHeight = viewport.height;
-
-    // 避免尺寸为 0
-    if (targetWidth === 0 || targetHeight === 0) return;
     if (oldWidth === 0 || oldHeight === 0) return;
+    if (targetWidth === 0 || targetHeight === 0) return;
 
-    // 计算增量 delta
     const deltaX = targetWidth - oldWidth;
     const deltaY = targetHeight - oldHeight;
 
-    // 更新 viewport 尺寸（固定左上角，向右下角拓展）
     viewport.setSize(targetWidth, targetHeight);
     this.boundingBox?.updateSize();
 
-    // resize content（模拟 needResizeContent = true 的效果）
     if (this.content) {
-      // fixedPoint: viewport 起点（左上角）
-      // dynamicPoint: viewport 右下角
       const fixedPoint = new Point3(viewport.x, viewport.y, 0);
-      const dynamicPoint = new Point3(
-        viewport.x + oldWidth,
-        viewport.y + oldHeight,
-        0,
-      );
-      // resizeVector: 尺寸变化量（本地坐标系）
+      const dynamicPoint = new Point3(viewport.x + oldWidth, viewport.y + oldHeight, 0);
       const resizeVector = new Vector3(deltaX, deltaY, 0);
-
       this.content.resize(fixedPoint, dynamicPoint, resizeVector);
-
-      // 更新布局区域
       this.layoutArea = Bounds.union(
         this.content.bounds ?? Bounds.empty(),
         this.measureChildren(),
@@ -287,17 +297,27 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       this.layout();
     }
 
-    // 递归子 View（子 View 等比缩放）
+    // 递归提交子 View
     const scaleX = targetWidth / oldWidth;
     const scaleY = targetHeight / oldHeight;
     this.children.forEach((child) => {
-      const childViewport = child.viewport;
-      if (!childViewport) return;
-      child._animationResize(
-        childViewport.width * scaleX,
-        childViewport.height * scaleY,
-      );
+      // 先把子 View 的覆盖层设置为提交目标尺寸，再提交
+      const childVp = child.viewport;
+      if (!childVp) return;
+      child._animatedViewport = child._animatedViewport ?? childVp.copy();
+      child._animatedViewport.setSize(childVp.width * scaleX, childVp.height * scaleY);
+      child._commitAnimatedViewport();
     });
+  }
+
+  /**
+   * 清空动画覆盖视口（fillMode: none/backwards 时调用）
+   * 直接丢弃覆盖层，View 恢复使用真实 viewport，无需任何恢复操作。
+   * @internal
+   */
+  _clearAnimatedViewport(): void {
+    this._animatedViewport = null;
+    this.children.forEach((child) => child._clearAnimatedViewport());
   }
 
   // 获取内容
@@ -448,43 +468,21 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     this.initRef(this.children);
 
     // 触发用户自定义 onCreated 生命周期
-    // onCreated 在构造期触发，此时尚未挂载到 Scene，_triggerLifetime 内部会静默跳过
-    this._triggerLifetime(this.lifetimes.onCreated)
+    // onCreated 在构造期触发，此时尚未挂载到 Scene，getScene() 返回 null 自然跳过
+    this.getScene()?.triggerSchema(this, this.lifetimes.onCreated)
   }
 
   /**
-   * 触发用户自定义生命周期钩子
+   * 向上遍历父节点，返回当前 View 所属的 Scene。
    *
-   * 向上查找最近的 Scene，构建 RuntimeContext 后交由 FlowRunner 执行。
-   * 找不到 Scene 时（如 onCreated 在构造期触发）静默跳过。
-   *
-   * @param schema  对应 lifetimes 字段的 FlowSchema（null 时直接返回）
-   * @param eventArgs 传入的事件参数（生命周期通常为空数组）
+   * 若 View 尚未挂载到任何 Scene（如在构造期调用），返回 null。
    */
-  private _triggerLifetime(
-    schema: import('@/core/interfaces').FlowSchema | null,
-    eventArgs: unknown[] = [],
-  ): void {
-    if (!schema) return
-
-    // 向上找 Scene（parent 可能是 Scene 或另一个 View）
-    let node: any = this.parent
-    while (node && !('camera' in node)) {
-      node = node.parent
+  public getScene(): Scene | null {
+    let node: unknown = this.parent
+    while (node && !('camera' in (node as object))) {
+      node = (node as { parent?: unknown }).parent
     }
-    const page = node as Scene | null
-    if (!page) return  // 尚未挂载到 Scene，静默跳过
-
-    const ctx: RuntimeContext = {
-      self: this,
-      page,
-      view: (id) => page.findViewById(id) as View | null,
-      eventArgs,
-    }
-
-    FlowRunner.run(schema, ctx).catch((err) => {
-      console.error('[FlowRunner] 生命周期执行出错:', err)
-    })
+    return (node as Scene | null) ?? null
   }
 
   /**
@@ -506,21 +504,18 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   // 生命周期方法（引擎内部调用，附带触发用户自定义 lifetimes）
 
   public onAttach(): void {
-    this._triggerLifetime(this.lifetimes.onAttach)
+    this.getScene()?.triggerSchema(this, this.lifetimes.onAttach)
   }
 
   public onDestroy(): void {
-    // 清理引用
+    // 先触发生命周期（清理前 Scene 引用还在）
+    this.getScene()?.triggerSchema(this, this.lifetimes.onDestroy)
+    // 再清理引用
     this.parent = null;
     this.content = null;
     this.children.forEach((child) => child.onDestroy());
     this.children = [];
     this.boundingBox = null;
-    this.controlPoints = null;
-    this.setEditingVertex(false);
-    this.setEditingViewport(false);
-    this.setEditingVertex(false);
-    this._triggerLifetime(this.lifetimes.onDestroy)
   }
 
   initRef(children: View[]) {
@@ -528,9 +523,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       child.parent = this;
     });
   }
-
-  // 索引签名（子类可能有额外属性，如 verticalAlign、fixedWidth 等）
-  [key: string]: any;
 
   /**
    * 尺寸变化方向由三个因素决定：
@@ -644,7 +636,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     const canvasContext = getGlobalCanvasContext();
 
     const offscreenCtx = canvasContext.getBufferContext();
-    const viewport = this.viewport;
+    const viewport = this.renderViewport;
 
     if (!viewport) {
       return;

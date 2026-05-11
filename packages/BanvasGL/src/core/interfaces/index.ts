@@ -69,6 +69,7 @@ export type {
     EditViewportData,
     SelectData,
     TextSelectionData,
+    ConnectData,
     NoneData,
     IInteractResult,
     IViewStyle,
@@ -85,6 +86,11 @@ export type {
     ISelection,
     IInput,
     ViewTypeMap,
+    // 流程编辑器
+    PortDirection,
+    IPortView,
+    INodeView,
+    IEdgeView,
 } from './IView'
 
 export { Cursor, Action, cursorMap } from './IView'
@@ -109,6 +115,7 @@ export type {
     ISceneLifetimes,
     IOperationStack,
     IScene,
+    SceneAccessor,
     Diff,
     ModifyDiff,
     AddDiff,
@@ -131,7 +138,20 @@ export type {
 } from './IApp'
 
 // ── Animation 接口 ──
-export type { IAnimation, IAnimationManager } from './IAnimation'
+export type {
+    EasingFunction,
+    FillMode,
+    PlaybackDirection,
+    AnimationState,
+    AnimatableValue,
+    KeyframeProps,
+    KeyframeDefinition,
+    AnimationOptions,
+    Interpolator,
+    IAnimationDescriptor,
+    IAnimationManager,
+    IAnimatable,
+} from './IAnimation'
 
 // ── 序列化接口 ──
 export type { ISerializable, SerializableStatic } from './ISerializable'
@@ -156,6 +176,24 @@ export type {
     IUseBanvasResult,
 } from './IHook'
 
+// ── PropertyAdapter 接口 ──
+export type {
+    PropertyCategory,
+    PropertyAdapter,
+    PropertyDescriptor,
+    ConflictGroup,
+} from './IPropertyAdapter'
+
+// ── Worker 接口 ──
+export type {
+    WorkerTaskType,
+    WorkerTask,
+    WorkerResult,
+} from './IWorker'
+
+// ── Runtime 接口 ──
+export type { RuntimeContext } from './IRuntime'
+
 // ── 统一类型守卫 ──
 export {
     isGraphType,
@@ -168,4 +206,8 @@ export {
     isCombinedView,
     isBoundingBoxAddon,
     isVertexAddon,
+    // 流程编辑器
+    isPortView,
+    isNodeView,
+    isEdgeView,
 } from './guards'

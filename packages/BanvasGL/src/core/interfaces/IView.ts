@@ -333,9 +333,6 @@ export interface IView {
 
     // 辅助
     getSnapObjects(): [Point3[], Line[]]
-
-    // 索引签名（子类可能有额外属性，如 verticalAlign、fixedWidth 等）
-    [key: string]: any
 }
 
 // ────────────────────────────────────────────
@@ -461,6 +458,7 @@ export enum Action {
     EDIT_VIEWPORT,
     SELECT,
     TEXT_SELECTION,
+    CONNECT,   // 端口连线
     NONE,
 }
 
@@ -506,6 +504,12 @@ export interface NoneData extends ExtraDataBase {
     action: Action.NONE
 }
 
+export interface ConnectData extends ExtraDataBase {
+    action: Action.CONNECT
+    /** 触发连线的源端口 View id */
+    portViewId: string
+}
+
 /** 交互结果数据 —— 判别联合，通过 action 字段收窄类型 */
 export type ExtraData =
     | MoveData
@@ -515,6 +519,7 @@ export type ExtraData =
     | EditViewportData
     | SelectData
     | TextSelectionData
+    | ConnectData
     | NoneData
 
 /** View 交互结果 */
@@ -612,6 +617,36 @@ export interface ITextView extends IView {
     newLine(): void
 }
 
+// ────────────────────────────────────────────
+//  流程编辑器 View 接口
+// ────────────────────────────────────────────
+
+/** 端口方向 */
+export type PortDirection = 'input' | 'output' | 'bidirectional'
+
+/** PortView 接口 */
+export interface IPortView extends IView {
+    portDirection: PortDirection
+    /** 获取端口世界坐标中心点 */
+    getWorldCenter(): Point3
+}
+
+/** NodeView 接口 */
+export interface INodeView extends IView {
+    /** 节点标题 */
+    nodeTitle: string
+}
+
+/** EdgeView 接口 */
+export interface IEdgeView extends IView {
+    fromPortId: string | null
+    toPortId: string | null
+    /** 连线拖拽中：更新临时终点坐标 */
+    setTempTarget(point: Point3): void
+    /** 完成连线，绑定源端口和目标端口 */
+    connect(fromPortId: string, toPortId: string): void
+}
+
 /** CombinedView 接口 */
 export interface ICombinedView extends IView {
     addChild(child: IView): void
@@ -642,4 +677,8 @@ export interface ViewTypeMap {
     [VIEWTYPE.EDITABLETEXT]: ITextView & {
         readonly type: VIEWTYPE.EDITABLETEXT
     }
+    // 流程编辑器
+    [VIEWTYPE.NODEVIEW]: INodeView & { readonly type: VIEWTYPE.NODEVIEW }
+    [VIEWTYPE.PORTVIEW]: IPortView & { readonly type: VIEWTYPE.PORTVIEW }
+    [VIEWTYPE.EDGEVIEW]: IEdgeView & { readonly type: VIEWTYPE.EDGEVIEW }
 }

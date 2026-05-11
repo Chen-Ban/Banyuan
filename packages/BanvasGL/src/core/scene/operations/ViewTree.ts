@@ -1,4 +1,5 @@
 import View from "@/core/views/View/View";
+import CombinedView from "@/core/views/CombinedViews";
 import { isTextView, isCombinedView, type ISceneNode, type IView } from "@/core/interfaces";
 
 /** 视图树节点：可以是 Scene、View 或任何实现了 IView 的对象 */
@@ -144,7 +145,7 @@ export function clearAllStates(root: TreeNode, excludeView: View | undefined = u
 /** groupViews 的返回结果 */
 export interface GroupResult {
   /** 新创建的 CombinedView */
-  combined: View
+  combined: CombinedView
   /** 插入位置的索引 */
   insertIndex: number
 }
@@ -159,7 +160,7 @@ export interface GroupResult {
  */
 export function groupViews(
   views: View[],
-  combined: View,
+  combined: CombinedView,
   vpMatrix: any
 ): GroupResult | null {
   if (views.length < 2) return null;

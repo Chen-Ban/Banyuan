@@ -10,10 +10,11 @@ import {
   groupViews,
   ungroupView,
 } from "./operations";
-import { ISerializable, isCombinedView, type ISceneLifetimes } from "@/core/interfaces";
-import Animation from "@/core/animation/Animation";
+import { ISerializable, isCombinedView, type ISceneLifetimes, type IView, type FlowSchema } from "@/core/interfaces";
+import { FlowRunner } from "@/core/runtime/FlowRunner";
+import { AnimationDescriptor, AnimationManager } from "@/core/animation";
 import { SCENETYPE } from "@/core/constants";
-import { SnapAlignManager } from "@/core/snapAlign";
+import { SnapAlignManager } from "./operations/snapAlign";
 import Serializer from "@/core/serializer";
 import CombinedView from "@/core/views/CombinedViews";
 
@@ -61,7 +62,7 @@ export default class Scene implements ISerializable {
    * 由外部（用户代码或引擎初始化逻辑）调用 registerAnimation 写入，
    * 由 FlowRunner 的 animate 节点通过 playAnimation 触发。
    */
-  private _animationRegistry: Map<string, Animation> = new Map();
+  private _animationRegistry: Map<string, AnimationDescriptor> = new Map();
 
   constructor(camera: BaseCamera, options: SceneOptions = {}) {
     this.camera = camera;
@@ -191,7 +192,7 @@ export default class Scene implements ISerializable {
    * @param animationId 动画唯一标识（在同一 View 内不可重复）
    * @param animation   Animation 实例（尚未播放）
    */
-  public registerAnimation(viewId: string, animationId: string, animation: Animation): void {
+  public registerAnimation(viewId: string, animationId: string, animation: AnimationDescriptor): void {
     this._animationRegistry.set(`${viewId}:${animationId}`, animation);
   }
 
@@ -218,7 +219,8 @@ export default class Scene implements ISerializable {
     if (anim.isActive) {
       anim.cancel();
     }
-    view.animate(anim);
+    anim.play();
+    AnimationManager.getInstance().add(anim, view);
     return true;
   }
 
@@ -231,8 +233,34 @@ export default class Scene implements ISerializable {
    *
    * @param _view 发生变更的 View（保留参数，未来可做局部重绘优化）
    */
-  public markDirty(_view?: View): void {
+  public markDirty(_view?: IView): void {
     this._app?.render()
+  }
+
+  /**
+   * 执行一个 FlowSchema
+   *
+   * 统一的 schema 执行入口，生命周期（onAttach / onDestroy 等）和
+   * 交互事件（onClick 等）本质相同，都通过此方法触发。
+   *
+   * @param view      触发事件的 View
+   * @param schema    要执行的 FlowSchema（null 时静默跳过）
+   * @param eventArgs 事件参数列表（生命周期传空数组）
+   */
+  public triggerSchema(
+    view: IView,
+    schema: FlowSchema | null,
+    eventArgs: unknown[] = [],
+  ): void {
+    if (!schema) return
+    FlowRunner.run(schema, {
+      self: view,
+      page: this,
+      view: (id) => this.findViewById(id) ?? null,
+      eventArgs,
+    }).catch((err) => {
+      console.error('[Scene] schema 执行出错:', err)
+    })
   }
 
   /**

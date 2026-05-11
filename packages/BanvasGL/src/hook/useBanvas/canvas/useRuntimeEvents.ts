@@ -17,8 +17,6 @@ import type { App } from '@/core/app'
 import { Point3 } from '@/core/math'
 import type View from '@/core/views/View/View'
 import type Scene from '@/core/scene/Scene'
-import { FlowRunner } from '@/core/runtime/FlowRunner'
-import type { RuntimeContext } from '@/core/runtime/RuntimeContext'
 import type { FlowSchema } from '@/core/interfaces'
 
 // 拖拽判定阈值（物理像素）
@@ -40,22 +38,9 @@ function hitTest(scene: Scene, point: Point3): View | null {
     return hit
 }
 
-/** 构建 RuntimeContext */
-function buildCtx(self: View, scene: Scene, eventArgs: unknown[]): RuntimeContext {
-    return {
-        self,
-        page: scene,
-        view: (id) => scene.findViewById(id) as View | null,
-        eventArgs,
-    }
-}
-
-/** 触发 FlowSchema（schema 为 null 时静默跳过） */
-function trigger(schema: FlowSchema | null, ctx: RuntimeContext): void {
-    if (!schema) return
-    FlowRunner.run(schema, ctx).catch((err) => {
-        console.error('[FlowRunner] 运行时事件执行出错:', err)
-    })
+/** 触发 FlowSchema（schema 为 null 时静默跳过，委托给 Scene.triggerSchema） */
+function trigger(schema: FlowSchema | null, view: View, scene: Scene, eventArgs: unknown[]): void {
+    scene.triggerSchema(view, schema, eventArgs)
 }
 
 export interface UseRuntimeEventsOptions {
@@ -92,7 +77,7 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         const view = hitTest(scene, point)
         if (!view) return
 
-        trigger(view.events.onMouseDown, buildCtx(view, scene, [e]))
+        trigger(view.events.onMouseDown, view, scene, [e])
     }, [app, canvasRef])
 
     // ── mousemove ──
@@ -110,23 +95,17 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         if (currentHover !== hoverViewRef.current) {
             // 离开旧 View
             if (hoverViewRef.current) {
-                trigger(
-                    hoverViewRef.current.events.onMouseLeave,
-                    buildCtx(hoverViewRef.current, scene, [e]),
-                )
+                trigger(hoverViewRef.current.events.onMouseLeave, hoverViewRef.current, scene, [e])
             }
             // 进入新 View
             if (currentHover) {
-                trigger(
-                    currentHover.events.onMouseEnter,
-                    buildCtx(currentHover, scene, [e]),
-                )
+                trigger(currentHover.events.onMouseEnter, currentHover, scene, [e])
             }
             hoverViewRef.current = currentHover
         }
 
         if (currentHover) {
-            trigger(currentHover.events.onMouseMove, buildCtx(currentHover, scene, [e]))
+            trigger(currentHover.events.onMouseMove, currentHover, scene, [e])
         }
 
         // ── 拖拽判断 ──
@@ -141,15 +120,12 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
                 const view = hitTest(scene, downPoint)
                 dragViewRef.current = view
                 if (view) {
-                    trigger(view.events.onDragStart, buildCtx(view, scene, [e]))
+                    trigger(view.events.onDragStart, view, scene, [e])
                 }
             }
 
             if (isDraggingRef.current && dragViewRef.current) {
-                trigger(
-                    dragViewRef.current.events.onDrag,
-                    buildCtx(dragViewRef.current, scene, [e]),
-                )
+                trigger(dragViewRef.current.events.onDrag, dragViewRef.current, scene, [e])
             }
         }
 
@@ -166,15 +142,12 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         const view = hitTest(scene, point)
 
         if (view) {
-            trigger(view.events.onMouseUp, buildCtx(view, scene, [e]))
+            trigger(view.events.onMouseUp, view, scene, [e])
         }
 
         // 拖拽结束
         if (isDraggingRef.current && dragViewRef.current) {
-            trigger(
-                dragViewRef.current.events.onDragEnd,
-                buildCtx(dragViewRef.current, scene, [e]),
-            )
+            trigger(dragViewRef.current.events.onDragEnd, dragViewRef.current, scene, [e])
         }
 
         isDraggingRef.current = false
@@ -200,13 +173,13 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
 
         // onDoubleClick：两次点击间隔 < 300ms
         if (lastClickTimeRef.current && now - lastClickTimeRef.current < 300) {
-            trigger(view.events.onDoubleClick, buildCtx(view, scene, [e]))
+            trigger(view.events.onDoubleClick, view, scene, [e])
             lastClickTimeRef.current = undefined
             return
         }
 
         lastClickTimeRef.current = now
-        trigger(view.events.onClick, buildCtx(view, scene, [e]))
+        trigger(view.events.onClick, view, scene, [e])
     }, [app, canvasRef])
 
     // ── contextmenu ──
@@ -220,7 +193,7 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         const view = hitTest(scene, point)
         if (!view) return
 
-        trigger(view.events.onContextMenu, buildCtx(view, scene, [e]))
+        trigger(view.events.onContextMenu, view, scene, [e])
     }, [app, canvasRef])
 
     // ── 事件绑定 ──
