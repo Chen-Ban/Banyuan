@@ -1,0 +1,12 @@
+{
+  "name": "banyan",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Banyan — 基于 BanvasGL 的低代码可视化设计平台",
+  "scripts": {
+    "dev": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter banyan-frontend dev\" \"pnpm --filter banyan-backend dev\" \"pnpm --filter banyan-electron dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
