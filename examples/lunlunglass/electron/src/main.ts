@@ -152,7 +152,7 @@ function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     // 生产环境：加载构建后的静态文件
-    mainWindow.loadFile(path.join(__dirname, "../../lunlunglass-frontend/dist/index.html"));
+    mainWindow.loadFile(path.join(__dirname, "../../frontend/dist/index.html"));
   }
 
   mainWindow.on("closed", () => {
