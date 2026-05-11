@@ -900,6 +900,20 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   // ==================== 序列化 ====================
 
   /**
+   * 从 fromJSON 恢复后调用，同步 boundingBox 和 layoutArea。
+   * 必须在 viewport、style、children 全部恢复之后调用。
+   */
+  protected restoreLayout(): void {
+    // 重建 boundingBox（绑定到新的 viewport 引用）
+    if (this.boundingBox !== null) {
+      this.boundingBox = new BoundingBoxAddon(this.viewport);
+    }
+    // 同步 layoutArea 并触发布局计算
+    this.layoutArea = this.viewport.copy();
+    this.layout();
+  }
+
+  /**
    * 将 View 实例序列化为纯数据对象。
    * 子类如无额外持久化字段，可直接继承此方法。
    */

@@ -15,5 +15,13 @@
   "devDependencies": {
     "typescript": "~5.7.3",
     "concurrently": "^9.2.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "canvas"
+    ],
+    "overrides": {
+      "generator-function": "^1.0.0"
+    }
   }
 }

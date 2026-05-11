@@ -1,4 +1,5 @@
 import { Context } from 'koa'
+import type { IPrintConfig } from '../models/Template'
 import templateService from '../services/TemplateService'
 
 /**
@@ -24,6 +25,7 @@ interface UpdateTemplateRequest {
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
+  printConfig?: IPrintConfig | null
 }
 
 /**
