@@ -203,7 +203,8 @@ const TemplateDetail = () => {
 
   /**
    * 导出打印模板配置
-   * 收集当前画布中标记了 __printFieldKey 的 view 信息，连同背景图一起保存到模板的 printConfig 字段
+   * 收集当前画布中启用了动态打印的容器信息，连同背景图一起保存到模板的 printConfig 字段。
+   * 具体的字段映射由运营人员在 CRM 中配置，前端不感知。
    */
   const handleExportPrint = useCallback(async () => {
     if (isNew || !id) {
@@ -211,23 +212,22 @@ const TemplateDetail = () => {
       return;
     }
 
-    // 获取 canvas DOM 元素
     const canvasEl = canvasSectionRef.current?.querySelector("canvas") as HTMLCanvasElement | null;
 
     const config = exportPrintConfig(actions, pages, currentPageId, canvasEl);
     if (!config) {
-      message.warning("无法导出：请确认当前页面存在且有绑定打印字段的元素");
+      message.warning("无法导出：请确认当前页面存在");
       return;
     }
 
-    if (config.fields.length === 0) {
-      message.warning("当前页面没有绑定任何打印字段（请在属性面板中设置字段Key）");
+    if (config.slots.length === 0) {
+      message.warning("当前页面没有启用动态打印的容器（请在属性面板中开启）");
       return;
     }
 
     try {
       await templateApi.updateTemplate(id, { printConfig: config });
-      message.success(`打印模板导出成功，共 ${config.fields.length} 个动态字段`);
+      message.success(`打印配置已保存，共 ${config.slots.length} 个动态打印容器`);
     } catch (error: unknown) {
       message.error(getErrorMessage(error));
     }

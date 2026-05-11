@@ -34,10 +34,9 @@ const PropertiesTab: React.FC<PropertiesTabProps> = ({
     const isRoundedRect = content && content.type === GRAPHTYPE.ROUNDED_RECT
     const radii: [number, number, number, number] = isRoundedRect ? content.radii : [0, 0, 0, 0]
 
-    // 打印字段绑定
+    // 动态打印开关
     const viewData = actions.view.getViewData(selectedViewId)
-    const printFieldSchema = viewData?.['__printFieldKey']
-    const printFieldKey = (printFieldSchema as any)?.value ?? ''
+    const printEnabled = !!(viewData?.['__printEnabled'] as any)?.value
 
     return (
         <div className={styles.tabContent}>
@@ -230,30 +229,28 @@ const PropertiesTab: React.FC<PropertiesTabProps> = ({
                 </section>
             )}
 
-            {/* 打印字段绑定 */}
+            {/* 动态打印 */}
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>打印</div>
-                <div className={styles.infoRow}>
-                    <span className={styles.infoLabel}>字段Key</span>
-                    <input
-                        className={styles.nameInput}
-                        placeholder="如: orderNo, customerName"
-                        value={printFieldKey}
-                        onChange={(e) => {
-                            const val = e.target.value.trim()
-                            if (val) {
-                                actions.view.setViewData(selectedViewId, '__printFieldKey', { type: 'string', value: val })
-                            } else {
-                                actions.view.deleteViewData(selectedViewId, '__printFieldKey')
-                            }
-                        }}
-                        onFocus={onFocus}
-                        onBlur={onBlur}
-                    />
+                <div className={styles.stateRow}>
+                    <label className={styles.stateLabel}>
+                        <input
+                            type="checkbox"
+                            checked={printEnabled}
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                    actions.view.setViewData(selectedViewId, '__printEnabled', { type: 'boolean', value: true })
+                                } else {
+                                    actions.view.deleteViewData(selectedViewId, '__printEnabled')
+                                }
+                            }}
+                        />
+                        启用动态打印
+                    </label>
                 </div>
                 <div className={styles.infoRow}>
                     <span className={styles.infoLabel} style={{ fontSize: 11, color: '#999' }}>
-                        绑定后此元素将作为打印模板的动态字段
+                        开启后，运营人员可在 CRM 中为此容器配置数据字段映射
                     </span>
                 </div>
             </section>
