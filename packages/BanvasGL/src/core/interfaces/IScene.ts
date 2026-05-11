@@ -11,7 +11,7 @@
 
 import type { IView, FlowSchema } from './IView'
 import type { ICamera } from './ICamera'
-import type { IAnimation } from './IAnimation'
+import type { IAnimationDescriptor } from './IAnimation'
 
 // ────────────────────────────────────────────
 //  操作栈相关类型（re-export）
@@ -110,7 +110,7 @@ export interface IScene {
      * @param animationId 动画唯一标识（在同一 View 内不可重复）
      * @param animation   Animation 实例（尚未播放）
      */
-    registerAnimation(viewId: string, animationId: string, animation: IAnimation): void
+    registerAnimation(viewId: string, animationId: string, animation: IAnimationDescriptor): void
     /**
      * 按 viewId + animationId 播放已注册的预定义动画
      *
