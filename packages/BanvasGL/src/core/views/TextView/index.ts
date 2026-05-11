@@ -524,6 +524,7 @@ if (data.data) view.data = data.data
                 child.onAttach()
             })
         }
+        view.restoreLayout()
         return view
     }
 }
