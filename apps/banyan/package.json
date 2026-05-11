@@ -1,8 +1,8 @@
 {
-  "name": "banvasgl-web",
+  "name": "banyan",
   "version": "0.0.1",
   "private": true,
-  "description": "基于 BanvasGL 的低代码模板设计平台",
+  "description": "基于 BanvasGL 的低代码可视化设计平台 —— 一木成林，万物共生",
   "scripts": {
     "dev": "echo 'TODO: 待初始化'",
     "build": "echo 'TODO: 待初始化'"
