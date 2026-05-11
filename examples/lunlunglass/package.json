@@ -1,0 +1,12 @@
+{
+  "name": "lunlunglass",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LunlunGlass — 基于 BanvasGL 的模板设计桌面应用示例",
+  "scripts": {
+    "dev": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter lunlunglass-frontend dev\" \"pnpm --filter lunlunglass-backend dev\" \"pnpm --filter lunlunglass-electron dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
