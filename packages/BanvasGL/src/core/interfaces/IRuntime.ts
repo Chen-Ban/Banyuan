@@ -10,12 +10,12 @@
  *   - eventArgs 按位置索引，对应 FlowValue { kind: 'eventArg', index }
  */
 
-import type View from '@/core/views/View/View'
+import type { IView } from '@/core/interfaces/IView'
 import type Scene from '@/core/scene/Scene'
 
 export interface RuntimeContext {
     /** 触发事件的 View 本身 */
-    self: View
+    self: IView
 
     /** 当前页面（Scene） */
     page: Scene
@@ -25,7 +25,7 @@ export interface RuntimeContext {
      *
      * 特殊值 'self' 由 FlowRunner 内部展开为 ctx.self，调用方无需处理。
      */
-    view: (id: string) => View | null
+    view: (id: string) => IView | null
 
     /**
      * 触发事件时传入的原始参数列表
