@@ -367,6 +367,62 @@
   border-top: 1px dashed #ecf0f1;
 }
 
+// ── 事件行（含展开画布） ──
+
+.eventItem {
+  margin-bottom: 2px;
+}
+
+.expandBtn {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #bdc3c7;
+  font-size: 8px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s, transform 0.15s;
+  transform: rotate(0deg);
+
+  &:hover {
+    color: #7f8c8d;
+  }
+}
+
+.expandBtnOpen {
+  transform: rotate(90deg);
+  color: #3498db;
+
+  &:hover {
+    color: #2980b9;
+  }
+}
+
+// ── 函数编辑画布容器 ──
+
+.flowCanvasContainer {
+  margin: 4px 0 8px 0;
+  border: 1px solid #dfe6e9;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
+.flowCanvasWrapper {
+  display: block;
+  line-height: 0; // 消除 canvas 下方的幽灵空白
+
+  canvas {
+    display: block;
+  }
+}
+
 // 新增字段行
 .addFieldRow {
   display: grid;

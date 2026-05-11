@@ -215,7 +215,7 @@ export function useInputEvents({
                                 scene.select(nextView)
                                 app.notify()
                                 // 更新输入框位置到新选中的容器
-                                const bounds = nextView.getBounds()
+                                const bounds = nextView.boundingBox?.getBounds()
                                 if (bounds) {
                                     const worldMatrix =
                                         nextView.getWorldMatrix()

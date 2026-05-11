@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Tabs } from 'antd'
 import type { IBanvasActions, IPageNode } from 'banvasgl'
 import FieldSchemaMapEditor from './FieldSchemaMapEditor'
@@ -22,6 +22,12 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     currentPageId,
 }) => {
     const view = selectedViewId ? actions.view.getViewInstance(selectedViewId) : null
+
+    // 切换选中元素时，重置 tab 到第一个
+    const [activeTab, setActiveTab] = useState('properties')
+    useEffect(() => {
+        setActiveTab(selectedViewId ? 'properties' : 'data')
+    }, [selectedViewId])
 
     const isEditingRef = useRef(false)
 
@@ -77,7 +83,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     items={pageTabItems}
                     size="small"
                     className={styles.tabs}
-                    defaultActiveKey="data"
+                    activeKey={activeTab}
+                    onChange={setActiveTab}
                 />
             </div>
         )
@@ -135,7 +142,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                 items={tabItems}
                 size="small"
                 className={styles.tabs}
-                defaultActiveKey="properties"
+                activeKey={activeTab}
+                onChange={setActiveTab}
             />
         </div>
     )

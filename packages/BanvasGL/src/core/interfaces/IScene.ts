@@ -11,7 +11,7 @@
 
 import type { IView, FlowSchema } from './IView'
 import type { ICamera } from './ICamera'
-import type Animation from '@/core/animation/Animation'
+import type { IAnimationDescriptor } from './IAnimation'
 
 // ────────────────────────────────────────────
 //  操作栈相关类型（re-export）
@@ -110,7 +110,7 @@ export interface IScene {
      * @param animationId 动画唯一标识（在同一 View 内不可重复）
      * @param animation   Animation 实例（尚未播放）
      */
-    registerAnimation(viewId: string, animationId: string, animation: Animation): void
+    registerAnimation(viewId: string, animationId: string, animation: IAnimationDescriptor): void
     /**
      * 按 viewId + animationId 播放已注册的预定义动画
      *
@@ -160,4 +160,27 @@ export interface IScene {
     sendToBack(view: IView): IScene
     bringForward(view: IView): IScene
     sendBackward(view: IView): IScene
+}
+
+// ────────────────────────────────────────────
+//  操作栈体系辅助接口
+// ────────────────────────────────────────────
+
+/**
+ * Scene 向操作栈体系提供的访问能力
+ *
+ * 通过接口注入，避免 TransactionManager / DiffApplier 直接依赖 Scene 类。
+ */
+export interface SceneAccessor {
+  /** 通过 id 查找 View 实例 */
+  findViewById(id: string): any | undefined
+  /** 从场景中移除子视图 */
+  removeChild(child: any): void
+  /** 在指定位置插入子视图（设置 parent、VP矩阵、onAttach） */
+  insertChildAt(child: any, index: number): void
+  /**
+   * 通过 id 查找容器节点（可能是 Scene 或 View）
+   * 返回的对象需要有 children 数组
+   */
+  findContainerById(id: string): { children: any[] } | undefined
 }
