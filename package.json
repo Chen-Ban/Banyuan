@@ -4,8 +4,8 @@
   "description": "道生一，一生二，二生三，三生万物 —— BanvasGL 以画布为道，以组件为器，化繁为简，一生万象。",
   "main": "index.js",
   "scripts": {
-    "dev:lunlunglass": "pnpm --filter banvasgl build && concurrently --kill-others-on-fail -c \"magenta.bold,cyan.bold,green.bold,yellow.bold\" -n banvasgl,frontend,backend,electron \"pnpm --filter banvasgl dev\" \"pnpm --filter lunlunglass-frontend dev\" \"pnpm --filter lunlunglass-backend dev\" \"pnpm --filter lunlunglass-electron dev\"",
-    "dev:banyan": "pnpm --filter banvasgl build && concurrently --kill-others-on-fail -c \"magenta.bold,cyan.bold\" -n banvasgl,banyan \"pnpm --filter banvasgl dev\" \"pnpm --filter banyan dev\"",
+    "dev:lunlunglass": "pnpm --filter banvasgl build && concurrently --kill-others -c \"magenta.bold,cyan.bold\" -n banvasgl,lunlunglass \"pnpm --filter banvasgl dev\" \"pnpm --filter lunlunglass dev\"",
+    "dev:banyan": "pnpm --filter banvasgl build && concurrently --kill-others -c \"magenta.bold,cyan.bold\" -n banvasgl,banyan \"pnpm --filter banvasgl dev\" \"pnpm --filter banyan dev\"",
     "build": "pnpm --filter banvasgl build",
     "build:all": "pnpm --recursive build"
   },
