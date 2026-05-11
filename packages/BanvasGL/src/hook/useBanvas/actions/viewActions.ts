@@ -33,7 +33,7 @@ import {
 } from '@/core/views'
 import { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
 import { clearAllStates, flattenViewTree } from '@/core/scene/operations'
-import { adapterRegistry } from '@/core/propadapters'
+import { adapterRegistry } from '@/core/property'
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null
@@ -53,12 +53,12 @@ export function createViewActions(
     const notify = () => getApp()?.notify()
 
     return {
-        select(viewId: string): void {
+        select(viewId: string, multiple?: boolean): void {
             const scene = getScene()
             if (!scene) return
             const view = scene.findViewById(viewId)
             if (view) {
-                scene.select(view)
+                scene.select(view, multiple)
                 notify()
             }
         },
