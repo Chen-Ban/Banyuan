@@ -1,7 +1,7 @@
 {
   "name": "banvasgl-monorepo",
   "version": "1.0.0",
-  "description": "",
+  "description": "道生一，一生二，二生三，三生万物 —— BanvasGL 以画布为道，以组件为器，化繁为简，一生万象。",
   "main": "index.js",
   "scripts": {
     "dev": "concurrently -c \"magenta.bold,cyan.bold,green.bold,yellow.bold\" -n banvasgl,frontend,electron,backend \"pnpm --filter banvasgl dev\" \"pnpm --filter lunlunglass-frontend dev\" \"pnpm --filter lunlunglass-electron dev\" \"pnpm --filter lunlunglass-backend dev\"",
