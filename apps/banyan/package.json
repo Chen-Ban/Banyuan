@@ -2,13 +2,11 @@
   "name": "banyan",
   "version": "0.0.1",
   "private": true,
-  "description": "基于 BanvasGL 的低代码可视化设计平台 —— 一木成林，万物共生",
+  "description": "Banyan — 基于 BanvasGL 的低代码可视化设计平台",
   "scripts": {
-    "dev": "echo 'TODO: 待初始化'",
-    "build": "echo 'TODO: 待初始化'"
+    "dev": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter banyan-frontend dev\" \"pnpm --filter banyan-backend dev\" \"pnpm --filter banyan-electron dev\""
   },
-  "dependencies": {},
   "devDependencies": {
-    "banvasgl": "workspace:*"
+    "concurrently": "^9.2.1"
   }
 }
