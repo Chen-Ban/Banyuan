@@ -12,7 +12,7 @@
 
 import { GRAPHTYPE, VIEWTYPE, ADDONTYPE } from '@/core/constants'
 import type { IGraph, GraphTypeMap } from './IGraph'
-import type { IView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon } from './IView'
+import type { IView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IPortView, INodeView, IEdgeView } from './IView'
 
 // ────────────────────────────────────────────
 //  Graph 类型守卫
@@ -116,4 +116,23 @@ export function isBoundingBoxAddon(addon: IViewAddon | null | undefined): addon 
 /** 快捷判断：是否为 VertexAddon */
 export function isVertexAddon(addon: IViewAddon | null | undefined): addon is IVertexAddon {
     return !!addon && addon.type === ADDONTYPE.VERTEX
+}
+
+// ────────────────────────────────────────────
+//  流程编辑器 View 守卫
+// ────────────────────────────────────────────
+
+/** 快捷判断：是否为 PortView */
+export function isPortView(view: IView | null | undefined): view is IPortView {
+    return !!view && view.type === VIEWTYPE.PORTVIEW
+}
+
+/** 快捷判断：是否为 NodeView */
+export function isNodeView(view: IView | null | undefined): view is INodeView {
+    return !!view && view.type === VIEWTYPE.NODEVIEW
+}
+
+/** 快捷判断：是否为 EdgeView */
+export function isEdgeView(view: IView | null | undefined): view is IEdgeView {
+    return !!view && view.type === VIEWTYPE.EDGEVIEW
 }
