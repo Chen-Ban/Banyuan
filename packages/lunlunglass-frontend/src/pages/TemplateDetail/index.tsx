@@ -11,6 +11,7 @@ import { useBanvas } from "banvasgl";
 import { message } from "antd";
 import { templateApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
+import { exportPrintConfig } from "./utils/exportPrintConfig";
 import styles from "./index.module.scss";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyPanel from "./components/PropertyPanel";
@@ -200,6 +201,38 @@ const TemplateDetail = () => {
     navigate("/template");
   };
 
+  /**
+   * 导出打印模板配置
+   * 收集当前画布中标记了 __printFieldKey 的 view 信息，连同背景图一起保存到模板的 printConfig 字段
+   */
+  const handleExportPrint = useCallback(async () => {
+    if (isNew || !id) {
+      message.warning("请先保存模板再导出打印配置");
+      return;
+    }
+
+    // 获取 canvas DOM 元素
+    const canvasEl = canvasSectionRef.current?.querySelector("canvas") as HTMLCanvasElement | null;
+
+    const config = exportPrintConfig(actions, pages, currentPageId, canvasEl);
+    if (!config) {
+      message.warning("无法导出：请确认当前页面存在且有绑定打印字段的元素");
+      return;
+    }
+
+    if (config.fields.length === 0) {
+      message.warning("当前页面没有绑定任何打印字段（请在属性面板中设置字段Key）");
+      return;
+    }
+
+    try {
+      await templateApi.updateTemplate(id, { printConfig: config });
+      message.success(`打印模板导出成功，共 ${config.fields.length} 个动态字段`);
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error));
+    }
+  }, [isNew, id, actions, pages, currentPageId]);
+
   if (!loaded) {
     return <div style={{ padding: 40, textAlign: "center" }}>加载中...</div>;
   }
@@ -215,6 +248,7 @@ const TemplateDetail = () => {
         onDescriptionChange={handleDescChange}
         onSave={handleSave}
         onBack={handleBack}
+        onExportPrint={!isNew ? handleExportPrint : undefined}
         builtinComponents={builtinComponents}
       />
       <div className={styles.mainContent}>
