@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Tooltip, Popover } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, PrinterOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined } from '@ant-design/icons'
 import type { IComponentDefinition } from 'banvasgl'
 import styles from './index.module.scss'
 
@@ -13,8 +13,6 @@ interface ComponentPaletteProps {
     onDescriptionChange: (value: string) => void
     onSave: () => void
     onBack: () => void
-    /** 导出打印模板（可选） */
-    onExportPrint?: () => void
     /** 引擎内置物料，直接来自 useBanvas().builtinComponents */
     builtinComponents: IComponentDefinition[]
     /**
@@ -51,7 +49,6 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     onDescriptionChange,
     onSave,
     onBack,
-    onExportPrint,
     builtinComponents,
     userComponents = [],
 }) => {
@@ -120,16 +117,6 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                         className={styles.saveBtn}
                     />
                 </Tooltip>
-                {onExportPrint && (
-                    <Tooltip title="导出打印模板">
-                        <Button
-                            type="text"
-                            icon={<PrinterOutlined />}
-                            onClick={onExportPrint}
-                            className={styles.saveBtn}
-                        />
-                    </Tooltip>
-                )}
             </div>
 
             {/* 分隔线 */}

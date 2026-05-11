@@ -19,33 +19,6 @@ export interface Template {
 }
 
 /**
- * 打印模板配置（前端类型，与后端 IPrintConfig 对应）
- */
-export interface PrintConfig {
-  paperWidth: 58 | 80
-  dpi: number
-  backgroundImage: string
-  backgroundSize: { width: number; height: number }
-  fields: Array<{
-    key: string
-    label: string
-    type: 'text' | 'barcode' | 'qrcode'
-    bounds: { x: number; y: number; width: number; height: number }
-    textStyle?: {
-      fontSize: number
-      fontWeight: 'normal' | 'bold'
-      align: 'left' | 'center' | 'right'
-      overflow: 'clip' | 'ellipsis' | 'shrink'
-    }
-    codeStyle?: {
-      format: 'CODE128' | 'EAN13' | 'QR'
-      errorLevel?: 'L' | 'M' | 'Q' | 'H'
-    }
-    defaultValue?: string
-  }>
-}
-
-/**
  * 模板表单数据
  */
 export interface TemplateFormData {
@@ -54,7 +27,6 @@ export interface TemplateFormData {
   thumbnail?: string
   scenes?: string[]
   tags?: string[]
-  printConfig?: PrintConfig | null
 }
 
 interface TemplateListResponse {
