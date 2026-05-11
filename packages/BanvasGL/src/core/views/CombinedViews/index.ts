@@ -91,6 +91,7 @@ export default class CombinedView extends View implements ICombinedView, ISerial
         if (data.children) {
             data.children.forEach((child: View) => view.addChild(child))
         }
+        view.restoreLayout()
         return view
     }
 }

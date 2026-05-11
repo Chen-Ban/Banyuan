@@ -75,6 +75,7 @@ export default class VideoView extends View implements IVideoView, ISerializable
                 child.onAttach()
             })
         }
+        view.restoreLayout()
         return view
     }
 }
