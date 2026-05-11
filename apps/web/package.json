@@ -1,0 +1,14 @@
+{
+  "name": "banvasgl-web",
+  "version": "0.0.1",
+  "private": true,
+  "description": "基于 BanvasGL 的低代码模板设计平台",
+  "scripts": {
+    "dev": "echo 'TODO: 待初始化'",
+    "build": "echo 'TODO: 待初始化'"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "banvasgl": "workspace:*"
+  }
+}
