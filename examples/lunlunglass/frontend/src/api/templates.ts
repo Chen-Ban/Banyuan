@@ -81,12 +81,3 @@ export function updateTemplate(id: string, data: Partial<TemplateFormData>): Pro
 export function deleteTemplate(id: string): Promise<ApiResponse<null>> {
   return del<ApiResponse<null>>(`/templates/${id}`)
 }
-
-/**
- * 上传文件
- */
-export function uploadFile(file: File): Promise<ApiResponse<{ url: string }>> {
-  const formData = new FormData()
-  formData.append('file', file)
-  return post<ApiResponse<{ url: string }>>('/upload', formData)
-}
