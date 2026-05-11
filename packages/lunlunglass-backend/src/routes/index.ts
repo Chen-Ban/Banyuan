@@ -5,6 +5,7 @@ import orderRoutes from './orders'
 import templateRoutes from './templates'
 import productRoutes from './products'
 import uploadRoutes from './upload'
+import printRoutes from './print'
 
 const router = new Router()
 
@@ -24,5 +25,6 @@ router.use(orderRoutes.routes())
 router.use(templateRoutes.routes())
 router.use(productRoutes.routes())
 router.use(uploadRoutes.routes())
+router.use(printRoutes.routes())
 
 export default router

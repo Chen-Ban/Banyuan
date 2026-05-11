@@ -1,4 +1,4 @@
-import { Template, ITemplate } from '../models'
+import { Template, ITemplate, IPrintConfig } from '../models'
 import { Types } from 'mongoose'
 
 /**
@@ -44,6 +44,7 @@ export interface IUpdateTemplateData {
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
+  printConfig?: IPrintConfig | null
 }
 
 /**
@@ -181,6 +182,9 @@ class TemplateService {
       }
       if (updateData.updatedBy !== undefined) {
         template.updatedBy = updateData.updatedBy
+      }
+      if (updateData.printConfig !== undefined) {
+        template.printConfig = updateData.printConfig
       }
 
       // 版本自增
