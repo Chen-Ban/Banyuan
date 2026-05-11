@@ -1,19 +1,19 @@
 /**
  * 动画属性适配器注册表
  *
- * 基于公共 propadapters 模块，扩展动画特有的 interpolate 策略。
- * 本模块是 propadapters 的消费方之一。
+ * 基于公共 property 模块，扩展动画特有的 interpolate 策略。
+ * 本模块是 property 的消费方之一。
  */
 
 import type View from '@/core/views/View/View'
 import type Matrix4 from '@/core/math/Matrix4'
 import { lerpAngle } from './trs'
+import type { PropertyCategory } from '@/core/interfaces'
 import {
     adapterRegistry as baseRegistry,
     SPATIAL_PROPERTIES,
     SIZE_PROPERTIES,
-    type PropertyCategory,
-} from '@/core/propadapters'
+} from '@/core/property'
 
 export type { PropertyCategory }
 

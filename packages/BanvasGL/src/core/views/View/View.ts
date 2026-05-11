@@ -22,14 +22,12 @@ import { Line, Rectangle } from "@/core/graph";
 import { BoundingBoxAddon } from "@/core/views/addon";
 import { MathUtils, Point3, Vector3 } from "@/core/math";
 import Bounds from "@/core/graph/base/Bounds";
-import { Animation } from "@/core/animation";
-import { FlowRunner } from "@/core/runtime/FlowRunner";
+import { AnimationDescriptor, AnimationManager } from "@/core/animation";
 import type {
-  RuntimeContext,
   AnimationOptions,
   KeyframeDefinition,
   AnimatableValue,
-  IAnimation,
+  IAnimationDescriptor,
 } from "@/core/interfaces";
 import Scene from "@/core/scene/Scene";
 
@@ -153,42 +151,25 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public abstract copy(): View;
 
   // ==================== 动画系统 ====================
-  private _animations: IAnimation[] = [];
+  private _animations: IAnimationDescriptor[] = [];
 
   /**
-   * 创建并播放动画，或挂载已有 Animation 实例并播放
+   * 创建并播放动画
    * @example
-   * // 方式1：传入 Animation 实例
-   * const anim = new Animation({ to: { x: 200 } }, { duration: 1000 })
-   * view.animate(anim)
-   *
-   * // 方式2：KeyframeDefinition + options（自动创建 Animation）
+   * // KeyframeDefinition + options
    * view.animate({ to: { x: 200, y: 300 } }, { duration: 500, easing: Easings.easeOutCubic })
    *
-   * // 方式3：带中间帧
+   * // 带中间帧
    * view.animate({ '25': { x: 80 }, '75': { x: 180 }, to: { x: 200 } }, { duration: 1000 })
    */
-  public animate(animation: Animation): Animation;
   public animate(
     definition: KeyframeDefinition,
     options: AnimationOptions,
-  ): Animation;
-  public animate(
-    definitionOrAnimation: Animation | KeyframeDefinition,
-    options?: AnimationOptions,
-  ): Animation {
-    // 如果传入的是 Animation 实例，直接绑定并播放
-    if (definitionOrAnimation instanceof Animation) {
-      const anim = definitionOrAnimation;
-      anim._bindTarget(this);
-      anim.play();
-      return anim;
-    }
-
-    // 否则创建新的 Animation 实例
-    const anim = new Animation(this, definitionOrAnimation, options!);
-    anim.play();
-    return anim;
+  ): AnimationDescriptor {
+    const descriptor = new AnimationDescriptor(definition, options);
+    descriptor.play();
+    AnimationManager.getInstance().add(descriptor, this);
+    return descriptor;
   }
 
   /**
@@ -226,23 +207,23 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     }
   }
 
-  /** @internal 由 Animation 调用 */
-  _addAnimation(anim: IAnimation): void {
+  /** @internal 由 AnimationExecutor 调用 */
+  _addAnimation(anim: IAnimationDescriptor): void {
     if (!this._animations.includes(anim)) {
       this._animations.push(anim);
     }
   }
 
-  /** @internal 由 Animation 调用 */
-  _removeAnimation(anim: IAnimation): void {
+  /** @internal 由 AnimationExecutor 调用 */
+  _removeAnimation(anim: IAnimationDescriptor): void {
     const index = this._animations.indexOf(anim);
     if (index !== -1) {
       this._animations.splice(index, 1);
     }
   }
 
-  /** @internal 由 Animation 调用 */
-  _getAnimations(): IAnimation[] {
+  /** @internal 由 AnimationExecutor 调用 */
+  _getAnimations(): IAnimationDescriptor[] {
     return this._animations;
   }
 
@@ -487,8 +468,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     this.initRef(this.children);
 
     // 触发用户自定义 onCreated 生命周期
-    // onCreated 在构造期触发，此时尚未挂载到 Scene，_triggerLifetime 内部会静默跳过
-    this._triggerLifetime(this.lifetimes.onCreated)
+    // onCreated 在构造期触发，此时尚未挂载到 Scene，getScene() 返回 null 自然跳过
+    this.getScene()?.triggerSchema(this, this.lifetimes.onCreated)
   }
 
   /**
@@ -502,36 +483,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       node = (node as { parent?: unknown }).parent
     }
     return (node as Scene | null) ?? null
-  }
-
-  /**
-   * 触发用户自定义生命周期钩子
-   *
-   * 向上查找最近的 Scene，构建 RuntimeContext 后交由 FlowRunner 执行。
-   * 找不到 Scene 时（如 onCreated 在构造期触发）静默跳过。
-   *
-   * @param schema  对应 lifetimes 字段的 FlowSchema（null 时直接返回）
-   * @param eventArgs 传入的事件参数（生命周期通常为空数组）
-   */
-  private _triggerLifetime(
-    schema: import('@/core/interfaces').FlowSchema | null,
-    eventArgs: unknown[] = [],
-  ): void {
-    if (!schema) return
-
-    const page = this.getScene()
-    if (!page) return  // 尚未挂载到 Scene，静默跳过
-
-    const ctx: RuntimeContext = {
-      self: this,
-      page,
-      view: (id) => page.findViewById(id) as View | null,
-      eventArgs,
-    }
-
-    FlowRunner.run(schema, ctx).catch((err) => {
-      console.error('[FlowRunner] 生命周期执行出错:', err)
-    })
   }
 
   /**
@@ -553,17 +504,18 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   // 生命周期方法（引擎内部调用，附带触发用户自定义 lifetimes）
 
   public onAttach(): void {
-    this._triggerLifetime(this.lifetimes.onAttach)
+    this.getScene()?.triggerSchema(this, this.lifetimes.onAttach)
   }
 
   public onDestroy(): void {
-    // 清理引用
+    // 先触发生命周期（清理前 Scene 引用还在）
+    this.getScene()?.triggerSchema(this, this.lifetimes.onDestroy)
+    // 再清理引用
     this.parent = null;
     this.content = null;
     this.children.forEach((child) => child.onDestroy());
     this.children = [];
     this.boundingBox = null;
-    this._triggerLifetime(this.lifetimes.onDestroy)
   }
 
   initRef(children: View[]) {
