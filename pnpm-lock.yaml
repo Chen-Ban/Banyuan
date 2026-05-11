@@ -47,9 +47,6 @@ importers:
       koa-logger:
         specifier: ^3.1.0
         version: 3.2.1
-      koa-static:
-        specifier: ^5.0.0
-        version: 5.0.0
       mongoose:
         specifier: ^8.7.0
         version: 8.20.1
@@ -63,9 +60,6 @@ importers:
       '@types/koa-logger':
         specifier: ^3.1.0
         version: 3.1.5
-      '@types/koa-static':
-        specifier: ^4.0.4
-        version: 4.0.4
       '@types/koa__cors':
         specifier: ^5.0.1
         version: 5.0.1
@@ -196,9 +190,6 @@ importers:
       koa-logger:
         specifier: ^3.1.0
         version: 3.2.1
-      koa-static:
-        specifier: ^5.0.0
-        version: 5.0.0
       mongoose:
         specifier: ^8.7.0
         version: 8.20.1
@@ -215,9 +206,6 @@ importers:
       '@types/koa-logger':
         specifier: ^3.1.0
         version: 3.1.5
-      '@types/koa-static':
-        specifier: ^4.0.4
-        version: 4.0.4
       '@types/koa__cors':
         specifier: ^5.0.1
         version: 5.0.1
@@ -1330,12 +1318,6 @@ packages:
   '@types/koa-logger@3.1.5':
     resolution: {integrity: sha1-/Onh+y6ayZQSAOzPNiXwhcN7hps=, tarball: http://r.npm.sankuai.com/@types/koa-logger/download/@types/koa-logger-3.1.5.tgz}
 
-  '@types/koa-send@4.1.6':
-    resolution: {integrity: sha1-FdkOlePMzmaaFbajxWw6ZQoWfOo=, tarball: http://r.npm.sankuai.com/@types/koa-send/download/@types/koa-send-4.1.6.tgz}
-
-  '@types/koa-static@4.0.4':
-    resolution: {integrity: sha1-zm8qXRTMfvGfm/bujk8+rfzHcyM=, tarball: http://r.npm.sankuai.com/@types/koa-static/download/@types/koa-static-4.0.4.tgz}
-
   '@types/koa@2.15.0':
     resolution: {integrity: sha1-7KQ9dvUnyAO0kXMfld9XVjbntvI=, tarball: http://r.npm.sankuai.com/@types/koa/download/@types/koa-2.15.0.tgz}
 
@@ -1716,14 +1698,6 @@ packages:
 
   dayjs@1.11.19:
     resolution: {integrity: sha1-FdyY6FS7Q5F/EgIYBq+JfFiuKTg=, tarball: http://r.npm.sankuai.com/dayjs/download/dayjs-1.11.19.tgz}
-
-  debug@3.2.7:
-    resolution: {integrity: sha1-clgLfpFF+zm2Z2+cXl+xALk0F5o=, tarball: http://r.npm.sankuai.com/debug/download/debug-3.2.7.tgz}
-    peerDependencies:
-      supports-color: '*'
-    peerDependenciesMeta:
-      supports-color:
-        optional: true
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -2135,10 +2109,6 @@ packages:
   http-cache-semantics@4.2.0:
     resolution: {integrity: sha1-IF9Ntk+FYrdqT/kjWqUnmDmgndU=, tarball: http://r.npm.sankuai.com/http-cache-semantics/download/http-cache-semantics-4.2.0.tgz}
 
-  http-errors@1.6.3:
-    resolution: {integrity: sha1-i1VoC7S+KDoLW/TqLjhYC+HZMg0=, tarball: http://r.npm.sankuai.com/http-errors/download/http-errors-1.6.3.tgz}
-    engines: {node: '>= 0.6'}
-
   http-errors@1.8.1:
     resolution: {integrity: sha1-fD8oV3y8iiBziEVdvWIpXtB71ow=, tarball: http://r.npm.sankuai.com/http-errors/download/http-errors-1.8.1.tgz}
     engines: {node: '>= 0.6'}
@@ -2183,9 +2153,6 @@ packages:
   inflation@2.1.0:
     resolution: {integrity: sha1-khTbEaR+b3VtERxPnflpccYPiGw=, tarball: http://r.npm.sankuai.com/inflation/download/inflation-2.1.0.tgz}
     engines: {node: '>= 0.8.0'}
-
-  inherits@2.0.3:
-    resolution: {integrity: sha1-Yzwsg+PaQqUC9SRmAiSA9CCCYd4=, tarball: http://r.npm.sankuai.com/inherits/download/inherits-2.0.3.tgz}
 
   inherits@2.0.4:
     resolution: {integrity: sha1-D6LGT5MpF8NDOg3tVTY6rjdBa3w=, tarball: http://r.npm.sankuai.com/inherits/download/inherits-2.0.4.tgz}
@@ -2304,14 +2271,6 @@ packages:
 
   koa-logger@3.2.1:
     resolution: {integrity: sha1-q524eVJts4N8yc5P2YPAJbFonyI=, tarball: http://r.npm.sankuai.com/koa-logger/download/koa-logger-3.2.1.tgz}
-    engines: {node: '>= 7.6.0'}
-
-  koa-send@5.0.1:
-    resolution: {integrity: sha1-Odzuv6+zldDWC+r/ujpwtPVD/nk=, tarball: http://r.npm.sankuai.com/koa-send/download/koa-send-5.0.1.tgz}
-    engines: {node: '>= 8'}
-
-  koa-static@5.0.0:
-    resolution: {integrity: sha1-XpL8lrU3rVIZ9CUxnJW2R3J3aUM=, tarball: http://r.npm.sankuai.com/koa-static/download/koa-static-5.0.0.tgz}
     engines: {node: '>= 7.6.0'}
 
   koa@2.16.3:
@@ -2567,10 +2526,6 @@ packages:
     resolution: {integrity: sha1-UTvb4tO5XXdi6METfvoZXGxhtbM=, tarball: http://r.npm.sankuai.com/path-exists/download/path-exists-4.0.0.tgz}
     engines: {node: '>=8'}
 
-  path-is-absolute@1.0.1:
-    resolution: {integrity: sha1-F0uSaHNVNP+8es5r9TpanhtcX18=, tarball: http://r.npm.sankuai.com/path-is-absolute/download/path-is-absolute-1.0.1.tgz}
-    engines: {node: '>=0.10.0'}
-
   path-key@3.1.1:
     resolution: {integrity: sha1-WB9q3mWMu6ZaDTOA3ndTKVBU83U=, tarball: http://r.npm.sankuai.com/path-key/download/path-key-3.1.1.tgz}
     engines: {node: '>=8'}
@@ -2779,10 +2734,6 @@ packages:
     resolution: {integrity: sha512-qYg9KP24dD5qka9J47d0aVky0N+b4fTU89LN9iDnjB5waksiC49rvMB0PrUJQGoTmH50XPiqOvAjDfaijGxYZw==}
     engines: {node: '>=8'}
 
-  resolve-path@1.4.0:
-    resolution: {integrity: sha1-xL2p9e+y/OZSR4c6s2u02DT+Fvc=, tarball: http://r.npm.sankuai.com/resolve-path/download/resolve-path-1.4.0.tgz}
-    engines: {node: '>= 0.8'}
-
   resolve-pkg-maps@1.0.0:
     resolution: {integrity: sha1-YWs9wsVwVrVYjDHN9LPWTbEzcg8=, tarball: http://r.npm.sankuai.com/resolve-pkg-maps/download/resolve-pkg-maps-1.0.0.tgz}
 
@@ -2853,9 +2804,6 @@ packages:
 
   set-cookie-parser@2.7.2:
     resolution: {integrity: sha1-zNCGc6muXS5E6iot4lCJ5nx+32g=, tarball: http://r.npm.sankuai.com/set-cookie-parser/download/set-cookie-parser-2.7.2.tgz}
-
-  setprototypeof@1.1.0:
-    resolution: {integrity: sha1-0L2FU2iHtv58DYGMuWLZ2RxU5lY=, tarball: http://r.npm.sankuai.com/setprototypeof/download/setprototypeof-1.1.0.tgz}
 
   setprototypeof@1.2.0:
     resolution: {integrity: sha1-ZsmiSnP5/CjL5msJ/tPTPcrxtCQ=, tarball: http://r.npm.sankuai.com/setprototypeof/download/setprototypeof-1.2.0.tgz}
@@ -4224,15 +4172,6 @@ snapshots:
     dependencies:
       '@types/koa': 2.15.0
 
-  '@types/koa-send@4.1.6':
-    dependencies:
-      '@types/koa': 2.15.0
-
-  '@types/koa-static@4.0.4':
-    dependencies:
-      '@types/koa': 2.15.0
-      '@types/koa-send': 4.1.6
-
   '@types/koa@2.15.0':
     dependencies:
       '@types/accepts': 1.3.7
@@ -4716,10 +4655,6 @@ snapshots:
 
   dayjs@1.11.19: {}
 
-  debug@3.2.7:
-    dependencies:
-      ms: 2.1.3
-
   debug@4.4.3:
     dependencies:
       ms: 2.1.3
@@ -5163,13 +5098,6 @@ snapshots:
 
   http-cache-semantics@4.2.0: {}
 
-  http-errors@1.6.3:
-    dependencies:
-      depd: 1.1.2
-      inherits: 2.0.3
-      setprototypeof: 1.1.0
-      statuses: 1.5.0
-
   http-errors@1.8.1:
     dependencies:
       depd: 1.1.2
@@ -5213,8 +5141,6 @@ snapshots:
   imurmurhash@0.1.4: {}
 
   inflation@2.1.0: {}
-
-  inherits@2.0.3: {}
 
   inherits@2.0.4: {}
 
@@ -5336,21 +5262,6 @@ snapshots:
       chalk: 2.4.2
       humanize-number: 0.0.2
       passthrough-counter: 1.0.0
-
-  koa-send@5.0.1:
-    dependencies:
-      debug: 4.4.3
-      http-errors: 1.8.1
-      resolve-path: 1.4.0
-    transitivePeerDependencies:
-      - supports-color
-
-  koa-static@5.0.0:
-    dependencies:
-      debug: 3.2.7
-      koa-send: 5.0.1
-    transitivePeerDependencies:
-      - supports-color
 
   koa@2.16.3:
     dependencies:
@@ -5588,8 +5499,6 @@ snapshots:
 
   path-exists@4.0.0: {}
 
-  path-is-absolute@1.0.1: {}
-
   path-key@3.1.1: {}
 
   path-scurry@1.11.1:
@@ -5787,11 +5696,6 @@ snapshots:
 
   resolve-from@5.0.0: {}
 
-  resolve-path@1.4.0:
-    dependencies:
-      http-errors: 1.6.3
-      path-is-absolute: 1.0.1
-
   resolve-pkg-maps@1.0.0: {}
 
   responselike@2.0.1:
@@ -5887,8 +5791,6 @@ snapshots:
   set-blocking@2.0.0: {}
 
   set-cookie-parser@2.7.2: {}
-
-  setprototypeof@1.1.0: {}
 
   setprototypeof@1.2.0: {}
 
