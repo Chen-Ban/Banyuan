@@ -20,6 +20,9 @@ export { default as TransactionManager } from './TransactionManager'
 export { default as DiffApplier } from './DiffApplier'
 export { default as LayerManager } from './LayerManager'
 
+export { SnapAlignManager } from './snapAlign'
+export type { SnapResult } from './snapAlign'
+
 export {
   flattenViewTree,
   isViewInTree,
