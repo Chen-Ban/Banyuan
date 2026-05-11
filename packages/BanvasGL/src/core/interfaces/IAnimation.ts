@@ -142,25 +142,24 @@ export interface AnimationOptions {
  */
 export type Interpolator<T = any> = (from: T, to: T, progress: number) => T
 
-// ── 接口契约 ─────────────────────────────────────────────────────────────────
+// ── 动画描述对象公共契约 ──────────────────────────────────────────────────────
 
 /**
- * 动画实例的公共契约
+ * IAnimationDescriptor —— 动画描述对象的公共契约
+ *
+ * View 持有此接口，描述"要播放什么动画"以及当前播放状态。
+ * 具体执行由 AnimationManager 侧的 AnimationExecutor 负责。
  */
-export interface IAnimation {
+export interface IAnimationDescriptor {
     /** 唯一标识 */
     readonly id: string
-    /** 动画目标视图（可能为 null，表示未绑定） */
-    target: any | null
     /** 动画控制的属性列表 */
     properties: string[]
-    /** 当前计算值（渲染时读取） */
+    /** 当前帧计算值（渲染时读取） */
     computedValues: Record<string, AnimatableValue>
 
     // 状态
-    /** 动画当前状态 */
     readonly state: AnimationState
-    /** 动画是否活跃（running 或 paused） */
     readonly isActive: boolean
 
     // 配置（只读）
@@ -175,33 +174,29 @@ export interface IAnimation {
     onCancel: (() => void) | null
     onIteration: ((currentIteration: number) => void) | null
 
-    /**
-     * 由 AnimationManager 每帧调用
-     * @returns false 表示动画已结束，应从管理器中移除
-     */
-    tick(timestamp: number): boolean
+    /** 动画完成的 Promise */
+    readonly finished: Promise<void>
 
     /** 播放动画 */
-    play(): IAnimation
+    play(): IAnimationDescriptor
     /** 暂停动画 */
-    pause(): IAnimation
+    pause(): IAnimationDescriptor
     /** 恢复动画 */
-    resume(): IAnimation
+    resume(): IAnimationDescriptor
     /** 取消动画 */
-    cancel(): IAnimation
+    cancel(): IAnimationDescriptor
     /** 立即完成动画（跳到终态） */
-    finish(): IAnimation
+    finish(): IAnimationDescriptor
 }
 
 /**
  * AnimationManager 的公共接口
- * 供 Animation 等模块引用管理器时避免循环依赖
  */
 export interface IAnimationManager {
-    /** 注册动画 */
-    add(animation: IAnimation): void
+    /** 注册动画并开始执行 */
+    add(descriptor: IAnimationDescriptor, target: IAnimatable): void
     /** 移除动画 */
-    remove(animation: IAnimation): void
+    remove(descriptor: IAnimationDescriptor): void
     /** 每帧驱动所有活跃动画 */
     tick(timestamp: number): void
     /** 当前活跃动画数量 */
@@ -213,7 +208,7 @@ export interface IAnimationManager {
 /**
  * IAnimatable —— 动画系统与 View 之间的内部契约
  *
- * View 实现此接口，Animation 通过它操作目标 View，
+ * View 实现此接口，AnimationExecutor 通过它操作目标 View，
  * 业务层无需感知这些方法的存在。
  *
  * @internal
@@ -221,11 +216,11 @@ export interface IAnimationManager {
 export interface IAnimatable {
     // ── 动画列表管理 ──
     /** 将动画注册到 View 的活跃列表 @internal */
-    _addAnimation(anim: IAnimation): void
+    _addAnimation(anim: IAnimationDescriptor): void
     /** 将动画从 View 的活跃列表移除 @internal */
-    _removeAnimation(anim: IAnimation): void
+    _removeAnimation(anim: IAnimationDescriptor): void
     /** 获取 View 当前所有活跃动画（用于冲突检测） @internal */
-    _getAnimations(): IAnimation[]
+    _getAnimations(): IAnimationDescriptor[]
     /** 动画运行期间更新覆盖视口（不修改真实 viewport）@internal */
     _animationResize(targetWidth: number, targetHeight: number): void
     /** 将覆盖视口提交为真实 viewport（fillMode: forwards 时调用）@internal */
@@ -233,7 +228,7 @@ export interface IAnimatable {
     /** 清空覆盖视口，恢复使用真实 viewport（fillMode: none 时调用）@internal */
     _clearAnimatedViewport(): void
 
-    // ── Animation 内部计算所需的 View 属性 ──
+    // ── AnimationExecutor 内部计算所需的 View 属性 ──
     matrix: Matrix4
     viewport: Bounds
     parent: unknown

@@ -1,5 +1,5 @@
-export { default as Animation } from './core/Animation'
-export { default as AnimationManager } from './core/AnimationManager'
+export { default as AnimationDescriptor } from './descriptor/AnimationDescriptor'
+export { default as AnimationManager } from './manager/AnimationManager'
 export { Easings } from './keyframes/easings'
 export type {
     EasingFunction,

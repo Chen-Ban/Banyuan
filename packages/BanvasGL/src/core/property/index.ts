@@ -1,8 +1,10 @@
 /**
- * 属性适配器模块（Property Adapters）
+ * 属性系统（Property）
  *
  * 提供用户语义属性（x/y/rotation/width/height 等）与引擎内部数据结构
  * （matrix / viewport）之间的双向映射。
+ *
+ * 类型接口定义位于 @/core/interfaces/IPropertyAdapter。
  *
  * 消费方：
  * - 动画系统（animation）：使用 get + interpolate 策略
@@ -11,12 +13,9 @@
 
 import type View from '@/core/views/View/View'
 import type Matrix4 from '@/core/math/Matrix4'
-import type { PropertyAdapter, PropertyCategory } from './types'
+import type { PropertyAdapter, PropertyCategory } from '@/core/interfaces'
 import { spatialAdapters } from './spatialAdapters'
 import { sizeAdapters } from './sizeAdapters'
-
-export type { PropertyAdapter, PropertyCategory } from './types'
-export type { PropertyDescriptor, ConflictGroup } from './types'
 
 // ========== 注册表类 ==========
 
