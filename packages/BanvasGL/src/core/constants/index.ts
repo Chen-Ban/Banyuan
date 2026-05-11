@@ -39,6 +39,10 @@ export const enum VIEWTYPE {
     SELECTBOXVIEW = 'SELECTBOXVIEW',
     INPUT = 'INPUT',
     EDITABLETEXT = 'EDITABLETEXT',
+    // 流程编辑器
+    NODEVIEW = 'NODEVIEW',
+    PORTVIEW = 'PORTVIEW',
+    EDGEVIEW = 'EDGEVIEW',
 }
 
 // 数学类型枚举

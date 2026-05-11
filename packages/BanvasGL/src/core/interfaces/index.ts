@@ -69,6 +69,7 @@ export type {
     EditViewportData,
     SelectData,
     TextSelectionData,
+    ConnectData,
     NoneData,
     IInteractResult,
     IViewStyle,
@@ -85,6 +86,11 @@ export type {
     ISelection,
     IInput,
     ViewTypeMap,
+    // 流程编辑器
+    PortDirection,
+    IPortView,
+    INodeView,
+    IEdgeView,
 } from './IView'
 
 export { Cursor, Action, cursorMap } from './IView'
@@ -142,7 +148,7 @@ export type {
     KeyframeDefinition,
     AnimationOptions,
     Interpolator,
-    IAnimation,
+    IAnimationDescriptor,
     IAnimationManager,
     IAnimatable,
 } from './IAnimation'
@@ -200,4 +206,8 @@ export {
     isCombinedView,
     isBoundingBoxAddon,
     isVertexAddon,
+    // 流程编辑器
+    isPortView,
+    isNodeView,
+    isEdgeView,
 } from './guards'
