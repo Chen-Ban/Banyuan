@@ -18,6 +18,12 @@ importers:
         specifier: ~5.7.3
         version: 5.7.3
 
+  apps/web:
+    devDependencies:
+      banvasgl:
+        specifier: workspace:*
+        version: link:../../packages/BanvasGL
+
   examples/lunlunglass/backend:
     dependencies:
       '@koa/cors':
