@@ -3,8 +3,6 @@ import { koaBody } from 'koa-body'
 import json from 'koa-json'
 import logger from 'koa-logger'
 import cors from '@koa/cors'
-import serve from 'koa-static'
-import path from 'path'
 import router from './routes'
 import localOnly from './middleware/localOnly'
 
@@ -25,9 +23,6 @@ app.use(koaBody({
     keepExtensions: true,
   },
 }))
-
-// 静态文件服务 - 服务 uploads 目录
-app.use(serve(path.resolve(__dirname, '../uploads')))
 
 // 错误处理中间件
 app.use(async (ctx, next) => {
