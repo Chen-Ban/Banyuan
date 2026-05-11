@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler } from 'banvasgl'
+import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler, FlowSchema } from 'banvasgl'
+import FlowCanvas from './FlowCanvas'
 import styles from './index.module.scss'
 
 // ── View 模式 Props ──
@@ -47,7 +48,105 @@ function handlerPreview(handler: EventHandler): string {
     if (handler === null) return ''
     if (typeof handler === 'string') return handler || '(空)'
     if (typeof handler === 'function') return '(函数)'
-    return ''
+    // FlowSchema
+    const schema = handler as FlowSchema
+    const nodeCount = schema.nodes?.length ?? 0
+    const edgeCount = schema.edges?.length ?? 0
+    if (nodeCount === 0) return '(空流程)'
+    return `${nodeCount} 节点 · ${edgeCount} 连线`
+}
+
+function toFlowSchema(handler: EventHandler): FlowSchema | null {
+    if (!handler || typeof handler === 'string' || typeof handler === 'function') return null
+    return handler as FlowSchema
+}
+
+// ── 单个事件行（含可展开的画布） ──
+interface EventRowItemProps {
+    label: string
+    handler: EventHandler
+    onDelete: () => void
+    onSchemaChange: (schema: FlowSchema) => void
+}
+
+const EventRowItem: React.FC<EventRowItemProps> = ({ label, handler, onDelete, onSchemaChange }) => {
+    const [expanded, setExpanded] = useState(false)
+    const schema = toFlowSchema(handler)
+
+    return (
+        <div className={styles.eventItem}>
+            <div className={styles.eventRow}>
+                {/* 展开/折叠按钮 */}
+                <button
+                    className={`${styles.expandBtn} ${expanded ? styles.expandBtnOpen : ''}`}
+                    onClick={() => setExpanded((v) => !v)}
+                    title={expanded ? '折叠画布' : '展开画布'}
+                >
+                    ▶
+                </button>
+                <span className={styles.eventName}>{label}</span>
+                <span className={styles.eventPreview}>{handlerPreview(handler)}</span>
+                <button
+                    className={styles.fieldDeleteBtn}
+                    onClick={onDelete}
+                    title="删除"
+                >×</button>
+            </div>
+            {expanded && (
+                <div className={styles.flowCanvasContainer}>
+                    <FlowCanvas
+                        schema={schema}
+                        onChange={onSchemaChange}
+                    />
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ── 单个生命周期行（含可展开的画布） ──
+interface LifetimeRowItemProps {
+    label: string
+    handler: EventHandler
+    onDelete?: () => void
+    onSchemaChange: (schema: FlowSchema) => void
+}
+
+const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDelete, onSchemaChange }) => {
+    const [expanded, setExpanded] = useState(false)
+    const schema = toFlowSchema(handler)
+    const hasBound = handler !== null
+
+    return (
+        <div className={styles.eventItem}>
+            <div className={styles.eventRow}>
+                <button
+                    className={`${styles.expandBtn} ${expanded ? styles.expandBtnOpen : ''}`}
+                    onClick={() => setExpanded((v) => !v)}
+                    title={expanded ? '折叠画布' : '展开画布'}
+                >
+                    ▶
+                </button>
+                <span className={styles.eventName}>{label}</span>
+                <span className={styles.eventPreview}>{handlerPreview(handler)}</span>
+                {hasBound && onDelete && (
+                    <button
+                        className={styles.fieldDeleteBtn}
+                        onClick={onDelete}
+                        title="清除"
+                    >×</button>
+                )}
+            </div>
+            {expanded && (
+                <div className={styles.flowCanvasContainer}>
+                    <FlowCanvas
+                        schema={schema}
+                        onChange={onSchemaChange}
+                    />
+                </div>
+            )}
+        </div>
+    )
 }
 
 const EventsTab: React.FC<EventsTabProps> = (props) => {
@@ -62,19 +161,15 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                 <section className={styles.section}>
                     <div className={styles.sectionHeader}>生命周期</div>
                     {PAGE_LIFETIME_ENTRIES.map(({ key, label }) => (
-                        <div key={key} className={styles.eventRow}>
-                            <span className={styles.eventName}>{label}</span>
-                            <span className={styles.eventPreview}>
-                                {handlerPreview(lifetimes[key])}
-                            </span>
-                            {lifetimes[key] !== null && (
-                                <button
-                                    className={styles.fieldDeleteBtn}
-                                    onClick={() => actions.page.deletePageLifetime(props.pageId, key)}
-                                    title="清除"
-                                >×</button>
-                            )}
-                        </div>
+                        <LifetimeRowItem
+                            key={key}
+                            label={label}
+                            handler={lifetimes[key]}
+                            onDelete={() => actions.page.deletePageLifetime(props.pageId, key)}
+                            onSchemaChange={(schema) =>
+                                actions.page.setPageLifetime(props.pageId, key, schema)
+                            }
+                        />
                     ))}
                 </section>
             </div>
@@ -95,7 +190,7 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
 
     const handleAddEvent = () => {
         if (!addingEvent) return
-        actions.view.setViewEvent(selectedViewId, addingEvent, '')
+        actions.view.setViewEvent(selectedViewId, addingEvent, { nodes: [], edges: [] })
         setAddingEvent('')
     }
 
@@ -105,19 +200,15 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>生命周期</div>
                 {VIEW_LIFETIME_ENTRIES.map(({ key, label }) => (
-                    <div key={key} className={styles.eventRow}>
-                        <span className={styles.eventName}>{label}</span>
-                        <span className={styles.eventPreview}>
-                            {handlerPreview(lifetimes[key])}
-                        </span>
-                        {lifetimes[key] !== null && (
-                            <button
-                                className={styles.fieldDeleteBtn}
-                                onClick={() => actions.view.deleteViewLifetime(selectedViewId, key)}
-                                title="清除"
-                            >×</button>
-                        )}
-                    </div>
+                    <LifetimeRowItem
+                        key={key}
+                        label={label}
+                        handler={lifetimes[key]}
+                        onDelete={() => actions.view.deleteViewLifetime(selectedViewId, key)}
+                        onSchemaChange={(schema) =>
+                            actions.view.setViewLifetime(selectedViewId, key, schema)
+                        }
+                    />
                 ))}
             </section>
 
@@ -125,17 +216,15 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>交互事件</div>
                 {boundEventKeys.map(({ key, label }) => (
-                    <div key={key} className={styles.eventRow}>
-                        <span className={styles.eventName}>{label}</span>
-                        <span className={styles.eventPreview}>
-                            {handlerPreview(events[key])}
-                        </span>
-                        <button
-                            className={styles.fieldDeleteBtn}
-                            onClick={() => actions.view.deleteViewEvent(selectedViewId, key)}
-                            title="删除"
-                        >×</button>
-                    </div>
+                    <EventRowItem
+                        key={key}
+                        label={label}
+                        handler={events[key]}
+                        onDelete={() => actions.view.deleteViewEvent(selectedViewId, key)}
+                        onSchemaChange={(schema) =>
+                            actions.view.setViewEvent(selectedViewId, key, schema)
+                        }
+                    />
                 ))}
                 {boundEventKeys.length === 0 && (
                     <div className={styles.emptyFields}>暂无事件</div>
