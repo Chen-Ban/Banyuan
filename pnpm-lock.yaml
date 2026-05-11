@@ -20,9 +20,146 @@ importers:
 
   apps/banyan:
     devDependencies:
+      concurrently:
+        specifier: ^9.2.1
+        version: 9.2.1
+
+  apps/banyan/backend:
+    dependencies:
+      '@koa/cors':
+        specifier: ^5.0.0
+        version: 5.0.0
+      '@koa/router':
+        specifier: ^13.0.0
+        version: 13.1.1
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.6.1
+      koa:
+        specifier: ^2.15.0
+        version: 2.16.3
+      koa-body:
+        specifier: ^6.0.1
+        version: 6.0.1
+      koa-json:
+        specifier: ^2.0.2
+        version: 2.0.2
+      koa-logger:
+        specifier: ^3.1.0
+        version: 3.2.1
+      koa-static:
+        specifier: ^5.0.0
+        version: 5.0.0
+      mongoose:
+        specifier: ^8.7.0
+        version: 8.20.1
+    devDependencies:
+      '@types/koa':
+        specifier: ^2.15.0
+        version: 2.15.0
+      '@types/koa-json':
+        specifier: ^2.0.20
+        version: 2.0.24
+      '@types/koa-logger':
+        specifier: ^3.1.0
+        version: 3.1.5
+      '@types/koa-static':
+        specifier: ^4.0.4
+        version: 4.0.4
+      '@types/koa__cors':
+        specifier: ^5.0.1
+        version: 5.0.1
+      '@types/koa__router':
+        specifier: ^12.0.5
+        version: 12.0.5
+      '@types/node':
+        specifier: ^22.10.1
+        version: 22.19.0
+      tsx:
+        specifier: ^4.19.2
+        version: 4.20.6
+      typescript:
+        specifier: ~5.7.3
+        version: 5.7.3
+
+  apps/banyan/electron:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.19.0
       banvasgl:
         specifier: workspace:*
-        version: link:../../packages/BanvasGL
+        version: link:../../../packages/BanvasGL
+      concurrently:
+        specifier: ^9.2.1
+        version: 9.2.1
+      electron:
+        specifier: ^36.1.0
+        version: 36.9.5
+      typescript:
+        specifier: ~5.7.2
+        version: 5.7.3
+      wait-on:
+        specifier: ^8.0.1
+        version: 8.0.5
+
+  apps/banyan/frontend:
+    dependencies:
+      '@ant-design/icons':
+        specifier: ^6.1.0
+        version: 6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      antd:
+        specifier: ^6.0.0
+        version: 6.0.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      react:
+        specifier: ^19.0.0
+        version: 19.2.0
+      react-dom:
+        specifier: ^19.0.0
+        version: 19.2.0(react@19.2.0)
+      react-router-dom:
+        specifier: ^7.9.1
+        version: 7.9.5(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+    devDependencies:
+      '@eslint/js':
+        specifier: ^9.22.0
+        version: 9.39.1
+      '@types/react':
+        specifier: ^19.0.10
+        version: 19.2.2
+      '@types/react-dom':
+        specifier: ^19.0.4
+        version: 19.2.2(@types/react@19.2.2)
+      '@vitejs/plugin-react':
+        specifier: ^4.3.4
+        version: 4.7.0(vite@6.4.1(@types/node@22.19.0)(sass@1.94.2)(tsx@4.20.6))
+      banvasgl:
+        specifier: workspace:*
+        version: link:../../../packages/BanvasGL
+      eslint:
+        specifier: ^9.22.0
+        version: 9.39.1
+      eslint-plugin-react-hooks:
+        specifier: ^5.2.0
+        version: 5.2.0(eslint@9.39.1)
+      eslint-plugin-react-refresh:
+        specifier: ^0.4.19
+        version: 0.4.24(eslint@9.39.1)
+      globals:
+        specifier: ^16.0.0
+        version: 16.5.0
+      sass:
+        specifier: ^1.83.0
+        version: 1.94.2
+      typescript:
+        specifier: ~5.7.2
+        version: 5.7.3
+      typescript-eslint:
+        specifier: ^8.26.1
+        version: 8.46.4(eslint@9.39.1)(typescript@5.7.3)
+      vite:
+        specifier: ^6.3.1
+        version: 6.4.1(@types/node@22.19.0)(sass@1.94.2)(tsx@4.20.6)
 
   examples/lunlunglass:
     devDependencies:

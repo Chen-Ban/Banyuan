@@ -1,0 +1,19 @@
+{
+  "name": "banyan-electron",
+  "version": "0.0.1",
+  "description": "Banyan 低代码平台桌面应用",
+  "main": "dist/main.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "concurrently -c \"green.bold,cyan.bold\" -n main,electron \"tsc --watch\" \"wait-on http://localhost:5173 && electron .\""
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "banvasgl": "workspace:*",
+    "concurrently": "^9.2.1",
+    "electron": "^36.1.0",
+    "typescript": "~5.7.2",
+    "wait-on": "^8.0.1"
+  }
+}
