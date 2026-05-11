@@ -1,5 +1,55 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+// ── 打印模板相关类型 ──
+
+/** 动态字段文本样式 */
+export interface IPrintFieldTextStyle {
+  fontSize: number
+  fontWeight: 'normal' | 'bold'
+  align: 'left' | 'center' | 'right'
+  overflow: 'clip' | 'ellipsis' | 'shrink'
+}
+
+/** 条码/二维码样式 */
+export interface IPrintFieldCodeStyle {
+  format: 'CODE128' | 'EAN13' | 'QR'
+  errorLevel?: 'L' | 'M' | 'Q' | 'H'
+}
+
+/** 打印模板动态字段描述 */
+export interface IPrintField {
+  /** 字段契约名（与业务方约定的 key） */
+  key: string
+  /** 字段显示名（给设计者看） */
+  label: string
+  /** 字段类型 */
+  type: 'text' | 'barcode' | 'qrcode'
+  /** 渲染区域（像素坐标，相对于背景图左上角） */
+  bounds: { x: number; y: number; width: number; height: number }
+  /** 文本排版配置 */
+  textStyle?: IPrintFieldTextStyle
+  /** 条码/二维码配置 */
+  codeStyle?: IPrintFieldCodeStyle
+  /** 默认值（预览用） */
+  defaultValue?: string
+}
+
+/** 打印模板配置 */
+export interface IPrintConfig {
+  /** 纸张宽度 mm */
+  paperWidth: 58 | 80
+  /** 打印机分辨率 DPI */
+  dpi: number
+  /** 背景层位图（Base64 data URL） */
+  backgroundImage: string
+  /** 背景图像素尺寸 */
+  backgroundSize: { width: number; height: number }
+  /** 动态字段列表 */
+  fields: IPrintField[]
+}
+
+// ── 模板文档接口 ──
+
 /**
  * 模板文档接口
  */
@@ -22,6 +72,8 @@ export interface ITemplate extends Document {
   createdBy: string
   /** 最后修改者 userId */
   updatedBy: string
+  /** 打印模板配置（可选，仅打印模板有值） */
+  printConfig: IPrintConfig | null
   /** 创建时间 */
   createdAt: Date
   /** 更新时间 */
@@ -79,6 +131,10 @@ const TemplateSchema = new Schema<ITemplate>(
       type: String,
       default: '',
       trim: true,
+    },
+    printConfig: {
+      type: Schema.Types.Mixed,
+      default: null,
     },
   },
   {

@@ -75,6 +75,7 @@ export default class ImageView extends View implements IImageView, ISerializable
                 child.onAttach()
             })
         }
+        view.restoreLayout()
         return view
     }
 }
