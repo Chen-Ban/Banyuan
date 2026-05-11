@@ -1,7 +1,7 @@
 import React from 'react'
 import { Tooltip } from 'antd'
 import type { IBanvasActions, IView } from 'banvasgl'
-import { GRAPHTYPE, VIEWTYPE } from 'banvasgl'
+import { GRAPHTYPE } from 'banvasgl'
 import NumberInput from './NumberInput'
 import styles from './index.module.scss'
 
@@ -33,13 +33,6 @@ const PropertiesTab: React.FC<PropertiesTabProps> = ({
     const content = view.content as any
     const isRoundedRect = content && content.type === GRAPHTYPE.ROUNDED_RECT
     const radii: [number, number, number, number] = isRoundedRect ? content.radii : [0, 0, 0, 0]
-
-    // 动态打印开关（仅文本容器和媒体容器支持）
-    const supportsPrint = view.type === VIEWTYPE.TEXTVIEW
-        || view.type === VIEWTYPE.IMAGEVIEW
-        || view.type === VIEWTYPE.VIDEOVIEW
-    const viewData = actions.view.getViewData(selectedViewId)
-    const printEnabled = supportsPrint && !!(viewData?.['__printEnabled'] as any)?.value
 
     return (
         <div className={styles.tabContent}>
@@ -232,33 +225,6 @@ const PropertiesTab: React.FC<PropertiesTabProps> = ({
                 </section>
             )}
 
-            {/* 动态打印（仅文本/媒体容器显示） */}
-            {supportsPrint && (
-                <section className={styles.section}>
-                    <div className={styles.sectionHeader}>打印</div>
-                    <div className={styles.stateRow}>
-                        <label className={styles.stateLabel}>
-                            <input
-                                type="checkbox"
-                                checked={printEnabled}
-                                onChange={(e) => {
-                                    if (e.target.checked) {
-                                        actions.view.setViewData(selectedViewId, '__printEnabled', { type: 'boolean', value: true })
-                                    } else {
-                                        actions.view.deleteViewData(selectedViewId, '__printEnabled')
-                                    }
-                                }}
-                            />
-                            启用动态打印
-                        </label>
-                    </div>
-                    <div className={styles.infoRow}>
-                        <span className={styles.infoLabel} style={{ fontSize: 11, color: '#999' }}>
-                            开启后，运营人员可在 CRM 中为此容器配置数据字段映射
-                        </span>
-                    </div>
-                </section>
-            )}
         </div>
     )
 }
