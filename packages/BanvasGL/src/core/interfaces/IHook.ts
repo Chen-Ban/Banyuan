@@ -133,8 +133,8 @@ export interface IPageNode {
 
 /** 视图操作 */
 export interface IViewActions {
-    /** 选中指定视图 */
-    select(viewId: string): void
+/** 选中指定视图 */
+select(viewId: string, multiple?: boolean): void
     /** 取消所有选中 */
     deselect(): void
     /** 全选当前页面所有视图 */

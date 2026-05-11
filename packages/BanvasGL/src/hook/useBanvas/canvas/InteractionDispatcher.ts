@@ -1,11 +1,12 @@
 import { View, SelectBoxView } from '@/core/views'
 import type Scene from '@/core/scene/Scene'
 import { Point3 } from '@/core/math'
-import { Action, Cursor, isTextView, isSelectBoxView, ExtraData, IViewAddon, IGraph } from '@/core/interfaces'
+import { Action, Cursor, isTextView, isSelectBoxView, isPortView, ExtraData, IViewAddon, IGraph } from '@/core/interfaces'
 import { Rectangle, Graph } from '@/core/graph'
 import { clearAllStates } from '@/core/scene/operations'
 import Bounds from '@/core/graph/base/Bounds'
 import { isNonPrintableTextElement, isPrintableTextElement } from '@/core/graph'
+import EdgeView from '@/core/views/flow/EdgeView'
 
 export interface InteractionContext {
     /** Get the current indicated (hovered) view */
@@ -21,9 +22,13 @@ export interface InteractionContext {
     /** Set cursor style on the canvas */
     setCursor(cursor: Cursor): void
     /** Select a view in the scene and update React state */
-    selectView(scene: Scene, view: View, setSelected: boolean): void
+    selectView(scene: Scene, view: View, multiple: boolean): void
     /** Clear selection state */
     clearSelection(scene: Scene): void
+    /** Get the temporary EdgeView being drawn */
+    getTempEdge(): EdgeView | null
+    /** Set the temporary EdgeView being drawn */
+    setTempEdge(edge: EdgeView | null): void
 }
 
 export class InteractionDispatcher {
@@ -41,7 +46,7 @@ export class InteractionDispatcher {
     ): void {
         switch (action) {
             case Action.MOVE:
-                return this.handleMove(scene, point, mouseDownPoint)
+                return this.handleMove(e, scene, point, mouseDownPoint)
             case Action.TEXT_SELECTION:
                 return this.handleTextSelection(scene, point)
             case Action.EDIT_POINT:
@@ -52,6 +57,8 @@ export class InteractionDispatcher {
                 return this.handleRotate(scene, point)
             case Action.SELECT:
                 return this.handleBoxSelect(scene, point, mouseDownPoint)
+            case Action.CONNECT:
+                return this.handleConnect(scene, point)
             case Action.EDIT_VIEWPORT:
             case Action.NONE:
             default:
@@ -59,7 +66,56 @@ export class InteractionDispatcher {
         }
     }
 
+    /**
+     * 连线拖拽中：创建或更新临时 EdgeView
+     */
+    private handleConnect(scene: Scene, point: Point3): void {
+        this.ctx.setCursor(Cursor.Crosshair)
+        const extraData = this.ctx.getExtraData()
+        if (!extraData || extraData.action !== Action.CONNECT) return
+
+        let edge = this.ctx.getTempEdge()
+        if (!edge) {
+            // 首次移动时创建临时 EdgeView
+            edge = new EdgeView({ fromPortId: extraData.portViewId })
+            scene.addChild(edge, false)
+            this.ctx.setTempEdge(edge)
+        }
+        edge.setTempTarget(point)
+    }
+
+    /**
+     * 连线完成：在 mouseUp 时调用
+     * 命中目标端口则建立正式连线（录入操作栈），否则删除临时 EdgeView
+     */
+    finishConnect(scene: Scene, point: Point3): void {
+        const edge = this.ctx.getTempEdge()
+        if (!edge) return
+
+        // 命中检测：找到鼠标下方的 PortView
+        let targetPortId: string | null = null
+        for (const view of scene.children) {
+            const { view: hit } = view.interact(point)
+            if (hit && isPortView(hit) && hit.id !== edge.fromPortId) {
+                targetPortId = hit.id
+                break
+            }
+        }
+
+        if (targetPortId && edge.fromPortId) {
+            // 先将临时边从 scene 移除（不录入），再正式连线后重新加入（录入操作栈）
+            scene.removeChild(edge, false)
+            edge.connect(edge.fromPortId, targetPortId)
+            scene.addChild(edge, true)
+        } else {
+            // 未命中端口，删除临时 EdgeView（不录入）
+            scene.removeChild(edge, false)
+        }
+        this.ctx.setTempEdge(null)
+    }
+
     private handleMove(
+        e: MouseEvent,
         scene: Scene,
         point: Point3,
         mouseDownPoint: Point3
@@ -71,7 +127,7 @@ export class InteractionDispatcher {
         if (!indicateView) return
 
         if (!indicateView.actived) {
-            scene.select(indicateView)
+            scene.select(indicateView, e.ctrlKey || e.metaKey)
         }
 
         // 先移动
