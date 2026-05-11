@@ -18,11 +18,17 @@ importers:
         specifier: ~5.7.3
         version: 5.7.3
 
-  apps/web:
+  apps/banyan:
     devDependencies:
       banvasgl:
         specifier: workspace:*
         version: link:../../packages/BanvasGL
+
+  examples/lunlunglass:
+    devDependencies:
+      concurrently:
+        specifier: ^9.2.1
+        version: 9.2.1
 
   examples/lunlunglass/backend:
     dependencies:
