@@ -5,8 +5,8 @@ import React, {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useCanvasInit } from "../useCanvasInit";
-import type { SerializedPageJSON, UseCanvasOptions } from "../useCanvasInit";
+import { useDesignCanvasInit } from "../useDesignCanvasInit";
+import type { SerializedPageJSON, UseDesignCanvasOptions } from "../useDesignCanvasInit";
 import { useCanvasEvents } from "./canvas/useCanvasEvents";
 import type { ContextMenuHitResult } from "./canvas/useCanvasEvents";
 import { useInputEvents } from "./canvas/useInputEvents";
@@ -26,13 +26,13 @@ import type {
 
 export default function useDesignBanvas(
   serializedPages: SerializedPageJSON[],
-  _options: UseCanvasOptions,
+  _options: UseDesignCanvasOptions,
 ): IUseBanvasResult {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Canvas 初始化
-  const { app, canvasRef, canvasCallbackRef } = useCanvasInit(
+  const { app, canvasRef, canvasCallbackRef } = useDesignCanvasInit(
     serializedPages,
     _options,
   );
