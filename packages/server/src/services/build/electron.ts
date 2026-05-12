@@ -16,6 +16,8 @@ export interface ElectronBuildOptions {
     outputDir: string    // 最终安装包输出目录（绝对路径）
     appName: string      // 应用名称
     platform: Platform
+    width: number        // 应用窗口宽度（px）
+    height: number       // 应用窗口高度（px）
 }
 
 function toKebabCase(name: string): string {
@@ -42,13 +44,15 @@ function runCommand(cmd: string, args: string[], cwd: string): Promise<void> {
     })
 }
 
-const MAIN_JS = `const { app, BrowserWindow } = require('electron')
+function buildMainJs(width: number, height: number): string {
+    return `const { app, BrowserWindow } = require('electron')
 const path = require('path')
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: ${width},
+    height: ${height},
+    resizable: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -68,17 +72,18 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
 `
+}
 
 export async function buildElectron(options: ElectronBuildOptions): Promise<void> {
-    const { distDir, outputDir, appName, platform } = options
+    const { distDir, outputDir, appName, platform, width, height } = options
     const kebabName = toKebabCase(appName)
 
     // 步骤1：在 distDir 同级创建 electron-wrapper 目录
     const wrapperDir = path.join(distDir, '..', 'electron-wrapper')
     fs.mkdirSync(wrapperDir, { recursive: true })
 
-    // 步骤2：写入 main.js
-    fs.writeFileSync(path.join(wrapperDir, 'main.js'), MAIN_JS, 'utf-8')
+    // 步骤2：写入 main.js（窗口尺寸由 width/height 决定）
+    fs.writeFileSync(path.join(wrapperDir, 'main.js'), buildMainJs(width, height), 'utf-8')
 
     // 步骤3：写入 package.json
     const packageJson = {
@@ -92,7 +97,8 @@ export async function buildElectron(options: ElectronBuildOptions): Promise<void
             appId: `com.banyuan.${kebabName}`,
             productName: appName,
             directories: {
-                output: outputDir,
+                // 使用相对路径，避免 electron-builder 跨目录绝对路径解析问题
+                output: '../output',
             },
             files: [
                 'main.js',
