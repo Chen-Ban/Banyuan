@@ -54,12 +54,14 @@ export type IFieldSchemaMap = Record<string, IFieldSchema>
  * - dataRef:     引用某个 View 的 data 字段（'self' 表示当前 View）
  * - pageDataRef: 引用当前页面的 data 字段
  * - eventArg:    引用触发事件时传入的参数（如点击坐标），index 为参数位置
+ * - nodeRef:     引用画布上一个值节点的输出（值节点连入参数槽时使用）
  */
 export type FlowValue =
     | { kind: 'literal';     value: string | number | boolean }
     | { kind: 'dataRef';     viewId: string; key: string }
     | { kind: 'pageDataRef'; key: string }
     | { kind: 'eventArg';    index: number }
+    | { kind: 'nodeRef';     nodeId: string }
 
 /**
  * 条件表达式 —— 用于 condition 节点的分支判断
@@ -112,10 +114,42 @@ export interface FlowSetVisibleNode {
     visible: boolean
 }
 
+// ── 值节点（Value Nodes）——无执行语义，只产出一个值供动作节点参数槽引用 ──
+
 /**
- * FlowNode —— 动作节点
+ * View 数据引用节点 —— 引用某个 View 的 data 字段
  *
- * 每个节点代表一个原子动作，通过 kind 字段做判别联合收窄。
+ * viewId 为 'self' 时表示触发事件的 View 自身。
+ * 可见范围：当前页面所有 View，但排除触发事件的 View 的子孙 View。
+ */
+export interface FlowVarNode {
+    kind:   'variable'
+    viewId: string
+    key:    string
+}
+
+/** 页面数据引用节点 —— 引用当前页面的 data 字段 */
+export interface FlowPageVarNode {
+    kind: 'pageVar'
+    key:  string
+}
+
+/** 事件参数引用节点 —— 引用触发事件时传入的原始参数 */
+export interface FlowEventParamNode {
+    kind:  'eventParam'
+    index: number
+}
+
+/**
+ * FlowNode —— 动作节点 + 值节点的判别联合
+ *
+ * 动作节点（setData / navigate / animate / condition / delay / setVisible）：
+ *   有控制流入口和出口，代表一个原子动作，按执行顺序依次运行。
+ *
+ * 值节点（variable / pageVar / eventParam）：
+ *   无控制流入口和出口，只有值输出槽，连入动作节点的参数槽后
+ *   覆盖该参数的内联值。FlowRunner 遇到 nodeRef 时直接求值，不走执行队列。
+ *
  * x/y 为编辑器画布中的布局坐标，仅用于面板渲染，不影响运行时逻辑。
  */
 export type FlowNode = {
@@ -129,20 +163,32 @@ export type FlowNode = {
     | FlowConditionNode
     | FlowDelayNode
     | FlowSetVisibleNode
+    | FlowVarNode
+    | FlowPageVarNode
+    | FlowEventParamNode
 )
 
 /**
- * FlowEdge —— 节点间的有向连线，描述执行顺序
+ * FlowEdge —— 节点间的有向连线
  *
- * - from: 源节点 ID，特殊值 '__start__' 表示流程入口
- * - to:   目标节点 ID
- * - branch: 仅 condition 节点的出边需要，区分 true/false 分支
+ * 两种语义通过 toParam 区分：
+ *
+ * 控制流边（toParam 不存在）：
+ *   描述执行顺序，from → to 表示"执行完 from 后执行 to"。
+ *   from 特殊值 '__start__' 表示流程入口。
+ *   branch 仅 condition 节点的出边需要，区分 true/false 分支。
+ *
+ * 数据流边（toParam 存在）：
+ *   值节点 → 动作节点的参数槽，不参与执行顺序。
+ *   toParam 为目标节点的参数路径，如 'value'、'condition.left'、'condition.right'。
+ *   连入后该参数槽的内联值被覆盖，FlowRunner 通过 nodeRef 求值。
  */
 export interface FlowEdge {
-    id:      string
-    from:    string
-    to:      string
-    branch?: 'true' | 'false'
+    id:       string
+    from:     string
+    to:       string
+    branch?:  'true' | 'false'
+    toParam?: string
 }
 
 /**
