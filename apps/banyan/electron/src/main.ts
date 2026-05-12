@@ -130,7 +130,7 @@ function createWindow() {
   });
 
   if (isDev) {
-    const port = process.env.VITE_PORT || "5173";
+    const port = process.env.VITE_PORT || "5174";
     const devServerUrl = `http://localhost:${port}`;
 
     const loadDevServer = () => {
