@@ -1,12 +1,17 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig([
-  // 主库打包：前端 / 后端入口
+  // 三个打包维度：前端（编辑态）/ 后端 / 运行时
   {
-    entry: ["src/index.frontend.ts", "src/index.backend.ts"],
+    entry: [
+      "src/index.frontend.ts",
+      "src/index.backend.ts",
+      "src/index.runtime.ts",
+    ],
     dts: true,
     format: ["esm", "cjs"],
     clean: true,
+    external: ["react", "react-dom"],
   },
   // 单独打包 WorkerRuntime，生成固定文件名，供 WorkerExecutor 使用
   {
@@ -21,5 +26,3 @@ export default defineConfig([
     clean: false,
   },
 ]);
-
-

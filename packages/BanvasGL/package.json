@@ -18,9 +18,9 @@
       }
     },
     "./runtime": {
-      "types": "./dist/index.frontend.d.ts",
-      "require": "./dist/index.frontend.cjs",
-      "import": "./dist/index.frontend.mjs"
+      "types": "./dist/index.runtime.d.ts",
+      "require": "./dist/index.runtime.cjs",
+      "import": "./dist/index.runtime.mjs"
     }
   },
   "files": [
@@ -47,7 +47,6 @@
   },
   "dependencies": {
     "react": "^19.1.0",
-    "uuid": "^11.1.0",
-    "@banyuan/runtime": "workspace:*"
+    "uuid": "^11.1.0"
   }
 }
