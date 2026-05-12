@@ -12,8 +12,8 @@ export interface ITemplate extends Document {
   description: string
   /** 缩略图 URL */
   thumbnail: string
-  /** 多页面场景 JSON 字符串数组（BanvasGL Serializer 输出） */
-  scenes: string[]
+  /** 多页面 JSON 字符串数组（BanvasGL Serializer 输出） */
+  pages: string[]
   /** 标签 */
   tags: string[]
   /** 版本号（每次保存自增） */
@@ -56,7 +56,7 @@ const TemplateSchema = new Schema<ITemplate>(
       default: '',
       trim: true,
     },
-    scenes: {
+    pages: {
       type: [String],
       required: true,
       default: [],

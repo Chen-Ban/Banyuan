@@ -14,7 +14,7 @@ import { getErrorMessage } from "@/utils/error";
 import styles from "./index.module.scss";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyPanel from "./components/PropertyPanel";
-import SceneList from "./components/SceneList";
+import PageList from "./components/PageList";
 import ContextMenu from "./components/ContextMenu";
 
 const AUTO_SAVE_DELAY = 800;
@@ -26,7 +26,7 @@ const TemplateDetail = () => {
 
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
-  const [initialScenes, setInitialScenes] = useState<string[]>([]);
+  const [initialPages, setInitialPages] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(isNew);
   const [saving, setSaving] = useState(false);
 
@@ -46,7 +46,7 @@ const TemplateDetail = () => {
           const template = res.data!;
           setTemplateName(template.name);
           setTemplateDescription(template.description || "");
-          setInitialScenes(template.scenes || []);
+          setInitialPages(template.pages || []);
           setLoaded(true);
         })
         .catch((err: unknown) => {
@@ -115,7 +115,7 @@ const TemplateDetail = () => {
     actions,
     contextMenu,
     builtinComponents,
-  } = useBanvas(loaded ? initialScenes : [], banvasOptions);
+  } = useBanvas(loaded ? initialPages : [], banvasOptions);
 
   /**
    * 自动保存名称/描述（仅已有模板，debounce）
@@ -159,7 +159,7 @@ const TemplateDetail = () => {
   }, []);
 
   /**
-   * 保存整个模板（含 scenes 画布数据）
+   * 保存整个模板（含页面画布数据）
    */
   const handleSave = useCallback(async () => {
     if (!templateName.trim()) {
@@ -169,7 +169,7 @@ const TemplateDetail = () => {
 
     setSaving(true);
     try {
-      const scenes = actions.getSerializedScenes();
+      const pages = actions.getSerializedPages();
 
       if (isNew) {
         const newId = `template_${Date.now()}`;
@@ -177,7 +177,7 @@ const TemplateDetail = () => {
           id: newId,
           name: templateName,
           description: templateDescription,
-          scenes,
+          pages,
         });
         message.success("模板创建成功");
         navigate("/template", { replace: true });
@@ -185,7 +185,7 @@ const TemplateDetail = () => {
         await templateApi.updateTemplate(id!, {
           name: templateName,
           description: templateDescription,
-          scenes,
+          pages,
         });
         message.success("模板已保存");
       }
@@ -218,7 +218,7 @@ const TemplateDetail = () => {
         builtinComponents={builtinComponents}
       />
       <div className={styles.mainContent}>
-        <SceneList
+        <PageList
           pages={pages}
           currentPageId={currentPageId}
           actions={actions}

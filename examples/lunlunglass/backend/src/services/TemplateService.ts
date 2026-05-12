@@ -28,7 +28,7 @@ export interface ICreateTemplateData {
   id: string
   name: string
   description?: string
-  scenes: string[]
+  pages: string[]
   thumbnail?: string
   tags?: string[]
   createdBy?: string
@@ -40,7 +40,7 @@ export interface ICreateTemplateData {
 export interface IUpdateTemplateData {
   name?: string
   description?: string
-  scenes?: string[]
+  pages?: string[]
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
@@ -52,7 +52,7 @@ export interface IUpdateTemplateData {
  */
 class TemplateService {
   /**
-   * 查询模板列表（不返回 scenes 字段，减少传输量）
+   * 查询模板列表（不返回 pages 字段，减少传输量）
    */
   async getTemplateList(
     query: ITemplateQuery = {},
@@ -80,11 +80,11 @@ class TemplateService {
 
       const skip = (page - 1) * pageSize
 
-      // 列表不返回 scenes（体积大），只返回元信息
+      // 列表不返回 pages（体积大），只返回元信息
       const [total, templates] = await Promise.all([
         Template.countDocuments(filter),
         Template.find(filter)
-          .select('-scenes')
+          .select('-pages')
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(pageSize)
@@ -103,7 +103,7 @@ class TemplateService {
   }
 
   /**
-   * 根据ID获取模板详情（含 scenes）
+   * 根据ID获取模板详情（含 pages）
    */
   async getTemplateById(id: string): Promise<ITemplate | null> {
     try {
@@ -171,8 +171,8 @@ class TemplateService {
       if (updateData.description !== undefined) {
         template.description = updateData.description
       }
-      if (updateData.scenes !== undefined) {
-        template.scenes = updateData.scenes
+      if (updateData.pages !== undefined) {
+        template.pages = updateData.pages
       }
       if (updateData.thumbnail !== undefined) {
         template.thumbnail = updateData.thumbnail
