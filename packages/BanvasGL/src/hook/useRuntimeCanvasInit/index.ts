@@ -10,9 +10,25 @@ function useBOMProperties(): { dpr: number } {
 
     useEffect(() => {
         if (typeof window === 'undefined') return
-        const update = () => setDpr(window.devicePixelRatio ?? 1)
-        window.addEventListener('change', update)
-        return () => window.removeEventListener('change', update)
+
+        // 用 matchMedia 监听当前 DPR 对应的媒体查询，
+        // 当屏幕 DPR 变化（如拖动窗口到不同 DPI 屏幕）时触发 change 事件。
+        // 每次触发后需重新注册，因为新的 DPR 需要新的媒体查询字符串。
+        let mql: MediaQueryList | null = null
+
+        const listen = () => {
+            const currentDpr = window.devicePixelRatio ?? 1
+            setDpr(currentDpr)
+            mql?.removeEventListener('change', listen)
+            mql = window.matchMedia(`(resolution: ${currentDpr}dppx)`)
+            mql.addEventListener('change', listen)
+        }
+
+        listen()
+
+        return () => {
+            mql?.removeEventListener('change', listen)
+        }
     }, [])
 
     return { dpr }
