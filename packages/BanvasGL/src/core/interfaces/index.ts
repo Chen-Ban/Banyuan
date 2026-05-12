@@ -132,7 +132,6 @@ export { DiffType, Operation } from './IScene'
 
 // ── App 接口 ──
 export type {
-    AppMode,
     IPage,
     IAppOptions,
     INavigationOptions,

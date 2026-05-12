@@ -1,5 +1,5 @@
 import Router from '@koa/router'
-import templateRoutes from './templates'
+import applicationRoutes from './applications'
 
 const router = new Router()
 
@@ -13,6 +13,6 @@ router.get('/health', async (ctx) => {
 })
 
 // API 路由
-router.use(templateRoutes.routes())
+router.use(applicationRoutes.routes())
 
 export default router

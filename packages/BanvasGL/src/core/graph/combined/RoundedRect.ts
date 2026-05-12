@@ -14,18 +14,25 @@ import { generateId } from '@/core/utils'
  *   Arc(左上) → Line(上边) → Arc(右上) → Line(右边)
  *   → Arc(右下) → Line(下边) → Arc(左下) → Line(左边)
  *
- * 控制点（共 8 个）：
- *   index 0 = 左上角点  (x,       y)
- *   index 1 = 右上角点  (x+w,     y)
- *   index 2 = 右下角点  (x+w,   y+h)
- *   index 3 = 左下角点  (x,     y+h)
- *   index 4 = 左上圆角切点（上边切点，位于左上角右侧 r[0] 处）
- *   index 5 = 右上圆角切点（上边切点，位于右上角左侧 r[1] 处）
- *   index 6 = 右下圆角切点（下边切点，位于右下角左侧 r[2] 处）
- *   index 7 = 左下圆角切点（下边切点，位于左下角右侧 r[3] 处）
+ * 控制点（共 12 个）：
+ *   尺寸控制点（8 个，顺序同 BoundingBox）：
+ *     index 0 = 左上角点  (x,       y)
+ *     index 1 = 上边中点  (x+w/2,   y)
+ *     index 2 = 右上角点  (x+w,     y)
+ *     index 3 = 右边中点  (x+w,   y+h/2)
+ *     index 4 = 右下角点  (x+w,   y+h)
+ *     index 5 = 下边中点  (x+w/2, y+h)
+ *     index 6 = 左下角点  (x,     y+h)
+ *     index 7 = 左边中点  (x,     y+h/2)
+ *   圆角控制点（4 个）：
+ *     index 8  = 左上圆角切点
+ *     index 9  = 右上圆角切点
+ *     index 10 = 右下圆角切点
+ *     index 11 = 左下圆角切点
  *
- * 拖拽角点（0-3）：改变宽高（矩形大小）
- * 拖拽圆角点（4-7）：改变对应角的圆角半径
+ * 拖拽角点（0,2,4,6）：改变宽高（矩形大小）
+ * 拖拽边中点（1,3,5,7）：改变单轴尺寸
+ * 拖拽圆角点（8-11）：改变对应角的圆角半径
  */
 export default class RoundedRect extends CombinedGraph implements IRoundedRect, ISerializable {
     public type: GRAPHTYPE = GRAPHTYPE.ROUNDED_RECT
@@ -109,32 +116,55 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
     // ─────────────────────────────────────────────
 
     /**
-     * 返回 8 个控制点：
-     *   0-3: 四个角点（左上、右上、右下、左下）
-     *   4-7: 四个圆角切点（左上、右上、右下、左下各角的"上边"切点）
+     * 返回 12 个控制点（类似 BoundingBox 的 8 + 4 个圆角控制）：
+     *
+     * 尺寸控制点（8 个，顺序同 BoundingBox）：
+     *   index 0 = 左上角点  (x,       y)
+     *   index 1 = 上边中点  (x+w/2,   y)
+     *   index 2 = 右上角点  (x+w,     y)
+     *   index 3 = 右边中点  (x+w,   y+h/2)
+     *   index 4 = 右下角点  (x+w,   y+h)
+     *   index 5 = 下边中点  (x+w/2, y+h)
+     *   index 6 = 左下角点  (x,     y+h)
+     *   index 7 = 左边中点  (x,     y+h/2)
+     *
+     * 圆角控制点（4 个）：
+     *   index 8  = 左上圆角切点（上边切点，位于左上角右侧 r[0] 处）
+     *   index 9  = 右上圆角切点（上边切点，位于右上角左侧 r[1] 处）
+     *   index 10 = 右下圆角切点（下边切点，位于右下角左侧 r[2] 处）
+     *   index 11 = 左下圆角切点（下边切点，位于左下角右侧 r[3] 处）
+     *
+     * 拖拽角点（0,2,4,6）：改变宽高（以对角为锚点）
+     * 拖拽边中点（1,3,5,7）：只改变单轴尺寸
+     * 拖拽圆角点（8-11）：改变对应角的圆角半径
      */
     public get controlPoints(): Point3[] {
         const { x, y, width: w, height: h } = this
         const [rtl, rtr, rbr, rbl] = this.radii
 
         return [
-            // 角点
-            new Point3(x,     y,     0),   // 0 左上
-            new Point3(x + w, y,     0),   // 1 右上
-            new Point3(x + w, y + h, 0),   // 2 右下
-            new Point3(x,     y + h, 0),   // 3 左下
-            // 圆角切点（取各角"水平方向"切点，便于直观拖拽）
-            new Point3(x + rtl,     y,     0),   // 4 左上圆角（上边切点）
-            new Point3(x + w - rtr, y,     0),   // 5 右上圆角（上边切点）
-            new Point3(x + w - rbr, y + h, 0),   // 6 右下圆角（下边切点）
-            new Point3(x + rbl,     y + h, 0),   // 7 左下圆角（下边切点）
+            // 尺寸控制点（8 个，顺时针从左上开始）
+            new Point3(x,         y,         0),   // 0 左上角
+            new Point3(x + w / 2, y,         0),   // 1 上边中点
+            new Point3(x + w,     y,         0),   // 2 右上角
+            new Point3(x + w,     y + h / 2, 0),   // 3 右边中点
+            new Point3(x + w,     y + h,     0),   // 4 右下角
+            new Point3(x + w / 2, y + h,     0),   // 5 下边中点
+            new Point3(x,         y + h,     0),   // 6 左下角
+            new Point3(x,         y + h / 2, 0),   // 7 左边中点
+            // 圆角控制点（4 个）
+            new Point3(x + rtl,     y,     0),   // 8  左上圆角（上边切点）
+            new Point3(x + w - rtr, y,     0),   // 9  右上圆角（上边切点）
+            new Point3(x + w - rbr, y + h, 0),   // 10 右下圆角（下边切点）
+            new Point3(x + rbl,     y + h, 0),   // 11 左下圆角（下边切点）
         ]
     }
 
     /**
      * 设置控制点：
-     *   index 0-3: 角点 → 调整宽高（以对角为锚点）
-     *   index 4-7: 圆角切点 → 调整对应角的圆角半径
+     *   index 0,2,4,6: 角点 → 调整宽高（以对角为锚点）
+     *   index 1,3,5,7: 边中点 → 只调整单轴尺寸
+     *   index 8-11: 圆角切点 → 调整对应角的圆角半径
      */
     public setControlPoint(index: number, point: Point3): void {
         const { x, y, width: w, height: h } = this
@@ -148,35 +178,51 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
             this.width = Math.max(0, newW)
             this.height = Math.max(0, newH)
         } else if (index === 1) {
+            // 上边中点：只改 y 和 height，底边固定
+            const newH = (y + h) - point.y
+            this.y = point.y
+            this.height = Math.max(0, newH)
+        } else if (index === 2) {
             // 右上角：左下角固定
             const newW = point.x - x
             const newH = (y + h) - point.y
             this.y = point.y
             this.width = Math.max(0, newW)
             this.height = Math.max(0, newH)
-        } else if (index === 2) {
+        } else if (index === 3) {
+            // 右边中点：只改 width，左边固定
+            this.width = Math.max(0, point.x - x)
+        } else if (index === 4) {
             // 右下角：左上角固定
             this.width = Math.max(0, point.x - x)
             this.height = Math.max(0, point.y - y)
-        } else if (index === 3) {
+        } else if (index === 5) {
+            // 下边中点：只改 height，顶边固定
+            this.height = Math.max(0, point.y - y)
+        } else if (index === 6) {
             // 左下角：右上角固定
             const newW = (x + w) - point.x
             const newH = point.y - y
             this.x = point.x
             this.width = Math.max(0, newW)
             this.height = Math.max(0, newH)
-        } else if (index >= 4 && index <= 7) {
+        } else if (index === 7) {
+            // 左边中点：只改 x 和 width，右边固定
+            const newW = (x + w) - point.x
+            this.x = point.x
+            this.width = Math.max(0, newW)
+        } else if (index >= 8 && index <= 11) {
             // 圆角控制点：限制最大半径为相邻两边中较短边的一半
             const maxRadius = Math.min(this.width, this.height) / 2
             let r: number
 
-            if (index === 4) {
+            if (index === 8) {
                 // 左上圆角：水平距离 = 切点 x - 矩形左边
                 r = point.x - this.x
-            } else if (index === 5) {
+            } else if (index === 9) {
                 // 右上圆角：水平距离 = 矩形右边 - 切点 x
                 r = (this.x + this.width) - point.x
-            } else if (index === 6) {
+            } else if (index === 10) {
                 // 右下圆角：水平距离 = 矩形右边 - 切点 x
                 r = (this.x + this.width) - point.x
             } else {
@@ -186,7 +232,7 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
 
             // clamp: [0, maxRadius]
             r = Math.max(0, Math.min(r, maxRadius))
-            this.radii[index - 4] = r
+            this.radii[index - 8] = r
         }
 
         this.radii = this._clampRadii(this.radii)

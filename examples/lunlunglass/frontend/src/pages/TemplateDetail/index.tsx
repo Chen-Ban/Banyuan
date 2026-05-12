@@ -7,8 +7,8 @@ import {
   useLayoutEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useBanvas } from "banvasgl";
-import { message } from "antd";
+import { useDesignBanvas } from "banvasgl";
+import { message, Modal } from "antd";
 import { templateApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import styles from "./index.module.scss";
@@ -29,6 +29,8 @@ const TemplateDetail = () => {
   const [initialPages, setInitialPages] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(isNew);
   const [saving, setSaving] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewDataUrl, setPreviewDataUrl] = useState<string>("");
 
   // 用于自动保存名称/描述的 debounce
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,7 +117,7 @@ const TemplateDetail = () => {
     actions,
     contextMenu,
     builtinComponents,
-  } = useBanvas(loaded ? initialPages : [], banvasOptions);
+  } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
 
   /**
    * 自动保存名称/描述（仅已有模板，debounce）
@@ -200,6 +202,12 @@ const TemplateDetail = () => {
     navigate("/template");
   };
 
+  const handlePreview = useCallback(() => {
+    const dataUrl = actions.exportImage();
+    setPreviewDataUrl(dataUrl);
+    setPreviewVisible(true);
+  }, [actions]);
+
   if (!loaded) {
     return <div style={{ padding: 40, textAlign: "center" }}>加载中...</div>;
   }
@@ -215,6 +223,7 @@ const TemplateDetail = () => {
         onDescriptionChange={handleDescChange}
         onSave={handleSave}
         onBack={handleBack}
+        onPreview={handlePreview}
         builtinComponents={builtinComponents}
       />
       <div className={styles.mainContent}>
@@ -224,11 +233,7 @@ const TemplateDetail = () => {
           actions={actions}
         />
         <div className={styles.canvasSection} ref={canvasSectionRef}>
-          {pages.length > 0 ? (
-            Banvas
-          ) : (
-            <div className={styles.emptyCanvas}>暂无页面，请添加页面</div>
-          )}
+          {Banvas}
         </div>
         <PropertyPanel
           selectedViewId={selectedViewId}
@@ -238,6 +243,23 @@ const TemplateDetail = () => {
         />
       </div>
       <ContextMenu state={contextMenu} />
+      <Modal
+        open={previewVisible}
+        title="画布预览"
+        footer={null}
+        onCancel={() => setPreviewVisible(false)}
+        width="80vw"
+        centered
+        styles={{ body: { textAlign: 'center', padding: '16px 0' } }}
+      >
+        {previewDataUrl && (
+          <img
+            src={previewDataUrl}
+            alt="canvas preview"
+            style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
+          />
+        )}
+      </Modal>
     </div>
   );
 };

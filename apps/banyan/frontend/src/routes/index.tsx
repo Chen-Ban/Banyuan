@@ -1,19 +1,19 @@
 import { useRoutes, RouteObject } from 'react-router-dom'
-import TemplateList from "@/pages/TemplateList"
-import TemplateDetail from "@/pages/TemplateDetail"
+import ApplicationList from "@/pages/ApplicationList"
+import ApplicationDetail from "@/pages/ApplicationDetail"
 
 const routes: RouteObject[] = [
   {
     path: '/',
-    element: <TemplateList />,
+    element: <ApplicationList />,
   },
   {
-    path: '/template/:id',
-    element: <TemplateDetail />,
+    path: '/application/:id',
+    element: <ApplicationDetail />,
   },
   {
-    path: '/template/new',
-    element: <TemplateDetail />,
+    path: '/application/new',
+    element: <ApplicationDetail />,
   },
 ]
 

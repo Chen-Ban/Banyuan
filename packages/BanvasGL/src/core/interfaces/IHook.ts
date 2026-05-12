@@ -1,5 +1,5 @@
 /**
- * Hook 公共接口层 —— useBanvas 对外暴露的数据结构与操作接口
+ * Hook 公共接口层 —— useDesignBanvas 对外暴露的数据结构与操作接口
  *
  * 设计原则：
  * 1. 只暴露只读的描述性数据，不暴露内部 class 实例
@@ -280,6 +280,14 @@ export interface IBanvasActions {
     history: IHistoryActions
     /** 获取所有页面的序列化 JSON 字符串数组（用于持久化存储） */
     getSerializedPages(): string[]
+    /**
+     * 将当前画布内容导出为图片 DataURL
+     *
+     * @param type    图片 MIME 类型，默认 'image/png'
+     * @param quality 图片质量（仅 jpeg/webp 有效，0~1），默认 0.92
+     * @returns DataURL 字符串，若引擎未初始化则返回 null
+     */
+    exportImage(type?: string, quality?: number): string | null
 }
 
 // ────────────────────────────────────────────
@@ -321,7 +329,7 @@ export interface IContextMenuState {
 // ────────────────────────────────────────────
 
 /**
- * useBanvas Hook 的新版返回值类型
+ * useDesignBanvas Hook 的返回值类型
  *
  * 特征：
  * - 不暴露 App / Scene 实例

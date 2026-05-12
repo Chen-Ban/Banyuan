@@ -1,1 +1,1 @@
-export { default as Template, ITemplate } from './Template'
+export { default as Application, IApplication } from './Application'

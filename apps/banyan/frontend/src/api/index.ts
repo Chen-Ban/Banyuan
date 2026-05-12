@@ -5,6 +5,6 @@
 export { ApiError } from './client'
 export type { ApiResponse, PaginatedResponse } from './client'
 
-export * as templateApi from './templates'
+export * as applicationApi from './applications'
 
-export type { Template, TemplateFormData } from './templates'
+export type { Application, ApplicationFormData } from './applications'

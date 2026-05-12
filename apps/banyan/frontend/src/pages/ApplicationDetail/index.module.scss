@@ -1,0 +1,21 @@
+.applicationDetailPage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.canvasSection {
+  flex: 1;
+  overflow: hidden;
+  background-color: #f8f9fa;
+  position: relative;
+  padding: 12px;
+}
