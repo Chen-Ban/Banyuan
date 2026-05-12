@@ -1,7 +1,7 @@
 {
   "name": "@banyuan/runtime",
   "version": "0.0.1",
-  "description": "BanvasGL 运行时 —— 跨平台应用运行层",
+  "description": "已废弃 — 运行态 hook 已回归 banvasgl 包，请使用 banvasgl/runtime 子路径导出",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -23,12 +23,10 @@
   },
   "devDependencies": {
     "@types/react": "^19.1.2",
-    "banvasgl": "workspace:*",
     "tsup": "^8.4.0",
     "typescript": "~5.7.3"
   },
   "peerDependencies": {
-    "react": ">=18.0.0",
-    "banvasgl": ">=0.0.0"
+    "react": ">=18.0.0"
   }
 }

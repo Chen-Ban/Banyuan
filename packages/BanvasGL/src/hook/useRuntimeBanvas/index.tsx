@@ -1,9 +1,7 @@
 import React, { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useRuntimeCanvasInit } from '../useRuntimeCanvasInit'
 import { useRuntimeEvents } from './canvas/useRuntimeEvents'
-import type { SerializedPageJSON, UseRuntimeCanvasOptions } from '../useRuntimeCanvasInit'
-
-export type { SerializedPageJSON }
+import type { UseRuntimeCanvasOptions } from '../useRuntimeCanvasInit'
 
 export interface UseRuntimeBanvasOptions {
     width: number
@@ -25,12 +23,15 @@ export interface UseRuntimeBanvasResult {
  *   - 绑定运行态事件（onClick / onMouseEnter 等触发 FlowSchema）
  *   - 不暴露任何编辑器概念（无 actions / pages / contextMenu）
  *
+ * 入参 serializedPages：每个元素是一个 Scene 的 JSON 字符串（由 Serializer 生成）。
+ *
  * 使用场景：
- *   - banyan 编辑器内的"预览"模式
- *   - 打包后的独立运行时应用
+ *   - 低代码平台内的"预览"模式（import from 'banvasgl/runtime'）
+ *   - scaffold 打包后的独立运行时应用（同上）
  */
 export default function useRuntimeBanvas(
-    serializedPages: SerializedPageJSON[],
+    /** 每个元素是一个 Scene 的 JSON 字符串，由 Serializer.serialize() 生成 */
+    serializedPages: string[],
     options: UseRuntimeBanvasOptions,
 ): UseRuntimeBanvasResult {
     const { app, canvasRef, canvasCallbackRef } = useRuntimeCanvasInit(serializedPages, options)

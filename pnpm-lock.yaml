@@ -312,9 +312,6 @@ importers:
 
   packages/BanvasGL:
     dependencies:
-      '@banyuan/runtime':
-        specifier: workspace:*
-        version: link:../runtime
       react:
         specifier: ^19.1.0
         version: 19.2.0
@@ -341,9 +338,6 @@ importers:
       '@types/react':
         specifier: ^19.1.2
         version: 19.2.2
-      banvasgl:
-        specifier: workspace:*
-        version: link:../BanvasGL
       tsup:
         specifier: ^8.4.0
         version: 8.5.0(postcss@8.5.6)(tsx@4.20.6)(typescript@5.7.3)

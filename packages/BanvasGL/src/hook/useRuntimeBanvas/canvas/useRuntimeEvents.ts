@@ -12,8 +12,8 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react'
-import type { App } from '@/core/app'
 import { Point3 } from '@/core/math'
+import type { App } from '@/core/app'
 import type View from '@/core/views/View/View'
 import type Scene from '@/core/scene/Scene'
 import type { FlowSchema } from '@/core/interfaces'
@@ -196,11 +196,11 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         canvas.addEventListener('contextmenu', onContextMenu, { passive: false })
 
         return () => {
-            canvas.removeEventListener('mousedown',   onMouseDown   as any)
-            canvas.removeEventListener('mousemove',   onMouseMove   as any)
-            canvas.removeEventListener('mouseup',     onMouseUp     as any)
-            canvas.removeEventListener('click',       onClick       as any)
-            canvas.removeEventListener('contextmenu', onContextMenu as any)
+            canvas.removeEventListener('mousedown',   onMouseDown   as EventListener)
+            canvas.removeEventListener('mousemove',   onMouseMove   as EventListener)
+            canvas.removeEventListener('mouseup',     onMouseUp     as EventListener)
+            canvas.removeEventListener('click',       onClick       as EventListener)
+            canvas.removeEventListener('contextmenu', onContextMenu as EventListener)
         }
     }, [app, canvasRef, onMouseDown, onMouseMove, onMouseUp, onClick, onContextMenu])
 }
