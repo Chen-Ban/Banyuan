@@ -3,6 +3,7 @@
  *
  * 根据用户的 App JSON，生成一个最小化的 React 项目：
  *   <outputDir>/
+ *   ├── .npmrc
  *   ├── index.html
  *   ├── package.json
  *   ├── vite.config.ts
@@ -21,6 +22,8 @@ export interface ScaffoldOptions {
     outputDir: string    // 生成项目的目标目录（绝对路径）
     width: number        // 画布宽度（px）
     height: number       // 画布高度（px）
+    /** Vite build 产物目录，相对于 outputDir，默认 'dist' */
+    distDir?: string
 }
 
 function toKebabCase(name: string): string {
@@ -33,13 +36,22 @@ function toKebabCase(name: string): string {
 }
 
 export async function scaffold(options: ScaffoldOptions): Promise<void> {
-    const { appJson, appName, outputDir, width, height } = options
+    const { appJson, appName, outputDir, width, height, distDir = 'dist' } = options
 
     // 1. 创建目录
     fs.mkdirSync(outputDir, { recursive: true })
     fs.mkdirSync(path.join(outputDir, 'src'), { recursive: true })
 
-    // 2. index.html
+    // 2. .npmrc — 固定 npm 行为，后续切换私有 registry 只需改这里
+    const npmrc = [
+        '# 由 Banyuan 构建器自动生成',
+        'prefer-offline=true',
+        'fund=false',
+        'audit=false',
+    ].join('\n') + '\n'
+    fs.writeFileSync(path.join(outputDir, '.npmrc'), npmrc, 'utf-8')
+
+    // 3. index.html
     const indexHtml = `<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
@@ -59,7 +71,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
 `
     fs.writeFileSync(path.join(outputDir, 'index.html'), indexHtml, 'utf-8')
 
-    // 3. package.json
+    // 4. package.json
     const packageJson = {
         name: toKebabCase(appName),
         version: '1.0.0',
@@ -72,7 +84,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
         dependencies: {
             react: '^19.1.0',
             'react-dom': '^19.1.0',
-            banvasgl: '^0.0.0-test.1',
+            banvasgl: '^0.1.0',
         },
         devDependencies: {
             '@types/react': '^19.1.2',
@@ -88,7 +100,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
         'utf-8'
     )
 
-    // 4. vite.config.ts
+    // 5. vite.config.ts — outDir 与 ScaffoldOptions.distDir 保持一致
     const viteConfig = `import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -96,14 +108,14 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   build: {
-    outDir: 'dist',
+    outDir: ${JSON.stringify(distDir)},
     emptyOutDir: true,
   },
 })
 `
     fs.writeFileSync(path.join(outputDir, 'vite.config.ts'), viteConfig, 'utf-8')
 
-    // 5. tsconfig.json
+    // 6. tsconfig.json
     const tsconfig = {
         compilerOptions: {
             target: 'ES2020',
@@ -123,7 +135,7 @@ export default defineConfig({
         'utf-8'
     )
 
-    // 6. src/main.tsx
+    // 7. src/main.tsx
     const mainTsx = `import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
@@ -136,7 +148,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 `
     fs.writeFileSync(path.join(outputDir, 'src', 'main.tsx'), mainTsx, 'utf-8')
 
-    // 7. src/App.tsx — 内联 appJson、width、height
+    // 8. src/App.tsx — 内联 appJson、width、height
     const appPages = JSON.stringify(JSON.parse(appJson))
     const appTsx = `import useRuntimeBanvas from 'banvasgl/runtime'
 

@@ -2,14 +2,18 @@
  * bundler.ts — Vite 打包执行器
  *
  * 对脚手架生成的 React 项目执行 npm install + vite build，
- * 输出静态 HTML + JS 到 dist/
+ * 输出静态 HTML + JS 到 outputDir（由 vite.config.ts 的 outDir 决定，
+ * scaffold 生成时已将 distDir 写入 vite.config.ts，两者保持一致）。
  */
 
 import { spawn } from 'child_process'
 
 export interface BundleOptions {
     projectDir: string   // 脚手架生成的项目目录（绝对路径）
-    outputDir: string    // Vite build 产物目录（绝对路径，通常是 projectDir/dist）
+    /** Vite build 产物目录（绝对路径）。
+     *  必须与 scaffold 时传入的 distDir 对应，
+     *  此处仅作文档说明，实际 outDir 由 vite.config.ts 控制。 */
+    outputDir: string
 }
 
 function runCommand(cmd: string, args: string[], cwd: string): Promise<void> {
@@ -29,8 +33,8 @@ function runCommand(cmd: string, args: string[], cwd: string): Promise<void> {
 
 export async function bundle(options: BundleOptions): Promise<void> {
     const { projectDir } = options
-    // 1. 安装依赖
-    await runCommand('npm', ['install', '--prefer-offline'], projectDir)
-    // 2. 执行 Vite 打包
+    // 1. 安装依赖（.npmrc 中已配置 prefer-offline=true）
+    await runCommand('npm', ['install'], projectDir)
+    // 2. 执行 Vite 打包（outDir 由 vite.config.ts 中的 build.outDir 决定）
     await runCommand('npm', ['run', 'build'], projectDir)
 }
