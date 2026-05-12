@@ -1,11 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Tabs } from 'antd'
 import type { IBanvasActions, IPageNode } from 'banvasgl'
-import FieldSchemaMapEditor from './FieldSchemaMapEditor'
 import PropertiesTab from './PropertiesTab'
 import StyleTab from './StyleTab'
-import DataTab from './DataTab'
-import EventsTab from './EventsTab'
 import styles from './index.module.scss'
 
 interface PropertyPanelProps {
@@ -15,18 +12,23 @@ interface PropertyPanelProps {
     currentPageId: string | null
 }
 
+/**
+ * lunlunglass 属性面板
+ *
+ * 仅保留「属性」和「样式」两个 tab，不包含数据和事件编排能力。
+ * lunlunglass 只使用 BanvasGL 的渲染能力，低代码编排功能由 banyan 承载。
+ */
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
     selectedViewId,
     actions,
-    pages,
-    currentPageId,
+    pages: _pages,
+    currentPageId: _currentPageId,
 }) => {
     const view = selectedViewId ? actions.view.getViewInstance(selectedViewId) : null
 
-    // 切换选中元素时，重置 tab 到第一个
     const [activeTab, setActiveTab] = useState('properties')
     useEffect(() => {
-        setActiveTab(selectedViewId ? 'properties' : 'data')
+        setActiveTab('properties')
     }, [selectedViewId])
 
     const isEditingRef = useRef(false)
@@ -45,53 +47,13 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
         }
     }, [actions])
 
-    // ── 无选中时：展示当前页面面板（数据 + 事件） ──
     if (!view) {
-        const currentPage = pages.find((p) => p.id === currentPageId) ?? null
-        const pageData = currentPage ? currentPage.data : {}
-
-        const pageDataTab = (
-            <div className={styles.tabContent}>
-                <FieldSchemaMapEditor
-                    title="页面数据 (data)"
-                    schemaMap={pageData}
-                    onUpdate={(key, schema) => {
-                        if (currentPageId) actions.page.setPageData(currentPageId, key, schema)
-                    }}
-                    onDelete={(key) => {
-                        if (currentPageId) actions.page.deletePageData(currentPageId, key)
-                    }}
-                    onAdd={(key, schema) => {
-                        if (currentPageId) actions.page.setPageData(currentPageId, key, schema)
-                    }}
-                />
-            </div>
-        )
-
-        const pageEventsTab = currentPageId ? (
-            <EventsTab mode="page" pageId={currentPageId} actions={actions} />
-        ) : null
-
-        const pageTabItems = [
-            { key: 'data', label: '数据', children: pageDataTab },
-            ...(pageEventsTab ? [{ key: 'events', label: '事件', children: pageEventsTab }] : []),
-        ]
-
         return (
             <div className={styles.panel}>
-                <Tabs
-                    items={pageTabItems}
-                    size="small"
-                    className={styles.tabs}
-                    activeKey={activeTab}
-                    onChange={setActiveTab}
-                />
+                <div className={styles.emptyState}>未选中元素</div>
             </div>
         )
     }
-
-    // ── 有选中时：读取数据 ──
-    const viewData = actions.view.getViewData(selectedViewId)
 
     const tabItems = [
         {
@@ -111,28 +73,6 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             key: 'style',
             label: '样式',
             children: <StyleTab view={view} />,
-        },
-        {
-            key: 'data',
-            label: '数据',
-            children: (
-                <DataTab
-                    selectedViewId={selectedViewId}
-                    actions={actions}
-                    viewData={viewData}
-                />
-            ),
-        },
-        {
-            key: 'events',
-            label: '事件',
-            children: (
-                <EventsTab
-                    mode="view"
-                    selectedViewId={selectedViewId}
-                    actions={actions}
-                />
-            ),
         },
     ]
 

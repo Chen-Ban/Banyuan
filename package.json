@@ -1,6 +1,6 @@
 {
   "name": "banyuan",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "虽由人作，宛自天开 —— 以画布为山石，以组件为草木，以数据为活水，造一方数字园林。",
   "main": "index.js",
   "scripts": {
