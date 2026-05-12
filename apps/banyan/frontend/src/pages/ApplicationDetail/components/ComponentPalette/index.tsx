@@ -5,8 +5,8 @@ import type { IComponentDefinition } from 'banvasgl'
 import styles from './index.module.scss'
 
 interface ComponentPaletteProps {
-    templateName: string
-    templateDescription: string
+    applicationName: string
+    applicationDescription: string
     saving: boolean
     isNew: boolean
     onNameChange: (value: string) => void
@@ -41,8 +41,8 @@ const ComponentIcon: React.FC<{ icon: IComponentDefinition['icon'] }> = ({ icon 
 const MAX_VISIBLE = 6
 
 const ComponentPalette: React.FC<ComponentPaletteProps> = ({
-    templateName,
-    templateDescription,
+    applicationName,
+    applicationDescription,
     saving,
     isNew,
     onNameChange,
@@ -97,18 +97,18 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                 <div className={styles.infoFields}>
                     <input
                         className={styles.fieldInput}
-                        placeholder="未命名模板"
-                        value={templateName}
+                        placeholder="未命名应用"
+                        value={applicationName}
                         onChange={e => onNameChange(e.target.value)}
                     />
                     <input
                         className={`${styles.fieldInput} ${styles.descInput}`}
                         placeholder="添加描述..."
-                        value={templateDescription}
+                        value={applicationDescription}
                         onChange={e => onDescriptionChange(e.target.value)}
                     />
                 </div>
-                <Tooltip title={isNew ? '创建模板' : '保存模板'}>
+                <Tooltip title={isNew ? '创建应用' : '保存应用'}>
                     <Button
                         type="text"
                         icon={<SaveOutlined />}

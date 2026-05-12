@@ -12,10 +12,11 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f8f9fa;
+  height: 100%;
 }
 
 #root {
-  min-height: 100vh;
+  height: 100vh;
 }
 
 /* 链接样式 */

@@ -145,10 +145,16 @@ $palette-height: 74px;
   padding: 4px;
 }
 
-/* ===== 保存按钮 ===== */
+/* ===== 右侧操作按钮（预览、保存等） ===== */
 
-.saveBtn {
+.actionBtns {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   margin-left: auto;
+}
+
+.actionBtn {
   color: #8c8c8c;
   font-size: 16px;
 

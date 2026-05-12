@@ -419,6 +419,10 @@ export interface IVertexAddon extends IAddonBase {
     vertices: Point3[]
     activeVertex: Point3 | null
     isEditing: boolean
+    /** 从此索引开始为圆角控制点，-1 表示无 */
+    radiusControlStartIndex: number
+    /** 边中点索引列表（如 [1,3,5,7]） */
+    midpointIndices: number[]
     getVertexCount(): number
     getVertex(index: number): Point3 | null
     setVertex(index: number, vertex: Point3): boolean

@@ -28,5 +28,11 @@ export function createBanvasActions(
             if (!app) return []
             return app.getSerializedScenes()
         },
+
+        exportImage(type?: string, quality?: number): string | null {
+            const app = getApp()
+            if (!app) return null
+            return app.getRenderer().toDataURL(type, quality)
+        },
     }
 }
