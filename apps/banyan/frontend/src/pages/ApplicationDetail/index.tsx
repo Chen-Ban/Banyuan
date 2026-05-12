@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useBanvas } from "banvasgl";
+import { useDesignBanvas } from "banvasgl";
 import { message } from "antd";
 import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
@@ -115,7 +115,7 @@ const ApplicationDetail = () => {
     actions,
     contextMenu,
     builtinComponents,
-  } = useBanvas(loaded ? initialPages : [], banvasOptions);
+  } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
 
   /**
    * 自动保存名称/描述（仅已有应用，debounce）
