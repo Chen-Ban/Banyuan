@@ -70,7 +70,7 @@ function buildDefaultNode(
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
     const canvasWrapperRef = useRef<HTMLDivElement>(null)
 
-    const serializedScenes = useMemo<string[]>(() => [], [])
+    const serializedPages = useMemo<string[]>(() => [], [])
 
     const handleSchemaChange = useCallback(() => {
         // TODO: 从 app.getCurrentScene() 读取 NodeView/EdgeView 并序列化为 FlowSchema
@@ -78,7 +78,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
     }, [onChange])
 
     const { Canvas } = useFlowBanvas(
-        serializedScenes,
+        serializedPages,
         {
             width: CANVAS_WIDTH,
             height: CANVAS_HEIGHT,

@@ -8,4 +8,4 @@ export interface UseBanvasOptions {
   rendererOptions?: Omit<IRendererOptions, 'dpr'>;
 }
 
-export type SerializedSceneJSON = string;
+export type SerializedPageJSON = string;

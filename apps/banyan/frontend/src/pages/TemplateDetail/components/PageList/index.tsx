@@ -4,7 +4,7 @@ import { PlusOutlined, DownOutlined, RightOutlined, CloseOutlined } from "@ant-d
 import type { IPageNode, IViewNode, IBanvasActions } from "banvasgl";
 import styles from "./index.module.scss";
 
-interface SceneListProps {
+interface PageListProps {
   pages: IPageNode[];
   currentPageId: string | null;
   actions: IBanvasActions;
@@ -87,7 +87,7 @@ const InlineEdit: React.FC<{
   );
 };
 
-const SceneList: React.FC<SceneListProps> = ({
+const PageList: React.FC<PageListProps> = ({
   pages,
   currentPageId,
   actions,
@@ -212,7 +212,6 @@ const SceneList: React.FC<SceneListProps> = ({
     // Windows/Linux 上多选使用 Ctrl(ctrlKey)
     const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
     const isCtrl = isMac ? info.nativeEvent.metaKey : info.nativeEvent.ctrlKey;
-
     if (isPageKey(pages, key)) {
       // 点击页面节点：切换页面并取消选中
       actions.view.deselect();
@@ -233,7 +232,7 @@ const SceneList: React.FC<SceneListProps> = ({
   };
 
   return (
-    <div className={styles.sceneList}>
+    <div className={styles.pageList}>
       <div className={styles.header}>
         <span className={styles.title}>页面</span>
         <Button
@@ -266,4 +265,4 @@ const SceneList: React.FC<SceneListProps> = ({
   );
 };
 
-export default SceneList;
+export default PageList;
