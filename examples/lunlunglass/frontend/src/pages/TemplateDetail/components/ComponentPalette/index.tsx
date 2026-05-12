@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Tooltip, Popover } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, EyeOutlined } from '@ant-design/icons'
 import type { IComponentDefinition } from 'banvasgl'
 import styles from './index.module.scss'
 
@@ -13,6 +13,7 @@ interface ComponentPaletteProps {
     onDescriptionChange: (value: string) => void
     onSave: () => void
     onBack: () => void
+    onPreview: () => void
     /** 引擎内置物料，直接来自 useBanvas().builtinComponents */
     builtinComponents: IComponentDefinition[]
     /**
@@ -49,6 +50,7 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     onDescriptionChange,
     onSave,
     onBack,
+    onPreview,
     builtinComponents,
     userComponents = [],
 }) => {
@@ -108,13 +110,21 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                         onChange={e => onDescriptionChange(e.target.value)}
                     />
                 </div>
+                <Tooltip title="预览">
+                    <Button
+                        type="text"
+                        icon={<EyeOutlined />}
+                        onClick={onPreview}
+                        className={styles.actionBtn}
+                    />
+                </Tooltip>
                 <Tooltip title={isNew ? '创建模板' : '保存模板'}>
                     <Button
                         type="text"
                         icon={<SaveOutlined />}
                         loading={saving}
                         onClick={onSave}
-                        className={styles.saveBtn}
+                        className={styles.actionBtn}
                     />
                 </Tooltip>
             </div>

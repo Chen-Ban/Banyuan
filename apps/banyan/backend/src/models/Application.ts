@@ -1,14 +1,14 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 /**
- * 模板文档接口
+ * 应用文档接口
  */
-export interface ITemplate extends Document {
-  /** 模板业务ID */
+export interface IApplication extends Document {
+  /** 应用业务ID */
   id: string
-  /** 模板名称 */
+  /** 应用名称 */
   name: string
-  /** 模板描述 */
+  /** 应用描述 */
   description: string
   /** 缩略图 URL */
   thumbnail: string
@@ -29,9 +29,9 @@ export interface ITemplate extends Document {
 }
 
 /**
- * 模板 Schema
+ * 应用 Schema
  */
-const TemplateSchema = new Schema<ITemplate>(
+const ApplicationSchema = new Schema<IApplication>(
   {
     id: {
       type: String,
@@ -87,12 +87,12 @@ const TemplateSchema = new Schema<ITemplate>(
 )
 
 // 创建索引
-TemplateSchema.index({ id: 1 }, { unique: true })
-TemplateSchema.index({ name: 1 })
-TemplateSchema.index({ tags: 1 })
-TemplateSchema.index({ createdBy: 1 })
-TemplateSchema.index({ createdAt: -1 })
+ApplicationSchema.index({ id: 1 }, { unique: true })
+ApplicationSchema.index({ name: 1 })
+ApplicationSchema.index({ tags: 1 })
+ApplicationSchema.index({ createdBy: 1 })
+ApplicationSchema.index({ createdAt: -1 })
 
-const Template = mongoose.model<ITemplate>('Template', TemplateSchema)
+const Application = mongoose.model<IApplication>('Application', ApplicationSchema)
 
-export default Template
+export default Application

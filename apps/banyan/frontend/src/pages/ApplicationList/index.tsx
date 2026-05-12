@@ -2,25 +2,25 @@ import { useState, useEffect, useCallback } from 'react'
 import { Card, Row, Col, Input, Button, Empty, Spin, message } from 'antd'
 import { SearchOutlined, EyeOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { templateApi } from '@/api'
-import type { Template } from '@/api'
+import { applicationApi } from '@/api'
+import type { Application } from '@/api'
 import { getErrorMessage } from '@/utils/error'
 import styles from './index.module.scss'
 
 const { Search } = Input
 
-const TemplateList = () => {
+const ApplicationList = () => {
     const navigate = useNavigate()
-    const [templates, setTemplates] = useState<Template[]>([])
+    const [applications, setApplications] = useState<Application[]>([])
     const [loading, setLoading] = useState(false)
     const [keyword, setKeyword] = useState('')
 
-    // 加载模板列表
-    const loadTemplates = useCallback(async (searchKeyword?: string) => {
+    // 加载应用列表
+    const loadApplications = useCallback(async (searchKeyword?: string) => {
         setLoading(true)
         try {
-            const res = await templateApi.fetchTemplates(1, 50, searchKeyword)
-            setTemplates(res.data.templates)
+            const res = await applicationApi.fetchApplications(1, 50, searchKeyword)
+            setApplications(res.data.applications)
         } catch (error: unknown) {
             message.error(getErrorMessage(error))
         } finally {
@@ -28,51 +28,51 @@ const TemplateList = () => {
         }
     }, [])
 
-    // 初始化加载模板
+    // 初始化加载应用
     useEffect(() => {
-        loadTemplates()
-    }, [loadTemplates])
+        loadApplications()
+    }, [loadApplications])
 
-    // 搜索模板
+    // 搜索应用
     const handleSearch = (value: string) => {
         setKeyword(value)
-        loadTemplates(value)
+        loadApplications(value)
     }
 
-    // 查看模板详情
-    const handleViewDetail = (templateId: string) => {
-        navigate(`/template/${templateId}`)
+    // 查看应用详情
+    const handleViewDetail = (applicationId: string) => {
+        navigate(`/application/${applicationId}`)
     }
 
-    // 创建新模板
-    const handleCreateTemplate = () => {
-        navigate('/template/new')
+    // 创建新应用
+    const handleCreateApplication = () => {
+        navigate('/application/new')
     }
 
-    // 删除模板
-    const handleDelete = async (e: React.MouseEvent, templateId: string) => {
+    // 删除应用
+    const handleDelete = async (e: React.MouseEvent, applicationId: string) => {
         e.stopPropagation()
         try {
-            await templateApi.deleteTemplate(templateId)
-            message.success('模板删除成功')
-            loadTemplates(keyword)
+            await applicationApi.deleteApplication(applicationId)
+            message.success('应用删除成功')
+            loadApplications(keyword)
         } catch (error: unknown) {
             message.error(getErrorMessage(error))
         }
     }
 
     return (
-        <div className={styles.templateListPage}>
-            <div className={styles.templateListHeader}>
-                <h1>模板列表</h1>
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateTemplate}>
-                    创建新模板
+        <div className={styles.applicationListPage}>
+            <div className={styles.applicationListHeader}>
+                <h1>应用列表</h1>
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateApplication}>
+                    创建新应用
                 </Button>
             </div>
 
-            <div className={styles.templateListFilters}>
+            <div className={styles.applicationListFilters}>
                 <Search
-                    placeholder="搜索模板名称或描述"
+                    placeholder="搜索应用名称或描述"
                     allowClear
                     enterButton={<SearchOutlined />}
                     size="large"
@@ -80,7 +80,7 @@ const TemplateList = () => {
                     onChange={(e) => {
                         if (!e.target.value) {
                             setKeyword('')
-                            loadTemplates()
+                            loadApplications()
                         }
                     }}
                     style={{ maxWidth: 500 }}
@@ -88,14 +88,14 @@ const TemplateList = () => {
             </div>
 
             <Spin spinning={loading}>
-                <div className={styles.templateListContent}>
-                    {templates.length === 0 && !loading ? (
-                        <Empty description="暂无模板数据" />
+                <div className={styles.applicationListContent}>
+                    {applications.length === 0 && !loading ? (
+                        <Empty description="暂无应用数据" />
                     ) : (
                         <Row gutter={[16, 16]}>
-                            {templates.map((template) => (
+                            {applications.map((application) => (
                                 <Col
-                                    key={template.id}
+                                    key={application.id}
                                     xs={24}
                                     sm={12}
                                     md={8}
@@ -103,23 +103,23 @@ const TemplateList = () => {
                                 >
                                     <Card
                                         onClick={() =>
-                                            handleViewDetail(template.id)
+                                            handleViewDetail(application.id)
                                         }
                                         hoverable
-                                        className={styles.templateCard}
+                                        className={styles.applicationCard}
                                         cover={
-                                            template.thumbnail ? (
+                                            application.thumbnail ? (
                                                 <img
-                                                    alt={template.name}
-                                                    src={template.thumbnail}
+                                                    alt={application.name}
+                                                    src={application.thumbnail}
                                                     className={
-                                                        styles.templateThumbnail
+                                                        styles.applicationThumbnail
                                                     }
                                                 />
                                             ) : (
                                                 <div
                                                     className={
-                                                        styles.templateThumbnailPlaceholder
+                                                        styles.applicationThumbnailPlaceholder
                                                     }
                                                 >
                                                     <span>暂无预览图</span>
@@ -132,7 +132,7 @@ const TemplateList = () => {
                                                 icon={<EyeOutlined />}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
-                                                    handleViewDetail(template.id)
+                                                    handleViewDetail(application.id)
                                                 }}
                                             >
                                                 编辑
@@ -141,32 +141,32 @@ const TemplateList = () => {
                                                 type="link"
                                                 danger
                                                 icon={<DeleteOutlined />}
-                                                onClick={(e) => handleDelete(e, template.id)}
+                                                onClick={(e) => handleDelete(e, application.id)}
                                             >
                                                 删除
                                             </Button>,
                                         ]}
                                     >
                                         <Card.Meta
-                                            title={template.name}
+                                            title={application.name}
                                             description={
                                                 <div>
                                                     <p
                                                         className={
-                                                            styles.templateDescription
+                                                            styles.applicationDescription
                                                         }
                                                     >
-                                                        {template.description ||
+                                                        {application.description ||
                                                             '暂无描述'}
                                                     </p>
                                                     <p
                                                         className={
-                                                            styles.templateMeta
+                                                            styles.applicationMeta
                                                         }
                                                     >
                                                         更新于:{' '}
                                                         {new Date(
-                                                            template.updatedAt
+                                                            application.updatedAt
                                                         ).toLocaleDateString()}
                                                     </p>
                                                 </div>
@@ -183,4 +183,4 @@ const TemplateList = () => {
     )
 }
 
-export default TemplateList
+export default ApplicationList

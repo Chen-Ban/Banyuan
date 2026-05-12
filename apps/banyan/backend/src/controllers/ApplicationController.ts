@@ -1,7 +1,7 @@
 import { Context } from 'koa'
-import templateService from '../services/TemplateService'
+import applicationService from '../services/ApplicationService'
 
-interface CreateTemplateRequest {
+interface CreateApplicationRequest {
   id: string
   name: string
   description?: string
@@ -11,7 +11,7 @@ interface CreateTemplateRequest {
   createdBy?: string
 }
 
-interface UpdateTemplateRequest {
+interface UpdateApplicationRequest {
   name?: string
   description?: string
   pages?: string[]
@@ -20,8 +20,8 @@ interface UpdateTemplateRequest {
   updatedBy?: string
 }
 
-class TemplateController {
-  async getTemplateList(ctx: Context) {
+class ApplicationController {
+  async getApplicationList(ctx: Context) {
     try {
       const { name, id, tags, createdBy, page = '1', pageSize = '12' } = ctx.query
 
@@ -36,7 +36,7 @@ class TemplateController {
         (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query]
       )
 
-      const result = await templateService.getTemplateList(
+      const result = await applicationService.getApplicationList(
         query,
         parseInt(page as string, 10),
         parseInt(pageSize as string, 10)
@@ -46,59 +46,59 @@ class TemplateController {
       ctx.body = { success: true, data: result }
     } catch (error: any) {
       ctx.status = 500
-      ctx.body = { success: false, message: error.message || 'Failed to get template list' }
+      ctx.body = { success: false, message: error.message || 'Failed to get application list' }
     }
   }
 
-  async getTemplateById(ctx: Context) {
+  async getApplicationById(ctx: Context) {
     try {
       const { id } = ctx.params
-      const template = await templateService.getTemplateById(id)
+      const application = await applicationService.getApplicationById(id)
 
-      if (!template) {
+      if (!application) {
         ctx.status = 404
-        ctx.body = { success: false, message: 'Template not found' }
+        ctx.body = { success: false, message: 'Application not found' }
         return
       }
 
       ctx.status = 200
-      ctx.body = { success: true, data: template }
+      ctx.body = { success: true, data: application }
     } catch (error: any) {
       ctx.status = 500
-      ctx.body = { success: false, message: error.message || 'Failed to get template' }
+      ctx.body = { success: false, message: error.message || 'Failed to get application' }
     }
   }
 
-  async createTemplate(ctx: Context) {
+  async createApplication(ctx: Context) {
     try {
-      const templateData = ctx.request.body as CreateTemplateRequest
+      const data = ctx.request.body as CreateApplicationRequest
 
-      if (!templateData.id || !templateData.name || !templateData.pages) {
+      if (!data.id || !data.name || !data.pages) {
         ctx.status = 400
         ctx.body = { success: false, message: 'id, name and pages are required' }
         return
       }
 
-      if (!Array.isArray(templateData.pages)) {
+      if (!Array.isArray(data.pages)) {
         ctx.status = 400
         ctx.body = { success: false, message: 'pages must be an array of strings' }
         return
       }
 
-      const template = await templateService.createTemplate(templateData)
+      const application = await applicationService.createApplication(data)
 
       ctx.status = 201
-      ctx.body = { success: true, data: template, message: 'Template created successfully' }
+      ctx.body = { success: true, data: application, message: 'Application created successfully' }
     } catch (error: any) {
       ctx.status = error.message.includes('already exists') ? 409 : 500
-      ctx.body = { success: false, message: error.message || 'Failed to create template' }
+      ctx.body = { success: false, message: error.message || 'Failed to create application' }
     }
   }
 
-  async updateTemplate(ctx: Context) {
+  async updateApplication(ctx: Context) {
     try {
       const { id } = ctx.params
-      const updateData = ctx.request.body as UpdateTemplateRequest
+      const updateData = ctx.request.body as UpdateApplicationRequest
 
       if ((updateData as any).id) {
         ctx.status = 400
@@ -106,40 +106,40 @@ class TemplateController {
         return
       }
 
-      const template = await templateService.updateTemplate(id, updateData)
+      const application = await applicationService.updateApplication(id, updateData)
 
-      if (!template) {
+      if (!application) {
         ctx.status = 404
-        ctx.body = { success: false, message: 'Template not found' }
+        ctx.body = { success: false, message: 'Application not found' }
         return
       }
 
       ctx.status = 200
-      ctx.body = { success: true, data: template, message: 'Template updated successfully' }
+      ctx.body = { success: true, data: application, message: 'Application updated successfully' }
     } catch (error: any) {
       ctx.status = 500
-      ctx.body = { success: false, message: error.message || 'Failed to update template' }
+      ctx.body = { success: false, message: error.message || 'Failed to update application' }
     }
   }
 
-  async deleteTemplate(ctx: Context) {
+  async deleteApplication(ctx: Context) {
     try {
       const { id } = ctx.params
-      const deleted = await templateService.deleteTemplate(id)
+      const deleted = await applicationService.deleteApplication(id)
 
       if (!deleted) {
         ctx.status = 404
-        ctx.body = { success: false, message: 'Template not found' }
+        ctx.body = { success: false, message: 'Application not found' }
         return
       }
 
       ctx.status = 200
-      ctx.body = { success: true, message: 'Template deleted successfully' }
+      ctx.body = { success: true, message: 'Application deleted successfully' }
     } catch (error: any) {
       ctx.status = 500
-      ctx.body = { success: false, message: error.message || 'Failed to delete template' }
+      ctx.body = { success: false, message: error.message || 'Failed to delete application' }
     }
   }
 }
 
-export default new TemplateController()
+export default new ApplicationController()

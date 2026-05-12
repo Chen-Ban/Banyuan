@@ -41,8 +41,8 @@ export default class GraphView
       this.content.controlPoints instanceof Float32Array
         ? Point3.fromArray(this.content.controlPoints)
         : this.content.controlPoints;
-    // RoundedRect: 前4个为角点，后4个为圆角控制点
-    const radiusStartIndex = graph.type === GRAPHTYPE.ROUNDED_RECT ? 4 : -1;
+    // RoundedRect: 前8个为尺寸控制点（4角+4边中点），后4个为圆角控制点
+    const radiusStartIndex = graph.type === GRAPHTYPE.ROUNDED_RECT ? 8 : -1;
     this.controlPoints = new VertexAddon(vertics, radiusStartIndex);
   }
 
@@ -87,11 +87,27 @@ export default class GraphView
     const index = this.controlPoints.vertices.indexOf(vertex)
     if (index < 0) return
 
-    // 圆角控制点约束：只允许沿边线方向移动（水平方向）
+    // 移动约束
     const isRadiusControl = this.controlPoints.radiusControlStartIndex >= 0
       && index >= this.controlPoints.radiusControlStartIndex
-    const dx = localDelta.x
-    const dy = isRadiusControl ? 0 : localDelta.y
+    const isMidpoint = this.controlPoints.midpointIndices.includes(index)
+
+    let dx = localDelta.x
+    let dy = localDelta.y
+
+    if (isRadiusControl) {
+      // 圆角控制点：只允许水平方向移动
+      dy = 0
+    } else if (isMidpoint) {
+      // 边中点约束：上/下边中点只允许垂直移动，左/右边中点只允许水平移动
+      // index 1(上边中点), 5(下边中点) → 只改 y
+      // index 3(右边中点), 7(左边中点) → 只改 x
+      if (index === 1 || index === 5) {
+        dx = 0
+      } else {
+        dy = 0
+      }
+    }
 
     // 计算新顶点位置
     const newVertex = new Point3(

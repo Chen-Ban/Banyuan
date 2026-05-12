@@ -280,6 +280,14 @@ export interface IBanvasActions {
     history: IHistoryActions
     /** 获取所有页面的序列化 JSON 字符串数组（用于持久化存储） */
     getSerializedPages(): string[]
+    /**
+     * 将当前画布内容导出为图片 DataURL
+     *
+     * @param type    图片 MIME 类型，默认 'image/png'
+     * @param quality 图片质量（仅 jpeg/webp 有效，0~1），默认 0.92
+     * @returns DataURL 字符串，若引擎未初始化则返回 null
+     */
+    exportImage(type?: string, quality?: number): string | null
 }
 
 // ────────────────────────────────────────────

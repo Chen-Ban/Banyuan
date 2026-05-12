@@ -9,7 +9,7 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import { useBanvas } from "banvasgl";
 import { message } from "antd";
-import { templateApi } from "@/api";
+import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import styles from "./index.module.scss";
 import ComponentPalette from "./components/ComponentPalette";
@@ -19,34 +19,34 @@ import ContextMenu from "./components/ContextMenu";
 
 const AUTO_SAVE_DELAY = 800;
 
-const TemplateDetail = () => {
+const ApplicationDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isNew = id === "new" || !id;
 
-  const [templateName, setTemplateName] = useState("");
-  const [templateDescription, setTemplateDescription] = useState("");
+  const [applicationName, setApplicationName] = useState("");
+  const [applicationDescription, setApplicationDescription] = useState("");
   const [initialPages, setInitialPages] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(isNew);
   const [saving, setSaving] = useState(false);
 
   // 用于自动保存名称/描述的 debounce
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const nameRef = useRef(templateName);
-  const descRef = useRef(templateDescription);
-  nameRef.current = templateName;
-  descRef.current = templateDescription;
+  const nameRef = useRef(applicationName);
+  const descRef = useRef(applicationDescription);
+  nameRef.current = applicationName;
+  descRef.current = applicationDescription;
 
-  // 加载模板数据
+  // 加载应用数据
   useEffect(() => {
     if (!isNew && id) {
-      templateApi
-        .fetchTemplate(id)
+      applicationApi
+        .fetchApplication(id)
         .then((res) => {
-          const template = res.data!;
-          setTemplateName(template.name);
-          setTemplateDescription(template.description || "");
-          setInitialPages(template.pages || []);
+          const application = res.data!;
+          setApplicationName(application.name);
+          setApplicationDescription(application.description || "");
+          setInitialPages(application.pages || []);
           setLoaded(true);
         })
         .catch((err: unknown) => {
@@ -118,14 +118,14 @@ const TemplateDetail = () => {
   } = useBanvas(loaded ? initialPages : [], banvasOptions);
 
   /**
-   * 自动保存名称/描述（仅已有模板，debounce）
+   * 自动保存名称/描述（仅已有应用，debounce）
    */
   const triggerAutoSaveMeta = useCallback(() => {
     if (isNew || !id) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       try {
-        await templateApi.updateTemplate(id, {
+        await applicationApi.updateApplication(id, {
           name: nameRef.current,
           description: descRef.current,
         });
@@ -137,7 +137,7 @@ const TemplateDetail = () => {
 
   const handleNameChange = useCallback(
     (value: string) => {
-      setTemplateName(value);
+      setApplicationName(value);
       triggerAutoSaveMeta();
     },
     [triggerAutoSaveMeta],
@@ -145,7 +145,7 @@ const TemplateDetail = () => {
 
   const handleDescChange = useCallback(
     (value: string) => {
-      setTemplateDescription(value);
+      setApplicationDescription(value);
       triggerAutoSaveMeta();
     },
     [triggerAutoSaveMeta],
@@ -159,11 +159,11 @@ const TemplateDetail = () => {
   }, []);
 
   /**
-   * 保存整个模板（含页面画布数据）
+   * 保存整个应用（含页面画布数据）
    */
   const handleSave = useCallback(async () => {
-    if (!templateName.trim()) {
-      message.warning("请输入模板名称");
+    if (!applicationName.trim()) {
+      message.warning("请输入应用名称");
       return;
     }
 
@@ -172,32 +172,32 @@ const TemplateDetail = () => {
       const pages = actions.getSerializedPages();
 
       if (isNew) {
-        const newId = `template_${Date.now()}`;
-        await templateApi.createTemplate({
+        const newId = `app_${Date.now()}`;
+        await applicationApi.createApplication({
           id: newId,
-          name: templateName,
-          description: templateDescription,
+          name: applicationName,
+          description: applicationDescription,
           pages,
         });
-        message.success("模板创建成功");
-        navigate("/template", { replace: true });
+        message.success("应用创建成功");
+        navigate("/", { replace: true });
       } else {
-        await templateApi.updateTemplate(id!, {
-          name: templateName,
-          description: templateDescription,
+        await applicationApi.updateApplication(id!, {
+          name: applicationName,
+          description: applicationDescription,
           pages,
         });
-        message.success("模板已保存");
+        message.success("应用已保存");
       }
     } catch (error: unknown) {
       message.error(getErrorMessage(error));
     } finally {
       setSaving(false);
     }
-  }, [templateName, templateDescription, actions, isNew, id, navigate]);
+  }, [applicationName, applicationDescription, actions, isNew, id, navigate]);
 
   const handleBack = () => {
-    navigate("/template");
+    navigate("/");
   };
 
   if (!loaded) {
@@ -205,10 +205,10 @@ const TemplateDetail = () => {
   }
 
   return (
-    <div className={styles.templateDetailPage}>
+    <div className={styles.applicationDetailPage}>
       <ComponentPalette
-        templateName={templateName}
-        templateDescription={templateDescription}
+        applicationName={applicationName}
+        applicationDescription={applicationDescription}
         saving={saving}
         isNew={isNew}
         onNameChange={handleNameChange}
@@ -224,11 +224,7 @@ const TemplateDetail = () => {
           actions={actions}
         />
         <div className={styles.canvasSection} ref={canvasSectionRef}>
-          {pages.length > 0 ? (
-            Banvas
-          ) : (
-            <div className={styles.emptyCanvas}>暂无页面，请添加页面</div>
-          )}
+          {Banvas}
         </div>
         <PropertyPanel
           selectedViewId={selectedViewId}
@@ -242,4 +238,4 @@ const TemplateDetail = () => {
   );
 };
 
-export default TemplateDetail;
+export default ApplicationDetail;
