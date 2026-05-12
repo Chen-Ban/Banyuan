@@ -1,5 +1,6 @@
 export { default as useDesignBanvas } from "./useDesignBanvas";
 export { default as useRuntimeBanvas } from "./useRuntimeBanvas";
+export type { UseRuntimeBanvasOptions, UseRuntimeBanvasResult } from "./useRuntimeBanvas";
 export { default as useFlowBanvas } from "./useFlowBanvas";
 export { useDesignCanvasInit } from "./useDesignCanvasInit";
 export type { UseDesignCanvasOptions, UseDesignCanvasInitResult, SerializedPageJSON } from "./useDesignCanvasInit";

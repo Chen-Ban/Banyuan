@@ -16,6 +16,11 @@
         "node": "./dist/index.backend.mjs",
         "default": "./dist/index.frontend.mjs"
       }
+    },
+    "./runtime": {
+      "types": "./dist/index.frontend.d.ts",
+      "require": "./dist/index.frontend.cjs",
+      "import": "./dist/index.frontend.mjs"
     }
   },
   "files": [
