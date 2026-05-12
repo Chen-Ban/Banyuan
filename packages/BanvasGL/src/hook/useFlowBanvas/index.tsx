@@ -4,8 +4,8 @@ import React, {
     useSyncExternalStore,
 } from 'react'
 import { useCanvasInit } from '../useCanvasInit'
+import type { SerializedPageJSON } from '../useCanvasInit'
 import { useFlowCanvasEvents } from './canvas/useFlowCanvasEvents'
-import type { SerializedPageJSON } from '../useDesignBanvas/types'
 import type { App } from '@/core/app'
 
 export interface UseFlowBanvasOptions {
