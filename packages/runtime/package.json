@@ -1,0 +1,33 @@
+{
+  "name": "@banyuan/runtime",
+  "version": "0.0.1",
+  "description": "BanvasGL 运行时 —— 跨平台应用运行层",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["src", "dist"],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch"
+  },
+  "keywords": ["banvas", "runtime"],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.10.0",
+  "dependencies": {
+    "react": "^19.1.0",
+    "banvasgl": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "tsup": "^8.4.0",
+    "typescript": "~5.7.3"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  }
+}
