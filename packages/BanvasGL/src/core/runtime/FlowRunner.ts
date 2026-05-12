@@ -18,6 +18,9 @@ import type {
     FlowEdge,
     FlowValue,
     FlowCondition,
+    FlowVarNode,
+    FlowPageVarNode,
+    FlowEventParamNode,
     RuntimeContext,
 } from '@/core/interfaces'
 
@@ -29,11 +32,45 @@ const MAX_STEPS = 1000
 // ────────────────────────────────────────────
 
 /**
+ * 将值节点（FlowVarNode / FlowPageVarNode / FlowEventParamNode）直接求值
+ *
+ * 纯函数，无副作用，不走执行队列。
+ * 由 resolveValue 在遇到 nodeRef 时调用。
+ */
+export function resolveValueNode(
+    node: FlowVarNode | FlowPageVarNode | FlowEventParamNode,
+    ctx: RuntimeContext,
+): unknown {
+    switch (node.kind) {
+        case 'variable': {
+            const target = node.viewId === 'self'
+                ? ctx.self
+                : ctx.view(node.viewId)
+            if (!target) return undefined
+            const field = target.data[node.key]
+            if (!field) return undefined
+            return field.value ?? field.default
+        }
+        case 'pageVar': {
+            return (ctx.page.data as Record<string, unknown>)[node.key]
+        }
+        case 'eventParam': {
+            return ctx.eventArgs[node.index]
+        }
+    }
+}
+
+/**
  * 将 FlowValue 解析为运行时实际值
  *
  * dataRef 读取约定：field.value ?? field.default
+ * nodeRef：在 nodeMap 中找到对应值节点后直接求值（不走执行队列）
  */
-export function resolveValue(val: FlowValue, ctx: RuntimeContext): unknown {
+export function resolveValue(
+    val: FlowValue,
+    ctx: RuntimeContext,
+    nodeMap?: Map<string, FlowNode>,
+): unknown {
     switch (val.kind) {
         case 'literal':
             return val.value
@@ -55,6 +92,19 @@ export function resolveValue(val: FlowValue, ctx: RuntimeContext): unknown {
 
         case 'eventArg':
             return ctx.eventArgs[val.index]
+
+        case 'nodeRef': {
+            if (!nodeMap) return undefined
+            const valueNode = nodeMap.get(val.nodeId)
+            if (!valueNode) return undefined
+            // 只允许值节点类型，动作节点不能作为值来源
+            if (
+                valueNode.kind !== 'variable' &&
+                valueNode.kind !== 'pageVar' &&
+                valueNode.kind !== 'eventParam'
+            ) return undefined
+            return resolveValueNode(valueNode, ctx)
+        }
     }
 }
 
@@ -89,10 +139,11 @@ function evalCondition(
 async function executeNode(
     node: FlowNode,
     ctx: RuntimeContext,
+    nodeMap: Map<string, FlowNode>,
 ): Promise<'true' | 'false' | void> {
     switch (node.kind) {
         case 'setData': {
-            const val = resolveValue(node.value, ctx)
+            const val = resolveValue(node.value, ctx, nodeMap)
             const target = node.viewId === 'self'
                 ? ctx.self
                 : ctx.view(node.viewId)
@@ -125,8 +176,8 @@ async function executeNode(
         }
 
         case 'condition': {
-            const left  = resolveValue(node.condition.left,  ctx)
-            const right = resolveValue(node.condition.right, ctx)
+            const left  = resolveValue(node.condition.left,  ctx, nodeMap)
+            const right = resolveValue(node.condition.right, ctx, nodeMap)
             return evalCondition(left, node.condition.op, right) ? 'true' : 'false'
         }
 
@@ -143,6 +194,12 @@ async function executeNode(
             ctx.page.markDirty(target)
             break
         }
+
+        // 值节点不参与执行队列，遇到时直接跳过
+        case 'variable':
+        case 'pageVar':
+        case 'eventParam':
+            break
     }
 }
 
@@ -189,7 +246,7 @@ export class FlowRunner {
                 // condition 节点的分支边：先执行当前节点求值，再选边
                 const node = nodeMap.get(currentId)
                 if (!node) break
-                const branch = await executeNode(node, ctx)
+                const branch = await executeNode(node, ctx, nodeMap)
                 const edge = outEdges.find(e => e.branch === branch)
                 if (!edge) break
                 currentId = edge.to
@@ -198,7 +255,7 @@ export class FlowRunner {
 
             const node = nodeMap.get(currentId)
             if (!node) break
-            await executeNode(node, ctx)
+            await executeNode(node, ctx, nodeMap)
         }
 
         if (steps >= MAX_STEPS) {
