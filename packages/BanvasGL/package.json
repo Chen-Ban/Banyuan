@@ -1,6 +1,6 @@
 {
   "name": "banvasgl",
-  "version": "0.0.0-test.1",
+  "version": "0.1.0",
   "description": "一个二维图形绘制库",
   "exports": {
     ".": {
@@ -16,6 +16,11 @@
         "node": "./dist/index.backend.mjs",
         "default": "./dist/index.frontend.mjs"
       }
+    },
+    "./runtime": {
+      "types": "./dist/index.runtime.d.ts",
+      "require": "./dist/index.runtime.cjs",
+      "import": "./dist/index.runtime.mjs"
     }
   },
   "files": [

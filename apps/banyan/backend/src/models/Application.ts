@@ -1,0 +1,98 @@
+import mongoose, { Schema, Document } from 'mongoose'
+
+/**
+ * 应用文档接口
+ */
+export interface IApplication extends Document {
+  /** 应用业务ID */
+  id: string
+  /** 应用名称 */
+  name: string
+  /** 应用描述 */
+  description: string
+  /** 缩略图 URL */
+  thumbnail: string
+  /** 多页面 JSON 字符串数组（BanvasGL Serializer 输出） */
+  pages: string[]
+  /** 标签 */
+  tags: string[]
+  /** 版本号（每次保存自增） */
+  version: number
+  /** 创建者 */
+  createdBy: string
+  /** 最后修改者 */
+  updatedBy: string
+  /** 创建时间 */
+  createdAt: Date
+  /** 更新时间 */
+  updatedAt: Date
+}
+
+/**
+ * 应用 Schema
+ */
+const ApplicationSchema = new Schema<IApplication>(
+  {
+    id: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 200,
+    },
+    description: {
+      type: String,
+      default: '',
+      trim: true,
+      maxlength: 1000,
+    },
+    thumbnail: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    pages: {
+      type: [String],
+      required: true,
+      default: [],
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
+    version: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    createdBy: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    updatedBy: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+)
+
+// 创建索引
+ApplicationSchema.index({ id: 1 }, { unique: true })
+ApplicationSchema.index({ name: 1 })
+ApplicationSchema.index({ tags: 1 })
+ApplicationSchema.index({ createdBy: 1 })
+ApplicationSchema.index({ createdAt: -1 })
+
+const Application = mongoose.model<IApplication>('Application', ApplicationSchema)
+
+export default Application
