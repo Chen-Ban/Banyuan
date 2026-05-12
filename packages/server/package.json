@@ -1,0 +1,29 @@
+{
+  "name": "@banyuan/server",
+  "version": "0.0.1",
+  "description": "Banyuan 平台后端服务",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.10.0",
+  "dependencies": {
+    "koa": "^2.15.3",
+    "@koa/router": "^13.1.0",
+    "@koa/cors": "^5.0.0",
+    "koa-body": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.15.0",
+    "@types/koa__router": "^12.0.4",
+    "@types/koa__cors": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.7.3"
+  }
+}
