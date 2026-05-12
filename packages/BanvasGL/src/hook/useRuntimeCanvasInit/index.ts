@@ -3,6 +3,9 @@ import { App } from "@/core/app";
 import { BaseCamera, Scene } from "@/core";
 import type { IAppOptions } from "@/core/interfaces";
 import type { IRendererOptions } from "@/core/interfaces/IRenderer";
+import type { SerializedPageJSON } from "../useDesignCanvasInit";
+
+export type { SerializedPageJSON };
 
 // ── BOM 属性（内联，避免跨目录依赖） ──
 function useBOMProperties(): { dpr: number } {
@@ -19,10 +22,6 @@ function useBOMProperties(): { dpr: number } {
 
   return { dpr };
 }
-
-// ── 公共类型 ──
-
-export type SerializedPageJSON = string;
 
 /**
  * 运行时画布初始化选项
