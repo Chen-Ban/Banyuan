@@ -6,7 +6,9 @@
   "scripts": {
     "dev:lunlunglass": "pnpm --filter banvasgl build && concurrently --kill-others -c \"magenta.bold,cyan.bold\" -n banvasgl,lunlunglass \"pnpm --filter banvasgl dev\" \"pnpm --filter lunlunglass dev\"",
     "dev:banyan": "pnpm --filter banvasgl build && concurrently --kill-others -c \"magenta.bold,cyan.bold\" -n banvasgl,banyan \"pnpm --filter banvasgl dev\" \"pnpm --filter banyan dev\"",
+    "dev:server": "pnpm --filter @banyuan/server dev",
     "build": "pnpm --filter banvasgl build",
+    "build:runtime": "pnpm --filter @banyuan/runtime build",
     "build:all": "pnpm --recursive build"
   },
   "keywords": [],
