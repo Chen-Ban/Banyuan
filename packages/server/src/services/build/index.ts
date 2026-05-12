@@ -46,6 +46,45 @@ export function getTask(taskId: string): BuildTask | undefined {
     return taskMap.get(taskId)
 }
 
+// ── 并发控制 ──
+
+/** 最大同时运行的构建任务数 */
+const MAX_CONCURRENT_BUILDS = 3
+
+/** 当前正在运行的任务数 */
+let runningCount = 0
+
+/** 等待执行的任务队列 */
+const waitQueue: Array<() => void> = []
+
+/**
+ * 获取一个并发槽位，超出上限时等待直到有槽位释放
+ */
+function acquireSlot(): Promise<void> {
+    if (runningCount < MAX_CONCURRENT_BUILDS) {
+        runningCount++
+        return Promise.resolve()
+    }
+    return new Promise((resolve) => {
+        waitQueue.push(() => {
+            runningCount++
+            resolve()
+        })
+    })
+}
+
+/**
+ * 释放并发槽位，唤醒队列中的下一个等待任务
+ */
+function releaseSlot(): void {
+    const next = waitQueue.shift()
+    if (next) {
+        next()
+    } else {
+        runningCount--
+    }
+}
+
 // ── 完整构建流程 ──
 
 export interface StartBuildOptions {
@@ -92,6 +131,9 @@ async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<vo
         Object.assign(task, { ...patch, updatedAt: Date.now() })
     }
 
+    // 等待并发槽位（超出 MAX_CONCURRENT_BUILDS 时在此阻塞）
+    await acquireSlot()
+
     try {
         update({ status: 'running' })
         console.log(`[Build ${task.taskId}] step 1/3 scaffold ...`)
@@ -101,7 +143,7 @@ async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<vo
         await bundle({ projectDir, outputDir: distDir })
 
         console.log(`[Build ${task.taskId}] step 3/3 electron-builder ...`)
-        await buildElectron({ distDir, outputDir, appName, platform })
+        await buildElectron({ distDir, outputDir, appName, platform, width, height })
 
         // 找到生成的安装包文件
         const outputFile = findOutputFile(outputDir, platform)
@@ -110,10 +152,39 @@ async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<vo
     } catch (err: any) {
         update({ status: 'failed', error: err?.message ?? String(err) })
         console.error(`[Build ${task.taskId}] failed:`, err)
+    } finally {
+        releaseSlot()
+        // 清理工作目录（保留 output 中的产物，只删 project 目录）
+        cleanWorkDir(workDir, task)
     }
 }
 
-/** 在 outputDir 中找到对应平台的安装包文件 */
+/**
+ * 清理构建工作目录
+ * - 成功：删除 project/（含 node_modules），保留 output/（安装包）
+ * - 失败：删除整个 workDir（没有有效产物）
+ */
+function cleanWorkDir(workDir: string, task: BuildTask): void {
+    try {
+        if (task.status === 'success') {
+            const projectDir = path.join(workDir, 'project')
+            if (fs.existsSync(projectDir)) {
+                fs.rmSync(projectDir, { recursive: true, force: true })
+                console.log(`[Build ${task.taskId}] cleaned project dir`)
+            }
+        } else {
+            if (fs.existsSync(workDir)) {
+                fs.rmSync(workDir, { recursive: true, force: true })
+                console.log(`[Build ${task.taskId}] cleaned work dir (failed build)`)
+            }
+        }
+    } catch (cleanErr) {
+        // 清理失败不影响任务状态，只记录日志
+        console.warn(`[Build ${task.taskId}] cleanup failed:`, cleanErr)
+    }
+}
+
+/** 在 outputDir 中找到对应平台的安装包文件（取最大的匹配文件，排除 yml/blockmap 等元数据） */
 function findOutputFile(outputDir: string, platform: Platform): string | undefined {
     if (!fs.existsSync(outputDir)) return undefined
     const extMap: Record<Platform, string[]> = {
@@ -123,6 +194,14 @@ function findOutputFile(outputDir: string, platform: Platform): string | undefin
     }
     const exts = extMap[platform]
     const files = fs.readdirSync(outputDir)
-    const found = files.find((f) => exts.some((ext) => f.endsWith(ext)))
-    return found ? path.join(outputDir, found) : undefined
+    const matched = files
+        .filter((f) => exts.some((ext) => f.endsWith(ext)))
+        .map((f) => {
+            const fullPath = path.join(outputDir, f)
+            const size = fs.statSync(fullPath).size
+            return { fullPath, size }
+        })
+        .sort((a, b) => b.size - a.size) // 按文件大小降序，安装包通常最大
+
+    return matched[0]?.fullPath
 }
