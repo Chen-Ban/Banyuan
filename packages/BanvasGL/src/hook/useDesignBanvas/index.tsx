@@ -5,12 +5,11 @@ import React, {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useCanvasInit } from "./canvas/useCanvasInit";
+import { useCanvasInit } from "../useCanvasInit";
 import { useCanvasEvents } from "./canvas/useCanvasEvents";
 import type { ContextMenuHitResult } from "./canvas/useCanvasEvents";
-import { useRuntimeEvents } from "./canvas/useRuntimeEvents";
 import { useInputEvents } from "./canvas/useInputEvents";
-import { SerializedPageJSON, UseBanvasOptions } from "./types";
+import type { SerializedPageJSON, UseBanvasOptions } from "./types";
 import { buildPageNodes } from "./data/builders";
 import { createBanvasActions } from "./actions";
 import { BUILTIN_COMPONENTS } from "./data/builtinComponents";
@@ -25,7 +24,7 @@ import type {
   IContextMenuItem,
 } from "@/core/interfaces";
 
-export default function useBanvas(
+export default function useDesignBanvas(
   serializedPages: SerializedPageJSON[],
   _options: UseBanvasOptions,
 ): IUseBanvasResult {
@@ -132,22 +131,14 @@ export default function useBanvas(
     return buildPageNodes(app);
   }, [app, _version]);
 
-  // 当前运行模式（随 app.mode 变化）
-  const mode = app?.mode ?? 'edit';
-
-  // Canvas 事件绑定 —— 编辑模式：编辑器交互；预览模式：运行时事件
+  // Canvas 事件绑定（设计态）
   useCanvasEvents({
-    app: mode === 'edit' ? app : null,
+    app,
     canvasRef,
     inputRef,
     actions,
     onContextMenuHit,
     onInteractionEnd: () => app?.notify(),
-  });
-
-  useRuntimeEvents({
-    app: mode === 'preview' ? app : null,
-    canvasRef,
   });
 
   // Input 事件绑定
