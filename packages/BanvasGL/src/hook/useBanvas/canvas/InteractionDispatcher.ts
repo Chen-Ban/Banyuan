@@ -152,8 +152,7 @@ export class InteractionDispatcher {
             (isPrintableTextElement(indicateContent) ||
                 isNonPrintableTextElement(indicateContent))
         ) {
-            // indicateView is now narrowed to ITextView & { readonly type: VIEWTYPE.TEXTVIEW }
-            const { content } = indicateView.interact(point)
+            // 首次进入（未激活）：选中 View 并设置光标起点
             if (!indicateView.actived) {
                 scene.select(indicateView as unknown as View)
                 const fixedIndex = indicateView.element2Index(
@@ -161,12 +160,32 @@ export class InteractionDispatcher {
                     point
                 )
                 indicateView.setSelection(fixedIndex, fixedIndex)
+                return
             }
+
+            // 拖拽选区阶段：尝试命中文本域
+            const { content } = indicateView.interact(point)
+
+            let targetContent = content
+            let targetPoint = point
+
+            // 鼠标拖出文本域时，约束坐标到文本域边界再求 index
             if (
-                isPrintableTextElement(content) ||
-                isNonPrintableTextElement(content)
+                !isPrintableTextElement(content) &&
+                !isNonPrintableTextElement(content)
             ) {
-                const dynamicIndex = indicateView.element2Index(content, point)
+                const relativePoint = indicateView.getMVPMatrix().inverse().multiply(point)
+                const constrainedRelative = indicateView.constraintPoint(relativePoint)
+                targetPoint = indicateView.getMVPMatrix().multiply(constrainedRelative)
+                const result = indicateView.interact(targetPoint)
+                targetContent = result.content
+            }
+
+            if (
+                isPrintableTextElement(targetContent) ||
+                isNonPrintableTextElement(targetContent)
+            ) {
+                const dynamicIndex = indicateView.element2Index(targetContent, targetPoint)
                 indicateView.setSelection(
                     indicateView.selection.fixedIndex,
                     dynamicIndex

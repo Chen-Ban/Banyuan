@@ -185,7 +185,6 @@ const SceneList: React.FC<SceneListProps> = ({
     // Windows/Linux 上多选使用 Ctrl(ctrlKey)
     const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
     const isCtrl = isMac ? info.nativeEvent.metaKey : info.nativeEvent.ctrlKey;
-    console.log(isCtrl);
 
     if (isPageKey(pages, key)) {
       // 点击页面节点：切换页面并取消选中
@@ -202,7 +201,6 @@ const SceneList: React.FC<SceneListProps> = ({
       } else {
         // 同页面：Ctrl 多选，否则单选
         actions.view.select(key, isCtrl);
-        console.log(actions.view.getActivedViewIds());
       }
     }
   };

@@ -81,6 +81,10 @@ export default class TextView extends View implements ITextView, ISerializable {
      * 检查内容是否被命中
      * @param relativePoint 相对坐标点
      * @returns 交互结果
+     *
+     * 不再在交互检测阶段做 constraintPoint：
+     * 未命中文本域时返回 null，让外层回退到 MOVE 等 action。
+     * 坐标约束只在拖拽选区阶段（InteractionDispatcher.handleTextSelection）进行。
      */
     protected interactContent(relativePoint: Point3): InteractResult {
         // 是否命中文本域
@@ -88,13 +92,12 @@ export default class TextView extends View implements ITextView, ISerializable {
             this.content.isPointInPath(relativePoint) ||
             this.content.isPointOnCurve(relativePoint, 5)
 
-        // 已激活（正在编辑）时，将鼠标点约束到文本域边界
-        const _relativePoint =
-            this.actived && !hitedFields
-                ? this.constraintPoint(relativePoint)
-                : relativePoint
+        // 未命中文本域，不做约束，交由外层处理
+        if (!hitedFields) {
+            return { view: null, content: null, extraData: null }
+        }
 
-        const textElement = this.content.point2TextElement(_relativePoint)
+        const textElement = this.content.point2TextElement(relativePoint)
         if (textElement) {
             return {
                 view: this,
