@@ -5,7 +5,9 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*", "../BanvasGL/src/*"],
+      "banvasgl": ["../BanvasGL/src/index.frontend.ts"],
+      "@banyuan/runtime": ["./src/index.ts"]
     },
     "outDir": "./dist"
   },
