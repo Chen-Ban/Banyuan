@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useBanvas } from "banvasgl";
+import { useDesignBanvas } from "banvasgl";
 import { message, Modal } from "antd";
 import { templateApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
@@ -117,7 +117,7 @@ const TemplateDetail = () => {
     actions,
     contextMenu,
     builtinComponents,
-  } = useBanvas(loaded ? initialPages : [], banvasOptions);
+  } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
 
   /**
    * 自动保存名称/描述（仅已有模板，debounce）

@@ -5,7 +5,6 @@ import {
   IAppOptions,
   INavigationOptions,
   IRendererOptions,
-  type AppMode,
 } from "@/core/interfaces";
 import { AnimationManager } from "@/core/animation";
 
@@ -33,9 +32,6 @@ export default class App {
   private _lastRenderTime: number = 0;
   private _targetFPS: number = 60;
   private _frameInterval: number = 1000 / 60; // 16.67ms for 60fps
-
-  // 运行模式
-  public mode: AppMode = 'edit';
 
   // 外部订阅（useSyncExternalStore 支持）
   private _listeners: Set<() => void> = new Set();
@@ -120,13 +116,6 @@ export default class App {
   public unlaunch(): App {
     console.log("App unlaunched");
     this.onUnlaunch();
-    return this;
-  }
-
-  // 运行模式
-  public setMode(mode: AppMode): App {
-    this.mode = mode;
-    this.notify();
     return this;
   }
 

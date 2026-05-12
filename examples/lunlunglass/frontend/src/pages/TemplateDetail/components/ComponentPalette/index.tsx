@@ -14,7 +14,7 @@ interface ComponentPaletteProps {
     onSave: () => void
     onBack: () => void
     onPreview: () => void
-    /** 引擎内置物料，直接来自 useBanvas().builtinComponents */
+    /** 引擎内置物料，直接来自 useDesignBanvas().builtinComponents */
     builtinComponents: IComponentDefinition[]
     /**
      * 用户自定义物料（可选）
