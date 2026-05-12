@@ -224,7 +224,11 @@ const TemplateDetail = () => {
           actions={actions}
         />
         <div className={styles.canvasSection} ref={canvasSectionRef}>
-          {Banvas}
+          {pages.length > 0 ? (
+            Banvas
+          ) : (
+            <div className={styles.emptyCanvas}>暂无页面，请添加页面</div>
+          )}
         </div>
         <PropertyPanel
           selectedViewId={selectedViewId}
