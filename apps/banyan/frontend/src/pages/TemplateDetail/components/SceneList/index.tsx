@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { Tree, Button, TreeNodeProps } from "antd";
-import { PlusOutlined, DownOutlined, RightOutlined } from "@ant-design/icons";
+import { PlusOutlined, DownOutlined, RightOutlined, CloseOutlined } from "@ant-design/icons";
 import type { IPageNode, IViewNode, IBanvasActions } from "banvasgl";
 import styles from "./index.module.scss";
 
@@ -111,6 +111,25 @@ const SceneList: React.FC<SceneListProps> = ({
     }));
   }, [pages]);
 
+  /** 删除节点 */
+  const handleDelete = (key: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isPageKey(pages, key)) {
+      // 禁止删除最后一个页面
+      if (pages.length <= 1) return;
+      actions.page.remove(key);
+    } else {
+      actions.view.delete(key);
+    }
+  };
+
+  /** 是否允许显示删除按钮 */
+  const canDelete = (node: TreeNode): boolean => {
+    // 如果是页面节点且只剩最后一个，不允许删除
+    if (isPageKey(pages, node.key) && pages.length <= 1) return false;
+    return true;
+  };
+
   /** titleRender：根据编辑状态渲染节点 */
   const titleRender = (node: TreeNode) => {
     if (editingKey === node.key) {
@@ -131,13 +150,21 @@ const SceneList: React.FC<SceneListProps> = ({
     }
     return (
       <span
-        className={styles.nodeTitle}
+        className={styles.nodeTitleWrapper}
         onDoubleClick={(e) => {
           e.stopPropagation();
           setEditingKey(node.key);
         }}
       >
-        {node.title}
+        <span className={styles.nodeTitle}>{node.title}</span>
+        {canDelete(node) && (
+          <span
+            className={styles.deleteBtn}
+            onClick={(e) => handleDelete(node.key, e)}
+          >
+            <CloseOutlined />
+          </span>
+        )}
       </span>
     );
   };
@@ -185,8 +212,6 @@ const SceneList: React.FC<SceneListProps> = ({
     // Windows/Linux 上多选使用 Ctrl(ctrlKey)
     const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
     const isCtrl = isMac ? info.nativeEvent.metaKey : info.nativeEvent.ctrlKey;
-    console.log(isCtrl);
-
     if (isPageKey(pages, key)) {
       // 点击页面节点：切换页面并取消选中
       actions.view.deselect();
@@ -202,7 +227,6 @@ const SceneList: React.FC<SceneListProps> = ({
       } else {
         // 同页面：Ctrl 多选，否则单选
         actions.view.select(key, isCtrl);
-        console.log(actions.view.getActivedViewIds());
       }
     }
   };
