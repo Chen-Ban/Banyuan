@@ -10,7 +10,7 @@ import { useCanvasEvents } from "./canvas/useCanvasEvents";
 import type { ContextMenuHitResult } from "./canvas/useCanvasEvents";
 import { useRuntimeEvents } from "./canvas/useRuntimeEvents";
 import { useInputEvents } from "./canvas/useInputEvents";
-import { SerializedSceneJSON, UseBanvasOptions } from "./types";
+import { SerializedPageJSON, UseBanvasOptions } from "./types";
 import { buildPageNodes } from "./data/builders";
 import { createBanvasActions } from "./actions";
 import { BUILTIN_COMPONENTS } from "./data/builtinComponents";
@@ -26,7 +26,7 @@ import type {
 } from "@/core/interfaces";
 
 export default function useBanvas(
-  serializedScenes: SerializedSceneJSON[],
+  serializedPages: SerializedPageJSON[],
   _options: UseBanvasOptions,
 ): IUseBanvasResult {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -34,7 +34,7 @@ export default function useBanvas(
 
   // Canvas 初始化
   const { app, canvasRef, canvasCallbackRef } = useCanvasInit(
-    serializedScenes,
+    serializedPages,
     _options,
   );
 

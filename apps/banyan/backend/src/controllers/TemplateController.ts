@@ -5,7 +5,7 @@ interface CreateTemplateRequest {
   id: string
   name: string
   description?: string
-  scenes: string[]
+  pages: string[]
   thumbnail?: string
   tags?: string[]
   createdBy?: string
@@ -14,7 +14,7 @@ interface CreateTemplateRequest {
 interface UpdateTemplateRequest {
   name?: string
   description?: string
-  scenes?: string[]
+  pages?: string[]
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
@@ -73,15 +73,15 @@ class TemplateController {
     try {
       const templateData = ctx.request.body as CreateTemplateRequest
 
-      if (!templateData.id || !templateData.name || !templateData.scenes) {
+      if (!templateData.id || !templateData.name || !templateData.pages) {
         ctx.status = 400
-        ctx.body = { success: false, message: 'id, name and scenes are required' }
+        ctx.body = { success: false, message: 'id, name and pages are required' }
         return
       }
 
-      if (!Array.isArray(templateData.scenes)) {
+      if (!Array.isArray(templateData.pages)) {
         ctx.status = 400
-        ctx.body = { success: false, message: 'scenes must be an array of strings' }
+        ctx.body = { success: false, message: 'pages must be an array of strings' }
         return
       }
 

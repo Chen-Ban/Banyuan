@@ -23,7 +23,7 @@ export function createBanvasActions(
         page: createPageActions(getApp),
         history: createHistoryActions(getApp),
 
-        getSerializedScenes(): string[] {
+        getSerializedPages(): string[] {
             const app = getApp()
             if (!app) return []
             return app.getSerializedScenes()

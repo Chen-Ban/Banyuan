@@ -5,7 +5,7 @@ import React, {
 } from 'react'
 import { useCanvasInit } from '../useBanvas/canvas/useCanvasInit'
 import { useFlowCanvasEvents } from '../useBanvas/canvas/useFlowCanvasEvents'
-import type { SerializedSceneJSON } from '../useBanvas/types'
+import type { SerializedPageJSON } from '../useBanvas/types'
 import type { App } from '@/core/app'
 
 export interface UseFlowBanvasOptions {
@@ -31,13 +31,13 @@ export interface UseFlowBanvasResult {
  * - 交互结束时通过 onSchemaChange 通知调用方写回 FlowSchema
  */
 export default function useFlowBanvas(
-    serializedScenes: SerializedSceneJSON[],
+    serializedPages: SerializedPageJSON[],
     options: UseFlowBanvasOptions,
     onSchemaChange?: () => void,
 ): UseFlowBanvasResult {
     const { width, height, backgroundColor } = options
 
-    const { app, canvasRef, canvasCallbackRef } = useCanvasInit(serializedScenes, {
+    const { app, canvasRef, canvasCallbackRef } = useCanvasInit(serializedPages, {
         width,
         height,
         rendererOptions: backgroundColor ? { backgroundColor } : undefined,
