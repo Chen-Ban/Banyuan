@@ -1,5 +1,5 @@
 /**
- * Hook 公共接口层 —— useBanvas 对外暴露的数据结构与操作接口
+ * Hook 公共接口层 —— useDesignBanvas 对外暴露的数据结构与操作接口
  *
  * 设计原则：
  * 1. 只暴露只读的描述性数据，不暴露内部 class 实例
@@ -329,7 +329,7 @@ export interface IContextMenuState {
 // ────────────────────────────────────────────
 
 /**
- * useBanvas Hook 的新版返回值类型
+ * useDesignBanvas Hook 的返回值类型
  *
  * 特征：
  * - 不暴露 App / Scene 实例

@@ -3,9 +3,9 @@ import React, {
     useMemo,
     useSyncExternalStore,
 } from 'react'
-import { useCanvasInit } from '../useBanvas/canvas/useCanvasInit'
-import { useFlowCanvasEvents } from '../useBanvas/canvas/useFlowCanvasEvents'
-import type { SerializedPageJSON } from '../useBanvas/types'
+import { useCanvasInit } from '../useCanvasInit'
+import { useFlowCanvasEvents } from '../useDesignBanvas/canvas/useFlowCanvasEvents'
+import type { SerializedPageJSON } from '../useDesignBanvas/types'
 import type { App } from '@/core/app'
 
 export interface UseFlowBanvasOptions {
@@ -22,9 +22,9 @@ export interface UseFlowBanvasResult {
 }
 
 /**
- * 流程图画布专用 hook
+ * 流程图画布专用 hook（EventsTab 内嵌流程图编辑器使用）
  *
- * 与 useBanvas 的区别：
+ * 与 useDesignBanvas 的区别：
  * - 使用 useFlowCanvasEvents（只支持 MOVE + CONNECT）
  * - 不绑定 input、右键菜单、拖拽创建
  * - 不暴露 actions/pages 等主编辑器概念
