@@ -2,7 +2,7 @@ import { connectDatabase, disconnectDatabase } from '../config/database'
 import mongoose from 'mongoose'
 
 /**
- * 迁移模板数据：将旧的 template（单个JSON字符串）迁移为 scenes（JSON字符串数组）
+ * 迁移模板数据：将旧的 template（单个JSON字符串）迁移为 pages（JSON字符串数组）
  * 
  * 运行方式：tsx src/utils/migrateTemplates.ts
  */
@@ -19,10 +19,10 @@ async function migrateTemplates() {
 
     const collection = db.collection('templates')
 
-    // 查找所有还有旧 template 字段且没有 scenes 字段的文档
+    // 查找所有还有旧 template 字段且没有 pages 字段的文档
     const oldTemplates = await collection.find({
       template: { $exists: true },
-      scenes: { $exists: false },
+      pages: { $exists: false },
     }).toArray()
 
     if (oldTemplates.length === 0) {
@@ -38,14 +38,14 @@ async function migrateTemplates() {
     for (const doc of oldTemplates) {
       const templateStr = doc.template as string
 
-      // 将单个 template 字符串包装为 scenes 数组
-      const scenes = templateStr ? [templateStr] : []
+      // 将单个 template 字符串包装为 pages 数组
+      const pages = templateStr ? [templateStr] : []
 
       await collection.updateOne(
         { _id: doc._id },
         {
           $set: {
-            scenes,
+            pages,
             description: '',
             thumbnail: '',
             tags: [],

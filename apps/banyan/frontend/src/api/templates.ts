@@ -9,7 +9,7 @@ export interface Template {
   name: string
   description?: string
   thumbnail?: string
-  scenes?: string[]
+  pages?: string[]
   tags?: string[]
   version?: number
   createdBy?: string
@@ -25,7 +25,7 @@ export interface TemplateFormData {
   name: string
   description?: string
   thumbnail?: string
-  scenes?: string[]
+  pages?: string[]
   tags?: string[]
 }
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { App } from "@/core/app";
 import { BaseCamera, Scene } from "@/core";
-import type { UseBanvasOptions, SerializedSceneJSON } from "../types";
+import type { UseBanvasOptions, SerializedPageJSON } from "../types";
 import { useBOMProperties } from "./useBOMProperties";
 
 export interface UseCanvasInitResult {
@@ -14,7 +14,7 @@ export interface UseCanvasInitResult {
  * Canvas 初始化逻辑
  */
 export function useCanvasInit(
-  serializedScenes: SerializedSceneJSON[],
+  serializedPages: SerializedPageJSON[],
   options: UseBanvasOptions,
 ): UseCanvasInitResult {
   const { dpr } = useBOMProperties();
@@ -58,7 +58,7 @@ export function useCanvasInit(
     };
   }, [canvasNode]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ===== Effect 2: Scene 初始化（将 scenes 填充到 app 中） =====
+  // ===== Effect 2: 页面初始化（将序列化数据填充到 app 中） =====
   useEffect(() => {
     if (!app) return;
 
@@ -66,9 +66,9 @@ export function useCanvasInit(
     const existingScenes = app.getScenes();
     existingScenes.forEach((scene) => app.removeScene(scene));
 
-    if (Array.isArray(serializedScenes) && serializedScenes.length > 0) {
+    if (Array.isArray(serializedPages) && serializedPages.length > 0) {
       // 有序列化数据，反序列化加载
-      app.initFromSerializedScenes(serializedScenes);
+      app.initFromSerializedScenes(serializedPages);
     } else {
       // 无数据，创建默认空白页面
       const camera = new BaseCamera();
@@ -79,7 +79,7 @@ export function useCanvasInit(
 
     // 通知订阅者初始状态已就绪，触发 pages 构建
     app.notify();
-  }, [app, serializedScenes]);
+  }, [app, serializedPages]);
 
   // ===== Effect 3: 尺寸/dpr 变化时更新画布 =====
   useEffect(() => {

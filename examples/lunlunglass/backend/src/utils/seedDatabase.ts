@@ -253,9 +253,9 @@ async function seedTemplates(count: number = 10) {
 
     // 每个模板 1~3 个场景页面
     const sceneCount = randomNumber(1, 3)
-    const scenes: string[] = []
+    const pages: string[] = []
     for (let s = 0; s < sceneCount; s++) {
-      scenes.push(generateMockSceneJSON(`${name} - 页面${s + 1}`))
+      pages.push(generateMockSceneJSON(`${name} - 页面${s + 1}`))
     }
 
     // 随机 1~3 个标签
@@ -271,7 +271,7 @@ async function seedTemplates(count: number = 10) {
       name,
       description: `这是一个${name}，适用于${tags.join('、')}风格的眼镜配置。`,
       thumbnail: '',
-      scenes,
+      pages,
       tags,
       version: 1,
       createdBy: `USER${String(randomNumber(1, 20)).padStart(6, '0')}`,
