@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Tooltip, Popover } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, RocketOutlined } from '@ant-design/icons'
 import type { IComponentDefinition } from 'banvasgl'
 import styles from './index.module.scss'
 
@@ -13,6 +13,10 @@ interface ComponentPaletteProps {
     onDescriptionChange: (value: string) => void
     onSave: () => void
     onBack: () => void
+    /** 生成应用（打包） */
+    onBuild: () => void
+    /** 是否正在提交构建 */
+    building?: boolean
     /** 引擎内置物料，直接来自 useDesignBanvas().builtinComponents */
     builtinComponents: IComponentDefinition[]
     /**
@@ -49,6 +53,8 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     onDescriptionChange,
     onSave,
     onBack,
+    onBuild,
+    building = false,
     builtinComponents,
     userComponents = [],
 }) => {
@@ -114,6 +120,15 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                         icon={<SaveOutlined />}
                         loading={saving}
                         onClick={onSave}
+                        className={styles.saveBtn}
+                    />
+                </Tooltip>
+                <Tooltip title="生成应用">
+                    <Button
+                        type="text"
+                        icon={<RocketOutlined />}
+                        loading={building}
+                        onClick={onBuild}
                         className={styles.saveBtn}
                     />
                 </Tooltip>
