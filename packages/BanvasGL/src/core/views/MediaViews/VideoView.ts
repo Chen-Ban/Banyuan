@@ -68,6 +68,7 @@ export default class VideoView extends View implements IVideoView, ISerializable
         if (data.style) view.style = data.style
         if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
         if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)
+        if (data.constraintBounds) view.constraintBounds = Bounds.fromJSON(data.constraintBounds)
         if (data.children) {
             data.children.forEach((child: View) => {
                 view.children.push(child)
