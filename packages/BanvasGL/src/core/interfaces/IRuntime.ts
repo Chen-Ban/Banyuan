@@ -17,8 +17,13 @@ export interface RuntimeContext {
     /** 触发事件的 View 本身 */
     self: IView
 
-    /** 当前页面（Scene） */
-    page: Scene
+    /**
+     * 当前页面（Scene）
+     *
+     * 为 null 时表示 View 尚未挂载到 Scene（如 onCreated 生命周期），
+     * 此时依赖 Scene 的操作（navigate / animate / markDirty / pageDataRef）将被跳过。
+     */
+    page: Scene | null
 
     /**
      * 通过 id 查找同页面其他 View
