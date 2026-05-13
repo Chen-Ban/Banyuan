@@ -85,8 +85,8 @@ export default abstract class TextElement extends Graph implements ITextElement 
             ]
             return Bounds.fromPoints(
                 points,
-                orientationX ?? this.bounds?.width > 0,
-                orientationY ?? this.bounds?.height > 0
+                orientationX ?? this.bounds?.width >= 0,
+                orientationY ?? this.bounds?.height >= 0
             )
         } else {
             return Bounds.empty()
@@ -525,11 +525,7 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
      */
     public applyLayout(position: Point3, lineHeight: number): this {
         this.isLayouted = true
-        //由于height为0，计算时y值在包围盒左下角，将它移动到左上角
-        this.controlPoints = [
-            position.add(new Vector3(0, -lineHeight, 0)),
-        ]
-        // 高度和行高保持一致，此时控制点在包围盒左上角
+        this.controlPoints = [position.copy()]
         this.height = lineHeight
         this.lineHeight = lineHeight
         // 计算包围盒并设置正确的controlPoints
