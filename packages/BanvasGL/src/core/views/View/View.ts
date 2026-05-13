@@ -454,8 +454,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 步骤2: 初始化布局区域(使用视口大小作为初始值)
     this.layoutArea = this.viewport.copy();
 
-    // 步骤2.5: 初始化内容的排版约束区域为当前视口副本
-    if (this.content) {
+    // 步骤2.5: 初始化内容的排版约束区域
+    // 仅在 content 尚未拥有有效 constraintBounds 时才用 viewport 初始化
+    // （反序列化场景中 content 已通过 fromJSON 恢复了正确的 constraintBounds）
+    if (this.content && this.content.constraintBounds.isEmpty) {
       this.content.constraintBounds = this.viewport.copy();
     }
 
