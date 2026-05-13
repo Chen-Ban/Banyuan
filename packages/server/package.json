@@ -16,7 +16,8 @@
     "koa": "^2.15.3",
     "@koa/router": "^13.1.0",
     "@koa/cors": "^5.0.0",
-    "koa-body": "^6.0.1"
+    "koa-body": "^6.0.1",
+    "banvasgl": "workspace:*"
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",
