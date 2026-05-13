@@ -1,0 +1,47 @@
+{
+  "name": "xiangdi",
+  "version": "0.1.0",
+  "description": "相地 —— 造园之始，先察山川形势。感知设计意图，规划生成路径，驱动画布生长。",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.mjs"
+    }
+  },
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "banvas",
+    "xiangdi",
+    "llm"
+  ],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.10.0",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.4.0",
+    "typescript": "~5.7.3"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "banvasgl": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "banvasgl": {
+      "optional": true
+    }
+  }
+}
