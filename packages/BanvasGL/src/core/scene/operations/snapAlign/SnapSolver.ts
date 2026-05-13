@@ -7,7 +7,7 @@ import { SnapAxis, type AxisSnap } from './types'
  * 源的三条锚线（min/mid/max）与所有候选目标的三条锚线逐一比较，取最近的
  */
 export class SnapSolver {
-  constructor(private threshold: number = 5) {}
+  constructor(private threshold: number = 3) {}
 
   solve(source: Bounds, candidates: CacheEntry[]): AxisSnap[] {
     const results: AxisSnap[] = []
