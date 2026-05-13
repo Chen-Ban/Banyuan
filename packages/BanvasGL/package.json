@@ -45,8 +45,10 @@
     "@types/uuid": "^10.0.0",
     "tsup": "^8.4.0"
   },
+  "peerDependencies": {
+    "react": "^19.1.0"
+  },
   "dependencies": {
-    "react": "^19.1.0",
     "uuid": "^11.1.0"
   }
 }
