@@ -12,6 +12,7 @@
   <!-- TODO: Replace with real badges when CI/CD and npm publishing are set up -->
   <img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License" />
   <img src="https://img.shields.io/badge/banvasgl-v0.1.0-green.svg" alt="BanvasGL Version" />
+  <img src="https://img.shields.io/badge/xiangdi-v0.1.0-orange.svg" alt="XiangDi Version" />
   <img src="https://img.shields.io/badge/react-19-61dafb.svg" alt="React 19" />
   <img src="https://img.shields.io/badge/electron-36-47848f.svg" alt="Electron 36" />
 </p>
@@ -51,17 +52,20 @@
 ## 架构
 
 ```
-┌─────────────────────────────────────────────────┐
-│           Banyan 低代码平台 / 你的应用             │
-│      (React 编辑器 + Koa API + Electron 壳)       │
-├─────────────────────────────────────────────────┤
-│              React Hook 桥接层                    │
-│  useDesignBanvas · useFlowBanvas · useRuntimeBanvas │
-├─────────────────────────────────────────────────┤
-│              BanvasGL 渲染引擎                     │
-│  SceneGraph · Renderer · Animation · FlowRunner   │
-│  Serializer · SnapAlign · Math · Workers          │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│              Banyan 低代码平台 / 你的应用                      │
+│         (React 编辑器 + Koa API + Electron 壳)                │
+├──────────────────────────┬──────────────────────────────────┤
+│     React Hook 桥接层     │        XiangDi AI Agent 引擎      │
+│  useDesignBanvas         │  AgentLoop · ToolRegistry         │
+│  useFlowBanvas           │  ContextManager · StreamBridge    │
+│  useRuntimeBanvas        │  AISchema ↔ BanvasGL Converters   │
+│                          │  BanvasToolProtocol · Prompts     │
+├──────────────────────────┴──────────────────────────────────┤
+│                    BanvasGL 渲染引擎                           │
+│   SceneGraph · Renderer · Animation · FlowRunner             │
+│   Serializer · SnapAlign · Math · Workers                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 BanvasGL 作为独立的 npm 包，通过三个 React Hook 向上层应用暴露能力：`useDesignBanvas`（编辑态）、`useFlowBanvas`（流程编辑态）、`useRuntimeBanvas`（运行态）。上层应用只需消费 Hook 返回的画布元素和操作集，无需关心引擎内部实现。
@@ -76,6 +80,7 @@ BanvasGL 作为独立的 npm 包，通过三个 React Hook 向上层应用暴露
 Banyuan/
 ├── packages/
 │   ├── BanvasGL/          # 核心 2D 图形引擎 (npm 包)
+│   ├── XiangDi/           # AI Agent 引擎 (npm 包)
 │   └── server/            # 平台后端服务 (预览 + 构建)
 │
 ├── apps/
@@ -170,7 +175,8 @@ function App({ pages }) {
 ## 路线图
 
 - [ ] **MVP 测试与发布** —— 完善测试覆盖，发布首个可用版本
-- [ ] **大模型介入，AI 生成应用** —— 接入 LLM，通过自然语言描述自动生成可视化应用
+- [x] **XiangDi AI Agent 引擎** —— 相地包落地，AgentLoop + AISchema + BanvasToolProtocol 骨架完成
+- [ ] **XiangDi 接入 Banyan** —— 在编辑器中集成 AI 对话面板，实现设计稿 + 自然语言 → 生成应用
 - [ ] **图形库 WebGPU 重构** —— 将渲染后端从 Canvas 2D 迁移到 WebGPU，大幅提升渲染性能
 - [ ] **全平台 Canvas 适配** —— 适配 Web、桌面、移动端及小程序的 Canvas 实现，实现一个应用跨所有端
 
