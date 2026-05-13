@@ -11,6 +11,10 @@
 
 import { randomUUID } from 'crypto'
 
+// 动态读取 banvasgl 当前版本，保持预览 CDN 链接与实际版本一致
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const banvasglVersion: string = require('banvasgl/package.json').version
+
 export interface PreviewData {
     previewId: string
     appJson: string
@@ -78,7 +82,7 @@ export function buildPreviewHtml(data: PreviewData): string {
     <script type="module">
       import React from 'https://esm.sh/react@19.1.0'
       import { createRoot } from 'https://esm.sh/react-dom@19.1.0/client'
-      import useRuntimeBanvas from 'https://esm.sh/banvasgl@0.1.0/runtime'
+      import useRuntimeBanvas from 'https://esm.sh/banvasgl@${banvasglVersion}/runtime'
 
       const APP_JSON = ${safeAppJson}
       const APP_PAGES = JSON.parse(APP_JSON)

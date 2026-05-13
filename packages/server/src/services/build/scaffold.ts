@@ -16,6 +16,10 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+// 动态读取 banvasgl 当前版本，确保 scaffold 生成的依赖版本与当前服务端一致
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const banvasglVersion: string = require('banvasgl/package.json').version
+
 export interface ScaffoldOptions {
     appJson: string      // 序列化的 App JSON（多页面数组，JSON.stringify 后的字符串）
     appName: string      // 应用名称，用于 package.json name 和 HTML title
@@ -84,7 +88,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
         dependencies: {
             react: '^19.1.0',
             'react-dom': '^19.1.0',
-            banvasgl: '^0.1.0',
+            banvasgl: banvasglVersion,
         },
         devDependencies: {
             '@types/react': '^19.1.2',
