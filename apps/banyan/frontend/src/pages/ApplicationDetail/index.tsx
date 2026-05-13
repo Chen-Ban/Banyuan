@@ -7,10 +7,12 @@ import {
   useLayoutEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDesignBanvas } from "banvasgl";
+import { useDesignBanvas, version as banvasglVersion } from "banvasgl";
 import { message } from "antd";
-import { applicationApi } from "@/api";
+import { applicationApi, buildApi } from "@/api";
+import type { Platform } from "@/api";
 import { getErrorMessage } from "@/utils/error";
+import BuildTaskModal from "@/components/BuildTaskModal";
 import styles from "./index.module.scss";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyPanel from "./components/PropertyPanel";
@@ -29,6 +31,11 @@ const ApplicationDetail = () => {
   const [initialPages, setInitialPages] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(isNew);
   const [saving, setSaving] = useState(false);
+
+  // 构建相关状态
+  const [buildModalOpen, setBuildModalOpen] = useState(false);
+  const [buildTaskId, setBuildTaskId] = useState<string | null>(null);
+  const [buildSubmitting, setBuildSubmitting] = useState(false);
 
   // 用于自动保存名称/描述的 debounce
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -196,6 +203,46 @@ const ApplicationDetail = () => {
     }
   }, [applicationName, applicationDescription, actions, isNew, id, navigate]);
 
+  /**
+   * 生成应用（提交构建任务）
+   */
+  const handleBuild = useCallback(async () => {
+    if (!applicationName.trim()) {
+      message.warning("请先输入应用名称");
+      return;
+    }
+
+    setBuildSubmitting(true);
+    try {
+      const serializedPages = actions.getSerializedPages();
+      const appJson = JSON.stringify(serializedPages);
+
+      // 检测当前平台
+      const platform: Platform = navigator.platform.toLowerCase().includes('mac')
+        ? 'mac'
+        : navigator.platform.toLowerCase().includes('linux')
+          ? 'linux'
+          : 'win';
+
+      const res = await buildApi.submitBuild({
+        appJson,
+        appName: applicationName,
+        platform,
+        width: canvasSize.width,
+        height: canvasSize.height,
+        banvasglVersion,
+      });
+
+      setBuildTaskId(res.taskId);
+      setBuildModalOpen(true);
+      message.success("构建任务已提交");
+    } catch (error: unknown) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setBuildSubmitting(false);
+    }
+  }, [applicationName, actions, canvasSize]);
+
   const handleBack = () => {
     navigate("/");
   };
@@ -215,6 +262,8 @@ const ApplicationDetail = () => {
         onDescriptionChange={handleDescChange}
         onSave={handleSave}
         onBack={handleBack}
+        onBuild={handleBuild}
+        building={buildSubmitting}
         builtinComponents={builtinComponents}
       />
       <div className={styles.mainContent}>
@@ -234,6 +283,11 @@ const ApplicationDetail = () => {
         />
       </div>
       <ContextMenu state={contextMenu} />
+      <BuildTaskModal
+        open={buildModalOpen}
+        onClose={() => setBuildModalOpen(false)}
+        taskId={buildTaskId}
+      />
     </div>
   );
 };

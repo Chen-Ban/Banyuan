@@ -1,4 +1,5 @@
 import { defineConfig } from "tsup";
+import pkg from "./package.json";
 
 export default defineConfig([
   // 三个打包维度：前端（编辑态）/ 后端 / 运行时
@@ -12,6 +13,9 @@ export default defineConfig([
     format: ["esm", "cjs"],
     clean: true,
     external: ["react", "react-dom"],
+    define: {
+      __BANVASGL_VERSION__: JSON.stringify(pkg.version),
+    },
   },
   // 单独打包 WorkerRuntime，生成固定文件名，供 WorkerExecutor 使用
   {

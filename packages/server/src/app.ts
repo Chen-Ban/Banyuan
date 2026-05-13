@@ -3,8 +3,7 @@ import cors from '@koa/cors'
 import { koaBody } from 'koa-body'
 import { errorHandler } from './middleware/errorHandler'
 import { logger } from './middleware/logger'
-import router from './routes'
-import previewRouter from './routes/preview'
+import { apiRouter, previewRouter } from './routes'
 
 const app = new Koa()
 
@@ -19,11 +18,9 @@ app.use(logger)
 app.use(cors())
 app.use(koaBody())
 
-// API 路由（/api/v1/...）
-app.use(router.routes())
-app.use(router.allowedMethods())
-
-// 预览路由（/preview/...，直接返回 HTML，不走 /api/v1 前缀）
+// 路由
+app.use(apiRouter.routes())
+app.use(apiRouter.allowedMethods())
 app.use(previewRouter.routes())
 app.use(previewRouter.allowedMethods())
 
