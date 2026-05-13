@@ -1,12 +1,17 @@
 import Router from '@koa/router'
 import buildRouter from './build'
+import previewRouter from './preview'
 
-const router = new Router({ prefix: '/api/v1' })
+// ── API 路由（/api/v1/...）──
+const apiRouter = new Router({ prefix: '/api/v1' })
 
-router.get('/health', (ctx) => {
+apiRouter.get('/health', (ctx) => {
     ctx.body = { success: true, message: 'Banyuan server is running' }
 })
 
-router.use(buildRouter.routes(), buildRouter.allowedMethods())
+apiRouter.use(buildRouter.routes(), buildRouter.allowedMethods())
 
-export default router
+// ── 预览路由（/preview/...，直接返回 HTML，不走 /api/v1 前缀）──
+// previewRouter 自带 prefix: '/preview'
+
+export { apiRouter, previewRouter }
