@@ -29,6 +29,7 @@ export default class TextFields
   public options: TextFieldsOptions;
   public paragraphs: TextParagraph[];
   public bounds: Bounds;
+  public constraintBounds: Bounds;
   public transfromOrigin: Point3;
 
   constructor(
@@ -42,6 +43,7 @@ export default class TextFields
     this.paragraphs = paragraphs;
     this.controlPoints = [];
     this.bounds = Bounds.empty();
+    this.constraintBounds = Bounds.empty();
     this.transfromOrigin = Point3.origin;
     this.id = generateId(this.type);
   }
@@ -161,7 +163,6 @@ export default class TextFields
    */
   public layout(): TextFields {
     const layoutArea = this.constraintBounds.copy();
-    console.log(layoutArea);
 
     // 如果没有固定宽度则选择最长段落宽度作为布局宽度，让所有段落能够一行展示
     if (!this.options.fixedWidth) {
@@ -201,7 +202,6 @@ export default class TextFields
       const paragraphBounds = paragraph.bounds;
       currentY += paragraphBounds.height;
     }
-
     this.adjustParagraphVerticalAlignment(paragraphs, layoutArea);
   }
 
