@@ -16,9 +16,6 @@ export default abstract class Graph implements IGraph, ISerializable {
     public abstract style: Style
     // 图形包围盒
     public abstract bounds: Bounds
-    // 排版约束区域（仅作为建议，内容可以超出）
-    // 初始值等于自身 bounds，resize 时同步更新
-    public constraintBounds: Bounds = Bounds.empty()
     // transform原点
     public abstract transfromOrigin: Point3
     //构造函数
@@ -47,7 +44,7 @@ export default abstract class Graph implements IGraph, ISerializable {
         orientationX?: boolean,
         orientationY?: boolean
     ): Bounds
-    public layout(): Graph | void {}
+    public layout(_constraintBounds?: Bounds): Graph | void {}
     /**
      * 判断点是否在图形内部
      * @param p 本地坐标系下的点
