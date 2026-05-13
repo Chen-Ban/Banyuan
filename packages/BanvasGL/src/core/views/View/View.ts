@@ -30,6 +30,7 @@ import type {
   IAnimationDescriptor,
 } from "@/core/interfaces";
 import Scene from "@/core/scene/Scene";
+import { FlowRunner } from "@/core/runtime/FlowRunner";
 
 const RESIZE_SIZE_MAP = [
   { width: true, height: true },
@@ -468,8 +469,15 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     this.initRef(this.children);
 
     // 触发用户自定义 onCreated 生命周期
-    // onCreated 在构造期触发，此时尚未挂载到 Scene，getScene() 返回 null 自然跳过
-    this.getScene()?.triggerSchema(this, this.lifetimes.onCreated)
+    // onCreated 在构造期触发，此时尚未挂载到 Scene，使用退化上下文（无场景能力）
+    if (this.lifetimes.onCreated) {
+      FlowRunner.run(this.lifetimes.onCreated, {
+        self: this,
+        page: null,
+        view: () => null,
+        eventArgs: [],
+      })
+    }
   }
 
   /**
@@ -504,7 +512,9 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   // 生命周期方法（引擎内部调用，附带触发用户自定义 lifetimes）
 
   public onAttach(): void {
+    // 前序遍历：先触发自身生命周期，再递归子节点
     this.getScene()?.triggerSchema(this, this.lifetimes.onAttach)
+    this.children.forEach(child => child.onAttach())
   }
 
   public onDestroy(): void {
@@ -900,6 +910,31 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   // ==================== 序列化 ====================
+
+  /**
+   * 从纯数据对象恢复 View 公共字段。
+   * 子类 fromJSON 中构造实例后调用此方法完成公共属性恢复。
+   * 恢复顺序：基本属性 → viewport/constraintBounds → children → restoreLayout
+   */
+  protected restoreFromJSON(data: any): void {
+    this.id = data.id;
+    this.visible = data.visible;
+    this.freezed = data.freezed;
+    if (data.data) this.data = data.data;
+    if (data.events) Object.assign(this.events, data.events);
+    if (data.lifetimes) Object.assign(this.lifetimes, data.lifetimes);
+    if (data.style) this.style = data.style;
+    if (data.matrix) this.matrix = Matrix4.fromJSON(data.matrix);
+    if (data.viewport) this.viewport = Bounds.fromJSON(data.viewport);
+    if (data.constraintBounds) this.constraintBounds = Bounds.fromJSON(data.constraintBounds);
+    if (data.children) {
+      data.children.forEach((child: View) => {
+        this.children.push(child);
+        child.parent = this;
+      });
+    }
+    this.restoreLayout();
+  }
 
   /**
    * 从 fromJSON 恢复后调用，同步 boundingBox 和 layoutArea。
