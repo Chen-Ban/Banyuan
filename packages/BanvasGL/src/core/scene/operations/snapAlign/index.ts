@@ -22,7 +22,7 @@ export class SnapAlignManager {
   private activeIds = new Set<string>()
   private active = false
 
-  constructor(threshold: number = 5) {
+  constructor(threshold: number = 3) {
     this.solver = new SnapSolver(threshold)
   }
 
