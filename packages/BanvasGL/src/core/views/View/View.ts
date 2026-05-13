@@ -145,6 +145,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
   // 内容布局区域
   public layoutArea: Bounds;
+  // 排版约束区域：容器对内容的布局约束（描述内容可排版的空间）
+  public constraintBounds: Bounds = Bounds.empty();
   // 类型
   public abstract readonly type: VIEWTYPE;
   //抽象方法
@@ -323,9 +325,9 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   // 获取内容
   public layoutContent(): Bounds {
     // 内容布局区域，优先调用布局方法(主要只有文字需要进行内容布局)，然后看已有bounds
-    // content 通过自身的 constraintBounds 获取排版约束，不再由外部传参
+    // constraintBounds 由 View 持有并传递给 content.layout() 作为排版约束
     return (
-      this.content?.layout()?.bounds ?? this.content?.bounds ?? Bounds.empty()
+      this.content?.layout(this.constraintBounds)?.bounds ?? this.content?.bounds ?? Bounds.empty()
     );
   }
 
@@ -454,14 +456,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 步骤2: 初始化布局区域(使用视口大小作为初始值)
     this.layoutArea = this.viewport.copy();
 
-    // 步骤2.5: 初始化内容的排版约束区域
-    // 仅在 content 尚未拥有有效 constraintBounds 时才用 viewport 初始化
-    // （反序列化场景中 content 已通过 fromJSON 恢复了正确的 constraintBounds）
-    if (this.content && this.content.constraintBounds.isEmpty) {
-      this.content.constraintBounds = this.viewport.copy();
-    }
+    // 步骤3: 初始化排版约束区域（容器对内容的布局约束）
+    this.constraintBounds = this.viewport.copy();
 
-    // 步骤3: 执行布局，布局目的
+    // 步骤4: 执行布局
     // 1、不同容器独有的布局（比如文本容器）
     // 2、获取实际布局区域
     // 3、让内容区域进行偏移
@@ -612,6 +610,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     if (needResizeContent && this.content) {
       // 修改内容
       this.content.resize(fixedPoint, dynamicPoint, relativeVector);
+      // resize 后将内容实际边界回写为新的排版约束
+      this.constraintBounds = this.content.bounds?.copy() ?? Bounds.empty();
       // 更新完内容后更新实际布局区域
       this.layoutArea = Bounds.union(
         // this.viewport 先不加入视口区域，避免文本布局跟着视口跑
@@ -912,6 +912,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     }
     // 同步 layoutArea 并触发布局计算
     this.layoutArea = this.viewport.copy();
+    // constraintBounds 已由 fromJSON 恢复，若缺失则用 viewport 兜底
+    if (!this.constraintBounds || this.constraintBounds.isEmpty) {
+      this.constraintBounds = this.viewport.copy();
+    }
     this.layout();
   }
 
@@ -931,6 +935,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       style: this.style,
       matrix: this.matrix.toJSON(),
       viewport: this.viewport.toJSON(),
+      constraintBounds: this.constraintBounds.toJSON(),
       content: this.content
         ? {
             $type: (this.content as any).type,

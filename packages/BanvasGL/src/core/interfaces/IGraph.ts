@@ -31,7 +31,6 @@ export interface IGraph {
     controlPoints: Point3[] | Float32Array
     style: Style
     bounds: Bounds
-    constraintBounds: Bounds
     transfromOrigin: Point3
 
     // 渲染
@@ -39,7 +38,7 @@ export interface IGraph {
     render(ctx: CanvasRenderingContext2D): void
     copy(): IGraph
     updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds
-    layout(): IGraph | void
+    layout(constraintBounds?: Bounds): IGraph | void
 
     // 几何查询
     isPointInPath(p: Point3): Boolean
@@ -383,7 +382,7 @@ export interface ITextFields extends IGraph {
     clearParagraphs(): ITextFields
     getParagraph(index: number): ITextParagraph | undefined
     getTextOptionsByIndex(textIndex: TextIndex): TextOptions
-    layout(): ITextFields
+    layout(constraintBounds?: Bounds): ITextFields
     point2TextElement(relativePoint: Point3): ITextElement | null
     element2Index(
         textElement: ITextElement,
