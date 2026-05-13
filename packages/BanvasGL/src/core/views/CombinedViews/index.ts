@@ -86,6 +86,7 @@ export default class CombinedView extends View implements ICombinedView, ISerial
         if (data.style) view.style = data.style
         if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
         if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)
+        if (data.constraintBounds) view.constraintBounds = Bounds.fromJSON(data.constraintBounds)
         if (data.content) view.content = data.content // 已由 Serializer 解析
         // children 通过 addChild 恢复，确保 parent 引用正确
         if (data.children) {
