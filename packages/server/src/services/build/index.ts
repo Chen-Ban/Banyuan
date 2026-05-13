@@ -100,6 +100,8 @@ export interface StartBuildOptions {
     platform: Platform
     width: number
     height: number
+    /** banvasgl 版本号，由前端传入 */
+    banvasglVersion: string
 }
 
 /**
@@ -126,7 +128,7 @@ export function startBuild(options: StartBuildOptions): string {
 }
 
 async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<void> {
-    const { appJson, appName, platform, width, height } = options
+    const { appJson, appName, platform, width, height, banvasglVersion } = options
 
     // 工作目录：系统临时目录下按 taskId 隔离
     const workDir = path.join(os.tmpdir(), 'banyuan-build', task.taskId)
@@ -144,7 +146,7 @@ async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<vo
     try {
         update({ status: 'running' })
         console.log(`[Build ${task.taskId}] step 1/3 scaffold ...`)
-        await scaffold({ appJson, appName, outputDir: projectDir, width, height })
+        await scaffold({ appJson, appName, outputDir: projectDir, width, height, banvasglVersion })
 
         console.log(`[Build ${task.taskId}] step 2/3 bundle ...`)
         await bundle({ projectDir, outputDir: distDir })
