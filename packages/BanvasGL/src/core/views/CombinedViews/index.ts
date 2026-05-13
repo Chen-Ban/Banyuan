@@ -2,8 +2,6 @@ import { VIEWTYPE } from '@/core/constants'
 import View, { ViewOptions } from '@/core/views/View/View'
 import { ICombinedView, ISerializable } from '@/core/interfaces'
 import { generateId, generateName } from '@/core/utils'
-import Matrix4 from '@/core/math/Matrix4'
-import Bounds from '@/core/graph/base/Bounds'
 
 /**
  * 组合视图
@@ -49,7 +47,10 @@ export default class CombinedView extends View implements ICombinedView, ISerial
         if (!this.children.includes(child)) {
             this.children.push(child)
             child.parent = this
-            child.onAttach()
+            // 仅当自身已挂载到 Scene 时才触发子节点的 onAttach（递归前序）
+            if (this.getScene()) {
+                child.onAttach()
+            }
         }
     }
 
@@ -77,22 +78,8 @@ export default class CombinedView extends View implements ICombinedView, ISerial
      */
     static fromJSON(data: any): CombinedView {
         const view = new CombinedView({})
-        view.id = data.id
-        view.visible = data.visible
-        view.freezed = data.freezed
-        if (data.data) view.data = data.data
-        if (data.events) Object.assign(view.events, data.events)
-        if (data.lifetimes) Object.assign(view.lifetimes, data.lifetimes)
-        if (data.style) view.style = data.style
-        if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
-        if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)
-        if (data.constraintBounds) view.constraintBounds = Bounds.fromJSON(data.constraintBounds)
         if (data.content) view.content = data.content // 已由 Serializer 解析
-        // children 通过 addChild 恢复，确保 parent 引用正确
-        if (data.children) {
-            data.children.forEach((child: View) => view.addChild(child))
-        }
-        view.restoreLayout()
+        view.restoreFromJSON(data)
         return view
     }
 }

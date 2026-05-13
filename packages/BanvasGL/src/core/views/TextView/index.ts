@@ -7,7 +7,6 @@ import { Action, Cursor, ITextView, ISerializable } from '@/core/interfaces'
 import Selection from './Selection'
 import { VERTICALALIGN, VIEWTYPE } from '@/core/constants'
 import { generateId, generateName } from '@/core/utils'
-import Matrix4 from '@/core/math/Matrix4'
 import Bounds from '@/core/graph/base/Bounds'
 import {
     NonPrintableTextElement,
@@ -511,24 +510,7 @@ newView.data = { ...this.data }
             editable: data.editable,
             verticalAlign: data.verticalAlign,
         })
-        view.id = data.id
-        view.visible = data.visible
-        view.freezed = data.freezed
-if (data.data) view.data = data.data
-        if (data.events) Object.assign(view.events, data.events)
-        if (data.lifetimes) Object.assign(view.lifetimes, data.lifetimes)
-        if (data.style) view.style = data.style
-        if (data.matrix) view.matrix = Matrix4.fromJSON(data.matrix)
-        if (data.viewport) view.viewport = Bounds.fromJSON(data.viewport)
-        if (data.constraintBounds) view.constraintBounds = Bounds.fromJSON(data.constraintBounds)
-        if (data.children) {
-            data.children.forEach((child: View) => {
-                view.children.push(child)
-                child.parent = view
-                child.onAttach()
-            })
-        }
-        view.restoreLayout()
+        view.restoreFromJSON(data)
         return view
     }
 }
