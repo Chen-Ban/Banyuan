@@ -1,3 +1,5 @@
+import * as fs from 'fs'
+import * as path from 'path'
 import Router from '@koa/router'
 import { startBuild, getTask } from '../services/build'
 import type { Platform } from '../services/build'
@@ -81,7 +83,7 @@ router.post('/app', async (ctx) => {
  *     task: {
  *       taskId, appName, platform, status,
  *       createdAt, updatedAt,
- *       outputFile?,   // status === 'success' 时
+ *       downloadUrl?,  // status === 'success' 时，安装包下载地址
  *       error?,        // status === 'failed' 时
  *     }
  *   }
@@ -96,7 +98,50 @@ router.get('/status/:taskId', async (ctx) => {
         return
     }
 
-    ctx.body = { success: true, task }
+    // 不暴露服务器本地路径，成功时返回下载链接
+    const { outputFile, ...safeTask } = task
+    const origin = `${ctx.protocol}://${ctx.host}`
+    const result: Record<string, unknown> = { ...safeTask }
+    if (task.status === 'success' && outputFile) {
+        result.downloadUrl = `${origin}/api/v1/build/download/${taskId}`
+    }
+
+    ctx.body = { success: true, task: result }
+})
+
+/**
+ * GET /api/v1/build/download/:taskId
+ * 下载构建产物（安装包）
+ *
+ * 构建成功后可通过此接口下载 .dmg / .exe / .AppImage 文件。
+ * 响应为二进制文件流，Content-Disposition 设为 attachment。
+ */
+router.get('/download/:taskId', async (ctx) => {
+    const { taskId } = ctx.params
+    const task = getTask(taskId)
+
+    if (!task) {
+        ctx.status = 404
+        ctx.body = { success: false, error: `Task ${taskId} not found` }
+        return
+    }
+
+    if (task.status !== 'success' || !task.outputFile) {
+        ctx.status = 400
+        ctx.body = { success: false, error: 'Build is not complete or has failed' }
+        return
+    }
+
+    if (!fs.existsSync(task.outputFile)) {
+        ctx.status = 410
+        ctx.body = { success: false, error: 'Build artifact has been cleaned up, please rebuild' }
+        return
+    }
+
+    const fileName = path.basename(task.outputFile)
+    ctx.set('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`)
+    ctx.set('Content-Type', 'application/octet-stream')
+    ctx.body = fs.createReadStream(task.outputFile)
 })
 
 export default router
