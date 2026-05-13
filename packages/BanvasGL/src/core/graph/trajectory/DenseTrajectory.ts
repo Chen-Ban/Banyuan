@@ -299,7 +299,6 @@ export default class DenseTrajectory extends Graph implements IDenseTrajectory, 
     dt.style = Style.fromJSON(meta.style);
     dt.bounds = dt.updateBounds();
     dt.transfromOrigin = new Point3(controlPoints[0], controlPoints[1], 0);
-    dt.constraintBounds = Bounds.empty();
     return dt;
   }
 
