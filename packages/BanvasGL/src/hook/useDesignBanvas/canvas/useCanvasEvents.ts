@@ -396,6 +396,8 @@ export function useCanvasEvents({
   const onContextMenu = useCallback(
     (e: MouseEvent) => {
       e.preventDefault();
+      // macOS 上 Ctrl+左键会触发 contextmenu，但 Ctrl+Click 用于多选，应忽略
+      if (e.ctrlKey && e.button === 0) return;
       if (!app || !canvasRef.current || !onContextMenuHit) return;
       const scene = app.getCurrentScene();
       if (!scene) return;
