@@ -47,30 +47,50 @@
 - 自动保存，一键构建跨平台桌面应用
 - 即时预览，零构建在浏览器中查看效果
 
+**XiangDi AI Agent 引擎** —— 规范先行的 AI 驱动生成层
+
+- Tool-Use Loop（AgentLoop）：Think → Act → Observe 循环，支持 AbortSignal 中断；ReAct 的现代变体，推理隐式内化于 LLM tool_use 机制，无需显式 Thought 文本
+- SDD（Spec-Driven Development）两层规范体系：ProjectSpec 项目级约束 + ChangeSpec 变更级过程文件
+- Harness Engineering：Guard 前置守卫、Checkpoint 后置验证、HumanGate 人工介入节点，给 Agent 套上"缰绳"
+- AISchema ↔ BanvasGL 双向转换，LLM 输出直接映射为画布操作
+- BanvasToolProtocol：标准化工具调用协议，解耦 Agent 与画布实现
+
 ---
 
 ## 架构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│              Banyan 低代码平台 / 你的应用                      │
-│         (React 编辑器 + Koa API + Electron 壳)                │
-├──────────────────────────┬──────────────────────────────────┤
-│     React Hook 桥接层     │        XiangDi AI Agent 引擎      │
-│  useDesignBanvas         │  AgentLoop · ToolRegistry         │
-│  useFlowBanvas           │  ContextManager · StreamBridge    │
-│  useRuntimeBanvas        │  AISchema ↔ BanvasGL Converters   │
-│                          │  BanvasToolProtocol · Prompts     │
-├──────────────────────────┴──────────────────────────────────┤
-│                    BanvasGL 渲染引擎                           │
-│   SceneGraph · Renderer · Animation · FlowRunner             │
-│   Serializer · SnapAlign · Math · Workers                    │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                  Banyan 低代码平台 / 你的应用                          │
+│            (React 编辑器 + Koa API + Electron 壳)                     │
+├──────────────────────────┬──────────────────────────────────────────┤
+│     React Hook 桥接层     │          XiangDi AI Agent 引擎            │
+│  useDesignBanvas         │                                           │
+│  useFlowBanvas           │  ┌─ Harness ──────────────────────────┐  │
+│  useRuntimeBanvas        │  │  Guards · Checkpoints · HumanGates │  │
+│                          │  └────────────────┬───────────────────┘  │
+│                          │  ┌─ Spec ─────────┴───────────────────┐  │
+│                          │  │  ProjectSpec (AGENTS.md)           │  │
+│                          │  │  ChangeSpec  (proposal + tasks)    │  │
+│                          │  └────────────────┬───────────────────┘  │
+│                          │  ┌─ Core ─────────┴───────────────────┐  │
+│                          │  │  AgentLoop · ToolRegistry          │  │
+│                          │  │  ContextManager · StreamBridge     │  │
+│                          │  │  AISchema ↔ BanvasGL Converters    │  │
+│                          │  │  BanvasToolProtocol · Prompts      │  │
+│                          │  └────────────────────────────────────┘  │
+├──────────────────────────┴──────────────────────────────────────────┤
+│                        BanvasGL 渲染引擎                               │
+│      SceneGraph · Renderer · Animation · FlowRunner                  │
+│      Serializer · SnapAlign · Math · Workers                         │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 BanvasGL 作为独立的 npm 包，通过三个 React Hook 向上层应用暴露能力：`useDesignBanvas`（编辑态）、`useFlowBanvas`（流程编辑态）、`useRuntimeBanvas`（运行态）。上层应用只需消费 Hook 返回的画布元素和操作集，无需关心引擎内部实现。
 
-项目采用 pnpm monorepo 管理，包含核心引擎包、平台服务包、Banyan 低代码平台应用，以及 LunlunGlass 眼镜店管理系统示例。
+XiangDi 作为独立的 AI Agent 引擎包，整体是一个 **SDD 驱动的、带 Harness 约束的 Plan-and-Execute Agent**，执行核心是 Tool-Use Loop（ReAct 的现代变体）。三层各司其职：Spec 层在执行前对齐意图（Plan），AgentLoop 按 tasks 驱动工具调用（Execute），Harness 层在关键节点提供守卫、验证与人工确认（Verify）。AgentLoop 本身并非严格的 ReAct——原始 ReAct 要求模型显式输出 Thought 文本，而现代 LLM 的 tool_use 机制已将推理内化，不再需要强制的 Thought 步骤，因此更准确的叫法是 Anthropic 文档中的 Agentic Loop。
+
+项目采用 pnpm monorepo 管理，包含核心引擎包、AI Agent 引擎包、平台服务包、Banyan 低代码平台应用，以及 LunlunGlass 眼镜店管理系统示例。
 
 ---
 
@@ -81,6 +101,13 @@ Banyuan/
 ├── packages/
 │   ├── BanvasGL/          # 核心 2D 图形引擎 (npm 包)
 │   ├── XiangDi/           # AI Agent 引擎 (npm 包)
+│   │   └── src/
+│   │       ├── core/      #   AgentLoop · ToolRegistry · ContextManager
+│   │       ├── spec/      #   SDD 两层规范：ProjectSpec + ChangeSpec
+│   │       ├── harness/   #   Harness：Guards · Checkpoints · HumanGates
+│   │       ├── schema/    #   AISchema ↔ BanvasGL 双向转换
+│   │       ├── tools/     #   BanvasToolProtocol 工具调用协议
+│   │       └── prompts/   #   系统提示词 + Few-shot 示例
 │   └── server/            # 平台后端服务 (预览 + 构建)
 │
 ├── apps/
@@ -170,12 +197,49 @@ function App({ pages }) {
 }
 ```
 
+### XiangDi —— AI 驱动生成
+
+```ts
+import {
+  AgentLoop, ToolRegistry,
+  ChangeSpecBuilder, MemoryChangeSpecStore,
+  HarnessRunner, Guards, Checkpoints, HumanGates,
+} from 'xiangdi';
+
+// 1. 构建变更 Spec（用户输入 → 施工图纸）
+let spec = ChangeSpecBuilder.fromText('帮我创建一个登录页面');
+spec = ChangeSpecBuilder.addTask(spec, '添加用户名输入框');
+spec = ChangeSpecBuilder.addTask(spec, '添加密码输入框');
+spec = ChangeSpecBuilder.addTask(spec, '添加登录按钮');
+spec = ChangeSpecBuilder.transition(spec, 'approved');
+
+// 2. 配置 Harness（约束 + 反馈回路）
+const harness = new HarnessRunner(agentLoop, llmClient, {
+  guards: [
+    Guards.specApproved(),
+    Guards.hasAtLeastOneTask(),
+  ],
+  checkpoints: [
+    Checkpoints.outputNotEmpty(),
+  ],
+  humanGates: [
+    HumanGates.reviewProposal(),  // 执行前审核 proposal
+    HumanGates.reviewTasks(),     // 执行前审核任务列表
+  ],
+});
+
+// 3. 执行
+const result = await harness.run(spec);
+```
+
 ---
 
 ## 路线图
 
 - [ ] **MVP 测试与发布** —— 完善测试覆盖，发布首个可用版本
-- [x] **XiangDi AI Agent 引擎** —— 相地包落地，AgentLoop + AISchema + BanvasToolProtocol 骨架完成
+- [x] **XiangDi AI Agent 引擎** —— AgentLoop + AISchema + BanvasToolProtocol 骨架完成
+- [x] **XiangDi SDD 集成** —— 两层 Spec 体系落地：ProjectSpec（项目级规范）+ ChangeSpec（变更级过程文件）
+- [x] **XiangDi Harness Engineering** —— Guard / Checkpoint / HumanGate 框架完成，Agent 执行有缰可控
 - [ ] **XiangDi 接入 Banyan** —— 在编辑器中集成 AI 对话面板，实现设计稿 + 自然语言 → 生成应用
 - [ ] **图形库 WebGPU 重构** —— 将渲染后端从 Canvas 2D 迁移到 WebGPU，大幅提升渲染性能
 - [ ] **全平台 Canvas 适配** —— 适配 Web、桌面、移动端及小程序的 Canvas 实现，实现一个应用跨所有端

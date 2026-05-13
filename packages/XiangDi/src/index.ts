@@ -102,6 +102,66 @@ export {
   FEWSHOT_CREATE_LOGIN_PAGE,
 } from "./prompts/index.js";
 
+// ─── Spec 层（SDD 两层规范）──────────────────────────────────────────────────
+export {
+  // ProjectSpec（项目级规范）
+  FileProjectSpecLoader,
+  InlineProjectSpecLoader,
+  parseProjectSpec,
+  DEFAULT_SPEC_FILE_CANDIDATES,
+  // ChangeSpec（变更级过程文件）
+  ChangeSpecBuilder,
+  MemoryChangeSpecStore,
+} from "./spec/index.js";
+
+export type {
+  ProjectSpecRaw,
+  ProjectSpec,
+  ProjectSpecLoader,
+  ChangeStatus,
+  ChangeTask,
+  ChangeSpec,
+  ChangeSpecStore,
+} from "./spec/index.js";
+
+// ─── Harness 层（约束 + 反馈回路 + 人工介入）────────────────────────────────
+export {
+  HarnessRunner,
+  Guards,
+  Checkpoints,
+  HumanGates,
+  specApproved,
+  hasAtLeastOneTask,
+  noProhibitedKeywords,
+  proposalComplete,
+  customGuard,
+  outputNotEmpty,
+  outputMatchesPattern,
+  allTasksDone,
+  outputMinLength,
+  customCheckpoint,
+  reviewProposal,
+  reviewTasks,
+  confirmResult,
+  retryOnError,
+} from "./harness/index.js";
+
+export type {
+  GuardResult,
+  GuardFn,
+  Guard,
+  CheckpointResult,
+  CheckpointFn,
+  Checkpoint,
+  HumanGateTrigger,
+  HumanGate,
+  HumanDecision,
+  HarnessContext,
+  HarnessPhase,
+  HarnessConfig,
+  HarnessRunResult,
+} from "./harness/index.js";
+
 // ─── 版本 ─────────────────────────────────────────────────────────────────────
 declare const __XIANGDI_VERSION__: string;
 export const VERSION: string =
