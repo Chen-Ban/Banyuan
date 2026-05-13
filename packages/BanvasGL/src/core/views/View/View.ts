@@ -564,8 +564,9 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     needResizeContent?: boolean,
   ) {
     const mvp = this.getMVPMatrix();
+    const inverseMvp = mvp.inverse();
     // 世界坐标系转换到本地坐标系
-    const relativeVector = mvp.inverse().multiply(vector);
+    const relativeVector = inverseMvp.multiply(vector);
     const handles = this.boundingBox?.handles;
     const viewport = this.viewport;
     if (!handles) throw new Error("包围盒插件丢失");
@@ -618,8 +619,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     });
 
     if (needResizeContent && this.content) {
-      // 修改内容
-      this.content.resize(fixedPoint, dynamicPoint, relativeVector);
+      // 将世界坐标的锚点转换到本地坐标系，与 relativeVector 保持一致
+      const localFixedPoint = inverseMvp.multiply(fixedPoint);
+      const localDynamicPoint = inverseMvp.multiply(dynamicPoint);
+      this.content.resize(localFixedPoint, localDynamicPoint, relativeVector);
       // resize 后将内容实际边界回写为新的排版约束
       this.constraintBounds = this.content.bounds?.copy() ?? Bounds.empty();
       // 更新完内容后更新实际布局区域
