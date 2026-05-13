@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="https://placeholder.com/banyuan-logo.svg" alt="Banyuan Logo" width="120" />
+  <img src="./assets/banyuan-logo.png" alt="Banyuan Logo" width="120" />
 </p>
 
-<h1 align="center">半园 Banyuan</h1>
+<h1 align="center">班园 Banyuan</h1>
 
 <p align="center">
   <em>虽由人作，宛自天开 —— 以画布为山石，以组件为草木，以数据为活水，造一方数字园林。</em>
@@ -18,7 +18,7 @@
 
 ---
 
-**Banyuan（半园）** 是一个以自研 2D 画布引擎为核心的低代码可视化应用设计与生成平台。用户通过拖拽组件、配置属性、编排交互逻辑来设计多页面应用，最终一键构建为跨平台桌面安装包（macOS / Windows / Linux）。
+**Banyuan（班园）** 是一个以自研 2D 画布引擎为核心的低代码可视化应用设计与生成平台。用户通过拖拽组件、配置属性、编排交互逻辑来设计多页面应用，最终一键构建为跨平台桌面安装包（macOS / Windows / Linux）。
 
 <!-- TODO: 添加截图或 GIF 演示 -->
 
@@ -167,28 +167,12 @@ function App({ pages }) {
 
 ---
 
-## 技术栈
-
-| 层级 | 技术 |
-|------|------|
-| 渲染引擎 | Canvas 2D · Web Workers · TypeScript |
-| 前端 | React 19 · Vite 6 · Ant Design 6 |
-| 后端 | Koa 2 · Mongoose 8 · MongoDB |
-| 桌面端 | Electron 36 |
-| 构建 | tsup · pnpm workspace |
-
----
-
 ## 路线图
 
-<!-- TODO: 根据实际规划补充 -->
-
-- [ ] 单元测试与 CI/CD
-- [ ] npm 包发布
-- [ ] 更多内置组件
-- [ ] 自定义组件 SDK
-- [ ] 协同编辑
-- [ ] 插件系统
+- [ ] **MVP 测试与发布** —— 完善测试覆盖，发布首个可用版本
+- [ ] **大模型介入，AI 生成应用** —— 接入 LLM，通过自然语言描述自动生成可视化应用
+- [ ] **图形库 WebGPU 重构** —— 将渲染后端从 Canvas 2D 迁移到 WebGPU，大幅提升渲染性能
+- [ ] **全平台 Canvas 适配** —— 适配 Web、桌面、移动端及小程序的 Canvas 实现，实现一个应用跨所有端
 
 ---
 
