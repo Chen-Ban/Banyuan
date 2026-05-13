@@ -7,7 +7,7 @@ import {
   useLayoutEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDesignBanvas } from "banvasgl";
+import { useDesignBanvas, version as banvasglVersion } from "banvasgl";
 import { message } from "antd";
 import { applicationApi, buildApi } from "@/api";
 import type { Platform } from "@/api";
@@ -230,6 +230,7 @@ const ApplicationDetail = () => {
         platform,
         width: canvasSize.width,
         height: canvasSize.height,
+        banvasglVersion,
       });
 
       setBuildTaskId(res.taskId);
