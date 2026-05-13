@@ -16,6 +16,7 @@ export interface PreviewData {
     appJson: string
     width: number
     height: number
+    banvasglVersion: string
     createdAt: number
 }
 
@@ -28,9 +29,9 @@ const PREVIEW_TTL_MS = 60 * 60 * 1000
 /**
  * 创建预览，返回 previewId
  */
-export function createPreview(appJson: string, width: number, height: number): string {
+export function createPreview(appJson: string, width: number, height: number, banvasglVersion: string): string {
     const previewId = randomUUID()
-    previewMap.set(previewId, { previewId, appJson, width, height, createdAt: Date.now() })
+    previewMap.set(previewId, { previewId, appJson, width, height, banvasglVersion, createdAt: Date.now() })
     // 定时清理，避免内存泄漏
     setTimeout(() => previewMap.delete(previewId), PREVIEW_TTL_MS)
     return previewId
@@ -52,7 +53,7 @@ export function getPreview(previewId: string): PreviewData | undefined {
  * 注意：banvasgl 需要已发布到 npm 公网，版本号与 scaffold 保持一致。
  */
 export function buildPreviewHtml(data: PreviewData): string {
-    const { appJson, width, height } = data
+    const { appJson, width, height, banvasglVersion } = data
     // 安全地内联 JSON：转义 </script> 防止 XSS
     const safeAppJson = JSON.stringify(appJson).replace(/<\/script>/gi, '<\\/script>')
 
@@ -78,7 +79,7 @@ export function buildPreviewHtml(data: PreviewData): string {
     <script type="module">
       import React from 'https://esm.sh/react@19.1.0'
       import { createRoot } from 'https://esm.sh/react-dom@19.1.0/client'
-      import useRuntimeBanvas from 'https://esm.sh/banvasgl@0.1.0/runtime'
+      import useRuntimeBanvas from 'https://esm.sh/banvasgl@${banvasglVersion}/runtime'
 
       const APP_JSON = ${safeAppJson}
       const APP_PAGES = JSON.parse(APP_JSON)

@@ -22,6 +22,13 @@ export type { ScaffoldOptions } from './scaffold'
 export type { BundleOptions } from './bundler'
 export type { ElectronBuildOptions } from './electron'
 
+/**
+ * 持久化存储目录：存放构建完成的安装包
+ * 后续迁移到 OSS 时只需替换此处逻辑
+ */
+const STORAGE_DIR = path.resolve(__dirname, '../../../../storage/builds')
+fs.mkdirSync(STORAGE_DIR, { recursive: true })
+
 // ── 任务状态 ──
 
 export type TaskStatus = 'pending' | 'running' | 'success' | 'failed'
@@ -93,6 +100,8 @@ export interface StartBuildOptions {
     platform: Platform
     width: number
     height: number
+    /** banvasgl 版本号，由前端传入 */
+    banvasglVersion: string
 }
 
 /**
@@ -119,7 +128,7 @@ export function startBuild(options: StartBuildOptions): string {
 }
 
 async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<void> {
-    const { appJson, appName, platform, width, height } = options
+    const { appJson, appName, platform, width, height, banvasglVersion } = options
 
     // 工作目录：系统临时目录下按 taskId 隔离
     const workDir = path.join(os.tmpdir(), 'banyuan-build', task.taskId)
@@ -137,7 +146,7 @@ async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<vo
     try {
         update({ status: 'running' })
         console.log(`[Build ${task.taskId}] step 1/3 scaffold ...`)
-        await scaffold({ appJson, appName, outputDir: projectDir, width, height })
+        await scaffold({ appJson, appName, outputDir: projectDir, width, height, banvasglVersion })
 
         console.log(`[Build ${task.taskId}] step 2/3 bundle ...`)
         await bundle({ projectDir, outputDir: distDir })
@@ -145,8 +154,16 @@ async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<vo
         console.log(`[Build ${task.taskId}] step 3/3 electron-builder ...`)
         await buildElectron({ distDir, outputDir, appName, platform, width, height })
 
-        // 找到生成的安装包文件
-        const outputFile = findOutputFile(outputDir, platform)
+        // 找到生成的安装包文件，移动到持久化存储目录
+        const tmpOutputFile = findOutputFile(outputDir, platform)
+        let outputFile: string | undefined
+        if (tmpOutputFile) {
+            const taskStorageDir = path.join(STORAGE_DIR, task.taskId)
+            fs.mkdirSync(taskStorageDir, { recursive: true })
+            const fileName = path.basename(tmpOutputFile)
+            outputFile = path.join(taskStorageDir, fileName)
+            fs.copyFileSync(tmpOutputFile, outputFile)
+        }
         update({ status: 'success', outputFile })
         console.log(`[Build ${task.taskId}] done → ${outputFile}`)
     } catch (err: any) {
@@ -161,22 +178,13 @@ async function runBuild(task: BuildTask, options: StartBuildOptions): Promise<vo
 
 /**
  * 清理构建工作目录
- * - 成功：删除 project/（含 node_modules），保留 output/（安装包）
- * - 失败：删除整个 workDir（没有有效产物）
+ * 安装包已移至持久化存储目录，workDir 可完全删除
  */
 function cleanWorkDir(workDir: string, task: BuildTask): void {
     try {
-        if (task.status === 'success') {
-            const projectDir = path.join(workDir, 'project')
-            if (fs.existsSync(projectDir)) {
-                fs.rmSync(projectDir, { recursive: true, force: true })
-                console.log(`[Build ${task.taskId}] cleaned project dir`)
-            }
-        } else {
-            if (fs.existsSync(workDir)) {
-                fs.rmSync(workDir, { recursive: true, force: true })
-                console.log(`[Build ${task.taskId}] cleaned work dir (failed build)`)
-            }
+        if (fs.existsSync(workDir)) {
+            fs.rmSync(workDir, { recursive: true, force: true })
+            console.log(`[Build ${task.taskId}] cleaned work dir`)
         }
     } catch (cleanErr) {
         // 清理失败不影响任务状态，只记录日志

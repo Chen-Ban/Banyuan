@@ -6,6 +6,7 @@
 
 import type { IBanvasActions } from '@/core/interfaces'
 import type { App } from '@/core/app'
+import { preprocessForExport } from '@/core/app'
 import { createViewActions, getClipboard } from './viewActions'
 import { createPageActions } from './pageActions'
 import { createHistoryActions } from './historyActions'
@@ -32,7 +33,11 @@ export function createBanvasActions(
         exportImage(type?: string, quality?: number): string | null {
             const app = getApp()
             if (!app) return null
-            return app.getRenderer().toDataURL(type, quality)
+            // 预处理：清除交互状态（BoundingBox 等插件不会被截入）
+            const restore = preprocessForExport(app)
+            const dataUrl = app.getRenderer().toDataURL(type, quality)
+            restore()
+            return dataUrl
         },
     }
 }
