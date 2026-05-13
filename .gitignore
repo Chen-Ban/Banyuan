@@ -106,6 +106,9 @@ public
 tmp/
 temp/
 
+# Build artifacts storage (local persistence, will migrate to OSS)
+storage/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
