@@ -29,7 +29,6 @@ export default class TextFields
   public options: TextFieldsOptions;
   public paragraphs: TextParagraph[];
   public bounds: Bounds;
-  public constraintBounds: Bounds;
   public transfromOrigin: Point3;
 
   constructor(
@@ -43,7 +42,6 @@ export default class TextFields
     this.paragraphs = paragraphs;
     this.controlPoints = [];
     this.bounds = Bounds.empty();
-    this.constraintBounds = Bounds.empty();
     this.transfromOrigin = Point3.origin;
     this.id = generateId(this.type);
   }
@@ -159,10 +157,11 @@ export default class TextFields
 
   /**
    * 布局文本域
-   * 根据 constraintBounds（排版约束区域）进行文本布局
+   * @param constraintBounds 排版约束区域，由 View 传入，描述内容可排版的空间
    */
-  public layout(): TextFields {
-    const layoutArea = this.constraintBounds.copy();
+  public layout(constraintBounds?: Bounds): TextFields {
+    // 优先使用传入的约束，其次回退到自身已有 bounds
+    const layoutArea = (constraintBounds ?? this.bounds ?? Bounds.empty()).copy();
 
     // 如果没有固定宽度则选择最长段落宽度作为布局宽度，让所有段落能够一行展示
     if (!this.options.fixedWidth) {
@@ -815,8 +814,7 @@ export default class TextFields
     for (const paragraph of this.paragraphs) {
       paragraph.resize(fixedPoint, dynamicPoint, resizeVector);
     }
-    // resize 后同步更新排版约束区域为最新的实际内容边界
-    this.constraintBounds = this.bounds.copy();
+    // constraintBounds 已迁移至 View 层，由 View.resize() 负责回写
   }
 
   /** 文本域不支持顶点编辑 */
@@ -830,7 +828,6 @@ export default class TextFields
       paragraphs: this.paragraphs.map((p) => p.toJSON()),
       options: this.options.toJSON(),
       style: this.style.toJSON(),
-      constraintBounds: this.constraintBounds.toJSON(),
     };
   }
 
@@ -844,9 +841,6 @@ export default class TextFields
       Style.fromJSON(data.style),
     );
     fields.id = data.id;
-    if (data.constraintBounds) {
-      fields.constraintBounds = Bounds.fromJSON(data.constraintBounds);
-    }
     return fields;
   }
 
