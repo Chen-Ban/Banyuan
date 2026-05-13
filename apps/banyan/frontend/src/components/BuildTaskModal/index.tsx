@@ -105,7 +105,7 @@ export default function BuildTaskModal({ open, onClose, taskId }: BuildTaskModal
             open={open}
             onCancel={onClose}
             footer={null}
-            destroyOnClose
+            destroyOnHidden
             width={420}
         >
             <div style={{ padding: '16px 0' }}>
