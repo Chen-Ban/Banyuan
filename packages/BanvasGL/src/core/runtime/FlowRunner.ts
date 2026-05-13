@@ -52,6 +52,7 @@ export function resolveValueNode(
             return field.value ?? field.default
         }
         case 'pageVar': {
+            if (!ctx.page) return undefined
             return (ctx.page.data as Record<string, unknown>)[node.key]
         }
         case 'eventParam': {
@@ -86,6 +87,7 @@ export function resolveValue(
         }
 
         case 'pageDataRef': {
+            if (!ctx.page) return undefined
             // Scene.data 是自由对象（any），直接按 key 读取
             return (ctx.page.data as Record<string, unknown>)[val.key]
         }
@@ -149,12 +151,16 @@ async function executeNode(
                 : ctx.view(node.viewId)
             if (!target) break
             target.setData({ [node.key]: val as string | number | boolean | object })
-            // 通知 Scene 该 View 需要重绘
-            ctx.page.markDirty(target)
+            // 通知 Scene 该 View 需要重绘（未挂载时跳过）
+            ctx.page?.markDirty(target)
             break
         }
 
         case 'navigate': {
+            if (!ctx.page) {
+                console.warn('[FlowRunner] navigate: 当前上下文无 Scene，跳过导航')
+                break
+            }
             const app = ctx.page._app ?? null
             if (!app) {
                 console.warn('[FlowRunner] navigate: Scene 未持有 app 引用，跳过导航')
@@ -170,6 +176,7 @@ async function executeNode(
         }
 
         case 'animate': {
+            if (!ctx.page) break
             const viewId = node.viewId === 'self' ? ctx.self.id : node.viewId
             ctx.page.playAnimation(viewId, node.animationId)
             break
@@ -191,7 +198,7 @@ async function executeNode(
                 : ctx.view(node.viewId)
             if (!target) break
             target.setVisible(node.visible)
-            ctx.page.markDirty(target)
+            ctx.page?.markDirty(target)
             break
         }
 
