@@ -1,0 +1,63 @@
+# Banyuan Commercial License
+
+Copyright (c) 2025 Banyuan Authors
+
+## Overview
+
+Banyuan is available under a dual license model:
+
+1. **Open Source License (AGPL-3.0)**: The open source version of Banyuan is
+   licensed under the GNU Affero General Public License v3.0. See the [LICENSE](./LICENSE)
+   file for the full text. Under this license, any application that uses Banyuan
+   code and is made available over a network (SaaS) must also be open-sourced
+   under AGPL-3.0.
+
+2. **Commercial License**: For organizations that want to use Banyuan (including
+   BanvasGL and XiangDi) in proprietary, closed-source applications without the
+   AGPL-3.0 obligations, a commercial license is available.
+
+## What the Commercial License Provides
+
+- Permission to use, modify, and distribute Banyuan in closed-source products
+- No requirement to open-source your own code
+- No AGPL-3.0 network copyleft obligation for SaaS deployments
+- Priority technical support and consulting
+- Access to commercial-only features (if applicable)
+
+## Who Needs a Commercial License
+
+You need a commercial license if:
+
+- You want to integrate BanvasGL, XiangDi, or Banyan into a proprietary product
+- You are providing a SaaS service built on Banyuan and do not wish to open-source
+  your application code
+- Your organization's legal policy prohibits AGPL-3.0 dependencies
+
+You do NOT need a commercial license if:
+
+- You are using Banyuan for personal or educational purposes
+- You are building an open-source project licensed under AGPL-3.0
+- You are evaluating Banyuan internally without network distribution
+
+## Pricing
+
+Commercial licensing terms and pricing are negotiated on a case-by-case basis
+depending on your use case, team size, and deployment model.
+
+## Contact
+
+For commercial licensing inquiries, please contact:
+
+- Email: [TODO: your-email@example.com]
+
+## Contributor License Agreement (CLA)
+
+All contributors to Banyuan are required to sign a Contributor License Agreement
+(CLA) that grants the project maintainers the right to re-license contributions
+under both the AGPL-3.0 and the commercial license. This ensures the dual
+licensing model can be maintained sustainably.
+
+---
+
+This document is not a license itself. The actual commercial license terms will
+be provided in a separate agreement upon purchase.
