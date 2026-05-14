@@ -97,30 +97,17 @@ export interface AgentConfig {
   systemPrompt?: string;
 }
 
-// ─── Agent 运行状态 ───────────────────────────────────────────────────────────
-
-export type AgentStatus =
-  | "idle"
-  | "running"
-  | "waiting_tool"
-  | "done"
-  | "error";
-
-export interface AgentState {
-  status: AgentStatus;
-  messages: Message[];
-  iteration: number;
-  error?: Error;
-}
-
 // ─── 流式事件 ─────────────────────────────────────────────────────────────────
+
+import type { LifecycleEvent, AgentStateSnapshot } from "./AgentLifecycle.js";
 
 export type StreamEventType =
   | "text_delta"
   | "tool_call"
   | "tool_result"
   | "done"
-  | "error";
+  | "error"
+  | "lifecycle";
 
 export interface StreamEvent {
   type: StreamEventType;
@@ -152,11 +139,25 @@ export interface ErrorEvent extends StreamEvent {
   data: { error: Error };
 }
 
+/**
+ * 生命周期事件（通过 StreamBridge 统一通道暴露）
+ *
+ * 使 UI 层可通过同一个事件流同时接收：
+ *   - 文本增量（text_delta）
+ *   - 工具调用/结果（tool_call / tool_result）
+ *   - Agent 状态变迁（lifecycle）
+ */
+export interface LifecycleStreamEvent extends StreamEvent {
+  type: "lifecycle";
+  data: { event: LifecycleEvent; snapshot: AgentStateSnapshot };
+}
+
 export type TypedStreamEvent =
   | TextDeltaEvent
   | ToolCallEvent
   | ToolResultEvent
   | DoneEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | LifecycleStreamEvent;
 
 export type StreamCallback = (event: TypedStreamEvent) => void;
