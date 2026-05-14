@@ -38,7 +38,7 @@
     "graph"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0",
   "packageManager": "pnpm@10.10.0",
   "devDependencies": {
     "@types/react": "^19.1.2",
