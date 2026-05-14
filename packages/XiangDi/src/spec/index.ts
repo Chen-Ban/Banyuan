@@ -32,3 +32,5 @@ export {
 
 export { ChangeSpecBuilder } from "./ChangeSpecBuilder.js";
 export { MemoryChangeSpecStore } from "./MemoryChangeSpecStore.js";
+export { SpecPlanner } from "./SpecPlanner.js";
+export type { SpecPlannerConfig, PlanResult } from "./SpecPlanner.js";

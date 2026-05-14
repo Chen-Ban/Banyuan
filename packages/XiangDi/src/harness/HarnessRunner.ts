@@ -7,13 +7,23 @@
  *   3. AgentLoop 执行
  *   4. Checkpoint 后置验证（验证结果，触发回滚）
  *
+ * 信息注入策略：
+ *   - ProjectSpec → 通过 specLoader 管线注入 system prompt（全局约束，量小且稳定）
+ *   - KnowledgeStore → 已迁移为 Tool 模式（knowledge_search），由 LLM 按需调用
+ *     调用方在构造 AgentLoop 时通过 registerKnowledgeSearchTool(registry, store) 注册
+ *
  * 使用示例：
  * ```ts
+ * // 知识库注册到 ToolRegistry（Tool 模式）
+ * const registry = new ToolRegistry();
+ * registerKnowledgeSearchTool(registry, knowledgeStore);
+ *
+ * // Harness 只负责 ProjectSpec 管线注入
  * const harness = new HarnessRunner(agentLoop, llmClient, {
  *   guards: [specCompletedGuard, noEmptyTasksGuard],
  *   checkpoints: [outputNotEmptyCheckpoint],
  *   humanGates: [beforeRunGate],
- * });
+ * }, specLoader);
  *
  * const result = await harness.run(changeSpec);
  * ```
@@ -21,7 +31,7 @@
 
 import type { AgentLoop, LLMClient } from "../core/AgentLoop.js";
 import type { MessageContent } from "../core/types.js";
-import type { ChangeSpec } from "../spec/types.js";
+import type { ChangeSpec, ProjectSpec, ProjectSpecLoader } from "../spec/types.js";
 import type {
   HarnessConfig,
   HarnessContext,
@@ -36,11 +46,13 @@ import { ChangeSpecBuilder } from "../spec/ChangeSpecBuilder.js";
 
 export class HarnessRunner {
   private readonly config: Required<HarnessConfig>;
+  private readonly specLoader: ProjectSpecLoader | null;
 
   constructor(
     private readonly agentLoop: AgentLoop,
     private readonly llmClient: LLMClient,
-    config: HarnessConfig = {}
+    config: HarnessConfig = {},
+    specLoader?: ProjectSpecLoader
   ) {
     this.config = {
       guards: config.guards ?? [],
@@ -49,6 +61,7 @@ export class HarnessRunner {
       autoRun: config.autoRun ?? false,
       maxRetries: config.maxRetries ?? 0,
     };
+    this.specLoader = specLoader ?? null;
   }
 
   /**
@@ -62,6 +75,12 @@ export class HarnessRunner {
     signal?: AbortSignal
   ): Promise<HarnessRunResult> {
     const startTime = Date.now();
+
+    // ── 加载 ProjectSpec，构建 systemPromptOverride ────────────────────────
+    // 注意：知识检索已从管线模式迁移为 Tool 模式（knowledge_search），
+    // 由 LLM 在 AgentLoop 中按需主动调用，不再在此处预注入。
+    const projectPrompt = await this.buildProjectPrompt();
+    const systemPromptOverride = combinePromptSections(projectPrompt);
 
     const context: HarnessContext = {
       changeSpec,
@@ -113,7 +132,8 @@ export class HarnessRunner {
           output = await this.agentLoop.run(
             this.llmClient,
             userMessage,
-            signal
+            signal,
+            systemPromptOverride ?? undefined
           );
           context.result = output;
           break;
@@ -251,4 +271,102 @@ export class HarnessRunner {
     const markdown = ChangeSpecBuilder.toMarkdown(spec);
     return markdown;
   }
+
+  /**
+   * 加载 ProjectSpec 并构建 prompt 片段
+   *
+   * - 若没有 specLoader，返回 null
+   * - 若加载失败或返回 null，同样返回 null
+   * - 若加载成功，格式化为 system prompt 片段
+   */
+  private async buildProjectPrompt(): Promise<string | null> {
+    if (!this.specLoader) return null;
+
+    let projectSpec: ProjectSpec | null = null;
+    try {
+      projectSpec = await this.specLoader.load();
+    } catch {
+      // 加载失败时静默降级，不阻断执行
+      return null;
+    }
+
+    if (!projectSpec) return null;
+
+    return buildProjectSystemPrompt(projectSpec);
+  }
+}
+
+// ─── ProjectSpec → system prompt 拼接 ────────────────────────────────────────
+
+/**
+ * 将 ProjectSpec 转化为注入 AgentLoop 的 system prompt 片段
+ *
+ * 格式：
+ * ```
+ * # 项目规范：<projectName>
+ *
+ * <description>
+ *
+ * ## 编码惯例
+ * - ...
+ *
+ * ## 禁止事项
+ * - ...
+ *
+ * ## Agent 行为指引
+ * - ...
+ * ```
+ */
+function buildProjectSystemPrompt(spec: ProjectSpec): string {
+  const lines: string[] = [];
+
+  lines.push(`# 项目规范：${spec.projectName}`);
+
+  if (spec.description) {
+    lines.push("", spec.description);
+  }
+
+  if (spec.conventions.length > 0) {
+    lines.push("", "## 编码惯例");
+    for (const c of spec.conventions) {
+      lines.push(`- ${c}`);
+    }
+  }
+
+  if (spec.prohibitions.length > 0) {
+    lines.push("", "## 禁止事项");
+    for (const p of spec.prohibitions) {
+      lines.push(`- ${p}`);
+    }
+  }
+
+  if (spec.agentGuidelines.length > 0) {
+    lines.push("", "## Agent 行为指引");
+    for (const g of spec.agentGuidelines) {
+      lines.push(`- ${g}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+// ─── combinePromptSections ────────────────────────────────────────────────────
+
+/**
+ * 将多个可能为 null 的 prompt 片段合并为一个完整的 systemPromptOverride。
+ *
+ * - 过滤掉 null 值
+ * - 若所有片段都为 null，返回 null（不覆盖 AgentLoop 默认 systemPrompt）
+ * - 否则用双换行连接各片段
+ */
+function combinePromptSections(
+  ...sections: Array<string | null>
+): string | null {
+  const validSections = sections.filter(
+    (s): s is string => s != null && s.length > 0
+  );
+
+  if (validSections.length === 0) return null;
+
+  return validSections.join("\n\n");
 }
