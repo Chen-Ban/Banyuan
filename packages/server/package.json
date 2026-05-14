@@ -10,7 +10,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "AGPL-3.0",
   "packageManager": "pnpm@10.10.0",
   "dependencies": {
     "koa": "^2.15.3",
