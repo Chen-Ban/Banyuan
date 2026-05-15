@@ -86,6 +86,8 @@ export {
   // Banvas 画布工具
   BANVAS_TOOLS,
   BANVAS_TOOL_DEFINITIONS,
+  // Banvas 工具 Handler 工厂
+  createBanvasToolRegistry,
   // Web Search 内置工具
   WEB_SEARCH_TOOL_NAME,
   WEB_SEARCH_TOOL_DEFINITION,
@@ -108,6 +110,8 @@ export type {
   MoveNodeInput,
   ResizeNodeInput,
   ApplyPatchInput,
+  // Banvas 工具 Handler 工厂类型
+  BanvasHostAdapter,
   // Web Search 类型
   SearchResult,
   SearchResponse,
