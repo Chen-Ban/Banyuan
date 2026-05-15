@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useRef } from 'react'
-import { useFlowBanvas } from 'banvasgl'
-import type { FlowSchema, FlowNode } from 'banvasgl'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useFlowBanvas, NodeView, EdgeView } from 'banvasgl'
+import type { FlowSchema, FlowNode, FlowEdge, PortDirection } from 'banvasgl'
 import { getFlowNodeDragData } from './FlowNodePalette'
 import FlowNodePalette from './FlowNodePalette'
 import styles from './index.module.scss'
@@ -12,12 +12,80 @@ interface FlowCanvasProps {
     onChange: (schema: FlowSchema) => void
 }
 
-const CANVAS_WIDTH = 236
+const CANVAS_WIDTH = 168
 const CANVAS_HEIGHT = 300
 
 /** 生成简单唯一 id */
 function genId(): string {
     return `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+}
+
+// ── FlowNode → NodeView 端口定义映射 ──
+
+interface PortDef {
+    id: string
+    direction: PortDirection
+}
+
+function getPortsForNode(node: FlowNode): PortDef[] {
+    const ports: PortDef[] = []
+    const kind = node.kind
+
+    // 值节点：只有一个输出端口（值输出）
+    if (kind === 'variable' || kind === 'pageVar' || kind === 'eventParam') {
+        ports.push({ id: `${node.id}_out`, direction: 'output' })
+        return ports
+    }
+
+    // 动作节点：至少有一个输入端口 + 一个输出端口
+    ports.push({ id: `${node.id}_in`, direction: 'input' })
+
+    if (kind === 'condition') {
+        // 条件节点有两个输出：true 和 false
+        ports.push({ id: `${node.id}_true`, direction: 'output' })
+        ports.push({ id: `${node.id}_false`, direction: 'output' })
+    } else {
+        ports.push({ id: `${node.id}_out`, direction: 'output' })
+    }
+
+    return ports
+}
+
+/** 节点的显示标题 */
+function getNodeTitle(node: FlowNode): string {
+    switch (node.kind) {
+        case 'setData': return '设置数据'
+        case 'setVisible': return '显隐控制'
+        case 'navigate': return '跳转页面'
+        case 'animate': return '播放动画'
+        case 'condition': return '条件分支'
+        case 'delay': return '延迟等待'
+        case 'variable': return 'View 变量'
+        case 'pageVar': return '页面变量'
+        case 'eventParam': return '事件参数'
+    }
+}
+
+/** 将 FlowEdge 转为 EdgeView 的 fromPortId/toPortId */
+function resolveEdgePorts(edge: FlowEdge, nodes: FlowNode[]): { fromPortId: string; toPortId: string } | null {
+    const fromNode = nodes.find(n => n.id === edge.from)
+    const toNode = nodes.find(n => n.id === edge.to)
+    if (!fromNode || !toNode) return null
+
+    // 确定 from 端口
+    let fromPortId: string
+    if (edge.branch === 'true') {
+        fromPortId = `${edge.from}_true`
+    } else if (edge.branch === 'false') {
+        fromPortId = `${edge.from}_false`
+    } else {
+        fromPortId = `${edge.from}_out`
+    }
+
+    // 确定 to 端口
+    const toPortId = edge.toParam ? `${edge.to}_in` : `${edge.to}_in`
+
+    return { fromPortId, toPortId }
 }
 
 /**
@@ -72,20 +140,64 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
 
     const serializedPages = useMemo<string[]>(() => [], [])
 
-    const handleSchemaChange = useCallback(() => {
-        // TODO: 从 app.getCurrentScene() 读取 NodeView/EdgeView 并序列化为 FlowSchema
-        onChange({ nodes: [], edges: [] })
-    }, [onChange])
-
-    const { Canvas } = useFlowBanvas(
+    const { Canvas, app } = useFlowBanvas(
         serializedPages,
         {
             width: CANVAS_WIDTH,
             height: CANVAS_HEIGHT,
-            backgroundColor: '#f8f9fa',
+            backgroundColor: 'transparent',
         },
-        handleSchemaChange,
     )
+
+    // ── 同步 schema → 引擎 Scene（schema 变化时重建节点和连线） ──
+    useEffect(() => {
+        if (!app) return
+        const scene = app.getCurrentScene()
+        if (!scene) return
+
+        // 清除场景中所有子节点
+        const existingChildren = [...scene.children]
+        for (const child of existingChildren) {
+            scene.removeChild(child, false)
+        }
+
+        if (!schema || schema.nodes.length === 0) {
+            app.notify()
+            return
+        }
+
+        // 创建 NodeView
+        for (const node of schema.nodes) {
+            const ports = getPortsForNode(node)
+            const nodeView = new NodeView({
+                id: node.id,
+                nodeTitle: getNodeTitle(node),
+                ports,
+                style: {
+                    width: 140,
+                    height: 60,
+                },
+            })
+            // 设置节点位置
+            nodeView.translate(node.x ?? 20, node.y ?? 20, 0)
+            scene.addChild(nodeView, false)
+        }
+
+        // 创建 EdgeView
+        for (const edge of schema.edges) {
+            const portIds = resolveEdgePorts(edge, schema.nodes)
+            if (!portIds) continue
+
+            const edgeView = new EdgeView({
+                id: edge.id,
+                fromPortId: portIds.fromPortId,
+                toPortId: portIds.toPortId,
+            })
+            scene.addChild(edgeView, false)
+        }
+
+        app.notify()
+    }, [app, schema])
 
     // ── 拖拽放置处理 ──
 

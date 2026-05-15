@@ -13,6 +13,7 @@ import { applicationApi, buildApi } from "@/api";
 import type { Platform } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import BuildTaskModal from "@/components/BuildTaskModal";
+import AiBar from "./components/AiBar";
 import styles from "./index.module.scss";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyPanel from "./components/PropertyPanel";
@@ -123,6 +124,11 @@ const ApplicationDetail = () => {
     contextMenu,
     builtinComponents,
   } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
+
+  // AI 完成后，用最终 pages 刷新画布（更新 initialPages 触发 useDesignBanvas 重新加载）
+  const handleAiPagesUpdate = useCallback((aiPages: string[]) => {
+    setInitialPages(aiPages);
+  }, []);
 
   /**
    * 自动保存名称/描述（仅已有应用，debounce）
@@ -272,8 +278,13 @@ const ApplicationDetail = () => {
           currentPageId={currentPageId}
           actions={actions}
         />
-        <div className={styles.canvasSection} ref={canvasSectionRef}>
-          {Banvas}
+        <div className={styles.canvasSection}>
+          <div className={styles.canvasArea} ref={canvasSectionRef}>
+            {Banvas}
+          </div>
+          {!isNew && id && (
+            <AiBar appId={id} onPagesUpdate={handleAiPagesUpdate} />
+          )}
         </div>
         <PropertyPanel
           selectedViewId={selectedViewId}
