@@ -40,7 +40,9 @@ export default function useFlowBanvas(
     const { app, canvasRef, canvasCallbackRef } = useDesignCanvasInit(serializedPages, {
         width,
         height,
-        rendererOptions: backgroundColor ? { backgroundColor } : undefined,
+        rendererOptions: backgroundColor
+            ? { backgroundColor, clearColor: backgroundColor }
+            : undefined,
     })
 
     // 监听 app 状态变更驱动重渲染
