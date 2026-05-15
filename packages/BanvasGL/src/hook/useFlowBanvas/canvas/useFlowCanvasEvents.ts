@@ -55,7 +55,9 @@ export function useFlowCanvasEvents({
     // ── hover 检测 ──
     const handleHover = useCallback(
         (scene: Scene, point: Point3) => {
-            if (!canvasRef.current) return
+            if (!canvasRef.current || !app) return
+            // 激活当前 App 的 CanvasContext 供 interact 命中检测使用
+            app.renderer.activateContext()
             let hit = false
             for (const view of scene.children) {
                 const { view: _view, content, extraData: _extraData } = view.interact(point)
@@ -68,6 +70,7 @@ export function useFlowCanvasEvents({
                     hit = true
                 }
             }
+            app.renderer.deactivateContext()
             if (!hit) {
                 indicateViewRef.current = null
                 indicateContentRef.current = null
@@ -76,7 +79,7 @@ export function useFlowCanvasEvents({
                 canvasRef.current.style.cursor = Cursor.Default
             }
         },
-        [canvasRef],
+        [app, canvasRef],
     )
 
     // ── mousedown ──
@@ -174,6 +177,7 @@ export function useFlowCanvasEvents({
                 const edge = tempEdgeRef.current
                 if (edge) {
                     let targetPortId: string | null = null
+                    app.renderer.activateContext()
                     for (const view of scene.children) {
                         const { view: hit } = view.interact(upPoint)
                         if (hit && isPortView(hit) && hit.id !== edge.fromPortId) {
@@ -181,6 +185,7 @@ export function useFlowCanvasEvents({
                             break
                         }
                     }
+                    app.renderer.deactivateContext()
 
                     if (targetPortId && edge.fromPortId) {
                         scene.removeChild(edge, false)
@@ -214,10 +219,12 @@ export function useFlowCanvasEvents({
             const point = event2Point(e)
             // 命中检测
             let hitView: View | null = null
+            app.renderer.activateContext()
             for (const view of scene.children) {
                 const { view: _view } = view.interact(point)
                 if (_view) hitView = _view as View
             }
+            app.renderer.deactivateContext()
 
             if (hitView) {
                 scene.select(hitView, e.ctrlKey || e.metaKey)

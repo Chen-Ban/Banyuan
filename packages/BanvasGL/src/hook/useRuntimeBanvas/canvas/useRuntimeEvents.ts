@@ -27,7 +27,7 @@ const event2Point = (e: MouseEvent): Point3 => {
     return new Point3(e.offsetX * ratio, e.offsetY * ratio, 0)
 }
 
-/** 在 Scene 中命中检测，返回最顶层的 View（或 null） */
+/** 在 Scene 中命中检测，返回最顶层的 View（或 null）。调用前必须已 activateContext */
 function hitTest(scene: Scene, point: Point3): View | null {
     let hit: View | null = null
     for (const view of scene.children) {
@@ -67,7 +67,9 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         isDraggingRef.current = false
         dragViewRef.current = null
 
+        app.renderer.activateContext()
         const view = hitTest(scene, point)
+        app.renderer.deactivateContext()
         if (!view) return
 
         trigger(view.events.onMouseDown, view, scene, [e])
@@ -83,6 +85,7 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         const downPoint = mouseDownPointRef.current
 
         // hover（onMouseEnter / onMouseLeave / onMouseMove）
+        app.renderer.activateContext()
         const currentHover = hitTest(scene, point)
 
         if (currentHover !== hoverViewRef.current) {
@@ -118,6 +121,7 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
                 trigger(dragViewRef.current.events.onDrag, dragViewRef.current, scene, [e])
             }
         }
+        app.renderer.deactivateContext()
 
         lastPointRef.current = point
     }, [app, canvasRef])
@@ -129,7 +133,9 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         if (!scene) return
 
         const point = event2Point(e)
+        app.renderer.activateContext()
         const view = hitTest(scene, point)
+        app.renderer.deactivateContext()
 
         if (view) {
             trigger(view.events.onMouseUp, view, scene, [e])
@@ -154,7 +160,9 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         if (isDraggingRef.current) return
 
         const point = event2Point(e)
+        app.renderer.activateContext()
         const view = hitTest(scene, point)
+        app.renderer.deactivateContext()
         if (!view) return
 
         const now = Date.now()
@@ -178,7 +186,9 @@ export function useRuntimeEvents({ app, canvasRef }: UseRuntimeEventsOptions) {
         if (!scene) return
 
         const point = event2Point(e)
+        app.renderer.activateContext()
         const view = hitTest(scene, point)
+        app.renderer.deactivateContext()
         if (!view) return
 
         trigger(view.events.onContextMenu, view, scene, [e])
