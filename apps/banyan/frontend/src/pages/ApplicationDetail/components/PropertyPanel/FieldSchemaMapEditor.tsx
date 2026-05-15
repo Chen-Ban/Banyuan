@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react'
+import { Button, Input, Select } from 'antd'
 import type { IFieldSchema, IFieldSchemaMap } from 'banvasgl'
 import styles from './index.module.scss'
 
 // ── 字段类型选项 ──
 
 const FIELD_TYPE_OPTIONS: IFieldSchema['type'][] = ['string', 'number', 'boolean', 'object']
+
+const FIELD_TYPE_SELECT_OPTIONS = FIELD_TYPE_OPTIONS.map((t) => ({ value: t, label: t }))
 
 // ── 单行字段展示组件 ──
 
@@ -36,7 +39,7 @@ const FieldRow: React.FC<FieldRowProps> = ({ fieldKey, schema, onUpdate, onDelet
 
     const handleTypeChange = (newType: IFieldSchema['type']) => {
         // 切换类型时重置 default 为对应类型的零值
-        const defaultMap: Record<IFieldSchema['type'], any> = {
+        const defaultMap: Record<IFieldSchema['type'], unknown> = {
             string: '',
             number: 0,
             boolean: false,
@@ -46,7 +49,7 @@ const FieldRow: React.FC<FieldRowProps> = ({ fieldKey, schema, onUpdate, onDelet
     }
 
     const commitDefault = () => {
-        let parsed: any = editingDefault
+        let parsed: unknown = editingDefault
         if (schema.type === 'number') {
             const n = parseFloat(editingDefault)
             parsed = isNaN(n) ? 0 : n
@@ -61,17 +64,15 @@ const FieldRow: React.FC<FieldRowProps> = ({ fieldKey, schema, onUpdate, onDelet
     return (
         <div className={styles.fieldRow}>
             <span className={styles.fieldKey} title={fieldKey}>{fieldKey}</span>
-            <select
-                className={styles.fieldTypeSelect}
+            <Select
+                size="small"
                 value={schema.type}
-                onChange={(e) => handleTypeChange(e.target.value as IFieldSchema['type'])}
-            >
-                {FIELD_TYPE_OPTIONS.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                ))}
-            </select>
-            <input
-                className={styles.fieldDefaultInput}
+                options={FIELD_TYPE_SELECT_OPTIONS}
+                onChange={(val) => handleTypeChange(val)}
+                style={{ width: '100%' }}
+            />
+            <Input
+                size="small"
                 value={editingDefault}
                 placeholder="默认值"
                 onFocus={() => setIsFocused(true)}
@@ -81,11 +82,14 @@ const FieldRow: React.FC<FieldRowProps> = ({ fieldKey, schema, onUpdate, onDelet
                     if (e.key === 'Enter') { commitDefault(); (e.target as HTMLInputElement).blur() }
                 }}
             />
-            <button
-                className={styles.fieldDeleteBtn}
+            <Button
+                size="small"
+                type="text"
+                danger
                 onClick={() => onDelete(fieldKey)}
                 title="删除字段"
-            >×</button>
+                style={{ padding: '0 4px', minWidth: 20 }}
+            >×</Button>
         </div>
     )
 }
@@ -103,7 +107,7 @@ const AddFieldRow: React.FC<AddFieldRowProps> = ({ onAdd }) => {
     const handleAdd = () => {
         const trimmed = key.trim()
         if (!trimmed) return
-        const defaultMap: Record<IFieldSchema['type'], any> = {
+        const defaultMap: Record<IFieldSchema['type'], unknown> = {
             string: '',
             number: 0,
             boolean: false,
@@ -116,27 +120,27 @@ const AddFieldRow: React.FC<AddFieldRowProps> = ({ onAdd }) => {
 
     return (
         <div className={styles.addFieldRow}>
-            <input
-                className={styles.addFieldKeyInput}
+            <Input
+                size="small"
                 value={key}
                 placeholder="字段名"
                 onChange={(e) => setKey(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
             />
-            <select
-                className={styles.fieldTypeSelect}
+            <Select
+                size="small"
                 value={type}
-                onChange={(e) => setType(e.target.value as IFieldSchema['type'])}
-            >
-                {FIELD_TYPE_OPTIONS.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                ))}
-            </select>
-            <button
-                className={styles.addFieldBtn}
+                options={FIELD_TYPE_SELECT_OPTIONS}
+                onChange={(val) => setType(val)}
+                style={{ width: '100%' }}
+            />
+            <Button
+                size="small"
+                type="primary"
                 onClick={handleAdd}
                 disabled={!key.trim()}
-            >+</button>
+                style={{ padding: '0 4px', minWidth: 20 }}
+            >+</Button>
         </div>
     )
 }

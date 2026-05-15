@@ -137,10 +137,17 @@ class CanvasContext {
   }
 
   // 调整画布大小
-  public resize(width: number, height: number): void {
-    // 设置主画布尺寸
+  // dpr 可选：传入时同步更新 CSS style 尺寸（逻辑像素 = 物理像素 / dpr）
+  public resize(width: number, height: number, dpr?: number): void {
+    // 设置主画布物理像素尺寸
     this.mainCanvas.width = width;
     this.mainCanvas.height = height;
+
+    // 同步 CSS style 尺寸（逻辑像素）
+    if (dpr) {
+      this.mainCanvas.style.width = `${width / dpr}px`;
+      this.mainCanvas.style.height = `${height / dpr}px`;
+    }
 
     // 设置离屏画布尺寸
     if (this.bufferCanvas) {
@@ -220,28 +227,68 @@ class CanvasContext {
   }
 }
 
-// 全局单例实例
+/**
+ * 创建 CanvasContext 实例（每个 App/Renderer 持有自己独立的实例）
+ * @param mainCanvas 主画布元素
+ * @param options 配置选项
+ * @returns 新的 CanvasContext 实例
+ */
+export function createCanvasContext(
+  mainCanvas: HTMLCanvasElement,
+  options: ICanvasContextOptions = {}
+): CanvasContext {
+  return new CanvasContext(mainCanvas, options);
+}
+
+// ── 当前活动 CanvasContext（渲染/交互期间由 Renderer 设置） ──
+
+let _activeCanvasContext: CanvasContext | null = null;
+
+/**
+ * 设置当前活动的 CanvasContext（在渲染/交互帧开始时调用）
+ */
+export function setActiveCanvasContext(ctx: CanvasContext | null): void {
+  _activeCanvasContext = ctx;
+}
+
+/**
+ * 获取当前活动的 CanvasContext（View/Graph 在渲染和交互期间使用）
+ *
+ * 兼容性：如果活动上下文未设置（旧代码路径），回退到全局单例。
+ */
+export function getActiveCanvasContext(): CanvasContext {
+  if (_activeCanvasContext) {
+    return _activeCanvasContext;
+  }
+  // 回退到全局单例（向后兼容）
+  if (globalCanvasContext) {
+    return globalCanvasContext;
+  }
+  throw new Error('No active CanvasContext. Ensure rendering is within a Renderer.render() call.');
+}
+
+// ── 兼容旧全局单例 API（已废弃） ──
+
 let globalCanvasContext: CanvasContext | null = null;
 
 /**
- * 初始化全局 CanvasContext 实例
- * @param mainCanvas 主画布元素
- * @param options 配置选项
- * @returns CanvasContext 实例
+ * @deprecated 请使用 getActiveCanvasContext 代替。
  */
 export function getGlobalCanvasContext(
-  mainCanvas: HTMLCanvasElement = document.createElement("canvas"),
+  mainCanvas?: HTMLCanvasElement,
   options: ICanvasContextOptions = {}
 ): CanvasContext {
   if (!globalCanvasContext) {
+    if (!mainCanvas) {
+      throw new Error('getGlobalCanvasContext: 首次调用必须传入 mainCanvas');
+    }
     globalCanvasContext = new CanvasContext(mainCanvas, options);
-    return globalCanvasContext;
   }
   return globalCanvasContext;
 }
 
 /**
- * 销毁全局 CanvasContext 实例
+ * @deprecated 请使用 createCanvasContext 代替。
  */
 export function destroyGlobalCanvasContext(): void {
   if (globalCanvasContext) {

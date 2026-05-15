@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { Button, Select } from 'antd'
 import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler, FlowSchema } from 'banvasgl'
 import FlowCanvas from './FlowCanvas'
 import styles from './index.module.scss'
@@ -77,20 +78,23 @@ const EventRowItem: React.FC<EventRowItemProps> = ({ label, handler, onDelete, o
         <div className={styles.eventItem}>
             <div className={styles.eventRow}>
                 {/* 展开/折叠按钮 */}
-                <button
+                <Button
+                    size="small"
+                    type="text"
                     className={`${styles.expandBtn} ${expanded ? styles.expandBtnOpen : ''}`}
                     onClick={() => setExpanded((v) => !v)}
                     title={expanded ? '折叠画布' : '展开画布'}
-                >
-                    ▶
-                </button>
+                >▶</Button>
                 <span className={styles.eventName}>{label}</span>
                 <span className={styles.eventPreview}>{handlerPreview(handler)}</span>
-                <button
-                    className={styles.fieldDeleteBtn}
+                <Button
+                    size="small"
+                    type="text"
+                    danger
                     onClick={onDelete}
                     title="删除"
-                >×</button>
+                    style={{ padding: '0 4px', minWidth: 20 }}
+                >×</Button>
             </div>
             {expanded && (
                 <div className={styles.flowCanvasContainer}>
@@ -120,21 +124,24 @@ const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDel
     return (
         <div className={styles.eventItem}>
             <div className={styles.eventRow}>
-                <button
+                <Button
+                    size="small"
+                    type="text"
                     className={`${styles.expandBtn} ${expanded ? styles.expandBtnOpen : ''}`}
                     onClick={() => setExpanded((v) => !v)}
                     title={expanded ? '折叠画布' : '展开画布'}
-                >
-                    ▶
-                </button>
+                >▶</Button>
                 <span className={styles.eventName}>{label}</span>
                 <span className={styles.eventPreview}>{handlerPreview(handler)}</span>
                 {hasBound && onDelete && (
-                    <button
-                        className={styles.fieldDeleteBtn}
+                    <Button
+                        size="small"
+                        type="text"
+                        danger
                         onClick={onDelete}
                         title="清除"
-                    >×</button>
+                        style={{ padding: '0 4px', minWidth: 20 }}
+                    >×</Button>
                 )}
             </div>
             {expanded && (
@@ -232,21 +239,21 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                 {/* 添加事件 */}
                 {unboundEventKeys.length > 0 && (
                     <div className={styles.addEventRow}>
-                        <select
-                            className={styles.fieldTypeSelect}
-                            value={addingEvent}
-                            onChange={(e) => setAddingEvent(e.target.value as keyof IViewEvents | '')}
-                        >
-                            <option value="">选择事件...</option>
-                            {unboundEventKeys.map(({ key, label }) => (
-                                <option key={key} value={key}>{label}</option>
-                            ))}
-                        </select>
-                        <button
-                            className={styles.addFieldBtn}
+                        <Select
+                            size="small"
+                            value={addingEvent || undefined}
+                            placeholder="选择事件..."
+                            options={unboundEventKeys.map(({ key, label }) => ({ value: key, label }))}
+                            onChange={(val) => setAddingEvent(val as keyof IViewEvents)}
+                            style={{ flex: 1 }}
+                        />
+                        <Button
+                            size="small"
+                            type="primary"
                             onClick={handleAddEvent}
                             disabled={!addingEvent}
-                        >+</button>
+                            style={{ padding: '0 8px' }}
+                        >+</Button>
                     </div>
                 )}
             </section>

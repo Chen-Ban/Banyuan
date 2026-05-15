@@ -1,0 +1,317 @@
+.aiBar {
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  padding: 0 12px 12px;
+  flex-shrink: 0;
+  // gap 去掉，progressPanel 和 inputWrapper 紧贴拼接
+}
+
+// ─── 进度区 ───────────────────────────────────────────────────────────────────
+
+.progressPanel {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  width: calc(100% - 28px);
+  align-self: center;
+  background: #fff;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px 12px 0 0;
+  border-bottom: none;
+  overflow: hidden;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.07);
+}
+
+.progressHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.progressTitle {
+  font-size: 12px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  :global(.anticon) {
+    color: #1677ff;
+  }
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #bbb;
+  border-radius: 4px;
+  padding: 0;
+  font-size: 11px;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: #666;
+    background: #f0f0f0;
+  }
+}
+
+.progressBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #d9d9d9;
+    border-radius: 2px;
+  }
+}
+
+.streamingText {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 2px 0;
+}
+
+.loadingPlaceholder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #999;
+  padding: 4px 0;
+}
+
+.progressItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  color: #555;
+  padding: 2px 0;
+  line-height: 1.5;
+}
+
+.progressItemTool {
+  color: #1677ff;
+}
+
+.progressItemDone {
+  color: #333;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.progressItemError {
+  color: #ff4d4f;
+}
+
+.toolSpinner {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.progressContent {
+  flex: 1;
+}
+
+// ─── 输入框容器 ───────────────────────────────────────────────────────────────
+
+.inputWrapper {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e2e2e2;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:focus-within {
+    border-color: #c8c8c8;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+// ─── 图片预览区 ───────────────────────────────────────────────────────────────
+
+.imagePreviewRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px 0;
+}
+
+.imageThumb {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e8e8e8;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    border-color: #aaa;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.imageRemoveBtn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 9px;
+  padding: 0;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.75);
+  }
+}
+
+// ─── 文本域 ───────────────────────────────────────────────────────────────────
+
+.textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 160px;
+  padding: 12px 14px 4px;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #1a1a1a;
+  background: transparent;
+  font-family: inherit;
+  box-sizing: border-box;
+  overflow-y: auto;
+
+  &::placeholder {
+    color: #b0b0b0;
+  }
+
+  &:disabled {
+    color: #999;
+    cursor: not-allowed;
+  }
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #d9d9d9;
+    border-radius: 2px;
+  }
+}
+
+// ─── 底部工具栏 ───────────────────────────────────────────────────────────────
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px 8px;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+}
+
+// ─── 发送 / 停止 按钮 ─────────────────────────────────────────────────────────
+
+.actionBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  padding: 0;
+  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+  flex-shrink: 0;
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+.sendBtn {
+  background: #d0d0d0;
+  color: #fff;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 1;
+  }
+}
+
+.sendBtnActive {
+  background: #1a1a1a;
+  color: #fff;
+
+  &:hover {
+    background: #333;
+  }
+}
+
+.stopBtn {
+  background: #1a1a1a;
+  color: #fff;
+
+  &:hover {
+    background: #333;
+  }
+}
+

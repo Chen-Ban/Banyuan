@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Tabs } from 'antd'
+import { InputNumber, Radio, Tabs } from 'antd'
 import type { IBanvasActions, IPageNode } from 'banvasgl'
 import FieldSchemaMapEditor from './FieldSchemaMapEditor'
 import PropertiesTab from './PropertiesTab'
@@ -13,6 +13,8 @@ interface PropertyPanelProps {
     actions: IBanvasActions
     pages: IPageNode[]
     currentPageId: string | null
+    canvasSize: { width: number; height: number }
+    onCanvasSizeChange: (width: number, height: number) => void
 }
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -20,6 +22,8 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     actions,
     pages,
     currentPageId,
+    canvasSize,
+    onCanvasSizeChange,
 }) => {
     const view = selectedViewId ? actions.view.getViewInstance(selectedViewId) : null
 
@@ -72,9 +76,80 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             <EventsTab mode="page" pageId={currentPageId} actions={actions} />
         ) : null
 
+        const SCREEN_PRESETS = [
+            { label: '1280 × 800', width: 1280, height: 800 },
+            { label: '1366 × 768', width: 1366, height: 768 },
+            { label: '1440 × 900', width: 1440, height: 900 },
+            { label: '1920 × 1080', width: 1920, height: 1080 },
+            { label: '2560 × 1440', width: 2560, height: 1440 },
+            { label: '375 × 812（iPhone）', width: 375, height: 812 },
+            { label: '390 × 844（iPhone Pro）', width: 390, height: 844 },
+            { label: '768 × 1024（iPad）', width: 768, height: 1024 },
+        ]
+
+        const matchedPreset = SCREEN_PRESETS.find(
+            (p) => p.width === canvasSize.width && p.height === canvasSize.height,
+        )
+
+        const pageSizeTab = (
+            <div className={styles.tabContent}>
+                <div className={styles.section}>
+                    <div className={styles.sectionHeader}>预设尺寸</div>
+                    <Radio.Group
+                        className={styles.presetGroup}
+                        value={matchedPreset ? `${matchedPreset.width}x${matchedPreset.height}` : null}
+                        onChange={(e) => {
+                            const preset = SCREEN_PRESETS.find(
+                                (p) => `${p.width}x${p.height}` === e.target.value,
+                            )
+                            if (preset) onCanvasSizeChange(preset.width, preset.height)
+                        }}
+                    >
+                        {SCREEN_PRESETS.map((p) => (
+                            <Radio key={`${p.width}x${p.height}`} value={`${p.width}x${p.height}`}>
+                                {p.label}
+                            </Radio>
+                        ))}
+                    </Radio.Group>
+                </div>
+                <div className={styles.section}>
+                    <div className={styles.sectionHeader}>自定义尺寸</div>
+                    <div className={styles.transformGrid}>
+                        <div className={styles.numberInput}>
+                            <span className={styles.inputLabel}>宽度 (px)</span>
+                            <InputNumber
+                                size="small"
+                                min={100}
+                                max={9999}
+                                value={canvasSize.width}
+                                onChange={(v) => {
+                                    if (v != null) onCanvasSizeChange(v, canvasSize.height)
+                                }}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+                        <div className={styles.numberInput}>
+                            <span className={styles.inputLabel}>高度 (px)</span>
+                            <InputNumber
+                                size="small"
+                                min={100}
+                                max={9999}
+                                value={canvasSize.height}
+                                onChange={(v) => {
+                                    if (v != null) onCanvasSizeChange(canvasSize.width, v)
+                                }}
+                                style={{ width: '100%' }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+
         const pageTabItems = [
             { key: 'data', label: '数据', children: pageDataTab },
             ...(pageEventsTab ? [{ key: 'events', label: '事件', children: pageEventsTab }] : []),
+            { key: 'size', label: '页面尺寸', children: pageSizeTab },
         ]
 
         return (

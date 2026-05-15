@@ -169,6 +169,7 @@ export function useCanvasEvents({
   const handleMouseMoveHover = useCallback(
     (scene: Scene, point: Point3) => {
       if (!canvasRef.current) return;
+      // 注意：调用方 onMouseMove 已经 activateContext，这里直接使用即可
       let selected = false;
       for (const view of scene.children) {
         const {
@@ -207,11 +208,14 @@ export function useCanvasEvents({
       const point = event2Point(e);
       const mousDownPoint = mouseDownPointRef.current;
 
+      // 激活 CanvasContext 供 interact 命中检测使用
+      app.renderer.activateContext();
       if (mousDownPoint) {
         handleMouseMoveWithAction(e, scene, point, mousDownPoint);
       } else {
         handleMouseMoveHover(scene, point);
       }
+      app.renderer.deactivateContext();
     },
     [app, canvasRef, handleMouseMoveHover, handleMouseMoveWithAction],
   );
@@ -332,7 +336,9 @@ export function useCanvasEvents({
 
           if (action === Action.CONNECT) {
             // 连线：尝试完成连线（命中目标端口则建立 EdgeView，否则清理临时边）
+            app.renderer.activateContext();
             dispatcher.finishConnect(scene, upPoint);
+            app.renderer.deactivateContext();
           } else if (action === Action.SELECT) {
             // 框选结束：将最后一个 actived view 设为 selected
             const activedViews = scene.getAllActived();
@@ -410,12 +416,14 @@ export function useCanvasEvents({
       const point = event2Point(e);
       let hitView: View | null = null;
 
+      app.renderer.activateContext();
       for (const view of scene.children) {
         const { view: _view } = view.interact(point);
         if (_view) {
           hitView = _view as View;
         }
       }
+      app.renderer.deactivateContext();
 
       onContextMenuHit({
         target: hitView ? "view" : "canvas",

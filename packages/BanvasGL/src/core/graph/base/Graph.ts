@@ -2,7 +2,7 @@ import { GRAPHTYPE } from '@/core/constants'
 import Style from '@/core/style/Style'
 import { Matrix4, Point3, Vector3 } from '@/core/math'
 import Bounds from './Bounds'
-import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
+import { getActiveCanvasContext } from '@/core/renderer/CanvasContext'
 import { IGraph, ISerializable } from '@/core/interfaces'
 
 export default abstract class Graph implements IGraph, ISerializable {
@@ -51,7 +51,7 @@ export default abstract class Graph implements IGraph, ISerializable {
      * @returns 是否在路径内
      */
     public isPointInPath(p: Point3): Boolean {
-        const ctx = getGlobalCanvasContext()?.bufferCtx
+        const ctx = getActiveCanvasContext().bufferCtx
         if (!ctx) return false
         ctx.save()
         this.renderPath(ctx, true)

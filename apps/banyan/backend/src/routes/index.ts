@@ -1,5 +1,8 @@
 import Router from '@koa/router'
-import applicationRoutes from './applications'
+import applicationRoutes from './applications.js'
+import aiRoutes from './ai.js'
+import buildRouter from './build.js'
+import previewRouter from './preview.js'
 
 const router = new Router()
 
@@ -14,5 +17,8 @@ router.get('/health', async (ctx) => {
 
 // API 路由
 router.use(applicationRoutes.routes())
+router.use(aiRoutes.routes())
+router.use(buildRouter.routes(), buildRouter.allowedMethods())
+router.use(previewRouter.routes(), previewRouter.allowedMethods())
 
 export default router

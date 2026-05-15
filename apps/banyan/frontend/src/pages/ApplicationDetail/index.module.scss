@@ -14,8 +14,18 @@
 
 .canvasSection {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background-color: #f8f9fa;
   position: relative;
-  padding: 12px;
+}
+
+// 画布渲染区（撑满剩余空间，画布居中展示）
+.canvasArea {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
