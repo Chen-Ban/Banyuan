@@ -569,6 +569,9 @@ export default class App {
 
   // 从序列化的 Scene JSON 初始化
   public initFromSerializedScenes(serializedScenes: string[]): App {
+    // 清理已有场景，避免重复追加
+    this.getScenes().forEach((scene) => this.removeScene(scene));
+
     // 反序列化过程中 TextElement 等需要 CanvasContext 来测量文字尺寸，
     // 此时还没有进入 render() 流程，需要临时激活 Renderer 的 context。
     this.renderer.activateContext();
@@ -663,8 +666,12 @@ export default class App {
   }
 
   // 事件处理
-  public handleResize(width: number, height: number): App {
-    this.renderer.resize(width, height);
+  // width/height 为物理像素尺寸，dpr 可选：传入时同步更新 CSS style 尺寸和 Renderer DPR
+  public handleResize(width: number, height: number, dpr?: number): App {
+    this.renderer.resize(width, height, dpr);
+    if (dpr !== undefined) {
+      this.renderer.setDPR(dpr);
+    }
     return this;
   }
 

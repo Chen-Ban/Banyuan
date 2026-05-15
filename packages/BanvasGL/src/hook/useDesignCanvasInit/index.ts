@@ -7,7 +7,7 @@ import type { IRendererOptions } from "@/core/interfaces/IRenderer";
 // ── BOM 属性（内联，避免跨目录依赖） ──
 function useBOMProperties(): { dpr: number } {
   const [dpr, setDpr] = useState<number>(() =>
-    typeof window !== "undefined" ? window.devicePixelRatio ?? 1 : 1,
+    typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1,
   );
 
   useEffect(() => {
@@ -89,20 +89,10 @@ export function useDesignCanvasInit(
     setCanvasNode(node);
   }, []);
 
-  // 统一设置画布逻辑尺寸与样式尺寸
-  const applyCanvasSize = useCallback(() => {
-    if (!canvasNode) return;
-    canvasNode.style.width = `${options.width}px`;
-    canvasNode.style.height = `${options.height}px`;
-    canvasNode.width = options.width * dpr;
-    canvasNode.height = options.height * dpr;
-  }, [canvasNode, options.width, options.height, dpr]);
-
   // Effect 1: App 初始化（canvas 就绪后创建）
+  // 尺寸由 Effect 3 的 handleResize 统一设置，此处无需手动设置
   useEffect(() => {
     if (!canvasNode) return;
-
-    applyCanvasSize();
 
     const _app = App.create(canvasNode, options.appOptions ?? {}, {
       ...options.rendererOptions,
@@ -121,9 +111,6 @@ export function useDesignCanvasInit(
   useEffect(() => {
     if (!app) return;
 
-    const existingScenes = app.getScenes();
-    existingScenes.forEach((scene) => app.removeScene(scene));
-
     if (Array.isArray(serializedPages) && serializedPages.length > 0) {
       app.initFromSerializedScenes(serializedPages);
     } else {
@@ -137,11 +124,11 @@ export function useDesignCanvasInit(
   }, [app, serializedPages]);
 
   // Effect 3: 尺寸 / DPR 变化时更新画布
+  // handleResize 内部同时处理：CSS style 尺寸、canvas 物理像素、bufferCanvas、Renderer DPR
   useEffect(() => {
-    if (!canvasNode || !app) return;
-    applyCanvasSize();
-    app.renderer.setDPR(dpr);
-  }, [app, applyCanvasSize, dpr]);
+    if (!app) return;
+    app.handleResize(options.width * dpr, options.height * dpr, dpr);
+  }, [app, dpr, options.width, options.height]);
 
   return { app, canvasRef, canvasCallbackRef };
 }
