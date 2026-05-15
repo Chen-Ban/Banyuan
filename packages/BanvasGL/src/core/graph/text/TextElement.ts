@@ -1,7 +1,7 @@
 import { GRAPHTYPE } from '@/core/constants'
 import { Style, Color } from '@/core/style'
 import TextOptions from './TextOptions'
-import { getGlobalCanvasContext } from '@/core/renderer/CanvasContext'
+import { getActiveCanvasContext } from '@/core/renderer/CanvasContext'
 import Graph from '@/core/graph/base/Graph'
 import { Point3, Vector3, Matrix4 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
@@ -338,7 +338,7 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
      * 计算文字的实际宽高
      */
     protected calculateActualDimensions(): void {
-        const ctx = getGlobalCanvasContext()?.getBufferContext()
+        const ctx = getActiveCanvasContext().getBufferContext()
 
         if (!ctx) throw new Error('无法获取真实字体尺寸')
         ctx.save()

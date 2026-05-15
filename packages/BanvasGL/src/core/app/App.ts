@@ -569,6 +569,9 @@ export default class App {
 
   // 从序列化的 Scene JSON 初始化
   public initFromSerializedScenes(serializedScenes: string[]): App {
+    // 反序列化过程中 TextElement 等需要 CanvasContext 来测量文字尺寸，
+    // 此时还没有进入 render() 流程，需要临时激活 Renderer 的 context。
+    this.renderer.activateContext();
     try {
       const scenes = (serializedScenes || []).map((json) =>
         Serializer.getInstance().deserialize(json),
@@ -579,6 +582,8 @@ export default class App {
       }
     } catch (e) {
       console.warn("Failed to init scenes from serialized JSON:", e);
+    } finally {
+      this.renderer.deactivateContext();
     }
     return this;
   }

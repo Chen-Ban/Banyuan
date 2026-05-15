@@ -1,8 +1,5 @@
 import Scene from "@/core/scene/Scene";
-import CanvasContext, {
-  getGlobalCanvasContext,
-  destroyGlobalCanvasContext,
-} from "./CanvasContext";
+import CanvasContext, { createCanvasContext, setActiveCanvasContext } from "./CanvasContext";
 import { IRendererOptions } from '@/core/interfaces'
 
 export default class Renderer {
@@ -15,16 +12,18 @@ export default class Renderer {
   // 设备像素比
   private dpr: number;
 
+  // 每个 Renderer 实例拥有自己的 CanvasContext（不再依赖全局单例）
+  private _canvasContext: CanvasContext;
+
   constructor(canvas: HTMLCanvasElement, options: IRendererOptions = {}) {
-    // 初始化全局 CanvasContext
-    getGlobalCanvasContext(canvas, options);
+    this._canvasContext = createCanvasContext(canvas, options);
     // 保存 dpr，默认为 1
     this.dpr = options.dpr ?? 1;
   }
 
-  // 获取全局 CanvasContext 实例
+  // 获取当前实例的 CanvasContext
   private get canvasContext(): CanvasContext {
-    return getGlobalCanvasContext();
+    return this._canvasContext;
   }
 
   // 渲染场景
@@ -34,6 +33,8 @@ export default class Renderer {
     }
 
     this.isRendering = true;
+    // 设置当前活动的 CanvasContext，让 View/Graph 在渲染期间能访问正确的上下文
+    setActiveCanvasContext(this._canvasContext);
 
     try {
       // 清空画布并渲染场景
@@ -60,8 +61,24 @@ export default class Renderer {
     } catch (error) {
       console.error("Renderer error:", error);
     } finally {
+      setActiveCanvasContext(null);
       this.isRendering = false;
     }
+  }
+
+  /**
+   * 将此 Renderer 的 CanvasContext 设为当前活动上下文。
+   * 在交互（命中检测）等非渲染调用前使用，确保 View.interact 可访问正确的 buffer context。
+   */
+  public activateContext(): void {
+    setActiveCanvasContext(this._canvasContext);
+  }
+
+  /**
+   * 清除活动上下文标记。
+   */
+  public deactivateContext(): void {
+    setActiveCanvasContext(null);
   }
 
   // 清空画布
@@ -166,8 +183,7 @@ export default class Renderer {
 
   // 销毁渲染器
   public destroy(): void {
-    // 清理资源
-    destroyGlobalCanvasContext();
+    // 清理资源（实例级别，不影响其他 Renderer）
     this.isRendering = false;
   }
 
