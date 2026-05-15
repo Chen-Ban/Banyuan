@@ -1,7 +1,7 @@
 {
-  "name": "@banyuan/server",
+  "name": "@banyuan/xiangdi-server",
   "version": "0.0.1",
-  "description": "Banyuan 平台后端服务",
+  "description": "XiangDi AI Agent 独立 HTTP 服务",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -16,7 +16,8 @@
     "koa": "^2.15.3",
     "@koa/router": "^13.1.0",
     "@koa/cors": "^5.0.0",
-    "koa-body": "^6.0.1"
+    "koa-body": "^6.0.1",
+    "xiangdi": "workspace:*"
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",
