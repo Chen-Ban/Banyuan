@@ -1,5 +1,5 @@
 import React from 'react'
-import { Tooltip } from 'antd'
+import { Checkbox, Input, Tooltip } from 'antd'
 import type { IBanvasActions, IView } from 'banvasgl'
 import { GRAPHTYPE } from 'banvasgl'
 import NumberInput from './NumberInput'
@@ -56,7 +56,9 @@ const PropertiesTab: React.FC<PropertiesTabProps> = ({
                 </div>
                 <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>名称</span>
-                    <input
+                    <Input
+                        size="small"
+                        variant="borderless"
                         className={styles.nameInput}
                         value={view.name}
                         onChange={(e) => actions.view.rename(selectedViewId, e.target.value)}
@@ -128,22 +130,18 @@ const PropertiesTab: React.FC<PropertiesTabProps> = ({
             <section className={styles.section}>
                 <div className={styles.sectionHeader}>状态</div>
                 <div className={styles.stateRow}>
-                    <label className={styles.stateLabel}>
-                        <input
-                            type="checkbox"
-                            checked={view.visible}
-                            onChange={(e) => actions.view.setVisible(selectedViewId, e.target.checked)}
-                        />
+                    <Checkbox
+                        checked={view.visible}
+                        onChange={(e) => actions.view.setVisible(selectedViewId, e.target.checked)}
+                    >
                         可见
-                    </label>
-                    <label className={styles.stateLabel}>
-                        <input
-                            type="checkbox"
-                            checked={view.freezed}
-                            onChange={(e) => actions.view.setLocked(selectedViewId, e.target.checked)}
-                        />
+                    </Checkbox>
+                    <Checkbox
+                        checked={view.freezed}
+                        onChange={(e) => actions.view.setLocked(selectedViewId, e.target.checked)}
+                    >
                         锁定
-                    </label>
+                    </Checkbox>
                 </div>
             </section>
 

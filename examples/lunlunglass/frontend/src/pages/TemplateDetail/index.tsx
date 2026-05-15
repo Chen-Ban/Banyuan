@@ -4,7 +4,6 @@ import {
   useEffect,
   useCallback,
   useRef,
-  useLayoutEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDesignBanvas } from "banvasgl";
@@ -58,41 +57,16 @@ const TemplateDetail = () => {
     }
   }, [id, isNew]);
 
-  // 自适应画布尺寸：监听 canvasSection 容器大小
-  const canvasSectionRef = useRef<HTMLDivElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  // 页面尺寸（用户在「页面尺寸」tab 中手动设置）
+  // 默认选中 58mm 热敏打印机预设（220px 宽）
+  const [canvasSize, setCanvasSize] = useState({ width: 220, height: 400 });
 
-  useLayoutEffect(() => {
-    const el = canvasSectionRef.current;
-    if (!el) return;
-
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const PADDING = 12;
-    const updateSize = () => {
-      const { clientWidth, clientHeight } = el;
-      const w = clientWidth - PADDING * 2;
-      const h = clientHeight - PADDING * 2;
-      if (w > 0 && h > 0) {
-        setCanvasSize({ width: w, height: h });
-      }
-    };
-
-    // 立即同步一次初始尺寸
-    updateSize();
-
-    const debouncedUpdate = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(updateSize, 100);
-    };
-
-    const observer = new ResizeObserver(debouncedUpdate);
-    observer.observe(el);
-    return () => {
-      if (timer) clearTimeout(timer);
-      observer.disconnect();
-    };
-  }, []);
+  const handleCanvasSizeChange = useCallback(
+    (width: number, height: number) => {
+      setCanvasSize({ width, height });
+    },
+    [],
+  );
 
   const banvasOptions = useMemo(
     () => ({
@@ -204,8 +178,34 @@ const TemplateDetail = () => {
 
   const handlePreview = useCallback(() => {
     const dataUrl = actions.exportImage();
-    setPreviewDataUrl(dataUrl);
-    setPreviewVisible(true);
+    if (!dataUrl) return;
+
+    // 热敏打印机为黑白，对预览图做灰度 + 二值化处理
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const threshold = 180; // 二值化阈值，低于此值视为黑
+      for (let i = 0; i < data.length; i += 4) {
+        // 加权灰度：人眼对绿色最敏感
+        const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+        const bw = gray < threshold ? 0 : 255;
+        data[i] = bw;
+        data[i + 1] = bw;
+        data[i + 2] = bw;
+        // alpha 保持不变
+      }
+      ctx.putImageData(imageData, 0, 0);
+      setPreviewDataUrl(canvas.toDataURL('image/png'));
+      setPreviewVisible(true);
+    };
+    img.src = dataUrl;
   }, [actions]);
 
   if (!loaded) {
@@ -232,7 +232,7 @@ const TemplateDetail = () => {
           currentPageId={currentPageId}
           actions={actions}
         />
-        <div className={styles.canvasSection} ref={canvasSectionRef}>
+        <div className={styles.canvasSection}>
           {Banvas}
         </div>
         <PropertyPanel
@@ -240,6 +240,8 @@ const TemplateDetail = () => {
           actions={actions}
           pages={pages}
           currentPageId={currentPageId}
+          canvasSize={canvasSize}
+          onCanvasSizeChange={handleCanvasSizeChange}
         />
       </div>
       <ContextMenu state={contextMenu} />
@@ -248,17 +250,52 @@ const TemplateDetail = () => {
         title="画布预览"
         footer={null}
         onCancel={() => setPreviewVisible(false)}
-        width="80vw"
+        width={800}
         centered
-        styles={{ body: { textAlign: 'center', padding: '16px 0' } }}
+        styles={{ body: { padding: 0 } }}
       >
-        {previewDataUrl && (
-          <img
-            src={previewDataUrl}
-            alt="canvas preview"
-            style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }}
-          />
-        )}
+        <div className={styles.previewModalBody}>
+          {/* 左侧：预览图 */}
+          <div className={styles.previewLeft}>
+            {previewDataUrl && (
+              <img
+                src={previewDataUrl}
+                alt="canvas preview"
+                style={{
+                  display: 'block',
+                  width: canvasSize.width,
+                  height: canvasSize.height,
+                  maxWidth: '100%',
+                  maxHeight: '60vh',
+                  objectFit: 'contain',
+                  boxShadow: '0 4px 24px rgba(0,0,0,0.18), 0 1px 6px rgba(0,0,0,0.10)',
+                  borderRadius: 2,
+                  background: '#fff',
+                }}
+              />
+            )}
+          </div>
+          {/* 右侧：基本信息 */}
+          <div className={styles.previewRight}>
+            <div className={styles.previewInfoTitle}>基本信息</div>
+            <div className={styles.previewInfoRow}>
+              <span className={styles.previewInfoLabel}>名称</span>
+              <span className={styles.previewInfoValue}>{templateName || '—'}</span>
+            </div>
+            <div className={styles.previewInfoRow}>
+              <span className={styles.previewInfoLabel}>描述</span>
+              <span className={styles.previewInfoValue}>{templateDescription || '暂无描述'}</span>
+            </div>
+            <div className={styles.previewInfoRow}>
+              <span className={styles.previewInfoLabel}>画布尺寸</span>
+              <span className={styles.previewInfoValue}>{canvasSize.width} × {canvasSize.height} px</span>
+            </div>
+            <div className={styles.previewInfoRow}>
+              <span className={styles.previewInfoLabel}>页面数</span>
+              <span className={styles.previewInfoValue}>{pages.length} 页</span>
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );
