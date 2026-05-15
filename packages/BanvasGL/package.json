@@ -1,7 +1,7 @@
 {
   "name": "banvasgl",
   "version": "0.1.0",
-  "description": "一个二维图形绘制库",
+  "description": "Banyuan 自研 2D 图形引擎，提供图形基元、场景管理、动画系统、序列化及编辑态/运行态 React Hook",
   "exports": {
     ".": {
       "types": {

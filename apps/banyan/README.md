@@ -21,8 +21,13 @@ apps/banyan/
 frontend（BanvasGL 画布编辑器）
     ↓ REST API（/api/*）
 backend（Koa + Mongoose）
-    ↓
-MongoDB（应用 JSON 持久化）
+    │                    ↓
+    │              MongoDB（应用 JSON 持久化）
+    │
+    │  AI 请求：读取 pages → POST /ai/run
+    ↓                              ↓
+    └──────── XiangDi 服务(:3002) ─┘
+              （无状态 Agent 执行，SSE 回流）
 ```
 
 Electron 壳在生产模式下直接加载 `frontend/dist/index.html`，开发模式下代理到 Vite 开发服务器（`localhost:5174`）。
@@ -77,6 +82,9 @@ MONGODB_URI=mongodb://localhost:27017/banyan
 MONGODB_HOST=localhost
 MONGODB_PORT=27017
 MONGODB_DATABASE=banyan
+
+# XiangDi AI Agent 服务地址（默认 http://localhost:3002）
+XIANGDI_URL=http://localhost:3002
 ```
 
 ## 技术栈
@@ -141,12 +149,19 @@ src/
 ├── models/
 │   └── Application.ts  # 应用数据模型（Mongoose Schema）
 ├── services/
-│   └── ApplicationService.ts  # 业务逻辑层
+│   ├── ApplicationService.ts  # 应用 CRUD 业务逻辑
+│   ├── AiService.ts           # AI 代理（读 pages → 调 XiangDi → 写 pages）
+│   ├── build/                 # 构建服务（生成跨平台安装包）
+│   └── preview/               # 预览服务（生成内存 HTML 预览）
 ├── controllers/
-│   └── ApplicationController.ts  # 请求处理层
+│   ├── ApplicationController.ts
+│   └── AiController.ts
 └── routes/
     ├── index.ts          # 路由聚合 + 健康检查
-    └── applications.ts   # 应用 CRUD 路由
+    ├── applications.ts   # 应用 CRUD 路由
+    ├── ai.ts             # AI 对话路由
+    ├── build.ts          # 构建任务路由
+    └── preview.ts        # 预览路由
 ```
 
 **REST API**：
@@ -159,6 +174,12 @@ src/
 | POST | `/api/applications` | 创建应用 |
 | PUT | `/api/applications/:id` | 更新应用 |
 | DELETE | `/api/applications/:id` | 删除应用 |
+| POST | `/api/ai/:appId/chat` | AI 对话（SSE 流式，代理到 XiangDi 服务） |
+| POST | `/api/v1/build/app` | 提交构建任务（生成跨平台安装包） |
+| GET | `/api/v1/build/status/:taskId` | 查询构建任务状态 |
+| GET | `/api/v1/build/download/:taskId` | 下载构建产物 |
+| POST | `/preview` | 创建内存预览（返回 previewId 和 URL） |
+| GET | `/preview/:previewId` | 获取预览 HTML（可直接在 iframe 中打开） |
 
 **Application 数据模型**：
 
@@ -217,5 +238,4 @@ pnpm --filter banyan-electron build
 ## 与 Monorepo 其他包的关系
 
 - **BanvasGL**：前端和 Electron 均依赖 `banvasgl (workspace:*)`，提供 2D 画布渲染能力
-- **XiangDi**：AI Agent 引擎，未来将集成到 frontend，提供自然语言生成画布的能力
-- **packages/server**：平台级构建与预览服务，与 Banyan backend 独立，负责将应用打包为安装包
+- **XiangDi**（`packages/XiangDi` + `apps/xiangdi`）：AI Agent 引擎及其 HTTP 服务。banyan 后端通过 `AiService` 代理 AI 请求，读取 MongoDB 中的 pages 后转发给 XiangDi 服务（:3002），Agent 执行完毕后将最终 pages 写回 MongoDB

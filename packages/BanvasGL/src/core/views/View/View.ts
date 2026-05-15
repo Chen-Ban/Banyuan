@@ -1,6 +1,6 @@
 import { VIEWTYPE } from "@/core/constants";
 import Matrix4 from "@/core/math/Matrix4";
-import { getGlobalCanvasContext } from "@/core/renderer/CanvasContext";
+import { getActiveCanvasContext } from "@/core/renderer/CanvasContext";
 import {
   Action,
   Cursor,
@@ -385,7 +385,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public interact(worldPoint: Point3): InteractResult {
     const relativePoint = this.getMVPMatrix().inverse().multiply(worldPoint);
 
-    const ctx = getGlobalCanvasContext()?.getBufferContext();
+    const ctx = getActiveCanvasContext().getBufferContext();
     if (!ctx) throw new Error("交互失败");
 
     // 1. 检查插件（BoundingBox + 子类插件）—— 插件不随 scroll 移动，用原始坐标
@@ -648,7 +648,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   private renderToOffScreen(): void {
-    const canvasContext = getGlobalCanvasContext();
+    const canvasContext = getActiveCanvasContext();
 
     const offscreenCtx = canvasContext.getBufferContext();
     const viewport = this.renderViewport;
@@ -711,7 +711,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
   // 从缓存渲染到主画布
   private renderFromCache(): void {
-    const canvasContext = getGlobalCanvasContext();
+    const canvasContext = getActiveCanvasContext();
     const mainCtx = canvasContext.getMainContext();
     const offscreenCtx = canvasContext.getBufferContext();
     if (!offscreenCtx) return;

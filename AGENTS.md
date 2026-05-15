@@ -16,12 +16,12 @@ Banyuan/
 ├── packages/
 │   ├── BanvasGL/        # 核心 2D 图形引擎 (npm: banvasgl)
 │   ├── XiangDi/         # AI Agent 引擎 (npm: xiangdi)
-│   └── server/          # 平台后端服务 (@banyuan/server)
 ├── apps/
-│   └── banyan/          # 低代码平台应用
-│       ├── frontend/    #   React 19 + Vite + Ant Design 6
-│       ├── backend/     #   Koa + MongoDB (mongoose)
-│       └── electron/    #   Electron 36 桌面壳
+│   ├── banyan/          # 低代码平台应用
+│   │   ├── frontend/    #   React 19 + Vite + Ant Design 6
+│   │   ├── backend/     #   Koa + MongoDB (mongoose) + 构建/预览/AI代理 (:3001)
+│   │   └── electron/    #   Electron 36 桌面壳
+│   └── xiangdi/         # XiangDi AI Agent 独立 HTTP 服务 (:3002)
 ├── examples/
 │   └── lunlunglass/     # 示例：眼镜店管理系统
 └── docs/
@@ -36,9 +36,26 @@ Banyuan/
 apps/banyan/frontend ──▶ banvasgl (workspace:*)
 apps/banyan/electron ──▶ banvasgl (workspace:*)
 xiangdi ──optional peerDep──▶ banvasgl (workspace:*)
+apps/xiangdi ──▶ xiangdi (workspace:*)
 ```
 
 依赖方向是单向的：应用层 → 引擎层。XiangDi 对 BanvasGL 的 peerDep 是 optional 的，可作为通用 AI Agent 引擎独立使用。
+
+## 运行时服务架构
+
+```
+前端(:5173) ←── Vite proxy /api ──▶ banyan 后端(:3001)
+                                          │
+                                          │ HTTP SSE 代理
+                                          ▼
+                                   XiangDi 服务(:3002)
+                                   apps/xiangdi
+```
+
+- **banyan 后端(:3001)**：`apps/banyan/backend`，负责 MongoDB 持久化、应用 CRUD、构建/预览任务、AI 请求代理
+- **XiangDi 服务(:3002)**：`apps/xiangdi`，无状态 AI Agent 服务，pages 随请求传入/随 done 事件返回，不访问 MongoDB
+- **AI 请求流程**：前端 → banyan 后端（读 pages from MongoDB）→ XiangDi 服务（执行 Agent）→ banyan 后端（写 pages to MongoDB）→ 前端
+- **XiangDi 服务地址**：通过环境变量 `XIANGDI_URL` 配置，默认 `http://localhost:3002`
 
 ## 技术栈
 
@@ -104,15 +121,23 @@ xiangdi ──optional peerDep──▶ banvasgl (workspace:*)
 | XiangDi AgentLoop 核心 | `packages/XiangDi/src/core/AgentLoop.ts` |
 | XiangDi Spec 体系 | `packages/XiangDi/src/spec/types.ts` |
 | XiangDi 工具协议 | `packages/XiangDi/src/tools/BanvasToolProtocol.ts` |
+| XiangDi AISchema 定义 | `packages/XiangDi/src/schema/AISchema.ts` |
+| XiangDi AISchema ↔ BanvasGL 双向转换器 | `packages/XiangDi/src/schema/converters.ts` |
 | Banyan 前端路由 | `apps/banyan/frontend/src/routes/index.tsx` |
 | Banyan 后端入口 | `apps/banyan/backend/src/app.ts` |
-| 平台服务 | `packages/server/src/app.ts` |
+| Banyan 后端 AI 代理 | `apps/banyan/backend/src/services/AiService.ts` |
+| Banyan 后端构建服务 | `apps/banyan/backend/src/services/build/index.ts` |
+| Banyan 后端预览服务 | `apps/banyan/backend/src/services/preview/index.ts` |
+| XiangDi HTTP 服务入口 | `apps/xiangdi/src/app.ts` |
+| XiangDi HTTP 服务路由 | `apps/xiangdi/src/routes/ai.ts` |
 
 ## 禁止事项
 
 - **禁止**在运行态入口（`index.runtime.ts`）中引入编辑态模块
 - **禁止**直接修改 BanvasGL Scene 内部状态，必须通过 `TransactionManager` 或 XiangDi 工具协议
 - **禁止**在 XiangDi AgentLoop 中硬编码特定 LLM provider，必须通过 `LLMClient` 接口
+- **禁止**在 `apps/banyan/backend` 中直接 `import xiangdi`，必须通过 HTTP 调用 XiangDi 服务（:3002）
+- **禁止**在 `apps/xiangdi`（XiangDi 服务）中访问 MongoDB，持久化由 banyan 后端负责
 - **禁止**跨包直接引用 `src/` 内部路径（必须通过包的公共导出）
 - **禁止**在 packages/ 目录下的库包中引入 React/DOM 等宿主环境依赖（除非在 hook/ 目录中且声明为 peerDep）
 - **禁止**向 git 提交 API Key（`apiKey.json` 等文件已在 `.gitignore` 中）
@@ -133,6 +158,6 @@ xiangdi ──optional peerDep──▶ banvasgl (workspace:*)
 - [架构决策记录](./docs/adr/) — 关键设计决策的背景与权衡
 - [BanvasGL README](./packages/BanvasGL/README.md) — 核心 2D 图形引擎详细文档
 - [XiangDi README](./packages/XiangDi/README.md) — AI Agent 引擎详细文档
-- [Server README](./packages/server/README.md) — 平台构建与预览服务
+- [XiangDi Server README](./apps/xiangdi/README.md) — XiangDi AI Agent 独立 HTTP 服务
 - [Banyan README](./apps/banyan/README.md) — 低代码可视化设计平台（frontend + backend + electron）
 - [LunlunGlass README](./examples/lunlunglass/README.md) — 示例应用：眼镜店管理系统
