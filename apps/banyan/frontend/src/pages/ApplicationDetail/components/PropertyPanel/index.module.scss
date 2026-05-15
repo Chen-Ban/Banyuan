@@ -418,7 +418,6 @@
 .flowCanvasLayout {
   display: flex;
   width: 100%;
-  height: 100%;
 }
 
 .flowCanvasWrapper {
@@ -427,9 +426,12 @@
   display: block;
   line-height: 0; // 消除 canvas 下方的幽灵空白
   position: relative;
+  overflow: hidden;
 
   canvas {
     display: block;
+    width: 100%;
+    height: auto;
   }
 }
 
