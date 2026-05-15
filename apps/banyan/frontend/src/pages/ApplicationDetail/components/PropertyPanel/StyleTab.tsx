@@ -1,10 +1,17 @@
 import React from 'react'
+import { Select } from 'antd'
 import type { IView } from 'banvasgl'
 import styles from './index.module.scss'
 
 interface StyleTabProps {
     view: IView
 }
+
+const OVERFLOW_OPTIONS = [
+    { value: 'visible', label: 'visible' },
+    { value: 'hidden', label: 'hidden' },
+    { value: 'scroll', label: 'scroll' },
+]
 
 const StyleTab: React.FC<StyleTabProps> = ({ view }) => {
     return (
@@ -13,19 +20,17 @@ const StyleTab: React.FC<StyleTabProps> = ({ view }) => {
                 <div className={styles.sectionHeader}>样式</div>
                 <div className={styles.infoRow}>
                     <span className={styles.infoLabel}>overflow</span>
-                    <select
-                        className={styles.selectInput}
+                    <Select
+                        size="small"
                         value={view.style?.overflow ?? 'visible'}
-                        onChange={(e) => {
+                        options={OVERFLOW_OPTIONS}
+                        onChange={(val) => {
                             if (view.style) {
-                                view.style.overflow = e.target.value as 'visible' | 'hidden' | 'scroll'
+                                view.style.overflow = val as 'visible' | 'hidden' | 'scroll'
                             }
                         }}
-                    >
-                        <option value="visible">visible</option>
-                        <option value="hidden">hidden</option>
-                        <option value="scroll">scroll</option>
-                    </select>
+                        style={{ flex: 1, marginLeft: 8 }}
+                    />
                 </div>
             </section>
         </div>

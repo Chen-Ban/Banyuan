@@ -4,7 +4,6 @@ import {
   useEffect,
   useCallback,
   useRef,
-  useLayoutEffect,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDesignBanvas, version as banvasglVersion } from "banvasgl";
@@ -64,41 +63,15 @@ const ApplicationDetail = () => {
     }
   }, [id, isNew]);
 
-  // 自适应画布尺寸：监听 canvasSection 容器大小
-  const canvasSectionRef = useRef<HTMLDivElement>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  // 页面尺寸（用户在「页面尺寸」tab 中手动设置）
+  const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 800 });
 
-  useLayoutEffect(() => {
-    const el = canvasSectionRef.current;
-    if (!el) return;
-
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const PADDING = 12;
-    const updateSize = () => {
-      const { clientWidth, clientHeight } = el;
-      const w = clientWidth - PADDING * 2;
-      const h = clientHeight - PADDING * 2;
-      if (w > 0 && h > 0) {
-        setCanvasSize({ width: w, height: h });
-      }
-    };
-
-    // 立即同步一次初始尺寸
-    updateSize();
-
-    const debouncedUpdate = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(updateSize, 100);
-    };
-
-    const observer = new ResizeObserver(debouncedUpdate);
-    observer.observe(el);
-    return () => {
-      if (timer) clearTimeout(timer);
-      observer.disconnect();
-    };
-  }, []);
+  const handleCanvasSizeChange = useCallback(
+    (width: number, height: number) => {
+      setCanvasSize({ width, height });
+    },
+    [],
+  );
 
   const banvasOptions = useMemo(
     () => ({
@@ -224,11 +197,13 @@ const ApplicationDetail = () => {
       const appJson = JSON.stringify(serializedPages);
 
       // 检测当前平台
-      const platform: Platform = navigator.platform.toLowerCase().includes('mac')
-        ? 'mac'
-        : navigator.platform.toLowerCase().includes('linux')
-          ? 'linux'
-          : 'win';
+      const platform: Platform = navigator.platform
+        .toLowerCase()
+        .includes("mac")
+        ? "mac"
+        : navigator.platform.toLowerCase().includes("linux")
+          ? "linux"
+          : "win";
 
       const res = await buildApi.submitBuild({
         appJson,
@@ -279,7 +254,7 @@ const ApplicationDetail = () => {
           actions={actions}
         />
         <div className={styles.canvasSection}>
-          <div className={styles.canvasArea} ref={canvasSectionRef}>
+          <div className={styles.canvasArea}>
             {Banvas}
           </div>
           {!isNew && id && (
@@ -291,6 +266,8 @@ const ApplicationDetail = () => {
           actions={actions}
           pages={pages}
           currentPageId={currentPageId}
+          canvasSize={canvasSize}
+          onCanvasSizeChange={handleCanvasSizeChange}
         />
       </div>
       <ContextMenu state={contextMenu} />
