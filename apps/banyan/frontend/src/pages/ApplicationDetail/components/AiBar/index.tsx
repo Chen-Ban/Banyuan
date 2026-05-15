@@ -17,7 +17,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Spin } from 'antd'
+import { Spin, Image } from 'antd'
 import { RobotOutlined, CloseOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
 import { useXiangDi } from '@/hooks/useXiangDi'
 import type { ProgressMessage } from '@/hooks/useXiangDi'
@@ -155,21 +155,30 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate }) => {
 
       {/* 输入框容器 */}
       <div className={styles.inputWrapper}>
-        {/* 图片预览区 */}
+        {/* 图片预览区 —— 用 antd Image.PreviewGroup 支持点击放大 + 多图切换 */}
         {pastedImages.length > 0 && (
           <div className={styles.imagePreviewRow}>
-            {pastedImages.map((img) => (
-              <div key={img.id} className={styles.imageThumb}>
-                <img src={img.dataUrl} alt={img.name} />
-                <button
-                  className={styles.imageRemoveBtn}
-                  onClick={() => removeImage(img.id)}
-                  aria-label="移除图片"
-                >
-                  <CloseOutlined />
-                </button>
-              </div>
-            ))}
+            <Image.PreviewGroup>
+              {pastedImages.map((img) => (
+                <div key={img.id} className={styles.imageThumb}>
+                  <Image
+                    src={img.dataUrl}
+                    alt={img.name}
+                    width={60}
+                    height={60}
+                    style={{ objectFit: 'cover', borderRadius: 7, display: 'block' }}
+                    preview={{ mask: false }}
+                  />
+                  <button
+                    className={styles.imageRemoveBtn}
+                    onClick={() => removeImage(img.id)}
+                    aria-label="移除图片"
+                  >
+                    <CloseOutlined />
+                  </button>
+                </div>
+              ))}
+            </Image.PreviewGroup>
           </div>
         )}
 

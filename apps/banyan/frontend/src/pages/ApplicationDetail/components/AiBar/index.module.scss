@@ -167,6 +167,13 @@
   overflow: hidden;
   border: 1px solid #e8e8e8;
   flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    border-color: #aaa;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
 
   img {
     width: 100%;
@@ -304,3 +311,4 @@
     background: #333;
   }
 }
+
