@@ -2,15 +2,50 @@
  * AI Agent 路由
  *
  * POST /ai/run
- *   Body: { appId: string, prompt: string, pages: string[] }
+ *   Body: { appId: string, prompt: string, pages: string[], runId?: string,
+ *           previousMessages?: Message[], memoryHint?: string }
  *   Response: text/event-stream（SSE）
+ *
+ *   previousMessages: 历史对话消息（由 banyan 后端从 MongoDB 读取后传入）
+ *     格式与 XiangDi Message 类型兼容：{ role: 'user'|'assistant', content: string|ContentBlock[] }[]
+ *     注入到 ContextManager 后，AgentLoop 可感知多轮对话上下文
+ *
+ *   memoryHint: 跨会话记忆提示（由 banyan 后端从近期历史会话摘要拼接而成）
+ *     注入到 system prompt 末尾，让 Agent 感知用户在同一应用中的历史操作背景
+ *
+ * POST /ai/summarize
+ *   Body: { prompt: string }
+ *   Response: { summary: string }
+ *
+ *   由 banyan 后端在 done 事件后异步调用，生成本次会话的一句话摘要
+ *
+ * POST /ai/resume/:runId
+ *   Body: { approved: boolean, comment?: string, specPatch?: Partial<ChangeSpec> }
+ *   Response: { success: boolean, error?: string }
  *
  * SSE 事件类型：
  *   text_delta   — LLM 输出的文字片段 { text: string }
  *   tool_call    — 工具调用开始 { id, name, input }
  *   tool_result  — 工具调用结果 { id, result, isError }
+ *   human_gate   — 等待人工决策 { runId, trigger, prompt }
  *   done         — 完成，携带最终 pages { pages: string[] }
  *   error        — 发生错误 { message: string }
+ *
+ * 架构说明：
+ *   prompt → SpecPlanner（规划）→ ChangeSpec
+ *          → SSEHarnessRunner（执行）
+ *              ├── Memory.loadForTask()       注入历史经验
+ *              ├── HumanGate（before_run）    → SSE human_gate + 挂起
+ *              ├── AgentLoop.run()            执行工具调用
+ *              ├── HumanGate（after_run）     → SSE human_gate + 挂起
+ *              └── Memory.saveAfterTask()     保存本次经验
+ *
+ * HumanGate 断点续跑：
+ *   1. SSEHarnessRunner 触发 HumanGate 时，将状态序列化到 LocalCheckpointStore
+ *   2. 推送 human_gate SSE 事件给前端（携带 runId）
+ *   3. 前端展示确认 UI，用户决策后调用 POST /ai/resume/:runId
+ *   4. 若进程未重启：injectHumanDecision() 直接 resolve 挂起的 Promise
+ *   5. 若进程已重启：SSEHarnessRunner.resume() 从 CheckpointStore 恢复状态继续执行
  */
 
 import type { ServerResponse } from 'http'
@@ -19,12 +54,18 @@ import {
     AgentLoop,
     ContextManager,
     AgentLifecycle,
-    DeepSeekClient,
-    loadApiKeyFromFile,
     createBanvasToolRegistry,
     buildSystemPrompt,
+    SSEHarnessRunner,
+    injectHumanDecision,
+    LocalCheckpointStore,
+    SpecPlanner,
+    DefaultMemoryManager,
 } from 'xiangdi'
-import type { BanvasHostAdapter } from 'xiangdi'
+import { createLLMClient } from '../llm/createLLMClient.js'
+import type { BanvasHostAdapter, HumanDecision } from 'xiangdi'
+import path from 'node:path'
+import os from 'node:os'
 
 const router = new Router({ prefix: '/ai' })
 
@@ -57,13 +98,45 @@ function createMemoryAdapter(initialPages: string[]): BanvasHostAdapter & { getP
     }
 }
 
+// ─── 存储路径工具 ─────────────────────────────────────────────────────────────
+
+/**
+ * 每个 app 的记忆独立存储，路径：
+ *   ~/.xiangdi/memory/<appId>/
+ */
+function getMemoryStoragePath(appId: string): string {
+    const safeId = appId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)
+    return path.join(os.homedir(), '.xiangdi', 'memory', safeId)
+}
+
+/**
+ * Checkpoint 存储路径（全局共享，按 runId 区分）：
+ *   ~/.xiangdi/checkpoints/
+ */
+const CHECKPOINT_STORAGE_PATH = path.join(os.homedir(), '.xiangdi', 'checkpoints')
+
+// ─── 全局 CheckpointStore（单例，跨请求共享）─────────────────────────────────
+
+const checkpointStore = new LocalCheckpointStore({
+    storagePath: CHECKPOINT_STORAGE_PATH,
+    ttlMs: 30 * 60 * 1000, // 30 分钟
+})
+
+// 每小时清理一次过期 checkpoint
+setInterval(() => {
+    checkpointStore.cleanup().catch(() => {})
+}, 60 * 60 * 1000)
+
 // ─── POST /ai/run ─────────────────────────────────────────────────────────────
 
 router.post('/run', async (ctx) => {
-    const { appId, prompt, pages } = ctx.request.body as {
+    const { appId, prompt, pages, runId: clientRunId, previousMessages, memoryHint } = ctx.request.body as {
         appId?: string
         prompt?: string
         pages?: string[]
+        runId?: string
+        previousMessages?: Array<{ role: 'user' | 'assistant'; content: unknown }>
+        memoryHint?: string
     }
 
     if (!prompt || typeof prompt !== 'string') {
@@ -76,6 +149,9 @@ router.post('/run', async (ctx) => {
         ctx.body = { success: false, error: 'pages must be an array' }
         return
     }
+
+    // 使用客户端提供的 runId（便于前端关联），或自动生成
+    const runId = clientRunId ?? `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
     // 切换为 SSE 模式
     const res = ctx.res as ServerResponse
@@ -93,12 +169,26 @@ router.post('/run', async (ctx) => {
         const registry = createBanvasToolRegistry(adapter)
 
         // 2. 初始化 LLM 客户端
-        const apiKey = await loadApiKeyFromFile()
-        const client = new DeepSeekClient({ apiKey })
+        const client = await createLLMClient()
 
-        // 3. 构建 AgentLoop
+        // 3. 构建 ContextManager，注入历史消息
         const context = new ContextManager()
+        if (Array.isArray(previousMessages) && previousMessages.length > 0) {
+            // 将 banyan 后端传来的历史消息注入 ContextManager
+            // 类型与 XiangDi Message 兼容，直接 pushMany
+            context.pushMany(
+                previousMessages
+                    .filter((m) => m.role === 'user' || m.role === 'assistant')
+                    .map((m) => ({ role: m.role, content: m.content as import('xiangdi').MessageContent }))
+            )
+        }
+
         const lifecycle = new AgentLifecycle()
+        // 若有跨会话记忆提示，追加到 system prompt 末尾
+        const systemPrompt = memoryHint
+            ? `${buildSystemPrompt()}\n\n---\n${memoryHint}`
+            : buildSystemPrompt()
+
         const loop = new AgentLoop(
             {
                 llm: {
@@ -106,7 +196,7 @@ router.post('/run', async (ctx) => {
                     maxTokens: 8192,
                     temperature: 0.3,
                 },
-                systemPrompt: buildSystemPrompt(),
+                systemPrompt,
                 maxIterations: 30,
             },
             registry,
@@ -137,15 +227,47 @@ router.post('/run', async (ctx) => {
                 case 'error':
                     sseWrite(res, 'error', { message: event.data.error.message })
                     break
-                // lifecycle 事件不转发给调用方（仅用于调试）
             }
         })
 
-        // 5. 运行 Agent
         try {
-            await loop.run(client, prompt)
+            // 5. SpecPlanner：将自然语言 prompt 规划为 ChangeSpec
+            const planner = new SpecPlanner({
+                client,
+                model: 'deepseek-chat',
+                maxTokens: 2048,
+            })
+            const { spec } = await planner.plan(prompt)
 
-            // 6. 完成后读取最终 pages，随 done 事件一起发送
+            // 6. Memory：按 appId 隔离存储
+            const storagePath = getMemoryStoragePath(appId ?? 'default')
+            const memory = new DefaultMemoryManager({ storagePath })
+
+            // 7. SSEHarnessRunner：支持 HumanGate 断点持久化
+            //    autoRun: true → 跳过 before_run HumanGate，直接执行
+            //    若需要 Human-in-the-Loop，设置 autoRun: false 并配置 humanGates
+            const harness = new SSEHarnessRunner(
+                loop,
+                client,
+                { autoRun: true },
+                undefined,  // 暂不加载 ProjectSpec
+                memory,
+                checkpointStore,
+                (event, data) => sseWrite(res, event, data),
+                undefined,  // gateTimeoutMs，使用默认 30 分钟
+                context     // ContextManager，用于 after_run 时读取消息历史
+            )
+
+            // 8. 执行（传入 runId，用于 checkpoint 关联）
+            const result = await harness.run(spec, runId)
+
+            if (!result.success) {
+                sseWrite(res, 'error', {
+                    message: result.failureReason ?? 'Agent execution failed',
+                })
+            }
+
+            // 9. 完成后读取最终 pages，随 done 事件一起发送
             const finalPages = await adapter.getPages()
             sseWrite(res, 'done', { pages: finalPages })
         } finally {
@@ -156,6 +278,147 @@ router.post('/run', async (ctx) => {
         sseWrite(res, 'error', { message })
     } finally {
         sseDone(res)
+    }
+})
+
+// ─── POST /ai/summarize ───────────────────────────────────────────────────────
+
+/**
+ * 生成会话摘要
+ *
+ * 由 banyan 后端在 done 事件后异步调用（fire-and-forget）。
+ * 输入：包含对话内容的 prompt（由 SummaryService 构造）
+ * 输出：{ summary: string }（≤ 100 字的中文一句话摘要）
+ */
+router.post('/summarize', async (ctx) => {
+    const { prompt } = ctx.request.body as { prompt?: string }
+
+    if (!prompt || typeof prompt !== 'string') {
+        ctx.status = 400
+        ctx.body = { success: false, error: 'prompt is required' }
+        return
+    }
+
+    try {
+        const client = await createLLMClient()
+        const response = await client.createMessage({
+            model: 'deepseek-chat',
+            max_tokens: 256,
+            temperature: 0.3,
+            system: '你是一个对话摘要助手，请用简洁的中文一句话概括用户提供的对话内容。',
+            messages: [{ role: 'user', content: prompt }],
+        })
+
+        // 提取文本内容
+        const summary = (response.content as Array<{ type: string; text?: string }>)
+            .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+            .map((b) => b.text)
+            .join('')
+            .trim()
+            .slice(0, 100)
+
+        ctx.body = { summary }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        ctx.status = 500
+        ctx.body = { success: false, error: message }
+    }
+})
+
+// ─── POST /ai/resume/:runId ───────────────────────────────────────────────────
+
+router.post('/resume/:runId', async (ctx) => {
+    const { runId } = ctx.params
+    const body = ctx.request.body as {
+        approved?: boolean
+        comment?: string
+        specPatch?: Record<string, unknown>
+    }
+
+    if (typeof body.approved !== 'boolean') {
+        ctx.status = 400
+        ctx.body = { success: false, error: 'approved (boolean) is required' }
+        return
+    }
+
+    const decision: HumanDecision = {
+        approved: body.approved,
+        comment: body.comment,
+        specPatch: body.specPatch as HumanDecision['specPatch'],
+    }
+
+    // ── 情况 A：进程未重启，Promise 仍挂起 ──────────────────────────────────
+    const injected = injectHumanDecision(runId, decision)
+    if (injected) {
+        ctx.body = { success: true, resumed: 'in_process' }
+        return
+    }
+
+    // ── 情况 B：进程已重启，从 CheckpointStore 恢复 ──────────────────────────
+    // 需要重建完整的执行上下文（AgentLoop + Memory + SSEHarnessRunner）
+    // 注意：此时 SSE 连接已断开，resume 结果通过 HTTP 响应返回
+    // 前端需要重新建立 SSE 连接来接收后续事件（或通过轮询获取结果）
+    const checkpoint = await checkpointStore.load(runId)
+    if (!checkpoint) {
+        ctx.status = 404
+        ctx.body = {
+            success: false,
+            error: `Checkpoint "${runId}" not found, expired, or already resumed`,
+        }
+        return
+    }
+
+    // 重建执行上下文（无 SSE 连接，静默执行）
+    try {
+        const adapter = createMemoryAdapter([])
+        const registry = createBanvasToolRegistry(adapter)
+        const client = await createLLMClient()
+
+        const context = new ContextManager()
+        const lifecycle = new AgentLifecycle()
+        const loop = new AgentLoop(
+            {
+                llm: {
+                    model: 'deepseek-chat',
+                    maxTokens: 8192,
+                    temperature: 0.3,
+                },
+                systemPrompt: buildSystemPrompt(),
+                maxIterations: 30,
+            },
+            registry,
+            context,
+            lifecycle
+        )
+
+        const storagePath = getMemoryStoragePath('default')
+        const memory = new DefaultMemoryManager({ storagePath })
+
+        // 无 SSE 连接，sseWrite 为空函数（后续可改为 WebSocket 或轮询）
+        const harness = new SSEHarnessRunner(
+            loop,
+            client,
+            { autoRun: true },
+            undefined,
+            memory,
+            checkpointStore,
+            () => {} // 无 SSE 连接
+        )
+
+        // 异步执行，不阻塞 HTTP 响应
+        harness.resume(runId, decision).catch((err) => {
+            console.error(`[resume] runId=${runId} failed:`, err)
+        })
+
+        ctx.body = {
+            success: true,
+            resumed: 'from_checkpoint',
+            message: 'Resume started. Reconnect SSE to receive events.',
+        }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        ctx.status = 500
+        ctx.body = { success: false, error: message }
     }
 })
 
