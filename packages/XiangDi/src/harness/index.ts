@@ -15,11 +15,18 @@
 
 export { HarnessRunner } from "./HarnessRunner.js";
 
+export { SSEHarnessRunner, injectHumanDecision } from "./SSEHarnessRunner.js";
+export type { SSEWriteFn, HumanGateSSEData } from "./SSEHarnessRunner.js";
+
 export { Guards, specApproved, hasAtLeastOneTask, noProhibitedKeywords, proposalComplete, customGuard } from "./guards.js";
 
 export { Checkpoints, outputNotEmpty, outputMatchesPattern, allTasksDone, outputMinLength, customCheckpoint } from "./checkpoints.js";
 
 export { HumanGates, reviewProposal, reviewTasks, confirmResult, retryOnError } from "./humanGates.js";
+
+export type { HarnessCheckpoint, CheckpointStore } from "./checkpoint.js";
+export { LocalCheckpointStore } from "./LocalCheckpointStore.js";
+export type { LocalCheckpointStoreConfig } from "./LocalCheckpointStore.js";
 
 export type {
   GuardResult,

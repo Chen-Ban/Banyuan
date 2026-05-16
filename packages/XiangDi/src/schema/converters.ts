@@ -82,6 +82,53 @@ function aiNodeToBanvas(node: AINode): unknown {
         objectFit: node.objectFit,
       };
 
+    case "cubic_bezier": {
+      // BanvasGL 原生格式：GraphView，content 嵌套 CubicBezier
+      // 控制点坐标是相对于 view 自身坐标系的局部坐标
+      const [p0, p1, p2, p3] = node.controlPoints;
+      return {
+        ...base,
+        type: "GRAPHVIEW",
+        content: {
+          $type: "CUBIC_BEZIER",
+          $value: {
+            type: "CUBIC_BEZIER",
+            controlPoints: [
+              { x: p0.x, y: p0.y, z: 0 },
+              { x: p1.x, y: p1.y, z: 0 },
+              { x: p2.x, y: p2.y, z: 0 },
+              { x: p3.x, y: p3.y, z: 0 },
+            ],
+            style: node.stroke
+              ? { strokeStyle: { color: node.stroke.color, width: node.stroke.width, style: node.stroke.style } }
+              : {},
+          },
+        },
+      };
+    }
+
+    case "quadratic_bezier": {
+      const [p0, p1, p2] = node.controlPoints;
+      return {
+        ...base,
+        type: "GRAPHVIEW",
+        content: {
+          $type: "QUADRATIC_BEZIER",
+          $value: {
+            type: "QUADRATIC_BEZIER",
+            controlPoints: [
+              { x: p0.x, y: p0.y, z: 0 },
+              { x: p1.x, y: p1.y, z: 0 },
+              { x: p2.x, y: p2.y, z: 0 },
+            ],
+            style: node.stroke
+              ? { strokeStyle: { color: node.stroke.color, width: node.stroke.width, style: node.stroke.style } }
+              : {},
+          },
+        },
+      };
+    }
+
     case "group":
       return {
         ...base,
@@ -142,6 +189,47 @@ function banvasToAINode(raw: unknown): AINode {
   };
 
   const type = String(r["type"] ?? "");
+
+  // GraphView 需要二次判断 content.$type 来区分具体图形类型
+  if (type === "GRAPHVIEW") {
+    const content = r["content"] as Record<string, unknown> | undefined;
+    const graphType = (content?.["$type"] ?? content?.["type"]) as string | undefined;
+    const gv = (content?.["$value"] ?? content) as Record<string, unknown>;
+    const rawPoints = Array.isArray(gv["controlPoints"]) ? gv["controlPoints"] as Record<string, unknown>[] : [];
+
+    if (graphType === "CUBIC_BEZIER" && rawPoints.length >= 4) {
+      return {
+        ...base,
+        type: "cubic_bezier" as const,
+        controlPoints: [
+          { x: Number(rawPoints[0]["x"] ?? 0), y: Number(rawPoints[0]["y"] ?? 0) },
+          { x: Number(rawPoints[1]["x"] ?? 0), y: Number(rawPoints[1]["y"] ?? 0) },
+          { x: Number(rawPoints[2]["x"] ?? 0), y: Number(rawPoints[2]["y"] ?? 0) },
+          { x: Number(rawPoints[3]["x"] ?? 0), y: Number(rawPoints[3]["y"] ?? 0) },
+        ] as [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }, { x: number; y: number }],
+      };
+    }
+
+    if (graphType === "QUADRATIC_BEZIER" && rawPoints.length >= 3) {
+      return {
+        ...base,
+        type: "quadratic_bezier" as const,
+        controlPoints: [
+          { x: Number(rawPoints[0]["x"] ?? 0), y: Number(rawPoints[0]["y"] ?? 0) },
+          { x: Number(rawPoints[1]["x"] ?? 0), y: Number(rawPoints[1]["y"] ?? 0) },
+          { x: Number(rawPoints[2]["x"] ?? 0), y: Number(rawPoints[2]["y"] ?? 0) },
+        ] as [{ x: number; y: number }, { x: number; y: number }, { x: number; y: number }],
+      };
+    }
+
+    // 其他 GraphView 类型（LINE、CIRCLE 等）降级为矩形
+    return {
+      ...base,
+      type: "rect" as const,
+      fill: { type: "solid" as const, color: "#cccccc" },
+      cornerRadius: 0,
+    };
+  }
 
   switch (type) {
     case "Rectangle":

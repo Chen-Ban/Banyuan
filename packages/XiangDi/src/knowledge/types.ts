@@ -18,14 +18,6 @@
  * 三层各司其职：ProjectSpec 告诉 Agent "什么不能做"，
  * KnowledgeStore 告诉 Agent "怎么做（参考知识）"，
  * 工具调用告诉 Agent "现在是什么状态"。
- *
- * ─── 混合检索架构 ──────────────────────────────────────────────────────────
- *
- * XiangDi 支持 RAG + GraphRAG 混合检索，由 LLM Router 动态选择策略：
- *
- *   - VectorRAG：基于 embedding 的语义检索，适合"组件怎么用"等局部知识查询
- *   - GraphRAG：基于知识图谱的关系检索，适合"修改会影响哪些页面"等关联查询
- *   - HybridStore：Router 根据 ChangeSpec 内容判断走哪条路（或两条合并）
  */
 
 // ─── 检索结果 ──────────────────────────────────────────────────────────────────
@@ -51,13 +43,8 @@ export interface KnowledgeChunk {
  * 知识库检索接口
  *
  * 实现方可以是：
- * - 本地向量数据库（vectra / Chroma）
- * - 远程 embedding API（DeepSeek / OpenAI Embeddings）
- * - 简单的关键词匹配（BM25）
- * - 知识图谱（GraphRAG）
- * - 混合检索（HybridKnowledgeStore）
- *
- * XiangDi 引擎只依赖此接口，不关心底层实现。
+ * - LanceDBKnowledgeStore（向量 + BM25 混合检索，生产推荐）
+ * - MemoryKnowledgeStore（关键词匹配，测试/小数据量）
  */
 export interface KnowledgeStore {
   /**
@@ -86,7 +73,6 @@ export interface KnowledgeQueryOptions {
 
 /**
  * 写入知识库的条目
- * 用于 MutableKnowledgeStore 的 add/upsert 操作
  */
 export interface KnowledgeEntry {
   /** 条目唯一标识 */
@@ -105,8 +91,6 @@ export interface KnowledgeEntry {
  * 可写知识库接口
  *
  * 继承只读的 KnowledgeStore，增加写入和管理操作。
- * 不是所有场景都需要写入能力（如对接只读的远程知识库），
- * 所以写入接口单独定义。
  */
 export interface MutableKnowledgeStore extends KnowledgeStore {
   /** 添加知识条目 */
@@ -117,49 +101,6 @@ export interface MutableKnowledgeStore extends KnowledgeStore {
   clear(): Promise<void>;
   /** 当前条目总数 */
   size(): Promise<number>;
-}
-
-// ─── 向量检索接口 ─────────────────────────────────────────────────────────────
-
-/**
- * Embedding 提供者接口
- * 将文本转换为向量表示
- */
-export interface EmbeddingProvider {
-  /** 将单条文本转为向量 */
-  embed(text: string): Promise<number[]>;
-  /** 批量文本转向量 */
-  embedBatch(texts: string[]): Promise<number[][]>;
-  /** 向量维度 */
-  dimensions: number;
-}
-
-/**
- * 向量检索存储接口
- */
-export interface VectorStore {
-  /** 插入向量（带 payload） */
-  upsert(items: VectorItem[]): Promise<void>;
-  /** 向量相似度检索 */
-  search(vector: number[], topK: number, minScore?: number): Promise<VectorSearchResult[]>;
-  /** 删除条目 */
-  remove(ids: string[]): Promise<void>;
-  /** 清空 */
-  clear(): Promise<void>;
-  /** 条目总数 */
-  size(): Promise<number>;
-}
-
-export interface VectorItem {
-  id: string;
-  vector: number[];
-  payload: Record<string, unknown>;
-}
-
-export interface VectorSearchResult {
-  id: string;
-  score: number;
-  payload: Record<string, unknown>;
 }
 
 // ─── 图检索接口（GraphRAG）────────────────────────────────────────────────────
@@ -200,7 +141,6 @@ export interface GraphRelation {
 
 /**
  * 图检索结果——子图
- * 包含与查询相关的一组实体及其关系
  */
 export interface SubGraph {
   entities: GraphEntity[];
@@ -229,7 +169,6 @@ export interface GraphKnowledgeStore {
 
   /**
    * 影响分析：给定一组实体 ID，找出所有受影响的实体
-   * 沿关系边正向/反向遍历，返回影响范围子图
    */
   analyzeImpact(entityIds: string[], options?: ImpactAnalysisOptions): Promise<SubGraph>;
 
@@ -257,7 +196,7 @@ export interface ImpactAnalysisOptions {
   relationTypes?: string[];
 }
 
-// ─── 混合检索路由 ─────────────────────────────────────────────────────────────
+// ─── 检索路由（GraphRAG 场景）─────────────────────────────────────────────────
 
 /**
  * 检索策略类型
@@ -270,40 +209,16 @@ export type RetrievalStrategy = "vector" | "graph" | "hybrid";
 export interface RoutingDecision {
   /** 选择的策略 */
   strategy: RetrievalStrategy;
-  /** 路由理由（LLM 给出） */
+  /** 路由理由 */
   reasoning: string;
   /** 若为 graph 策略，提取的入口实体关键词 */
   graphEntryHints?: string[];
 }
 
 /**
- * 混合检索配置
- */
-export interface HybridStoreConfig {
-  /** 向量检索实现 */
-  vectorStore: KnowledgeStore;
-  /** 图检索实现（可选，未配置时自动降级为纯向量检索） */
-  graphStore?: GraphKnowledgeStore;
-  /** 路由器：决定使用哪种检索策略 */
-  router: RetrievalRouter;
-  /** hybrid 策略下向量结果的权重（0-1），默认 0.5 */
-  vectorWeight?: number;
-}
-
-/**
  * 检索路由器接口
- *
- * 由 LLM 实现：接收查询和上下文，判断应使用哪种检索策略。
- * XiangDi 的实现中，Router 会将 ChangeSpec 的结构信息作为判断依据。
  */
 export interface RetrievalRouter {
-  /**
-   * 根据查询内容决定检索策略
-   *
-   * @param query 检索查询
-   * @param context 可选的上下文信息（如 ChangeSpec 的 proposal）
-   * @returns 路由决策
-   */
   route(query: string, context?: RouterContext): Promise<RoutingDecision>;
 }
 
