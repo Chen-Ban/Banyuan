@@ -3,28 +3,40 @@
  *
  * 负责：
  * 1. 从 MongoDB 读取目标应用的 pages 数据
- * 2. 将 pages + prompt 发送给 XiangDi 独立服务（:3002）
- * 3. 透传 XiangDi 返回的 SSE 流给前端
- * 4. 收到 done 事件后，将最终 pages 写回 MongoDB
+ * 2. 从 MongoDB 读取/创建对话会话，获取历史消息
+ * 3. 将 pages + prompt + previousMessages 发送给 XiangDi 独立服务（:3002）
+ * 4. 透传 XiangDi 返回的 SSE 流给前端
+ * 5. 收到 done 事件后，将最终 pages 写回 MongoDB，并保存本轮消息
  *
  * 架构：
  *   前端 ←SSE── banyan 后端(:3001) ←SSE── XiangDi 服务(:3002)
- *                     ↕ MongoDB
+ *                     ↕ MongoDB（Application + Conversation）
  *
- * XiangDi 服务是无状态的：pages 随请求传入，随 done 事件返回，
- * banyan 后端负责持久化，XiangDi 服务不访问 MongoDB。
+ * 会话持久化策略：
+ *   - 前端可传入 conversationId（续接已有会话）或不传（自动创建新会话）
+ *   - 每次请求前：追加 user 消息，读取历史消息注入 XiangDi
+ *   - done 事件后：追加 assistant 消息（LLM 最终输出文本）
+ *   - conversationId 随 done 事件一起返回给前端，前端持久化后下次续接
  *
- * SSE 事件类型（与 XiangDi 服务保持一致）：
- *   text_delta   — LLM 输出的文字片段
- *   tool_call    — 工具调用开始（含工具名和入参）
- *   tool_result  — 工具调用结果
- *   done         — 完成，携带最终 pages JSON
- *   error        — 发生错误
+ * SSE 事件类型（与 XiangDi 服务保持一致，新增 conversation_id）：
+ *   text_delta       — LLM 输出的文字片段
+ *   tool_call        — 工具调用开始（含工具名和入参）
+ *   tool_result      — 工具调用结果
+ *   conversation_id  — 会话 ID（在第一个事件前发送，前端需持久化）
+ *   done             — 完成，携带最终 pages JSON
+ *   error            — 发生错误
+ *
+ * memoryHint 注入策略：
+ *   续接会话时，从 MongoDB 读取同一 appId 下最近 5 条已有摘要的历史会话，
+ *   格式化为自然语言后拼入 XiangDi 请求体的 memoryHint 字段，
+ *   XiangDi 服务将其注入 system prompt，让 Agent 感知跨会话上下文。
  */
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import http from 'http'
 import applicationService from './ApplicationService.js'
+import conversationService from './ConversationService.js'
+import summaryService from './SummaryService.js'
 
 // XiangDi 服务地址，通过环境变量配置，默认本地开发地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
@@ -47,11 +59,17 @@ class AiService {
   /**
    * 处理一次 AI 对话请求，通过 SSE 流式推送进度
    *
-   * @param appId     目标应用 ID
-   * @param prompt    用户自然语言指令
-   * @param res       Koa 的底层 ServerResponse（用于 SSE 写入）
+   * @param appId            目标应用 ID
+   * @param prompt           用户自然语言指令
+   * @param res              Koa 的底层 ServerResponse（用于 SSE 写入）
+   * @param conversationId   可选，已有会话 ID（续接对话）
    */
-  async runWithSSE(appId: string, prompt: string, res: ServerResponse): Promise<void> {
+  async runWithSSE(
+    appId: string,
+    prompt: string,
+    res: ServerResponse,
+    conversationId?: string
+  ): Promise<void> {
     // 设置 SSE 响应头（由 Controller 负责，此处仅做防御性检查）
     if (!res.headersSent) {
       res.writeHead(200, {
@@ -68,13 +86,55 @@ class AiService {
       if (!app) throw new Error(`应用 ${appId} 不存在`)
       const pages: string[] = app.pages ?? []
 
-      // 2. 构造请求体，发送给 XiangDi 服务
-      const requestBody = JSON.stringify({ appId, prompt, pages })
+      // 2. 获取或创建会话
+      const conversation = await conversationService.getOrCreate(appId, conversationId)
+      const convId = conversation.id
 
-      // 3. 向 XiangDi 服务发起 SSE 请求并透传给前端
-      await this.proxySSE(requestBody, res, async (finalPages: string[]) => {
-        // 4. 收到 done 事件后，将最终 pages 写回 MongoDB
-        await applicationService.updateApplication(appId, { pages: finalPages })
+      // 3. 立即推送 conversation_id 给前端（前端需持久化，用于下次续接）
+      sseWrite(res, 'conversation_id', { conversationId: convId })
+
+      // 4. 追加用户消息到会话历史
+      await conversationService.appendUserMessage(convId, prompt)
+
+      // 5. 读取历史消息（不含本次刚追加的 user 消息，避免重复）
+      //    取最近 50 条，足够覆盖大多数对话场景
+      const previousMessages = await conversationService.getMessages(convId, 50)
+      // 去掉最后一条（刚追加的 user 消息），XiangDi 会把 prompt 作为新消息注入
+      const historyMessages = previousMessages.slice(0, -1)
+
+      // 5b. 读取近期历史会话摘要，拼入 memoryHint（跨会话记忆）
+      //     仅在有历史消息时注入（全新会话无需注入）
+      let memoryHint: string | undefined
+      if (historyMessages.length > 0) {
+        const summaries = await conversationService.getSummariesForContext(appId, convId, 5)
+        if (summaries.length > 0) {
+          const lines = summaries.map(
+            (s, i) => `${i + 1}. 【${s.title}】${s.summary}`
+          )
+          memoryHint =
+            `以下是用户在同一应用中的近期历史对话摘要，供参考：\n` + lines.join('\n')
+        }
+      }
+
+      // 6. 构造请求体，发送给 XiangDi 服务
+      const requestBody = JSON.stringify({
+        appId,
+        prompt,
+        pages,
+        conversationId: convId,
+        previousMessages: historyMessages,
+        ...(memoryHint ? { memoryHint } : {}),
+      })
+
+      // 7. 向 XiangDi 服务发起 SSE 请求并透传给前端
+      await this.proxySSE(requestBody, res, async (finalPages: string[], agentOutput: string) => {
+        // 8. 收到 done 事件后，并行执行：写回 pages + 保存 assistant 消息
+        await Promise.all([
+          applicationService.updateApplication(appId, { pages: finalPages }),
+          conversationService.appendAssistantMessage(convId, agentOutput),
+        ])
+        // 9. 异步触发摘要生成（fire-and-forget，不阻塞 done 响应）
+        summaryService.triggerAsync(convId)
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -85,12 +145,12 @@ class AiService {
 
   /**
    * 向 XiangDi 服务发起 HTTP 请求，透传 SSE 流
-   * 当收到 done 事件时，调用 onDone 回调（携带最终 pages）
+   * 当收到 done 事件时，调用 onDone 回调（携带最终 pages 和 agent 输出）
    */
   private proxySSE(
     requestBody: string,
     clientRes: ServerResponse,
-    onDone: (pages: string[]) => Promise<void>
+    onDone: (pages: string[], agentOutput: string) => Promise<void>
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const url = new URL('/ai/run', XIANGDI_BASE_URL)
@@ -106,6 +166,9 @@ class AiService {
           'Accept': 'text/event-stream',
         },
       }
+
+      // 收集 text_delta 拼接 agent 最终输出
+      let agentOutputBuffer = ''
 
       const req = http.request(options, (upstream: IncomingMessage) => {
         if (upstream.statusCode && upstream.statusCode >= 400) {
@@ -129,14 +192,24 @@ class AiService {
             } else if (line.startsWith('data: ')) {
               const dataStr = line.slice(6)
 
+              // 收集 text_delta 拼接完整输出
+              if (currentEvent === 'text_delta') {
+                try {
+                  const parsed = JSON.parse(dataStr) as { text?: string }
+                  if (parsed.text) agentOutputBuffer += parsed.text
+                } catch {
+                  // 解析失败不影响透传
+                }
+              }
+
               if (currentEvent === 'done') {
-                // done 事件：解析 pages，写回 MongoDB，再转发给前端
+                // done 事件：解析 pages，写回 MongoDB + 保存消息，再转发给前端
                 try {
                   const parsed = JSON.parse(dataStr) as { pages?: string[] }
                   const finalPages = parsed.pages ?? []
                   // 异步写回，不阻塞 SSE 流
-                  onDone(finalPages).catch((err) => {
-                    console.error('[AiService] 写回 pages 失败:', err)
+                  onDone(finalPages, agentOutputBuffer).catch((err) => {
+                    console.error('[AiService] 写回数据失败:', err)
                   })
                 } catch {
                   // 解析失败不影响透传

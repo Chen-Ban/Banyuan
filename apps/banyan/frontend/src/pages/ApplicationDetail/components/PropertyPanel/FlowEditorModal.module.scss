@@ -1,0 +1,23 @@
+// ── 流程编辑弹窗 ──
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  height: 560px;
+}
+
+// 上方：物料面板区域
+.paletteArea {
+  flex-shrink: 0;
+  border-bottom: 1px solid #e9ecef;
+  background: #f8f9fa;
+  padding: 8px 12px;
+}
+
+// 下方：画布区域
+.canvasArea {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+}

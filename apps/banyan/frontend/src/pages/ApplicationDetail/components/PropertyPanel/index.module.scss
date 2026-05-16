@@ -224,48 +224,11 @@
   border-top: 1px dashed #ecf0f1;
 }
 
-// ── 事件行（含展开画布） ──
-
-.eventItem {
-  margin-bottom: 2px;
-}
-
-// 展开/折叠按钮（antd Button text，只控制尺寸和旋转动画）
-.expandBtn {
-  width: 14px !important;
-  height: 14px !important;
-  min-width: 14px !important;
-  padding: 0 !important;
-  font-size: 8px !important;
-  flex-shrink: 0;
-  transition: color 0.15s, transform 0.15s !important;
-  transform: rotate(0deg);
-}
-
-.expandBtnOpen {
-  transform: rotate(90deg);
-  color: #3498db !important;
-}
-
-// ── 函数编辑画布容器 ──
-
-.flowCanvasContainer {
-  margin: 4px 0 8px 0;
-  border: 1px solid #dfe6e9;
-  border-radius: 6px;
-  overflow: hidden;
-  background: #f8f9fa;
-}
-
-// 画布 + 物料面板横向布局
-.flowCanvasLayout {
-  display: flex;
-  width: 100%;
-}
+// ── 函数编辑画布（弹窗内，填满容器） ──
 
 .flowCanvasWrapper {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+  height: 100%;
   display: block;
   line-height: 0; // 消除 canvas 下方的幽灵空白
   position: relative;
@@ -274,7 +237,7 @@
   canvas {
     display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
   }
 }
 

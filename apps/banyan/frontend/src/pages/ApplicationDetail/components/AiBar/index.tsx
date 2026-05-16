@@ -28,6 +28,8 @@ import styles from './index.module.scss'
 export interface AiBarProps {
   appId: string
   onPagesUpdate: (pages: string[]) => void
+  /** canvasSection 容器的 ref，用于 fixed 定位时对齐水平位置 */
+  containerRef: React.RefObject<HTMLDivElement | null>
 }
 
 // ─── 粘贴图片类型 ─────────────────────────────────────────────────────────────
@@ -40,12 +42,37 @@ interface PastedImage {
 
 // ─── AiBar ────────────────────────────────────────────────────────────────────
 
-const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate }) => {
+const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, containerRef }) => {
   const [inputValue, setInputValue] = useState('')
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([])
   const [progressVisible, setProgressVisible] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const progressEndRef = useRef<HTMLDivElement>(null)
+
+  // ─── fixed 定位：跟随 containerRef 的水平位置 ────────────────────────────
+  const [fixedStyle, setFixedStyle] = useState<React.CSSProperties>({})
+
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const update = () => {
+      const rect = container.getBoundingClientRect()
+      setFixedStyle({ left: rect.left, width: rect.width })
+    }
+
+    update()
+
+    const ro = new ResizeObserver(update)
+    ro.observe(container)
+    // 窗口 resize 时也更新（容器位置可能因侧边栏宽度变化而移动）
+    window.addEventListener('resize', update)
+
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [containerRef])
 
   const { loading, messages, currentText, sendPrompt, abort, clearMessages } = useXiangDi({
     appId,
@@ -123,7 +150,7 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate }) => {
   const canSend = (inputValue.trim().length > 0 || pastedImages.length > 0) && !loading
 
   return (
-    <div className={styles.aiBar}>
+    <div className={styles.aiBar} style={fixedStyle}>
       {/* 进度区 */}
       {progressVisible && (
         <div className={styles.progressPanel}>
