@@ -136,20 +136,31 @@ const NodeCard: React.FC<NodeCardProps> = ({ material }) => {
 
 // ── 物料面板主体 ──
 
-const FlowNodePalette: React.FC = () => {
+interface FlowNodePaletteProps {
+    /** vertical（默认）：竖向排列，用于嵌入侧边栏；horizontal：横向排列，用于弹窗顶部 */
+    layout?: 'vertical' | 'horizontal'
+}
+
+const FlowNodePalette: React.FC<FlowNodePaletteProps> = ({ layout = 'vertical' }) => {
+    const isHorizontal = layout === 'horizontal'
+
     return (
-        <div className={styles.palette}>
-            <div className={styles.group}>
+        <div className={isHorizontal ? styles.paletteHorizontal : styles.palette}>
+            <div className={isHorizontal ? styles.groupHorizontal : styles.group}>
                 <div className={styles.groupHeader}>动作节点</div>
-                {ACTION_NODES.map(m => (
-                    <NodeCard key={m.kind} material={m} />
-                ))}
+                <div className={isHorizontal ? styles.cardRow : undefined}>
+                    {ACTION_NODES.map(m => (
+                        <NodeCard key={m.kind} material={m} />
+                    ))}
+                </div>
             </div>
-            <div className={styles.group}>
+            <div className={isHorizontal ? styles.groupHorizontal : styles.group}>
                 <div className={styles.groupHeader}>值节点</div>
-                {VALUE_NODES.map(m => (
-                    <NodeCard key={m.kind} material={m} />
-                ))}
+                <div className={isHorizontal ? styles.cardRow : undefined}>
+                    {VALUE_NODES.map(m => (
+                        <NodeCard key={m.kind} material={m} />
+                    ))}
+                </div>
             </div>
         </div>
     )

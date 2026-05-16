@@ -7,24 +7,28 @@
  */
 
 import type { Context } from 'koa'
-import aiService from '../services/AiService'
+import aiService from '../services/AiService.js'
 
 class AiController {
   /**
    * POST /api/ai/:appId/chat
    *
-   * 请求体：{ prompt: string }
+   * 请求体：{ prompt: string, conversationId?: string }
+   *   - conversationId 可选，传入则续接已有会话，不传则自动创建新会话
+   *
    * 响应：SSE 流
-   *   event: text_delta   data: { text: string }
-   *   event: tool_call    data: { id: string, name: string, input: unknown }
-   *   event: tool_result  data: { id: string, result: unknown, isError: boolean }
-   *   event: done         data: { pages: string[] }
-   *   event: error        data: { message: string }
+   *   event: conversation_id  data: { conversationId: string }  ← 第一个事件，前端需持久化
+   *   event: text_delta        data: { text: string }
+   *   event: tool_call         data: { id: string, name: string, input: unknown }
+   *   event: tool_result       data: { id: string, result: unknown, isError: boolean }
+   *   event: done              data: { pages: string[] }
+   *   event: error             data: { message: string }
    */
   async chat(ctx: Context): Promise<void> {
     const { appId } = ctx.params as { appId: string }
-    const body = ctx.request.body as { prompt?: string }
+    const body = ctx.request.body as { prompt?: string; conversationId?: string }
     const prompt = body?.prompt?.trim()
+    const conversationId = body?.conversationId?.trim() || undefined
 
     if (!appId) {
       ctx.status = 400
@@ -55,7 +59,7 @@ class AiController {
     res.flushHeaders?.()
 
     try {
-      await aiService.runWithSSE(appId, prompt, res)
+      await aiService.runWithSSE(appId, prompt, res, conversationId)
     } catch (err) {
       // runWithSSE 内部已处理错误并写入 SSE，此处仅做兜底
       if (!res.writableEnded) {

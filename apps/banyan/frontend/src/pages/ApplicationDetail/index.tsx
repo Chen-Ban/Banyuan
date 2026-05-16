@@ -37,6 +37,9 @@ const ApplicationDetail = () => {
   const [buildTaskId, setBuildTaskId] = useState<string | null>(null);
   const [buildSubmitting, setBuildSubmitting] = useState(false);
 
+  // canvasSection 容器 ref，用于 AiBar fixed 定位对齐
+  const canvasSectionRef = useRef<HTMLDivElement>(null);
+
   // 用于自动保存名称/描述的 debounce
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nameRef = useRef(applicationName);
@@ -253,12 +256,20 @@ const ApplicationDetail = () => {
           currentPageId={currentPageId}
           actions={actions}
         />
-        <div className={styles.canvasSection}>
+        <div className={styles.canvasSection} ref={canvasSectionRef}>
           <div className={styles.canvasArea}>
             {Banvas}
           </div>
           {!isNew && id && (
-            <AiBar appId={id} onPagesUpdate={handleAiPagesUpdate} />
+            <>
+              {/* AiBar 脱离文档流（fixed），此占位 div 撑开底部空间防止画布被遮挡 */}
+              <div className={styles.aiBarPlaceholder} />
+              <AiBar
+                appId={id}
+                onPagesUpdate={handleAiPagesUpdate}
+                containerRef={canvasSectionRef}
+              />
+            </>
           )}
         </div>
         <PropertyPanel

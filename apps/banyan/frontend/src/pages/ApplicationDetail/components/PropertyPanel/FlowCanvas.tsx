@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useFlowBanvas, NodeView, EdgeView } from 'banvasgl'
 import type { FlowSchema, FlowNode, FlowEdge, PortDirection } from 'banvasgl'
 import { getFlowNodeDragData } from './FlowNodePalette'
-import FlowNodePalette from './FlowNodePalette'
 import styles from './index.module.scss'
 
 interface FlowCanvasProps {
@@ -12,8 +11,8 @@ interface FlowCanvasProps {
     onChange: (schema: FlowSchema) => void
 }
 
-const CANVAS_WIDTH = 168
-const CANVAS_HEIGHT = 300
+const CANVAS_WIDTH = 680
+const CANVAS_HEIGHT = 400
 
 /** 生成简单唯一 id */
 function genId(): string {
@@ -130,10 +129,9 @@ function buildDefaultNode(
 }
 
 /**
- * 函数编辑画布
+ * 流程图画布（纯画布，不含物料面板）
  *
- * 左侧是 BanvasGL 流程图画布，右侧是事件节点物料面板。
- * 物料面板中的节点可拖拽到画布上，drop 时在对应位置创建新节点并写回 FlowSchema。
+ * 物料面板由外层的 FlowEditorModal 负责渲染，节点通过拖拽 drop 到此画布上创建。
  */
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
     const canvasWrapperRef = useRef<HTMLDivElement>(null)
@@ -228,19 +226,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
     }, [schema, onChange])
 
     return (
-        <div className={styles.flowCanvasLayout}>
-            {/* 左侧：流程图画布 */}
-            <div
-                ref={canvasWrapperRef}
-                className={styles.flowCanvasWrapper}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-            >
-                {Canvas}
-            </div>
-
-            {/* 右侧：事件节点物料面板 */}
-            <FlowNodePalette />
+        <div
+            ref={canvasWrapperRef}
+            className={styles.flowCanvasWrapper}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+        >
+            {Canvas}
         </div>
     )
 }

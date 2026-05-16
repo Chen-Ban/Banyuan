@@ -29,3 +29,9 @@
   align-items: center;
   justify-content: center;
 }
+
+// AiBar 脱离文档流后的占位，高度与 AiBar 输入框区域一致，防止画布内容被遮挡
+.aiBarPlaceholder {
+  flex-shrink: 0;
+  height: 64px;
+}
