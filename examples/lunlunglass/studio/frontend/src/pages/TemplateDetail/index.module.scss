@@ -1,0 +1,78 @@
+.templateDetailPage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.canvasSection {
+  flex: 1;
+  overflow: auto;
+  background-color: #f8f9fa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// ── 预览弹窗 ──
+
+.previewModalBody {
+  display: flex;
+  min-height: 320px;
+}
+
+.previewLeft {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0f2f5;
+  padding: 32px 24px;
+}
+
+.previewRight {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 24px 20px;
+  border-left: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.previewInfoTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+}
+
+.previewInfoRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.previewInfoLabel {
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.previewInfoValue {
+  font-size: 13px;
+  color: #262626;
+  word-break: break-all;
+}

@@ -1,0 +1,209 @@
+.panel {
+  width: 260px;
+  height: 100%;
+  overflow-y: auto;
+  border-left: 1px solid #e9ecef;
+  background: #fafbfc;
+  font-size: 12px;
+  color: #2c3e50;
+  display: flex;
+  flex-direction: column;
+}
+
+// ── Tabs ──
+
+.tabs {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+
+  :global(.ant-tabs-nav) {
+    margin-bottom: 0;
+    padding: 0 12px;
+  }
+
+  :global(.ant-tabs-content-holder) {
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  :global(.ant-tabs-content) {
+    height: 100%;
+  }
+
+  :global(.ant-tabs-tabpane) {
+    height: 100%;
+  }
+}
+
+.tabContent {
+  padding: 12px;
+}
+
+// ── Section ──
+
+.section {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ecf0f1;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.sectionHeader {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+// ── 基础信息 ──
+
+.infoRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  min-height: 26px;
+}
+
+.infoLabel {
+  color: #7f8c8d;
+  font-size: 11px;
+  flex-shrink: 0;
+  width: 40px;
+}
+
+.infoValue {
+  color: #34495e;
+  font-size: 11px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.infoValueId {
+  color: #95a5a6;
+  font-size: 9px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  cursor: pointer;
+  transition: color 0.15s;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+
+  &:hover {
+    color: #3498db;
+  }
+}
+
+// 名称输入框（antd Input borderless，只控制布局）
+.nameInput {
+  flex: 1;
+  margin-left: 4px;
+}
+
+// ── 变换区域 ──
+
+.transformGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.numberInput {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.inputLabel {
+  font-size: 10px;
+  color: #95a5a6;
+  font-weight: 500;
+}
+
+// ── 预设尺寸 Radio 组 ──
+
+.presetGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  :global(.ant-radio-wrapper) {
+    font-size: 11px;
+    color: #34495e;
+    margin-inline-end: 0;
+  }
+}
+
+// ── 状态区域 ──
+
+.stateRow {
+  display: flex;
+  gap: 16px;
+}
+
+// ── 圆角半径区域 ──
+
+.radiiControls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radiiUniform {
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #ecf0f1;
+}
+
+// ── 字段绑定 Tab ──
+
+.fieldBindRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fieldBindLabel {
+  font-size: 11px;
+  color: #7f8c8d;
+  flex-shrink: 0;
+  width: 52px;
+}
+
+.fieldPreviewBox {
+  background: #f0f7ff;
+  border: 1px solid #bde0ff;
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 8px;
+}
+
+.fieldPreviewLabel {
+  font-size: 10px;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+}
+
+.fieldPreviewValue {
+  margin-bottom: 4px;
+}
+
+.fieldPreviewDesc {
+  font-size: 10px;
+  color: #95a5a6;
+  line-height: 1.4;
+}
+
+.fieldHint {
+  font-size: 11px;
+  color: #95a5a6;
+  line-height: 1.6;
+}
