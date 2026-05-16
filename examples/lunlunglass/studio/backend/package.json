@@ -1,0 +1,34 @@
+{
+  "name": "lunlunglass-studio-backend",
+  "version": "0.1.0",
+  "description": "LunlunGlass Template Studio 后端服务",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@koa/cors": "^5.0.0",
+    "@koa/router": "^13.1.0",
+    "@lunlunglass/printer": "workspace:*",
+    "dotenv": "^16.4.5",
+    "koa": "^2.15.3",
+    "koa-body": "^6.0.1",
+    "koa-json": "^2.0.2",
+    "koa-logger": "^3.2.1",
+    "mongoose": "^8.7.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.15.0",
+    "@types/koa__cors": "^5.0.0",
+    "@types/koa__router": "^12.0.4",
+    "@types/koa-json": "^2.0.23",
+    "@types/koa-logger": "^3.1.5",
+    "@types/node": "^22.0.0",
+    "@types/node-fetch": "^2.6.11",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.3"
+  }
+}
