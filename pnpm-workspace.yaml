@@ -2,3 +2,6 @@ packages:
   - 'packages/*'
   - 'apps/**'
   - 'examples/**'
+  - 'examples/lunlunglass/shared/*'
+  - 'examples/lunlunglass/studio/*'
+  - 'examples/lunlunglass/pos/*'
