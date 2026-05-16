@@ -1,9 +1,9 @@
 /**
  * 相地 · DeepSeek LLM 客户端
  *
- * 基于 DeepSeek 开放 API 的 LLMClient 实现。
- * DeepSeek 使用 OpenAI 兼容协议，本客户端将其适配为 XiangDi 的 LLMClient 接口
- * （Anthropic 风格的 createMessage + stop_reason + content[]）。
+ * 基于 openai SDK（DeepSeek 兼容 OpenAI 协议）的 LLMClient 实现。
+ * 将 XiangDi 的 Anthropic 风格接口（createMessage / stop_reason / content[]）
+ * 适配到 openai SDK 的 chat.completions.create，无需手写 fetch 和格式转换。
  *
  * 使用示例：
  * ```ts
@@ -20,6 +20,7 @@
  * ```
  */
 
+import OpenAI from "openai";
 import type { LLMClient, LLMResponse } from "../core/AgentLoop.js";
 import type { Message } from "../core/types.js";
 
@@ -30,7 +31,7 @@ export interface DeepSeekConfig {
   apiKey: string;
   /** 模型名称，默认 "deepseek-chat"（也可用 "deepseek-reasoner"） */
   model?: string;
-  /** API 基础 URL，默认 "https://api.deepseek.com" */
+  /** API 基础 URL，默认 "https://api.deepseek.com/v1" */
   baseUrl?: string;
   /** 请求超时（毫秒），默认 120000 */
   timeout?: number;
@@ -42,19 +43,19 @@ export interface DeepSeekConfig {
  * DeepSeek LLM 客户端
  *
  * 实现 XiangDi 的 LLMClient 接口（createMessage），
- * 内部调用 DeepSeek OpenAI-compatible API 并将响应转换为 Anthropic 格式。
+ * 内部通过 openai SDK 调用 DeepSeek OpenAI-compatible API。
  */
 export class DeepSeekClient implements LLMClient {
-  private readonly apiKey: string;
+  private readonly openai: OpenAI;
   private readonly defaultModel: string;
-  private readonly baseUrl: string;
-  private readonly timeout: number;
 
   constructor(config: DeepSeekConfig) {
-    this.apiKey = config.apiKey;
     this.defaultModel = config.model ?? "deepseek-chat";
-    this.baseUrl = config.baseUrl ?? "https://api.deepseek.com";
-    this.timeout = config.timeout ?? 120_000;
+    this.openai = new OpenAI({
+      apiKey: config.apiKey,
+      baseURL: config.baseUrl ?? "https://api.deepseek.com/v1",
+      timeout: config.timeout ?? 120_000,
+    });
   }
 
   async createMessage(params: {
@@ -65,92 +66,35 @@ export class DeepSeekClient implements LLMClient {
     tools?: unknown[];
     temperature?: number;
   }): Promise<LLMResponse> {
-    const url = `${this.baseUrl}/v1/chat/completions`;
-
-    // 将 Anthropic 风格的参数转为 OpenAI 兼容格式
+    // 将 XiangDi Message[] 转为 openai SDK 的 ChatCompletionMessageParam[]
     const openAIMessages = buildOpenAIMessages(params.system, params.messages);
 
-    const body: Record<string, unknown> = {
+    const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
       model: params.model || this.defaultModel,
       messages: openAIMessages,
       max_tokens: params.max_tokens,
       temperature: params.temperature ?? 0.7,
     };
 
-    // 工具调用支持（OpenAI function calling 格式）
+    // 工具调用支持
     if (params.tools && params.tools.length > 0) {
-      body.tools = convertToOpenAITools(params.tools);
-      body.tool_choice = "auto";
+      requestParams.tools = convertToOpenAITools(params.tools);
+      requestParams.tool_choice = "auto";
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => "Unknown error");
-        throw new Error(
-          `DeepSeek API error (${response.status}): ${errorText}`
-        );
-      }
-
-      const data = (await response.json()) as OpenAIChatResponse;
-      return convertToAnthropicResponse(data);
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    const completion = await this.openai.chat.completions.create(requestParams);
+    return convertToLLMResponse(completion);
   }
 }
 
-// ─── 辅助：加载 API Key ────────────────────────────────────────────────────────
-
-/**
- * 从 JSON 文件加载 API Key
- *
- * @param filePath JSON 文件路径（{ "key": "sk-xxx" } 或 { "apiKey": "sk-xxx" }）
- * @returns API Key 字符串
- */
-export async function loadApiKeyFromFile(filePath: string): Promise<string> {
-  const { readFile } = await import("node:fs/promises");
-  const content = await readFile(filePath, "utf-8");
-  const parsed = JSON.parse(content) as { key?: string; apiKey?: string };
-  const key = parsed.key ?? parsed.apiKey;
-  if (!key) {
-    throw new Error(`No API key found in ${filePath}`);
-  }
-  return key;
-}
-
-// ─── 格式转换：XiangDi Message → OpenAI Message ───────────────────────────────
-
-interface OpenAIMessage {
-  role: "system" | "user" | "assistant" | "tool";
-  content?: string | null;
-  tool_calls?: Array<{
-    id: string;
-    type: "function";
-    function: { name: string; arguments: string };
-  }>;
-  tool_call_id?: string;
-}
+// ─── 格式转换：XiangDi Message → OpenAI ChatCompletionMessageParam ─────────────
 
 function buildOpenAIMessages(
   system: string | undefined,
   messages: Message[]
-): OpenAIMessage[] {
-  const result: OpenAIMessage[] = [];
+): OpenAI.Chat.ChatCompletionMessageParam[] {
+  const result: OpenAI.Chat.ChatCompletionMessageParam[] = [];
 
-  // system prompt 作为第一条 system 消息
   if (system) {
     result.push({ role: "system", content: system });
   }
@@ -159,14 +103,11 @@ function buildOpenAIMessages(
     if (msg.role === "user") {
       result.push({ role: "user", content: extractTextContent(msg.content) });
     } else if (msg.role === "assistant") {
-      const openAIMsg = convertAssistantMessage(msg.content);
-      result.push(openAIMsg);
+      result.push(convertAssistantMessage(msg.content));
     } else if (msg.role === "tool") {
-      // tool_result 消息
-      const content = extractTextContent(msg.content);
       result.push({
         role: "tool",
-        content,
+        content: extractTextContent(msg.content),
         tool_call_id: extractToolCallId(msg.content),
       });
     }
@@ -199,7 +140,9 @@ function extractToolCallId(content: Message["content"]): string {
   return "";
 }
 
-function convertAssistantMessage(content: Message["content"]): OpenAIMessage {
+function convertAssistantMessage(
+  content: Message["content"]
+): OpenAI.Chat.ChatCompletionAssistantMessageParam {
   if (typeof content === "string") {
     return { role: "assistant", content };
   }
@@ -208,11 +151,7 @@ function convertAssistantMessage(content: Message["content"]): OpenAIMessage {
   }
 
   const textParts: string[] = [];
-  const toolCalls: Array<{
-    id: string;
-    type: "function";
-    function: { name: string; arguments: string };
-  }> = [];
+  const toolCalls: OpenAI.Chat.ChatCompletionMessageToolCall[] = [];
 
   for (const part of content) {
     if (part.type === "text") {
@@ -229,7 +168,7 @@ function convertAssistantMessage(content: Message["content"]): OpenAIMessage {
     }
   }
 
-  const msg: OpenAIMessage = {
+  const msg: OpenAI.Chat.ChatCompletionAssistantMessageParam = {
     role: "assistant",
     content: textParts.length > 0 ? textParts.join("\n") : null,
   };
@@ -241,42 +180,23 @@ function convertAssistantMessage(content: Message["content"]): OpenAIMessage {
   return msg;
 }
 
-// ─── 格式转换：OpenAI Response → Anthropic LLMResponse ────────────────────────
+// ─── 格式转换：OpenAI ChatCompletion → LLMResponse ────────────────────────────
 
-interface OpenAIChatResponse {
-  choices?: Array<{
-    message?: {
-      content?: string | null;
-      tool_calls?: Array<{
-        id: string;
-        type: "function";
-        function: { name: string; arguments: string };
-      }>;
-    };
-    finish_reason?: string;
-  }>;
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
-  };
-}
-
-function convertToAnthropicResponse(data: OpenAIChatResponse): LLMResponse {
-  const choice = data.choices?.[0];
+function convertToLLMResponse(
+  completion: OpenAI.Chat.ChatCompletion
+): LLMResponse {
+  const choice = completion.choices[0];
   if (!choice) {
     return { stop_reason: "end_turn", content: [{ type: "text", text: "" }] };
   }
 
   const content: LLMResponse["content"] = [];
 
-  // 文本内容
-  if (choice.message?.content) {
+  if (choice.message.content) {
     content.push({ type: "text", text: choice.message.content });
   }
 
-  // 工具调用
-  if (choice.message?.tool_calls) {
+  if (choice.message.tool_calls) {
     for (const tc of choice.message.tool_calls) {
       let input: Record<string, unknown> = {};
       try {
@@ -293,12 +213,11 @@ function convertToAnthropicResponse(data: OpenAIChatResponse): LLMResponse {
     }
   }
 
-  // 确保至少有一个 content 块
   if (content.length === 0) {
     content.push({ type: "text", text: "" });
   }
 
-  // 转换 finish_reason
+  // 转换 finish_reason → XiangDi stop_reason
   let stopReason: string;
   switch (choice.finish_reason) {
     case "stop":
@@ -320,17 +239,19 @@ function convertToAnthropicResponse(data: OpenAIChatResponse): LLMResponse {
 // ─── 工具格式转换 ──────────────────────────────────────────────────────────────
 
 /**
- * 将 XiangDi 的工具定义（Anthropic 格式）转换为 OpenAI function calling 格式
+ * 将 XiangDi 的工具定义（Anthropic 格式）转换为 openai SDK 的 ChatCompletionTool[]
  */
-function convertToOpenAITools(tools: unknown[]): unknown[] {
+function convertToOpenAITools(
+  tools: unknown[]
+): OpenAI.Chat.ChatCompletionTool[] {
   return tools.map((tool) => {
     const t = tool as {
       name?: string;
       description?: string;
-      input_schema?: unknown;
+      input_schema?: OpenAI.FunctionParameters;
     };
     return {
-      type: "function",
+      type: "function" as const,
       function: {
         name: t.name ?? "unknown",
         description: t.description ?? "",

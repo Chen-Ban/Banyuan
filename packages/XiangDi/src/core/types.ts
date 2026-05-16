@@ -77,11 +77,9 @@ export interface RegisteredTool<
 // ─── Agent 配置 ───────────────────────────────────────────────────────────────
 
 export interface LLMConfig {
-  /** 模型标识，如 "claude-opus-4-5" */
+  /** 模型标识，如 "deepseek-chat" */
   model: string;
-  /** API Key */
-  apiKey: string;
-  /** API 基础 URL，默认 Anthropic */
+  /** API 基础 URL */
   baseURL?: string;
   /** 最大 token 数 */
   maxTokens?: number;

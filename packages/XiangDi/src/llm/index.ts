@@ -13,7 +13,7 @@
  */
 
 // ─── LLM 客户端 ──────────────────────────────────────────────────────────────
-export { DeepSeekClient, loadApiKeyFromFile } from "./DeepSeekClient.js";
+export { DeepSeekClient } from "./DeepSeekClient.js";
 export type { DeepSeekConfig } from "./DeepSeekClient.js";
 
 // ─── LLM 路由层 ─────────────────────────────────────────────────────────────

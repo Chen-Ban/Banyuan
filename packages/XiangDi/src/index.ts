@@ -163,9 +163,12 @@ export type {
 // ─── Harness 层（约束 + 反馈回路 + 人工介入）────────────────────────────────
 export {
   HarnessRunner,
+  SSEHarnessRunner,
+  injectHumanDecision,
   Guards,
   Checkpoints,
   HumanGates,
+  LocalCheckpointStore,
   specApproved,
   hasAtLeastOneTask,
   noProhibitedKeywords,
@@ -196,56 +199,45 @@ export type {
   HarnessPhase,
   HarnessConfig,
   HarnessRunResult,
+  HarnessCheckpoint,
+  CheckpointStore,
+  LocalCheckpointStoreConfig,
+  SSEWriteFn,
+  HumanGateSSEData,
 } from "./harness/index.js";
 
-// ─── Knowledge 层（RAG + GraphRAG 混合检索）──────────────────────────────────
+// ─── Knowledge 层（RAG + GraphRAG）───────────────────────────────────────────
 export {
+  // 生产推荐：向量 + BM25 混合检索，本地持久化
+  LanceDBKnowledgeStore,
+  // 测试/小数据量：关键词匹配
   MemoryKnowledgeStore,
-  HybridKnowledgeStore,
-  // 生产级实现
-  LanceDBVectorStore,
-  TransformersEmbeddingProvider,
+  // GraphRAG：关系推理、影响分析
   GraphologyGraphStore,
-  // 兼容/测试用
-  InMemoryGraphStore,
+  // 检索路由器（GraphRAG 场景）
   LLMRetrievalRouter,
   RuleBasedRouter,
 } from "./knowledge/index.js";
 
 export type {
-  // 基础检索
   KnowledgeChunk,
   KnowledgeStore,
   KnowledgeQueryOptions,
   KnowledgeEntry,
   MutableKnowledgeStore,
-  // 向量检索
-  EmbeddingProvider,
-  VectorStore,
-  VectorItem,
-  VectorSearchResult,
-  // 图检索（GraphRAG）
   GraphEntity,
   GraphRelation,
   SubGraph,
   GraphKnowledgeStore,
   GraphQueryOptions,
   ImpactAnalysisOptions,
-  // 混合检索路由
-  RetrievalStrategy,
-  RoutingDecision,
-  HybridStoreConfig,
-  RetrievalRouter,
-  RouterContext,
-  RetrievalRouterConfig,
-  // 生产级实现配置
-  HybridKnowledgeStoreConfig,
-  LanceDBVectorStoreConfig,
+  LanceDBKnowledgeStoreConfig,
   GraphologyGraphStoreConfig,
+  RetrievalRouterConfig,
 } from "./knowledge/index.js";
 
 // ─── LLM 层（DeepSeek 客户端 + 智能路由）─────────────────────────────────────
-export { DeepSeekClient, loadApiKeyFromFile, LLMRouter } from "./llm/index.js";
+export { DeepSeekClient, LLMRouter } from "./llm/index.js";
 export type {
   DeepSeekConfig,
   LLMRouterConfig,

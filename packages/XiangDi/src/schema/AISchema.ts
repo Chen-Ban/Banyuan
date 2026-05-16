@@ -98,22 +98,58 @@ export const AIImageNodeSchema = AIBaseNodeSchema.extend({
   objectFit: z.enum(["fill", "contain", "cover"]).default("cover"),
 });
 
+// 控制点：二维坐标（贝塞尔曲线用，z 轴固定为 0）
+export const AIPoint2Schema = z.object({
+  x: z.number().describe("水平坐标，单位 px"),
+  y: z.number().describe("垂直坐标，单位 px"),
+});
+
+export const AICubicBezierNodeSchema = AIBaseNodeSchema.extend({
+  type: z.literal("cubic_bezier"),
+  /** 4 个控制点：[起点, 控制点1, 控制点2, 终点] */
+  controlPoints: z.tuple([
+    AIPoint2Schema,
+    AIPoint2Schema,
+    AIPoint2Schema,
+    AIPoint2Schema,
+  ]).describe("4 个控制点：[起点, 控制点1, 控制点2, 终点]"),
+  stroke: AIStrokeSchema.optional(),
+});
+
+export const AIQuadraticBezierNodeSchema = AIBaseNodeSchema.extend({
+  type: z.literal("quadratic_bezier"),
+  /** 3 个控制点：[起点, 控制点, 终点] */
+  controlPoints: z.tuple([
+    AIPoint2Schema,
+    AIPoint2Schema,
+    AIPoint2Schema,
+  ]).describe("3 个控制点：[起点, 控制点, 终点]"),
+  stroke: AIStrokeSchema.optional(),
+});
+
+// AINode 类型必须先于 AIGroupNodeSchema 声明，因为 children 字段需要引用它
+export type AINode =
+  | z.infer<typeof AIRectNodeSchema>
+  | z.infer<typeof AITextNodeSchema>
+  | z.infer<typeof AIImageNodeSchema>
+  | z.infer<typeof AICubicBezierNodeSchema>
+  | z.infer<typeof AIQuadraticBezierNodeSchema>
+  | { type: "group"; id: string; name?: string; transform: z.infer<typeof AITransformSchema>; zIndex: number; locked: boolean; children: AINode[] };
+
+// children 显式标注为 z.ZodType<AINode[]>，避免 z.lazy 的循环推断导致 DTS 生成失败
 export const AIGroupNodeSchema = AIBaseNodeSchema.extend({
   type: z.literal("group"),
-  children: z.array(z.lazy(() => AINodeSchema)),
+  children: z.array(z.lazy(() => AINodeSchema)) as z.ZodType<AINode[]>,
 });
 
 export const AINodeSchema: z.ZodType<AINode> = z.discriminatedUnion("type", [
   AIRectNodeSchema,
   AITextNodeSchema,
   AIImageNodeSchema,
+  AICubicBezierNodeSchema,
+  AIQuadraticBezierNodeSchema,
   AIGroupNodeSchema,
-]);
-
-export type AINode = z.infer<typeof AIRectNodeSchema>
-  | z.infer<typeof AITextNodeSchema>
-  | z.infer<typeof AIImageNodeSchema>
-  | { type: "group"; id: string; name?: string; transform: z.infer<typeof AITransformSchema>; zIndex: number; locked: boolean; children: AINode[] };
+]) as unknown as z.ZodType<AINode>;
 
 // ─── 页面 ─────────────────────────────────────────────────────────────────────
 
