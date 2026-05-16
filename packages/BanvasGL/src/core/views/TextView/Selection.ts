@@ -101,15 +101,27 @@ export default class Selection {
 
     /**
      * 渲染选择区域
+     * @param ctx Canvas 渲染上下文
+     * @param cursorOpacity 光标不透明度（0~1），仅在光标状态下生效；范围选中时忽略此参数
      */
-    public render(ctx: CanvasRenderingContext2D): void {
+    public render(ctx: CanvasRenderingContext2D, cursorOpacity: number = 1): void {
         if (this.selectionBoxs.length === 0) {
             return
         }
 
+        const isCursorMode = this.isCursor()
+
         ctx.save()
-        ctx.fillStyle = 'rgba(0, 123, 255, .5)' // 半透明蓝色
         ctx.lineWidth = 1
+
+        if (isCursorMode) {
+            // 光标模式：纯色竖线，透明度由 cursorOpacity 控制
+            ctx.globalAlpha = cursorOpacity
+            ctx.fillStyle = 'rgba(0, 0, 0, 1)'
+        } else {
+            // 范围选中模式：半透明蓝色高亮，透明度固定
+            ctx.fillStyle = 'rgba(0, 123, 255, .5)'
+        }
 
         this.selectionBoxs.forEach((box) => {
             const topLeft = box.getTopLeft()

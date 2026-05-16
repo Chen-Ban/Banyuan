@@ -51,6 +51,20 @@ export interface ICanvasContext {
 /** Renderer 配置选项 */
 export interface IRendererOptions extends ICanvasContextOptions {
     dpr?: number
+    /**
+     * 是否显示网格
+     *
+     * @defaultValue false
+     * @remarks 渲染器尚未实现，传入后暂时无视觉效果，待后续 Renderer 层实现。
+     */
+    showGrid?: boolean
+    /**
+     * 是否显示标尺
+     *
+     * @defaultValue false
+     * @remarks 渲染器尚未实现，传入后暂时无视觉效果，待后续 Renderer 层实现。
+     */
+    showRuler?: boolean
 }
 
 /** Renderer 的公共契约 */

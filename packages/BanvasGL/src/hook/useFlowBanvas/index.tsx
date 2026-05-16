@@ -3,8 +3,8 @@ import React, {
     useMemo,
     useSyncExternalStore,
 } from 'react'
-import { useDesignCanvasInit } from '../useDesignCanvasInit'
-import type { SerializedPageJSON } from '../useDesignCanvasInit'
+import { useCanvasInit } from '../useCanvasInit'
+import type { SerializedPageJSON } from '../useCanvasInit'
 import { useFlowCanvasEvents } from './canvas/useFlowCanvasEvents'
 import type { App } from '@/core/app'
 
@@ -37,7 +37,7 @@ export default function useFlowBanvas(
 ): UseFlowBanvasResult {
     const { width, height, backgroundColor } = options
 
-    const { app, canvasRef, canvasCallbackRef } = useDesignCanvasInit(serializedPages, {
+    const { app, canvasRef, canvasCallbackRef } = useCanvasInit(serializedPages, {
         width,
         height,
         rendererOptions: backgroundColor

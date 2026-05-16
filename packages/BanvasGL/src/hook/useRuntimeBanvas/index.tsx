@@ -1,14 +1,9 @@
 import React, { useCallback, useMemo, useSyncExternalStore } from 'react'
-import { useRuntimeCanvasInit } from '../useRuntimeCanvasInit'
+import { useCanvasInit } from '../useCanvasInit'
 import { useRuntimeEvents } from './canvas/useRuntimeEvents'
-import type { UseRuntimeCanvasOptions } from '../useRuntimeCanvasInit'
+import type { UseCanvasOptions } from '../useCanvasInit'
 
-export interface UseRuntimeBanvasOptions {
-    width: number
-    height: number
-    appOptions?: UseRuntimeCanvasOptions['appOptions']
-    rendererOptions?: UseRuntimeCanvasOptions['rendererOptions']
-}
+export type UseRuntimeBanvasOptions = UseCanvasOptions
 
 export interface UseRuntimeBanvasResult {
     /** 渲染好的 Canvas React 元素 */
@@ -34,7 +29,7 @@ export default function useRuntimeBanvas(
     serializedPages: string[],
     options: UseRuntimeBanvasOptions,
 ): UseRuntimeBanvasResult {
-    const { app, canvasRef, canvasCallbackRef } = useRuntimeCanvasInit(serializedPages, options)
+    const { app, canvasRef, canvasCallbackRef } = useCanvasInit(serializedPages, options)
 
     // 监听 app 状态变更驱动重渲染（FlowRunner 执行 setData 后会 markDirty → notify）
     const subscribe = useCallback(

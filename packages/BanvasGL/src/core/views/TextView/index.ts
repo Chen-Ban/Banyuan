@@ -15,6 +15,7 @@ import {
     TextParagraphContent,
 } from '@/index.backend'
 import { TextIndex } from '@/core/graph/text/TextFields'
+import type { IAnimationDescriptor } from '@/core/interfaces'
 
 // 文本视图选项接口
 export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
@@ -35,6 +36,12 @@ export default class TextView extends View implements ITextView, ISerializable {
     public verticalAlign: string = VERTICALALIGN.TOP
     public fixedWidth: boolean = false
 
+    /** 光标闪烁动画描述符，用于在 setSelection 时重置动画 */
+    private _cursorAnimation: IAnimationDescriptor | null = null
+
+    /** 当前光标不透明度（由动画系统驱动，0~1） */
+    public cursorOpacity: number = 1
+
     constructor(text: TextFields, options: TextViewOptions = {}) {
         // 将text作为content传递给父类构造函数
         super({ ...options, content: text })
@@ -51,8 +58,9 @@ export default class TextView extends View implements ITextView, ISerializable {
 
     public renderContent(ctx: CanvasRenderingContext2D): void {
         super.renderContent(ctx)
-        // 渲染选择区域
-        this.selection.render(ctx)
+        // 渲染选择区域，光标状态时传入动画驱动的 cursorOpacity
+        const cursorOpacity = (this.getAnimatedValue('cursorOpacity') as number) ?? this.cursorOpacity
+        this.selection.render(ctx, cursorOpacity)
     }
 
     /**
@@ -181,6 +189,26 @@ export default class TextView extends View implements ITextView, ISerializable {
 
         this.selection.fixedIndex = fixedIndex
         this.selection.dynamicIndex = dynamicIndex
+
+        // 光标状态时启动/重置闪烁动画；范围选中或清空时停止动画
+        if (Selection.isCursor(fixedIndex, dynamicIndex)) {
+            // 停止旧动画（如果有），立即重新开始，保证每次定位光标都从不透明开始
+            if (this._cursorAnimation) {
+                this._cursorAnimation.cancel()
+                this._cursorAnimation = null
+            }
+            this.cursorOpacity = 1
+            this._cursorAnimation = this.animate(
+                { to: { cursorOpacity: 0 } },
+                { duration: 530, iterations: Infinity, direction: 'alternate' },
+            )
+        } else {
+            if (this._cursorAnimation) {
+                this._cursorAnimation.cancel()
+                this._cursorAnimation = null
+            }
+            this.cursorOpacity = 1
+        }
     }
 
     // ==================== 编辑相关方法 ====================
