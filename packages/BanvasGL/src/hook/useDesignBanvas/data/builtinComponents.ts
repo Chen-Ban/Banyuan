@@ -102,4 +102,38 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
       },
     },
   },
+  {
+    id: "builtin.cubic-bezier",
+    label: "三次贝塞尔",
+    description: "三次贝塞尔曲线（4 个控制点，S 形）",
+    source: "builtin",
+    icon: {
+      type: "svg",
+      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M3 18 C7 4, 11 4, 12 12 S17 20, 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>`,
+    },
+    template: {
+      viewType: VIEWTYPE.GRAPHVIEW,
+      graphType: GRAPHTYPE.CUBIC_BEZIER,
+      defaultProps: { length: 120 },
+    },
+  },
+  {
+    id: "builtin.quadratic-bezier",
+    label: "二次贝塞尔",
+    description: "二次贝塞尔曲线（3 个控制点，弧形）",
+    source: "builtin",
+    icon: {
+      type: "svg",
+      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M3 18 Q12 2, 21 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>`,
+    },
+    template: {
+      viewType: VIEWTYPE.GRAPHVIEW,
+      graphType: GRAPHTYPE.QUADRATIC_BEZIER,
+      defaultProps: { length: 120 },
+    },
+  },
 ];

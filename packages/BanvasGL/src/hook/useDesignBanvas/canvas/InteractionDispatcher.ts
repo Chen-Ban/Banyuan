@@ -230,12 +230,13 @@ export class InteractionDispatcher {
       const vector = point.subtract(this.ctx.getLastPoint() || mouseDownPoint);
       const { resizeFixedIndex, resizeDynamicIndex } = extraData;
       scene.getAllActived().forEach((view) => {
+        // 跳过没有 BoundingBox 插件的 view（如 AnalyticGraph / CombinedGraph）
+        if (!view.boundingBox) return;
         const fixedPoint =
-          view.boundingBox?.handles[resizeFixedIndex].getCenter();
+          view.boundingBox.handles[resizeFixedIndex].getCenter();
         const dynamicPoint =
-          view.boundingBox?.handles[resizeDynamicIndex].getCenter();
-        if (!fixedPoint || !dynamicPoint)
-          throw new Error("固定点或活动点不存在");
+          view.boundingBox.handles[resizeDynamicIndex].getCenter();
+        if (!fixedPoint || !dynamicPoint) return;
         console.log(e.ctrlKey);
 
         view.resize(fixedPoint, dynamicPoint, vector, e.ctrlKey);

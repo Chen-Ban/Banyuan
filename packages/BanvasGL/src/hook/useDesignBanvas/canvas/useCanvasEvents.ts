@@ -253,22 +253,22 @@ export function useCanvasEvents({
         const indicateView = indicateViewRef.current;
 
         if (indicateView) {
+          const indicateContent = indicateContentRef.current;
           const isTextEditTarget =
             isTextView(indicateView) &&
-            indicateContentRef.current instanceof Array &&
-            (isPrintableTextElement(indicateContentRef.current[0]) ||
-              isNonPrintableTextElement(indicateContentRef.current[0]));
+            indicateContent !== null &&
+            (isPrintableTextElement(indicateContent) ||
+              isNonPrintableTextElement(indicateContent));
 
           if (isTextEditTarget && isTextView(indicateView)) {
             const fixedIndex = indicateView.element2Index(
-              (indicateContentRef.current as unknown as any[])[0],
+              indicateContent as Parameters<typeof indicateView.element2Index>[0],
               mousDownPoint,
             );
             indicateView.setSelection(fixedIndex, fixedIndex);
 
             // 将输入框移动到选中的 textElement 下方
-            const bounds = (indicateContentRef.current as unknown as any[])[0]
-              .bounds;
+            const bounds = (indicateContent as any).bounds;
 
             // 将相对坐标转换为世界坐标
             const worldMatrix = indicateView.getWorldMatrix();
