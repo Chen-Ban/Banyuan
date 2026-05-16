@@ -1,0 +1,24 @@
+.optometryControls {
+  padding: 1rem 0;
+}
+
+.eyePanel {
+  padding: 1rem;
+  border: 1px solid #ecf0f1;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.controlItem {
+  margin-bottom: 1.5rem;
+}
+
+.controlLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #2c3e50;
+}
+
