@@ -2,9 +2,10 @@
   "name": "lunlunglass",
   "version": "1.0.0",
   "private": true,
-  "description": "LunlunGlass — 基于 BanvasGL 的模板设计桌面应用示例",
+  "description": "LunlunGlass — 眼镜店打印系统（Studio 模板设计 + POS 门店运营）",
   "scripts": {
-    "dev": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter lunlunglass-frontend dev\" \"pnpm --filter lunlunglass-backend dev\" \"pnpm --filter lunlunglass-electron dev\""
+    "dev:studio": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter lunlunglass-studio-frontend dev\" \"pnpm --filter lunlunglass-studio-backend dev\" \"pnpm --filter lunlunglass-studio-electron dev\"",
+    "dev:pos": "concurrently --kill-others -c \"magenta.bold,blue.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter lunlunglass-pos-frontend dev\" \"pnpm --filter lunlunglass-pos-backend dev\" \"pnpm --filter lunlunglass-pos-electron dev\""
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

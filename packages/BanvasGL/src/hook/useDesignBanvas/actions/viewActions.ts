@@ -14,26 +14,10 @@ import type {
     IViewLifetimes,
 } from '@/core/interfaces'
 import type { App } from '@/core/app'
-import { Point3 } from '@/core/math'
-import { Style } from '@/core/style'
-import {
-    Line,
-    Circle,
-    RoundedRect,
-    ImageElement,
-    TextParagraph,
-    TextFields,
-    Graph,
-} from '@/core/graph'
-import {
-    View,
-    GraphView,
-    TextView,
-    ImageView,
-} from '@/core/views'
-import { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
+import { View } from '@/core/views'
 import { clearAllStates, flattenViewTree } from '@/core/scene/operations'
 import { adapterRegistry } from '@/core/property'
+import { viewCreatorStrategies } from './viewCreateStrategies.js'
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null
@@ -118,68 +102,31 @@ export function createViewActions(
             if (!scene) return null
 
             const { viewType, graphType, defaultProps = {} } = template
-            const x = position.x
-            const y = position.y
+            const { x, y } = position
+
+            const viewStrategy = viewCreatorStrategies.get(viewType)
+            if (!viewStrategy) {
+                console.warn(`[BanvasGL] actions.view.create: 未知 viewType "${viewType}"，已跳过`)
+                return null
+            }
+
+            // GRAPHVIEW 需要将 graphType 透传给策略，借 defaultProps 的保留字段传递
+            const propsWithGraphType = viewType === 'GRAPHVIEW' && graphType
+                ? { ...defaultProps, _graphType: graphType }
+                : defaultProps
 
             let newView: View | null = null
-
-            if (viewType === VIEWTYPE.GRAPHVIEW) {
-                let graph: Graph | null = null
-
-                if (graphType === GRAPHTYPE.LINE) {
-                    graph = new Line(
-                        new Point3(0, 0, 0),
-                        new Point3(50, 50, 0),
-                        Style.DEFAULT,
-                    )
-                } else if (graphType === GRAPHTYPE.CIRCLE) {
-                    const radius = defaultProps.radius ?? 50
-                    graph = new Circle(
-                        new Point3(radius, radius, 0),
-                        radius,
-                        Style.DEFAULT,
-                    )
-                } else if (graphType === GRAPHTYPE.ROUNDED_RECT) {
-                    const width = defaultProps.width ?? 100
-                    const height = defaultProps.height ?? 100
-                    const radii = defaultProps.radii ?? 12
-                    graph = new RoundedRect(0, 0, width, height, radii as any, Style.DEFAULT)
-                } else if (graphType !== undefined) {
-                    console.warn(`[BanvasGL] actions.view.create: 未知 graphType "${graphType}"，已跳过`)
-                }
-
-                if (graph) {
-                    newView = new GraphView(graph, {
-                        style: {
-                            width: graph.bounds.width,
-                            height: graph.bounds.height,
-                        },
-                    }).translate(x, y, 0)
-                }
-            } else if (viewType === VIEWTYPE.TEXTVIEW) {
-                const text = defaultProps.text ?? '文本'
-                const textParagraph = TextParagraph.simple(text)
-                const textFields = new TextFields([textParagraph])
-                newView = new TextView(textFields, {
-                    style: { width: 200, height: 24 },
-                }).translate(x, y, 0)
-            } else if (viewType === VIEWTYPE.IMAGEVIEW) {
-                const imageSrc = defaultProps.imageSrc ?? ''
-                const width = defaultProps.width ?? 200
-                const height = defaultProps.height ?? 300
-                const imageElement = new ImageElement(imageSrc, 0, 0, width, height, Style.DEFAULT)
-                newView = new ImageView(imageElement, {
-                    style: { width, height },
-                }).translate(x, y, 0)
+            try {
+                newView = viewStrategy(propsWithGraphType, x, y)
+            } catch (err) {
+                console.warn(err instanceof Error ? err.message : err)
+                return null
             }
 
-            if (newView) {
-                scene.addChild(newView)
-                scene.select(newView)
-                notify()
-                return newView.id
-            }
-            return null
+            scene.addChild(newView)
+            scene.select(newView)
+            notify()
+            return newView.id
         },
 
         setVisible(viewId: string, visible: boolean): void {

@@ -1,0 +1,35 @@
+import { ReactNode } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import styles from './Layout.module.scss'
+
+interface LayoutProps {
+  children: ReactNode
+}
+
+const Layout = ({ children }: LayoutProps) => {
+  const location = useLocation()
+
+  return (
+    <div className={styles.layout}>
+      <header className={styles.layoutHeader}>
+        <h1>LunLunGlass Studio</h1>
+        <nav className={styles.layoutNav}>
+          <Link to="/" className={`${styles.navLink} ${location.pathname === '/' ? styles.active : ''}`}>
+            首页
+          </Link>
+          <Link to="/template" className={`${styles.navLink} ${location.pathname.startsWith('/template') ? styles.active : ''}`}>
+            模板
+          </Link>
+        </nav>
+      </header>
+      <main className={styles.layoutMain}>
+        {children}
+      </main>
+      <footer className={styles.layoutFooter}>
+        <p>&copy; 2024 LunLunGlass Studio. All rights reserved.</p>
+      </footer>
+    </div>
+  )
+}
+
+export default Layout

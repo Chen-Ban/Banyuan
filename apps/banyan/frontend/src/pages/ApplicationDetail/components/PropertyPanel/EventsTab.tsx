@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Button, Select } from 'antd'
 import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler, FlowSchema } from 'banvasgl'
-import FlowCanvas from './FlowCanvas'
+import FlowEditorModal from './FlowEditorModal'
 import styles from './index.module.scss'
 
 // ── View 模式 Props ──
@@ -62,95 +62,84 @@ function toFlowSchema(handler: EventHandler): FlowSchema | null {
     return handler as FlowSchema
 }
 
-// ── 单个事件行（含可展开的画布） ──
+// ── 弹窗状态 ──
+interface ModalState {
+    open: boolean
+    title: string
+    schema: FlowSchema | null
+    onSave: (schema: FlowSchema) => void
+}
+
+const CLOSED_MODAL: ModalState = {
+    open: false,
+    title: '',
+    schema: null,
+    onSave: () => {},
+}
+
+// ── 单个事件行 ──
 interface EventRowItemProps {
     label: string
     handler: EventHandler
     onDelete: () => void
-    onSchemaChange: (schema: FlowSchema) => void
+    onEdit: () => void
 }
 
-const EventRowItem: React.FC<EventRowItemProps> = ({ label, handler, onDelete, onSchemaChange }) => {
-    const [expanded, setExpanded] = useState(false)
-    const schema = toFlowSchema(handler)
+const EventRowItem: React.FC<EventRowItemProps> = ({ label, handler, onDelete, onEdit }) => {
+    return (
+        <div className={styles.eventRow}>
+            <span className={styles.eventName}>{label}</span>
+            <span className={styles.eventPreview}>{handlerPreview(handler)}</span>
+            <Button
+                size="small"
+                type="text"
+                onClick={onEdit}
+                title="编辑流程"
+                style={{ padding: '0 4px', minWidth: 20, fontSize: 12 }}
+            >✎</Button>
+            <Button
+                size="small"
+                type="text"
+                danger
+                onClick={onDelete}
+                title="删除"
+                style={{ padding: '0 4px', minWidth: 20 }}
+            >×</Button>
+        </div>
+    )
+}
+
+// ── 单个生命周期行 ──
+interface LifetimeRowItemProps {
+    label: string
+    handler: EventHandler
+    onDelete?: () => void
+    onEdit: () => void
+}
+
+const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDelete, onEdit }) => {
+    const hasBound = handler !== null
 
     return (
-        <div className={styles.eventItem}>
-            <div className={styles.eventRow}>
-                {/* 展开/折叠按钮 */}
-                <Button
-                    size="small"
-                    type="text"
-                    className={`${styles.expandBtn} ${expanded ? styles.expandBtnOpen : ''}`}
-                    onClick={() => setExpanded((v) => !v)}
-                    title={expanded ? '折叠画布' : '展开画布'}
-                >▶</Button>
-                <span className={styles.eventName}>{label}</span>
-                <span className={styles.eventPreview}>{handlerPreview(handler)}</span>
+        <div className={styles.eventRow}>
+            <span className={styles.eventName}>{label}</span>
+            <span className={styles.eventPreview}>{handlerPreview(handler)}</span>
+            <Button
+                size="small"
+                type="text"
+                onClick={onEdit}
+                title="编辑流程"
+                style={{ padding: '0 4px', minWidth: 20, fontSize: 12 }}
+            >✎</Button>
+            {hasBound && onDelete && (
                 <Button
                     size="small"
                     type="text"
                     danger
                     onClick={onDelete}
-                    title="删除"
+                    title="清除"
                     style={{ padding: '0 4px', minWidth: 20 }}
                 >×</Button>
-            </div>
-            {expanded && (
-                <div className={styles.flowCanvasContainer}>
-                    <FlowCanvas
-                        schema={schema}
-                        onChange={onSchemaChange}
-                    />
-                </div>
-            )}
-        </div>
-    )
-}
-
-// ── 单个生命周期行（含可展开的画布） ──
-interface LifetimeRowItemProps {
-    label: string
-    handler: EventHandler
-    onDelete?: () => void
-    onSchemaChange: (schema: FlowSchema) => void
-}
-
-const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDelete, onSchemaChange }) => {
-    const [expanded, setExpanded] = useState(false)
-    const schema = toFlowSchema(handler)
-    const hasBound = handler !== null
-
-    return (
-        <div className={styles.eventItem}>
-            <div className={styles.eventRow}>
-                <Button
-                    size="small"
-                    type="text"
-                    className={`${styles.expandBtn} ${expanded ? styles.expandBtnOpen : ''}`}
-                    onClick={() => setExpanded((v) => !v)}
-                    title={expanded ? '折叠画布' : '展开画布'}
-                >▶</Button>
-                <span className={styles.eventName}>{label}</span>
-                <span className={styles.eventPreview}>{handlerPreview(handler)}</span>
-                {hasBound && onDelete && (
-                    <Button
-                        size="small"
-                        type="text"
-                        danger
-                        onClick={onDelete}
-                        title="清除"
-                        style={{ padding: '0 4px', minWidth: 20 }}
-                    >×</Button>
-                )}
-            </div>
-            {expanded && (
-                <div className={styles.flowCanvasContainer}>
-                    <FlowCanvas
-                        schema={schema}
-                        onChange={onSchemaChange}
-                    />
-                </div>
             )}
         </div>
     )
@@ -158,6 +147,19 @@ const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDel
 
 const EventsTab: React.FC<EventsTabProps> = (props) => {
     const { actions } = props
+    const [modal, setModal] = useState<ModalState>(CLOSED_MODAL)
+
+    const openModal = (title: string, schema: FlowSchema | null, onSave: (s: FlowSchema) => void) => {
+        setModal({ open: true, title, schema, onSave })
+    }
+
+    const closeModal = () => setModal(CLOSED_MODAL)
+
+    const handleModalChange = (schema: FlowSchema) => {
+        // 实时写回，保持与原来展开画布一致的行为
+        modal.onSave(schema)
+        setModal(prev => ({ ...prev, schema }))
+    }
 
     // ── Page 模式：只展示 Scene 生命周期 ──
     if (props.mode === 'page') {
@@ -173,12 +175,24 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                             label={label}
                             handler={lifetimes[key]}
                             onDelete={() => actions.page.deletePageLifetime(props.pageId, key)}
-                            onSchemaChange={(schema) =>
-                                actions.page.setPageLifetime(props.pageId, key, schema)
+                            onEdit={() =>
+                                openModal(
+                                    label,
+                                    toFlowSchema(lifetimes[key]) ?? { nodes: [], edges: [] },
+                                    (schema) => actions.page.setPageLifetime(props.pageId, key, schema),
+                                )
                             }
                         />
                     ))}
                 </section>
+
+                <FlowEditorModal
+                    open={modal.open}
+                    title={modal.title}
+                    schema={modal.schema}
+                    onChange={handleModalChange}
+                    onClose={closeModal}
+                />
             </div>
         )
     }
@@ -212,8 +226,12 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                         label={label}
                         handler={lifetimes[key]}
                         onDelete={() => actions.view.deleteViewLifetime(selectedViewId, key)}
-                        onSchemaChange={(schema) =>
-                            actions.view.setViewLifetime(selectedViewId, key, schema)
+                        onEdit={() =>
+                            openModal(
+                                label,
+                                toFlowSchema(lifetimes[key]) ?? { nodes: [], edges: [] },
+                                (schema) => actions.view.setViewLifetime(selectedViewId, key, schema),
+                            )
                         }
                     />
                 ))}
@@ -228,8 +246,12 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                         label={label}
                         handler={events[key]}
                         onDelete={() => actions.view.deleteViewEvent(selectedViewId, key)}
-                        onSchemaChange={(schema) =>
-                            actions.view.setViewEvent(selectedViewId, key, schema)
+                        onEdit={() =>
+                            openModal(
+                                label,
+                                toFlowSchema(events[key]) ?? { nodes: [], edges: [] },
+                                (schema) => actions.view.setViewEvent(selectedViewId, key, schema),
+                            )
                         }
                     />
                 ))}
@@ -257,6 +279,14 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                     </div>
                 )}
             </section>
+
+            <FlowEditorModal
+                open={modal.open}
+                title={modal.title}
+                schema={modal.schema}
+                onChange={handleModalChange}
+                onClose={closeModal}
+            />
         </div>
     )
 }

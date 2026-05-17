@@ -7,9 +7,12 @@
  *   3. 切换信号发射：当检测到问题时产生 RoutingSignal
  *   4. 回退口子：预留 provider 切换接口，MVP 阶段不实际切换
  *
+ * 注意：底层重试由 openai SDK 的 maxRetries 参数负责（默认 2 次）。
+ * LLMRouter 不再手写重试循环，只在 SDK 抛出最终错误后记录健康状态并发射信号。
+ *
  * MVP 行为：
  *   - 始终使用 primary provider（当前为 DeepSeek）
- *   - 检测到问题时记录事件、发射信号，但继续重试原 provider
+ *   - 检测到问题时记录事件、发射信号，但继续使用原 provider
  *   - 不做真正的 fallback 切换
  *
  * 未来扩展：
@@ -92,18 +95,18 @@ export interface RoutingSignal {
 }
 
 export type RoutingSignalType =
-  | "rate_limited"       // 429 限额
-  | "timeout"           // 请求超时
-  | "server_error"      // 5xx 服务端错误
-  | "model_error"       // 模型返回异常（空响应、格式错误等）
-  | "high_latency"      // 延迟过高（超过阈值）
+  | "rate_limited"        // 429 限额
+  | "timeout"             // 请求超时
+  | "server_error"        // 5xx 服务端错误
+  | "model_error"         // 模型返回异常（空响应、格式错误等）
+  | "high_latency"        // 延迟过高（超过阈值）
   | "consecutive_failures"; // 连续多次失败
 
 export type SuggestedAction =
-  | "retry"             // 建议重试当前 provider
-  | "switch_provider"   // 建议切换到其他 provider
-  | "wait_and_retry"    // 建议等待后重试（限额场景）
-  | "alert_user";       // 建议通知用户
+  | "retry"               // 建议重试当前 provider
+  | "switch_provider"     // 建议切换到其他 provider
+  | "wait_and_retry"      // 建议等待后重试（限额场景）
+  | "alert_user";         // 建议通知用户
 
 /**
  * 信号监听回调
@@ -123,10 +126,6 @@ export interface LLMRouterConfig {
   highLatencyThresholdMs?: number;
   /** 连续失败多少次触发 consecutive_failures 信号，默认 3 */
   consecutiveFailureThreshold?: number;
-  /** 重试次数（在发射切换信号前重试），默认 2 */
-  maxRetries?: number;
-  /** 重试间隔（ms），默认 1000 */
-  retryDelayMs?: number;
   /** 延迟滑动窗口大小，默认 10 */
   latencyWindowSize?: number;
   /** 是否自动切换（MVP 阶段应为 false），默认 false */
@@ -140,6 +139,7 @@ export interface LLMRouterConfig {
  *
  * 实现 LLMClient 接口，对 AgentLoop 完全透明。
  * MVP 阶段：检测异常、记录健康状态、发射信号，不做真正切换。
+ * 底层重试由 openai SDK 负责，Router 只处理 SDK 最终抛出的错误。
  */
 export class LLMRouter implements LLMClient {
   private readonly providers: Map<string, LLMProvider> = new Map();
@@ -149,8 +149,6 @@ export class LLMRouter implements LLMClient {
 
   private readonly highLatencyThresholdMs: number;
   private readonly consecutiveFailureThreshold: number;
-  private readonly maxRetries: number;
-  private readonly retryDelayMs: number;
   private readonly latencyWindowSize: number;
   private readonly autoSwitch: boolean;
 
@@ -174,8 +172,6 @@ export class LLMRouter implements LLMClient {
     this.onSignal = config.onSignal ?? null;
     this.highLatencyThresholdMs = config.highLatencyThresholdMs ?? 30_000;
     this.consecutiveFailureThreshold = config.consecutiveFailureThreshold ?? 3;
-    this.maxRetries = config.maxRetries ?? 2;
-    this.retryDelayMs = config.retryDelayMs ?? 1000;
     this.latencyWindowSize = config.latencyWindowSize ?? 10;
     this.autoSwitch = config.autoSwitch ?? false;
   }
@@ -190,108 +186,87 @@ export class LLMRouter implements LLMClient {
     tools?: unknown[];
     temperature?: number;
   }): Promise<LLMResponse> {
-    let lastError: Error | null = null;
+    const provider = this.getActiveProvider();
+    const health = this.healthMap.get(provider.id)!;
+    const startTime = Date.now();
 
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
-      const provider = this.getActiveProvider();
-      const health = this.healthMap.get(provider.id)!;
-      const startTime = Date.now();
+    try {
+      const response = await provider.client.createMessage(params);
+      const latency = Date.now() - startTime;
 
-      try {
-        const response = await provider.client.createMessage(params);
-        const latency = Date.now() - startTime;
+      // 成功：更新健康状态
+      this.recordSuccess(health, latency);
 
-        // 成功：更新健康状态
-        this.recordSuccess(health, latency);
-
-        // 检查高延迟
-        if (latency > this.highLatencyThresholdMs) {
-          this.emitSignal({
-            type: "high_latency",
-            providerId: provider.id,
-            message: `请求延迟 ${latency}ms 超过阈值 ${this.highLatencyThresholdMs}ms`,
-            suggestedAction: "retry",
-            healthSnapshot: { ...health },
-          });
-        }
-
-        // 检查模型返回质量
-        const qualityIssue = checkResponseQuality(response);
-        if (qualityIssue) {
-          this.emitSignal({
-            type: "model_error",
-            providerId: provider.id,
-            message: qualityIssue,
-            suggestedAction: "retry",
-            errorDetail: qualityIssue,
-            healthSnapshot: { ...health },
-          });
-        }
-
-        return response;
-      } catch (err) {
-        const latency = Date.now() - startTime;
-        const error = err instanceof Error ? err : new Error(String(err));
-        lastError = error;
-
-        // 失败：更新健康状态
-        this.recordFailure(health, error.message);
-
-        // 分类错误并发射信号
-        const signalType = classifyError(error, latency, this.highLatencyThresholdMs);
-        const suggestedAction = determineSuggestedAction(
-          signalType,
-          health.consecutiveFailures,
-          this.consecutiveFailureThreshold
-        );
-
+      // 检查高延迟
+      if (latency > this.highLatencyThresholdMs) {
         this.emitSignal({
-          type: signalType,
+          type: "high_latency",
           providerId: provider.id,
-          message: `第 ${attempt + 1} 次请求失败: ${error.message}`,
-          suggestedAction,
-          errorDetail: error.message,
+          message: `请求延迟 ${latency}ms 超过阈值 ${this.highLatencyThresholdMs}ms`,
+          suggestedAction: "retry",
+          healthSnapshot: { ...health },
+        });
+      }
+
+      // 检查模型返回质量
+      const qualityIssue = checkResponseQuality(response);
+      if (qualityIssue) {
+        this.emitSignal({
+          type: "model_error",
+          providerId: provider.id,
+          message: qualityIssue,
+          suggestedAction: "retry",
+          errorDetail: qualityIssue,
+          healthSnapshot: { ...health },
+        });
+      }
+
+      return response;
+    } catch (err) {
+      const latency = Date.now() - startTime;
+      const error = err instanceof Error ? err : new Error(String(err));
+
+      // 失败：更新健康状态（此时 SDK 已完成内部重试）
+      this.recordFailure(health, error.message);
+
+      // 分类错误并发射信号
+      const signalType = classifyError(error, latency, this.highLatencyThresholdMs);
+      const suggestedAction = determineSuggestedAction(
+        signalType,
+        health.consecutiveFailures,
+        this.consecutiveFailureThreshold
+      );
+
+      this.emitSignal({
+        type: signalType,
+        providerId: provider.id,
+        message: `请求失败（SDK 重试已耗尽）: ${error.message}`,
+        suggestedAction,
+        errorDetail: error.message,
+        healthSnapshot: { ...health },
+      });
+
+      // 连续失败信号
+      if (health.consecutiveFailures >= this.consecutiveFailureThreshold) {
+        this.emitSignal({
+          type: "consecutive_failures",
+          providerId: provider.id,
+          message: `连续失败 ${health.consecutiveFailures} 次，已达阈值`,
+          suggestedAction: "switch_provider",
           healthSnapshot: { ...health },
         });
 
-        // 连续失败信号
-        if (health.consecutiveFailures >= this.consecutiveFailureThreshold) {
-          this.emitSignal({
-            type: "consecutive_failures",
-            providerId: provider.id,
-            message: `连续失败 ${health.consecutiveFailures} 次，已达阈值`,
-            suggestedAction: "switch_provider",
-            healthSnapshot: { ...health },
-          });
-
-          // 未来：autoSwitch 为 true 时，这里执行真正的切换
-          if (this.autoSwitch) {
-            const fallback = this.findHealthyFallback(provider.id);
-            if (fallback) {
-              this.activeProviderId = fallback.id;
-              // 重置重试计数，用新 provider 重试
-              continue;
-            }
+        // 未来：autoSwitch 为 true 时，这里执行真正的切换
+        if (this.autoSwitch) {
+          const fallback = this.findHealthyFallback(provider.id);
+          if (fallback) {
+            this.activeProviderId = fallback.id;
           }
         }
-
-        // 限额场景：等待后重试
-        if (signalType === "rate_limited" && attempt < this.maxRetries) {
-          const waitTime = extractRetryAfter(error) ?? this.retryDelayMs * (attempt + 1);
-          await sleep(waitTime);
-          continue;
-        }
-
-        // 普通重试
-        if (attempt < this.maxRetries) {
-          await sleep(this.retryDelayMs);
-          continue;
-        }
       }
-    }
 
-    // 所有重试耗尽
-    throw lastError ?? new Error("LLMRouter: all retries exhausted");
+      throw error;
+    }
   }
 
   // ── 公开查询接口 ──────────────────────────────────────────────────────────
@@ -361,7 +336,6 @@ export class LLMRouter implements LLMClient {
     health.consecutiveFailures = 0;
     health.lastSuccessAt = Date.now();
 
-    // 更新延迟窗口
     health.latencyWindow.push(latencyMs);
     if (health.latencyWindow.length > this.latencyWindowSize) {
       health.latencyWindow.shift();
@@ -375,7 +349,6 @@ export class LLMRouter implements LLMClient {
     health.lastFailureAt = Date.now();
     health.lastFailureReason = reason;
 
-    // 状态降级
     if (health.consecutiveFailures >= this.consecutiveFailureThreshold) {
       health.status = "unavailable";
     } else if (health.consecutiveFailures >= 1) {
@@ -383,21 +356,17 @@ export class LLMRouter implements LLMClient {
     }
   }
 
-  private emitSignal(
-    partial: Omit<RoutingSignal, "timestamp">
-  ): void {
+  private emitSignal(partial: Omit<RoutingSignal, "timestamp">): void {
     const signal: RoutingSignal = {
       ...partial,
       timestamp: Date.now(),
     };
 
     this.signalHistory.push(signal);
-    // 保留最近 100 条
     if (this.signalHistory.length > 100) {
       this.signalHistory.splice(0, this.signalHistory.length - 100);
     }
 
-    // 通知外部监听器
     if (this.onSignal) {
       try {
         this.onSignal(signal);
@@ -415,7 +384,6 @@ function normalizeLLMProvider(
   defaultId: string
 ): LLMProvider {
   if ("createMessage" in input && !("client" in input)) {
-    // 传入的是裸 LLMClient
     return { id: defaultId, client: input, priority: 0 };
   }
   return input as LLMProvider;
@@ -434,9 +402,6 @@ function createInitialHealth(providerId: string): ProviderHealth {
   };
 }
 
-/**
- * 错误分类：根据错误信息判断错误类型
- */
 function classifyError(
   error: Error,
   latencyMs: number,
@@ -444,22 +409,15 @@ function classifyError(
 ): RoutingSignalType {
   const msg = error.message.toLowerCase();
 
-  // 429 限额
   if (msg.includes("429") || msg.includes("rate limit") || msg.includes("too many")) {
     return "rate_limited";
   }
-
-  // 超时
   if (msg.includes("timeout") || msg.includes("aborted") || latencyMs >= timeoutThreshold) {
     return "timeout";
   }
-
-  // 5xx 服务端错误
   if (msg.includes("500") || msg.includes("502") || msg.includes("503") || msg.includes("504")) {
     return "server_error";
   }
-
-  // 模型错误
   if (msg.includes("model") || msg.includes("invalid") || msg.includes("not found")) {
     return "model_error";
   }
@@ -467,9 +425,6 @@ function classifyError(
   return "server_error";
 }
 
-/**
- * 根据错误类型和失败次数决定建议动作
- */
 function determineSuggestedAction(
   signalType: RoutingSignalType,
   consecutiveFailures: number,
@@ -492,16 +447,11 @@ function determineSuggestedAction(
   }
 }
 
-/**
- * 检查 LLM 响应质量
- */
 function checkResponseQuality(response: LLMResponse): string | null {
-  // 空响应
   if (!response.content || response.content.length === 0) {
     return "LLM 返回空 content";
   }
 
-  // 所有 text 内容为空
   const hasNonEmptyText = response.content.some(
     (c) => c.type === "text" && c.text.trim().length > 0
   );
@@ -512,23 +462,4 @@ function checkResponseQuality(response: LLMResponse): string | null {
   }
 
   return null;
-}
-
-/**
- * 尝试从错误信息中提取 Retry-After 时间（ms）
- */
-function extractRetryAfter(error: Error): number | null {
-  // 常见格式："retry after 30s"、"Retry-After: 30"
-  const match = error.message.match(/retry[\s-]*after[\s:]*(\d+)/i);
-  if (match) {
-    const seconds = parseInt(match[1], 10);
-    if (!isNaN(seconds) && seconds > 0 && seconds < 300) {
-      return seconds * 1000;
-    }
-  }
-  return null;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

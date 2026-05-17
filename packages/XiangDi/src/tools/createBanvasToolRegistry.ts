@@ -228,21 +228,21 @@ async function dispatchHandler(
 ): Promise<unknown> {
   switch (tool) {
     case BANVAS_TOOLS.GET_APP_STATE:
-      return handleGetAppState(adapter, input as GetAppStateInput);
+      return handleGetAppState(adapter, input as unknown as GetAppStateInput);
     case BANVAS_TOOLS.CREATE_PAGE:
-      return handleCreatePage(adapter, input as CreatePageInput);
+      return handleCreatePage(adapter, input as unknown as CreatePageInput);
     case BANVAS_TOOLS.ADD_NODE:
-      return handleAddNode(adapter, input as AddNodeInput);
+      return handleAddNode(adapter, input as unknown as AddNodeInput);
     case BANVAS_TOOLS.UPDATE_NODE:
-      return handleUpdateNode(adapter, input as UpdateNodeInput);
+      return handleUpdateNode(adapter, input as unknown as UpdateNodeInput);
     case BANVAS_TOOLS.DELETE_NODE:
-      return handleDeleteNode(adapter, input as DeleteNodeInput);
+      return handleDeleteNode(adapter, input as unknown as DeleteNodeInput);
     case BANVAS_TOOLS.MOVE_NODE:
-      return handleMoveNode(adapter, input as MoveNodeInput);
+      return handleMoveNode(adapter, input as unknown as MoveNodeInput);
     case BANVAS_TOOLS.RESIZE_NODE:
-      return handleResizeNode(adapter, input as ResizeNodeInput);
+      return handleResizeNode(adapter, input as unknown as ResizeNodeInput);
     case BANVAS_TOOLS.APPLY_PATCH:
-      return handleApplyPatch(adapter, input as ApplyPatchInput);
+      return handleApplyPatch(adapter, input as unknown as ApplyPatchInput);
     default:
       return { error: `未知工具：${tool}` };
   }

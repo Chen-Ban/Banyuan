@@ -1,9 +1,13 @@
 .aiBar {
+  position: fixed;
+  bottom: 0;
+  // left / width 由 JS 动态注入（跟随 canvasSection 的水平位置）
   display: flex;
   flex-direction: column;
   background: transparent;
   padding: 0 12px 12px;
-  flex-shrink: 0;
+  // z-index 高于 antd Modal（1000），确保弹窗打开时 AiBar 仍可见
+  z-index: 1001;
   // gap 去掉，progressPanel 和 inputWrapper 紧贴拼接
 }
 

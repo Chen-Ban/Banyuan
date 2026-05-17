@@ -1,0 +1,21 @@
+{
+  "name": "@lunlunglass/printer",
+  "version": "0.1.0",
+  "description": "LunlunGlass 共享打印服务包",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "canvas": "^2.11.2",
+    "jsbarcode": "^3.11.6",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/qrcode": "^1.5.5",
+    "typescript": "~5.7.3"
+  }
+}
