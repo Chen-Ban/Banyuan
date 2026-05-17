@@ -17,6 +17,7 @@ import cors from '@koa/cors'
 import { koaBody } from 'koa-body'
 import { errorHandler } from './middleware/errorHandler'
 import { logger } from './middleware/logger'
+import { internalAuth } from './middleware/auth'
 import { healthRouter, aiRouter } from './routes'
 
 const app = new Koa()
@@ -31,6 +32,7 @@ app.use(errorHandler)
 app.use(logger)
 app.use(cors())
 app.use(koaBody())
+app.use(internalAuth)
 
 // 路由
 app.use(healthRouter.routes())
