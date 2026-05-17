@@ -157,7 +157,7 @@ const registry = new ToolRegistry()
 
 // 2. 初始化 AgentLoop
 const agentLoop = new AgentLoop(
-  { llm: { model: 'claude-opus-4-5' }, systemPrompt: '你是一个画布设计助手。' },
+  { systemPrompt: '你是一个画布设计助手。' },
   registry
 )
 
@@ -205,23 +205,26 @@ if (!parsed) {
 ```
 src/
 ├── core/
-│   ├── AgentLoop.ts          # Tool-Use Loop（Anthropic Agentic Loop 模式）
+│   ├── AgentLoop.ts          # Tool-Use Loop（ReAct 模式）
 │   ├── ToolRegistry.ts       # 工具注册与执行
 │   ├── ContextManager.ts     # 对话历史管理，感知 tool_use/result 配对边界
-│   └── StreamBridge.ts       # 流式事件总线
+│   ├── StreamBridge.ts       # 流式事件总线
+│   └── AgentLifecycle.ts     # 生命周期状态机（AgentPhase + AgentStep）
 │
 ├── spec/
 │   ├── types.ts              # ProjectSpec + ChangeSpec 类型定义
 │   ├── SpecPlanner.ts        # LLM 自动生成 ChangeSpec（规划阶段）
 │   ├── ChangeSpecBuilder.ts  # ChangeSpec 构建 / 变换工具集
-│   ├── ProjectSpecLoader.ts  # AGENTS.md 加载与解析
+│   ├── ProjectSpecLoader.ts  # AGENTS.md / xiangdi.spec.md 加载与解析
 │   └── MemoryChangeSpecStore.ts
 │
 ├── harness/
 │   ├── HarnessRunner.ts      # 执行编排：Guard → HumanGate → AgentLoop → Checkpoint
+│   ├── SSEHarnessRunner.ts   # SSE 流式输出的 HarnessRunner 变体
 │   ├── guards.ts             # 内置 Guard 集合
 │   ├── checkpoints.ts        # 内置 Checkpoint 集合
 │   ├── humanGates.ts         # 内置 HumanGate 集合
+│   ├── LocalCheckpointStore.ts
 │   └── types.ts
 │
 ├── schema/
@@ -229,7 +232,26 @@ src/
 │   └── converters.ts         # AIApp ↔ BanvasGL 双向转换
 │
 ├── tools/
-│   └── BanvasToolProtocol.ts # 标准化工具调用协议
+│   ├── BanvasToolProtocol.ts    # 标准化工具调用协议
+│   ├── createBanvasToolRegistry.ts  # 预置 BanvasGL 工具集工厂
+│   ├── KnowledgeSearchTool.ts   # 知识库检索工具
+│   └── WebSearchTool.ts         # 网络搜索工具
+│
+├── knowledge/
+│   ├── LanceDBKnowledgeStore.ts # 基于 LanceDB 的向量知识库
+│   ├── MemoryKnowledgeStore.ts  # 内存知识库（测试 / 轻量场景）
+│   ├── GraphologyGraphStore.ts  # 图结构知识库
+│   ├── LLMRetrievalRouter.ts    # LLM 驱动的检索路由
+│   └── types.ts
+│
+├── llm/
+│   ├── DeepSeekClient.ts     # DeepSeek LLM 客户端实现
+│   └── LLMRouter.ts          # 多 LLM 健康检测与路由
+│
+├── memory/
+│   ├── LocalEpisodicMemory.ts   # 本地情节记忆
+│   ├── LocalSemanticMemory.ts   # 本地语义记忆
+│   └── DefaultMemoryManager.ts  # 默认记忆管理器
 │
 └── prompts/
     ├── system.ts             # 系统提示词

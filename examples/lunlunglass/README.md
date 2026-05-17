@@ -9,7 +9,7 @@
 
 ## 技术栈
 
-前端使用 React 19 + Vite 构建，页面包括首页、订单列表、订单详情、模板管理、用户管理等，通过 Layout 组件统一布局，API 层封装了 orders、templates、users 等接口调用。后端基于 Koa，配合 Mongoose 操作 MongoDB，数据模型包括 Order、Product、Template、User、PrintFieldMapping。Electron 36 作为桌面壳，使用 wait-on 模式等待前后端就绪后启动窗口。小票打印通过 serialport 串口通信，内部实现了 EscPosEncoder（指令编码）、ImageComposer（图片合成）、PrinterTransport（传输层）三层抽象。
+前端使用 React 19 + Vite 构建，通过 Layout 组件统一布局，API 层封装了 orders、templates、users 等接口调用。后端基于 Koa，配合 Mongoose 操作 MongoDB。Electron 36 作为桌面壳，使用 wait-on 模式等待前后端就绪后启动窗口。小票打印通过 serialport 串口通信，共享打印库（`shared/printer`）内部实现了 EscPosEncoder（指令编码）、ImageComposer（图片合成）、PrinterTransport（传输层）三层抽象。
 
 ---
 
@@ -27,16 +27,24 @@
 # 在 monorepo 根目录
 pnpm install
 
-# 启动后端（默认端口 3000）
-cd examples/lunlunglass/backend
+# 启动 POS 收银端后端
+cd examples/lunlunglass/pos/backend
 pnpm dev
 
-# 启动前端（Vite dev server）
-cd examples/lunlunglass/frontend
+# 启动 POS 收银端前端（Vite dev server）
+cd examples/lunlunglass/pos/frontend
+pnpm dev
+
+# 启动 Studio 模板设计端后端
+cd examples/lunlunglass/studio/backend
+pnpm dev
+
+# 启动 Studio 模板设计端前端
+cd examples/lunlunglass/studio/frontend
 pnpm dev
 
 # 启动 Electron 壳（会 wait-on 前后端就绪）
-cd examples/lunlunglass/electron
+cd examples/lunlunglass/pos/electron   # 或 studio/electron
 pnpm dev
 ```
 
@@ -46,45 +54,72 @@ pnpm dev
 
 ## 项目结构
 
+LunlunGlass 已拆分为 **POS 收银端**（`pos/`）和 **Studio 模板设计端**（`studio/`）两个独立子应用，共享打印库位于 `shared/printer/`。
+
 ```
 lunlunglass/
-├── frontend/              # React 19 + Vite
-│   ├── src/
-│   │   ├── pages/         # 页面组件
-│   │   │   ├── index      # 首页
-│   │   │   ├── List       # 订单列表
-│   │   │   ├── OrderPage  # 订单详情
-│   │   │   ├── TemplateDetail  # 模板详情
-│   │   │   ├── TemplateList    # 模板列表
-│   │   │   └── UserPage   # 用户管理
-│   │   ├── components/
-│   │   │   └── Layout     # 统一布局组件
-│   │   └── api/           # API 客户端（orders, templates, users）
-│   └── vite.config.ts
+├── pos/                   # POS 收银端
+│   ├── frontend/          # React 19 + Vite
+│   │   └── src/
+│   │       ├── pages/
+│   │       │   ├── index/         # 首页
+│   │       │   ├── List/          # 订单列表 + 用户列表
+│   │       │   ├── OrderPage/     # 订单详情
+│   │       │   └── UserPage/      # 用户管理（含验光参数）
+│   │       ├── layouts/Layout/    # 统一布局组件
+│   │       └── api/               # API 客户端（orders, templates, users, print）
+│   ├── backend/           # Koa + MongoDB
+│   │   └── src/
+│   │       ├── controllers/
+│   │       │   ├── FieldsController.ts
+│   │       │   ├── OrderController.ts
+│   │       │   ├── PrintController.ts
+│   │       │   ├── ProductController.ts
+│   │       │   ├── StatisticsController.ts
+│   │       │   └── UserController.ts
+│   │       ├── services/
+│   │       │   ├── OrderService.ts
+│   │       │   ├── PrintService.ts      # 调用 shared/printer
+│   │       │   ├── ProductService.ts
+│   │       │   ├── StatisticsService.ts
+│   │       │   ├── TemplateSyncService.ts
+│   │       │   └── UserService.ts
+│   │       ├── models/
+│   │       │   ├── Order.ts
+│   │       │   ├── Product.ts
+│   │       │   ├── TemplateSnapshot.ts
+│   │       │   └── User.ts
+│   │       └── config/
+│   │           └── fields.ts            # 字段注册表（验光参数等）
+│   └── electron/          # Electron 36 桌面壳
 │
-├── backend/               # Koa + MongoDB
-│   ├── controllers/       # 路由控制器
-│   │   ├── Order          # 订单 CRUD
-│   │   ├── Print          # 打印触发
-│   │   ├── Product        # 商品管理
-│   │   ├── Statistics     # 统计数据
-│   │   ├── Template       # 模板管理
-│   │   └── User           # 用户管理
-│   ├── services/
-│   │   └── printer/       # 打印服务
-│   │       ├── EscPosEncoder.ts    # ESC/POS 指令编码
-│   │       ├── ImageComposer.ts    # 图片合成
-│   │       └── PrinterTransport.ts # 串口传输
-│   ├── models/            # Mongoose 模型
-│   │   ├── Order
-│   │   ├── PrintFieldMapping
-│   │   ├── Product
-│   │   ├── Template
-│   │   └── User
-│   └── uploads/           # 文件上传目录
+├── studio/                # 模板设计端
+│   ├── frontend/          # React 19 + Vite
+│   │   └── src/
+│   │       ├── pages/
+│   │       │   ├── index/         # 首页
+│   │       │   ├── TemplateList/  # 模板列表
+│   │       │   └── TemplateDetail/  # 模板详情（含 BanvasGL 画布编辑器）
+│   │       └── api/               # API 客户端（templates, fields）
+│   ├── backend/           # Koa + MongoDB
+│   │   └── src/
+│   │       ├── controllers/
+│   │       │   ├── FieldsController.ts
+│   │       │   └── TemplateController.ts
+│   │       ├── services/
+│   │       │   └── TemplateService.ts
+│   │       └── models/
+│   │           ├── Template.ts
+│   │           └── TemplateSnapshot.ts
+│   └── electron/          # Electron 36 桌面壳
 │
-└── electron/              # Electron 36 桌面壳
-    └── main.ts            # wait-on 启动模式
+└── shared/
+    └── printer/           # 共享打印库（ESC/POS）
+        └── src/
+            ├── EscPosEncoder.ts    # ESC/POS 指令编码
+            ├── ImageComposer.ts    # 图片合成
+            ├── PrinterTransport.ts # 串口传输
+            └── types.ts
 ```
 
 ---
