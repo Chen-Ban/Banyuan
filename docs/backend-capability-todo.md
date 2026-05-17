@@ -106,7 +106,16 @@
 
 - [ ] **P2-B3** 在 `routes/index.ts` 注册 functions 路由
 
-- [ ] **P2-B4** 扩展构建服务，生成 Koa 服务器壳子  
+- [ ] **P2-B4** 云函数执行沙箱  
+  文件：`apps/banyan/backend/src/services/FunctionRunner.ts`  
+  职责：在 banyan 后端进程内安全执行云函数代码，隔离措施：
+  - 使用 Node.js `vm.runInNewContext` 执行，不直接 `eval`
+  - 沙箱上下文只注入 `ctx`（AppDB + appId + env），不暴露 `require`、`process`、`__dirname` 等
+  - 设置执行超时（默认 5s），超时后 `vm.Script` 抛出 `ERR_SCRIPT_EXECUTION_TIMEOUT`
+  - 记录执行日志（入参、出参、耗时、错误），写入 `FunctionLog` Collection
+  - **注**：当前方案是进程级隔离，安全性不如 V8 Isolate；多租户场景需评估迁移到独立 Worker 进程或 Deno/Cloudflare Workers（见 ADR-011 风险说明）
+
+- [ ] **P2-B5** 扩展构建服务，生成 Koa 服务器壳子  
   文件：`apps/banyan/backend/src/services/build/serverBundler.ts`  
   职责：
   - 从 MongoDB 读取应用的所有云函数代码
@@ -183,5 +192,5 @@
 
 - **动态 Mongoose Model 缓存**：`SchemaService.getDynamicModel` 需维护一个 `Map<string, mongoose.Model>`，Schema 变更时清理对应 key，防止 Mongoose 报"Cannot overwrite model once compiled"错误
 - **Collection 命名规则**：MongoDB Collection 名统一为 `app_{appId}_{userDefinedName}`，避免与平台 Collection（`applications`、`conversations` 等）冲突
-- **云函数代码安全**：Phase 2 阶段云函数在 banyan 后端进程内执行（`new Function` 或 `vm.runInNewContext`），需要限制可用 API（禁止 `require`、`process.exit` 等），Phase 3 后可评估迁移到独立 Worker 进程
+- **云函数代码安全**：执行隔离方案见 **P2-B4**（`FunctionRunner`）。存储 `code: string` 本身无安全风险，风险在执行层；当前用 `vm.runInNewContext` + 超时控制，满足单用户/私有部署场景；多租户 SaaS 场景需升级为独立 Worker 进程或 V8 Isolate 方案
 - **构建产物版本对齐**：服务器壳子的 `package.json` 中 mongoose 版本需与 banyan 后端保持一致，避免运行时版本冲突
