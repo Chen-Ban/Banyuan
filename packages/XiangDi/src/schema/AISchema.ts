@@ -134,22 +134,46 @@ export type AINode =
   | z.infer<typeof AIImageNodeSchema>
   | z.infer<typeof AICubicBezierNodeSchema>
   | z.infer<typeof AIQuadraticBezierNodeSchema>
-  | { type: "group"; id: string; name?: string; transform: z.infer<typeof AITransformSchema>; zIndex: number; locked: boolean; children: AINode[] };
+  | AIGroupNode;
 
-// children 显式标注为 z.ZodType<AINode[]>，避免 z.lazy 的循环推断导致 DTS 生成失败
-export const AIGroupNodeSchema = AIBaseNodeSchema.extend({
+/**
+ * AIGroupNode 类型显式声明，避免内联在 AINode union 中导致 TypeScript 循环推断失败。
+ * children 字段类型为 AINode[]，与 AIGroupNodeSchema 中的 z.lazy 对应。
+ */
+export interface AIGroupNode {
+  type: "group";
+  id: string;
+  name?: string;
+  transform: z.infer<typeof AITransformSchema>;
+  zIndex: number;
+  locked: boolean;
+  children: AINode[];
+}
+
+/**
+ * AIGroupNodeSchema 使用 z.lazy 实现递归引用，
+ * 显式标注返回类型为 z.ZodType<AIGroupNode>，
+ * 避免使用 as unknown as 跳板绕过 TypeScript 类型检查。
+ */
+export const AIGroupNodeSchema: z.ZodType<AIGroupNode> = AIBaseNodeSchema.extend({
   type: z.literal("group"),
   children: z.array(z.lazy(() => AINodeSchema)) as z.ZodType<AINode[]>,
-});
+}) as z.ZodType<AIGroupNode>;
 
-export const AINodeSchema: z.ZodType<AINode> = z.discriminatedUnion("type", [
+/**
+ * AINodeSchema 显式标注为 z.ZodType<AINode>，
+ * 使用 z.union 替代 z.discriminatedUnion，
+ * 因为 AIGroupNodeSchema 的返回类型是 z.ZodType<AIGroupNode>，
+ * 不兼容 discriminatedUnion 要求的具体 ZodObject 类型。
+ */
+export const AINodeSchema: z.ZodType<AINode> = z.union([
   AIRectNodeSchema,
   AITextNodeSchema,
   AIImageNodeSchema,
   AICubicBezierNodeSchema,
   AIQuadraticBezierNodeSchema,
   AIGroupNodeSchema,
-]) as unknown as z.ZodType<AINode>;
+]);
 
 // ─── 页面 ─────────────────────────────────────────────────────────────────────
 
