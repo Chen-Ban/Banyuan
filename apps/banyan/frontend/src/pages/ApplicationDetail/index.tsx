@@ -279,6 +279,7 @@ const ApplicationDetail = () => {
           currentPageId={currentPageId}
           canvasSize={canvasSize}
           onCanvasSizeChange={handleCanvasSizeChange}
+          appId={!isNew && id ? id : undefined}
         />
       </div>
       <ContextMenu state={contextMenu} />
