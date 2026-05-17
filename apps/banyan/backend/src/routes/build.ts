@@ -66,7 +66,8 @@ router.post('/app', async (ctx) => {
     return
   }
 
-  const taskId = startBuild({
+  // startBuild 现在是 async（持久化到 MongoDB）
+  const taskId = await startBuild({
     appJson,
     appName,
     platform: platform as Platform,
@@ -81,11 +82,11 @@ router.post('/app', async (ctx) => {
 
 /**
  * GET /api/v1/build/status/:taskId
- * 查询构建任务状态
+ * 查询构建任务状态（从 MongoDB 读取，进程重启后仍可查询）
  */
 router.get('/status/:taskId', async (ctx) => {
   const { taskId } = ctx.params
-  const task = getTask(taskId)
+  const task = await getTask(taskId)
 
   if (!task) {
     ctx.status = 404
@@ -109,7 +110,7 @@ router.get('/status/:taskId', async (ctx) => {
  */
 router.get('/download/:taskId', async (ctx) => {
   const { taskId } = ctx.params
-  const task = getTask(taskId)
+  const task = await getTask(taskId)
 
   if (!task) {
     ctx.status = 404
