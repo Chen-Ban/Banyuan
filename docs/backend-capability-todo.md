@@ -106,13 +106,13 @@
 
 - [ ] **P2-B3** 在 `routes/index.ts` 注册 functions 路由
 
-- [ ] **P2-B4** 扩展构建服务，生成 Hono 服务器壳子  
+- [ ] **P2-B4** 扩展构建服务，生成 Koa 服务器壳子  
   文件：`apps/banyan/backend/src/services/build/serverBundler.ts`  
   职责：
   - 从 MongoDB 读取应用的所有云函数代码
-  - 生成 `server/index.ts`（Hono 入口，注册所有函数路由，注入 ORM ctx）
+  - 生成 `server/index.ts`（Koa 入口，注册所有函数路由，注入 ORM ctx）
   - 用 esbuild 编译为 `dist/server/index.js`
-  - 生成 `dist/server/package.json`（最小依赖：hono + mongoose）
+  - 生成 `dist/server/package.json`（最小依赖：koa + @koa/router + koa-body + mongoose）
   - 在 `build/index.ts` 的构建流程中串联 `serverBundler`
 
 ### 前端

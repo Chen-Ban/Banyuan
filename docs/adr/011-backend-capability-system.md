@@ -137,7 +137,7 @@ interface IAppFunction {
 
 ### 决策 4：构建时服务器壳子
 
-构建时，除了现有的前端 bundle，额外生成一个轻量 HTTP 服务（基于 **Hono**），将该应用的所有云函数暴露为 REST 端点。
+构建时，除了现有的前端 bundle，额外生成一个轻量 HTTP 服务（基于 **Koa**），将该应用的所有云函数暴露为 REST 端点。
 
 **构建产物结构**：
 
@@ -147,16 +147,16 @@ dist/
 │   ├── index.html
 │   └── assets/
 └── server/            # 新增：服务器壳子
-    ├── index.js       # Hono 入口，自动注册所有云函数路由
+    ├── index.js       # Koa 入口，自动注册所有云函数路由
     ├── functions/     # 编译后的云函数
     │   ├── getUserList.js
     │   └── createOrder.js
-    └── package.json   # 仅包含 hono + mongoose 的最小依赖
+    └── package.json   # 仅包含 koa + @koa/router + koa-body + mongoose 的最小依赖
 ```
 
 **路由规则**：每个云函数自动映射为 `POST /functions/{functionName}`，统一 POST + JSON body，简单可预期。
 
-**选择 Hono 的理由**：极轻量（< 15KB），零依赖，支持 Node.js/Deno/Cloudflare Workers 多运行时，未来迁移到 Edge Runtime 无需改代码。
+**选择 Koa 的理由**：与 banyan 后端技术栈完全一致，团队已熟悉，中间件生态（koa-body、@koa/cors、@koa/router）直接复用，降低维护成本。
 
 ---
 
