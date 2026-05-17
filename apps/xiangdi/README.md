@@ -5,7 +5,7 @@ XiangDi HTTP 服务将 `xiangdi` AI Agent 引擎封装为独立的无状态 HTTP
 ## 架构定位
 
 ```
-前端(:5173)
+前端(:5174)
     ↓ REST API
 banyan 后端(:3001)
     │  读取 pages from MongoDB
@@ -14,7 +14,7 @@ banyan 后端(:3001)
     │  ←── SSE 事件流 ────────┘
     │  写入 pages to MongoDB
     ↓
-前端(:5173) 接收 SSE 事件
+前端(:5174) 接收 SSE 事件
 ```
 
 **核心设计原则**：本服务完全无状态。`pages`（BanvasGL 序列化的页面 JSON 数组）随请求传入，Agent 执行完毕后最终 `pages` 随 `done` 事件返回。本服务不访问 MongoDB，持久化由 banyan 后端负责。
