@@ -4,6 +4,8 @@ import aiRoutes from './ai.js'
 import conversationRoutes from './conversations.js'
 import buildRouter from './build.js'
 import previewRouter from './preview.js'
+import schemaRouter from './schema.js'
+import dataRouter from './data.js'
 
 const router = new Router()
 
@@ -22,5 +24,9 @@ router.use(aiRoutes.routes())
 router.use(conversationRoutes.routes(), conversationRoutes.allowedMethods())
 router.use(buildRouter.routes(), buildRouter.allowedMethods())
 router.use(previewRouter.routes(), previewRouter.allowedMethods())
+
+// Phase 1：后端能力体系
+router.use(schemaRouter.routes(), schemaRouter.allowedMethods())
+router.use(dataRouter.routes(), dataRouter.allowedMethods())
 
 export default router
