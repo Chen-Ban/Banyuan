@@ -40,6 +40,8 @@ import summaryService from './SummaryService.js'
 
 // XiangDi 服务地址，通过环境变量配置，默认本地开发地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
+// 内部认证 token，与 XiangDi 服务共享
+const XIANGDI_INTERNAL_TOKEN = process.env.XIANGDI_INTERNAL_TOKEN
 
 // ─── SSE 工具函数 ─────────────────────────────────────────────────────────────
 
@@ -164,6 +166,7 @@ class AiService {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(requestBody),
           'Accept': 'text/event-stream',
+          ...(XIANGDI_INTERNAL_TOKEN ? { 'X-Internal-Token': XIANGDI_INTERNAL_TOKEN } : {}),
         },
       }
 
