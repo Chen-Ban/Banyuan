@@ -166,11 +166,13 @@ function banvasToAIPage(raw: unknown): AIPage {
     width: Number(r["width"] ?? 375),
     height: Number(r["height"] ?? 812),
     backgroundColor: String(bg?.["color"] ?? "#ffffff"),
-    nodes: (Array.isArray(r["views"]) ? r["views"] : []).map(banvasToAINode),
+    nodes: (Array.isArray(r["views"]) ? r["views"] : [])
+      .map(banvasToAINode)
+      .filter((n): n is AINode => n !== null),
   };
 }
 
-function banvasToAINode(raw: unknown): AINode {
+function banvasToAINode(raw: unknown): AINode | null {
   const r = raw as Record<string, unknown>;
   const base = {
     id: String(r["id"] ?? ""),
@@ -222,13 +224,14 @@ function banvasToAINode(raw: unknown): AINode {
       };
     }
 
-    // 其他 GraphView 类型（LINE、CIRCLE 等）降级为矩形
-    return {
-      ...base,
-      type: "rect" as const,
-      fill: { type: "solid" as const, color: "#cccccc" },
-      cornerRadius: 0,
-    };
+    // 其他 GraphView 类型（LINE、CIRCLE 等）：记录警告并跳过（返回 null，由调用方过滤）
+    // 不静默降级为矩形，避免 AI 对画布的理解与实际渲染不一致
+    console.warn(
+      `[converters] banvasToAINode: unsupported GRAPHVIEW subtype "${graphType ?? 'unknown'}", ` +
+      `node id="${base.id}" will be skipped. ` +
+      `Please add a converter for this type in converters.ts.`
+    );
+    return null;
   }
 
   switch (type) {
@@ -271,18 +274,19 @@ function banvasToAINode(raw: unknown): AINode {
       return {
         ...base,
         type: "group",
-        children: (Array.isArray(r["children"]) ? r["children"] : []).map(
-          banvasToAINode
-        ),
+        children: (Array.isArray(r["children"]) ? r["children"] : [])
+          .map(banvasToAINode)
+          .filter((n): n is AINode => n !== null),
       };
 
     default:
-      // 未知类型降级为矩形
-      return {
-        ...base,
-        type: "rect",
-        fill: { type: "solid", color: "#cccccc" },
-        cornerRadius: 0,
-      };
+      // 未知类型：记录警告并跳过，不静默降级为矩形
+      // 新增 BanvasGL 图形类型时，必须同步在此处添加转换逻辑
+      console.warn(
+        `[converters] banvasToAINode: unsupported node type "${type}", ` +
+        `node id="${base.id}" will be skipped. ` +
+        `Please add a converter for this type in converters.ts.`
+      );
+      return null;
   }
 }
