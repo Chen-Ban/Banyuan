@@ -1,8 +1,13 @@
 # Banyan — 低代码可视化设计平台
 
-Banyan（榕树）是 Banyuan monorepo 中的低代码平台应用，基于 BanvasGL 2D 图形引擎构建。用户通过拖拽或 AI 自然语言描述，在多页面画布上设计可视化应用，并一键打包为跨平台桌面安装包。
+> 榕树，根系盘错，一树成林。  
+> Banyan 是 Banyuan 的应用层，将画布引擎、AI Agent、后端能力编织为一个完整的低代码平台。
 
-## 架构概览
+用户通过拖拽或 AI 自然语言描述，在多页面画布上设计可视化应用，并一键打包为跨平台桌面安装包。
+
+---
+
+## 架构
 
 Banyan 由三个子包组成，通过 `concurrently` 协同启动：
 
@@ -16,21 +21,78 @@ apps/banyan/
 **数据流向**：
 
 ```
-用户操作（拖拽/AI 指令）
-    ↓
-frontend（BanvasGL 画布编辑器）
-    ↓ REST API（/api/*）
-backend（Koa + Mongoose）
-    │                    ↓
-    │              MongoDB（应用 JSON 持久化）
-    │
-    │  AI 请求：读取 pages → POST /ai/run
-    ↓                              ↓
-    └──────── XiangDi 服务(:3002) ─┘
-              （无状态 Agent 执行，SSE 回流）
+用户操作（拖拽 / AI 指令）
+        │
+        ▼
+┌───────────────────────────────────────────────────────────┐
+│                    frontend（:5174）                        │
+│                                                           │
+│   BanvasGL 画布编辑器                                      │
+│   PropertyPanel（样式 / 数据 / 事件 / 流程 / 数据库 / 函数）│
+│   AiBar（自然语言输入）                                     │
+└───────────────────────┬───────────────────────────────────┘
+                        │ REST API（/api/*）
+                        ▼
+┌───────────────────────────────────────────────────────────┐
+│                    backend（:3001）                         │
+│                                                           │
+│   Koa + Mongoose                                          │
+│   应用 CRUD / Schema Builder / 云函数管理                  │
+│   构建服务（生成跨平台安装包）                               │
+│   预览服务（内存 HTML 预览）                                │
+│   AI 代理（读 pages → 转发 XiangDi → 写 pages）            │
+│                    │                    │                  │
+│                    ▼                    ▼                  │
+│              MongoDB              XiangDi 服务(:3002)      │
+│         （应用 JSON 持久化）       （无状态 Agent 执行）     │
+└───────────────────────────────────────────────────────────┘
+                        │
+                        ▼
+┌───────────────────────────────────────────────────────────┐
+│                    electron（桌面壳）                       │
+│                                                           │
+│   开发模式：加载 http://localhost:5174                      │
+│   生产模式：加载 frontend/dist/index.html                  │
+└───────────────────────────────────────────────────────────┘
 ```
 
-Electron 壳在生产模式下直接加载 `frontend/dist/index.html`，开发模式下代理到 Vite 开发服务器（`localhost:5174`）。
+---
+
+## 为什么这样设计
+
+### 为什么需要 Banyan？
+
+BanvasGL 是画布引擎，XiangDi 是 AI Agent 引擎，它们都是无状态的库。用户需要一个有持久化、有 UI、能打包的完整应用——这就是 Banyan 存在的理由。Banyan 是引擎层能力的集成者，而不是重复造轮子的地方。
+
+### 为什么前端、后端、Electron 分三个子包？
+
+三者的构建目标、运行时环境、依赖完全不同：前端是浏览器 bundle，后端是 Node.js 服务，Electron 是桌面进程。分包让每个子包只关心自己的构建配置，也让 CI 可以按需只构建变更的部分。
+
+### 为什么后端选 Koa 而不是 Express / Fastify / Hono？
+
+Koa 的中间件模型（`async/await` 洋葱圈）与 TypeScript 配合自然，生态成熟（`@koa/router`、`koa-body`、`@koa/cors`），且构建时生成的服务器壳子也使用 Koa，保持技术栈统一，降低维护成本。
+
+### 为什么 AI 请求要经过 banyan 后端中转，而不是前端直连 XiangDi？
+
+XiangDi 服务是无状态的——它不访问 MongoDB，不知道应用的当前状态。banyan 后端负责在 AI 请求前从 MongoDB 读取 pages，请求后将 Agent 返回的 pages 写回 MongoDB。这个"读-执行-写"的事务性操作必须在有数据库访问权限的后端完成。
+
+### 为什么后端能力体系（Schema Builder + 云函数）是必要的？
+
+没有后端能力，Banyan 只能生成"会动的原型"——交互逻辑和页面布局都有，但数据无处存储，业务逻辑无处运行。用户仍然需要自己写后端，这与"让非技术用户也能构建完整应用"的核心理念相悖。Schema Builder + 自动 ORM + 云函数，是填补这个断层的最小可行方案（详见 [ADR-011](../../docs/adr/011-backend-capability-system.md)）。
+
+---
+
+## 后端能力体系（规划中）
+
+Banyan 后端能力体系分三个阶段实施，目标是让用户无需写任何后端代码即可构建有数据持久化能力的完整应用。
+
+**Phase 1 — 数据层**：Schema Builder + 自动 ORM。用户在 PropertyPanel 的 Database Tab 上可视化定义数据模型（Collection + Fields），后端基于 Schema 自动生成 Mongoose Model 并暴露 CRUD API。
+
+**Phase 2 — 逻辑层**：云函数 Tab + 构建时服务器壳子。用户在 Functions Tab 中编写 TypeScript 云函数，通过 `ctx.db.{collectionName}` 访问自动 ORM 层。构建时，除前端 bundle 外额外生成一个轻量 Koa 服务，将所有云函数暴露为 `POST /functions/{functionName}` 端点，产物自包含、可独立部署。
+
+**Phase 3 — AI 层**：AI 生成云函数。XiangDi 新增云函数工具集，AppSchema 作为 ProjectSpec 注入 AgentLoop 上下文，用户用自然语言描述业务逻辑，AI 生成符合数据模型的云函数代码。
+
+---
 
 ## 快速开始
 
@@ -87,30 +149,11 @@ MONGODB_DATABASE=banyan
 XIANGDI_URL=http://localhost:3002
 ```
 
-## 技术栈
+---
+
+## 模块结构
 
 ### Frontend（`banyan-frontend`）
-
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| React | ^19.0 | UI 框架 |
-| Vite | ^6.3 | 构建工具 |
-| Ant Design | ^6.0 | UI 组件库 |
-| react-router-dom | ^7.9 | 客户端路由 |
-| BanvasGL | workspace:* | 2D 画布引擎 |
-| SCSS Modules | — | 组件样式隔离 |
-
-路径别名：`@` → `src/`（在 `vite.config.ts` 中配置）。
-
-**页面路由**：
-
-| 路径 | 页面 | 说明 |
-|------|------|------|
-| `/` | ApplicationList | 应用列表，支持搜索和新建 |
-| `/application/:id` | ApplicationDetail | 画布编辑器，多页面设计 |
-| `/application/new` | ApplicationDetail | 新建应用（同编辑器页面） |
-
-**目录结构**：
 
 ```
 src/
@@ -123,22 +166,26 @@ src/
 │           ├── ComponentPalette/  # 左侧组件面板
 │           ├── ContextMenu/       # 右键菜单
 │           ├── PageList/          # 页面管理面板
-│           └── PropertyPanel/     # 右侧属性面板（样式/数据/事件/流程）
+│           └── PropertyPanel/     # 右侧属性面板
+│               ├── StyleTab/      # 样式
+│               ├── DataTab/       # 数据绑定
+│               ├── EventTab/      # 事件
+│               ├── FlowCanvas/    # 流程画布
+│               ├── DatabaseTab/   # Schema Builder（Phase 1）
+│               └── FunctionsTab/  # 云函数编辑器（Phase 2）
 ├── routes/        # react-router-dom 路由配置
 └── utils/         # 工具函数
 ```
 
-### Backend（`banyan-backend`）
+**页面路由**：
 
-| 技术 | 版本 | 用途 |
+| 路径 | 页面 | 说明 |
 |------|------|------|
-| Koa | ^2.15 | HTTP 框架 |
-| @koa/router | ^13.0 | 路由 |
-| koa-body | ^6.0 | 请求体解析（支持文件上传，最大 20MB） |
-| Mongoose | ^8.7 | MongoDB ODM |
-| tsx | ^4.19 | TypeScript 直接运行（开发模式） |
+| `/` | ApplicationList | 应用列表，支持搜索和新建 |
+| `/application/:id` | ApplicationDetail | 画布编辑器，多页面设计 |
+| `/application/new` | ApplicationDetail | 新建应用（同编辑器页面） |
 
-**MVC 结构**：
+### Backend（`banyan-backend`）
 
 ```
 src/
@@ -147,19 +194,28 @@ src/
 ├── config/
 │   └── database.ts # MongoDB 连接配置
 ├── models/
-│   └── Application.ts  # 应用数据模型（Mongoose Schema）
+│   ├── Application.ts   # 应用数据模型
+│   ├── AppSchema.ts     # 用户定义的数据模型（Phase 1）
+│   └── AppFunction.ts   # 云函数元数据（Phase 2）
 ├── services/
-│   ├── ApplicationService.ts  # 应用 CRUD 业务逻辑
+│   ├── ApplicationService.ts  # 应用 CRUD
 │   ├── AiService.ts           # AI 代理（读 pages → 调 XiangDi → 写 pages）
+│   ├── SchemaService.ts       # Schema CRUD + 动态 Mongoose Model（Phase 1）
+│   ├── OrmService.ts          # 自动 ORM 访问层（Phase 1）
+│   ├── FunctionService.ts     # 云函数 CRUD + 编译验证（Phase 2）
 │   ├── build/                 # 构建服务（生成跨平台安装包）
 │   └── preview/               # 预览服务（生成内存 HTML 预览）
 ├── controllers/
 │   ├── ApplicationController.ts
-│   └── AiController.ts
+│   ├── AiController.ts
+│   ├── SchemaController.ts    # Phase 1
+│   └── FunctionController.ts  # Phase 2
 └── routes/
     ├── index.ts          # 路由聚合 + 健康检查
     ├── applications.ts   # 应用 CRUD 路由
     ├── ai.ts             # AI 对话路由
+    ├── schema.ts         # Schema Builder 路由（Phase 1）
+    ├── functions.ts      # 云函数路由（Phase 2）
     ├── build.ts          # 构建任务路由
     └── preview.ts        # 预览路由
 ```
@@ -175,42 +231,20 @@ src/
 | PUT | `/api/applications/:id` | 更新应用 |
 | DELETE | `/api/applications/:id` | 删除应用 |
 | POST | `/api/ai/:appId/chat` | AI 对话（SSE 流式，代理到 XiangDi 服务） |
-| POST | `/api/v1/build/app` | 提交构建任务（生成跨平台安装包） |
+| GET/POST/PUT/DELETE | `/api/apps/:appId/schema` | Schema Builder（Phase 1） |
+| GET/POST/PUT/DELETE | `/api/apps/:appId/data/:collectionName` | 自动 CRUD（Phase 1） |
+| GET/POST/PUT/DELETE | `/api/apps/:appId/functions` | 云函数管理（Phase 2） |
+| POST | `/api/v1/build/app` | 提交构建任务 |
 | GET | `/api/v1/build/status/:taskId` | 查询构建任务状态 |
 | GET | `/api/v1/build/download/:taskId` | 下载构建产物 |
-| POST | `/preview` | 创建内存预览（返回 previewId 和 URL） |
-| GET | `/preview/:previewId` | 获取预览 HTML（可直接在 iframe 中打开） |
-
-**Application 数据模型**：
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | String | 业务 ID（唯一） |
-| `name` | String | 应用名称（最长 200 字符） |
-| `description` | String | 应用描述（最长 1000 字符） |
-| `thumbnail` | String | 缩略图 URL |
-| `pages` | String[] | 多页面 JSON 数组（BanvasGL Serializer 输出） |
-| `tags` | String[] | 标签 |
-| `version` | Number | 版本号（每次保存自增） |
-| `createdBy` | String | 创建者 |
-| `updatedBy` | String | 最后修改者 |
-| `createdAt` | Date | 创建时间（自动） |
-| `updatedAt` | Date | 更新时间（自动） |
+| POST | `/preview` | 创建内存预览 |
+| GET | `/preview/:previewId` | 获取预览 HTML |
 
 ### Electron（`banyan-electron`）
 
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Electron | ^36.1 | 桌面应用框架 |
-| BanvasGL | workspace:* | 引擎类型引用 |
+Electron 主进程（`src/main.ts`）负责创建 1400×900 的主窗口，开发模式加载 `http://localhost:5174`，生产模式加载 `frontend/dist/index.html`，并注册中文菜单和安全策略（禁止外部导航、禁止新窗口弹出）。
 
-Electron 主进程（`src/main.ts`）负责：
-
-- 创建 1400×900 的主窗口
-- 开发模式：加载 `http://localhost:5174`，自动重试直到 Vite 就绪
-- 生产模式：加载 `frontend/dist/index.html`
-- 注册中文菜单（文件/编辑/视图/窗口/帮助）
-- 安全策略：禁止外部导航，禁止新窗口弹出
+---
 
 ## 构建
 
@@ -225,7 +259,9 @@ pnpm --filter banyan-backend build
 pnpm --filter banyan-electron build
 ```
 
-构建完成后，Electron 会从 `frontend/dist/index.html` 加载前端产物。打包为安装包需要额外配置 `electron-builder`（待实现）。
+构建完成后，Electron 从 `frontend/dist/index.html` 加载前端产物。
+
+---
 
 ## 开发规范
 
@@ -234,8 +270,4 @@ pnpm --filter banyan-electron build
 - 新增页面在 `src/routes/index.tsx` 中注册路由
 - 新增后端路由在 `src/routes/` 下创建文件，并在 `routes/index.ts` 中挂载
 - 前端开发服务器端口固定为 `5174`（`strictPort: true`），Electron 依赖此端口
-
-## 与 Monorepo 其他包的关系
-
-- **BanvasGL**：前端和 Electron 均依赖 `banvasgl (workspace:*)`，提供 2D 画布渲染能力
-- **XiangDi**（`packages/XiangDi` + `apps/xiangdi`）：AI Agent 引擎及其 HTTP 服务。banyan 后端通过 `AiService` 代理 AI 请求，读取 MongoDB 中的 pages 后转发给 XiangDi 服务（:3002），Agent 执行完毕后将最终 pages 写回 MongoDB
+- 禁止在 backend 中直接 `import xiangdi`，AI 能力必须通过 HTTP 调用 XiangDi 服务（:3002）

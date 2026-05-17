@@ -10,6 +10,7 @@ import {
     ExtraData,
     IViewAddon,
     IGraph,
+    IPortView,
     isPortView,
 } from '@/core/interfaces'
 import { clearAllStates } from '@/core/scene/operations'
@@ -178,12 +179,40 @@ export function useFlowCanvasEvents({
                 if (edge) {
                     let targetPortId: string | null = null
                     app.renderer.activateContext()
+
+                    // 先找到起点端口（用于方向校验）
+                    let fromPort: IPortView | null = null
+                    outer: for (const v of scene.children) {
+                        for (const child of v.children) {
+                            if (isPortView(child) && child.id === edge.fromPortId) {
+                                fromPort = child
+                                break outer
+                            }
+                        }
+                    }
+
+                    // 遍历场景找合法目标端口
                     for (const view of scene.children) {
                         const { view: hit } = view.interact(upPoint)
-                        if (hit && isPortView(hit) && hit.id !== edge.fromPortId) {
-                            targetPortId = hit.id
-                            break
-                        }
+                        if (!hit || !isPortView(hit)) continue
+                        // 排除起点自身
+                        if (hit.id === edge.fromPortId) continue
+
+                        // 方向校验：只允许 output → input（或 input → output）
+                        const fromDir = fromPort?.portDirection
+                        const toDir = hit.portDirection
+                        if (fromDir === 'output' && toDir !== 'input') continue
+                        if (fromDir === 'input' && toDir !== 'output') continue
+                        // bidirectional 端口可与任意方向连接，不做限制
+
+                        // 同节点校验：禁止同一节点的端口互连
+                        // 端口 ID 格式：${nodeId}_suffix，取最后一个 _ 之前的部分作为 nodeId
+                        const fromNodeId = edge.fromPortId?.replace(/_[^_]+$/, '')
+                        const toNodeId = hit.id.replace(/_[^_]+$/, '')
+                        if (fromNodeId && fromNodeId === toNodeId) continue
+
+                        targetPortId = hit.id
+                        break
                     }
                     app.renderer.deactivateContext()
 

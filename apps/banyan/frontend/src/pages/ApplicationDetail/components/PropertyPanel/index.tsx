@@ -6,6 +6,7 @@ import PropertiesTab from './PropertiesTab'
 import StyleTab from './StyleTab'
 import DataTab from './DataTab'
 import EventsTab from './EventsTab'
+import DatabaseTab from './DatabaseTab'
 import styles from './index.module.scss'
 
 interface PropertyPanelProps {
@@ -15,6 +16,8 @@ interface PropertyPanelProps {
     currentPageId: string | null
     canvasSize: { width: number; height: number }
     onCanvasSizeChange: (width: number, height: number) => void
+    /** 当前应用 ID（已保存的应用才有，新建应用为 undefined） */
+    appId?: string
 }
 
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
@@ -24,6 +27,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     currentPageId,
     canvasSize,
     onCanvasSizeChange,
+    appId,
 }) => {
     const view = selectedViewId ? actions.view.getViewInstance(selectedViewId) : null
 
@@ -150,6 +154,9 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             { key: 'data', label: '数据', children: pageDataTab },
             ...(pageEventsTab ? [{ key: 'events', label: '事件', children: pageEventsTab }] : []),
             { key: 'size', label: '页面尺寸', children: pageSizeTab },
+            ...(appId
+                ? [{ key: 'database', label: '数据库', children: <DatabaseTab appId={appId} /> }]
+                : []),
         ]
 
         return (

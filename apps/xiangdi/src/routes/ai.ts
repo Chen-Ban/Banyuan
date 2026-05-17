@@ -20,8 +20,10 @@
  *   由 banyan 后端在 done 事件后异步调用，生成本次会话的一句话摘要
  *
  * POST /ai/resume/:runId
- *   Body: { approved: boolean, comment?: string, specPatch?: Partial<ChangeSpec> }
- *   Response: { success: boolean, error?: string }
+ *   Body: { approved: boolean, comment?: string, specPatch?: Partial<ChangeSpec>, appId?: string }
+ *   Response:
+ *     情况 A（进程未重启）：JSON { success: true, resumed: 'in_process' }
+ *     情况 B（进程已重启）：text/event-stream（SSE），重建执行上下文后实时推送后续事件
  *
  * SSE 事件类型：
  *   text_delta   — LLM 输出的文字片段 { text: string }
@@ -44,8 +46,8 @@
  *   1. SSEHarnessRunner 触发 HumanGate 时，将状态序列化到 LocalCheckpointStore
  *   2. 推送 human_gate SSE 事件给前端（携带 runId）
  *   3. 前端展示确认 UI，用户决策后调用 POST /ai/resume/:runId
- *   4. 若进程未重启：injectHumanDecision() 直接 resolve 挂起的 Promise
- *   5. 若进程已重启：SSEHarnessRunner.resume() 从 CheckpointStore 恢复状态继续执行
+ *   4. 若进程未重启：injectHumanDecision() 直接 resolve 挂起的 Promise，返回 JSON
+ *   5. 若进程已重启：切换为 SSE 模式，重建执行上下文，实时推送后续事件
  */
 
 import type { ServerResponse } from 'http'
@@ -126,6 +128,61 @@ const checkpointStore = new LocalCheckpointStore({
 setInterval(() => {
     checkpointStore.cleanup().catch(() => {})
 }, 60 * 60 * 1000)
+
+// ─── 共享：构建 AgentLoop + 订阅 SSE ─────────────────────────────────────────
+
+/**
+ * 构建 AgentLoop 并将 StreamBridge 事件桥接到 SSE 响应
+ * 返回 { loop, unsubscribe }，调用方负责在 finally 中调用 unsubscribe()
+ */
+function buildLoopWithSSE(res: ServerResponse, systemPrompt: string) {
+    const adapter = createMemoryAdapter([])
+    const registry = createBanvasToolRegistry(adapter)
+    const context = new ContextManager()
+    const lifecycle = new AgentLifecycle()
+
+    const loop = new AgentLoop(
+        {
+            llm: {
+                model: 'deepseek-chat',
+                maxTokens: 8192,
+                temperature: 0.3,
+            },
+            systemPrompt,
+            maxIterations: 30,
+        },
+        registry,
+        context,
+        lifecycle
+    )
+
+    const unsubscribe = loop.stream.subscribe((event) => {
+        switch (event.type) {
+            case 'text_delta':
+                sseWrite(res, 'text_delta', { text: event.data.text })
+                break
+            case 'tool_call':
+                sseWrite(res, 'tool_call', {
+                    id: event.data.id,
+                    name: event.data.name,
+                    input: event.data.input,
+                })
+                break
+            case 'tool_result':
+                sseWrite(res, 'tool_result', {
+                    id: event.data.tool_use_id,
+                    result: event.data.result,
+                    isError: event.data.is_error ?? false,
+                })
+                break
+            case 'error':
+                sseWrite(res, 'error', { message: event.data.error.message })
+                break
+        }
+    })
+
+    return { loop, adapter, context, unsubscribe }
+}
 
 // ─── POST /ai/run ─────────────────────────────────────────────────────────────
 
@@ -326,6 +383,14 @@ router.post('/summarize', async (ctx) => {
 })
 
 // ─── POST /ai/resume/:runId ───────────────────────────────────────────────────
+//
+// 支持两种场景：
+//   情况 A：进程未重启，HumanGate Promise 仍挂起
+//     → injectHumanDecision() 直接 resolve，返回 JSON { success: true, resumed: 'in_process' }
+//   情况 B：进程已重启，从 CheckpointStore 恢复
+//     → 切换为 SSE 模式，重建完整执行上下文，实时推送后续事件给前端
+//       前端在收到 human_gate 事件后应立即重新建立 SSE 连接，
+//       然后调用 POST /ai/resume/:runId，此时响应即为新的 SSE 流
 
 router.post('/resume/:runId', async (ctx) => {
     const { runId } = ctx.params
@@ -333,6 +398,7 @@ router.post('/resume/:runId', async (ctx) => {
         approved?: boolean
         comment?: string
         specPatch?: Record<string, unknown>
+        appId?: string
     }
 
     if (typeof body.approved !== 'boolean') {
@@ -354,10 +420,7 @@ router.post('/resume/:runId', async (ctx) => {
         return
     }
 
-    // ── 情况 B：进程已重启，从 CheckpointStore 恢复 ──────────────────────────
-    // 需要重建完整的执行上下文（AgentLoop + Memory + SSEHarnessRunner）
-    // 注意：此时 SSE 连接已断开，resume 结果通过 HTTP 响应返回
-    // 前端需要重新建立 SSE 连接来接收后续事件（或通过轮询获取结果）
+    // ── 情况 B：进程已重启，从 CheckpointStore 恢复，切换为 SSE 模式 ─────────
     const checkpoint = await checkpointStore.load(runId)
     if (!checkpoint) {
         ctx.status = 404
@@ -368,33 +431,23 @@ router.post('/resume/:runId', async (ctx) => {
         return
     }
 
-    // 重建执行上下文（无 SSE 连接，静默执行）
+    // 切换为 SSE 模式，重建完整执行上下文后实时推送事件
+    const res = ctx.res as ServerResponse
+    ctx.respond = false
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+    })
+
     try {
-        const adapter = createMemoryAdapter([])
-        const registry = createBanvasToolRegistry(adapter)
         const client = await createLLMClient()
+        const { loop, adapter, context, unsubscribe } = buildLoopWithSSE(res, buildSystemPrompt())
 
-        const context = new ContextManager()
-        const lifecycle = new AgentLifecycle()
-        const loop = new AgentLoop(
-            {
-                llm: {
-                    model: 'deepseek-chat',
-                    maxTokens: 8192,
-                    temperature: 0.3,
-                },
-                systemPrompt: buildSystemPrompt(),
-                maxIterations: 30,
-            },
-            registry,
-            context,
-            lifecycle
-        )
-
-        const storagePath = getMemoryStoragePath('default')
+        const storagePath = getMemoryStoragePath(body.appId ?? 'default')
         const memory = new DefaultMemoryManager({ storagePath })
 
-        // 无 SSE 连接，sseWrite 为空函数（后续可改为 WebSocket 或轮询）
         const harness = new SSEHarnessRunner(
             loop,
             client,
@@ -402,23 +455,31 @@ router.post('/resume/:runId', async (ctx) => {
             undefined,
             memory,
             checkpointStore,
-            () => {} // 无 SSE 连接
+            (event, data) => sseWrite(res, event, data),
+            undefined,
+            context
         )
 
-        // 异步执行，不阻塞 HTTP 响应
-        harness.resume(runId, decision).catch((err) => {
-            console.error(`[resume] runId=${runId} failed:`, err)
-        })
+        try {
+            const result = await harness.resume(runId, decision)
 
-        ctx.body = {
-            success: true,
-            resumed: 'from_checkpoint',
-            message: 'Resume started. Reconnect SSE to receive events.',
+            if (!result.success) {
+                sseWrite(res, 'error', {
+                    message: result.failureReason ?? 'Resume execution failed',
+                })
+            }
+
+            // 读取最终 pages 随 done 事件发送
+            const finalPages = await adapter.getPages()
+            sseWrite(res, 'done', { pages: finalPages })
+        } finally {
+            unsubscribe()
         }
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        ctx.status = 500
-        ctx.body = { success: false, error: message }
+        sseWrite(res, 'error', { message })
+    } finally {
+        sseDone(res)
     }
 })
 

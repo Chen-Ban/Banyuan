@@ -5,7 +5,7 @@
  * 并在超出窗口时裁剪，保留关键记忆。
  */
 
-import type { Message, MessageContent } from "./types.js";
+import type { Message, MessageContent, ToolUseContent, ToolResultContent } from "./types.js";
 
 export interface ContextManagerOptions {
   /**
@@ -64,15 +64,71 @@ export class ContextManager {
   }
 
   /**
+   * 从消息内容中提取所有 tool_use id
+   */
+  private extractToolUseIds(content: MessageContent): string[] {
+    if (!Array.isArray(content)) return [];
+    return (content as Array<unknown>)
+      .filter((c): c is ToolUseContent => (c as ToolUseContent).type === "tool_use")
+      .map((c) => c.id);
+  }
+
+  /**
+   * 从消息内容中提取所有 tool_result 引用的 tool_use_id
+   */
+  private extractToolResultIds(content: MessageContent): string[] {
+    if (!Array.isArray(content)) return [];
+    return (content as Array<unknown>)
+      .filter((c): c is ToolResultContent => (c as ToolResultContent).type === "tool_result")
+      .map((c) => c.tool_use_id);
+  }
+
+  /**
    * 裁剪超出窗口的消息
-   * 策略：保留最新的 maxMessages 条，但不能从 tool_use / tool_result 对中间截断
+   *
+   * 策略：从头部找到第一个"安全切割点"后再移除。
+   * 安全切割点定义：某个位置之前的所有 tool_use 都已有对应的 tool_result。
+   * 这样可以保证裁剪后的消息列表满足 Anthropic API 的配对约束，
+   * 避免出现孤立的 tool_use 或 tool_result 导致 400 错误。
+   *
+   * TODO: 未来可升级为摘要压缩策略
    */
   private trim(): void {
     if (this.messages.length <= this.maxMessages) return;
 
     const excess = this.messages.length - this.maxMessages;
-    // 简单策略：从头部移除 excess 条
-    // TODO: 未来可升级为摘要压缩策略
-    this.messages.splice(0, excess);
+
+    // 收集前 excess 条消息中所有 tool_use id
+    const pendingToolUseIds = new Set<string>();
+    for (let i = 0; i < excess; i++) {
+      const ids = this.extractToolUseIds(this.messages[i].content);
+      ids.forEach((id) => pendingToolUseIds.add(id));
+    }
+
+    if (pendingToolUseIds.size === 0) {
+      // 没有 tool_use，直接裁剪
+      this.messages.splice(0, excess);
+      return;
+    }
+
+    // 向后扫描，找到所有 pendingToolUseIds 都被 tool_result 覆盖的安全切割点
+    let safeIndex = excess;
+    const resolvedIds = new Set<string>();
+
+    for (let i = excess; i < this.messages.length; i++) {
+      const resultIds = this.extractToolResultIds(this.messages[i].content);
+      resultIds.forEach((id) => {
+        if (pendingToolUseIds.has(id)) resolvedIds.add(id);
+      });
+
+      if (resolvedIds.size === pendingToolUseIds.size) {
+        // 所有 tool_use 都已有对应 tool_result，i+1 是安全切割点
+        safeIndex = i + 1;
+        break;
+      }
+    }
+
+    // 从头部移除到安全切割点
+    this.messages.splice(0, safeIndex);
   }
 }

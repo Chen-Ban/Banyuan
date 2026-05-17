@@ -135,6 +135,7 @@ function buildDefaultNode(
  */
 const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
     const canvasWrapperRef = useRef<HTMLDivElement>(null)
+    const canvasElRef = useRef<HTMLCanvasElement | null>(null)
 
     const serializedPages = useMemo<string[]>(() => [], [])
 
@@ -146,6 +147,13 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
             backgroundColor: 'transparent',
         },
     )
+
+    // 拿到 canvas 元素引用，用于 drop 坐标计算
+    useEffect(() => {
+        if (!canvasWrapperRef.current) return
+        const canvas = canvasWrapperRef.current.querySelector('canvas')
+        canvasElRef.current = canvas
+    })
 
     // ── 同步 schema → 引擎 Scene（schema 变化时重建节点和连线） ──
     useEffect(() => {
@@ -210,10 +218,14 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
         const kind = getFlowNodeDragData(e)
         if (!kind) return
 
-        // 计算 drop 点相对于画布容器的坐标
-        const rect = canvasWrapperRef.current?.getBoundingClientRect()
-        const x = rect ? e.clientX - rect.left : 0
-        const y = rect ? e.clientY - rect.top  : 0
+        // 用 canvas 元素本身的 bounding rect 计算坐标，避免 wrapper 内偏移
+        // canvas 的逻辑尺寸 = CSS 像素，物理像素 = CSS 像素 × DPR
+        // 引擎内部坐标系是物理像素，所以需要乘以 devicePixelRatio
+        const canvasEl = canvasElRef.current ?? canvasWrapperRef.current?.querySelector('canvas')
+        const rect = canvasEl?.getBoundingClientRect() ?? canvasWrapperRef.current?.getBoundingClientRect()
+        const dpr = window.devicePixelRatio || 1
+        const x = rect ? (e.clientX - rect.left) * dpr : 0
+        const y = rect ? (e.clientY - rect.top) * dpr : 0
 
         const newNode = buildDefaultNode(kind, x, y)
 

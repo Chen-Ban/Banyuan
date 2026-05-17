@@ -99,28 +99,33 @@ export default class Scene implements ISerializable {
 
   // 生命周期方法
   public onLoad(params: any): void {
-    // TODO: 接入 FlowRunner，将 this.lifetimes.onLoad 编译执行（params 作为 eventArg 传入）
+    // 触发 FlowRunner 执行 onLoad schema
+    // Scene 自身作为 view 传入，params 作为 eventArgs 传入
+    this.triggerSchema(this as unknown as IView, this.lifetimes.onLoad, Array.isArray(params) ? params : [params]);
   }
 
   public onUnload(): void {
+    // 触发 FlowRunner 执行 onUnload schema（在清理前执行，确保 schema 可访问子视图）
+    this.triggerSchema(this as unknown as IView, this.lifetimes.onUnload);
+
     // 清理子视图
     this.clearChildren();
     // 清空操作栈
     this.transactionManager.clear();
-
-    // TODO: 接入 FlowRunner，将 this.lifetimes.onUnload 编译执行
   }
 
   public onShow(): void {
     this._isVisible = true;
 
-    // TODO: 接入 FlowRunner，将 this.lifetimes.onShow 编译执行
+    // 触发 FlowRunner 执行 onShow schema
+    this.triggerSchema(this as unknown as IView, this.lifetimes.onShow);
   }
 
   public onHide(): void {
     this._isVisible = false;
 
-    // TODO: 接入 FlowRunner，将 this.lifetimes.onHide 编译执行
+    // 触发 FlowRunner 执行 onHide schema
+    this.triggerSchema(this as unknown as IView, this.lifetimes.onHide);
   }
 
   public getAllActived() {
