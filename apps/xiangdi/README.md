@@ -1,4 +1,4 @@
-# @banyuan/xiangdi-server — XiangDi AI Agent HTTP 服务
+# xiangdi-server — XiangDi AI Agent HTTP 服务
 
 XiangDi HTTP 服务将 `xiangdi` AI Agent 引擎封装为独立的无状态 HTTP 服务，运行在 `:3002`，供 banyan 后端通过 HTTP SSE 调用。
 
@@ -57,7 +57,7 @@ banyan 后端(:3001)
 
 - Node.js ≥ 20
 - pnpm ≥ 10.10
-- DeepSeek API Key（放置于 `apiKey.json`，格式见下方）
+- DeepSeek API Key
 
 ### API Key 配置
 
@@ -69,33 +69,39 @@ banyan 后端(:3001)
 }
 ```
 
-### 安装依赖
+也可通过环境变量 `DEEPSEEK_API_KEY` 注入，优先级高于文件。
 
-在 monorepo 根目录执行：
+### 启动
 
-```bash
-pnpm install
-```
-
-### 启动开发服务器
+**推荐**：通过根目录命令一键启动完整平台（含 XiangDi 服务）：
 
 ```bash
 # 在 monorepo 根目录
-pnpm --filter @banyuan/xiangdi-server dev
+pnpm dev:banyan
+```
+
+此命令会同时启动 BanvasGL watch + XiangDi 引擎 watch + XiangDi 服务(:3002) + Banyan 全栈。
+
+**单独启动**（仅调试 XiangDi 服务本身时使用）：
+
+```bash
+# 先确保引擎包已构建
+pnpm --filter banvasgl build && pnpm --filter xiangdi build
+
+# 启动 XiangDi 服务
+pnpm --filter xiangdi-server dev
 ```
 
 服务启动后监听 `http://localhost:3002`。
 
-### 构建
+### 构建与生产启动
 
 ```bash
-pnpm --filter @banyuan/xiangdi-server build
-```
+# 构建
+pnpm --filter xiangdi-server build
 
-### 生产启动
-
-```bash
-pnpm --filter @banyuan/xiangdi-server start
+# 生产启动
+pnpm --filter xiangdi-server start
 ```
 
 ## 技术栈

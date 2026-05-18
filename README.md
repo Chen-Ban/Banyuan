@@ -109,18 +109,46 @@ Banyuan/
 
 ## 快速开始
 
-**前置条件**：Node.js >= 18、pnpm >= 10、MongoDB >= 6.0
+**前置条件**：Node.js >= 20、pnpm >= 10、MongoDB >= 6.0、DeepSeek API Key
 
 ```bash
 git clone <repository-url> Banyuan
 cd Banyuan
 pnpm install
 
-# 启动 Banyan 低代码平台
-pnpm dev:banyan
+# 配置 AI API Key（在 apps/xiangdi/ 下创建 apiKey.json）
+echo '{ "apiKey": "sk-your-deepseek-key" }' > apps/xiangdi/apiKey.json
 ```
 
-启动后前端编辑器运行在 `http://localhost:5174`，Electron 桌面窗口会自动打开。
+### 启动命令
+
+根目录提供两个开发启动命令，分别对应两个应用场景：
+
+```bash
+# 启动 Banyan 低代码平台（含 AI 能力）
+pnpm dev:banyan
+
+# 启动 LunlunGlass 示例应用
+pnpm dev:lunlunglass
+```
+
+### dev:banyan 启动的服务
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| BanvasGL | — | tsup watch，引擎代码变更自动重编译 |
+| XiangDi 引擎 | — | tsup watch，AI 引擎代码变更自动重编译 |
+| XiangDi 服务 | :3002 | 无状态 AI Agent HTTP 服务 |
+| Banyan 前端 | :5174 | React 编辑器（Vite） |
+| Banyan 后端 | :3001 | Koa API + MongoDB 持久化 |
+| Electron | — | 桌面窗口自动打开 |
+
+### dev:lunlunglass 启动的服务
+
+| 服务 | 端口 | 说明 |
+|------|------|------|
+| BanvasGL | — | tsup watch，引擎代码变更自动重编译 |
+| LunlunGlass | :5173 | 示例应用（Vite） |
 
 ---
 
