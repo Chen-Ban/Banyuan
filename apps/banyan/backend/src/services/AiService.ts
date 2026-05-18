@@ -34,9 +34,11 @@
 
 import type { IncomingMessage, ServerResponse } from 'http'
 import http from 'http'
+import https from 'https'
 import applicationService from './ApplicationService.js'
 import conversationService from './ConversationService.js'
 import summaryService from './SummaryService.js'
+import { SchemaService } from './SchemaService.js'
 
 // XiangDi 服务地址，通过环境变量配置，默认本地开发地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
@@ -118,7 +120,22 @@ class AiService {
         }
       }
 
-      // 6. 构造请求体，发送给 XiangDi 服务
+      // 6. 读取应用的 AppSchema，注入到请求体的 projectSpec 中
+      const schemaDoc = await SchemaService.getSchema(appId)
+      const appSchema = schemaDoc.collections.map((col) => ({
+        collectionName: col.name,
+        fields: col.fields.map((f) => ({
+          name: f.name,
+          displayName: f.displayName,
+          type: f.type,
+          required: f.required,
+          ...(f.defaultValue !== undefined ? { defaultValue: f.defaultValue } : {}),
+          ...(f.refCollection ? { refCollection: f.refCollection } : {}),
+          ...(f.enumValues?.length ? { enumValues: f.enumValues } : {}),
+        })),
+      }))
+
+      // 7. 构造请求体，发送给 XiangDi 服务
       const requestBody = JSON.stringify({
         appId,
         prompt,
@@ -126,16 +143,17 @@ class AiService {
         conversationId: convId,
         previousMessages: historyMessages,
         ...(memoryHint ? { memoryHint } : {}),
+        ...(appSchema.length > 0 ? { appSchema } : {}),
       })
 
-      // 7. 向 XiangDi 服务发起 SSE 请求并透传给前端
+      // 8. 向 XiangDi 服务发起 SSE 请求并透传给前端
       await this.proxySSE(requestBody, res, async (finalPages: string[], agentOutput: string) => {
-        // 8. 收到 done 事件后，并行执行：写回 pages + 保存 assistant 消息
+        // 9. 收到 done 事件后，并行执行：写回 pages + 保存 assistant 消息
         await Promise.all([
           applicationService.updateApplication(appId, { pages: finalPages }),
           conversationService.appendAssistantMessage(convId, agentOutput),
         ])
-        // 9. 异步触发摘要生成（fire-and-forget，不阻塞 done 响应）
+        // 10. 异步触发摘要生成（fire-and-forget，不阻塞 done 响应）
         summaryService.triggerAsync(convId)
       })
     } catch (err) {
@@ -143,6 +161,30 @@ class AiService {
       sseWrite(res, 'error', { message })
       sseDone(res)
     }
+  }
+
+  /**
+   * 转发消歧响应到 XiangDi 服务
+   * 透传到 XiangDi 服务的 POST /ai/disambiguation-response
+   */
+  async respondToDisambiguation(choiceId: string): Promise<unknown> {
+    return this.proxyJSON('POST', '/ai/disambiguation-response', { choiceId })
+  }
+
+  /**
+   * 获取所有可用 LLM provider 及当前激活状态
+   * 透传到 XiangDi 服务的 GET /ai/models
+   */
+  async getModels(): Promise<unknown> {
+    return this.proxyJSON('GET', '/ai/models', null)
+  }
+
+  /**
+   * 切换激活的 LLM provider
+   * 透传到 XiangDi 服务的 POST /ai/models/switch
+   */
+  async switchModel(provider: string): Promise<unknown> {
+    return this.proxyJSON('POST', '/ai/models/switch', { provider })
   }
 
   /**
@@ -248,6 +290,53 @@ class AiService {
       })
 
       req.write(requestBody)
+      req.end()
+    })
+  }
+
+  /**
+   * 通用 JSON 请求代理（非 SSE）
+   * 向 XiangDi 服务发起普通 HTTP 请求并返回解析后的 JSON
+   */
+  private proxyJSON(method: 'GET' | 'POST', path: string, body: unknown): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      const url = new URL(path, XIANGDI_BASE_URL)
+      const isHttps = url.protocol === 'https:'
+      const transport = isHttps ? https : http
+
+      const bodyStr = body !== null ? JSON.stringify(body) : undefined
+
+      const options: http.RequestOptions = {
+        hostname: url.hostname,
+        port: url.port || (isHttps ? 443 : 3002),
+        path: url.pathname,
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
+          ...(XIANGDI_INTERNAL_TOKEN ? { 'X-Internal-Token': XIANGDI_INTERNAL_TOKEN } : {}),
+        },
+      }
+
+      const req = transport.request(options, (res: IncomingMessage) => {
+        let data = ''
+        res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(data))
+          } catch {
+            resolve({ raw: data })
+          }
+        })
+        res.on('error', reject)
+      })
+
+      req.on('error', (err) => {
+        reject(new Error(`无法连接到 XiangDi 服务 (${XIANGDI_BASE_URL}): ${err.message}`))
+      })
+
+      if (bodyStr) req.write(bodyStr)
       req.end()
     })
   }

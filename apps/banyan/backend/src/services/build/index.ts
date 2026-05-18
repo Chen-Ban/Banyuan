@@ -16,14 +16,16 @@ import { randomUUID } from 'crypto'
 import { scaffold } from './scaffold.js'
 import { bundle } from './bundler.js'
 import { buildElectron } from './electron.js'
+import { bundleServer } from './serverBundler.js'
 import type { Platform } from './electron.js'
 import { BuildTaskModel } from '../../models/index.js'
 
-export { scaffold, bundle, buildElectron }
+export { scaffold, bundle, buildElectron, bundleServer }
 export type { Platform }
 export type { ScaffoldOptions } from './scaffold.js'
 export type { BundleOptions } from './bundler.js'
 export type { ElectronBuildOptions } from './electron.js'
+export type { ServerBundleOptions } from './serverBundler.js'
 
 /**
  * 持久化存储目录：存放构建完成的安装包
@@ -117,6 +119,8 @@ export interface StartBuildOptions {
   height: number
   /** banvasgl 版本号，由前端传入 */
   banvasglVersion: string
+  /** 应用 ID，用于读取云函数并生成服务器壳子 */
+  appId?: string
 }
 
 /**
@@ -143,7 +147,7 @@ export async function startBuild(options: StartBuildOptions): Promise<string> {
 }
 
 async function runBuild(taskId: string, options: StartBuildOptions): Promise<void> {
-  const { appJson, appName, platform, width, height, banvasglVersion } = options
+  const { appJson, appName, platform, width, height, banvasglVersion, appId } = options
 
   // 工作目录：系统临时目录下按 taskId 隔离
   const workDir = path.join(os.tmpdir(), 'banyuan-build', taskId)
@@ -169,7 +173,13 @@ async function runBuild(taskId: string, options: StartBuildOptions): Promise<voi
     console.log(`[Build ${taskId}] step 2/3 bundle ...`)
     await bundle({ projectDir, outputDir: distDir })
 
-    console.log(`[Build ${taskId}] step 3/3 electron-builder ...`)
+    // step 3: 生成服务器壳子（如果有 appId 且应用有云函数）
+    if (appId) {
+      console.log(`[Build ${taskId}] step 3/4 server bundle ...`)
+      await bundleServer({ appId, outputDir: distDir })
+    }
+
+    console.log(`[Build ${taskId}] step ${appId ? '4/4' : '3/3'} electron-builder ...`)
     await buildElectron({ distDir, outputDir, appName, platform, width, height })
 
     // 找到生成的安装包文件，移动到持久化存储目录
