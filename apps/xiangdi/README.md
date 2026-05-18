@@ -1,4 +1,4 @@
-# @banyuan/xiangdi-server — XiangDi AI Agent HTTP 服务
+# xiangdi-server — XiangDi AI Agent HTTP 服务
 
 XiangDi HTTP 服务将 `xiangdi` AI Agent 引擎封装为独立的无状态 HTTP 服务，运行在 `:3002`，供 banyan 后端通过 HTTP SSE 调用。
 
@@ -89,7 +89,7 @@ pnpm dev:banyan
 pnpm --filter banvasgl build && pnpm --filter xiangdi build
 
 # 启动 XiangDi 服务
-pnpm --filter @banyuan/xiangdi-server dev
+pnpm --filter xiangdi-server dev
 ```
 
 服务启动后监听 `http://localhost:3002`。
@@ -98,10 +98,10 @@ pnpm --filter @banyuan/xiangdi-server dev
 
 ```bash
 # 构建
-pnpm --filter @banyuan/xiangdi-server build
+pnpm --filter xiangdi-server build
 
 # 生产启动
-pnpm --filter @banyuan/xiangdi-server start
+pnpm --filter xiangdi-server start
 ```
 
 ## 技术栈

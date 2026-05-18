@@ -4,7 +4,7 @@
   "description": "虽由人作，宛自天开 —— 以画布为山石，以组件为草木，以数据为活水，以 AI 为匠心，造一方数字园林。BanvasGL 自研 2D 引擎 + XiangDi AI Agent（SDD + Harness）+ Banyan 低代码平台。",
   "main": "index.js",
   "scripts": {
-    "dev:banyan": "pnpm --filter banvasgl build && pnpm --filter xiangdi build && concurrently --kill-others -c \"magenta.bold,blue.bold,yellow.bold,cyan.bold\" -n banvasgl,xiangdi,xiangdi-server,banyan \"pnpm --filter banvasgl dev\" \"pnpm --filter xiangdi dev\" \"pnpm --filter @banyuan/xiangdi-server dev\" \"pnpm --filter banyan dev\"",
+    "dev:banyan": "pnpm --filter banvasgl build && pnpm --filter xiangdi build && concurrently --kill-others -c \"magenta.bold,blue.bold,yellow.bold,cyan.bold\" -n banvasgl,xiangdi,xiangdi-server,banyan \"pnpm --filter banvasgl dev\" \"pnpm --filter xiangdi dev\" \"pnpm --filter xiangdi-server dev\" \"pnpm --filter banyan dev\"",
     "dev:lunlunglass": "pnpm --filter banvasgl build && concurrently --kill-others -c \"magenta.bold,cyan.bold\" -n banvasgl,lunlunglass \"pnpm --filter banvasgl dev\" \"pnpm --filter lunlunglass dev\""
   },
   "keywords": [],
