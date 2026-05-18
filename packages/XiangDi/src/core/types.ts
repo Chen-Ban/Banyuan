@@ -98,6 +98,9 @@ export interface AgentConfig {
 // ─── 流式事件 ─────────────────────────────────────────────────────────────────
 
 import type { LifecycleEvent, AgentStateSnapshot } from "./AgentLifecycle.js";
+import type { ConflictReport } from "./ConflictDetector.js";
+import type { DisambiguationOptions } from "./DisambiguationHandler.js";
+import type { DisambiguationPending } from "./AgentLoop.js";
 
 export type StreamEventType =
   | "text_delta"
@@ -105,7 +108,9 @@ export type StreamEventType =
   | "tool_result"
   | "done"
   | "error"
-  | "lifecycle";
+  | "lifecycle"
+  | "disambiguation"
+  | "disambiguation_pending";
 
 export interface StreamEvent {
   type: StreamEventType;
@@ -124,7 +129,7 @@ export interface ToolCallEvent extends StreamEvent {
 
 export interface ToolResultEvent extends StreamEvent {
   type: "tool_result";
-  data: { tool_use_id: string; result: unknown; is_error: boolean };
+  data: { tool_use_id: string; name: string; result: unknown; is_error: boolean };
 }
 
 export interface DoneEvent extends StreamEvent {
@@ -150,12 +155,26 @@ export interface LifecycleStreamEvent extends StreamEvent {
   data: { event: LifecycleEvent; snapshot: AgentStateSnapshot };
 }
 
+/** 消歧选项事件（通知 UI 层展示选项） */
+export interface DisambiguationEvent extends StreamEvent {
+  type: "disambiguation";
+  data: { options: DisambiguationOptions; report: ConflictReport };
+}
+
+/** 消歧挂起事件（携带 resolve 回调，供外部恢复执行） */
+export interface DisambiguationPendingEvent extends StreamEvent {
+  type: "disambiguation_pending";
+  data: { pending: DisambiguationPending };
+}
+
 export type TypedStreamEvent =
   | TextDeltaEvent
   | ToolCallEvent
   | ToolResultEvent
   | DoneEvent
   | ErrorEvent
-  | LifecycleStreamEvent;
+  | LifecycleStreamEvent
+  | DisambiguationEvent
+  | DisambiguationPendingEvent;
 
 export type StreamCallback = (event: TypedStreamEvent) => void;

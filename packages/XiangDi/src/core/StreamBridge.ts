@@ -17,8 +17,13 @@ import type {
   DoneEvent,
   ErrorEvent,
   LifecycleStreamEvent,
+  DisambiguationEvent,
+  DisambiguationPendingEvent,
 } from "./types.js";
 import type { LifecycleEvent, AgentStateSnapshot } from "./AgentLifecycle.js";
+import type { ConflictReport } from "./ConflictDetector.js";
+import type { DisambiguationOptions } from "./DisambiguationHandler.js";
+import type { DisambiguationPending } from "./AgentLoop.js";
 
 export class StreamBridge {
   private callbacks: StreamCallback[] = [];
@@ -59,12 +64,13 @@ export class StreamBridge {
    */
   emitToolResult(
     tool_use_id: string,
+    name: string,
     result: unknown,
     is_error: boolean
   ): void {
     this.emit({
       type: "tool_result",
-      data: { tool_use_id, result, is_error },
+      data: { tool_use_id, name, result, is_error },
     } satisfies ToolResultEvent);
   }
 
@@ -99,6 +105,29 @@ export class StreamBridge {
       type: "lifecycle",
       data: { event, snapshot },
     } satisfies LifecycleStreamEvent);
+  }
+
+  /**
+   * 发布消歧事件（通知 UI 层展示选项）
+   */
+  emitDisambiguation(
+    options: DisambiguationOptions,
+    report: ConflictReport
+  ): void {
+    this.emit({
+      type: "disambiguation",
+      data: { options, report },
+    } satisfies DisambiguationEvent);
+  }
+
+  /**
+   * 发布消歧挂起事件（携带 resolve 回调，供外部恢复执行）
+   */
+  emitDisambiguationPending(pending: DisambiguationPending): void {
+    this.emit({
+      type: "disambiguation_pending",
+      data: { pending },
+    } satisfies DisambiguationPendingEvent);
   }
 
   private emit(event: TypedStreamEvent): void {

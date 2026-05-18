@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { aiApi } from '@/api'
-import type { AiStreamEvent } from '@/api'
+import type { AiStreamEvent, DisambiguationOptions } from '@/api'
 
 // ─── 进度消息类型 ─────────────────────────────────────────────────────────────
 
@@ -35,8 +35,12 @@ export interface UseXiangDiOptions {
   appId: string
   /** AI 完成后回调，携带最终 pages JSON */
   onDone?: (pages: string[]) => void
+  /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
+  onPagesSnapshot?: (pages: string[]) => void
   /** 发生错误时回调 */
   onError?: (message: string) => void
+  /** 检测到意图冲突时回调，前端展示消歧 UI */
+  onDisambiguation?: (options: DisambiguationOptions) => void
 }
 
 export interface UseXiangDiReturn {
@@ -52,6 +56,8 @@ export interface UseXiangDiReturn {
   abort: () => void
   /** 清空消息列表 */
   clearMessages: () => void
+  /** 响应消歧选择，通知后端恢复 AgentLoop */
+  respondToDisambiguation: (choiceId: string) => Promise<void>
 }
 
 let msgIdCounter = 0
@@ -60,7 +66,7 @@ function nextMsgId(): string {
 }
 
 export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
-  const { appId, onDone, onError } = options
+  const { appId, onDone, onPagesSnapshot, onError, onDisambiguation } = options
 
   const [loading, setLoading] = useState(false)
   const [messages, setMessages] = useState<ProgressMessage[]>([])
@@ -118,6 +124,14 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
           // 成功的 tool_result 不展示，避免信息过载
           break
         }
+        case 'pages_snapshot': {
+          onPagesSnapshot?.(event.pages)
+          break
+        }
+        case 'disambiguation': {
+          onDisambiguation?.(event.options)
+          break
+        }
         case 'done': {
           // 将最终文字输出作为一条消息
           if (currentTextRef.current.trim()) {
@@ -158,6 +172,10 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     }
   }, [loading, appId, addMessage, onDone, onError])
 
+  const respondToDisambiguationFn = useCallback(async (choiceId: string) => {
+    await aiApi.respondToDisambiguation(choiceId)
+  }, [])
+
   const abort = useCallback(() => {
     abortControllerRef.current?.abort()
     setLoading(false)
@@ -169,7 +187,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     currentTextRef.current = ''
   }, [])
 
-  return { loading, messages, currentText, sendPrompt, abort, clearMessages }
+  return { loading, messages, currentText, sendPrompt, abort, clearMessages, respondToDisambiguation: respondToDisambiguationFn }
 }
 
 // ─── 工具名友好化 ─────────────────────────────────────────────────────────────

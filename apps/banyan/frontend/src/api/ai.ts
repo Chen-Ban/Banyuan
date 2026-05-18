@@ -8,6 +8,47 @@
 
 const BASE_URL = '/api'
 
+// ─── 模型管理类型 ──────────────────────────────────────────────────────────────
+
+export interface ProviderInfo {
+  provider: string
+  model: string
+  availableModels: string[]
+  active: boolean
+}
+
+export interface ModelsResponse {
+  providers: ProviderInfo[]
+  activeProvider: string
+}
+
+/**
+ * 获取所有可用 LLM provider 及当前激活状态
+ */
+export async function getModels(): Promise<ModelsResponse> {
+  const response = await fetch(`${BASE_URL}/ai/models`)
+  if (!response.ok) {
+    throw new Error(`获取模型列表失败 (${response.status})`)
+  }
+  return response.json()
+}
+
+/**
+ * 切换激活的 LLM provider
+ */
+export async function switchModel(provider: string): Promise<{ success: boolean; activeProvider?: string; error?: string }> {
+  const response = await fetch(`${BASE_URL}/ai/models/switch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ provider }),
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`切换模型失败 (${response.status}): ${text}`)
+  }
+  return response.json()
+}
+
 // ─── SSE 事件类型 ─────────────────────────────────────────────────────────────
 
 export interface AiTextDeltaEvent {
@@ -29,6 +70,11 @@ export interface AiToolResultEvent {
   isError: boolean
 }
 
+export interface AiPagesSnapshotEvent {
+  type: 'pages_snapshot'
+  pages: string[]
+}
+
 export interface AiDoneEvent {
   type: 'done'
   pages: string[]
@@ -39,10 +85,30 @@ export interface AiErrorEvent {
   message: string
 }
 
+// ─── 消歧选项类型 ─────────────────────────────────────────────────────────────
+
+export interface DisambiguationOption {
+  id: string
+  description: string
+  expectedEffect: string
+}
+
+export interface DisambiguationOptions {
+  conflictContext: string
+  options: DisambiguationOption[]
+}
+
+export interface AiDisambiguationEvent {
+  type: 'disambiguation'
+  options: DisambiguationOptions
+}
+
 export type AiStreamEvent =
   | AiTextDeltaEvent
   | AiToolCallEvent
   | AiToolResultEvent
+  | AiPagesSnapshotEvent
+  | AiDisambiguationEvent
   | AiDoneEvent
   | AiErrorEvent
 
@@ -53,6 +119,21 @@ export interface AiChatOptions {
   prompt: string
   onEvent: (event: AiStreamEvent) => void
   signal?: AbortSignal
+}
+
+/**
+ * 响应消歧选择，resolve 后端挂起的 AgentLoop
+ */
+export async function respondToDisambiguation(choiceId: string): Promise<void> {
+  const response = await fetch(`${BASE_URL}/ai/disambiguation-response`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ choiceId }),
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`消歧响应失败 (${response.status}): ${text}`)
+  }
 }
 
 /**
@@ -116,6 +197,12 @@ export async function aiChat(options: AiChatOptions): Promise<string[]> {
               break
             case 'tool_result':
               onEvent({ type: 'tool_result', id: data.id, result: data.result, isError: data.isError ?? false })
+              break
+            case 'pages_snapshot':
+              onEvent({ type: 'pages_snapshot', pages: data.pages ?? [] })
+              break
+            case 'disambiguation':
+              onEvent({ type: 'disambiguation', options: data as DisambiguationOptions })
               break
             case 'done':
               onEvent({ type: 'done', pages: data.pages ?? [] })
