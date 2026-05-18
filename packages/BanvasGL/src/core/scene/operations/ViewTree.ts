@@ -196,6 +196,16 @@ export function groupViews(
     combined.addChild(v);
   }
 
+  // 根据子 View 计算组合容器的 viewport（子 View 的联合包围盒）
+  const childrenBounds = combined.measureChildren();
+  if (childrenBounds.width > 0 || childrenBounds.height > 0) {
+    combined.viewport.x = childrenBounds.x;
+    combined.viewport.y = childrenBounds.y;
+    combined.viewport.width = childrenBounds.width;
+    combined.viewport.height = childrenBounds.height;
+    combined.boundingBox?.updateSize();
+  }
+
   // 在原最高位置插入（考虑移除后 index 可能变小）
   const insertIndex = Math.min(maxIndex, children.length);
   children.splice(insertIndex, 0, combined);

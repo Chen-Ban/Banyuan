@@ -9,6 +9,8 @@ interface FlowCanvasProps {
     schema: FlowSchema | null
     /** schema 变更回调 */
     onChange: (schema: FlowSchema) => void
+    /** 节点选中回调（点击节点时触发，点击空白时传 null） */
+    onNodeSelect?: (nodeId: string | null) => void
 }
 
 const CANVAS_WIDTH = 680
@@ -59,6 +61,7 @@ function getNodeTitle(node: FlowNode): string {
         case 'animate': return '播放动画'
         case 'condition': return '条件分支'
         case 'delay': return '延迟等待'
+        case 'callCloudFunction': return `云函数: ${node.functionName || '未选择'}`
         case 'variable': return 'View 变量'
         case 'pageVar': return '页面变量'
         case 'eventParam': return '事件参数'
@@ -119,6 +122,8 @@ function buildDefaultNode(
             }
         case 'delay':
             return { ...base, kind: 'delay', ms: 500 }
+        case 'callCloudFunction':
+            return { ...base, kind: 'callCloudFunction', functionName: '', inputBindings: {}, outputBindings: {} }
         case 'variable':
             return { ...base, kind: 'variable', viewId: 'self', key: '' }
         case 'pageVar':
@@ -133,11 +138,73 @@ function buildDefaultNode(
  *
  * 物料面板由外层的 FlowEditorModal 负责渲染，节点通过拖拽 drop 到此画布上创建。
  */
-const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
+const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange, onNodeSelect }) => {
     const canvasWrapperRef = useRef<HTMLDivElement>(null)
     const canvasElRef = useRef<HTMLCanvasElement | null>(null)
+    // 保持对最新 schema 的 ref 引用，避免 onSchemaChange 闭包捕获旧值
+    const schemaRef = useRef(schema)
+    schemaRef.current = schema
+    const onChangeRef = useRef(onChange)
+    onChangeRef.current = onChange
+    // 标记：当 schema 变更由画布内交互触发时跳过 useEffect 全量重建
+    const skipNextSyncRef = useRef(false)
 
     const serializedPages = useMemo<string[]>(() => [], [])
+
+    /**
+     * 从 Scene 中提取当前所有 NodeView/EdgeView 的状态，
+     * 与当前 schema 中的 FlowNode 详情合并，构建最新 FlowSchema 并回调 onChange。
+     *
+     * 只更新位置和连线关系，节点的业务属性（kind、参数等）保持不变。
+     */
+    const handleSchemaChange = useCallback(() => {
+        if (!appRef.current) return
+        const scene = appRef.current.getCurrentScene()
+        if (!scene) return
+        const currentSchema = schemaRef.current ?? { nodes: [], edges: [] }
+
+        // 从 Scene 中提取节点最新位置
+        const updatedNodes: FlowNode[] = []
+        const updatedEdges: FlowEdge[] = []
+
+        for (const child of scene.children) {
+            if (child instanceof NodeView) {
+                // 找到对应的 schema 节点，保留其业务属性，只更新坐标
+                const existing = currentSchema.nodes.find(n => n.id === child.id)
+                if (existing) {
+                    updatedNodes.push({
+                        ...existing,
+                        x: child.matrix.get(0, 3),
+                        y: child.matrix.get(1, 3),
+                    })
+                }
+            } else if (child instanceof EdgeView) {
+                if (!child.fromPortId || !child.toPortId) continue
+                // 从端口 ID 反推 from/to nodeId 和 branch
+                const fromNodeId = child.fromPortId.replace(/_[^_]+$/, '')
+                const toNodeId = child.toPortId.replace(/_[^_]+$/, '')
+                const fromSuffix = child.fromPortId.slice(fromNodeId.length + 1)
+
+                let branch: 'true' | 'false' | undefined
+                if (fromSuffix === 'true') branch = 'true'
+                else if (fromSuffix === 'false') branch = 'false'
+
+                updatedEdges.push({
+                    id: child.id || `edge_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                    from: fromNodeId,
+                    to: toNodeId,
+                    branch,
+                })
+            }
+        }
+
+        // 设置标记跳过下一次 useEffect 全量重建（Scene 中状态已是最新）
+        skipNextSyncRef.current = true
+        onChangeRef.current({ nodes: updatedNodes, edges: updatedEdges })
+    }, [])
+
+    // app ref（handleSchemaChange 需要引用最新 app）
+    const appRef = useRef<ReturnType<typeof useFlowBanvas>['app']>(null)
 
     const { Canvas, app } = useFlowBanvas(
         serializedPages,
@@ -146,7 +213,9 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
             height: CANVAS_HEIGHT,
             backgroundColor: 'transparent',
         },
+        handleSchemaChange,
     )
+    appRef.current = app
 
     // 拿到 canvas 元素引用，用于 drop 坐标计算
     useEffect(() => {
@@ -157,6 +226,12 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
 
     // ── 同步 schema → 引擎 Scene（schema 变化时重建节点和连线） ──
     useEffect(() => {
+        // 跳过画布内交互触发的 schema 变更（Scene 状态已是最新）
+        if (skipNextSyncRef.current) {
+            skipNextSyncRef.current = false
+            return
+        }
+
         if (!app) return
         const scene = app.getCurrentScene()
         if (!scene) return
@@ -237,12 +312,36 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange }) => {
         })
     }, [schema, onChange])
 
+    // ── 点击选中节点 ──
+
+    const handleClick = useCallback((e: React.MouseEvent) => {
+        if (!onNodeSelect || !schema) return
+
+        const canvasEl = canvasElRef.current ?? canvasWrapperRef.current?.querySelector('canvas')
+        const rect = canvasEl?.getBoundingClientRect() ?? canvasWrapperRef.current?.getBoundingClientRect()
+        const dpr = window.devicePixelRatio || 1
+        const x = rect ? (e.clientX - rect.left) * dpr : 0
+        const y = rect ? (e.clientY - rect.top) * dpr : 0
+
+        // 简单的矩形命中检测（节点宽 140，高 60）
+        const NODE_W = 140
+        const NODE_H = 60
+        const hitNode = schema.nodes.find((node) => {
+            const nx = node.x ?? 0
+            const ny = node.y ?? 0
+            return x >= nx && x <= nx + NODE_W && y >= ny && y <= ny + NODE_H
+        })
+
+        onNodeSelect(hitNode?.id ?? null)
+    }, [onNodeSelect, schema])
+
     return (
         <div
             ref={canvasWrapperRef}
             className={styles.flowCanvasWrapper}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
+            onClick={handleClick}
         >
             {Canvas}
         </div>

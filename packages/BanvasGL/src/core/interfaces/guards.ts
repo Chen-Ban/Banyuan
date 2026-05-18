@@ -12,7 +12,7 @@
 
 import { GRAPHTYPE, VIEWTYPE, ADDONTYPE } from '@/core/constants'
 import type { IGraph, GraphTypeMap } from './IGraph'
-import type { IView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IPortView, INodeView, IEdgeView } from './IView'
+import type { IView, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IPortView, INodeView, IEdgeView } from './IView'
 
 // ────────────────────────────────────────────
 //  Graph 类型守卫
@@ -102,6 +102,11 @@ export function isSelectBoxView(view: IView | null | undefined): view is ViewTyp
 /** 快捷判断：是否为 CombinedView */
 export function isCombinedView(view: IView | null | undefined): view is ViewTypeMap[VIEWTYPE.COMBINEDVIEW] {
     return !!view && view.type === VIEWTYPE.COMBINEDVIEW
+}
+
+/** 快捷判断：是否为 ContainerView（CombinedView 或 NodeView，拥有子节点管理能力） */
+export function isContainerView(view: IView | null | undefined): view is IContainerView {
+    return !!view && (view.type === VIEWTYPE.COMBINEDVIEW || view.type === VIEWTYPE.NODEVIEW)
 }
 
 // ────────────────────────────────────────────

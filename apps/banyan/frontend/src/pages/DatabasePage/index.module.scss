@@ -1,0 +1,368 @@
+// ── 页面骨架 ──────────────────────────────────────────────────────────────────
+
+.page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f5f6f8;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  height: 52px;
+  background: #fff;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+}
+
+.backBtn {
+  color: #8c8c8c;
+  &:hover { color: #1677ff; }
+}
+
+.headerIcon {
+  font-size: 16px;
+  color: #1677ff;
+}
+
+.headerTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.loadingWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.emptyPage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  color: #8c8c8c;
+}
+
+// ── 左侧：表列表 ──────────────────────────────────────────────────────────────
+
+.collectionList {
+  width: 220px;
+  flex-shrink: 0;
+  height: 100%;
+  background: #fff;
+  border-right: 1px solid #e9ecef;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.collectionListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+  flex-shrink: 0;
+}
+
+.collectionListTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c8c8c;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.addBtn {
+  color: #8c8c8c;
+  &:hover { color: #1677ff; }
+}
+
+.collectionItems {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 8px;
+}
+
+.collectionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+
+  &:hover {
+    background: #f5f6f8;
+
+    .collectionDeleteBtn {
+      opacity: 1;
+    }
+  }
+
+  &.collectionItemActive {
+    background: #e6f4ff;
+
+    .collectionItemDisplay { color: #1677ff; }
+    .collectionItemName { color: #69b1ff; }
+    .collectionItemIcon { color: #1677ff; }
+  }
+}
+
+.collectionItemIcon {
+  font-size: 14px;
+  color: #8c8c8c;
+  flex-shrink: 0;
+}
+
+.collectionItemInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.collectionItemDisplay {
+  font-size: 13px;
+  font-weight: 500;
+  color: #262626;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collectionItemName {
+  font-size: 11px;
+  color: #8c8c8c;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collectionDeleteBtn {
+  opacity: 0;
+  font-size: 12px;
+  color: #bfbfbf;
+  flex-shrink: 0;
+  transition: opacity 0.15s, color 0.15s;
+  padding: 2px;
+  border-radius: 3px;
+
+  &:hover {
+    color: #ff4d4f;
+    background: #fff1f0;
+  }
+}
+
+.collectionEmpty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+// 新建表表单
+.addCollectionForm {
+  padding: 8px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.addCollectionActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+// ── 右侧：字段编辑器 ──────────────────────────────────────────────────────────
+
+.fieldEditorWrapper {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.noSelection {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fieldEditor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 24px 32px;
+}
+
+.fieldEditorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.fieldEditorTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fieldEditorTitleIcon {
+  font-size: 18px;
+  color: #1677ff;
+}
+
+.fieldEditorTitleDisplay {
+  font-size: 18px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.fieldEditorTitleName {
+  font-size: 13px;
+  color: #8c8c8c;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  background: #f5f6f8;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+// ── 字段表格 ──────────────────────────────────────────────────────────────────
+
+.fieldTable {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+// 列宽定义（共享给 head / row / addRow）
+$col-field-name:    180px;
+$col-display-name:  180px;
+$col-type:          120px;
+$col-required:      60px;
+$col-actions:       1fr;
+
+.fieldTableHead {
+  display: grid;
+  grid-template-columns: $col-field-name $col-display-name $col-type $col-required $col-actions;
+  padding: 0 16px;
+  height: 38px;
+  align-items: center;
+  background: #fafafa;
+  border-bottom: 1px solid #e9ecef;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c8c8c;
+  gap: 12px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: $col-field-name $col-display-name $col-type $col-required $col-actions;
+  padding: 0 16px;
+  min-height: 44px;
+  align-items: center;
+  border-bottom: 1px solid #f5f5f5;
+  gap: 12px;
+  transition: background 0.1s;
+
+  &:last-child { border-bottom: none; }
+
+  &:hover { background: #fafafa; }
+
+  &.fieldRowBuiltin {
+    background: #fafafa;
+    opacity: 0.7;
+  }
+}
+
+.addFieldRow {
+  display: grid;
+  grid-template-columns: $col-field-name $col-display-name $col-type $col-required $col-actions;
+  padding: 8px 16px;
+  align-items: center;
+  border-top: 1px dashed #e9ecef;
+  gap: 12px;
+  background: #f9fbff;
+}
+
+// 列单元格
+.colFieldName   { min-width: 0; }
+.colDisplayName { min-width: 0; }
+.colType        { min-width: 0; }
+.colRequired    { display: flex; align-items: center; justify-content: center; }
+.colActions     { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+
+.fieldNameText {
+  font-size: 13px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  color: #262626;
+  font-weight: 500;
+}
+
+.fieldDisplayText {
+  font-size: 13px;
+  color: #595959;
+}
+
+.typeTag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Menlo', monospace;
+}
+
+.typeSelect {
+  width: 100%;
+}
+
+.builtinBadge {
+  font-size: 10px;
+  color: #8c8c8c;
+  background: #f0f0f0;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.deleteFieldBtn {
+  opacity: 0.4;
+  transition: opacity 0.15s;
+
+  &:hover { opacity: 1; }
+}
+
+.fieldEmpty {
+  padding: 40px 0;
+}

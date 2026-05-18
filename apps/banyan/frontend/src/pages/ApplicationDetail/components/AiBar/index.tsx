@@ -17,10 +17,13 @@
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Spin, Image } from 'antd'
+import { Spin, Image, Select } from 'antd'
 import { RobotOutlined, CloseOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
 import { useXiangDi } from '@/hooks/useXiangDi'
 import type { ProgressMessage } from '@/hooks/useXiangDi'
+import { aiApi } from '@/api'
+import type { DisambiguationOptions, ProviderInfo } from '@/api'
+import DisambiguationPanel from '@/components/DisambiguationPanel'
 import styles from './index.module.scss'
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -28,6 +31,8 @@ import styles from './index.module.scss'
 export interface AiBarProps {
   appId: string
   onPagesUpdate: (pages: string[]) => void
+  /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
+  onPagesSnapshot?: (pages: string[]) => void
   /** canvasSection 容器的 ref，用于 fixed 定位时对齐水平位置 */
   containerRef: React.RefObject<HTMLDivElement | null>
 }
@@ -42,12 +47,31 @@ interface PastedImage {
 
 // ─── AiBar ────────────────────────────────────────────────────────────────────
 
-const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, containerRef }) => {
+const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, onPagesSnapshot, containerRef }) => {
   const [inputValue, setInputValue] = useState('')
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([])
   const [progressVisible, setProgressVisible] = useState(false)
+  const [disambiguationState, setDisambiguationState] = useState<DisambiguationOptions | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const progressEndRef = useRef<HTMLDivElement>(null)
+
+  // ─── 模型选择 ──────────────────────────────────────────────────────────────
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [activeProvider, setActiveProvider] = useState<string>('')
+
+  useEffect(() => {
+    aiApi.getModels()
+      .then((data) => {
+        setProviders(data.providers)
+        setActiveProvider(data.activeProvider)
+      })
+      .catch(() => { /* 静默失败，不影响主流程 */ })
+  }, [])
+
+  const handleModelChange = useCallback((provider: string) => {
+    setActiveProvider(provider)
+    aiApi.switchModel(provider).catch(() => { /* 静默失败 */ })
+  }, [])
 
   // ─── fixed 定位：跟随 containerRef 的水平位置 ────────────────────────────
   const [fixedStyle, setFixedStyle] = useState<React.CSSProperties>({})
@@ -74,10 +98,17 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, containerRef }) => 
     }
   }, [containerRef])
 
-  const { loading, messages, currentText, sendPrompt, abort, clearMessages } = useXiangDi({
+  const { loading, messages, currentText, sendPrompt, abort, clearMessages, respondToDisambiguation } = useXiangDi({
     appId,
     onDone: (pages) => onPagesUpdate(pages),
+    onPagesSnapshot,
+    onDisambiguation: (options) => setDisambiguationState(options),
   })
+
+  const handleDisambiguationSelect = useCallback(async (choiceId: string) => {
+    await respondToDisambiguation(choiceId)
+    setDisambiguationState(null)
+  }, [respondToDisambiguation])
 
   // 有消息时自动展开进度区
   useEffect(() => {
@@ -169,7 +200,13 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, containerRef }) => 
             {messages.map((msg) => (
               <ProgressItem key={msg.id} message={msg} />
             ))}
-            {loading && messages.length === 0 && !currentText && (
+            {disambiguationState && (
+              <DisambiguationPanel
+                options={disambiguationState}
+                onSelect={handleDisambiguationSelect}
+              />
+            )}
+            {loading && messages.length === 0 && !currentText && !disambiguationState && (
               <div className={styles.loadingPlaceholder}>
                 <Spin size="small" />
                 <span>AI 正在思考...</span>
@@ -224,7 +261,22 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, containerRef }) => 
 
         {/* 底部工具栏 */}
         <div className={styles.toolbar}>
-          <div className={styles.toolbarLeft} />
+          <div className={styles.toolbarLeft}>
+            {providers.length > 0 && (
+              <Select
+                size="small"
+                variant="borderless"
+                value={activeProvider}
+                onChange={handleModelChange}
+                popupMatchSelectWidth={false}
+                className={styles.modelSelect}
+                options={providers.map((p) => ({
+                  value: p.provider,
+                  label: p.model,
+                }))}
+              />
+            )}
+          </div>
           <div className={styles.toolbarRight}>
             {loading ? (
               <button

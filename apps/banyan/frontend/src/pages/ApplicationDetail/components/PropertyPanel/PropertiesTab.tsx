@@ -1,5 +1,5 @@
 import React from 'react'
-import { Checkbox, Input, Tooltip } from 'antd'
+import { Input, Tooltip } from 'antd'
 import type { IBanvasActions, IView } from 'banvasgl'
 import { GRAPHTYPE } from 'banvasgl'
 import NumberInput from './NumberInput'
@@ -123,25 +123,6 @@ const PropertiesTab: React.FC<PropertiesTabProps> = ({
                         precision={4}
                         suffix="rad"
                     />
-                </div>
-            </section>
-
-            {/* 状态 */}
-            <section className={styles.section}>
-                <div className={styles.sectionHeader}>状态</div>
-                <div className={styles.stateRow}>
-                    <Checkbox
-                        checked={view.visible}
-                        onChange={(e) => actions.view.setVisible(selectedViewId, e.target.checked)}
-                    >
-                        可见
-                    </Checkbox>
-                    <Checkbox
-                        checked={view.freezed}
-                        onChange={(e) => actions.view.setLocked(selectedViewId, e.target.checked)}
-                    >
-                        锁定
-                    </Checkbox>
                 </div>
             </section>
 

@@ -114,6 +114,14 @@ export interface FlowSetVisibleNode {
     visible: boolean
 }
 
+/** 调用云函数 */
+export interface FlowCallCloudFunctionNode {
+    kind:          'callCloudFunction'
+    functionName:  string
+    inputBindings: Record<string, FlowValue>
+    outputBindings: Record<string, string>
+}
+
 // ── 值节点（Value Nodes）——无执行语义，只产出一个值供动作节点参数槽引用 ──
 
 /**
@@ -163,6 +171,7 @@ export type FlowNode = {
     | FlowConditionNode
     | FlowDelayNode
     | FlowSetVisibleNode
+    | FlowCallCloudFunctionNode
     | FlowVarNode
     | FlowPageVarNode
     | FlowEventParamNode
@@ -306,7 +315,7 @@ export interface IView {
     id: string
     readonly type: VIEWTYPE
     parent: ISceneNode | IView | null
-    children: IView[]
+    readonly children: IView[]
     matrix: Matrix4
     content: IGraph | null
     viewport: Bounds
@@ -682,7 +691,7 @@ export interface IPortView extends IView {
 }
 
 /** NodeView 接口 */
-export interface INodeView extends IView {
+export interface INodeView extends IContainerView {
     /** 节点标题 */
     nodeTitle: string
 }
@@ -697,12 +706,21 @@ export interface IEdgeView extends IView {
     connect(fromPortId: string, toPortId: string): void
 }
 
-/** CombinedView 接口 */
-export interface ICombinedView extends IView {
+/**
+ * ContainerView 接口 —— 拥有子节点管理能力的容器视图
+ *
+ * 只有容器类型的 View（CombinedView、NodeView）实现此接口。
+ * 叶子视图（GraphView、TextView 等）不实现此接口，其 children 始终为空数组。
+ */
+export interface IContainerView extends IView {
+    readonly children: IView[]
     addChild(child: IView): void
     removeChild(child: IView): void
     clear(): void
 }
+
+/** CombinedView 接口 */
+export interface ICombinedView extends IContainerView {}
 
 /** Input 接口（继承 TextView） */
 export interface IInput extends ITextView {}

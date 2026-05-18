@@ -1,6 +1,6 @@
 import { GRAPHTYPE } from "@/core/constants";
 import Style from "@/core/style/Style";
-import { Point3, Vector3 } from "@/core/math";
+import { Point3, Vector3, Matrix4 } from "@/core/math";
 import CombinedGraph from "@/core/graph/combined/CombinedGraph";
 import Line from "@/core/graph/analytic/Line";
 import { isGraphType, IPolygon, ISerializable } from '@/core/interfaces';
@@ -56,6 +56,42 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
       this.addGraph(line);
     }
     this.bounds = this.updateBounds(orientationX, orientationY)
+  }
+
+  /**
+   * 应用变换矩阵到多边形
+   * 重写父类方法：先调用 super.transform() 变换所有子 Line，
+   * 然后从 Line.controlPoints 重新同步 vertices，修复引用断裂问题。
+   */
+  public override transform(matrix: Matrix4): CombinedGraph {
+    super.transform(matrix);
+    // Line.transform() 会替换 controlPoints 为新的 Point3 对象，
+    // 导致 this.vertices 中的引用失效。这里从变换后的 Lines 重新同步 vertices。
+    this.syncVerticesFromLines();
+    return this;
+  }
+
+  /**
+   * 从子 Line 的 controlPoints 同步 vertices 数组
+   * 每条 Line 的 startPoint 对应一个 vertex（按顺序）
+   */
+  private syncVerticesFromLines(): void {
+    const lines = this.graphs;
+    if (lines.length === 0) return;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i] as Line;
+      if (i < this.vertices.length) {
+        this.vertices[i] = line.startPoint;
+      }
+    }
+    // 非闭合多边形：最后一条 Line 的 endPoint 对应最后一个 vertex
+    if (!this.isClosed && lines.length > 0) {
+      const lastLine = lines[lines.length - 1] as Line;
+      const lastIdx = lines.length; // 非闭合时 vertices 比 lines 多一个
+      if (lastIdx < this.vertices.length) {
+        this.vertices[lastIdx] = lastLine.endPoint;
+      }
+    }
   }
 
   /**

@@ -9,6 +9,7 @@ interface ViewEventsTabProps {
     mode: 'view'
     selectedViewId: string
     actions: IBanvasActions
+    appId?: string
 }
 
 // ── Page 模式 Props ──
@@ -16,6 +17,7 @@ interface PageEventsTabProps {
     mode: 'page'
     pageId: string
     actions: IBanvasActions
+    appId?: string
 }
 
 type EventsTabProps = ViewEventsTabProps | PageEventsTabProps
@@ -148,6 +150,8 @@ const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDel
 const EventsTab: React.FC<EventsTabProps> = (props) => {
     const { actions } = props
     const [modal, setModal] = useState<ModalState>(CLOSED_MODAL)
+    // 必须在所有条件分支之前声明，避免违反 Hooks 规则
+    const [addingEvent, setAddingEvent] = useState<keyof IViewEvents | ''>('')
 
     const openModal = (title: string, schema: FlowSchema | null, onSave: (s: FlowSchema) => void) => {
         setModal({ open: true, title, schema, onSave })
@@ -192,6 +196,7 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                     schema={modal.schema}
                     onChange={handleModalChange}
                     onClose={closeModal}
+                    appId={props.appId}
                 />
             </div>
         )
@@ -206,8 +211,6 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
     const boundEventKeys = ALL_EVENT_KEYS.filter(({ key }) => events[key] !== null)
     // 未绑定的事件 keys（供下拉选择）
     const unboundEventKeys = ALL_EVENT_KEYS.filter(({ key }) => events[key] === null)
-
-    const [addingEvent, setAddingEvent] = useState<keyof IViewEvents | ''>('')
 
     const handleAddEvent = () => {
         if (!addingEvent) return
@@ -286,6 +289,7 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                 schema={modal.schema}
                 onChange={handleModalChange}
                 onClose={closeModal}
+                appId={props.appId}
             />
         </div>
     )
