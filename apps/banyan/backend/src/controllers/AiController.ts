@@ -69,6 +69,91 @@ class AiController {
       }
     }
   }
+
+  /**
+   * POST /api/ai/disambiguation-response
+   *
+   * 转发消歧选择到 XiangDi 服务，resolve 挂起的 AgentLoop。
+   *
+   * 请求体：{ choiceId: string }
+   * 响应：{ success: boolean, error?: string }
+   */
+  async disambiguationResponse(ctx: Context): Promise<void> {
+    const body = ctx.request.body as { choiceId?: string }
+    const choiceId = body?.choiceId?.trim()
+
+    if (!choiceId) {
+      ctx.status = 400
+      ctx.body = { success: false, error: '缺少 choiceId 参数' }
+      return
+    }
+
+    try {
+      const result = await aiService.respondToDisambiguation(choiceId)
+      ctx.body = result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      ctx.status = 500
+      ctx.body = { success: false, error: message }
+    }
+  }
+
+  /**
+   * GET /api/ai/models
+   *
+   * 透传到 XiangDi 服务的 GET /ai/models，返回所有可用 provider 及当前激活状态。
+   *
+   * 响应示例：
+   * {
+   *   "providers": [
+   *     { "provider": "deepseek", "model": "deepseek-chat", "availableModels": [...], "active": true },
+   *     { "provider": "kimi",     "model": "moonshot-v1-32k", "availableModels": [...], "active": false }
+   *   ],
+   *   "activeProvider": "deepseek"
+   * }
+   */
+  async getModels(ctx: Context): Promise<void> {
+    try {
+      const result = await aiService.getModels()
+      ctx.body = result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      ctx.status = 500
+      ctx.body = { success: false, error: message }
+    }
+  }
+
+  /**
+   * POST /api/ai/models/switch
+   *
+   * 透传到 XiangDi 服务的 POST /ai/models/switch，切换激活的 LLM provider。
+   *
+   * 请求体：{ provider: string }
+   *   provider — 目标 provider ID（如 "deepseek" 或 "kimi"）
+   *
+   * 响应：
+   *   成功：{ success: true, activeProvider: string }
+   *   失败：{ success: false, error: string }
+   */
+  async switchModel(ctx: Context): Promise<void> {
+    const body = ctx.request.body as { provider?: string }
+    const provider = body?.provider?.trim()
+
+    if (!provider) {
+      ctx.status = 400
+      ctx.body = { success: false, error: '缺少 provider 参数' }
+      return
+    }
+
+    try {
+      const result = await aiService.switchModel(provider)
+      ctx.body = result
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      ctx.status = 500
+      ctx.body = { success: false, error: message }
+    }
+  }
 }
 
 export default new AiController()

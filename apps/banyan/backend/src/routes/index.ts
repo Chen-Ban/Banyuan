@@ -6,6 +6,7 @@ import buildRouter from './build.js'
 import previewRouter from './preview.js'
 import schemaRouter from './schema.js'
 import dataRouter from './data.js'
+import functionsRouter from './functions.js'
 
 const router = new Router()
 
@@ -28,5 +29,8 @@ router.use(previewRouter.routes(), previewRouter.allowedMethods())
 // Phase 1：后端能力体系
 router.use(schemaRouter.routes(), schemaRouter.allowedMethods())
 router.use(dataRouter.routes(), dataRouter.allowedMethods())
+
+// Phase 2：云函数
+router.use(functionsRouter.routes(), functionsRouter.allowedMethods())
 
 export default router
