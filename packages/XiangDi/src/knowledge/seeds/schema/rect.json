@@ -1,0 +1,12 @@
+{
+  "id": "schema-rect",
+  "content": "# AIRectNode\n\n类型标识: type = \"rect\"\n\n## 描述\n\n矩形节点，最基础的图形容器。可用于背景色块、按钮底板、卡片容器等。\n\n## 属性列表\n\n- **id** (string) [必填] — 唯一标识符\n- **name** (string) [可选] — 可读名称，便于引用\n- **transform** ({ position: { x: number; y: number }; size: { width: number; height: number }; rotation: number; opacity: number }) [必填]\n- **zIndex** (number) [必填] 默认值: 0\n- **locked** (boolean) [必填] 默认值: false\n- **type** (\"rect\") [必填]\n- **fill** ({ type: \"solid\"; color: string | string | \"transparent\" } | { type: \"gradient\"; direction: \"horizontal\" | \"vertical\" | \"diagonal\"; stops: Array<{ offset: number; color: string | string | \"transparent\" }> } | { type: \"none\" }) [必填] 默认值: {\"type\":\"solid\",\"color\":\"#ffffff\"}\n- **stroke** ({ color: string | string | \"transparent\"; width: number; style: \"solid\" | \"dashed\" | \"dotted\" }) [可选]\n- **cornerRadius** (number) [必填] 默认值: 0\n\n## 补充说明\n\n### fill 属性详解\n- solid 填充: { type: \"solid\", color: \"#hex\" }\n- 渐变填充: { type: \"gradient\", direction: \"horizontal\"|\"vertical\"|\"diagonal\", stops: [{ offset: 0-1, color: \"#hex\" }] }\n- 无填充: { type: \"none\" }\n\n### stroke 属性详解\n- { color: \"#hex\", width: number, style: \"solid\"|\"dashed\"|\"dotted\" }\n\n## 最小可用示例\n\n```json\n{\n  \"id\": \"rect-001\",\n  \"type\": \"rect\",\n  \"transform\": {\n    \"position\": {\n      \"x\": 0,\n      \"y\": 0\n    },\n    \"size\": {\n      \"width\": 100,\n      \"height\": 50\n    },\n    \"rotation\": 0,\n    \"opacity\": 1\n  },\n  \"fill\": {\n    \"type\": \"solid\",\n    \"color\": \"#ffffff\"\n  },\n  \"cornerRadius\": 0\n}\n```\n\n## transform 属性详解\n\n所有节点共享的空间变换属性：\n- position: { x: number, y: number } — 左上角为原点的像素坐标\n- size: { width: number(>0), height: number(>0) } — 宽高（像素）\n- rotation: number — 旋转角度（度），默认 0\n- opacity: number(0-1) — 透明度，默认 1",
+  "source": "auto-generated",
+  "metadata": {
+    "category": "schema",
+    "nodeType": "AIRectNode",
+    "typeLiteral": "rect",
+    "schemaName": "AIRectNodeSchema",
+    "version": "0.1.0"
+  }
+}

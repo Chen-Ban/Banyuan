@@ -80,3 +80,12 @@ export type { GraphologyGraphStoreConfig } from "./GraphologyGraphStore.js";
  */
 export { LLMRetrievalRouter, RuleBasedRouter } from "./LLMRetrievalRouter.js";
 export type { RetrievalRouterConfig } from "./LLMRetrievalRouter.js";
+
+// ─── 种子数据工具 ──────────────────────────────────────────────────────────────
+
+/**
+ * 知识种子加载工具
+ * 提供种子文件格式定义和转换函数
+ */
+export { seedToEntry, seedsToEntries } from "./seeds/index.js";
+export type { SeedCategory, SeedFile } from "./seeds/index.js";

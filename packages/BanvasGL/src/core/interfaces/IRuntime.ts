@@ -42,4 +42,12 @@ export interface RuntimeContext {
      * 生命周期钩子（onAttach / onCreated 等）的 eventArgs 为空数组。
      */
     eventArgs: unknown[]
+
+    /**
+     * 应用 ID（可选）
+     *
+     * 用于 callCloudFunction 节点调用后端 API 时标识应用。
+     * 由 useRuntimeBanvas 在构建 RuntimeContext 时注入。
+     */
+    appId?: string
 }

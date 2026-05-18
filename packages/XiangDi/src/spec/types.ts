@@ -31,6 +31,36 @@ export interface ProjectSpecRaw {
 }
 
 /**
+ * 应用数据模型中的字段定义
+ */
+export interface AppSchemaField {
+  /** 字段名 */
+  name: string;
+  /** 字段显示名 */
+  displayName: string;
+  /** 字段类型 */
+  type: string;
+  /** 是否必填 */
+  required: boolean;
+  /** 默认值 */
+  defaultValue?: unknown;
+  /** 引用的 Collection 名（type 为 ref 时） */
+  refCollection?: string;
+  /** 枚举值列表（type 为 enum 时） */
+  enumValues?: string[];
+}
+
+/**
+ * 应用数据模型中的 Collection 定义
+ */
+export interface AppSchemaCollection {
+  /** Collection 名称 */
+  collectionName: string;
+  /** Collection 中的字段列表 */
+  fields: AppSchemaField[];
+}
+
+/**
  * 解析后的项目级规范
  * 包含结构化的约束、惯例、禁止项等
  */
@@ -54,6 +84,12 @@ export interface ProjectSpec {
    * 例如："每次工具调用前先 get_app_state 确认当前状态"
    */
   agentGuidelines: string[];
+  /**
+   * 应用数据模型定义（可选）
+   * 描述应用中所有 Collection 及其字段结构，
+   * 供云函数工具等理解可操作的数据结构
+   */
+  appSchema?: AppSchemaCollection[];
   /** 原始内容，保留用于注入 system prompt */
   raw: ProjectSpecRaw;
 }

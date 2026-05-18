@@ -21,6 +21,7 @@ import type {
     FlowVarNode,
     FlowPageVarNode,
     FlowEventParamNode,
+    FlowCallCloudFunctionNode,
     RuntimeContext,
 } from '@/core/interfaces'
 
@@ -130,6 +131,73 @@ function evalCondition(
 }
 
 // ────────────────────────────────────────────
+//  executeCallCloudFunction —— 云函数调用
+// ────────────────────────────────────────────
+
+/**
+ * 执行 callCloudFunction 节点
+ *
+ * 运行时通过 fetch 调用后端 /api/apps/:appId/functions/:name/run 接口。
+ * appId 从 RuntimeContext.page._app.id 获取（如果可用）。
+ * 结果按 outputBindings 写入对应 View 的 data 字段。
+ */
+async function executeCallCloudFunction(
+    node: FlowCallCloudFunctionNode & { id: string },
+    ctx: RuntimeContext,
+    nodeMap: Map<string, FlowNode>,
+): Promise<void> {
+    if (!node.functionName) {
+        console.warn('[FlowRunner] callCloudFunction: functionName 为空，跳过')
+        return
+    }
+
+    // 构建输入参数
+    const input: Record<string, unknown> = {}
+    for (const [key, flowValue] of Object.entries(node.inputBindings)) {
+        input[key] = resolveValue(flowValue, ctx, nodeMap)
+    }
+
+    // 获取 appId
+    const appId = ctx.appId
+    if (!appId) {
+        console.warn('[FlowRunner] callCloudFunction: RuntimeContext 中无 appId，跳过')
+        return
+    }
+
+    try {
+        const response = await fetch(`/api/apps/${appId}/functions/${encodeURIComponent(node.functionName)}/run`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ input }),
+        })
+        const data = await response.json()
+
+        if (!response.ok || !data.success) {
+            console.warn(`[FlowRunner] callCloudFunction: 调用失败 - ${data.message ?? response.statusText}`)
+            return
+        }
+
+        const result = data.data?.result
+
+        // 按 outputBindings 写入页面变量
+        if (result && typeof result === 'object' && node.outputBindings) {
+            for (const [resultKey, pageVarKey] of Object.entries(node.outputBindings)) {
+                if (!pageVarKey) continue
+                const val = (result as Record<string, unknown>)[resultKey]
+                if (val === undefined) continue
+                // 写入当前页面的 data
+                if (ctx.page) {
+                    const pageData = ctx.page.data as Record<string, unknown>
+                    pageData[pageVarKey] = val
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('[FlowRunner] callCloudFunction: 网络错误', err)
+    }
+}
+
+// ────────────────────────────────────────────
 //  executeNode —— 单节点执行
 // ────────────────────────────────────────────
 
@@ -199,6 +267,11 @@ async function executeNode(
             if (!target) break
             target.setVisible(node.visible)
             ctx.page?.markDirty(target)
+            break
+        }
+
+        case 'callCloudFunction': {
+            await executeCallCloudFunction(node, ctx, nodeMap)
             break
         }
 

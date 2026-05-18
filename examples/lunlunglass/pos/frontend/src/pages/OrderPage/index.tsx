@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Form, Input, InputNumber, Select, Button, Card, Row, Col, message, Space, Modal, List, Tag, Spin } from "antd";
-import { ArrowLeftOutlined, SaveOutlined, UserAddOutlined, PlusOutlined, MinusCircleOutlined, PrinterOutlined, SyncOutlined } from "@ant-design/icons";
+import { Form, Input, InputNumber, Select, Button, Card, Row, Col, message, Space } from "antd";
+import { ArrowLeftOutlined, SaveOutlined, UserAddOutlined, PlusOutlined, MinusCircleOutlined } from "@ant-design/icons";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import type { FormProps } from "antd";
-import { userApi, orderApi, printApi } from "@/api";
-import type { TemplateSnapshotSummary } from "@/api/print";
+import { userApi, orderApi } from "@/api";
+import PrintButton from "@/components/PrintButton";
 import { getErrorMessage } from "@/utils/error";
 import type { User, OrderFormData } from "@/types";
 import styles from "./index.module.scss";
@@ -28,13 +28,6 @@ const OrderPage = () => {
   const [userOptions, setUserOptions] = useState<User[]>([]);
   const [userSearchLoading, setUserSearchLoading] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>();
-
-  // 打印相关状态
-  const [printModalOpen, setPrintModalOpen] = useState(false);
-  const [snapshots, setSnapshots] = useState<TemplateSnapshotSummary[]>([]);
-  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
-  const [printing, setPrinting] = useState(false);
 
   // 搜索用户
   const searchUsers = useCallback(async (searchText?: string) => {
@@ -180,52 +173,6 @@ const OrderPage = () => {
     navigate("/user", { state: { returnTo: "/order" } });
   };
 
-  // ── 打印相关 ──
-
-  const loadSnapshots = useCallback(async () => {
-    setSnapshotsLoading(true);
-    try {
-      const res = await printApi.fetchSnapshots();
-      setSnapshots(res.data ?? []);
-    } catch {
-      message.error("加载模板列表失败");
-    } finally {
-      setSnapshotsLoading(false);
-    }
-  }, []);
-
-  const handleOpenPrintModal = useCallback(() => {
-    setPrintModalOpen(true);
-    loadSnapshots();
-  }, [loadSnapshots]);
-
-  const handleSyncTemplates = useCallback(async () => {
-    setSyncing(true);
-    try {
-      const res = await printApi.syncTemplates();
-      message.success(`同步完成，共同步 ${res.data?.synced ?? 0} 个模板`);
-      loadSnapshots();
-    } catch (error: unknown) {
-      message.error(getErrorMessage(error));
-    } finally {
-      setSyncing(false);
-    }
-  }, [loadSnapshots]);
-
-  const handlePrint = useCallback(async (snapshotId: string) => {
-    if (!id) return;
-    setPrinting(true);
-    try {
-      await printApi.printLabel(snapshotId, id);
-      message.success("打印任务已发送！");
-      setPrintModalOpen(false);
-    } catch (error: unknown) {
-      message.error(getErrorMessage(error));
-    } finally {
-      setPrinting(false);
-    }
-  }, [id]);
-
   const items: OrderItemFormValue[] = Form.useWatch(["orderInfo", "items"], form) || [];
   const totalAmount = items
     .reduce((sum: number, item: OrderItemFormValue | undefined) => {
@@ -247,14 +194,11 @@ const OrderPage = () => {
         </Button>
         <h2>{isEditMode ? "编辑订单" : "新建订单"}</h2>
         {/* 打印按钮：仅编辑模式（已有订单）显示 */}
-        {isEditMode && (
-          <Button
-            icon={<PrinterOutlined />}
-            onClick={handleOpenPrintModal}
+        {isEditMode && id && (
+          <PrintButton
+            orderId={id}
             className={styles.printBtn}
-          >
-            打印标签
-          </Button>
+          />
         )}
       </div>
 
@@ -448,84 +392,6 @@ const OrderPage = () => {
           </Button>
         </div>
       </Form>
-
-      {/* 打印模板选择器 Modal */}
-      <Modal
-        open={printModalOpen}
-        title="选择打印模板"
-        footer={null}
-        onCancel={() => setPrintModalOpen(false)}
-        width={520}
-      >
-        <div className={styles.printModalHeader}>
-          <span className={styles.printModalHint}>选择已同步的模板，打印当前订单标签</span>
-          <Button
-            size="small"
-            icon={<SyncOutlined spin={syncing} />}
-            loading={syncing}
-            onClick={handleSyncTemplates}
-          >
-            同步最新模板
-          </Button>
-        </div>
-
-        {snapshotsLoading ? (
-          <div className={styles.printModalLoading}>
-            <Spin tip="加载模板列表..." />
-          </div>
-        ) : snapshots.length === 0 ? (
-          <div className={styles.printModalEmpty}>
-            暂无已同步的模板，请先点击「同步最新模板」从 Studio 拉取。
-          </div>
-        ) : (
-          <List
-            dataSource={snapshots}
-            renderItem={(snapshot) => (
-              <List.Item
-                key={snapshot.snapshotId}
-                actions={[
-                  <Button
-                    key="print"
-                    type="primary"
-                    size="small"
-                    icon={<PrinterOutlined />}
-                    loading={printing}
-                    onClick={() => handlePrint(snapshot.snapshotId)}
-                  >
-                    打印
-                  </Button>,
-                ]}
-              >
-                <List.Item.Meta
-                  avatar={
-                    snapshot.thumbnail ? (
-                      <img
-                        src={snapshot.thumbnail}
-                        alt={snapshot.templateName}
-                        className={styles.snapshotThumbnail}
-                      />
-                    ) : (
-                      <div className={styles.snapshotThumbnailPlaceholder}>
-                        <PrinterOutlined />
-                      </div>
-                    )
-                  }
-                  title={snapshot.templateName}
-                  description={
-                    <Space size={4}>
-                      <Tag color="blue">{snapshot.paperWidth}mm</Tag>
-                      <Tag>v{snapshot.version}</Tag>
-                      <span className={styles.snapshotDate}>
-                        {new Date(snapshot.publishedAt).toLocaleDateString()}
-                      </span>
-                    </Space>
-                  }
-                />
-              </List.Item>
-            )}
-          />
-        )}
-      </Modal>
     </div>
   );
 };

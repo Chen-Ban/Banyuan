@@ -1,5 +1,7 @@
 export { default as View } from './View/View'
 export type { ViewOptions } from './View/View'
+export { default as ContainerView } from './ContainerView'
+export type { ContainerViewOptions } from './ContainerView'
 export { default as GraphView } from './GraphViews'
 export type { GraphViewOptions } from './GraphViews'
 export { default as SelectBoxView } from './GraphViews/SelectBoxView'

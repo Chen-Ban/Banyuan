@@ -6,7 +6,7 @@ import PropertiesTab from './PropertiesTab'
 import StyleTab from './StyleTab'
 import DataTab from './DataTab'
 import EventsTab from './EventsTab'
-import DatabaseTab from './DatabaseTab'
+import FunctionsTab from './FunctionsTab'
 import styles from './index.module.scss'
 
 interface PropertyPanelProps {
@@ -16,7 +16,6 @@ interface PropertyPanelProps {
     currentPageId: string | null
     canvasSize: { width: number; height: number }
     onCanvasSizeChange: (width: number, height: number) => void
-    /** 当前应用 ID（已保存的应用才有，新建应用为 undefined） */
     appId?: string
 }
 
@@ -66,18 +65,32 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     onUpdate={(key, schema) => {
                         if (currentPageId) actions.page.setPageData(currentPageId, key, schema)
                     }}
+                    onRename={(oldKey, newKey) => {
+                        if (currentPageId) {
+                            const schema = pageData[oldKey]
+                            if (schema) {
+                                actions.page.deletePageData(currentPageId, oldKey)
+                                actions.page.setPageData(currentPageId, newKey, schema)
+                            }
+                        }
+                    }}
                     onDelete={(key) => {
                         if (currentPageId) actions.page.deletePageData(currentPageId, key)
                     }}
-                    onAdd={(key, schema) => {
-                        if (currentPageId) actions.page.setPageData(currentPageId, key, schema)
+                    onAdd={() => {
+                        if (!currentPageId) return
+                        const existingKeys = Object.keys(pageData)
+                        let n = existingKeys.length + 1
+                        let newKey = `field_${n}`
+                        while (existingKeys.includes(newKey)) newKey = `field_${++n}`
+                        actions.page.setPageData(currentPageId, newKey, { type: 'string', default: undefined })
                     }}
                 />
             </div>
         )
 
         const pageEventsTab = currentPageId ? (
-            <EventsTab mode="page" pageId={currentPageId} actions={actions} />
+            <EventsTab mode="page" pageId={currentPageId} actions={actions} appId={appId} />
         ) : null
 
         const SCREEN_PRESETS = [
@@ -150,13 +163,15 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </div>
         )
 
+        const pageFunctionsTab = appId ? (
+            <FunctionsTab appId={appId} />
+        ) : null
+
         const pageTabItems = [
             { key: 'data', label: '数据', children: pageDataTab },
             ...(pageEventsTab ? [{ key: 'events', label: '事件', children: pageEventsTab }] : []),
+            ...(pageFunctionsTab ? [{ key: 'functions', label: '云函数', children: pageFunctionsTab }] : []),
             { key: 'size', label: '页面尺寸', children: pageSizeTab },
-            ...(appId
-                ? [{ key: 'database', label: '数据库', children: <DatabaseTab appId={appId} /> }]
-                : []),
         ]
 
         return (
@@ -213,6 +228,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
                     mode="view"
                     selectedViewId={selectedViewId}
                     actions={actions}
+                    appId={appId}
                 />
             ),
         },

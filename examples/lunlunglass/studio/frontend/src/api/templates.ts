@@ -129,3 +129,26 @@ export function publishTemplate(
 ): Promise<ApiResponse<{ snapshotId: string }>> {
   return post<ApiResponse<{ snapshotId: string }>>(`/templates/${id}/publish`, data)
 }
+
+/**
+ * 样张打印请求数据
+ */
+export interface PrintSampleData {
+  /** 合成后的 PNG Base64 data URL */
+  image: string
+  /** 图片宽度（像素） */
+  width: number
+  /** 图片高度（像素） */
+  height: number
+  /** 模板名称（用于日志） */
+  templateName: string
+}
+
+/**
+ * 打印样张（将合成图发送到本地打印机）
+ */
+export function printSample(
+  data: PrintSampleData
+): Promise<ApiResponse<{ message: string; timestamp: string }>> {
+  return post<ApiResponse<{ message: string; timestamp: string }>>('/print/sample', data)
+}

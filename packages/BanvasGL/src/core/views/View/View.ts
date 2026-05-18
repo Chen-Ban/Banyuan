@@ -63,7 +63,7 @@ export interface InteractResult {
   extraData: ExtraData | null;
 }
 
-// 视图选项接口：TOREVIEW：content和children属性共存的设置是否合理
+// 视图选项接口
 export interface ViewOptions<D extends IFieldSchemaMap = any> {
   id?: string;
   name?: string;
@@ -86,7 +86,17 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public name: string = "";
   public data: D = {} as D;
   public content: IGraph | null;
-  public children: View[] = [];
+  /** 类级空数组常量，避免每次 getter 调用创建新引用 */
+  private static readonly EMPTY_CHILDREN: View[] = []
+
+  /**
+   * 子视图列表。
+   * 基类默认返回空数组（叶子 View 无子节点）。
+   * ContainerView 子类 override 此 getter 返回实际 children。
+   */
+  get children(): View[] {
+    return View.EMPTY_CHILDREN
+  }
   public parent: ISceneNode | View | null = null;
 
   // 事件与生命周期
@@ -420,9 +430,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   constructor(options: ViewOptions<D>) {
-    if (new Set(options?.children?.map((view) => view.parent)).size > 1) {
-      throw new Error("子视图必须属于同一个父视图");
-    }
     // 属性初始化
     this.id = options.id || "";
     this.data = options.data || ({} as D);
@@ -433,7 +440,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     };
     this.matrix = options.matrix ?? Matrix4.identity();
     this.content = options.content ?? null;
-    this.children = options.children ?? [];
     this.parent = options.parent ?? null;
 
     // 生命周期与事件绑定
@@ -465,8 +471,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 2、获取实际布局区域
     // 3、让内容区域进行偏移
     this.layout();
-
-    this.initRef(this.children);
 
     // 触发用户自定义 onCreated 生命周期
     // onCreated 在构造期触发，此时尚未挂载到 Scene，使用退化上下文（无场景能力）
@@ -520,11 +524,9 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public onDestroy(): void {
     // 先触发生命周期（清理前 Scene 引用还在）
     this.getScene()?.triggerSchema(this, this.lifetimes.onDestroy)
-    // 再清理引用
+    // 清理引用（children 的清理由 ContainerView 子类负责）
     this.parent = null;
     this.content = null;
-    this.children.forEach((child) => child.onDestroy());
-    this.children = [];
     this.boundingBox = null;
   }
 
@@ -930,12 +932,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     if (data.matrix) this.matrix = Matrix4.fromJSON(data.matrix);
     if (data.viewport) this.viewport = Bounds.fromJSON(data.viewport);
     if (data.constraintBounds) this.constraintBounds = Bounds.fromJSON(data.constraintBounds);
-    if (data.children) {
-      data.children.forEach((child: View) => {
-        this.children.push(child);
-        child.parent = this;
-      });
-    }
+    // children 的恢复由 ContainerView 子类的 restoreFromJSON override 负责
     this.restoreLayout();
   }
 

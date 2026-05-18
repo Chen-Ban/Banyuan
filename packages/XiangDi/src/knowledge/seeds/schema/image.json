@@ -1,0 +1,12 @@
+{
+  "id": "schema-image",
+  "content": "# AIImageNode\n\n类型标识: type = \"image\"\n\n## 描述\n\n图片节点，通过 URL 引用外部图片资源。支持 fill/contain/cover 三种适配模式。\n\n## 属性列表\n\n- **id** (string) [必填] — 唯一标识符\n- **name** (string) [可选] — 可读名称，便于引用\n- **transform** ({ position: { x: number; y: number }; size: { width: number; height: number }; rotation: number; opacity: number }) [必填]\n- **zIndex** (number) [必填] 默认值: 0\n- **locked** (boolean) [必填] 默认值: false\n- **type** (\"image\") [必填]\n- **src** (string) [必填] — 图片 URL\n- **objectFit** (\"fill\" | \"contain\" | \"cover\") [必填] 默认值: \"cover\"\n\n## 最小可用示例\n\n```json\n{\n  \"id\": \"image-001\",\n  \"type\": \"image\",\n  \"transform\": {\n    \"position\": {\n      \"x\": 0,\n      \"y\": 0\n    },\n    \"size\": {\n      \"width\": 200,\n      \"height\": 150\n    },\n    \"rotation\": 0,\n    \"opacity\": 1\n  },\n  \"src\": \"https://example.com/image.png\",\n  \"objectFit\": \"cover\"\n}\n```\n\n## transform 属性详解\n\n所有节点共享的空间变换属性：\n- position: { x: number, y: number } — 左上角为原点的像素坐标\n- size: { width: number(>0), height: number(>0) } — 宽高（像素）\n- rotation: number — 旋转角度（度），默认 0\n- opacity: number(0-1) — 透明度，默认 1",
+  "source": "auto-generated",
+  "metadata": {
+    "category": "schema",
+    "nodeType": "AIImageNode",
+    "typeLiteral": "image",
+    "schemaName": "AIImageNodeSchema",
+    "version": "0.1.0"
+  }
+}

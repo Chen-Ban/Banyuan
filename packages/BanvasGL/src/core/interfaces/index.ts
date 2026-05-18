@@ -51,6 +51,7 @@ export type {
     FlowConditionNode,
     FlowDelayNode,
     FlowSetVisibleNode,
+    FlowCallCloudFunctionNode,
     FlowVarNode,
     FlowPageVarNode,
     FlowEventParamNode,
@@ -85,6 +86,7 @@ export type {
     IImageView,
     IVideoView,
     ITextView,
+    IContainerView,
     ICombinedView,
     ISelection,
     IInput,
@@ -206,6 +208,7 @@ export {
     isTextView,
     isSelectBoxView,
     isCombinedView,
+    isContainerView,
     isBoundingBoxAddon,
     isVertexAddon,
     // 流程编辑器

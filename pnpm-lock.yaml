@@ -163,6 +163,9 @@ importers:
       '@koa/router':
         specifier: ^13.1.0
         version: 13.1.1
+      banvasgl:
+        specifier: workspace:*
+        version: link:../../packages/BanvasGL
       koa:
         specifier: ^2.15.3
         version: 2.16.3
@@ -197,155 +200,6 @@ importers:
       concurrently:
         specifier: ^9.2.1
         version: 9.2.1
-
-  examples/lunlunglass/backend:
-    dependencies:
-      '@koa/cors':
-        specifier: ^5.0.0
-        version: 5.0.0
-      '@koa/router':
-        specifier: ^13.0.0
-        version: 13.1.1
-      canvas:
-        specifier: ^3.2.3
-        version: 3.2.3
-      dotenv:
-        specifier: ^16.4.5
-        version: 16.6.1
-      jsbarcode:
-        specifier: ^3.12.3
-        version: 3.12.3
-      koa:
-        specifier: ^2.15.0
-        version: 2.16.3
-      koa-body:
-        specifier: ^6.0.1
-        version: 6.0.1
-      koa-json:
-        specifier: ^2.0.2
-        version: 2.0.2
-      koa-logger:
-        specifier: ^3.1.0
-        version: 3.2.1
-      mongoose:
-        specifier: ^8.7.0
-        version: 8.20.1
-      qrcode:
-        specifier: ^1.5.4
-        version: 1.5.4
-    devDependencies:
-      '@types/koa':
-        specifier: ^2.15.0
-        version: 2.15.0
-      '@types/koa-json':
-        specifier: ^2.0.20
-        version: 2.0.24
-      '@types/koa-logger':
-        specifier: ^3.1.0
-        version: 3.1.5
-      '@types/koa__cors':
-        specifier: ^5.0.1
-        version: 5.0.1
-      '@types/koa__router':
-        specifier: ^12.0.5
-        version: 12.0.5
-      '@types/node':
-        specifier: ^22.10.1
-        version: 22.19.0
-      '@types/qrcode':
-        specifier: ^1.5.6
-        version: 1.5.6
-      tsx:
-        specifier: ^4.19.2
-        version: 4.20.6
-      typescript:
-        specifier: ~5.7.3
-        version: 5.7.3
-
-  examples/lunlunglass/electron:
-    devDependencies:
-      '@types/node':
-        specifier: ^22.10.2
-        version: 22.19.0
-      banvasgl:
-        specifier: workspace:*
-        version: link:../../../packages/BanvasGL
-      concurrently:
-        specifier: ^9.2.1
-        version: 9.2.1
-      electron:
-        specifier: ^36.1.0
-        version: 36.9.5
-      typescript:
-        specifier: ~5.7.2
-        version: 5.7.3
-      wait-on:
-        specifier: ^8.0.1
-        version: 8.0.5
-
-  examples/lunlunglass/frontend:
-    dependencies:
-      '@ant-design/icons':
-        specifier: ^6.1.0
-        version: 6.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      antd:
-        specifier: ^6.0.0
-        version: 6.0.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      react:
-        specifier: ^19.0.0
-        version: 19.2.0
-      react-dom:
-        specifier: ^19.0.0
-        version: 19.2.0(react@19.2.0)
-      react-router-dom:
-        specifier: ^7.9.1
-        version: 7.9.5(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-    devDependencies:
-      '@eslint/js':
-        specifier: ^9.22.0
-        version: 9.39.1
-      '@types/chokidar':
-        specifier: ^2.1.7
-        version: 2.1.7
-      '@types/react':
-        specifier: ^19.0.10
-        version: 19.2.2
-      '@types/react-dom':
-        specifier: ^19.0.4
-        version: 19.2.2(@types/react@19.2.2)
-      '@vitejs/plugin-react':
-        specifier: ^4.3.4
-        version: 4.7.0(vite@6.4.1(@types/node@22.19.0)(sass@1.94.2)(tsx@4.20.6))
-      banvasgl:
-        specifier: workspace:*
-        version: link:../../../packages/BanvasGL
-      chokidar:
-        specifier: ^4.0.3
-        version: 4.0.3
-      eslint:
-        specifier: ^9.22.0
-        version: 9.39.1
-      eslint-plugin-react-hooks:
-        specifier: ^5.2.0
-        version: 5.2.0(eslint@9.39.1)
-      eslint-plugin-react-refresh:
-        specifier: ^0.4.19
-        version: 0.4.24(eslint@9.39.1)
-      globals:
-        specifier: ^16.0.0
-        version: 16.5.0
-      sass:
-        specifier: ^1.83.0
-        version: 1.94.2
-      typescript:
-        specifier: ~5.7.2
-        version: 5.7.3
-      typescript-eslint:
-        specifier: ^8.26.1
-        version: 8.46.4(eslint@9.39.1)(typescript@5.7.3)
-      vite:
-        specifier: ^6.3.1
-        version: 6.4.1(@types/node@22.19.0)(sass@1.94.2)(tsx@4.20.6)
 
   examples/lunlunglass/pos/backend:
     dependencies:
@@ -670,6 +524,9 @@ importers:
       tsup:
         specifier: ^8.4.0
         version: 8.5.0(postcss@8.5.6)(tsx@4.20.6)(typescript@5.7.3)
+      tsx:
+        specifier: ^4.19.0
+        version: 4.20.6
 
   packages/XiangDi:
     dependencies:
@@ -1314,6 +1171,7 @@ packages:
   '@lancedb/lancedb@0.27.2':
     resolution: {integrity: sha1-9/ippYpBmr/o1JB22xzyrWUPjG0=, tarball: http://r.npm.sankuai.com/@lancedb/lancedb/download/@lancedb/lancedb-0.27.2.tgz}
     engines: {node: '>= 18'}
+    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     peerDependencies:
       apache-arrow: '>=15.0.0 <=18.1.0'
@@ -2186,15 +2044,9 @@ packages:
   balanced-match@1.0.2:
     resolution: {integrity: sha1-6D46fj8wCzTLnYf2FfoMvzV2kO4=, tarball: http://r.npm.sankuai.com/balanced-match/download/balanced-match-1.0.2.tgz}
 
-  base64-js@1.5.1:
-    resolution: {integrity: sha1-GxtEAWClv3rUC2UPCVljSBkDkwo=, tarball: http://r.npm.sankuai.com/base64-js/download/base64-js-1.5.1.tgz}
-
   baseline-browser-mapping@2.8.25:
     resolution: {integrity: sha1-lH3G+Bd44PoEJKKrnqCaMDPnEQk=, tarball: http://r.npm.sankuai.com/baseline-browser-mapping/download/baseline-browser-mapping-2.8.25.tgz}
     hasBin: true
-
-  bl@4.1.0:
-    resolution: {integrity: sha1-RRU1JkGCvsL7vIOmKrmM8R2fezo=, tarball: http://r.npm.sankuai.com/bl/download/bl-4.1.0.tgz}
 
   boolean@3.2.0:
     resolution: {integrity: sha1-nlKUr06YMUSUy7F5efpUyhWfEWs=, tarball: http://r.npm.sankuai.com/boolean/download/boolean-3.2.0.tgz}
@@ -2221,9 +2073,6 @@ packages:
 
   buffer-crc32@0.2.13:
     resolution: {integrity: sha1-DTM+PwDqxQqhRUq9MO+MKl2ackI=, tarball: http://r.npm.sankuai.com/buffer-crc32/download/buffer-crc32-0.2.13.tgz}
-
-  buffer@5.7.1:
-    resolution: {integrity: sha1-umLnwTEzBTWCGXFghRqPZI6Z7tA=, tarball: http://r.npm.sankuai.com/buffer/download/buffer-5.7.1.tgz}
 
   bundle-require@5.1.0:
     resolution: {integrity: sha1-jbZvQZUNo9d68e8zIvTD4EAJ+u4=, tarball: http://r.npm.sankuai.com/bundle-require/download/bundle-require-5.1.0.tgz}
@@ -2274,10 +2123,6 @@ packages:
     resolution: {integrity: sha1-VT2HseAijHrA/HKIfDrbrEq72GA=, tarball: http://r.npm.sankuai.com/canvas/download/canvas-2.11.2.tgz}
     engines: {node: '>=6'}
 
-  canvas@3.2.3:
-    resolution: {integrity: sha1-bqlpeneKqqmrjiwECResbUGEitQ=, tarball: http://r.npm.sankuai.com/canvas/download/canvas-3.2.3.tgz}
-    engines: {node: ^18.12.0 || >= 20.9.0}
-
   chalk-template@0.4.0:
     resolution: {integrity: sha1-aSwDTQ7WJDa5BiwXB/rc0PdTIEs=, tarball: http://r.npm.sankuai.com/chalk-template/download/chalk-template-0.4.0.tgz}
     engines: {node: '>=12'}
@@ -2293,9 +2138,6 @@ packages:
   chokidar@4.0.3:
     resolution: {integrity: sha1-e+N6TAPJruHs/oYqSiOyxwwgXTA=, tarball: http://r.npm.sankuai.com/chokidar/download/chokidar-4.0.3.tgz}
     engines: {node: '>= 14.16.0'}
-
-  chownr@1.1.4:
-    resolution: {integrity: sha1-b8nXtC0ypYNZYzdmbn0ICE2izGs=, tarball: http://r.npm.sankuai.com/chownr/download/chownr-1.1.4.tgz}
 
   chownr@2.0.0:
     resolution: {integrity: sha1-Fb++U9LqtM9w8YqM1o6+Wzyx3s4=, tarball: http://r.npm.sankuai.com/chownr/download/chownr-2.0.0.tgz}
@@ -2439,10 +2281,6 @@ packages:
 
   deep-equal@1.0.1:
     resolution: {integrity: sha1-9dJgKStmDghO/0zbyfCK0yR0SLU=, tarball: http://r.npm.sankuai.com/deep-equal/download/deep-equal-1.0.1.tgz}
-
-  deep-extend@0.6.0:
-    resolution: {integrity: sha1-xPp8lUBKF6nD6Mp+FTcxK3NjMKw=, tarball: http://r.npm.sankuai.com/deep-extend/download/deep-extend-0.6.0.tgz}
-    engines: {node: '>=4.0.0'}
 
   deep-is@0.1.4:
     resolution: {integrity: sha1-pvLc5hL63S7x9Rm3NVHxfoUZmDE=, tarball: http://r.npm.sankuai.com/deep-is/download/deep-is-0.1.4.tgz}
@@ -2635,10 +2473,6 @@ packages:
     resolution: {integrity: sha1-Mala0Kkk4tLEGagTrrLE6HjqdAA=, tarball: http://r.npm.sankuai.com/events/download/events-3.3.0.tgz}
     engines: {node: '>=0.8.x'}
 
-  expand-template@2.0.3:
-    resolution: {integrity: sha1-bhSz/O4POmNA7LV9LokYaSBSpHw=, tarball: http://r.npm.sankuai.com/expand-template/download/expand-template-2.0.3.tgz}
-    engines: {node: '>=6'}
-
   extract-zip@2.0.1:
     resolution: {integrity: sha1-Zj3KVv5G34kNXxMe9KBtIruLoTo=, tarball: http://r.npm.sankuai.com/extract-zip/download/extract-zip-2.0.1.tgz}
     engines: {node: '>= 10.17.0'}
@@ -2747,9 +2581,6 @@ packages:
     resolution: {integrity: sha1-PYyt2Q2XZWn6g1qx+OSyOhBWBac=, tarball: http://r.npm.sankuai.com/fresh/download/fresh-0.5.2.tgz}
     engines: {node: '>= 0.6'}
 
-  fs-constants@1.0.0:
-    resolution: {integrity: sha1-a+Dem+mYzhavivwkSXue6bfM2a0=, tarball: http://r.npm.sankuai.com/fs-constants/download/fs-constants-1.0.0.tgz}
-
   fs-extra@8.1.0:
     resolution: {integrity: sha1-SdQ8RaiM2Wd2aMt74bRu/bjS4cA=, tarball: http://r.npm.sankuai.com/fs-extra/download/fs-extra-8.1.0.tgz}
     engines: {node: '>=6 <7 || >=8'}
@@ -2799,9 +2630,6 @@ packages:
 
   get-tsconfig@4.13.0:
     resolution: {integrity: sha1-/N2ZHm0iq5pgDwDpHDGHB6XZoNc=, tarball: http://r.npm.sankuai.com/get-tsconfig/download/get-tsconfig-4.13.0.tgz}
-
-  github-from-package@0.0.0:
-    resolution: {integrity: sha1-l/tdlr/eiXMxPyDoKI75oWf6ZM4=, tarball: http://r.npm.sankuai.com/github-from-package/download/github-from-package-0.0.0.tgz}
 
   glob-parent@5.1.2:
     resolution: {integrity: sha1-hpgyxYA0/mikCTwX3BXoNA2EAcQ=, tarball: http://r.npm.sankuai.com/glob-parent/download/glob-parent-5.1.2.tgz}
@@ -2934,9 +2762,6 @@ packages:
     resolution: {integrity: sha1-ICK0sl+93CHS9SSXSkdKr+czkIs=, tarball: http://r.npm.sankuai.com/iconv-lite/download/iconv-lite-0.4.24.tgz}
     engines: {node: '>=0.10.0'}
 
-  ieee754@1.2.1:
-    resolution: {integrity: sha1-jrehCmP/8l0VpXsAFYbRd9Gw01I=, tarball: http://r.npm.sankuai.com/ieee754/download/ieee754-1.2.1.tgz}
-
   ignore@5.3.2:
     resolution: {integrity: sha1-PNQOcp82Q/2HywTlC/DrcivFlvU=, tarball: http://r.npm.sankuai.com/ignore/download/ignore-5.3.2.tgz}
     engines: {node: '>= 4'}
@@ -2966,9 +2791,6 @@ packages:
 
   inherits@2.0.4:
     resolution: {integrity: sha1-D6LGT5MpF8NDOg3tVTY6rjdBa3w=, tarball: http://r.npm.sankuai.com/inherits/download/inherits-2.0.4.tgz}
-
-  ini@1.3.8:
-    resolution: {integrity: sha1-op2kJbSIBvNHZ6Tvzjlyaa8oQyw=, tarball: http://r.npm.sankuai.com/ini/download/ini-1.3.8.tgz}
 
   is-extglob@2.1.1:
     resolution: {integrity: sha1-qIwCU1eR8C7TfHahueqXc8gz+MI=, tarball: http://r.npm.sankuai.com/is-extglob/download/is-extglob-2.1.1.tgz}
@@ -3215,9 +3037,6 @@ packages:
     resolution: {integrity: sha1-6Q00Zrogm5MkUVCKEc49NjIUWTE=, tarball: http://r.npm.sankuai.com/minizlib/download/minizlib-2.1.2.tgz}
     engines: {node: '>= 8'}
 
-  mkdirp-classic@0.5.3:
-    resolution: {integrity: sha1-+hDJEVzG2IZb4iG6R+6b7XhgERM=, tarball: http://r.npm.sankuai.com/mkdirp-classic/download/mkdirp-classic-0.5.3.tgz}
-
   mkdirp@1.0.4:
     resolution: {integrity: sha1-PrXtYmInVteaXw4qIh3+utdcL34=, tarball: http://r.npm.sankuai.com/mkdirp/download/mkdirp-1.0.4.tgz}
     engines: {node: '>=10'}
@@ -3285,19 +3104,12 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  napi-build-utils@2.0.0:
-    resolution: {integrity: sha1-E8IsAYf8/MzhRhhEE2NypH3cAn4=, tarball: http://r.npm.sankuai.com/napi-build-utils/download/napi-build-utils-2.0.0.tgz}
-
   natural-compare@1.4.0:
     resolution: {integrity: sha1-Sr6/7tdUHywnrPspvbvRXI1bpPc=, tarball: http://r.npm.sankuai.com/natural-compare/download/natural-compare-1.4.0.tgz}
 
   negotiator@0.6.3:
     resolution: {integrity: sha1-WOMjpy/twNb5zU0x/kn1FHlZDM0=, tarball: http://r.npm.sankuai.com/negotiator/download/negotiator-0.6.3.tgz}
     engines: {node: '>= 0.6'}
-
-  node-abi@3.92.0:
-    resolution: {integrity: sha1-GOIhRndJm43agf/NCVr8dj1amAI=, tarball: http://r.npm.sankuai.com/node-abi/download/node-abi-3.92.0.tgz}
-    engines: {node: '>=10'}
 
   node-addon-api@7.1.1:
     resolution: {integrity: sha1-Grpmk7DyVSWKBJ1iEykykyKq1Vg=, tarball: http://r.npm.sankuai.com/node-addon-api/download/node-addon-api-7.1.1.tgz}
@@ -3500,12 +3312,6 @@ packages:
     resolution: {integrity: sha1-KCUAZhWmGbT2Kp50JswSCzSajzw=, tarball: http://r.npm.sankuai.com/postcss/download/postcss-8.5.6.tgz}
     engines: {node: ^10 || ^12 || >=14}
 
-  prebuild-install@7.1.3:
-    resolution: {integrity: sha1-1jCrrSsUdEPyCiEpF76uaLgJLuw=, tarball: http://r.npm.sankuai.com/prebuild-install/download/prebuild-install-7.1.3.tgz}
-    engines: {node: '>=10'}
-    deprecated: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
-    hasBin: true
-
   prelude-ls@1.2.1:
     resolution: {integrity: sha1-3rxkidem5rDnYRiIzsiAM30xY5Y=, tarball: http://r.npm.sankuai.com/prelude-ls/download/prelude-ls-1.2.1.tgz}
     engines: {node: '>= 0.8.0'}
@@ -3581,10 +3387,6 @@ packages:
     peerDependencies:
       react: '>=16.9.0'
       react-dom: '>=16.9.0'
-
-  rc@1.2.8:
-    resolution: {integrity: sha1-zZJL9SAKB1uDwYjNa54hG3/A0+0=, tarball: http://r.npm.sankuai.com/rc/download/rc-1.2.8.tgz}
-    hasBin: true
 
   react-dom@19.2.0:
     resolution: {integrity: sha1-AO0elZw2XpqdSPiRg3dGVGbsOvg=, tarball: http://r.npm.sankuai.com/react-dom/download/react-dom-19.2.0.tgz}
@@ -3781,9 +3583,6 @@ packages:
   simple-get@3.1.1:
     resolution: {integrity: sha1-zHunfPvnYQNvv849AhryX8VYTVU=, tarball: http://r.npm.sankuai.com/simple-get/download/simple-get-3.1.1.tgz}
 
-  simple-get@4.0.1:
-    resolution: {integrity: sha1-SjnbVJKHyXnTUhEvoD/Zn9a8NUM=, tarball: http://r.npm.sankuai.com/simple-get/download/simple-get-4.0.1.tgz}
-
   source-map-js@1.2.1:
     resolution: {integrity: sha1-HOVlD93YerwJnto33P8CTCZnrkY=, tarball: http://r.npm.sankuai.com/source-map-js/download/source-map-js-1.2.1.tgz}
     engines: {node: '>=0.10.0'}
@@ -3832,10 +3631,6 @@ packages:
     resolution: {integrity: sha1-Eyh1q95njH6o1pFTPy5+Irt0Tbo=, tarball: http://r.npm.sankuai.com/strip-ansi/download/strip-ansi-7.1.2.tgz}
     engines: {node: '>=12'}
 
-  strip-json-comments@2.0.1:
-    resolution: {integrity: sha1-PFMZQukIwml8DsNEhYwobHygpgo=, tarball: http://r.npm.sankuai.com/strip-json-comments/download/strip-json-comments-2.0.1.tgz}
-    engines: {node: '>=0.10.0'}
-
   strip-json-comments@3.1.1:
     resolution: {integrity: sha1-MfEoGzgyYwQ0gxwxDAHMzajL4AY=, tarball: http://r.npm.sankuai.com/strip-json-comments/download/strip-json-comments-3.1.1.tgz}
     engines: {node: '>=8'}
@@ -3867,13 +3662,6 @@ packages:
   table-layout@4.1.1:
     resolution: {integrity: sha1-D3KWXeGlwMFBnJuiHK5Oc6L3OkI=, tarball: http://r.npm.sankuai.com/table-layout/download/table-layout-4.1.1.tgz}
     engines: {node: '>=12.17'}
-
-  tar-fs@2.1.4:
-    resolution: {integrity: sha1-gAgk2/TvBt7Zr+pKyv5xxnx2uTA=, tarball: http://r.npm.sankuai.com/tar-fs/download/tar-fs-2.1.4.tgz}
-
-  tar-stream@2.2.0:
-    resolution: {integrity: sha1-rK2EwoQTawYNw/qmRHSqmuvXcoc=, tarball: http://r.npm.sankuai.com/tar-stream/download/tar-stream-2.2.0.tgz}
-    engines: {node: '>=6'}
 
   tar@6.2.1:
     resolution: {integrity: sha1-cXVJxUG8PCrxV1G+qUsd0GjUsDo=, tarball: http://r.npm.sankuai.com/tar/download/tar-6.2.1.tgz}
@@ -3958,9 +3746,6 @@ packages:
     resolution: {integrity: sha1-j7gD/ZwfcOjMyTtdfF4Dw5ecyy4=, tarball: http://r.npm.sankuai.com/tsx/download/tsx-4.20.6.tgz}
     engines: {node: '>=18.0.0'}
     hasBin: true
-
-  tunnel-agent@0.6.0:
-    resolution: {integrity: sha1-J6XeoGs2sEoKmWZ3SykIaPD8QP0=, tarball: http://r.npm.sankuai.com/tunnel-agent/download/tunnel-agent-0.6.0.tgz}
 
   type-check@0.4.0:
     resolution: {integrity: sha1-B7ggO/pwVsBlcFDjzNLDdzC6uPE=, tarball: http://r.npm.sankuai.com/type-check/download/type-check-0.4.0.tgz}
@@ -5684,15 +5469,7 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  base64-js@1.5.1: {}
-
   baseline-browser-mapping@2.8.25: {}
-
-  bl@4.1.0:
-    dependencies:
-      buffer: 5.7.1
-      inherits: 2.0.4
-      readable-stream: 3.6.2
 
   boolean@3.2.0: {}
 
@@ -5720,11 +5497,6 @@ snapshots:
   bson@6.10.4: {}
 
   buffer-crc32@0.2.13: {}
-
-  buffer@5.7.1:
-    dependencies:
-      base64-js: 1.5.1
-      ieee754: 1.2.1
 
   bundle-require@5.1.0(esbuild@0.25.12):
     dependencies:
@@ -5777,11 +5549,6 @@ snapshots:
       - encoding
       - supports-color
 
-  canvas@3.2.3:
-    dependencies:
-      node-addon-api: 7.1.1
-      prebuild-install: 7.1.3
-
   chalk-template@0.4.0:
     dependencies:
       chalk: 4.1.2
@@ -5800,8 +5567,6 @@ snapshots:
   chokidar@4.0.3:
     dependencies:
       readdirp: 4.1.2
-
-  chownr@1.1.4: {}
 
   chownr@2.0.0: {}
 
@@ -5932,8 +5697,6 @@ snapshots:
       mimic-response: 3.1.0
 
   deep-equal@1.0.1: {}
-
-  deep-extend@0.6.0: {}
 
   deep-is@0.1.4: {}
 
@@ -6141,8 +5904,6 @@ snapshots:
 
   events@3.3.0: {}
 
-  expand-template@2.0.3: {}
-
   extract-zip@2.0.1:
     dependencies:
       debug: 4.4.3
@@ -6258,8 +6019,6 @@ snapshots:
 
   fresh@0.5.2: {}
 
-  fs-constants@1.0.0: {}
-
   fs-extra@8.1.0:
     dependencies:
       graceful-fs: 4.2.11
@@ -6320,8 +6079,6 @@ snapshots:
   get-tsconfig@4.13.0:
     dependencies:
       resolve-pkg-maps: 1.0.0
-
-  github-from-package@0.0.0: {}
 
   glob-parent@5.1.2:
     dependencies:
@@ -6477,8 +6234,6 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
-  ieee754@1.2.1: {}
-
   ignore@5.3.2: {}
 
   ignore@7.0.5: {}
@@ -6500,8 +6255,6 @@ snapshots:
       wrappy: 1.0.2
 
   inherits@2.0.4: {}
-
-  ini@1.3.8: {}
 
   is-extglob@2.1.1: {}
 
@@ -6747,8 +6500,6 @@ snapshots:
       minipass: 3.3.6
       yallist: 4.0.0
 
-  mkdirp-classic@0.5.3: {}
-
   mkdirp@1.0.4: {}
 
   mlly@1.8.0:
@@ -6812,17 +6563,12 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  napi-build-utils@2.0.0: {}
-
   natural-compare@1.4.0: {}
 
   negotiator@0.6.3: {}
 
-  node-abi@3.92.0:
-    dependencies:
-      semver: 7.7.3
-
-  node-addon-api@7.1.1: {}
+  node-addon-api@7.1.1:
+    optional: true
 
   node-domexception@1.0.0: {}
 
@@ -6989,21 +6735,6 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  prebuild-install@7.1.3:
-    dependencies:
-      detect-libc: 2.1.2
-      expand-template: 2.0.3
-      github-from-package: 0.0.0
-      minimist: 1.2.8
-      mkdirp-classic: 0.5.3
-      napi-build-utils: 2.0.0
-      node-abi: 3.92.0
-      pump: 3.0.3
-      rc: 1.2.8
-      simple-get: 4.0.1
-      tar-fs: 2.1.4
-      tunnel-agent: 0.6.0
-
   prelude-ls@1.2.1: {}
 
   process-nextick-args@2.0.1: {}
@@ -7096,13 +6827,6 @@ snapshots:
       rc-util: 5.44.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
-
-  rc@1.2.8:
-    dependencies:
-      deep-extend: 0.6.0
-      ini: 1.3.8
-      minimist: 1.2.8
-      strip-json-comments: 2.0.1
 
   react-dom@19.2.0(react@19.2.0):
     dependencies:
@@ -7341,12 +7065,6 @@ snapshots:
       once: 1.4.0
       simple-concat: 1.0.1
 
-  simple-get@4.0.1:
-    dependencies:
-      decompress-response: 6.0.0
-      once: 1.4.0
-      simple-concat: 1.0.1
-
   source-map-js@1.2.1: {}
 
   source-map@0.8.0-beta.0:
@@ -7394,8 +7112,6 @@ snapshots:
     dependencies:
       ansi-regex: 6.2.2
 
-  strip-json-comments@2.0.1: {}
-
   strip-json-comments@3.1.1: {}
 
   stylis@4.3.6: {}
@@ -7432,21 +7148,6 @@ snapshots:
     dependencies:
       array-back: 6.2.3
       wordwrapjs: 5.1.1
-
-  tar-fs@2.1.4:
-    dependencies:
-      chownr: 1.1.4
-      mkdirp-classic: 0.5.3
-      pump: 3.0.3
-      tar-stream: 2.2.0
-
-  tar-stream@2.2.0:
-    dependencies:
-      bl: 4.1.0
-      end-of-stream: 1.4.5
-      fs-constants: 1.0.0
-      inherits: 2.0.4
-      readable-stream: 3.6.2
 
   tar@6.2.1:
     dependencies:
@@ -7536,10 +7237,6 @@ snapshots:
       get-tsconfig: 4.13.0
     optionalDependencies:
       fsevents: 2.3.3
-
-  tunnel-agent@0.6.0:
-    dependencies:
-      safe-buffer: 5.2.1
 
   type-check@0.4.0:
     dependencies:

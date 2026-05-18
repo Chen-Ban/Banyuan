@@ -1,6 +1,6 @@
 .pageList {
-  width: 200px;
-  min-width: 200px;
+  width: 100%;
+  height: 100%;
   background-color: #fafafa;
   border-right: 1px solid #e9ecef;
   display: flex;
@@ -30,7 +30,12 @@
   width: 100%;
   user-select: none;
 
-  &:hover .deleteBtn {
+  // 默认隐藏按钮组，hover 时显示
+  .nodeBtns {
+    opacity: 0;
+  }
+
+  &:hover .nodeBtns {
     opacity: 1;
   }
 }
@@ -40,25 +45,52 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
-.deleteBtn {
-  opacity: 0;
+// 按钮组容器
+.nodeBtns {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+  margin-left: 4px;
+  transition: opacity 0.15s;
+}
+
+// 单个操作按钮
+.nodeBtn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  font-size: 10px;
-  color: #8c8c8c;
-  border-radius: 2px;
-  transition: opacity 0.15s, color 0.15s, background-color 0.15s;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  color: #bfbfbf;
   cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
 
   &:hover {
-    color: #ff4d4f;
-    background-color: #fff1f0;
+    color: #595959;
+    background-color: #f0f0f0;
+  }
+
+  // 激活态（锁定中 / 隐藏中）
+  &.nodeBtnActive {
+    color: #1677ff;
+
+    &:hover {
+      color: #0958d9;
+      background-color: #e6f4ff;
+    }
+  }
+
+  // 危险态（删除）
+  &.nodeBtnDanger {
+    &:hover {
+      color: #ff4d4f;
+      background-color: #fff1f0;
+    }
   }
 }
 

@@ -1,0 +1,218 @@
+// ── 云函数管理面板 ──
+
+.container {
+  padding: 12px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.headerTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+// ── 函数列表 ──
+
+.functionList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.functionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+  background: #fff;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:hover {
+    border-color: #3498db;
+    box-shadow: 0 1px 4px rgba(52, 152, 219, 0.1);
+  }
+
+  &.active {
+    border-color: #3498db;
+    background: #f0f7ff;
+  }
+}
+
+.functionInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.functionName {
+  font-size: 12px;
+  font-weight: 500;
+  color: #2c3e50;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.functionDesc {
+  font-size: 10px;
+  color: #95a5a6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.functionActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+// ── 空状态 ──
+
+.empty {
+  text-align: center;
+  padding: 24px 12px;
+  color: #bdc3c7;
+  font-size: 11px;
+}
+
+// ── 编辑器弹窗内容 ──
+
+.editorContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.editorMeta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.editorField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  &.fullWidth {
+    grid-column: 1 / -1;
+  }
+}
+
+.editorLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: #7f8c8d;
+}
+
+.codeArea {
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+// ── 校验结果 ──
+
+.validateResult {
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 4px;
+
+  &.valid {
+    color: #27ae60;
+    background: #eafaf1;
+  }
+
+  &.invalid {
+    color: #e74c3c;
+    background: #fdf0ef;
+  }
+}
+
+// ── 测试运行面板 ──
+
+.runPanel {
+  border-top: 1px solid #ecf0f1;
+  padding-top: 12px;
+}
+
+.runPanelTitle {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7f8c8d;
+  margin-bottom: 8px;
+}
+
+.runResult {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 11px;
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.runLogs {
+  margin-top: 6px;
+  padding: 6px 10px;
+  background: #2c3e50;
+  color: #ecf0f1;
+  border-radius: 4px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 10px;
+  max-height: 100px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+// ── AI 优化区域 ──
+
+.aiPreviewSection {
+  margin-top: 8px;
+  padding: 0 2px;
+}
+
+.aiError {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #ff4d4f;
+}
+
+.aiLoading {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #f6f0ff;
+  border: 1px solid #d3adf7;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #722ed1;
+  text-align: center;
+}

@@ -25,13 +25,29 @@
  *     情况 A（进程未重启）：JSON { success: true, resumed: 'in_process' }
  *     情况 B（进程已重启）：text/event-stream（SSE），重建执行上下文后实时推送后续事件
  *
+ * GET /ai/models
+ *   Response: { providers: ModelInfo[], activeProvider: string }
+ *   返回所有已注册 provider 的模型信息及当前激活状态
+ *
+ * POST /ai/models/switch
+ *   Body: { provider: string }
+ *   Response: { success: boolean, activeProvider?: string, error?: string }
+ *   运行时切换激活的 LLM provider（deepseek / kimi）
+ *
  * SSE 事件类型：
- *   text_delta   — LLM 输出的文字片段 { text: string }
- *   tool_call    — 工具调用开始 { id, name, input }
- *   tool_result  — 工具调用结果 { id, result, isError }
- *   human_gate   — 等待人工决策 { runId, trigger, prompt }
- *   done         — 完成，携带最终 pages { pages: string[] }
- *   error        — 发生错误 { message: string }
+ *   text_delta      — LLM 输出的文字片段 { text: string }
+ *   tool_call       — 工具调用开始 { id, name, input }
+ *   tool_result     — 工具调用结果 { id, name, result, isError }
+ *   pages_snapshot  — 写操作后实时推送当前 pages { pages: string[] }
+ *   human_gate      — 等待人工决策 { runId, trigger, prompt }
+ *   disambiguation  — 检测到意图冲突，推送消歧选项 { conflictContext, options }
+ *   done            — 完成，携带最终 pages { pages: string[] }
+ *   error           — 发生错误 { message: string }
+ *
+ * POST /ai/disambiguation-response
+ *   Body: { choiceId: string }
+ *   Response: { success: boolean }
+ *   当前端用户选择消歧方案后，调用此端点 resolve 挂起的 AgentLoop
  *
  * 架构说明：
  *   prompt → SpecPlanner（规划）→ ChangeSpec
@@ -58,14 +74,19 @@ import {
     AgentLifecycle,
     createBanvasToolRegistry,
     buildSystemPrompt,
+    generateAISchemaDoc,
     SSEHarnessRunner,
     injectHumanDecision,
     LocalCheckpointStore,
     SpecPlanner,
     DefaultMemoryManager,
+    LLMRouter,
+    LanceDBKnowledgeStore,
+    registerKnowledgeSearchTool,
 } from 'xiangdi'
-import { createLLMClient } from '../llm/createLLMClient.js'
+import { createLLMClient, getModelsInfo, switchProvider, PROVIDER_CATALOG } from '../llm/createLLMClient.js'
 import type { BanvasHostAdapter, HumanDecision } from 'xiangdi'
+import { version as banvasglVersion } from 'banvasgl'
 import path from 'node:path'
 import os from 'node:os'
 
@@ -82,6 +103,18 @@ function sseWrite(res: ServerResponse, event: string, data: unknown): void {
 function sseDone(res: ServerResponse): void {
     if (!res.writableEnded) res.end()
 }
+
+// ─── 写操作工具集合（执行后需推送 pages_snapshot）────────────────
+
+const WRITE_TOOLS = new Set([
+    'banvas_create_page',
+    'banvas_add_node',
+    'banvas_update_node',
+    'banvas_delete_node',
+    'banvas_move_node',
+    'banvas_resize_node',
+    'banvas_apply_patch',
+])
 
 // ─── 内存 BanvasHostAdapter（pages 随请求传入，不访问 MongoDB）────────────────
 
@@ -129,22 +162,50 @@ setInterval(() => {
     checkpointStore.cleanup().catch(() => {})
 }, 60 * 60 * 1000)
 
+// ─── Disambiguation Pending 存储（request-scoped，一个 SSE 连接对应一个 pending）─
+
+/**
+ * 存储当前挂起的消歧 pending resolve 函数。
+ * Key: 自增 ID（每次 SSE 连接一个），Value: resolve 函数。
+ * 因为一个 SSE 连接对应一次 Agent 运行，所以用最近一个 pending 即可。
+ */
+let disambiguationPendingResolve: ((choiceId: string) => void) | null = null
+
+// ─── 工具函数：根据当前激活 provider 获取模型名 ───────────────────────────────
+
+function getActiveModel(router: LLMRouter): string {
+    return router.getActiveProviderId() === 'kimi'
+        ? (process.env.KIMI_MODEL ?? 'moonshot-v1-32k')
+        : (process.env.DEEPSEEK_MODEL ?? 'deepseek-chat')
+}
+
+// ─── AISchema 文档（启动时生成一次，注入所有 system prompt）─────────────────
+
+const aiSchemaDoc = generateAISchemaDoc();
+
+// ─── 版本化 KnowledgeStore（以 BanvasGL version 作为命名空间）─────────────
+
+const knowledgeStore = new LanceDBKnowledgeStore({
+    tableName: `knowledge_v${banvasglVersion}`,
+});
+
 // ─── 共享：构建 AgentLoop + 订阅 SSE ─────────────────────────────────────────
 
 /**
  * 构建 AgentLoop 并将 StreamBridge 事件桥接到 SSE 响应
  * 返回 { loop, unsubscribe }，调用方负责在 finally 中调用 unsubscribe()
  */
-function buildLoopWithSSE(res: ServerResponse, systemPrompt: string) {
+function buildLoopWithSSE(res: ServerResponse, systemPrompt: string, activeModel: string): { loop: AgentLoop; adapter: ReturnType<typeof createMemoryAdapter>; context: ContextManager; unsubscribe: () => void } {
     const adapter = createMemoryAdapter([])
     const registry = createBanvasToolRegistry(adapter)
+    registerKnowledgeSearchTool(registry, knowledgeStore)
     const context = new ContextManager()
     const lifecycle = new AgentLifecycle()
 
     const loop = new AgentLoop(
         {
             llm: {
-                model: 'deepseek-chat',
+                model: activeModel,
                 maxTokens: 8192,
                 temperature: 0.3,
             },
@@ -168,12 +229,26 @@ function buildLoopWithSSE(res: ServerResponse, systemPrompt: string) {
                     input: event.data.input,
                 })
                 break
-            case 'tool_result':
+            case 'tool_result': {
                 sseWrite(res, 'tool_result', {
                     id: event.data.tool_use_id,
+                    name: event.data.name,
                     result: event.data.result,
                     isError: event.data.is_error ?? false,
                 })
+                // 写操作工具执行完毕后，立即推送 pages_snapshot
+                if (WRITE_TOOLS.has(event.data.name)) {
+                    adapter.getPages().then((currentPages) => {
+                        sseWrite(res, 'pages_snapshot', { pages: currentPages })
+                    }).catch(() => { /* 静默失败 */ })
+                }
+                break
+            }
+            case 'disambiguation':
+                sseWrite(res, 'disambiguation', event.data.options)
+                break
+            case 'disambiguation_pending':
+                disambiguationPendingResolve = event.data.resolve
                 break
             case 'error':
                 sseWrite(res, 'error', { message: event.data.error.message })
@@ -224,9 +299,12 @@ router.post('/run', async (ctx) => {
         // 1. 构建内存 adapter（pages 来自请求体，不访问 MongoDB）
         const adapter = createMemoryAdapter(pages)
         const registry = createBanvasToolRegistry(adapter)
+        registerKnowledgeSearchTool(registry, knowledgeStore)
 
         // 2. 初始化 LLM 客户端
         const client = await createLLMClient()
+        const llmRouter = client as LLMRouter
+        const activeModel = getActiveModel(llmRouter)
 
         // 3. 构建 ContextManager，注入历史消息
         const context = new ContextManager()
@@ -243,13 +321,13 @@ router.post('/run', async (ctx) => {
         const lifecycle = new AgentLifecycle()
         // 若有跨会话记忆提示，追加到 system prompt 末尾
         const systemPrompt = memoryHint
-            ? `${buildSystemPrompt()}\n\n---\n${memoryHint}`
-            : buildSystemPrompt()
+            ? `${buildSystemPrompt({ aiSchemaDoc })}\n\n---\n${memoryHint}`
+            : buildSystemPrompt({ aiSchemaDoc })
 
         const loop = new AgentLoop(
             {
                 llm: {
-                    model: 'deepseek-chat',
+                    model: activeModel,
                     maxTokens: 8192,
                     temperature: 0.3,
                 },
@@ -274,12 +352,27 @@ router.post('/run', async (ctx) => {
                         input: event.data.input,
                     })
                     break
-                case 'tool_result':
+                case 'tool_result': {
                     sseWrite(res, 'tool_result', {
                         id: event.data.tool_use_id,
+                        name: event.data.name,
                         result: event.data.result,
                         isError: event.data.is_error ?? false,
                     })
+                    // 写操作工具执行完毕后，立即推送 pages_snapshot
+                    if (WRITE_TOOLS.has(event.data.name)) {
+                        adapter.getPages().then((currentPages) => {
+                            sseWrite(res, 'pages_snapshot', { pages: currentPages })
+                        }).catch(() => { /* 静默失败 */ })
+                    }
+                    break
+                }
+                case 'disambiguation':
+                    sseWrite(res, 'disambiguation', event.data.options)
+                    break
+                case 'disambiguation_pending':
+                    // 存储 pending resolve，等待前端通过 POST /ai/disambiguation-response 调用
+                    disambiguationPendingResolve = event.data.resolve
                     break
                 case 'error':
                     sseWrite(res, 'error', { message: event.data.error.message })
@@ -291,7 +384,7 @@ router.post('/run', async (ctx) => {
             // 5. SpecPlanner：将自然语言 prompt 规划为 ChangeSpec
             const planner = new SpecPlanner({
                 client,
-                model: 'deepseek-chat',
+                model: activeModel,
                 maxTokens: 2048,
             })
             const { spec } = await planner.plan(prompt)
@@ -358,8 +451,9 @@ router.post('/summarize', async (ctx) => {
 
     try {
         const client = await createLLMClient()
+        const activeModel = getActiveModel(client as LLMRouter)
         const response = await client.createMessage({
-            model: 'deepseek-chat',
+            model: activeModel,
             max_tokens: 256,
             temperature: 0.3,
             system: '你是一个对话摘要助手，请用简洁的中文一句话概括用户提供的对话内容。',
@@ -443,7 +537,8 @@ router.post('/resume/:runId', async (ctx) => {
 
     try {
         const client = await createLLMClient()
-        const { loop, adapter, context, unsubscribe } = buildLoopWithSSE(res, buildSystemPrompt())
+        const activeModel = getActiveModel(client as LLMRouter)
+        const { loop, adapter, context, unsubscribe } = buildLoopWithSSE(res, buildSystemPrompt({ aiSchemaDoc }), activeModel)
 
         const storagePath = getMemoryStoragePath(body.appId ?? 'default')
         const memory = new DefaultMemoryManager({ storagePath })
@@ -481,6 +576,98 @@ router.post('/resume/:runId', async (ctx) => {
     } finally {
         sseDone(res)
     }
+})
+
+// ─── POST /ai/disambiguation-response ─────────────────────────────────────────
+//
+// 前端用户选择消歧方案后调用，resolve 挂起的 AgentLoop
+//
+// 请求体：{ choiceId: string }
+// 响应：{ success: boolean, error?: string }
+
+router.post('/disambiguation-response', async (ctx) => {
+    const { choiceId } = ctx.request.body as { choiceId?: string }
+
+    if (!choiceId || typeof choiceId !== 'string') {
+        ctx.status = 400
+        ctx.body = { success: false, error: 'choiceId (string) is required' }
+        return
+    }
+
+    if (!disambiguationPendingResolve) {
+        ctx.status = 404
+        ctx.body = { success: false, error: 'No pending disambiguation to resolve' }
+        return
+    }
+
+    // resolve 挂起的 Promise，恢复 AgentLoop 执行
+    disambiguationPendingResolve(choiceId)
+    disambiguationPendingResolve = null
+    ctx.body = { success: true }
+})
+
+// ─── GET /ai/models ───────────────────────────────────────────────────────────
+//
+// 返回所有已注册 provider 的模型信息及当前激活状态
+//
+// 响应示例：
+// {
+//   "providers": [
+//     { "provider": "deepseek", "model": "deepseek-chat", "availableModels": [...], "active": true },
+//     { "provider": "kimi",     "model": "moonshot-v1-32k", "availableModels": [...], "active": false }
+//   ],
+//   "activeProvider": "deepseek"
+// }
+
+router.get('/models', async (ctx) => {
+    try {
+        const providers = await getModelsInfo()
+        const activeProvider = providers.find((p) => p.active)?.provider ?? 'deepseek'
+        ctx.body = { providers, activeProvider }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        ctx.status = 500
+        ctx.body = { success: false, error: message }
+    }
+})
+
+// ─── POST /ai/models/switch ───────────────────────────────────────────────────
+//
+// 运行时切换激活的 LLM provider
+//
+// 请求体：{ provider: string }
+//   provider — 目标 provider ID，可选值见 GET /ai/models 返回的 providers[].provider
+//
+// 响应：
+//   成功：{ success: true, activeProvider: string }
+//   失败：{ success: false, error: string }
+
+router.post('/models/switch', async (ctx) => {
+    const { provider } = ctx.request.body as { provider?: string }
+
+    if (!provider || typeof provider !== 'string') {
+        ctx.status = 400
+        ctx.body = { success: false, error: 'provider is required' }
+        return
+    }
+
+    if (!PROVIDER_CATALOG[provider]) {
+        ctx.status = 400
+        ctx.body = {
+            success: false,
+            error: `Unknown provider "${provider}". Available: ${Object.keys(PROVIDER_CATALOG).join(', ')}`,
+        }
+        return
+    }
+
+    const switched = await switchProvider(provider)
+    if (!switched) {
+        ctx.status = 500
+        ctx.body = { success: false, error: `Failed to switch to provider "${provider}"` }
+        return
+    }
+
+    ctx.body = { success: true, activeProvider: provider }
 })
 
 export default router

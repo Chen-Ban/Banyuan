@@ -1,0 +1,80 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  border-radius: 10px;
+  margin: 8px 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.headerIcon {
+  color: #faad14;
+  font-size: 14px;
+}
+
+.headerText {
+  font-size: 13px;
+  color: #333;
+}
+
+.context {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px !important;
+  line-height: 1.5;
+}
+
+.optionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.optionCard {
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  :global(.ant-card-body) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+  }
+}
+
+.optionCardSelected {
+  border-color: #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.1);
+}
+
+.optionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.optionDesc {
+  font-size: 13px;
+  color: #1a1a1a;
+  line-height: 1.4;
+}
+
+.optionEffect {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.optionBtn {
+  flex-shrink: 0;
+}

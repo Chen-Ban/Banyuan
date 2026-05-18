@@ -1,7 +1,9 @@
 import { VIEWTYPE } from '@/core/constants'
 import { INodeView } from '@/core/interfaces'
 import { Point3 } from '@/core/math'
-import View, { InteractResult, ViewOptions } from '@/core/views/View/View'
+import type { InteractResult, ViewOptions } from '@/core/views/View/View'
+import ContainerView from '@/core/views/ContainerView/index.js'
+import type { ContainerViewOptions } from '@/core/views/ContainerView/index.js'
 import { Rectangle } from '@/core/graph'
 import Bounds from '@/core/graph/base/Bounds'
 import PortView from './PortView'
@@ -21,7 +23,7 @@ export interface PortDefinition {
     index?: number
 }
 
-export interface NodeViewOptions extends ViewOptions {
+export interface NodeViewOptions extends ContainerViewOptions {
     nodeTitle?: string
     ports?: PortDefinition[]
 }
@@ -35,7 +37,7 @@ export interface NodeViewOptions extends ViewOptions {
  *
  * interact 优先级：PortView child > BoundingBox > 节点内容
  */
-export default class NodeView extends View implements INodeView {
+export default class NodeView extends ContainerView implements INodeView {
     public readonly type = VIEWTYPE.NODEVIEW
     public nodeTitle: string
 
@@ -85,8 +87,7 @@ export default class NodeView extends View implements INodeView {
                     : nodeW                   // 向右突出
 
                 port.translate(x, y, 0)
-                port.parent = this
-                this.children.push(port)
+                this.addChild(port)
             })
         }
 
