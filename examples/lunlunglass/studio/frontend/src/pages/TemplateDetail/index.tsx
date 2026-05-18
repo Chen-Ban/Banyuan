@@ -17,8 +17,20 @@ import ComponentPalette from "./components/ComponentPalette";
 import PropertyPanel from "./components/PropertyPanel";
 import PageList from "./components/PageList";
 import ContextMenu from "./components/ContextMenu";
+import PrintPreview from "@/components/PrintPreview";
 
 const AUTO_SAVE_DELAY = 800;
+
+/**
+ * Studio 组件面板裁剪：只保留与热敏打印相关的组件类型 ID。
+ * 过滤掉贝塞尔曲线、圆形等不适用于热敏打印的组件。
+ */
+const PRINT_COMPONENT_IDS = [
+  'builtin.text',        // 文本（TextView）
+  'builtin.image',       // 图片（ImageView）
+  'builtin.rounded-rect', // 矩形/分隔线（RectView）
+  'builtin.line',        // 直线/分隔线
+];
 
 const TemplateDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,6 +45,7 @@ const TemplateDetail = () => {
   const [publishing, setPublishing] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewDataUrl, setPreviewDataUrl] = useState<string>("");
+  const [printPreviewVisible, setPrintPreviewVisible] = useState(false);
 
   // 用于自动保存名称/描述的 debounce
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,6 +108,11 @@ const TemplateDetail = () => {
     contextMenu,
     builtinComponents,
   } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
+
+  const printComponents = useMemo(
+    () => builtinComponents.filter(c => PRINT_COMPONENT_IDS.includes(c.id)),
+    [builtinComponents],
+  );
 
   /**
    * 自动保存名称/描述（仅已有模板，debounce）
@@ -310,7 +328,7 @@ const TemplateDetail = () => {
         onSave={handleSave}
         onBack={handleBack}
         onPreview={handlePreview}
-        builtinComponents={builtinComponents}
+        builtinComponents={printComponents}
         publishing={publishing}
         onPublish={handlePublish}
       />
@@ -396,9 +414,27 @@ const TemplateDetail = () => {
                 发布模板
               </Button>
             )}
+            {/* 样张打印按钮 */}
+            <Button
+              onClick={() => {
+                setPreviewVisible(false);
+                setPrintPreviewVisible(true);
+              }}
+              style={{ marginTop: 8 }}
+            >
+              打印样张
+            </Button>
           </div>
         </div>
       </Modal>
+      <PrintPreview
+        visible={printPreviewVisible}
+        onClose={() => setPrintPreviewVisible(false)}
+        actions={actions}
+        pages={pages}
+        canvasSize={canvasSize}
+        templateName={templateName}
+      />
     </div>
   );
 };

@@ -5,7 +5,7 @@ const router = new Router({ prefix: '/api' })
 
 /**
  * POST /api/print
- * 执行打印（接收 snapshotId + orderId）
+ * 执行打印（接收 snapshotId + orderId，从本地配置读取打印机信息）
  */
 router.post('/print', printController.print.bind(printController))
 
@@ -14,6 +14,24 @@ router.post('/print', printController.print.bind(printController))
  * 预览合成图片（不发送打印）
  */
 router.post('/print/preview', printController.preview.bind(printController))
+
+/**
+ * GET /api/print/config
+ * 读取打印机配置
+ */
+router.get('/print/config', printController.getPrinterConfig.bind(printController))
+
+/**
+ * PUT /api/print/config
+ * 保存打印机配置
+ */
+router.put('/print/config', printController.savePrinterConfig.bind(printController))
+
+/**
+ * POST /api/print/config/test
+ * 测试打印机连接
+ */
+router.post('/print/config/test', printController.testPrinterConnection.bind(printController))
 
 /**
  * GET /api/templates/snapshots

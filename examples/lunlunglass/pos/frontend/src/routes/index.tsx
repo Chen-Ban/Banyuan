@@ -3,6 +3,7 @@ import HomePage from "@/pages/index"
 import ListPage from "@/pages/List"
 import OrderPage from "@/pages/OrderPage"
 import UserPage from "@/pages/UserPage"
+import PrinterConfigPage from "@/pages/Settings/PrinterConfig"
 
 const routes: RouteObject[] = [
   {
@@ -28,6 +29,10 @@ const routes: RouteObject[] = [
   {
     path: '/user/:id',
     element: <UserPage />,
+  },
+  {
+    path: '/settings/printer',
+    element: <PrinterConfigPage />,
   },
 ]
 

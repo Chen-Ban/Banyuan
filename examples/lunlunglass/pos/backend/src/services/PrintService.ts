@@ -8,26 +8,28 @@
  * 4. 按字段注册表的 dataPath 从上下文中取值
  * 5. 调用 @lunlunglass/printer 合成图像 → ESC/POS 编码 → 发送打印机
  *
- * 废弃：PrintFieldMapping 模型（旧架构）
+ * 打印机连接配置：从 ~/.lunlunglass-pos/printer.json 读取
  */
 
+import crypto from 'crypto'
 import { TemplateSnapshot, Order, User } from '../models/index.js'
 import { getFieldByKey } from '../config/fields.js'
 import { ImageComposer, EscPosEncoder, PrinterTransport } from '@lunlunglass/printer'
-import type { TransportConfig, PrintConfig } from '@lunlunglass/printer'
+import type { PrintConfig } from '@lunlunglass/printer'
 import type { ISnapshotField } from '../models/TemplateSnapshot.js'
+import * as PrinterConfigService from './PrinterConfigService.js'
 
 export interface PrintRequest {
   /** 模板快照 ID */
   snapshotId: string
   /** 订单 ID（业务 orderId 或 MongoDB _id） */
   orderId: string
-  /** 打印机连接配置 */
-  printer: TransportConfig
 }
 
 export interface PrintResult {
   success: boolean
+  /** 打印任务 ID */
+  printJobId?: string
   /** 合成图片的 PNG Buffer（可用于预览） */
   composedImage?: Buffer
   error?: string
@@ -67,10 +69,58 @@ function resolveFieldValues(
 }
 
 /**
+ * 生成唯一的打印任务 ID
+ */
+function generatePrintJobId(): string {
+  const timestamp = Date.now().toString(36)
+  const random = crypto.randomUUID().slice(0, 8)
+  return `PJ-${timestamp}-${random}`
+}
+
+/**
+ * 构建 PrintConfig（@lunlunglass/printer 格式）
+ */
+function buildPrintConfig(snapshot: {
+  paperWidth: number
+  dpi: number
+  backgroundImage: string
+  backgroundSize: { width: number; height: number }
+  fields: ISnapshotField[]
+}): PrintConfig {
+  return {
+    paperWidth: snapshot.paperWidth,
+    dpi: snapshot.dpi,
+    backgroundImage: snapshot.backgroundImage,
+    backgroundSize: snapshot.backgroundSize,
+    fields: snapshot.fields.map((f) => ({
+      key: f.key,
+      label: f.label,
+      type: f.type,
+      bounds: f.bounds,
+      textStyle: f.textStyle,
+      codeStyle: f.codeStyle,
+      defaultValue: f.defaultValue,
+    })),
+  }
+}
+
+/**
+ * 查询订单（支持业务 orderId 或 MongoDB _id）
+ */
+async function findOrder(orderId: string) {
+  const { Types } = await import('mongoose')
+  if (Types.ObjectId.isValid(orderId)) {
+    return Order.findById(orderId).lean()
+  }
+  return Order.findOne({ orderId }).lean()
+}
+
+/**
  * 执行打印
+ * 从 ~/.lunlunglass-pos/printer.json 读取打印机配置
  */
 export async function print(request: PrintRequest): Promise<PrintResult> {
-  const { snapshotId, orderId, printer } = request
+  const { snapshotId, orderId } = request
 
   try {
     // 1. 获取模板快照
@@ -80,11 +130,7 @@ export async function print(request: PrintRequest): Promise<PrintResult> {
     }
 
     // 2. 查询订单
-    const { Types } = await import('mongoose')
-    const order = Types.ObjectId.isValid(orderId)
-      ? await Order.findById(orderId).lean()
-      : await Order.findOne({ orderId }).lean()
-
+    const order = await findOrder(orderId)
     if (!order) {
       return { success: false, error: `Order not found: ${orderId}` }
     }
@@ -101,22 +147,8 @@ export async function print(request: PrintRequest): Promise<PrintResult> {
     // 5. 解析字段值
     const fieldValues = resolveFieldValues(snapshot.fields, context)
 
-    // 6. 构建 PrintConfig（@lunlunglass/printer 格式）
-    const printConfig: PrintConfig = {
-      paperWidth: snapshot.paperWidth,
-      dpi: snapshot.dpi,
-      backgroundImage: snapshot.backgroundImage,
-      backgroundSize: snapshot.backgroundSize,
-      fields: snapshot.fields.map((f) => ({
-        key: f.key,
-        label: f.label,
-        type: f.type,
-        bounds: f.bounds,
-        textStyle: f.textStyle,
-        codeStyle: f.codeStyle,
-        defaultValue: f.defaultValue,
-      })),
-    }
+    // 6. 构建 PrintConfig
+    const printConfig = buildPrintConfig(snapshot)
 
     // 7. 合成图像
     const pngBuffer = await ImageComposer.compose(printConfig, fieldValues)
@@ -124,10 +156,15 @@ export async function print(request: PrintRequest): Promise<PrintResult> {
     // 8. 编码为 ESC/POS 命令
     const escPosData = await EscPosEncoder.encode(pngBuffer)
 
-    // 9. 发送到打印机
-    await PrinterTransport.send(escPosData, printer)
+    // 9. 读取打印机配置并发送
+    const printerConfig = PrinterConfigService.getConfig()
+    const transportConfig = PrinterConfigService.toTransportConfig(printerConfig)
+    await PrinterTransport.send(escPosData, transportConfig)
 
-    return { success: true, composedImage: pngBuffer }
+    // 10. 生成打印任务 ID
+    const printJobId = generatePrintJobId()
+
+    return { success: true, printJobId, composedImage: pngBuffer }
   } catch (err: unknown) {
     const error = err as Error
     return { success: false, error: error.message || String(err) }
@@ -147,11 +184,7 @@ export async function preview(
       return { success: false, error: `Snapshot not found: ${snapshotId}` }
     }
 
-    const { Types } = await import('mongoose')
-    const order = Types.ObjectId.isValid(orderId)
-      ? await Order.findById(orderId).lean()
-      : await Order.findOne({ orderId }).lean()
-
+    const order = await findOrder(orderId)
     if (!order) {
       return { success: false, error: `Order not found: ${orderId}` }
     }
@@ -163,24 +196,9 @@ export async function preview(
 
     const context = { order, user }
     const fieldValues = resolveFieldValues(snapshot.fields, context)
-
-    const printConfig: PrintConfig = {
-      paperWidth: snapshot.paperWidth,
-      dpi: snapshot.dpi,
-      backgroundImage: snapshot.backgroundImage,
-      backgroundSize: snapshot.backgroundSize,
-      fields: snapshot.fields.map((f) => ({
-        key: f.key,
-        label: f.label,
-        type: f.type,
-        bounds: f.bounds,
-        textStyle: f.textStyle,
-        codeStyle: f.codeStyle,
-        defaultValue: f.defaultValue,
-      })),
-    }
-
+    const printConfig = buildPrintConfig(snapshot)
     const pngBuffer = await ImageComposer.compose(printConfig, fieldValues)
+
     return { success: true, composedImage: pngBuffer }
   } catch (err: unknown) {
     const error = err as Error
