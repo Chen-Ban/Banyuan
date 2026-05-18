@@ -1,5 +1,5 @@
 {
-  "name": "@banyuan/xiangdi-server",
+  "name": "xiangdi-server",
   "version": "0.0.1",
   "description": "XiangDi AI Agent 独立 HTTP 服务",
   "main": "dist/server.js",
