@@ -21,6 +21,10 @@ import { ToolRegistry } from "./ToolRegistry.js";
 import { ContextManager } from "./ContextManager.js";
 import { StreamBridge } from "./StreamBridge.js";
 import { AgentLifecycle } from "./AgentLifecycle.js";
+import { ConflictDetector, DecisionLog } from "./ConflictDetector.js";
+import { DisambiguationHandler } from "./DisambiguationHandler.js";
+import type { ConflictReport } from "./ConflictDetector.js";
+import type { DisambiguationOptions } from "./DisambiguationHandler.js";
 
 // ─── 最小化 Anthropic SDK 类型（避免强依赖，运行时由调用方注入）─────────────
 
@@ -43,6 +47,18 @@ export interface LLMResponse {
   >;
 }
 
+// ─── 消歧事件类型 ──────────────────────────────────────────────────────────────
+
+/** 消歧挂起句柄，由外部调用 resolve 恢复执行 */
+export interface DisambiguationPending {
+  /** 消歧选项 */
+  options: DisambiguationOptions;
+  /** 原始冲突报告 */
+  report: ConflictReport;
+  /** 调用此方法传入用户选择的 option id，恢复 Agent 执行 */
+  resolve: (choiceId: string) => void;
+}
+
 // ─── AgentLoop ────────────────────────────────────────────────────────────────
 
 export class AgentLoop {
@@ -54,6 +70,13 @@ export class AgentLoop {
   private readonly context: ContextManager;
   readonly stream: StreamBridge;
   readonly lifecycle: AgentLifecycle;
+
+  /** 冲突检测器 */
+  private readonly conflictDetector: ConflictDetector;
+  /** 消歧处理器（惰性初始化，需要 LLMClient） */
+  private disambiguationHandler: DisambiguationHandler | null = null;
+  /** 会话级决策日志 */
+  readonly decisionLog: DecisionLog;
 
   constructor(
     config: AgentConfig,
@@ -70,6 +93,8 @@ export class AgentLoop {
     this.context = context ?? new ContextManager();
     this.stream = new StreamBridge();
     this.lifecycle = lifecycle ?? new AgentLifecycle();
+    this.conflictDetector = new ConflictDetector();
+    this.decisionLog = new DecisionLog();
   }
 
   /**
@@ -89,6 +114,14 @@ export class AgentLoop {
   ): Promise<string> {
     const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+    // 惰性初始化消歧处理器
+    if (!this.disambiguationHandler) {
+      this.disambiguationHandler = new DisambiguationHandler(
+        client,
+        this.config.llm.model
+      );
+    }
+
     // ── Initializing ────────────────────────────────────────────────────────
     this.lifecycle.start(runId, this.config.maxIterations);
     this.context.push("user", userMessage);
@@ -106,6 +139,7 @@ export class AgentLoop {
         }
 
         this.lifecycle.nextIteration();
+        this.decisionLog.advanceRound();
 
         // ── Think：调用 LLM ──────────────────────────────────────────────────
         const effectiveSystemPrompt =
@@ -147,6 +181,61 @@ export class AgentLoop {
               b.type === "tool_use"
           );
 
+          // ── 冲突检测 ────────────────────────────────────────────────────────
+          const toolCallsAsToolUseContent: ToolUseContent[] = toolUseBlocks.map(
+            (b) => ({
+              type: "tool_use" as const,
+              id: b.id,
+              name: b.name,
+              input: b.input,
+            })
+          );
+
+          const conflictReport = this.conflictDetector.check(
+            toolCallsAsToolUseContent,
+            this.decisionLog
+          );
+
+          if (conflictReport.hasConflict && this.disambiguationHandler) {
+            // ── 消歧流程：暂停执行，等待用户选择 ──────────────────────────────
+            const disambiguationOptions =
+              await this.disambiguationHandler.resolve(conflictReport);
+
+            // 通过 StreamBridge 发出 disambiguation 事件
+            this.stream.emitDisambiguation(disambiguationOptions, conflictReport);
+
+            // 挂起等待用户选择（Promise + 外部 resolve 模式）
+            const choiceId = await this.waitForUserChoice(
+              disambiguationOptions,
+              conflictReport
+            );
+
+            // 用户选择后，写入 DecisionLog
+            this.disambiguationHandler.applyChoice(
+              choiceId,
+              this.decisionLog,
+              disambiguationOptions,
+              conflictReport
+            );
+
+            // 将消歧结果作为上下文补充，让 LLM 在下轮知道用户的选择
+            const chosenOption = disambiguationOptions.options.find(
+              (o) => o.id === choiceId
+            );
+            if (chosenOption) {
+              this.context.push("user", [
+                {
+                  type: "text" as const,
+                  text: `[用户选择] ${chosenOption.description}（${chosenOption.expectedEffect}）`,
+                },
+              ]);
+            }
+
+            // 重新进入循环，让 LLM 根据用户选择重新规划
+            continue;
+          }
+
+          // ── 无冲突，正常执行工具调用 ─────────────────────────────────────────
           const toolResults: ToolResultContent[] = [];
 
           for (const toolUse of toolUseBlocks) {
@@ -170,7 +259,7 @@ export class AgentLoop {
             const resultStr =
               typeof result === "string" ? result : JSON.stringify(result);
 
-            this.stream.emitToolResult(toolUse.id, result, is_error);
+            this.stream.emitToolResult(toolUse.id, toolUse.name, result, is_error);
 
             toolResults.push({
               type: "tool_result",
@@ -211,9 +300,32 @@ export class AgentLoop {
   }
 
   /**
+   * 等待用户做出消歧选择
+   *
+   * 通过 Promise + 外部 resolve 模式实现挂起：
+   * - 发布 DisambiguationPending 事件到 StreamBridge
+   * - 外部调用者通过 pending.resolve(choiceId) 恢复执行
+   */
+  private waitForUserChoice(
+    options: DisambiguationOptions,
+    report: ConflictReport
+  ): Promise<string> {
+    return new Promise<string>((resolve) => {
+      const pending: DisambiguationPending = {
+        options,
+        report,
+        resolve,
+      };
+      this.stream.emitDisambiguationPending(pending);
+    });
+  }
+
+  /**
    * 清空对话历史，重置 Agent 状态
    */
   reset(): void {
     this.context.clear();
+    this.decisionLog.clear();
+    this.disambiguationHandler = null;
   }
 }
