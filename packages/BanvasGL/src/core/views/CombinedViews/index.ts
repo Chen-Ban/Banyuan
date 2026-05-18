@@ -1,15 +1,19 @@
 import { VIEWTYPE } from '@/core/constants'
-import View, { ViewOptions } from '@/core/views/View/View'
+import type { ViewOptions } from '@/core/views/View/View.js'
+import ContainerView from '@/core/views/ContainerView/index.js'
+import type { ContainerViewOptions } from '@/core/views/ContainerView/index.js'
 import { ICombinedView, ISerializable } from '@/core/interfaces'
 import { generateId, generateName } from '@/core/utils'
 
 /**
- * 组合视图
+ * 组合视图 —— 将多个子 View 组合为一个整体
+ *
+ * 继承 ContainerView，拥有 addChild / removeChild / clear 等子节点管理能力。
  */
-export default class CombinedView extends View implements ICombinedView, ISerializable {
+export default class CombinedView extends ContainerView implements ICombinedView, ISerializable {
     public type: VIEWTYPE = VIEWTYPE.COMBINEDVIEW
 
-    constructor(options: ViewOptions = {}) {
+    constructor(options: ContainerViewOptions = {}) {
         super({ ...options })
         this.id = options.id || generateId(this.type)
         this.name = options.name || generateName(this.type)
@@ -42,34 +46,6 @@ export default class CombinedView extends View implements ICombinedView, ISerial
         return newView
     }
 
-    // 子View管理方法
-    public addChild(child: View): void {
-        if (!this.children.includes(child)) {
-            this.children.push(child)
-            child.parent = this
-            // 仅当自身已挂载到 Scene 时才触发子节点的 onAttach（递归前序）
-            if (this.getScene()) {
-                child.onAttach()
-            }
-        }
-    }
-
-    public removeChild(child: View): void {
-        const index = this.children.indexOf(child)
-        if (index > -1) {
-            this.children.splice(index, 1)
-            child.parent = null
-        }
-    }
-
-    public clear(): void {
-        this.children.forEach((child) => {
-            child.parent = null
-            child.onDestroy()
-        })
-        this.children = []
-    }
-
     // ==================== 序列化 ====================
 
     /**
@@ -83,4 +59,3 @@ export default class CombinedView extends View implements ICombinedView, ISerial
         return view
     }
 }
-

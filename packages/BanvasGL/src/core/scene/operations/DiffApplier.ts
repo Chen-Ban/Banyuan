@@ -3,6 +3,7 @@ import { DiffType, Operation } from './OperationStack'
 import type { SceneAccessor, ReviverFactory } from './types'
 import { Matrix4 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
+import { isContainerView } from '@/core/interfaces'
 
 /**
  * Diff 回放执行器
@@ -143,11 +144,16 @@ export default class DiffApplier {
         break
       }
       case 'children': {
-        view.children = (value || []).map((child: any) => {
-          const childView = this.getReviver().revive(child)
-          childView.parent = view
-          return childView
-        })
+        // 只有 ContainerView（CombinedView、NodeView）才有可写的 children
+        if (isContainerView(view)) {
+          view.clear()
+          const children = (value || []).map((child: any) => {
+            return this.getReviver().revive(child)
+          })
+          for (const child of children) {
+            view.addChild(child)
+          }
+        }
         break
       }
       // 纯值类型字段，直接赋值

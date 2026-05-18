@@ -1,6 +1,15 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { Tree, Button, TreeNodeProps } from "antd";
-import { PlusOutlined, DownOutlined, RightOutlined, CloseOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  DownOutlined,
+  RightOutlined,
+  CloseOutlined,
+  EyeOutlined,
+  EyeInvisibleOutlined,
+  LockOutlined,
+  UnlockOutlined,
+} from "@ant-design/icons";
 import type { IPageNode, IViewNode, IBanvasActions } from "banvasgl";
 import styles from "./index.module.scss";
 
@@ -13,6 +22,9 @@ interface PageListProps {
 interface TreeNode {
   key: string;
   title: string;
+  isPage: boolean;
+  visible?: boolean;
+  locked?: boolean;
   children?: TreeNode[];
   isLeaf?: boolean;
 }
@@ -94,12 +106,15 @@ const PageList: React.FC<PageListProps> = ({
 }) => {
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
-  /** 构建纯数据 treeData（title 为字符串） */
+  /** 构建纯数据 treeData */
   const treeData: TreeNode[] = useMemo(() => {
     function viewToNode(v: IViewNode): TreeNode {
       return {
         key: v.id,
         title: v.name || v.type,
+        isPage: false,
+        visible: v.visible,
+        locked: v.locked,
         children: v.children?.length ? v.children.map(viewToNode) : undefined,
         isLeaf: !v.children?.length,
       };
@@ -107,6 +122,7 @@ const PageList: React.FC<PageListProps> = ({
     return pages.map((page) => ({
       key: page.id,
       title: page.name,
+      isPage: true,
       children: page.children?.map(viewToNode) || [],
     }));
   }, [pages]);
@@ -115,7 +131,6 @@ const PageList: React.FC<PageListProps> = ({
   const handleDelete = (key: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (isPageKey(pages, key)) {
-      // 禁止删除最后一个页面
       if (pages.length <= 1) return;
       actions.page.remove(key);
     } else {
@@ -125,19 +140,18 @@ const PageList: React.FC<PageListProps> = ({
 
   /** 是否允许显示删除按钮 */
   const canDelete = (node: TreeNode): boolean => {
-    // 如果是页面节点且只剩最后一个，不允许删除
-    if (isPageKey(pages, node.key) && pages.length <= 1) return false;
+    if (node.isPage && pages.length <= 1) return false;
     return true;
   };
 
-  /** titleRender：根据编辑状态渲染节点 */
+  /** titleRender */
   const titleRender = (node: TreeNode) => {
     if (editingKey === node.key) {
       return (
         <InlineEdit
           defaultValue={node.title}
           onCommit={(val) => {
-            if (isPageKey(pages, node.key)) {
+            if (node.isPage) {
               actions.page.rename(node.key, val);
             } else {
               actions.view.rename(node.key, val);
@@ -148,6 +162,7 @@ const PageList: React.FC<PageListProps> = ({
         />
       );
     }
+
     return (
       <span
         className={styles.nodeTitleWrapper}
@@ -157,19 +172,60 @@ const PageList: React.FC<PageListProps> = ({
         }}
       >
         <span className={styles.nodeTitle}>{node.title}</span>
-        {canDelete(node) && (
-          <span
-            className={styles.deleteBtn}
-            onClick={(e) => handleDelete(node.key, e)}
-          >
-            <CloseOutlined />
-          </span>
-        )}
+
+        <span className={styles.nodeBtns}>
+          {/* 锁定/解锁（仅 view 节点） */}
+          {!node.isPage && (
+            <span
+              className={`${styles.nodeBtn} ${node.locked ? styles.nodeBtnActive : ""}`}
+              title={node.locked ? "解锁" : "锁定"}
+              onClick={(e) => {
+                e.stopPropagation();
+                actions.view.setLocked(node.key, !node.locked);
+              }}
+            >
+              {node.locked ? (
+                <LockOutlined style={{ fontSize: 11 }} />
+              ) : (
+                <UnlockOutlined style={{ fontSize: 11 }} />
+              )}
+            </span>
+          )}
+
+          {/* 可见/隐藏（仅 view 节点） */}
+          {!node.isPage && (
+            <span
+              className={`${styles.nodeBtn} ${!node.visible ? styles.nodeBtnActive : ""}`}
+              title={node.visible ? "隐藏" : "显示"}
+              onClick={(e) => {
+                e.stopPropagation();
+                actions.view.setVisible(node.key, !node.visible);
+              }}
+            >
+              {node.visible ? (
+                <EyeOutlined style={{ fontSize: 11 }} />
+              ) : (
+                <EyeInvisibleOutlined style={{ fontSize: 11 }} />
+              )}
+            </span>
+          )}
+
+          {/* 删除 */}
+          {canDelete(node) && (
+            <span
+              className={`${styles.nodeBtn} ${styles.nodeBtnDanger}`}
+              title="删除"
+              onClick={(e) => handleDelete(node.key, e)}
+            >
+              <CloseOutlined style={{ fontSize: 10 }} />
+            </span>
+          )}
+        </span>
       </span>
     );
   };
 
-  // 选中高亮：收集所有 actived 的节点
+  // 选中高亮
   const selectedKeys = useMemo(() => {
     const keys: string[] = [];
     function collectActived(nodes: IViewNode[]) {
@@ -179,24 +235,30 @@ const PageList: React.FC<PageListProps> = ({
       }
     }
     for (const page of pages) {
-      if (
-        page.isCurrent &&
-        keys.length === 0 &&
-        !pages.some((p) => p.children?.some((c) => c.actived))
-      ) {
-        // 如果当前页面没有任何 actived 节点，高亮页面本身
-      }
       collectActived(page.children || []);
     }
-    // 如果没有任何 actived 节点，高亮当前页面
     if (keys.length === 0 && currentPageId) {
       keys.push(currentPageId);
     }
     return keys;
   }, [pages, currentPageId]);
 
-  // 始终展开所有页面节点（受控模式，响应 pages 变化）
-  const expandedKeys = useMemo(() => pages.map((p) => p.id), [pages]);
+  // 始终展开所有页面节点，以及所有有子节点的 view 节点（如 CombinedView）
+  const expandedKeys = useMemo(() => {
+    const keys: string[] = pages.map((p) => p.id);
+    function collectExpandable(nodes: IViewNode[]) {
+      for (const node of nodes) {
+        if (node.children && node.children.length > 0) {
+          keys.push(node.id);
+          collectExpandable(node.children);
+        }
+      }
+    }
+    for (const page of pages) {
+      collectExpandable(page.children || []);
+    }
+    return keys;
+  }, [pages]);
 
   const handleSelect = (
     _keys: React.Key[],
@@ -208,24 +270,18 @@ const PageList: React.FC<PageListProps> = ({
       return;
     }
 
-    // macOS 上 Ctrl+Click 会触发系统右键菜单，多选应使用 Cmd(metaKey)
-    // Windows/Linux 上多选使用 Ctrl(ctrlKey)
     const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
     const isCtrl = isMac ? info.nativeEvent.metaKey : info.nativeEvent.ctrlKey;
     if (isPageKey(pages, key)) {
-      // 点击页面节点：切换页面并取消选中
       actions.view.deselect();
       actions.page.navigateTo(key);
     } else {
-      // 点击 view 节点
       const ownerPageId = findOwnerPageId(pages, key);
       if (ownerPageId && ownerPageId !== currentPageId) {
-        // 跨页面：不允许多选，先清除再切换页面后单选
         actions.view.deselect();
         actions.page.navigateTo(ownerPageId);
         actions.view.select(key);
       } else {
-        // 同页面：Ctrl 多选，否则单选
         actions.view.select(key, isCtrl);
       }
     }
@@ -251,6 +307,7 @@ const PageList: React.FC<PageListProps> = ({
           onSelect={handleSelect}
           multiple
           blockNode
+          motion={null}
           showLine={{ showLeafIcon: false }}
           switcherIcon={(props: TreeNodeProps) =>
             props.expanded ? (

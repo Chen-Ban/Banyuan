@@ -256,7 +256,11 @@ export function useFlowCanvasEvents({
             app.renderer.deactivateContext()
 
             if (hitView) {
-                scene.select(hitView, e.ctrlKey || e.metaKey)
+                // macOS 用 Cmd（metaKey）多选，Windows/Linux 用 Ctrl（ctrlKey）多选
+                const isMultiSelect = navigator.platform.startsWith('Mac')
+                    ? e.metaKey
+                    : e.ctrlKey;
+                scene.select(hitView, isMultiSelect)
             } else {
                 clearAllStates(scene)
             }

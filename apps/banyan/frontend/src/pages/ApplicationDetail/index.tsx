@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDesignBanvas, version as banvasglVersion } from "banvasgl";
-import { message } from "antd";
+import { message, Drawer } from "antd";
 import { applicationApi, buildApi } from "@/api";
 import type { Platform } from "@/api";
 import { getErrorMessage } from "@/utils/error";
@@ -39,6 +39,11 @@ const ApplicationDetail = () => {
 
   // canvasSection 容器 ref，用于 AiBar fixed 定位对齐
   const canvasSectionRef = useRef<HTMLDivElement>(null);
+  // mainContent 容器，作为 antd Drawer 的挂载容器（用 state 确保 mount 后触发重渲染）
+  const [mainContentEl, setMainContentEl] = useState<HTMLDivElement | null>(null);
+  const mainContentRef = useCallback((el: HTMLDivElement | null) => {
+    setMainContentEl(el);
+  }, []);
 
   // 用于自动保存名称/描述的 debounce
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -68,6 +73,11 @@ const ApplicationDetail = () => {
 
   // 页面尺寸（用户在「页面尺寸」tab 中手动设置）
   const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 800 });
+
+  // 右侧抽屉展开状态
+  const [rightOpen, setRightOpen] = useState(true);
+  // 连续两次点击空白 → 关闭右侧抽屉（记录上一次 selectedViewId）
+  const prevSelectedViewIdRef = useRef<string>("");
 
   const handleCanvasSizeChange = useCallback(
     (width: number, height: number) => {
@@ -100,6 +110,20 @@ const ApplicationDetail = () => {
     contextMenu,
     builtinComponents,
   } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
+
+  // 属性面板自动弹出/渐进隐藏：
+  // 激活容器 → 自动弹出；第一次点空白 → 切换为页面属性；第二次点空白 → 隐藏面板
+  useEffect(() => {
+    if (selectedViewId !== "") {
+      // 有容器被激活 → 自动弹出属性面板
+      setRightOpen(true);
+    } else if (prevSelectedViewIdRef.current === "") {
+      // 连续两次空白（上一次也是空）→ 关闭面板
+      setRightOpen(false);
+    }
+    // else: 从有选中变为空（第一次点空白）→ 保持面板打开，显示页面属性
+    prevSelectedViewIdRef.current = selectedViewId;
+  }, [selectedViewId]);
 
   // AI 完成后，用最终 pages 刷新画布（更新 initialPages 触发 useDesignBanvas 重新加载）
   const handleAiPagesUpdate = useCallback((aiPages: string[]) => {
@@ -231,6 +255,10 @@ const ApplicationDetail = () => {
     navigate("/");
   };
 
+  const handleDatabase = useCallback(() => {
+    if (id && !isNew) navigate(`/application/${id}/database`);
+  }, [id, isNew, navigate]);
+
   if (!loaded) {
     return <div style={{ padding: 40, textAlign: "center" }}>加载中...</div>;
   }
@@ -248,39 +276,76 @@ const ApplicationDetail = () => {
         onBack={handleBack}
         onBuild={handleBuild}
         building={buildSubmitting}
+        onDatabase={!isNew && id ? handleDatabase : undefined}
         builtinComponents={builtinComponents}
       />
-      <div className={styles.mainContent}>
-        <PageList
-          pages={pages}
-          currentPageId={currentPageId}
-          actions={actions}
-        />
+      <div className={styles.mainContent} ref={mainContentRef}>
+        {/* 左侧固定：PageList */}
+        <div className={styles.pageListPanel}>
+          <PageList
+            pages={pages}
+            currentPageId={currentPageId}
+            actions={actions}
+          />
+        </div>
+
+        {/* 画布区域：撑满剩余空间 */}
         <div className={styles.canvasSection} ref={canvasSectionRef}>
           <div className={styles.canvasArea}>
             {Banvas}
           </div>
           {!isNew && id && (
             <>
-              {/* AiBar 脱离文档流（fixed），此占位 div 撑开底部空间防止画布被遮挡 */}
               <div className={styles.aiBarPlaceholder} />
               <AiBar
                 appId={id}
                 onPagesUpdate={handleAiPagesUpdate}
+                onPagesSnapshot={handleAiPagesUpdate}
                 containerRef={canvasSectionRef}
               />
             </>
           )}
         </div>
-        <PropertyPanel
-          selectedViewId={selectedViewId}
-          actions={actions}
-          pages={pages}
-          currentPageId={currentPageId}
-          canvasSize={canvasSize}
-          onCanvasSizeChange={handleCanvasSizeChange}
-          appId={!isNew && id ? id : undefined}
-        />
+
+        {/* 右侧抽屉：PropertyPanel */}
+        {mainContentEl && (
+          <Drawer
+            placement="right"
+            open={rightOpen}
+            onClose={() => setRightOpen(false)}
+            mask={false}
+            title={null}
+            closable={false}
+            getContainer={mainContentEl}
+            rootStyle={{ position: 'absolute' }}
+            styles={{
+              wrapper: { width: 320 },
+              body: { padding: 0, background: '#fafbfc' },
+              header: { padding: 0, minHeight: 0, background: '#fafbfc', borderBottom: 'none' },
+            }}
+            zIndex={10}
+          >
+            <PropertyPanel
+              selectedViewId={selectedViewId}
+              actions={actions}
+              pages={pages}
+              currentPageId={currentPageId}
+              canvasSize={canvasSize}
+              onCanvasSizeChange={handleCanvasSizeChange}
+              appId={!isNew && id ? id : undefined}
+            />
+          </Drawer>
+        )}
+
+        {/* 右侧切换按钮（始终显示） */}
+        <button
+          className={`${styles.drawerOpenBtn} ${styles.drawerOpenBtnRight}`}
+          style={{ right: rightOpen ? 320 : 0 }}
+          onClick={() => setRightOpen((v) => !v)}
+          title={rightOpen ? "收起属性面板" : "展开属性面板"}
+        >
+          <span className={styles.drawerOpenBtnLabel}>属性</span>
+        </button>
       </div>
       <ContextMenu state={contextMenu} />
       <BuildTaskModal
