@@ -82,8 +82,11 @@ export const KNOWLEDGE_SEARCH_TOOL_DEFINITION: ToolDefinition = {
       category: {
         type: "string",
         description:
-          "可选的知识类别过滤。常见值：'component_schema'（组件 Schema）、" +
-          "'design_spec'（设计规范）、'layout_rule'（布局规则）、'template'（模板）",
+          "可选的知识类别过滤。" +
+          "常见值：'schema'（节点类型与属性定义）、" +
+          "'composition'（UI 组合模式，如登录表单、商品卡片）、" +
+          "'theme'（设计主题与 token，如颜色、字号、间距）",
+        enum: ["schema", "composition", "theme"],
       },
     },
     required: ["query"],

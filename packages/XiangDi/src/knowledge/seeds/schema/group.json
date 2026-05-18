@@ -1,0 +1,12 @@
+{
+  "id": "schema-group",
+  "content": "# AIGroupNode\n\n类型标识: type = \"group\"\n\n## 描述\n\n分组节点，可包含多个子节点（children）。用于将相关节点组合为一个整体，便于统一移动、缩放。children 支持递归嵌套。\n\n## 属性列表\n\n- **id** (string) [必填] — 唯一标识符\n- **name** (string) [可选] — 可读名称，便于引用\n- **transform** ({ position: { x: number; y: number }; size: { width: number; height: number }; rotation: number; opacity: number }) [必填]\n- **zIndex** (number) [必填] 默认值: 0\n- **locked** (boolean) [必填] 默认值: false\n- **type** (\"group\") [必填]\n- **children** (Array<AINode (recursive)>) [必填]\n\n## 最小可用示例\n\n```json\n{\n  \"id\": \"group-001\",\n  \"type\": \"group\",\n  \"transform\": {\n    \"position\": {\n      \"x\": 0,\n      \"y\": 0\n    },\n    \"size\": {\n      \"width\": 100,\n      \"height\": 50\n    },\n    \"rotation\": 0,\n    \"opacity\": 1\n  },\n  \"children\": [\n    {\n      \"id\": \"child-rect-001\",\n      \"type\": \"rect\",\n      \"transform\": {\n        \"position\": {\n          \"x\": 0,\n          \"y\": 0\n        },\n        \"size\": {\n          \"width\": 80,\n          \"height\": 40\n        },\n        \"rotation\": 0,\n        \"opacity\": 1\n      },\n      \"fill\": {\n        \"type\": \"solid\",\n        \"color\": \"#e0e0e0\"\n      },\n      \"cornerRadius\": 4\n    }\n  ]\n}\n```\n\n## transform 属性详解\n\n所有节点共享的空间变换属性：\n- position: { x: number, y: number } — 左上角为原点的像素坐标\n- size: { width: number(>0), height: number(>0) } — 宽高（像素）\n- rotation: number — 旋转角度（度），默认 0\n- opacity: number(0-1) — 透明度，默认 1",
+  "source": "auto-generated",
+  "metadata": {
+    "category": "schema",
+    "nodeType": "AIGroupNode",
+    "typeLiteral": "group",
+    "schemaName": "AIGroupNodeSchema",
+    "version": "0.1.0"
+  }
+}

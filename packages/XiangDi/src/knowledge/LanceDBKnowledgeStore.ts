@@ -133,18 +133,33 @@ export class LanceDBKnowledgeStore implements MutableKnowledgeStore {
   ): Promise<KnowledgeChunk[]> {
     const topK = options?.topK ?? 5;
     const minScore = options?.minScore ?? 0;
+    const categoryFilter = options?.filter?.["category"] as string | undefined;
 
     await this.ensureDB();
     const count = await this.table!.countRows();
     if (count === 0) return [];
 
-    const actualTopK = Math.min(topK, count);
+    // 若有 category 过滤，多取一些候选再过滤
+    const fetchMultiplier = categoryFilter ? 3 : 1;
+    const actualTopK = Math.min(topK * fetchMultiplier, count);
     const queryVector = await this.embed(QUERY_PREFIX + query);
 
+    let results: KnowledgeChunk[];
     if (this.ftsIndexCreated) {
-      return this.hybridSearch(query, queryVector, actualTopK, minScore);
+      results = await this.hybridSearch(query, queryVector, actualTopK, minScore);
+    } else {
+      results = await this.vectorSearch(queryVector, actualTopK, minScore);
     }
-    return this.vectorSearch(queryVector, actualTopK, minScore);
+
+    // 按 metadata.category 过滤
+    if (categoryFilter) {
+      results = results.filter((chunk) => {
+        const meta = chunk.metadata as Record<string, unknown> | undefined;
+        return meta?.["category"] === categoryFilter;
+      });
+    }
+
+    return results.slice(0, topK);
   }
 
   async add(entries: KnowledgeEntry[]): Promise<void> {

@@ -17,6 +17,8 @@ export type {
   ProjectSpecRaw,
   ProjectSpec,
   ProjectSpecLoader,
+  AppSchemaField,
+  AppSchemaCollection,
   ChangeStatus,
   ChangeTask,
   ChangeSpec,
