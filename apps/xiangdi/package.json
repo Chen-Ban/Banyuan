@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc --project tsconfig.json",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "seed": "tsx scripts/seed-knowledge.ts"
   },
   "keywords": [],
   "author": "",
@@ -17,7 +18,8 @@
     "@koa/router": "^13.1.0",
     "@koa/cors": "^5.0.0",
     "koa-body": "^6.0.1",
-    "xiangdi": "workspace:*"
+    "xiangdi": "workspace:*",
+    "banvasgl": "workspace:*"
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",

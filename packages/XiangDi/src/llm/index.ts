@@ -16,6 +16,9 @@
 export { DeepSeekClient } from "./DeepSeekClient.js";
 export type { DeepSeekConfig } from "./DeepSeekClient.js";
 
+export { KimiClient } from "./KimiClient.js";
+export type { KimiConfig } from "./KimiClient.js";
+
 // ─── LLM 路由层 ─────────────────────────────────────────────────────────────
 export { LLMRouter } from "./LLMRouter.js";
 export type {

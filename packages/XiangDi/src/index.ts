@@ -17,6 +17,9 @@ export {
   ContextManager,
   StreamBridge,
   AgentLifecycle,
+  ConflictDetector,
+  DecisionLog,
+  DisambiguationHandler,
 } from "./core/index.js";
 
 export type {
@@ -52,9 +55,22 @@ export type {
   DoneEvent,
   ErrorEvent,
   LifecycleStreamEvent,
+  DisambiguationEvent,
+  DisambiguationPendingEvent,
   // LLM 客户端接口
   LLMClient,
   LLMResponse,
+  // 冲突检测
+  DisambiguationPending,
+  Decision,
+  DecisionScope,
+  DecisionSource,
+  ConflictType,
+  ConflictItem,
+  ConflictReport,
+  // 消歧处理
+  DisambiguationOption,
+  DisambiguationOptions,
 } from "./core/index.js";
 
 // ─── Schema 层 ────────────────────────────────────────────────────────────────
@@ -98,6 +114,17 @@ export {
   KNOWLEDGE_SEARCH_TOOL_DEFINITION,
   createKnowledgeSearchHandler,
   registerKnowledgeSearchTool,
+  // Cloud Function 云函数工具
+  GENERATE_CLOUD_FUNCTION_TOOL_NAME,
+  GENERATE_CLOUD_FUNCTION_TOOL_DEFINITION,
+  UPDATE_CLOUD_FUNCTION_TOOL_NAME,
+  UPDATE_CLOUD_FUNCTION_TOOL_DEFINITION,
+  EXPLAIN_CLOUD_FUNCTION_TOOL_NAME,
+  EXPLAIN_CLOUD_FUNCTION_TOOL_DEFINITION,
+  createGenerateCloudFunctionHandler,
+  createUpdateCloudFunctionHandler,
+  createExplainCloudFunctionHandler,
+  registerCloudFunctionTools,
 } from "./tools/index.js";
 
 export type {
@@ -122,16 +149,29 @@ export type {
   // Knowledge Search 类型
   KnowledgeSearchInput,
   KnowledgeSearchOutput,
+  // Cloud Function 云函数工具类型
+  AppSchemaFieldDef,
+  AppSchemaCollectionDef,
+  GenerateCloudFunctionInput,
+  GenerateCloudFunctionOutput,
+  UpdateCloudFunctionInput,
+  UpdateCloudFunctionOutput,
+  ExplainCloudFunctionInput,
+  ExplainCloudFunctionOutput,
+  CloudFunctionToolsConfig,
 } from "./tools/index.js";
 
 // ─── 提示词 ───────────────────────────────────────────────────────────────────
 export {
   XIANGDI_SYSTEM_PROMPT,
   buildSystemPrompt,
+  generateAISchemaDoc,
   getAllFewshots,
   flattenFewshots,
   FEWSHOT_CREATE_LOGIN_PAGE,
 } from "./prompts/index.js";
+
+export type { BuildSystemPromptOptions } from "./prompts/index.js";
 
 // ─── Spec 层（SDD 两层规范）──────────────────────────────────────────────────
 export {
@@ -151,6 +191,8 @@ export type {
   ProjectSpecRaw,
   ProjectSpec,
   ProjectSpecLoader,
+  AppSchemaField,
+  AppSchemaCollection,
   ChangeStatus,
   ChangeTask,
   ChangeSpec,
@@ -217,6 +259,9 @@ export {
   // 检索路由器（GraphRAG 场景）
   LLMRetrievalRouter,
   RuleBasedRouter,
+  // 种子数据工具
+  seedToEntry,
+  seedsToEntries,
 } from "./knowledge/index.js";
 
 export type {
@@ -234,6 +279,8 @@ export type {
   LanceDBKnowledgeStoreConfig,
   GraphologyGraphStoreConfig,
   RetrievalRouterConfig,
+  SeedCategory,
+  SeedFile,
 } from "./knowledge/index.js";
 
 // ─── LLM 层（DeepSeek 客户端 + 智能路由）─────────────────────────────────────
