@@ -11,8 +11,6 @@ import {
   Modal,
 } from 'antd'
 import {
-  ArrowLeftOutlined,
-  FunctionOutlined,
   PlusOutlined,
   DeleteOutlined,
   SaveOutlined,
@@ -290,6 +288,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
 const FunctionsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  void navigate // layout 负责导航
 
   const [functions, setFunctions] = useState<CloudFunctionDef[]>([])
   const [loading, setLoading] = useState(true)
@@ -415,18 +414,12 @@ const FunctionsPage: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* 顶部 Header */}
-      <div className={styles.header}>
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate(`/application/${id}`)}
-          className={styles.backBtn}
-        />
-        <FunctionOutlined className={styles.headerIcon} />
-        <span className={styles.headerTitle}>云函数</span>
-        {dirty && <span className={styles.dirtyBadge}>未保存</span>}
-      </div>
+      {/* dirty 提示条 */}
+      {dirty && (
+        <div className={styles.dirtyBar}>
+          <span className={styles.dirtyBadge}>未保存</span>
+        </div>
+      )}
 
       {/* 主体 */}
       {loading ? (

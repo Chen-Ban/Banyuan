@@ -9,31 +9,14 @@
   overflow: hidden;
 }
 
-.header {
+// dirty 提示条（无 header 时用细条替代）
+.dirtyBar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 20px;
-  height: 52px;
-  background: #fff;
-  border-bottom: 1px solid #e9ecef;
+  padding: 4px 20px;
+  background: #fffbe6;
+  border-bottom: 1px solid #ffe58f;
   flex-shrink: 0;
-}
-
-.backBtn {
-  color: #8c8c8c;
-  &:hover { color: #1677ff; }
-}
-
-.headerIcon {
-  font-size: 16px;
-  color: #1677ff;
-}
-
-.headerTitle {
-  font-size: 15px;
-  font-weight: 600;
-  color: #262626;
 }
 
 .dirtyBadge {
