@@ -51,6 +51,7 @@
     "react": "^19.1.0"
   },
   "dependencies": {
+    "banvas-flow": "workspace:*",
     "uuid": "^11.1.0"
   }
 }

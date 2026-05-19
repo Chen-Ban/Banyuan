@@ -43,15 +43,22 @@ export type {
     FieldType,
     IFieldSchema,
     IFieldSchemaMap,
+    // Flow 类型（从 banvas-flow 透传，FlowEdge/FlowSchema 为 BanvasGL 扩展版）
     FlowValue,
     FlowCondition,
+    FlowLiteralValue,
+    FlowDataRefValue,
+    FlowPageDataRefValue,
+    FlowEventArgValue,
+    FlowNodeRefValue,
+    FlowConditionNode,
+    FlowDelayNode,
+    FlowSetVariableNode,
+    FlowCallFlowNode,
     FlowSetDataNode,
     FlowNavigateNode,
     FlowAnimateNode,
-    FlowConditionNode,
-    FlowDelayNode,
     FlowSetVisibleNode,
-    FlowCallCloudFunctionNode,
     FlowVarNode,
     FlowPageVarNode,
     FlowEventParamNode,
@@ -196,7 +203,7 @@ export type {
 } from './IWorker'
 
 // ── Runtime 接口 ──
-export type { RuntimeContext } from './IRuntime'
+export type { BanvasRuntimeInput } from '@/core/runtime/FlowRunner'
 
 // ── 统一类型守卫 ──
 export {

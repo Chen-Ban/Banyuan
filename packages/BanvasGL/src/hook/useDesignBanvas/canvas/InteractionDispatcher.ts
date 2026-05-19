@@ -7,7 +7,6 @@ import {
   isTextView,
   isSelectBoxView,
   isPortView,
-  isCombinedView,
   ExtraData,
   IViewAddon,
   IGraph,
@@ -20,65 +19,7 @@ import {
   isPrintableTextElement,
 } from "@/core/graph";
 import EdgeView from "@/core/views/flow/EdgeView";
-
-/**
- * 逐层激活机制：根据点击的 View 和当前激活状态，决定应该被 select 的目标。
- *
- * 规则：
- * 1. 沿 parent 链向上如果没有任何已激活的容器 → 激活最顶层的组合容器
- * 2. 有已激活的祖先：
- *    - 如果已激活的不是组合容器 → 激活那个已激活容器的父容器
- *    - 如果已激活的是组合容器 → 激活点击容器的父容器
- * 3. 点击容器的直接父容器已激活 → 直接激活点击容器本身
- * 4. 点击容器的父容器下有兄弟已激活 → 直接激活点击容器本身（等同于父容器已进入）
- */
-function resolveActivationTarget(clickedView: View): View {
-  const parent = clickedView.parent;
-
-  // 情况3：直接父容器已激活 → 直接激活点击容器本身
-  if (parent && parent instanceof View && parent.actived) {
-    return clickedView;
-  }
-
-  // 情况4：父容器下有兄弟已激活 → 说明父容器已"进入"，直接激活点击容器
-  if (parent && parent instanceof View) {
-    const hasSiblingActived = parent.children.some(
-      (child) => child !== clickedView && child.actived,
-    );
-    if (hasSiblingActived) {
-      return clickedView;
-    }
-  }
-
-  // 沿 parent 链向上查找：最顶层的 CombinedView 和第一个已激活的祖先
-  let topCombinedView: View | null = null;
-  let activatedAncestor: View | null = null;
-  let current = clickedView.parent;
-  while (current && current instanceof View) {
-    if (isCombinedView(current)) {
-      topCombinedView = current as View;
-    }
-    if (current.actived && !activatedAncestor) {
-      activatedAncestor = current as View;
-    }
-    current = current.parent;
-  }
-
-  // 情况1：没有已激活的祖先 → 激活最顶层组合容器
-  if (!activatedAncestor) {
-    return topCombinedView ?? clickedView;
-  }
-
-  // 情况2：有已激活的祖先
-  if (isCombinedView(activatedAncestor)) {
-    // 已激活的是组合容器 → 激活点击容器的父容器
-    return (parent instanceof View ? parent : clickedView) as View;
-  } else {
-    // 已激活的不是组合容器 → 激活那个已激活容器的父容器
-    const activatedParent = activatedAncestor.parent;
-    return (activatedParent instanceof View ? activatedParent : clickedView) as View;
-  }
-}
+import { resolveActivationTarget } from "./utils.js";
 
 export interface InteractionContext {
   /** Get the current indicated (hovered) view */
@@ -187,7 +128,7 @@ export class InteractionDispatcher {
   }
 
   private handleMove(
-    e: MouseEvent,
+    _e: MouseEvent,
     scene: Scene,
     point: Point3,
     mouseDownPoint: Point3,
@@ -198,17 +139,7 @@ export class InteractionDispatcher {
     const indicateView = this.ctx.getIndicateView();
     if (!indicateView) return;
 
-    if (!indicateView.actived) {
-      // macOS 用 Cmd（metaKey）多选，Windows/Linux 用 Ctrl（ctrlKey）多选
-      const isMultiSelect = navigator.platform.startsWith('Mac')
-        ? e.metaKey
-        : e.ctrlKey;
-      // 逐层激活机制：根据祖先链的激活状态决定实际选中目标
-      const target = resolveActivationTarget(indicateView);
-      scene.select(target, isMultiSelect);
-    }
-
-    // 先移动
+    // 先移动（select 已在 onMouseDown 时完成）
     for (const activeView of scene.getAllActived()) {
       activeView.translate(moveVector.x, moveVector.y, 0);
     }
