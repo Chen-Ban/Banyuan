@@ -20,7 +20,7 @@ import type { FlowSchema } from 'banvasgl'
 import { cloudFunctionApi } from '@/api'
 import type { CloudFunctionDef } from '@/api'
 import FlowCanvas from '@/pages/ApplicationDetail/components/PropertyPanel/FlowCanvas'
-import FlowNodePalette from '@/pages/ApplicationDetail/components/PropertyPanel/FlowNodePalette'
+import FlowNodePalette, { SERVER_FLOW_NODE_MATERIALS } from '@/pages/ApplicationDetail/components/PropertyPanel/FlowNodePalette'
 import styles from './index.module.scss'
 
 // ── 左侧：云函数列表 ─────────────────────────────────────────────────────────
@@ -271,9 +271,9 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
         </Button>
       </div>
 
-      {/* 节点物料面板 */}
+      {/* 节点物料面板（云函数使用后端节点） */}
       <div className={styles.paletteArea}>
-        <FlowNodePalette layout="horizontal" />
+        <FlowNodePalette layout="horizontal" materials={SERVER_FLOW_NODE_MATERIALS} />
       </div>
 
       {/* 流程画布 */}
