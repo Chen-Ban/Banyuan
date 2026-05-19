@@ -1,10 +1,15 @@
 import { defineConfig } from "tsup";
-import pkg from "./package.json";
+import { readFileSync } from "fs";
+
+const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
 export default defineConfig({
   entry: ["src/index.ts"],
   dts: true,
   format: ["esm", "cjs"],
+  outExtension({ format }) {
+    return { js: format === "esm" ? ".mjs" : ".cjs" };
+  },
   clean: true,
   external: ["banvasgl"],
   define: {

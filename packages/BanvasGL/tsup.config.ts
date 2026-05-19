@@ -1,5 +1,7 @@
 import { defineConfig } from "tsup";
-import pkg from "./package.json";
+import { readFileSync } from "fs";
+
+const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 
 export default defineConfig([
   // 三个打包维度：前端（编辑态）/ 后端 / 运行时
@@ -11,6 +13,9 @@ export default defineConfig([
     ],
     dts: true,
     format: ["esm", "cjs"],
+    outExtension({ format }) {
+      return { js: format === "esm" ? ".mjs" : ".cjs" };
+    },
     clean: true,
     external: ["react", "react-dom"],
     define: {
