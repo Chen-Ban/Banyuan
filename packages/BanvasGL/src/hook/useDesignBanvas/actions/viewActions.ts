@@ -98,8 +98,9 @@ export function createViewActions(
         },
 
         create(template: IComponentTemplate, position: { x: number; y: number }): string | null {
+            const app = getApp()
             const scene = getScene()
-            if (!scene) return null
+            if (!scene || !app) return null
 
             const { viewType, graphType, defaultProps = {} } = template
             const { x, y } = position
@@ -116,11 +117,16 @@ export function createViewActions(
                 : defaultProps
 
             let newView: View | null = null
+            // 临时激活 CanvasContext —— TextElement 等图元构造时需要 ctx.measureText 测量尺寸
+            const renderer = app.getRenderer()
+            renderer.activateContext()
             try {
                 newView = viewStrategy(propsWithGraphType, x, y)
             } catch (err) {
                 console.warn(err instanceof Error ? err.message : err)
                 return null
+            } finally {
+                renderer.deactivateContext()
             }
 
             scene.addChild(newView)
