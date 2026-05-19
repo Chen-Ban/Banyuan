@@ -322,6 +322,54 @@ export type {
   DefaultMemoryManagerConfig,
 } from "./memory/index.js";
 
+// ─── 编排层（并行 SubAgent 架构）──────────────────────────────────────────────
+export {
+  OrchestratorAgent,
+  LayoutPlanner,
+  SubAgentRunner,
+  Assembler,
+  AssemblyError,
+  AuditorAgent,
+  DEFAULT_ORCHESTRATION_CONFIG,
+} from "./orchestration/index.js";
+
+export type {
+  // 布局规划
+  LayoutPlannerInput,
+  LayoutPlannerResult,
+  ProgressCallback,
+  AssemblyDiagnostic,
+  // Port 系统
+  PortDirection,
+  PortDataType,
+  DataPort,
+  EventPort,
+  ContainerPorts,
+  // SubAgent 任务
+  ContainerRole,
+  SubAgentTask,
+  SubAgentConstraints,
+  SubAgentContext,
+  FlowFragment,
+  SubAgentResult,
+  DataUsageDeclaration,
+  // 组装
+  ContainerPlacement,
+  DataBinding,
+  EventWiring,
+  AssemblyPlan,
+  // 审计
+  AuditSeverity,
+  AuditIssue,
+  AuditRequest,
+  AuditResult,
+  // 配置与事件
+  OrchestrationConfig,
+  OrchestrationPhase,
+  OrchestrationProgressEvent,
+  OrchestrationResult,
+} from "./orchestration/index.js";
+
 // ─── 版本 ─────────────────────────────────────────────────────────────────────
 declare const __XIANGDI_VERSION__: string;
 export const VERSION: string =
