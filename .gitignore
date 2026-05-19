@@ -141,8 +141,9 @@ dist_electron/
 **/ai/apiKey.json
 **/ai/apiKey*.json
 
-# XiangDi 服务 API Key（本地开发用，不提交）
-apps/xiangdi/src/apiKey.json
+# API Key 文件（本地开发用，不提交）
+apiKey.json
+apiKey*.json
 
 # Legacy root files (migrated to packages/)
 /src/
