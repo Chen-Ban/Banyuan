@@ -118,8 +118,8 @@ const AiBar: React.FC<AiBarProps> = ({
   useEffect(() => {
     aiApi.getModels()
       .then((data) => {
-        setProviders(data.providers)
-        setActiveProvider(data.activeProvider)
+        setProviders(data?.providers ?? [])
+        setActiveProvider(data?.activeProvider ?? '')
       })
       .catch(() => { /* 静默失败，不影响主流程 */ })
   }, [])
