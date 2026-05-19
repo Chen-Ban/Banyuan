@@ -9,8 +9,9 @@ build/
 out/
 *.tsbuildinfo
 
-# Exception: source code directories named 'build' inside packages
+# Exception: source code directories named 'build' inside packages/apps
 !packages/*/src/**/build/
+!apps/**/src/**/build/
 
 # Environment variables
 .env
