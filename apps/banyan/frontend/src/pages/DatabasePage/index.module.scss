@@ -36,6 +36,16 @@
   color: #262626;
 }
 
+.dirtyBadge {
+  font-size: 11px;
+  color: #fa8c16;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
+  padding: 1px 8px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+
 .loadingWrapper {
   flex: 1;
   display: flex;
@@ -228,6 +238,12 @@
   flex-shrink: 0;
 }
 
+.fieldEditorActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .fieldEditorTitle {
   display: flex;
   align-items: center;
@@ -361,6 +377,10 @@ $col-actions:       1fr;
   transition: opacity 0.15s;
 
   &:hover { opacity: 1; }
+}
+
+.fieldInput {
+  width: 100%;
 }
 
 .fieldEmpty {

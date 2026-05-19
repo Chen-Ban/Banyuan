@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useParams, useNavigate, useBlocker } from 'react-router-dom'
 import {
   Button,
   Input,
@@ -10,6 +10,7 @@ import {
   message,
   Tooltip,
   Empty,
+  Modal,
 } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -17,6 +18,7 @@ import {
   PlusOutlined,
   DeleteOutlined,
   TableOutlined,
+  SaveOutlined,
 } from '@ant-design/icons'
 import { schemaApi } from '@/api'
 import type { CollectionDef, FieldDef, FieldType } from '@/api'
@@ -174,101 +176,102 @@ const CollectionList: React.FC<CollectionListProps> = ({
   )
 }
 
-// ── 右侧：字段编辑器 ──────────────────────────────────────────────────────────
+// ── 右侧：字段编辑器（本地编辑 + 整体保存）─────────────────────────────────────
 
 interface FieldEditorProps {
   collection: CollectionDef
   appId: string
-  onFieldAdded: (field: FieldDef) => void
-  onFieldUpdated: (field: FieldDef) => void
-  onFieldDeleted: (fieldName: string) => void
+  onSaved: (updatedCollection: CollectionDef) => void
+  dirty: boolean
+  onDirtyChange: (dirty: boolean) => void
 }
 
 const FieldEditor: React.FC<FieldEditorProps> = ({
   collection,
   appId,
-  onFieldAdded,
-  onFieldUpdated,
-  onFieldDeleted,
+  onSaved,
+  dirty,
+  onDirtyChange,
 }) => {
-  // 新增字段表单状态
-  const [addingField, setAddingField] = useState(false)
-  const [newFieldName, setNewFieldName] = useState('')
-  const [newFieldDisplay, setNewFieldDisplay] = useState('')
-  const [newFieldType, setNewFieldType] = useState<FieldType>('string')
-  const [newFieldRequired, setNewFieldRequired] = useState(false)
-  const [addingSaving, setAddingSaving] = useState(false)
+  // 本地字段列表（编辑态）
+  const [localFields, setLocalFields] = useState<FieldDef[]>(collection.fields)
+  const [saving, setSaving] = useState(false)
 
-  // 行内编辑状态：key = fieldName, value = saving
-  const [savingFields, setSavingFields] = useState<Record<string, boolean>>({})
+  // 当外部 collection 变化时同步（例如切换表）
+  useEffect(() => {
+    setLocalFields(collection.fields)
+  }, [collection.fields])
 
-  const handleAddField = async () => {
-    const trimmed = newFieldName.trim()
-    if (!trimmed) return
-    setAddingSaving(true)
-    try {
-      const field: FieldDef = {
-        name: trimmed,
-        displayName: newFieldDisplay.trim() || trimmed,
-        type: newFieldType,
-        required: newFieldRequired,
+  // 检测 dirty 状态
+  useEffect(() => {
+    const isDirty = JSON.stringify(localFields) !== JSON.stringify(collection.fields)
+    onDirtyChange(isDirty)
+  }, [localFields, collection.fields, onDirtyChange])
+
+  // ── 本地操作（不调 API）────────────────────────────────────────────────────
+
+  const handleAddField = () => {
+    const newField: FieldDef = {
+      name: '',
+      displayName: '',
+      type: 'string',
+      required: false,
+    }
+    setLocalFields((prev) => [...prev, newField])
+  }
+
+  const handleFieldChange = (index: number, patch: Partial<FieldDef>) => {
+    setLocalFields((prev) =>
+      prev.map((f, i) => (i === index ? { ...f, ...patch } : f)),
+    )
+  }
+
+  const handleDeleteField = (index: number) => {
+    setLocalFields((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  // ── 保存（整体提交 API）───────────────────────────────────────────────────
+
+  const handleSave = async () => {
+    // 校验：所有字段名必须非空且唯一
+    const errors: string[] = []
+    const nameSet = new Set<string>()
+    localFields.forEach((f, i) => {
+      const name = f.name.trim()
+      if (!name) {
+        errors.push(`第 ${i + 1} 行：字段名不能为空`)
+      } else if (nameSet.has(name)) {
+        errors.push(`第 ${i + 1} 行：字段名 "${name}" 重复`)
       }
-      const res = await schemaApi.addField(appId, collection.name, field)
-      const added = res.data?.collections
-        .find((c) => c.name === collection.name)
-        ?.fields.find((f) => f.name === trimmed)
-      if (added) onFieldAdded(added)
-      setNewFieldName('')
-      setNewFieldDisplay('')
-      setNewFieldType('string')
-      setNewFieldRequired(false)
-      setAddingField(false)
+      nameSet.add(name)
+    })
+    if (errors.length > 0) {
+      message.error(errors[0])
+      return
+    }
+
+    // 规范化字段：trim name/displayName
+    const normalizedFields = localFields.map((f) => ({
+      ...f,
+      name: f.name.trim(),
+      displayName: f.displayName.trim() || f.name.trim(),
+    }))
+
+    setSaving(true)
+    try {
+      const res = await schemaApi.updateCollection(appId, collection.name, {
+        fields: normalizedFields,
+      })
+      const updated = res.data?.collections.find((c) => c.name === collection.name)
+      if (updated) {
+        onSaved(updated)
+        setLocalFields(updated.fields)
+        message.success('保存成功')
+      }
     } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : '添加字段失败')
+      message.error(err instanceof Error ? err.message : '保存失败')
     } finally {
-      setAddingSaving(false)
-    }
-  }
-
-  const handleTypeChange = async (fieldName: string, newType: FieldType) => {
-    setSavingFields((p) => ({ ...p, [fieldName]: true }))
-    try {
-      const res = await schemaApi.updateField(appId, collection.name, fieldName, { type: newType })
-      const updated = res.data?.collections
-        .find((c) => c.name === collection.name)
-        ?.fields.find((f) => f.name === fieldName)
-      if (updated) onFieldUpdated(updated)
-    } catch {
-      message.error('更新字段失败')
-    } finally {
-      setSavingFields((p) => ({ ...p, [fieldName]: false }))
-    }
-  }
-
-  const handleRequiredChange = async (fieldName: string, required: boolean) => {
-    setSavingFields((p) => ({ ...p, [fieldName]: true }))
-    try {
-      const res = await schemaApi.updateField(appId, collection.name, fieldName, { required })
-      const updated = res.data?.collections
-        .find((c) => c.name === collection.name)
-        ?.fields.find((f) => f.name === fieldName)
-      if (updated) onFieldUpdated(updated)
-    } catch {
-      message.error('更新字段失败')
-    } finally {
-      setSavingFields((p) => ({ ...p, [fieldName]: false }))
-    }
-  }
-
-  const handleDeleteField = async (fieldName: string) => {
-    setSavingFields((p) => ({ ...p, [fieldName]: true }))
-    try {
-      await schemaApi.deleteField(appId, collection.name, fieldName)
-      onFieldDeleted(fieldName)
-    } catch {
-      message.error('删除字段失败')
-    } finally {
-      setSavingFields((p) => ({ ...p, [fieldName]: false }))
+      setSaving(false)
     }
   }
 
@@ -281,14 +284,25 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
           <span className={styles.fieldEditorTitleDisplay}>{collection.displayName}</span>
           <span className={styles.fieldEditorTitleName}>{collection.name}</span>
         </div>
-        <Button
-          type="primary"
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={() => setAddingField(true)}
-        >
-          添加字段
-        </Button>
+        <div className={styles.fieldEditorActions}>
+          <Button
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={handleAddField}
+          >
+            添加字段
+          </Button>
+          <Button
+            type="primary"
+            size="small"
+            icon={<SaveOutlined />}
+            onClick={handleSave}
+            loading={saving}
+            disabled={!dirty}
+          >
+            保存
+          </Button>
+        </div>
       </div>
 
       {/* 字段表格 */}
@@ -321,113 +335,71 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
           <span className={styles.colActions} />
         </div>
 
-        {/* 用户字段 */}
-        {collection.fields.map((field) => {
-          const saving = savingFields[field.name] ?? false
-          return (
-            <div key={field.name} className={styles.fieldRow}>
-              <span className={styles.colFieldName}>
-                <span className={styles.fieldNameText}>{field.name}</span>
-              </span>
-              <span className={styles.colDisplayName}>
-                <span className={styles.fieldDisplayText}>{field.displayName}</span>
-              </span>
-              <span className={styles.colType}>
-                <Select
-                  size="small"
-                  value={field.type}
-                  options={FIELD_TYPE_OPTIONS}
-                  onChange={(val) => handleTypeChange(field.name, val)}
-                  disabled={saving}
-                  className={styles.typeSelect}
-                  labelRender={({ value }) => (
-                    <span style={{ color: TYPE_COLOR[value as FieldType] ?? '#595959', fontWeight: 500, fontSize: 12 }}>
-                      {value as string}
-                    </span>
-                  )}
-                />
-              </span>
-              <span className={styles.colRequired}>
-                <Checkbox
-                  checked={field.required}
-                  onChange={(e) => handleRequiredChange(field.name, e.target.checked)}
-                  disabled={saving}
-                />
-              </span>
-              <span className={styles.colActions}>
-                <Popconfirm
-                  title={`删除字段 "${field.name}"？`}
-                  onConfirm={() => handleDeleteField(field.name)}
-                  okText="删除"
-                  cancelText="取消"
-                  okButtonProps={{ danger: true }}
-                >
-                  <Button
-                    type="text"
-                    size="small"
-                    danger
-                    icon={<DeleteOutlined />}
-                    disabled={saving}
-                    className={styles.deleteFieldBtn}
-                  />
-                </Popconfirm>
-              </span>
-            </div>
-          )
-        })}
-
-        {collection.fields.length === 0 && !addingField && (
-          <div className={styles.fieldEmpty}>
-            <Empty description="暂无字段，点击「添加字段」开始定义" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-          </div>
-        )}
-
-        {/* 新增字段行 */}
-        {addingField && (
-          <div className={styles.addFieldRow}>
-            <Input
-              size="small"
-              placeholder="字段名（英文）"
-              value={newFieldName}
-              onChange={(e) => setNewFieldName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleAddField(); if (e.key === 'Escape') setAddingField(false) }}
-              autoFocus
-              disabled={addingSaving}
-              className={styles.colFieldName}
-            />
-            <Input
-              size="small"
-              placeholder="显示名（可选）"
-              value={newFieldDisplay}
-              onChange={(e) => setNewFieldDisplay(e.target.value)}
-              disabled={addingSaving}
-              className={styles.colDisplayName}
-            />
-            <Select
-              size="small"
-              value={newFieldType}
-              options={FIELD_TYPE_OPTIONS}
-              onChange={(val) => setNewFieldType(val)}
-              disabled={addingSaving}
-              className={`${styles.colType} ${styles.typeSelect}`}
-            />
+        {/* 用户字段（行内可编辑） */}
+        {localFields.map((field, index) => (
+          <div key={index} className={styles.fieldRow}>
+            <span className={styles.colFieldName}>
+              <Input
+                size="small"
+                value={field.name}
+                placeholder="字段名（英文）"
+                onChange={(e) => handleFieldChange(index, { name: e.target.value })}
+                className={styles.fieldInput}
+                status={!field.name.trim() ? 'error' : undefined}
+              />
+            </span>
+            <span className={styles.colDisplayName}>
+              <Input
+                size="small"
+                value={field.displayName}
+                placeholder="显示名（可选）"
+                onChange={(e) => handleFieldChange(index, { displayName: e.target.value })}
+                className={styles.fieldInput}
+              />
+            </span>
+            <span className={styles.colType}>
+              <Select
+                size="small"
+                value={field.type}
+                options={FIELD_TYPE_OPTIONS}
+                onChange={(val) => handleFieldChange(index, { type: val })}
+                className={styles.typeSelect}
+                labelRender={({ value }) => (
+                  <span style={{ color: TYPE_COLOR[value as FieldType] ?? '#595959', fontWeight: 500, fontSize: 12 }}>
+                    {value as string}
+                  </span>
+                )}
+              />
+            </span>
             <span className={styles.colRequired}>
               <Checkbox
-                checked={newFieldRequired}
-                onChange={(e) => setNewFieldRequired(e.target.checked)}
-                disabled={addingSaving}
+                checked={field.required}
+                onChange={(e) => handleFieldChange(index, { required: e.target.checked })}
               />
             </span>
             <span className={styles.colActions}>
-              <Button size="small" onClick={() => setAddingField(false)} disabled={addingSaving}>取消</Button>
-              <Button
-                size="small"
-                type="primary"
-                onClick={handleAddField}
-                loading={addingSaving}
-                disabled={!newFieldName.trim()}
-              >确认</Button>
+              <Popconfirm
+                title={`删除字段 "${field.name || '(未命名)'}"？`}
+                onConfirm={() => handleDeleteField(index)}
+                okText="删除"
+                cancelText="取消"
+                okButtonProps={{ danger: true }}
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  danger
+                  icon={<DeleteOutlined />}
+                  className={styles.deleteFieldBtn}
+                />
+              </Popconfirm>
             </span>
+          </div>
+        ))}
+
+        {localFields.length === 0 && (
+          <div className={styles.fieldEmpty}>
+            <Empty description="暂无字段，点击「添加字段」开始定义" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </div>
         )}
       </div>
@@ -444,6 +416,41 @@ const DatabasePage: React.FC = () => {
   const [collections, setCollections] = useState<CollectionDef[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedName, setSelectedName] = useState<string | null>(null)
+  const [dirty, setDirty] = useState(false)
+
+  // 稳定回调引用，避免 FieldEditor 无限渲染
+  const handleDirtyChange = useCallback((d: boolean) => setDirty(d), [])
+
+  // ── 路由离开拦截 ─────────────────────────────────────────────────────────
+
+  const blocker = useBlocker(dirty)
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      Modal.confirm({
+        title: '有未保存的更改',
+        content: '当前字段修改尚未保存，确定要离开吗？未保存的更改将丢失。',
+        okText: '离开',
+        cancelText: '留在此页',
+        okButtonProps: { danger: true },
+        onOk: () => blocker.proceed(),
+        onCancel: () => blocker.reset(),
+      })
+    }
+  }, [blocker])
+
+  // ── 浏览器关闭/刷新拦截 ──────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirty) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
+
+  // ── 加载 Schema ──────────────────────────────────────────────────────────
 
   const loadSchema = useCallback(async () => {
     if (!id || id === 'new') return
@@ -467,6 +474,8 @@ const DatabasePage: React.FC = () => {
     loadSchema()
   }, [loadSchema])
 
+  // ── 表操作（仍直接调 API）────────────────────────────────────────────────
+
   const handleAddCollection = async (name: string, displayName: string) => {
     const res = await schemaApi.addCollection(id!, { name, displayName })
     const added = res.data?.collections.find((c) => c.name === name)
@@ -486,35 +495,44 @@ const DatabasePage: React.FC = () => {
     })
   }
 
-  const selectedCollection = collections.find((c) => c.name === selectedName) ?? null
+  // ── 切换表时检查 dirty ───────────────────────────────────────────────────
 
-  const handleFieldAdded = (field: FieldDef) => {
-    setCollections((prev) =>
-      prev.map((c) =>
-        c.name === selectedName ? { ...c, fields: [...c.fields, field] } : c,
-      ),
-    )
+  const pendingSwitchRef = useRef<string | null>(null)
+
+  const handleSelectCollection = (name: string) => {
+    if (name === selectedName) return
+    if (dirty) {
+      pendingSwitchRef.current = name
+      Modal.confirm({
+        title: '有未保存的更改',
+        content: '切换数据表前请先保存，否则当前修改将丢失。',
+        okText: '放弃更改并切换',
+        cancelText: '取消',
+        okButtonProps: { danger: true },
+        onOk: () => {
+          setDirty(false)
+          setSelectedName(pendingSwitchRef.current)
+          pendingSwitchRef.current = null
+        },
+        onCancel: () => { pendingSwitchRef.current = null },
+      })
+    } else {
+      setSelectedName(name)
+    }
   }
 
-  const handleFieldUpdated = (field: FieldDef) => {
-    setCollections((prev) =>
-      prev.map((c) =>
-        c.name === selectedName
-          ? { ...c, fields: c.fields.map((f) => (f.name === field.name ? field : f)) }
-          : c,
-      ),
-    )
-  }
+  // ── 字段保存回调 ─────────────────────────────────────────────────────────
 
-  const handleFieldDeleted = (fieldName: string) => {
+  const handleSaved = useCallback((updated: CollectionDef) => {
     setCollections((prev) =>
-      prev.map((c) =>
-        c.name === selectedName
-          ? { ...c, fields: c.fields.filter((f) => f.name !== fieldName) }
-          : c,
-      ),
+      prev.map((c) => (c.name === updated.name ? updated : c)),
     )
-  }
+  }, [])
+
+  const selectedCollection = useMemo(
+    () => collections.find((c) => c.name === selectedName) ?? null,
+    [collections, selectedName],
+  )
 
   if (!id || id === 'new') {
     return (
@@ -537,6 +555,7 @@ const DatabasePage: React.FC = () => {
         />
         <DatabaseOutlined className={styles.headerIcon} />
         <span className={styles.headerTitle}>数据库 Schema</span>
+        {dirty && <span className={styles.dirtyBadge}>未保存</span>}
       </div>
 
       {/* 主体：左右布局 */}
@@ -550,7 +569,7 @@ const DatabasePage: React.FC = () => {
           <CollectionList
             collections={collections}
             selectedName={selectedName}
-            onSelect={setSelectedName}
+            onSelect={handleSelectCollection}
             onAdd={handleAddCollection}
             onDelete={handleDeleteCollection}
           />
@@ -562,9 +581,9 @@ const DatabasePage: React.FC = () => {
                 key={selectedCollection.name}
                 collection={selectedCollection}
                 appId={id}
-                onFieldAdded={handleFieldAdded}
-                onFieldUpdated={handleFieldUpdated}
-                onFieldDeleted={handleFieldDeleted}
+                onSaved={handleSaved}
+                dirty={dirty}
+                onDirtyChange={handleDirtyChange}
               />
             ) : (
               <div className={styles.noSelection}>
