@@ -40,6 +40,6 @@ export const scriptExecutor: NodeExecutor = async (node, ctx, resolve) => {
       }
     }
   } catch (err) {
-    console.warn('[script] 脚本执行失败: %s', (err as Error).message)
+    throw new Error(`[FlowRunner:script] 脚本执行失败: ${(err as Error).message}`)
   }
 }

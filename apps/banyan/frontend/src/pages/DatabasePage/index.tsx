@@ -51,19 +51,24 @@ const TYPE_COLOR: Record<FieldType, string> = {
 interface CollectionListProps {
   collections: CollectionDef[]
   selectedName: string | null
+  adding: boolean
+  onStartAdd: () => void
+  onCancelAdd: () => void
+  onConfirmAdd: (name: string, displayName: string) => Promise<void>
   onSelect: (name: string) => void
-  onAdd: (name: string, displayName: string) => Promise<void>
   onDelete: (name: string) => Promise<void>
 }
 
 const CollectionList: React.FC<CollectionListProps> = ({
   collections,
   selectedName,
+  adding,
+  onStartAdd,
+  onCancelAdd,
+  onConfirmAdd,
   onSelect,
-  onAdd,
   onDelete,
 }) => {
-  const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDisplayName, setNewDisplayName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -73,10 +78,9 @@ const CollectionList: React.FC<CollectionListProps> = ({
     if (!trimmed) return
     setSaving(true)
     try {
-      await onAdd(trimmed, newDisplayName.trim() || trimmed)
+      await onConfirmAdd(trimmed, newDisplayName.trim() || trimmed)
       setNewName('')
       setNewDisplayName('')
-      setAdding(false)
     } finally {
       setSaving(false)
     }
@@ -85,7 +89,7 @@ const CollectionList: React.FC<CollectionListProps> = ({
   const handleCancel = () => {
     setNewName('')
     setNewDisplayName('')
-    setAdding(false)
+    onCancelAdd()
   }
 
   return (
@@ -97,11 +101,44 @@ const CollectionList: React.FC<CollectionListProps> = ({
             type="text"
             size="small"
             icon={<PlusOutlined />}
-            onClick={() => setAdding(true)}
+            onClick={onStartAdd}
             className={styles.addBtn}
           />
         </Tooltip>
       </div>
+
+      {/* 新建表表单（顶部） */}
+      {adding && (
+        <div className={styles.addCollectionForm}>
+          <Input
+            size="small"
+            placeholder="表名（英文，如 users）"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
+            autoFocus
+            disabled={saving}
+          />
+          <Input
+            size="small"
+            placeholder="显示名（可选）"
+            value={newDisplayName}
+            onChange={(e) => setNewDisplayName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
+            disabled={saving}
+          />
+          <div className={styles.addCollectionActions}>
+            <Button size="small" onClick={handleCancel} disabled={saving}>取消</Button>
+            <Button
+              size="small"
+              type="primary"
+              onClick={handleAdd}
+              loading={saving}
+              disabled={!newName.trim()}
+            >创建</Button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.collectionItems}>
         {collections.map((col) => (
@@ -137,39 +174,6 @@ const CollectionList: React.FC<CollectionListProps> = ({
           <div className={styles.collectionEmpty}>暂无数据表</div>
         )}
       </div>
-
-      {/* 新建表表单 */}
-      {adding && (
-        <div className={styles.addCollectionForm}>
-          <Input
-            size="small"
-            placeholder="表名（英文，如 users）"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
-            autoFocus
-            disabled={saving}
-          />
-          <Input
-            size="small"
-            placeholder="显示名（可选）"
-            value={newDisplayName}
-            onChange={(e) => setNewDisplayName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
-            disabled={saving}
-          />
-          <div className={styles.addCollectionActions}>
-            <Button size="small" onClick={handleCancel} disabled={saving}>取消</Button>
-            <Button
-              size="small"
-              type="primary"
-              onClick={handleAdd}
-              loading={saving}
-              disabled={!newName.trim()}
-            >创建</Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -416,6 +420,7 @@ const DatabasePage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [selectedName, setSelectedName] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [adding, setAdding] = useState(false)
 
   // 稳定回调引用，避免 FieldEditor 无限渲染
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), [])
@@ -475,12 +480,24 @@ const DatabasePage: React.FC = () => {
 
   // ── 表操作（仍直接调 API）────────────────────────────────────────────────
 
-  const handleAddCollection = async (name: string, displayName: string) => {
+  const handleStartAdd = () => {
+    setAdding(true)
+    setSelectedName(null) // 取消当前选中，右侧显示新建态编辑器
+  }
+
+  const handleCancelAdd = () => {
+    setAdding(false)
+    // 恢复选中第一张表
+    if (collections.length > 0) setSelectedName(collections[0].name)
+  }
+
+  const handleConfirmAdd = async (name: string, displayName: string) => {
     const res = await schemaApi.addCollection(id!, { name, displayName })
     const added = res.data?.collections.find((c) => c.name === name)
     if (added) {
       setCollections((prev) => [...prev, added])
       setSelectedName(added.name)
+      setAdding(false)
     }
   }
 
@@ -562,8 +579,11 @@ const DatabasePage: React.FC = () => {
           <CollectionList
             collections={collections}
             selectedName={selectedName}
+            adding={adding}
+            onStartAdd={handleStartAdd}
+            onCancelAdd={handleCancelAdd}
+            onConfirmAdd={handleConfirmAdd}
             onSelect={handleSelectCollection}
-            onAdd={handleAddCollection}
             onDelete={handleDeleteCollection}
           />
 
@@ -578,6 +598,18 @@ const DatabasePage: React.FC = () => {
                 dirty={dirty}
                 onDirtyChange={handleDirtyChange}
               />
+            ) : adding ? (
+              <div className={styles.fieldEditor}>
+                <div className={styles.fieldEditorHeader}>
+                  <div className={styles.fieldEditorTitle}>
+                    <TableOutlined className={styles.fieldEditorTitleIcon} />
+                    <span className={styles.fieldEditorTitleDisplay}>新建数据表</span>
+                  </div>
+                </div>
+                <div className={styles.newCollectionHint}>
+                  <Empty description="请在左侧输入表名并创建，即可在此编辑字段" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                </div>
+              </div>
             ) : (
               <div className={styles.noSelection}>
                 <Empty description="请在左侧选择或新建一张数据表" image={Empty.PRESENTED_IMAGE_SIMPLE} />

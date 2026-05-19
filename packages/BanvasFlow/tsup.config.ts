@@ -8,6 +8,9 @@ export default defineConfig({
     'types/index': 'src/types/index.ts',
   },
   format: ['esm', 'cjs'],
+  outExtension({ format }) {
+    return { js: format === 'esm' ? '.mjs' : '.cjs' }
+  },
   dts: true,
   clean: true,
   target: 'es2020',

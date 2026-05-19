@@ -421,6 +421,10 @@ export default class TextLayoutEngine {
 
     /**
      * 计算段落包围盒（含 preHeight/postHeight/preWidth）
+     *
+     * 包围盒公式与主线程 TextElement.updateBounds 一致：
+     *   包围盒 y 起点 = position.y - lineHeight + height
+     *   包围盒底部   = position.y + height（即 y起点 + lineHeight）
      */
     private computeParagraphBounds(
         result: ParagraphLayoutResult,
@@ -431,9 +435,9 @@ export default class TextLayoutEngine {
         }
 
         const minX = Math.min(...result.elements.map((el) => el.x))
-        const minY = Math.min(...result.elements.map((el) => el.y))
-        const maxX = Math.max(...result.elements.map((el) => el.x + el.width + 0 /* letterSpacing already in positioning */))
-        const maxY = Math.max(...result.elements.map((el) => el.y + el.lineHeight))
+        const minY = Math.min(...result.elements.map((el) => el.y - el.lineHeight + el.height))
+        const maxX = Math.max(...result.elements.map((el) => el.x + el.width))
+        const maxY = Math.max(...result.elements.map((el) => el.y + el.height))
 
         return {
             x: minX - options.preWidth,
@@ -454,9 +458,9 @@ export default class TextLayoutEngine {
         }
 
         const minX = Math.min(...allElements.map((el) => el.x))
-        const minY = Math.min(...allElements.map((el) => el.y))
+        const minY = Math.min(...allElements.map((el) => el.y - el.lineHeight + el.height))
         const maxX = Math.max(...allElements.map((el) => el.x + el.width))
-        const maxY = Math.max(...allElements.map((el) => el.y + el.lineHeight))
+        const maxY = Math.max(...allElements.map((el) => el.y + el.height))
 
         return {
             x: minX,

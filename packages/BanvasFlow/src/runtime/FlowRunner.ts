@@ -80,7 +80,7 @@ export class FlowRunner {
     }
 
     if (steps >= MAX_STEPS) {
-      console.warn('[FlowRunner] 达到最大执行步数 (%d)，流程可能存在死循环', MAX_STEPS)
+      throw new Error(`[FlowRunner] 达到最大执行步数 (${MAX_STEPS})，流程可能存在死循环`)
     }
   }
 
@@ -96,8 +96,7 @@ export class FlowRunner {
 
     const executor = this.registry.get(node.kind)
     if (!executor) {
-      console.warn('[FlowRunner] 未注册的节点类型: %s，跳过', node.kind)
-      return
+      throw new Error(`[FlowRunner] 未注册的节点类型: ${node.kind}`)
     }
 
     return executor(node, ctx, resolve)

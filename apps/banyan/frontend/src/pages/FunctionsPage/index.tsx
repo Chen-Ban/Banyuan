@@ -20,7 +20,7 @@ import type { FlowSchema } from 'banvasgl'
 import { cloudFunctionApi } from '@/api'
 import type { CloudFunctionDef } from '@/api'
 import FlowCanvas from '@/pages/ApplicationDetail/components/PropertyPanel/FlowCanvas'
-import FlowNodePalette from '@/pages/ApplicationDetail/components/PropertyPanel/FlowNodePalette'
+import FlowNodePalette, { SERVER_FLOW_NODE_MATERIALS } from '@/pages/ApplicationDetail/components/PropertyPanel/FlowNodePalette'
 import styles from './index.module.scss'
 
 // ── 左侧：云函数列表 ─────────────────────────────────────────────────────────
@@ -28,19 +28,24 @@ import styles from './index.module.scss'
 interface FunctionListProps {
   functions: CloudFunctionDef[]
   selectedId: string | null
+  adding: boolean
+  onStartAdd: () => void
+  onCancelAdd: () => void
+  onConfirmAdd: (name: string, displayName: string) => Promise<void>
   onSelect: (functionId: string) => void
-  onAdd: (name: string, displayName: string) => Promise<void>
   onDelete: (functionId: string) => Promise<void>
 }
 
 const FunctionList: React.FC<FunctionListProps> = ({
   functions,
   selectedId,
+  adding,
+  onStartAdd,
+  onCancelAdd,
+  onConfirmAdd,
   onSelect,
-  onAdd,
   onDelete,
 }) => {
-  const [adding, setAdding] = useState(false)
   const [newName, setNewName] = useState('')
   const [newDisplayName, setNewDisplayName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -50,10 +55,9 @@ const FunctionList: React.FC<FunctionListProps> = ({
     if (!trimmed) return
     setSaving(true)
     try {
-      await onAdd(trimmed, newDisplayName.trim() || trimmed)
+      await onConfirmAdd(trimmed, newDisplayName.trim() || trimmed)
       setNewName('')
       setNewDisplayName('')
-      setAdding(false)
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '创建失败')
     } finally {
@@ -64,7 +68,7 @@ const FunctionList: React.FC<FunctionListProps> = ({
   const handleCancel = () => {
     setNewName('')
     setNewDisplayName('')
-    setAdding(false)
+    onCancelAdd()
   }
 
   return (
@@ -76,11 +80,44 @@ const FunctionList: React.FC<FunctionListProps> = ({
             type="text"
             size="small"
             icon={<PlusOutlined />}
-            onClick={() => setAdding(true)}
+            onClick={onStartAdd}
             className={styles.addBtn}
           />
         </Tooltip>
       </div>
+
+      {/* 新建表单（顶部） */}
+      {adding && (
+        <div className={styles.addFunctionForm}>
+          <Input
+            size="small"
+            placeholder="函数名（英文，如 submitOrder）"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
+            autoFocus
+            disabled={saving}
+          />
+          <Input
+            size="small"
+            placeholder="显示名（可选）"
+            value={newDisplayName}
+            onChange={(e) => setNewDisplayName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
+            disabled={saving}
+          />
+          <div className={styles.addFunctionActions}>
+            <Button size="small" onClick={handleCancel} disabled={saving}>取消</Button>
+            <Button
+              size="small"
+              type="primary"
+              onClick={handleAdd}
+              loading={saving}
+              disabled={!newName.trim()}
+            >创建</Button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.functionItems}>
         {functions.map((fn) => (
@@ -116,39 +153,6 @@ const FunctionList: React.FC<FunctionListProps> = ({
           <div className={styles.functionEmpty}>暂无云函数</div>
         )}
       </div>
-
-      {/* 新建表单 */}
-      {adding && (
-        <div className={styles.addFunctionForm}>
-          <Input
-            size="small"
-            placeholder="函数名（英文，如 submitOrder）"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
-            autoFocus
-            disabled={saving}
-          />
-          <Input
-            size="small"
-            placeholder="显示名（可选）"
-            value={newDisplayName}
-            onChange={(e) => setNewDisplayName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
-            disabled={saving}
-          />
-          <div className={styles.addFunctionActions}>
-            <Button size="small" onClick={handleCancel} disabled={saving}>取消</Button>
-            <Button
-              size="small"
-              type="primary"
-              onClick={handleAdd}
-              loading={saving}
-              disabled={!newName.trim()}
-            >创建</Button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -267,9 +271,9 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
         </Button>
       </div>
 
-      {/* 节点物料面板 */}
+      {/* 节点物料面板（云函数使用后端节点） */}
       <div className={styles.paletteArea}>
-        <FlowNodePalette layout="horizontal" />
+        <FlowNodePalette layout="horizontal" materials={SERVER_FLOW_NODE_MATERIALS} />
       </div>
 
       {/* 流程画布 */}
@@ -294,6 +298,7 @@ const FunctionsPage: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [adding, setAdding] = useState(false)
 
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), [])
 
@@ -348,11 +353,22 @@ const FunctionsPage: React.FC = () => {
 
   // ── CRUD 操作 ────────────────────────────────────────────────────────────
 
-  const handleAddFunction = async (name: string, displayName: string) => {
+  const handleStartAdd = () => {
+    setAdding(true)
+    setSelectedId(null)
+  }
+
+  const handleCancelAdd = () => {
+    setAdding(false)
+    if (functions.length > 0) setSelectedId(functions[0].functionId)
+  }
+
+  const handleConfirmAdd = async (name: string, displayName: string) => {
     const res = await cloudFunctionApi.createFunction(id!, { name, displayName })
     if (res.data) {
       setFunctions((prev) => [res.data!, ...prev])
       setSelectedId(res.data.functionId)
+      setAdding(false)
     }
   }
 
@@ -431,8 +447,11 @@ const FunctionsPage: React.FC = () => {
           <FunctionList
             functions={functions}
             selectedId={selectedId}
+            adding={adding}
+            onStartAdd={handleStartAdd}
+            onCancelAdd={handleCancelAdd}
+            onConfirmAdd={handleConfirmAdd}
             onSelect={handleSelectFunction}
-            onAdd={handleAddFunction}
             onDelete={handleDeleteFunction}
           />
 
@@ -446,6 +465,17 @@ const FunctionsPage: React.FC = () => {
                 dirty={dirty}
                 onDirtyChange={handleDirtyChange}
               />
+            ) : adding ? (
+              <div className={styles.flowEditor}>
+                <div className={styles.flowEditorHeader}>
+                  <div className={styles.flowEditorMeta}>
+                    <span className={styles.newFunctionHintTitle}>新建云函数</span>
+                  </div>
+                </div>
+                <div className={styles.newFunctionHint}>
+                  <Empty description="请在左侧输入函数名并创建，即可在此编辑流程" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                </div>
+              </div>
             ) : (
               <div className={styles.noSelection}>
                 <Empty description="请在左侧选择或新建一个云函数" image={Empty.PRESENTED_IMAGE_SIMPLE} />
