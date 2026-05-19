@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFlowBanvas, NodeView, EdgeView } from 'banvasgl'
 import type { FlowSchema, FlowNode, FlowEdge, PortDirection } from 'banvasgl'
 import { getFlowNodeDragData } from './FlowNodePalette'
@@ -11,10 +11,14 @@ interface FlowCanvasProps {
     onChange: (schema: FlowSchema) => void
     /** 节点选中回调（点击节点时触发，点击空白时传 null） */
     onNodeSelect?: (nodeId: string | null) => void
+    /** 画布宽度（传入则使用，否则自适应容器） */
+    width?: number
+    /** 画布高度（传入则使用，否则自适应容器） */
+    height?: number
 }
 
-const CANVAS_WIDTH = 680
-const CANVAS_HEIGHT = 400
+const DEFAULT_CANVAS_WIDTH = 680
+const DEFAULT_CANVAS_HEIGHT = 400
 
 /** 生成简单唯一 id */
 function genId(): string {
@@ -55,12 +59,23 @@ function getPortsForNode(node: FlowNode): PortDef[] {
 /** 节点的显示标题 */
 function getNodeTitle(node: FlowNode): string {
     switch (node.kind) {
+        // 前端节点
         case 'setData': return '设置数据'
         case 'setVisible': return '显隐控制'
         case 'navigate': return '跳转页面'
         case 'animate': return '播放动画'
+        // 后端节点
+        case 'dbQuery': return '数据库查询'
+        case 'dbInsert': return '数据库插入'
+        case 'dbUpdate': return '数据库更新'
+        case 'dbDelete': return '数据库删除'
+        case 'httpRequest': return 'HTTP 请求'
+        case 'transform': return '数据转换'
+        case 'script': return '自定义脚本'
+        // 共享节点
         case 'condition': return '条件分支'
         case 'delay': return '延迟等待'
+        // 值节点
         case 'variable': return 'View 变量'
         case 'pageVar': return '页面变量'
         case 'eventParam': return '事件参数'
@@ -101,6 +116,7 @@ function buildDefaultNode(
     const base = { id, x, y }
 
     switch (kind) {
+        // 前端节点
         case 'setData':
             return { ...base, kind: 'setData', viewId: 'self', key: '', value: { kind: 'literal', value: '' } }
         case 'setVisible':
@@ -109,6 +125,22 @@ function buildDefaultNode(
             return { ...base, kind: 'navigate', pageId: '' }
         case 'animate':
             return { ...base, kind: 'animate', viewId: 'self', animationId: '' }
+        // 后端节点
+        case 'dbQuery':
+            return { ...base, kind: 'dbQuery', collection: '', filter: {}, outputVariable: 'queryResult' }
+        case 'dbInsert':
+            return { ...base, kind: 'dbInsert', collection: '', document: {}, outputVariable: 'insertedId' }
+        case 'dbUpdate':
+            return { ...base, kind: 'dbUpdate', collection: '', filter: {}, update: {}, outputVariable: 'modifiedCount' }
+        case 'dbDelete':
+            return { ...base, kind: 'dbDelete', collection: '', filter: {}, outputVariable: 'deletedCount' }
+        case 'httpRequest':
+            return { ...base, kind: 'httpRequest', url: { kind: 'literal', value: '' }, method: 'GET', outputVariable: 'response' }
+        case 'transform':
+            return { ...base, kind: 'transform', expression: '', variables: {}, outputVariable: 'result' }
+        case 'script':
+            return { ...base, kind: 'script', code: '', inputBindings: {}, outputBindings: {} }
+        // 共享节点
         case 'condition':
             return {
                 ...base,
@@ -121,6 +153,7 @@ function buildDefaultNode(
             }
         case 'delay':
             return { ...base, kind: 'delay', ms: 500 }
+        // 值节点
         case 'variable':
             return { ...base, kind: 'variable', viewId: 'self', key: '' }
         case 'pageVar':
@@ -135,7 +168,7 @@ function buildDefaultNode(
  *
  * 物料面板由外层的 FlowEditorModal 负责渲染，节点通过拖拽 drop 到此画布上创建。
  */
-const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange, onNodeSelect }) => {
+const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange, onNodeSelect, width: propWidth, height: propHeight }) => {
     const canvasWrapperRef = useRef<HTMLDivElement>(null)
     const canvasElRef = useRef<HTMLCanvasElement | null>(null)
     // 保持对最新 schema 的 ref 引用，避免 onSchemaChange 闭包捕获旧值
@@ -145,6 +178,28 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange, onNodeSelect 
     onChangeRef.current = onChange
     // 标记：当 schema 变更由画布内交互触发时跳过 useEffect 全量重建
     const skipNextSyncRef = useRef(false)
+
+    // 自适应容器尺寸
+    const [containerSize, setContainerSize] = useState<{ w: number; h: number }>({ w: DEFAULT_CANVAS_WIDTH, h: DEFAULT_CANVAS_HEIGHT })
+
+    useEffect(() => {
+        if (propWidth && propHeight) return // 外部传入尺寸时不需要 observe
+        const el = canvasWrapperRef.current
+        if (!el) return
+        const ro = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const { width: w, height: h } = entry.contentRect
+                if (w > 0 && h > 0) {
+                    setContainerSize({ w: Math.floor(w), h: Math.floor(h) })
+                }
+            }
+        })
+        ro.observe(el)
+        return () => ro.disconnect()
+    }, [propWidth, propHeight])
+
+    const canvasWidth = propWidth ?? containerSize.w
+    const canvasHeight = propHeight ?? containerSize.h
 
     const serializedPages = useMemo<string[]>(() => [], [])
 
@@ -206,8 +261,8 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({ schema, onChange, onNodeSelect 
     const { Canvas, app } = useFlowBanvas(
         serializedPages,
         {
-            width: CANVAS_WIDTH,
-            height: CANVAS_HEIGHT,
+            width: canvasWidth,
+            height: canvasHeight,
             backgroundColor: 'transparent',
         },
         handleSchemaChange,
