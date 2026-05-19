@@ -7,6 +7,7 @@ import previewRouter from './preview.js'
 import schemaRouter from './schema.js'
 import dataRouter from './data.js'
 import flowsRouter from './flows.js'
+import cloudFunctionsRouter from './cloudFunctions.js'
 
 const router = new Router()
 
@@ -32,5 +33,8 @@ router.use(dataRouter.routes(), dataRouter.allowedMethods())
 
 // Phase 2：FlowSchema 后端执行（ADR-013）
 router.use(flowsRouter.routes(), flowsRouter.allowedMethods())
+
+// 云函数 CRUD
+router.use(cloudFunctionsRouter.routes(), cloudFunctionsRouter.allowedMethods())
 
 export default router

@@ -259,6 +259,10 @@ const ApplicationDetail = () => {
     if (id && !isNew) navigate(`/application/${id}/database`);
   }, [id, isNew, navigate]);
 
+  const handleFunctions = useCallback(() => {
+    if (id && !isNew) navigate(`/application/${id}/functions`);
+  }, [id, isNew, navigate]);
+
   if (!loaded) {
     return <div style={{ padding: 40, textAlign: "center" }}>加载中...</div>;
   }
@@ -277,6 +281,7 @@ const ApplicationDetail = () => {
         onBuild={handleBuild}
         building={buildSubmitting}
         onDatabase={!isNew && id ? handleDatabase : undefined}
+        onFunctions={!isNew && id ? handleFunctions : undefined}
         builtinComponents={builtinComponents}
       />
       <div className={styles.mainContent} ref={mainContentRef}>
