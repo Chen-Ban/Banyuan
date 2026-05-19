@@ -18,7 +18,7 @@
  *   /application/:id/functions → functions
  */
 
-import { createContext, useCallback, useContext, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useRef } from 'react'
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Tabs } from 'antd'
 import { AppstoreOutlined, DatabaseOutlined, FunctionOutlined } from '@ant-design/icons'
@@ -31,12 +31,18 @@ import styles from './index.module.scss'
 export interface ApplicationLayoutContext {
   /** AiBar canvas 模式 done 时，子页面注册的刷新回调 */
   setOnCanvasPagesUpdate: (fn: (pages: string[]) => void) => void
+  /**
+   * 画布子页面注册的「获取当前 pages」回调。
+   * AiBar 在发送前调用，取得前端内存中最新的 pages 一并发送给 AI。
+   */
+  setGetCanvasPages: (fn: () => string[]) => void
   /** AiBar 定位锚点容器 ref（子页面用来对齐 AiBar 水平位置） */
   aiBarContainerRef: React.RefObject<HTMLDivElement | null>
 }
 
 export const AppLayoutCtx = createContext<ApplicationLayoutContext>({
   setOnCanvasPagesUpdate: () => {},
+  setGetCanvasPages: () => {},
   aiBarContainerRef: { current: null },
 })
 
@@ -74,9 +80,15 @@ const ApplicationLayout: React.FC = () => {
 
   // canvas 模式 pages 更新回调（由 ApplicationDetail 子页面动态注入）
   const pagesUpdateCallbackRef = useRef<(pages: string[]) => void>(() => {})
+  // canvas 模式「获取当前 pages」回调（由 ApplicationDetail 子页面动态注入）
+  const getCanvasPagesRef = useRef<() => string[]>(() => [])
 
   const setOnCanvasPagesUpdate = useCallback((fn: (pages: string[]) => void) => {
     pagesUpdateCallbackRef.current = fn
+  }, [])
+
+  const setGetCanvasPages = useCallback((fn: () => string[]) => {
+    getCanvasPagesRef.current = fn
   }, [])
 
   // AiBar onPagesUpdate 分发
@@ -85,6 +97,15 @@ const ApplicationLayout: React.FC = () => {
       pagesUpdateCallbackRef.current(pages)
     }
     // database / functions 模式：后续 AiBar 升级时在此扩展
+  }, [activeMode])
+
+  // AiBar getPages 分发
+  const handleGetPages = useCallback((): string[] => {
+    if (activeMode === 'canvas') {
+      return getCanvasPagesRef.current()
+    }
+    // database / functions 模式暂时返回空数组，后续分别注入
+    return []
   }, [activeMode])
 
   // Tab 切换
@@ -96,7 +117,7 @@ const ApplicationLayout: React.FC = () => {
   // ─── 新建应用：无 Tab / 无 AiBar ─────────────────────────────────────────
   if (isNew) {
     return (
-      <AppLayoutCtx.Provider value={{ setOnCanvasPagesUpdate, aiBarContainerRef: contentRef }}>
+      <AppLayoutCtx.Provider value={{ setOnCanvasPagesUpdate, setGetCanvasPages, aiBarContainerRef: contentRef }}>
         <div className={styles.layout}>
           <div className={styles.content} ref={contentRef}>
             <Outlet />
@@ -108,7 +129,7 @@ const ApplicationLayout: React.FC = () => {
 
   // ─── 已有应用：Tab + AiBar ────────────────────────────────────────────────
   return (
-    <AppLayoutCtx.Provider value={{ setOnCanvasPagesUpdate, aiBarContainerRef: contentRef }}>
+    <AppLayoutCtx.Provider value={{ setOnCanvasPagesUpdate, setGetCanvasPages, aiBarContainerRef: contentRef }}>
       <div className={styles.layout}>
         {/* 顶部 Tab 导航 */}
         <div className={styles.tabBar}>
@@ -138,6 +159,7 @@ const ApplicationLayout: React.FC = () => {
         <AiBar
           appId={id!}
           mode={activeMode}
+          getPages={handleGetPages}
           onPagesUpdate={handlePagesUpdate}
           onPagesSnapshot={activeMode === 'canvas' ? handlePagesUpdate : undefined}
           containerRef={contentRef}

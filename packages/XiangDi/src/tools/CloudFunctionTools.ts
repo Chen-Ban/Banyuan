@@ -2,16 +2,38 @@
  * 相地 · 云函数工具集
  *
  * 提供 AI 驱动的云函数生成、修改、解释能力。
+ * 云函数本质是 FlowSchema（节点图），而非代码字符串。
  *
  * 工具列表：
- *   - generate_cloud_function：根据描述 + AppSchema 生成完整函数代码
- *   - update_cloud_function：修改已有函数代码
- *   - explain_cloud_function：解释函数逻辑
+ *   - generate_cloud_function：根据描述 + AppSchema 生成完整 FlowSchema
+ *   - update_cloud_function：修改已有云函数的 FlowSchema
+ *   - explain_cloud_function：解释云函数的节点图逻辑
  *
  * 设计原则：
- *   - 每个工具导出为独立的 ToolDefinition
- *   - handler 内部构造 prompt 调用 LLMClient 生成代码
- *   - 生成结果包含完整的函数代码 + inputSchema + outputSchema（JSON Schema 格式）
+ *   - 输出为 FlowSchema JSON（{ nodes: FlowNode[], edges: FlowEdge[] }），
+ *     与 banvas-flow 的 FlowRunnerService 直接兼容
+ *   - handler 内部构造 prompt 调用 LLMClient 生成 FlowSchema
+ *   - AppSchema 注入 prompt，帮助 AI 理解可操作的数据集合和字段
+ *
+ * FlowSchema 后端节点类型（ServerFlowNode）：
+ *   dbQuery    — 数据库查询，输出到 outputVariable
+ *   dbInsert   — 数据库插入，输出 insertedId 到 outputVariable
+ *   dbUpdate   — 数据库更新，输出 modifiedCount 到 outputVariable
+ *   dbDelete   — 数据库删除，输出 deletedCount 到 outputVariable
+ *   httpRequest — HTTP 请求，输出 response 到 outputVariable
+ *   transform  — 表达式转换（安全子集），输出到 outputVariable
+ *   script     — 自定义脚本（vm 沙箱），支持 inputBindings / outputBindings
+ *
+ * 共享节点类型（SharedFlowNode）：
+ *   condition  — 条件分支，边上用 branch: 'true'|'false' 区分
+ *   setVariable — 设置变量（scope: 'local'|'flow'）
+ *   callFlow   — 调用另一个 FlowSchema（flowId）
+ *   delay      — 延迟等待（ms）
+ *
+ * FlowValue 值来源：
+ *   { kind: 'literal', value: ... }           — 字面量
+ *   { kind: 'dataRef', viewId: 'local', key } — 引用 local scope 变量
+ *   { kind: 'dataRef', viewId: 'flow', key }  — 引用 flow scope 变量
  */
 
 import type { ToolDefinition, ToolHandler } from "../core/types.js";
@@ -35,6 +57,39 @@ export interface AppSchemaCollectionDef {
   fields: AppSchemaFieldDef[];
 }
 
+// ─── FlowSchema 类型（与 banvas-flow 对齐）──────────────────────────────────
+
+export interface FlowLiteralValue {
+  kind: "literal";
+  value: string | number | boolean | null | object;
+}
+
+export interface FlowDataRefValue {
+  kind: "dataRef";
+  viewId: string; // 后端: 'local' | 'flow'
+  key: string;
+}
+
+export type FlowValue = FlowLiteralValue | FlowDataRefValue | { kind: string; [k: string]: unknown };
+
+export interface FlowEdge {
+  from: string;
+  to: string;
+  branch?: "true" | "false";
+  toParam?: string;
+}
+
+export interface FlowNode {
+  id: string;
+  kind: string;
+  [key: string]: unknown;
+}
+
+export interface FlowSchema {
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+}
+
 // ─── generate_cloud_function ────────────────────────────────────────────────────
 
 export interface GenerateCloudFunctionInput {
@@ -45,16 +100,14 @@ export interface GenerateCloudFunctionInput {
 }
 
 export interface GenerateCloudFunctionOutput {
-  /** 生成的函数名称 */
+  /** 生成的函数名称（camelCase） */
   name: string;
-  /** 生成的完整函数代码 */
-  code: string;
-  /** 函数输入参数的 JSON Schema */
-  inputSchema: Record<string, unknown>;
-  /** 函数输出结果的 JSON Schema */
-  outputSchema: Record<string, unknown>;
+  /** 生成的函数中文显示名 */
+  displayName: string;
   /** 函数功能说明 */
   description: string;
+  /** 生成的 FlowSchema（节点图） */
+  schema: FlowSchema;
 }
 
 export const GENERATE_CLOUD_FUNCTION_TOOL_NAME = "generate_cloud_function" as const;
@@ -62,9 +115,8 @@ export const GENERATE_CLOUD_FUNCTION_TOOL_NAME = "generate_cloud_function" as co
 export const GENERATE_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
   name: GENERATE_CLOUD_FUNCTION_TOOL_NAME,
   description:
-    "根据自然语言描述和应用数据模型（AppSchema）生成完整的云函数代码。" +
-    "生成结果包含函数代码、输入参数 Schema 和输出结果 Schema。" +
-    "云函数可访问 ctx.db 进行数据库操作，ctx.input 获取调用参数。" +
+    "根据自然语言描述和应用数据模型（AppSchema）生成完整的云函数 FlowSchema（节点图）。" +
+    "生成结果为可直接被 FlowRunnerService 执行的 { nodes, edges } 结构。" +
     "示例：'查询所有未完成的订单并按创建时间排序'",
   input_schema: {
     type: "object",
@@ -78,8 +130,7 @@ export const GENERATE_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
       appSchema: {
         type: "array",
         description:
-          "应用的数据模型定义数组，每个元素包含 collectionName 和 fields。" +
-          "帮助理解可操作的数据结构。",
+          "应用的数据模型定义数组，每个元素包含 collectionName 和 fields。",
         items: {
           type: "object",
           properties: {
@@ -111,21 +162,17 @@ export interface UpdateCloudFunctionInput {
   name: string;
   /** 修改描述（自然语言，说明要改什么） */
   description: string;
-  /** 当前函数代码 */
-  currentCode: string;
+  /** 当前 FlowSchema（节点图） */
+  currentSchema: FlowSchema;
   /** 应用的数据模型定义 */
   appSchema: AppSchemaCollectionDef[];
 }
 
 export interface UpdateCloudFunctionOutput {
-  /** 修改后的完整函数代码 */
-  code: string;
+  /** 修改后的完整 FlowSchema */
+  schema: FlowSchema;
   /** 修改说明 */
   changelog: string;
-  /** 更新后的输入参数 JSON Schema */
-  inputSchema: Record<string, unknown>;
-  /** 更新后的输出结果 JSON Schema */
-  outputSchema: Record<string, unknown>;
 }
 
 export const UPDATE_CLOUD_FUNCTION_TOOL_NAME = "update_cloud_function" as const;
@@ -133,8 +180,8 @@ export const UPDATE_CLOUD_FUNCTION_TOOL_NAME = "update_cloud_function" as const;
 export const UPDATE_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
   name: UPDATE_CLOUD_FUNCTION_TOOL_NAME,
   description:
-    "修改已有的云函数代码。根据修改描述和当前代码，生成更新后的完整代码。" +
-    "可用于优化性能、修复 bug、添加新功能、重构代码等。" +
+    "修改已有的云函数 FlowSchema。根据修改描述和当前节点图，生成更新后的完整 FlowSchema。" +
+    "可用于添加新节点、修改查询条件、调整数据流向等。" +
     "示例：'给查询结果添加分页支持，每页 20 条'",
   input_schema: {
     type: "object",
@@ -147,9 +194,13 @@ export const UPDATE_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
         type: "string",
         description: "修改需求的自然语言描述，说明要改什么、为什么改。",
       },
-      currentCode: {
-        type: "string",
-        description: "当前的函数代码（完整代码）",
+      currentSchema: {
+        type: "object",
+        description: "当前的 FlowSchema（{ nodes: [], edges: [] }）",
+        properties: {
+          nodes: { type: "array" },
+          edges: { type: "array" },
+        },
       },
       appSchema: {
         type: "array",
@@ -158,23 +209,12 @@ export const UPDATE_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
           type: "object",
           properties: {
             collectionName: { type: "string" },
-            fields: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  displayName: { type: "string" },
-                  type: { type: "string" },
-                  required: { type: "boolean" },
-                },
-              },
-            },
+            fields: { type: "array" },
           },
         },
       },
     },
-    required: ["name", "description", "currentCode", "appSchema"],
+    required: ["name", "description", "currentSchema", "appSchema"],
   },
 };
 
@@ -183,8 +223,8 @@ export const UPDATE_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
 export interface ExplainCloudFunctionInput {
   /** 函数名称 */
   name: string;
-  /** 函数代码 */
-  code: string;
+  /** 函数的 FlowSchema（节点图） */
+  schema: FlowSchema;
 }
 
 export interface ExplainCloudFunctionOutput {
@@ -203,9 +243,8 @@ export const EXPLAIN_CLOUD_FUNCTION_TOOL_NAME = "explain_cloud_function" as cons
 export const EXPLAIN_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
   name: EXPLAIN_CLOUD_FUNCTION_TOOL_NAME,
   description:
-    "解释一个云函数的逻辑。分析代码并返回自然语言解释，" +
-    "包括函数功能、输入输出说明、关键逻辑步骤。" +
-    "适用于理解他人编写的函数或为函数生成文档。",
+    "解释一个云函数的 FlowSchema 节点图逻辑。分析节点和边的结构，返回自然语言解释，" +
+    "包括函数功能、输入输出说明、关键逻辑步骤。",
   input_schema: {
     type: "object",
     properties: {
@@ -213,23 +252,23 @@ export const EXPLAIN_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
         type: "string",
         description: "函数名称",
       },
-      code: {
-        type: "string",
-        description: "要解释的函数代码（完整代码）",
+      schema: {
+        type: "object",
+        description: "要解释的 FlowSchema（{ nodes: [], edges: [] }）",
+        properties: {
+          nodes: { type: "array" },
+          edges: { type: "array" },
+        },
       },
     },
-    required: ["name", "code"],
+    required: ["name", "schema"],
   },
 };
 
-// ─── Handler 工厂 ───────────────────────────────────────────────────────────────
+// ─── 工具函数 ─────────────────────────────────────────────────────────────────
 
-/**
- * 将 AppSchema 格式化为 LLM 可读的文本
- */
 function formatAppSchemaForPrompt(appSchema: AppSchemaCollectionDef[]): string {
   if (appSchema.length === 0) return "（无数据模型定义）";
-
   return appSchema
     .map((col) => {
       const fieldsStr = col.fields
@@ -243,44 +282,148 @@ function formatAppSchemaForPrompt(appSchema: AppSchemaCollectionDef[]): string {
     .join("\n\n");
 }
 
-/**
- * 从 LLM 响应中提取 JSON 块
- */
 function extractJsonFromResponse(text: string): Record<string, unknown> | null {
-  // 尝试匹配 ```json ... ``` 代码块
   const jsonBlockMatch = text.match(/```json\s*\n?([\s\S]*?)\n?```/);
   if (jsonBlockMatch) {
-    try {
-      return JSON.parse(jsonBlockMatch[1]) as Record<string, unknown>;
-    } catch {
-      // 继续尝试其他方式
-    }
+    try { return JSON.parse(jsonBlockMatch[1]) as Record<string, unknown>; } catch { /* continue */ }
   }
-
-  // 尝试直接解析整个文本
-  try {
-    return JSON.parse(text) as Record<string, unknown>;
-  } catch {
-    // 尝试找到第一个 { 和最后一个 } 之间的内容
-    const start = text.indexOf("{");
-    const end = text.lastIndexOf("}");
-    if (start !== -1 && end !== -1 && end > start) {
-      try {
-        return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>;
-      } catch {
-        return null;
-      }
-    }
-    return null;
+  try { return JSON.parse(text) as Record<string, unknown>; } catch { /* continue */ }
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
+    try { return JSON.parse(text.slice(start, end + 1)) as Record<string, unknown>; } catch { /* continue */ }
   }
+  return null;
 }
 
-/**
- * 创建 generate_cloud_function 工具的 handler
- *
- * @param llmClient LLM 客户端实例
- * @param model 使用的模型名称
- */
+const FLOW_SCHEMA_SYSTEM_PROMPT = `你是一个 FlowSchema 节点图生成专家。根据用户描述和数据模型，生成可被后端 FlowRunner 直接执行的 FlowSchema JSON。
+
+## FlowSchema 结构
+\`\`\`
+{
+  "nodes": [ FlowNode[] ],
+  "edges": [ FlowEdge[] ]
+}
+\`\`\`
+
+## 节点类型（后端 ServerFlowNode）
+
+### dbQuery — 数据库查询
+\`\`\`json
+{
+  "id": "node_1",
+  "kind": "dbQuery",
+  "collection": "orders",
+  "filter": { "status": { "kind": "literal", "value": "pending" } },
+  "sort": { "createdAt": -1 },
+  "limit": 20,
+  "outputVariable": "orders"
+}
+\`\`\`
+
+### dbInsert — 数据库插入
+\`\`\`json
+{
+  "id": "node_2",
+  "kind": "dbInsert",
+  "collection": "orders",
+  "document": {
+    "title": { "kind": "dataRef", "viewId": "local", "key": "title" },
+    "status": { "kind": "literal", "value": "pending" }
+  },
+  "outputVariable": "insertedId"
+}
+\`\`\`
+
+### dbUpdate — 数据库更新
+\`\`\`json
+{
+  "id": "node_3",
+  "kind": "dbUpdate",
+  "collection": "orders",
+  "filter": { "_id": { "kind": "dataRef", "viewId": "local", "key": "orderId" } },
+  "update": { "status": { "kind": "literal", "value": "done" } },
+  "outputVariable": "modifiedCount"
+}
+\`\`\`
+
+### dbDelete — 数据库删除
+\`\`\`json
+{
+  "id": "node_4",
+  "kind": "dbDelete",
+  "collection": "orders",
+  "filter": { "_id": { "kind": "dataRef", "viewId": "local", "key": "orderId" } },
+  "outputVariable": "deletedCount"
+}
+\`\`\`
+
+### httpRequest — HTTP 请求
+\`\`\`json
+{
+  "id": "node_5",
+  "kind": "httpRequest",
+  "url": { "kind": "literal", "value": "https://api.example.com/data" },
+  "method": "GET",
+  "outputVariable": "response"
+}
+\`\`\`
+
+### transform — 表达式转换
+\`\`\`json
+{
+  "id": "node_6",
+  "kind": "transform",
+  "expression": "items.length",
+  "variables": { "items": { "kind": "dataRef", "viewId": "local", "key": "orders" } },
+  "outputVariable": "count"
+}
+\`\`\`
+
+### setVariable — 设置变量（共享节点）
+\`\`\`json
+{
+  "id": "node_7",
+  "kind": "setVariable",
+  "scope": "local",
+  "key": "result",
+  "value": { "kind": "dataRef", "viewId": "local", "key": "orders" }
+}
+\`\`\`
+
+### condition — 条件分支（共享节点）
+\`\`\`json
+{
+  "id": "node_8",
+  "kind": "condition",
+  "condition": {
+    "left": { "kind": "dataRef", "viewId": "local", "key": "count" },
+    "op": ">",
+    "right": { "kind": "literal", "value": 0 }
+  }
+}
+\`\`\`
+条件节点的出边需要 branch: "true" 或 "false"。
+
+## FlowValue 值来源
+- 字面量：\`{ "kind": "literal", "value": 123 }\`
+- 引用 local 变量：\`{ "kind": "dataRef", "viewId": "local", "key": "varName" }\`
+- 引用 flow 变量：\`{ "kind": "dataRef", "viewId": "flow", "key": "varName" }\`
+
+## FlowEdge 结构
+\`\`\`json
+{ "from": "node_1", "to": "node_2" }
+{ "from": "node_8", "to": "node_9", "branch": "true" }
+\`\`\`
+
+## 约定
+- 函数的输入参数通过 local scope 变量传入（调用方写入 local scope）
+- 函数的输出结果写入 local scope 的 "result" 变量（FlowRunnerService 读取 local scope 作为结果）
+- 节点 id 使用 "node_1", "node_2" 等简单格式
+- 所有节点必须通过 edges 连接，形成有向无环图（DAG）`;
+
+// ─── Handler 工厂 ─────────────────────────────────────────────────────────────
+
 export function createGenerateCloudFunctionHandler(
   llmClient: LLMClient,
   model: string
@@ -288,69 +431,52 @@ export function createGenerateCloudFunctionHandler(
   return async (input: GenerateCloudFunctionInput): Promise<GenerateCloudFunctionOutput> => {
     const schemaText = formatAppSchemaForPrompt(input.appSchema);
 
-    const systemPrompt = `你是一个云函数代码生成专家。根据用户描述和数据模型生成完整的云函数代码。
+    const systemPrompt = `${FLOW_SCHEMA_SYSTEM_PROMPT}
 
-云函数运行环境：
-- ctx.db — 数据库操作对象，支持 ctx.db.collection('collectionName') 获取集合
-- ctx.db.collection(name).find(query) — 查询文档
-- ctx.db.collection(name).findOne(query) — 查询单个文档
-- ctx.db.collection(name).insertOne(doc) — 插入文档
-- ctx.db.collection(name).updateOne(query, update) — 更新文档
-- ctx.db.collection(name).deleteOne(query) — 删除文档
-- ctx.input — 调用时传入的参数对象
-
-应用数据模型：
+## 应用数据模型
 ${schemaText}
 
 请严格按以下 JSON 格式返回（不要包含其他内容）：
 {
   "name": "函数名（camelCase）",
-  "code": "完整的函数代码字符串",
-  "inputSchema": { JSON Schema 格式的输入参数定义 },
-  "outputSchema": { JSON Schema 格式的输出结果定义 },
-  "description": "函数功能一句话说明"
+  "displayName": "函数中文显示名",
+  "description": "函数功能一句话说明",
+  "schema": {
+    "nodes": [ ...FlowNode[] ],
+    "edges": [ ...FlowEdge[] ]
+  }
 }`;
 
     const response = await llmClient.createMessage({
       model,
       max_tokens: 4096,
       system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "text", text: input.description }],
-        },
-      ],
+      messages: [{ role: "user", content: [{ type: "text", text: input.description }] }],
       temperature: 0.3,
     });
 
-    // 从 LLM 响应中提取文本
     const textContent = response.content.find((c) => c.type === "text");
     if (!textContent || textContent.type !== "text") {
       throw new Error("LLM 未返回文本内容");
     }
 
     const parsed = extractJsonFromResponse(textContent.text);
-    if (!parsed) {
-      throw new Error("无法解析 LLM 返回的 JSON 结果");
+    if (!parsed) throw new Error("无法解析 LLM 返回的 JSON 结果");
+
+    const schema = parsed["schema"] as FlowSchema | undefined;
+    if (!schema || !Array.isArray(schema.nodes) || !Array.isArray(schema.edges)) {
+      throw new Error("LLM 返回的 FlowSchema 格式不合法，缺少 nodes 或 edges");
     }
 
     return {
       name: String(parsed["name"] ?? "untitled"),
-      code: String(parsed["code"] ?? ""),
-      inputSchema: (parsed["inputSchema"] as Record<string, unknown>) ?? { type: "object", properties: {} },
-      outputSchema: (parsed["outputSchema"] as Record<string, unknown>) ?? { type: "object", properties: {} },
+      displayName: String(parsed["displayName"] ?? input.description.slice(0, 20)),
       description: String(parsed["description"] ?? input.description),
+      schema,
     };
   };
 }
 
-/**
- * 创建 update_cloud_function 工具的 handler
- *
- * @param llmClient LLM 客户端实例
- * @param model 使用的模型名称
- */
 export function createUpdateCloudFunctionHandler(
   llmClient: LLMClient,
   model: string
@@ -358,44 +484,33 @@ export function createUpdateCloudFunctionHandler(
   return async (input: UpdateCloudFunctionInput): Promise<UpdateCloudFunctionOutput> => {
     const schemaText = formatAppSchemaForPrompt(input.appSchema);
 
-    const systemPrompt = `你是一个云函数代码优化专家。根据修改需求，对已有函数代码进行修改。
+    const systemPrompt = `${FLOW_SCHEMA_SYSTEM_PROMPT}
 
-云函数运行环境：
-- ctx.db — 数据库操作对象，支持 ctx.db.collection('collectionName') 获取集合
-- ctx.db.collection(name).find(query) — 查询文档
-- ctx.db.collection(name).findOne(query) — 查询单个文档
-- ctx.db.collection(name).insertOne(doc) — 插入文档
-- ctx.db.collection(name).updateOne(query, update) — 更新文档
-- ctx.db.collection(name).deleteOne(query) — 删除文档
-- ctx.input — 调用时传入的参数对象
-
-应用数据模型：
+## 应用数据模型
 ${schemaText}
 
-当前函数名：${input.name}
-当前代码：
-\`\`\`javascript
-${input.currentCode}
+## 当前函数名
+${input.name}
+
+## 当前 FlowSchema
+\`\`\`json
+${JSON.stringify(input.currentSchema, null, 2)}
 \`\`\`
 
 请严格按以下 JSON 格式返回（不要包含其他内容）：
 {
-  "code": "修改后的完整函数代码字符串",
-  "changelog": "本次修改的说明",
-  "inputSchema": { JSON Schema 格式的输入参数定义 },
-  "outputSchema": { JSON Schema 格式的输出结果定义 }
+  "schema": {
+    "nodes": [ ...FlowNode[] ],
+    "edges": [ ...FlowEdge[] ]
+  },
+  "changelog": "本次修改的说明"
 }`;
 
     const response = await llmClient.createMessage({
       model,
       max_tokens: 4096,
       system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: [{ type: "text", text: input.description }],
-        },
-      ],
+      messages: [{ role: "user", content: [{ type: "text", text: input.description }] }],
       temperature: 0.3,
     });
 
@@ -405,41 +520,32 @@ ${input.currentCode}
     }
 
     const parsed = extractJsonFromResponse(textContent.text);
-    if (!parsed) {
-      throw new Error("无法解析 LLM 返回的 JSON 结果");
+    if (!parsed) throw new Error("无法解析 LLM 返回的 JSON 结果");
+
+    const schema = parsed["schema"] as FlowSchema | undefined;
+    if (!schema || !Array.isArray(schema.nodes) || !Array.isArray(schema.edges)) {
+      throw new Error("LLM 返回的 FlowSchema 格式不合法，缺少 nodes 或 edges");
     }
 
     return {
-      code: String(parsed["code"] ?? input.currentCode),
-      changelog: String(parsed["changelog"] ?? "代码已更新"),
-      inputSchema: (parsed["inputSchema"] as Record<string, unknown>) ?? { type: "object", properties: {} },
-      outputSchema: (parsed["outputSchema"] as Record<string, unknown>) ?? { type: "object", properties: {} },
+      schema,
+      changelog: String(parsed["changelog"] ?? "FlowSchema 已更新"),
     };
   };
 }
 
-/**
- * 创建 explain_cloud_function 工具的 handler
- *
- * @param llmClient LLM 客户端实例
- * @param model 使用的模型名称
- */
 export function createExplainCloudFunctionHandler(
   llmClient: LLMClient,
   model: string
 ): ToolHandler<ExplainCloudFunctionInput, ExplainCloudFunctionOutput> {
   return async (input: ExplainCloudFunctionInput): Promise<ExplainCloudFunctionOutput> => {
-    const systemPrompt = `你是一个代码分析专家。分析给定的云函数代码，返回结构化的解释。
-
-云函数运行环境：
-- ctx.db — 数据库操作对象
-- ctx.input — 调用时传入的参数对象
+    const systemPrompt = `你是一个 FlowSchema 分析专家。分析给定的云函数节点图，返回结构化的自然语言解释。
 
 请严格按以下 JSON 格式返回（不要包含其他内容）：
 {
   "explanation": "函数功能的一段话解释",
-  "inputDescription": "函数需要的输入参数说明",
-  "outputDescription": "函数返回结果的说明",
+  "inputDescription": "函数需要的输入参数说明（来自 local scope 的变量）",
+  "outputDescription": "函数返回结果的说明（local scope 的 result 变量）",
   "steps": ["步骤1说明", "步骤2说明", ...]
 }`;
 
@@ -453,7 +559,7 @@ export function createExplainCloudFunctionHandler(
           content: [
             {
               type: "text",
-              text: `函数名：${input.name}\n\n代码：\n\`\`\`javascript\n${input.code}\n\`\`\``,
+              text: `函数名：${input.name}\n\nFlowSchema：\n\`\`\`json\n${JSON.stringify(input.schema, null, 2)}\n\`\`\``,
             },
           ],
         },
@@ -467,9 +573,7 @@ export function createExplainCloudFunctionHandler(
     }
 
     const parsed = extractJsonFromResponse(textContent.text);
-    if (!parsed) {
-      throw new Error("无法解析 LLM 返回的 JSON 结果");
-    }
+    if (!parsed) throw new Error("无法解析 LLM 返回的 JSON 结果");
 
     return {
       explanation: String(parsed["explanation"] ?? ""),
@@ -491,15 +595,6 @@ export interface CloudFunctionToolsConfig {
 
 /**
  * 将所有云函数工具注册到 ToolRegistry
- *
- * @example
- * ```ts
- * const registry = new ToolRegistry();
- * registerCloudFunctionTools(registry, {
- *   llmClient: myLLMClient,
- *   model: "deepseek-chat",
- * });
- * ```
  */
 export function registerCloudFunctionTools(
   registry: ToolRegistry,

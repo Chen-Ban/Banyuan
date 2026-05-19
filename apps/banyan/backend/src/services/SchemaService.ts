@@ -337,4 +337,30 @@ export class SchemaService {
     invalidateDynamicModel(appId, collectionName)
     return doc.toObject()
   }
+
+  /**
+   * 整体替换应用的 Schema（AI schema_set_collections 工具专用）
+   *
+   * 策略：upsert 整个文档，version 递增，并失效所有旧 Model 缓存。
+   * 调用方（AiService）在收到 schema_update SSE 事件后调用此方法。
+   */
+  static async setCollections(appId: string, collections: ICollectionDef[]) {
+    // 清除所有旧 Model 缓存（新 Schema 可能增删集合或改字段）
+    invalidateAllDynamicModels(appId)
+
+    const doc = await AppSchemaModel.findOne({ appId })
+    if (doc) {
+      doc.collections = collections
+      doc.version += 1
+      await doc.save()
+      return doc.toObject()
+    } else {
+      const newDoc = await AppSchemaModel.create({
+        appId,
+        collections,
+        version: 1,
+      })
+      return newDoc.toObject()
+    }
+  }
 }

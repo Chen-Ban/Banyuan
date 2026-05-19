@@ -39,6 +39,7 @@ import applicationService from './ApplicationService.js'
 import conversationService from './ConversationService.js'
 import summaryService from './SummaryService.js'
 import { SchemaService } from './SchemaService.js'
+import type { ICollectionDef } from '../models/AppSchema.js'
 
 // XiangDi 服务地址，通过环境变量配置，默认本地开发地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
@@ -67,12 +68,15 @@ class AiService {
    * @param prompt           用户自然语言指令
    * @param res              Koa 的底层 ServerResponse（用于 SSE 写入）
    * @param conversationId   可选，已有会话 ID（续接对话）
+   * @param frontendPages    前端传入的当前 pages（最新内存状态），AI 操作此版本；
+   *                         done 事件后写回 DB 作为 checkpoint
    */
   async runWithSSE(
     appId: string,
     prompt: string,
     res: ServerResponse,
-    conversationId?: string
+    conversationId?: string,
+    frontendPages?: string[]
   ): Promise<void> {
     // 设置 SSE 响应头（由 Controller 负责，此处仅做防御性检查）
     if (!res.headersSent) {
@@ -85,10 +89,11 @@ class AiService {
     }
 
     try {
-      // 1. 从 MongoDB 读取当前 pages
+      // 1. 校验应用存在（不再从 DB 读 pages，使用前端传入的最新状态）
       const app = await applicationService.getApplicationById(appId)
       if (!app) throw new Error(`应用 ${appId} 不存在`)
-      const pages: string[] = app.pages ?? []
+      // 优先用前端传入的 pages（最新内存状态），前端未传时回退到 DB 快照
+      const pages: string[] = frontendPages ?? app.pages ?? []
 
       // 2. 获取或创建会话
       const conversation = await conversationService.getOrCreate(appId, conversationId)
@@ -155,7 +160,7 @@ class AiService {
         ])
         // 10. 异步触发摘要生成（fire-and-forget，不阻塞 done 响应）
         summaryService.triggerAsync(convId)
-      })
+      }, appId)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       sseWrite(res, 'error', { message })
@@ -194,7 +199,8 @@ class AiService {
   private proxySSE(
     requestBody: string,
     clientRes: ServerResponse,
-    onDone: (pages: string[], agentOutput: string) => Promise<void>
+    onDone: (pages: string[], agentOutput: string) => Promise<void>,
+    appId: string
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const url = new URL('/ai/run', XIANGDI_BASE_URL)
@@ -247,6 +253,20 @@ class AiService {
                 }
               }
 
+              if (currentEvent === 'schema_update') {
+                // schema_update 事件：解析 collections，写入 DB（异步 fire-and-forget）
+                try {
+                  const parsed = JSON.parse(dataStr) as { collections?: ICollectionDef[] }
+                  if (Array.isArray(parsed.collections) && parsed.collections.length > 0) {
+                    SchemaService.setCollections(appId, parsed.collections).catch((err) => {
+                      console.error('[AiService] 写入 Schema 失败:', err)
+                    })
+                  }
+                } catch {
+                  // 解析失败不影响透传
+                }
+              }
+
               if (currentEvent === 'done') {
                 // done 事件：解析 pages，写回 MongoDB + 保存消息，再转发给前端
                 try {
@@ -261,7 +281,7 @@ class AiService {
                 }
               }
 
-              // 透传所有事件给前端（包括 done）
+              // 透传所有事件给前端（包括 done、schema_update）
               if (currentEvent) {
                 sseWrite(clientRes, currentEvent, dataStr)
               }

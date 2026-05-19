@@ -29,7 +29,7 @@ router.get('/', async (ctx: Context) => {
       name: f.name,
       displayName: f.displayName,
       description: f.description,
-      schema: f.schema,
+      flowSchema: f.flowSchema,
       version: f.version,
       createdAt: f.createdAt,
       updatedAt: f.updatedAt,
@@ -58,7 +58,7 @@ router.get('/:functionId', async (ctx: Context) => {
       name: fn.name,
       displayName: fn.displayName,
       description: fn.description,
-      schema: fn.schema,
+      flowSchema: fn.flowSchema,
       version: fn.version,
       createdAt: fn.createdAt,
       updatedAt: fn.updatedAt,
@@ -76,7 +76,7 @@ router.post('/', async (ctx: Context) => {
     name?: string
     displayName?: string
     description?: string
-    schema?: Record<string, unknown>
+    flowSchema?: Record<string, unknown>
   }
 
   if (!body.name?.trim()) {
@@ -100,7 +100,7 @@ router.post('/', async (ctx: Context) => {
     name: body.name.trim(),
     displayName: body.displayName?.trim() || body.name.trim(),
     description: body.description?.trim() || '',
-    schema: body.schema ?? { nodes: [], edges: [] },
+    flowSchema: body.flowSchema ?? { nodes: [], edges: [] },
   })
 
   ctx.status = 201
@@ -111,7 +111,7 @@ router.post('/', async (ctx: Context) => {
       name: fn.name,
       displayName: fn.displayName,
       description: fn.description,
-      schema: fn.schema,
+      flowSchema: fn.flowSchema,
       version: fn.version,
       createdAt: fn.createdAt,
       updatedAt: fn.updatedAt,
@@ -129,7 +129,7 @@ router.put('/:functionId', async (ctx: Context) => {
     name?: string
     displayName?: string
     description?: string
-    schema?: Record<string, unknown>
+    flowSchema?: Record<string, unknown>
   }
 
   const fn = await CloudFunction.findOne({ appId, functionId })
@@ -152,7 +152,7 @@ router.put('/:functionId', async (ctx: Context) => {
 
   if (body.displayName !== undefined) fn.displayName = body.displayName.trim()
   if (body.description !== undefined) fn.description = body.description.trim()
-  if (body.schema !== undefined) fn.schema = body.schema
+  if (body.flowSchema !== undefined) fn.flowSchema = body.flowSchema
   fn.version += 1
 
   await fn.save()
@@ -164,7 +164,7 @@ router.put('/:functionId', async (ctx: Context) => {
       name: fn.name,
       displayName: fn.displayName,
       description: fn.description,
-      schema: fn.schema,
+      flowSchema: fn.flowSchema,
       version: fn.version,
       createdAt: fn.createdAt,
       updatedAt: fn.updatedAt,
