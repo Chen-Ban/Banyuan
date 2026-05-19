@@ -13,8 +13,6 @@ import {
   Modal,
 } from 'antd'
 import {
-  ArrowLeftOutlined,
-  DatabaseOutlined,
   PlusOutlined,
   DeleteOutlined,
   TableOutlined,
@@ -412,6 +410,7 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
 const DatabasePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  void navigate // layout 负责导航，此处保留以备不时之需
 
   const [collections, setCollections] = useState<CollectionDef[]>([])
   const [loading, setLoading] = useState(true)
@@ -545,18 +544,12 @@ const DatabasePage: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* 顶部 Header */}
-      <div className={styles.header}>
-        <Button
-          type="text"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate(`/application/${id}`)}
-          className={styles.backBtn}
-        />
-        <DatabaseOutlined className={styles.headerIcon} />
-        <span className={styles.headerTitle}>数据库 Schema</span>
-        {dirty && <span className={styles.dirtyBadge}>未保存</span>}
-      </div>
+      {/* dirty 提示条 */}
+      {dirty && (
+        <div className={styles.dirtyBar}>
+          <span className={styles.dirtyBadge}>未保存</span>
+        </div>
+      )}
 
       {/* 主体：左右布局 */}
       {loading ? (
@@ -598,3 +591,4 @@ const DatabasePage: React.FC = () => {
 }
 
 export default DatabasePage
+

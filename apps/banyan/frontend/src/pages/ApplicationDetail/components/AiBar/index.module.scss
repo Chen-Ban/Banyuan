@@ -262,7 +262,20 @@
 .toolbarLeft {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+}
+
+.modeTag {
+  font-size: 11px;
+  padding: 0 6px;
+  line-height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: default;
+  user-select: none;
+  flex-shrink: 0;
 }
 
 .modelSelect {
