@@ -1,0 +1,49 @@
+{
+  "name": "banvas-flow",
+  "version": "0.1.0",
+  "description": "Banyuan 流程控制引擎 —— 声明式 FlowSchema 执行器，支持前后端统一的策略注册表模式",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./client": {
+      "types": "./dist/presets/client.d.ts",
+      "import": "./dist/presets/client.js",
+      "require": "./dist/presets/client.cjs"
+    },
+    "./server": {
+      "types": "./dist/presets/server.d.ts",
+      "import": "./dist/presets/server.js",
+      "require": "./dist/presets/server.cjs"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js",
+      "require": "./dist/types/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "client": ["./dist/presets/client.d.ts"],
+      "server": ["./dist/presets/server.d.ts"],
+      "types": ["./dist/types/index.d.ts"]
+    }
+  },
+  "files": ["src", "dist"],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch"
+  },
+  "keywords": ["flow", "schema", "runner", "banvas"],
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@10.10.0",
+  "devDependencies": {
+    "tsup": "^8.4.0"
+  }
+}
