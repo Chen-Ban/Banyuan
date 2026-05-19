@@ -125,6 +125,14 @@ export {
   createUpdateCloudFunctionHandler,
   createExplainCloudFunctionHandler,
   registerCloudFunctionTools,
+  // Schema 工具
+  SCHEMA_GET_TOOL_NAME,
+  SCHEMA_GET_TOOL_DEFINITION,
+  SCHEMA_SET_COLLECTIONS_TOOL_NAME,
+  SCHEMA_SET_COLLECTIONS_TOOL_DEFINITION,
+  createSchemaGetHandler,
+  createSchemaSetCollectionsHandler,
+  registerSchemaTools,
 } from "./tools/index.js";
 
 export type {
@@ -159,6 +167,18 @@ export type {
   ExplainCloudFunctionInput,
   ExplainCloudFunctionOutput,
   CloudFunctionToolsConfig,
+  // Schema 工具类型
+  SchemaFieldType,
+  SchemaFieldDef,
+  SchemaCollectionDef,
+  AppSchemaSnapshot,
+  SchemaWriter,
+  SchemaReader,
+  SchemaGetInput,
+  SchemaGetOutput,
+  SchemaSetCollectionsInput,
+  SchemaSetCollectionsOutput,
+  SchemaToolsConfig,
 } from "./tools/index.js";
 
 // ─── 提示词 ───────────────────────────────────────────────────────────────────
@@ -283,10 +303,11 @@ export type {
   SeedFile,
 } from "./knowledge/index.js";
 
-// ─── LLM 层（DeepSeek 客户端 + 智能路由）─────────────────────────────────────
-export { DeepSeekClient, LLMRouter } from "./llm/index.js";
+// ─── LLM 层（DeepSeek + Kimi 客户端 + 智能路由）──────────────────────────────
+export { DeepSeekClient, KimiClient, LLMRouter } from "./llm/index.js";
 export type {
   DeepSeekConfig,
+  KimiConfig,
   LLMRouterConfig,
   LLMProvider,
   ProviderHealth,

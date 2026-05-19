@@ -27,7 +27,7 @@ const ApplicationDetail = () => {
   const isNew = id === "new" || !id;
 
   // ── 通过 Layout Context 注册 pages 更新回调 ────────────────────────────
-  const { setOnCanvasPagesUpdate } = useAppLayoutCtx();
+  const { setOnCanvasPagesUpdate, setGetCanvasPages } = useAppLayoutCtx();
 
   const [applicationName, setApplicationName] = useState("");
   const [applicationDescription, setApplicationDescription] = useState("");
@@ -126,6 +126,16 @@ const ApplicationDetail = () => {
   useEffect(() => {
     setOnCanvasPagesUpdate(handleAiPagesUpdate);
   }, [setOnCanvasPagesUpdate, handleAiPagesUpdate]);
+
+  // 注册「获取当前 pages」回调到 Layout
+  // AiBar 在发送前调用，取得前端内存中最新的 pages
+  const handleGetCanvasPages = useCallback((): string[] => {
+    return actions.getSerializedPages();
+  }, [actions]);
+
+  useEffect(() => {
+    setGetCanvasPages(handleGetCanvasPages);
+  }, [setGetCanvasPages, handleGetCanvasPages]);
 
   /**
    * 自动保存名称/描述（仅已有应用，debounce）

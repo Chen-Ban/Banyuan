@@ -26,9 +26,10 @@ class AiController {
    */
   async chat(ctx: Context): Promise<void> {
     const { appId } = ctx.params as { appId: string }
-    const body = ctx.request.body as { prompt?: string; conversationId?: string }
+    const body = ctx.request.body as { prompt?: string; conversationId?: string; pages?: string[] }
     const prompt = body?.prompt?.trim()
     const conversationId = body?.conversationId?.trim() || undefined
+    const pages = Array.isArray(body?.pages) ? body.pages : undefined
 
     if (!appId) {
       ctx.status = 400
@@ -59,7 +60,7 @@ class AiController {
     res.flushHeaders?.()
 
     try {
-      await aiService.runWithSSE(appId, prompt, res, conversationId)
+      await aiService.runWithSSE(appId, prompt, res, conversationId, pages)
     } catch (err) {
       // runWithSSE 内部已处理错误并写入 SSE，此处仅做兜底
       if (!res.writableEnded) {

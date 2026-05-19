@@ -72,6 +72,11 @@ export interface AiBarProps {
   appId: string
   /** 当前所在页面模式，决定 AI 的操作上下文 */
   mode?: AiBarMode
+  /**
+   * 获取当前最新 pages 的回调。
+   * AiBar 在发送请求时调用，将当前内存状态随流一并发送给 AI。
+   */
+  getPages: () => string[]
   onPagesUpdate: (pages: string[]) => void
   /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
   onPagesSnapshot?: (pages: string[]) => void
@@ -92,6 +97,7 @@ interface PastedImage {
 const AiBar: React.FC<AiBarProps> = ({
   appId,
   mode = 'canvas',
+  getPages,
   onPagesUpdate,
   onPagesSnapshot,
   containerRef,
@@ -149,6 +155,7 @@ const AiBar: React.FC<AiBarProps> = ({
 
   const { loading, messages, currentText, sendPrompt, abort, clearMessages, respondToDisambiguation } = useXiangDi({
     appId,
+    getPages,
     onDone: (pages) => onPagesUpdate(pages),
     onPagesSnapshot,
     onDisambiguation: (options) => setDisambiguationState(options),
