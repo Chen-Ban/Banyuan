@@ -522,11 +522,14 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
 
     /**
      * 布局方法 - 在TextView中调用时设置位置和计算包围盒
+     *
+     * 注意：不修改 this.height（始终保持为 0），这样 layoutTextElementsInParagraph
+     * 中 `currentY + lineHeight - textElement.height` 的计算在每次重新布局时都一致。
+     * 包围盒的高度通过 lineHeight 表达，与 PrintableTextElement 的模式对齐。
      */
     public applyLayout(position: Point3, lineHeight: number): this {
         this.isLayouted = true
         this.controlPoints = [position.copy()]
-        this.height = lineHeight
         this.lineHeight = lineHeight
         // 计算包围盒并设置正确的controlPoints
         this.bounds = this.updateBounds()
@@ -542,6 +545,15 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
         this.height = 0
     }
 
+    /**
+     * 计算包围盒
+     *
+     * NonPrintable 的 height 始终为 0，position.y = currentY + lineHeight（由布局引擎设置）。
+     * 包围盒 y 起点 = position.y - lineHeight = currentY，高度 = lineHeight。
+     * 这与 PrintableTextElement 的 updateBounds 逻辑等价：
+     *   startPoint.y = position.y - lineHeight + height
+     * 当 height = 0 时简化为 position.y - lineHeight。
+     */
     public updateBounds(): Bounds {
         return new Bounds(
             this.controlPoints[0].x,
