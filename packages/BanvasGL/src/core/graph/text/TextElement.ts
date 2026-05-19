@@ -545,7 +545,7 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
     public updateBounds(): Bounds {
         return new Bounds(
             this.controlPoints[0].x,
-            this.controlPoints[0].y - this.lineHeight + this.height,
+            this.controlPoints[0].y - this.lineHeight,
             this.width + this.options.letterSpacing,
             this.lineHeight
         )

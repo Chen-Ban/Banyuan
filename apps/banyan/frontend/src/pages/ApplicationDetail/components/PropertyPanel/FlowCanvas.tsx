@@ -50,6 +50,9 @@ function getPortsForNode(node: FlowNode): PortDef[] {
         ports.push({ id: `${node.id}_true`, direction: 'output' })
         ports.push({ id: `${node.id}_false`, direction: 'output' })
     } else {
+        // 前端节点：setData / setVisible / navigate / animate / delay
+        // 后端节点：dbQuery / dbInsert / dbUpdate / dbDelete / httpRequest / transform / script
+        // 均为单输入 + 单输出
         ports.push({ id: `${node.id}_out`, direction: 'output' })
     }
 
