@@ -30,20 +30,35 @@
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
-      "client": ["./dist/presets/client.d.ts"],
-      "server": ["./dist/presets/server.d.ts"],
-      "types": ["./dist/types/index.d.ts"]
+      "client": [
+        "./dist/presets/client.d.ts"
+      ],
+      "server": [
+        "./dist/presets/server.d.ts"
+      ],
+      "types": [
+        "./dist/types/index.d.ts"
+      ]
     }
   },
-  "files": ["src", "dist"],
+  "files": [
+    "src",
+    "dist"
+  ],
   "scripts": {
     "build": "tsup --config tsup.config.ts",
     "dev": "tsup --config tsup.config.ts --watch"
   },
-  "keywords": ["flow", "schema", "runner", "banvas"],
+  "keywords": [
+    "flow",
+    "schema",
+    "runner",
+    "banvas"
+  ],
   "license": "AGPL-3.0",
   "packageManager": "pnpm@10.10.0",
   "devDependencies": {
+    "@types/node": "^25.9.0",
     "tsup": "^8.4.0"
   }
 }
