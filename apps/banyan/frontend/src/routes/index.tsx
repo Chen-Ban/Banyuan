@@ -1,4 +1,4 @@
-import { useRoutes, RouteObject } from 'react-router-dom'
+import { createBrowserRouter, RouteObject } from 'react-router-dom'
 import ApplicationList from '@/pages/ApplicationList'
 import ApplicationLayout from '@/pages/ApplicationLayout'
 import ApplicationDetail from '@/pages/ApplicationDetail'
@@ -30,7 +30,4 @@ const routes: RouteObject[] = [
   },
 ]
 
-export function AppRoutes() {
-  const element = useRoutes(routes)
-  return element
-}
+export const router = createBrowserRouter(routes)
