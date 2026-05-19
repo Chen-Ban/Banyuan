@@ -247,14 +247,17 @@ export default class TextLayoutEngine {
 
             for (const element of line.elements) {
                 const x = currentX
-                const y = currentY + lineHeight - element.height
+                // NonPrintable 元素在主线程 applyLayout 时 height 会被设为 lineHeight，
+                // 这里提前使用 lineHeight 作为其有效高度，避免包围盒多出一行
+                const effectiveHeight = element.isNonPrintable ? lineHeight : element.height
+                const y = currentY + lineHeight - effectiveHeight
 
                 results.push({
                     id: element.id,
                     x,
                     y,
                     width: element.width,
-                    height: element.height,
+                    height: effectiveHeight,
                     lineHeight,
                 })
 
