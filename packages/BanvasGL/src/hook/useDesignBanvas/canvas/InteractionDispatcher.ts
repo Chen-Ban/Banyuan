@@ -234,8 +234,6 @@ export class InteractionDispatcher {
         const dynamicPoint =
           view.boundingBox.handles[resizeDynamicIndex].getCenter();
         if (!fixedPoint || !dynamicPoint) return;
-        console.log(e.ctrlKey);
-
         view.resize(fixedPoint, dynamicPoint, vector, e.ctrlKey);
       });
     }
