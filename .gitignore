@@ -162,3 +162,4 @@ apps/xiangdi/src/apiKey.json
 /tsconfig.json
 /tsconfig.node.json
 /index.html
+package-lock.json
