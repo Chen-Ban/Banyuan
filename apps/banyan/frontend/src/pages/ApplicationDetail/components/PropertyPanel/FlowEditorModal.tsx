@@ -1,13 +1,8 @@
-import React, { useCallback, useState } from 'react'
+import React from 'react'
 import { Modal } from 'antd'
-import type { FlowNode, FlowSchema } from 'banvasgl'
+import type { FlowSchema } from 'banvasgl'
 import FlowNodePalette from './FlowNodePalette'
 import FlowCanvas from './FlowCanvas'
-import {
-    CloudFunctionNodeEditor,
-    findCloudFunctionNode,
-    updateNodeInSchema,
-} from './CloudFunctionNodeEditor'
 import styles from './FlowEditorModal.module.scss'
 
 interface FlowEditorModalProps {
@@ -16,8 +11,6 @@ interface FlowEditorModalProps {
     schema: FlowSchema | null
     onChange: (schema: FlowSchema) => void
     onClose: () => void
-    /** 应用 ID，用于云函数节点编辑器加载函数列表 */
-    appId?: string
 }
 
 const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
@@ -26,21 +19,7 @@ const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
     schema,
     onChange,
     onClose,
-    appId,
 }) => {
-    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
-
-    const handleNodeSelect = useCallback((nodeId: string | null) => {
-        setSelectedNodeId(nodeId)
-    }, [])
-
-    const handleNodeUpdate = useCallback((updatedNode: FlowNode) => {
-        if (!schema) return
-        onChange(updateNodeInSchema(schema, updatedNode))
-    }, [schema, onChange])
-
-    const selectedCfNode = findCloudFunctionNode(schema, selectedNodeId)
-
     return (
         <Modal
             open={open}
@@ -61,17 +40,8 @@ const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
                     <FlowCanvas
                         schema={schema}
                         onChange={onChange}
-                        onNodeSelect={handleNodeSelect}
                     />
                 </div>
-                {/* 下方：选中 callCloudFunction 节点时展示属性编辑器 */}
-                {selectedCfNode && appId && (
-                    <CloudFunctionNodeEditor
-                        node={selectedCfNode}
-                        appId={appId}
-                        onChange={handleNodeUpdate}
-                    />
-                )}
             </div>
         </Modal>
     )
