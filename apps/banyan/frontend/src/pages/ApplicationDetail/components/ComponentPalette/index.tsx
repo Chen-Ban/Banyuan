@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Tooltip, Popover } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, RocketOutlined, DatabaseOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, RocketOutlined, DatabaseOutlined, FunctionOutlined } from '@ant-design/icons'
 import type { IComponentDefinition } from 'banvasgl'
 import styles from './index.module.scss'
 
@@ -19,6 +19,8 @@ interface ComponentPaletteProps {
     building?: boolean
     /** 点击数据库按钮（仅已保存应用显示） */
     onDatabase?: () => void
+    /** 点击云函数按钮（仅已保存应用显示） */
+    onFunctions?: () => void
     /** 引擎内置物料，直接来自 useDesignBanvas().builtinComponents */
     builtinComponents: IComponentDefinition[]
     /**
@@ -58,6 +60,7 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     onBuild,
     building = false,
     onDatabase,
+    onFunctions,
     builtinComponents,
     userComponents = [],
 }) => {
@@ -141,6 +144,16 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                             type="text"
                             icon={<DatabaseOutlined />}
                             onClick={onDatabase}
+                            className={styles.saveBtn}
+                        />
+                    </Tooltip>
+                )}
+                {onFunctions && (
+                    <Tooltip title="云函数">
+                        <Button
+                            type="text"
+                            icon={<FunctionOutlined />}
+                            onClick={onFunctions}
                             className={styles.saveBtn}
                         />
                     </Tooltip>
