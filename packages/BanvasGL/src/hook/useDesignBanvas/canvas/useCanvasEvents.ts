@@ -11,7 +11,6 @@ import EdgeView from "@/core/views/flow/EdgeView";
 import {
   isTextView,
   isSelectBoxView,
-  isCombinedView,
   Action,
   Cursor,
   ExtraData,
@@ -22,73 +21,13 @@ import type { IBanvasActions } from "@/core/interfaces";
 import { clearAllStates } from "@/core/scene/operations";
 import { InteractionDispatcher } from "./InteractionDispatcher";
 import type { InteractionContext } from "./InteractionDispatcher";
+import { resolveActivationTarget } from "./utils.js";
 
 /** 将 MouseEvent 转为 canvas 物理像素坐标 */
 const event2Point = (e: MouseEvent): Point3 => {
   const ratio = window.devicePixelRatio;
   const { offsetX, offsetY } = e;
   return new Point3(offsetX * ratio, offsetY * ratio, 0);
-};
-
-/**
- * 逐层激活机制：根据点击的 View 和当前激活状态，决定应该被 select 的目标。
- *
- * 规则：
- * 1. 沿 parent 链向上如果没有任何已激活的容器 → 激活最顶层的组合容器
- * 2. 有已激活的祖先：
- *    - 如果已激活的不是组合容器 → 激活那个已激活容器的父容器
- *    - 如果已激活的是组合容器 → 激活点击容器的父容器
- * 3. 点击容器的直接父容器已激活 → 直接激活点击容器本身
- * 4. 点击容器的父容器下有兄弟已激活 → 直接激活点击容器本身（等同于父容器已进入）
- *
- * @returns 应该被 select 的目标 View，如果不需要重定向则返回原 view
- */
-const resolveActivationTarget = (clickedView: View): View => {
-  const parent = clickedView.parent;
-
-  // 情况3：直接父容器已激活 → 直接激活点击容器本身
-  if (parent && parent instanceof View && parent.actived) {
-    return clickedView;
-  }
-
-  // 情况4：父容器下有兄弟已激活 → 说明父容器已"进入"，直接激活点击容器
-  if (parent && parent instanceof View) {
-    const hasSiblingActived = parent.children.some(
-      (child) => child !== clickedView && child.actived,
-    );
-    if (hasSiblingActived) {
-      return clickedView;
-    }
-  }
-
-  // 沿 parent 链向上查找：最顶层的 CombinedView 和第一个已激活的祖先
-  let topCombinedView: View | null = null;
-  let activatedAncestor: View | null = null;
-  let current = clickedView.parent;
-  while (current && current instanceof View) {
-    if (isCombinedView(current)) {
-      topCombinedView = current as View;
-    }
-    if (current.actived && !activatedAncestor) {
-      activatedAncestor = current as View;
-    }
-    current = current.parent;
-  }
-
-  // 情况1：没有已激活的祖先 → 激活最顶层组合容器
-  if (!activatedAncestor) {
-    return topCombinedView ?? clickedView;
-  }
-
-  // 情况2：有已激活的祖先
-  if (isCombinedView(activatedAncestor)) {
-    // 已激活的是组合容器 → 激活点击容器的父容器
-    return (parent instanceof View ? parent : clickedView) as View;
-  } else {
-    // 已激活的不是组合容器 → 激活那个已激活容器的父容器
-    const activatedParent = activatedAncestor.parent;
-    return (activatedParent instanceof View ? activatedParent : clickedView) as View;
-  }
 };
 
 export interface ContextMenuHitResult {
@@ -195,27 +134,26 @@ export function useCanvasEvents({
           action === Action.EDIT_POINT
         ) {
           const indicateView = indicateViewRef.current;
-          let viewIds: string[];
+
+          // 若落点在未激活的 View 上，先执行与 click 完全一致的选中逻辑，
+          // 再开启事务——保证 mousedown+drag 和 click 的选中行为一致。
           if (indicateView && !indicateView.actived) {
-            // 未激活的单个 View（拖动时会被自动激活）
-            // 逐层激活机制：确定实际操作目标
+            const isMultiSelect = navigator.platform.startsWith("Mac")
+              ? e.metaKey
+              : e.ctrlKey;
             const target = resolveActivationTarget(indicateView);
-            viewIds = [target.id];
-          } else {
-            // 已激活的所有 View
-            viewIds = scene.getAllActived().map((v: View) => v.id);
+            scene.select(target, isMultiSelect);
           }
+
+          // 此时 getAllActived() 已反映最新选中状态
+          const viewIds = scene.getAllActived().map((v: View) => v.id);
           if (viewIds.length > 0) {
             scene.beginTransaction(viewIds);
           }
 
           // Move 操作时初始化吸附对齐
           if (action === Action.MOVE) {
-            const activeViews =
-              indicateView && !indicateView.actived
-                ? [resolveActivationTarget(indicateView)]
-                : scene.getAllActived();
-            scene.snapAlign.begin(scene, activeViews);
+            scene.snapAlign.begin(scene, scene.getAllActived());
           }
         }
       }

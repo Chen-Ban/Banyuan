@@ -44,171 +44,50 @@ export interface IFieldSchema {
 export type IFieldSchemaMap = Record<string, IFieldSchema>
 
 // ────────────────────────────────────────────
-//  FlowSchema —— 可视化事件编排的结构化描述
+//  Flow 类型 —— 从 banvas-flow 重导出
+//  FlowEdge 在 BanvasGL 层扩展了 id 字段（编辑器需要）
 // ────────────────────────────────────────────
 
-/**
- * 动态值 —— FlowNode 参数的值来源
- *
- * - literal:     字面量，直接使用 value 字段的值
- * - dataRef:     引用某个 View 的 data 字段（'self' 表示当前 View）
- * - pageDataRef: 引用当前页面的 data 字段
- * - eventArg:    引用触发事件时传入的参数（如点击坐标），index 为参数位置
- * - nodeRef:     引用画布上一个值节点的输出（值节点连入参数槽时使用）
- */
-export type FlowValue =
-    | { kind: 'literal';     value: string | number | boolean }
-    | { kind: 'dataRef';     viewId: string; key: string }
-    | { kind: 'pageDataRef'; key: string }
-    | { kind: 'eventArg';    index: number }
-    | { kind: 'nodeRef';     nodeId: string }
+export type {
+    FlowValue,
+    FlowCondition,
+    FlowLiteralValue,
+    FlowDataRefValue,
+    FlowPageDataRefValue,
+    FlowEventArgValue,
+    FlowNodeRefValue,
+    FlowConditionNode,
+    FlowDelayNode,
+    FlowSetVariableNode,
+    FlowCallFlowNode,
+    FlowSetDataNode,
+    FlowNavigateNode,
+    FlowAnimateNode,
+    FlowSetVisibleNode,
+    FlowNode,
+    FlowVarNode,
+    FlowPageVarNode,
+    FlowEventParamNode,
+} from 'banvas-flow'
+
+import type { FlowEdge as BanvasFlowEdge, FlowSchema as BanvasFlowSchema } from 'banvas-flow'
 
 /**
- * 条件表达式 —— 用于 condition 节点的分支判断
+ * FlowEdge —— 节点间的有向连线（BanvasGL 扩展版）
+ *
+ * 在 banvas-flow 基础上增加 id 字段，供编辑器画布管理边的唯一标识。
+ * 运行时执行前会自动剥除 id 字段，不影响 banvas-flow 执行逻辑。
  */
-export interface FlowCondition {
-    left:  FlowValue
-    op:    '==' | '!=' | '>' | '>=' | '<' | '<='
-    right: FlowValue
-}
-
-// ── FlowNode 判别联合 ──
-
-/** 设置 View 的 data 字段值（'self' 表示当前 View） */
-export interface FlowSetDataNode {
-    kind:   'setData'
-    viewId: string
-    key:    string
-    value:  FlowValue
-}
-
-/** 导航到另一个页面 */
-export interface FlowNavigateNode {
-    kind:   'navigate'
-    pageId: string
-}
-
-/** 播放预定义动画 */
-export interface FlowAnimateNode {
-    kind:        'animate'
-    viewId:      string
-    animationId: string
-}
-
-/** 条件分支（出边通过 FlowEdge.branch 区分 'true' | 'false'） */
-export interface FlowConditionNode {
-    kind:      'condition'
-    condition: FlowCondition
-}
-
-/** 延迟等待（毫秒） */
-export interface FlowDelayNode {
-    kind: 'delay'
-    ms:   number
-}
-
-/** 设置 View 的可见性 */
-export interface FlowSetVisibleNode {
-    kind:    'setVisible'
-    viewId:  string
-    visible: boolean
-}
-
-/** 调用云函数 */
-export interface FlowCallCloudFunctionNode {
-    kind:          'callCloudFunction'
-    functionName:  string
-    inputBindings: Record<string, FlowValue>
-    outputBindings: Record<string, string>
-}
-
-// ── 值节点（Value Nodes）——无执行语义，只产出一个值供动作节点参数槽引用 ──
-
-/**
- * View 数据引用节点 —— 引用某个 View 的 data 字段
- *
- * viewId 为 'self' 时表示触发事件的 View 自身。
- * 可见范围：当前页面所有 View，但排除触发事件的 View 的子孙 View。
- */
-export interface FlowVarNode {
-    kind:   'variable'
-    viewId: string
-    key:    string
-}
-
-/** 页面数据引用节点 —— 引用当前页面的 data 字段 */
-export interface FlowPageVarNode {
-    kind: 'pageVar'
-    key:  string
-}
-
-/** 事件参数引用节点 —— 引用触发事件时传入的原始参数 */
-export interface FlowEventParamNode {
-    kind:  'eventParam'
-    index: number
-}
-
-/**
- * FlowNode —— 动作节点 + 值节点的判别联合
- *
- * 动作节点（setData / navigate / animate / condition / delay / setVisible）：
- *   有控制流入口和出口，代表一个原子动作，按执行顺序依次运行。
- *
- * 值节点（variable / pageVar / eventParam）：
- *   无控制流入口和出口，只有值输出槽，连入动作节点的参数槽后
- *   覆盖该参数的内联值。FlowRunner 遇到 nodeRef 时直接求值，不走执行队列。
- *
- * x/y 为编辑器画布中的布局坐标，仅用于面板渲染，不影响运行时逻辑。
- */
-export type FlowNode = {
+export interface FlowEdge extends BanvasFlowEdge {
     id: string
-    x?: number
-    y?: number
-} & (
-    | FlowSetDataNode
-    | FlowNavigateNode
-    | FlowAnimateNode
-    | FlowConditionNode
-    | FlowDelayNode
-    | FlowSetVisibleNode
-    | FlowCallCloudFunctionNode
-    | FlowVarNode
-    | FlowPageVarNode
-    | FlowEventParamNode
-)
-
-/**
- * FlowEdge —— 节点间的有向连线
- *
- * 两种语义通过 toParam 区分：
- *
- * 控制流边（toParam 不存在）：
- *   描述执行顺序，from → to 表示"执行完 from 后执行 to"。
- *   from 特殊值 '__start__' 表示流程入口。
- *   branch 仅 condition 节点的出边需要，区分 true/false 分支。
- *
- * 数据流边（toParam 存在）：
- *   值节点 → 动作节点的参数槽，不参与执行顺序。
- *   toParam 为目标节点的参数路径，如 'value'、'condition.left'、'condition.right'。
- *   连入后该参数槽的内联值被覆盖，FlowRunner 通过 nodeRef 求值。
- */
-export interface FlowEdge {
-    id:       string
-    from:     string
-    to:       string
-    branch?:  'true' | 'false'
-    toParam?: string
 }
 
 /**
- * FlowSchema —— 可视化事件编排的完整描述
+ * FlowSchema —— 可视化事件编排的完整描述（BanvasGL 扩展版）
  *
- * 用有向图表达"触发事件后执行哪些动作、按什么顺序、满足什么条件"。
- * 用户通过可视化面板编排，引擎在运行时将其编译为可执行逻辑。
- * 本身是纯 JSON 数据，可直接序列化/反序列化，无需特殊处理。
+ * edges 使用带 id 的 BanvasGL FlowEdge。
  */
-export interface FlowSchema {
-    nodes: FlowNode[]
+export interface FlowSchema extends Omit<BanvasFlowSchema, 'edges'> {
     edges: FlowEdge[]
 }
 

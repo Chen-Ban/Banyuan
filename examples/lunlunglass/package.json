@@ -4,8 +4,7 @@
   "private": true,
   "description": "LunlunGlass — 眼镜店打印系统（Studio 模板设计 + POS 门店运营）",
   "scripts": {
-    "dev:studio": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter lunlunglass-studio-frontend dev\" \"pnpm --filter lunlunglass-studio-backend dev\" \"pnpm --filter lunlunglass-studio-electron dev\"",
-    "dev:pos": "concurrently --kill-others -c \"magenta.bold,blue.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter lunlunglass-pos-frontend dev\" \"pnpm --filter lunlunglass-pos-backend dev\" \"pnpm --filter lunlunglass-pos-electron dev\""
+    "dev": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold,magenta.bold,blue.bold,red.bold\" -n studio-fe,studio-be,studio-el,pos-fe,pos-be,pos-el \"pnpm --filter lunlunglass-studio-frontend dev\" \"pnpm --filter lunlunglass-studio-backend dev\" \"pnpm --filter lunlunglass-studio-electron dev\" \"pnpm --filter lunlunglass-pos-frontend dev\" \"pnpm --filter lunlunglass-pos-backend dev\" \"pnpm --filter lunlunglass-pos-electron dev\""
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

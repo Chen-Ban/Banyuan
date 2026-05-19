@@ -1,0 +1,62 @@
+// ApplicationLayout 样式
+
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// ── 顶部 Tab 导航栏 ─────────────────────────────────────────────────────────
+
+.tabBar {
+  flex-shrink: 0;
+  background: #fff;
+  border-bottom: 1px solid #e9ecef;
+  padding: 0 20px;
+  // 用负 margin 抵消 antd Tabs 自带的底部 border 线，避免双线
+  margin-bottom: -1px;
+  z-index: 1;
+}
+
+.tabs {
+  :global(.ant-tabs-nav) {
+    margin: 0;
+
+    &::before {
+      border-bottom: none !important;
+    }
+  }
+
+  :global(.ant-tabs-tab) {
+    padding: 10px 4px;
+    font-size: 13px;
+  }
+
+  :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+    font-weight: 600;
+  }
+
+  :global(.ant-tabs-ink-bar) {
+    height: 2px;
+  }
+}
+
+.tabLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+}
+
+// ── 内容区 ──────────────────────────────────────────────────────────────────
+
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}

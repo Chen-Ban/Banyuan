@@ -61,7 +61,6 @@ function getNodeTitle(node: FlowNode): string {
         case 'animate': return '播放动画'
         case 'condition': return '条件分支'
         case 'delay': return '延迟等待'
-        case 'callCloudFunction': return `云函数: ${node.functionName || '未选择'}`
         case 'variable': return 'View 变量'
         case 'pageVar': return '页面变量'
         case 'eventParam': return '事件参数'
@@ -122,8 +121,6 @@ function buildDefaultNode(
             }
         case 'delay':
             return { ...base, kind: 'delay', ms: 500 }
-        case 'callCloudFunction':
-            return { ...base, kind: 'callCloudFunction', functionName: '', inputBindings: {}, outputBindings: {} }
         case 'variable':
             return { ...base, kind: 'variable', viewId: 'self', key: '' }
         case 'pageVar':

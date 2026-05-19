@@ -1,24 +1,32 @@
 import { useRoutes, RouteObject } from 'react-router-dom'
-import ApplicationList from "@/pages/ApplicationList"
-import ApplicationDetail from "@/pages/ApplicationDetail"
-import DatabasePage from "@/pages/DatabasePage"
+import ApplicationList from '@/pages/ApplicationList'
+import ApplicationLayout from '@/pages/ApplicationLayout'
+import ApplicationDetail from '@/pages/ApplicationDetail'
+import DatabasePage from '@/pages/DatabasePage'
+import FunctionsPage from '@/pages/FunctionsPage'
 
 const routes: RouteObject[] = [
   {
     path: '/',
     element: <ApplicationList />,
   },
-  {
-    path: '/application/:id',
-    element: <ApplicationDetail />,
-  },
+  // 新建应用：也走 Layout，但 Layout 内部检测 isNew 时不渲染 Tab / AiBar
   {
     path: '/application/new',
-    element: <ApplicationDetail />,
+    element: <ApplicationLayout />,
+    children: [
+      { index: true, element: <ApplicationDetail /> },
+    ],
   },
+  // 已有应用：三个子页面共用 ApplicationLayout
   {
-    path: '/application/:id/database',
-    element: <DatabasePage />,
+    path: '/application/:id',
+    element: <ApplicationLayout />,
+    children: [
+      { index: true, element: <ApplicationDetail /> },
+      { path: 'database', element: <DatabasePage /> },
+      { path: 'functions', element: <FunctionsPage /> },
+    ],
   },
 ]
 

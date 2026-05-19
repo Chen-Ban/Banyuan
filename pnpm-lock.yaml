@@ -32,6 +32,9 @@ importers:
       '@koa/router':
         specifier: ^13.0.0
         version: 13.1.1
+      banvas-flow:
+        specifier: workspace:*
+        version: link:../../../packages/BanvasFlow
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -506,8 +509,17 @@ importers:
         specifier: ^6.3.1
         version: 6.4.1(@types/node@22.19.0)(sass@1.94.2)(tsx@4.20.6)
 
+  packages/BanvasFlow:
+    devDependencies:
+      tsup:
+        specifier: ^8.4.0
+        version: 8.5.0(postcss@8.5.6)(tsx@4.20.6)(typescript@5.7.3)
+
   packages/BanvasGL:
     dependencies:
+      banvas-flow:
+        specifier: workspace:*
+        version: link:../BanvasFlow
       react:
         specifier: ^19.1.0
         version: 19.2.0
@@ -1171,7 +1183,6 @@ packages:
   '@lancedb/lancedb@0.27.2':
     resolution: {integrity: sha1-9/ippYpBmr/o1JB22xzyrWUPjG0=, tarball: http://r.npm.sankuai.com/@lancedb/lancedb/download/@lancedb/lancedb-0.27.2.tgz}
     engines: {node: '>= 18'}
-    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     peerDependencies:
       apache-arrow: '>=15.0.0 <=18.1.0'

@@ -127,6 +127,8 @@ export const AIQuadraticBezierNodeSchema = AIBaseNodeSchema.extend({
   stroke: AIStrokeSchema.optional(),
 });
 
+// ─── AINode 输出类型（parse 后的完整类型，所有 default 字段已填充）────────────
+
 // AINode 类型必须先于 AIGroupNodeSchema 声明，因为 children 字段需要引用它
 export type AINode =
   | z.infer<typeof AIRectNodeSchema>
@@ -150,23 +152,54 @@ export interface AIGroupNode {
   children: AINode[];
 }
 
-/**
- * AIGroupNodeSchema 使用 z.lazy 实现递归引用，
- * 显式标注返回类型为 z.ZodType<AIGroupNode>，
- * 避免使用 as unknown as 跳板绕过 TypeScript 类型检查。
- */
-export const AIGroupNodeSchema: z.ZodType<AIGroupNode> = AIBaseNodeSchema.extend({
-  type: z.literal("group"),
-  children: z.array(z.lazy(() => AINodeSchema)) as z.ZodType<AINode[]>,
-}) as z.ZodType<AIGroupNode>;
+// ─── AINode 输入类型（传给 parse 的类型，.default() 字段为 optional）──────────
 
 /**
- * AINodeSchema 显式标注为 z.ZodType<AINode>，
- * 使用 z.union 替代 z.discriminatedUnion，
- * 因为 AIGroupNodeSchema 的返回类型是 z.ZodType<AIGroupNode>，
- * 不兼容 discriminatedUnion 要求的具体 ZodObject 类型。
+ * AINodeInput —— 所有带 .default() 的字段在输入侧是 optional 的。
+ *
+ * z.ZodType<Output, Def, Input> 要求 schema 的 _input 能赋值给 Input 泛型参数。
+ * 由于 .default() 使得 _input 中对应字段为 T | undefined，
+ * 而 AINode（output）中是必填的 T，所以需要单独声明 input 类型。
  */
-export const AINodeSchema: z.ZodType<AINode> = z.union([
+export type AINodeInput =
+  | z.input<typeof AIRectNodeSchema>
+  | z.input<typeof AITextNodeSchema>
+  | z.input<typeof AIImageNodeSchema>
+  | z.input<typeof AICubicBezierNodeSchema>
+  | z.input<typeof AIQuadraticBezierNodeSchema>
+  | AIGroupNodeInput;
+
+export interface AIGroupNodeInput {
+  type: "group";
+  id: string;
+  name?: string;
+  transform: z.input<typeof AITransformSchema>;
+  zIndex?: number;
+  locked?: boolean;
+  children: AINodeInput[];
+}
+
+/**
+ * AIGroupNodeSchema 使用 z.lazy 实现递归引用，
+ * 显式标注 ZodType<Output, Def, Input> 三个泛型参数，
+ * 使 input 侧允许 default 字段缺失。
+ */
+export const AIGroupNodeSchema: z.ZodType<AIGroupNode, z.ZodTypeDef, AIGroupNodeInput> =
+  AIBaseNodeSchema.extend({
+    type: z.literal("group"),
+    children: z.array(z.lazy(() => AINodeSchema)) as z.ZodType<AINode[], z.ZodTypeDef, AINodeInput[]>,
+  }) as z.ZodType<AIGroupNode, z.ZodTypeDef, AIGroupNodeInput>;
+
+/**
+ * AINodeSchema 显式标注 ZodType<AINode, ZodTypeDef, AINodeInput>，
+ * 使用 z.union 替代 z.discriminatedUnion，
+ * 因为 AIGroupNodeSchema 的返回类型是 ZodType<AIGroupNode>，
+ * 不兼容 discriminatedUnion 要求的具体 ZodObject 类型。
+ *
+ * 关键修复：第三个泛型参数为 AINodeInput（input 类型），
+ * 允许 .default() 字段在输入侧为 undefined，消除 TS2322。
+ */
+export const AINodeSchema: z.ZodType<AINode, z.ZodTypeDef, AINodeInput> = z.union([
   AIRectNodeSchema,
   AITextNodeSchema,
   AIImageNodeSchema,

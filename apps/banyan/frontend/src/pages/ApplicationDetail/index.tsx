@@ -12,7 +12,7 @@ import { applicationApi, buildApi } from "@/api";
 import type { Platform } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import BuildTaskModal from "@/components/BuildTaskModal";
-import AiBar from "./components/AiBar";
+import { useAppLayoutCtx } from "@/pages/ApplicationLayout";
 import styles from "./index.module.scss";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyPanel from "./components/PropertyPanel";
@@ -26,6 +26,9 @@ const ApplicationDetail = () => {
   const navigate = useNavigate();
   const isNew = id === "new" || !id;
 
+  // ── 通过 Layout Context 注册 pages 更新回调 ────────────────────────────
+  const { setOnCanvasPagesUpdate } = useAppLayoutCtx();
+
   const [applicationName, setApplicationName] = useState("");
   const [applicationDescription, setApplicationDescription] = useState("");
   const [initialPages, setInitialPages] = useState<string[]>([]);
@@ -37,9 +40,7 @@ const ApplicationDetail = () => {
   const [buildTaskId, setBuildTaskId] = useState<string | null>(null);
   const [buildSubmitting, setBuildSubmitting] = useState(false);
 
-  // canvasSection 容器 ref，用于 AiBar fixed 定位对齐
-  const canvasSectionRef = useRef<HTMLDivElement>(null);
-  // mainContent 容器，作为 antd Drawer 的挂载容器（用 state 确保 mount 后触发重渲染）
+  // mainContent 容器，作为 antd Drawer 的挂载容器
   const [mainContentEl, setMainContentEl] = useState<HTMLDivElement | null>(null);
   const mainContentRef = useCallback((el: HTMLDivElement | null) => {
     setMainContentEl(el);
@@ -71,12 +72,8 @@ const ApplicationDetail = () => {
     }
   }, [id, isNew]);
 
-  // 页面尺寸（用户在「页面尺寸」tab 中手动设置）
   const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 800 });
-
-  // 右侧抽屉展开状态
   const [rightOpen, setRightOpen] = useState(true);
-  // 连续两次点击空白 → 关闭右侧抽屉（记录上一次 selectedViewId）
   const prevSelectedViewIdRef = useRef<string>("");
 
   const handleCanvasSizeChange = useCallback(
@@ -111,24 +108,24 @@ const ApplicationDetail = () => {
     builtinComponents,
   } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
 
-  // 属性面板自动弹出/渐进隐藏：
-  // 激活容器 → 自动弹出；第一次点空白 → 切换为页面属性；第二次点空白 → 隐藏面板
   useEffect(() => {
     if (selectedViewId !== "") {
-      // 有容器被激活 → 自动弹出属性面板
       setRightOpen(true);
     } else if (prevSelectedViewIdRef.current === "") {
-      // 连续两次空白（上一次也是空）→ 关闭面板
       setRightOpen(false);
     }
-    // else: 从有选中变为空（第一次点空白）→ 保持面板打开，显示页面属性
     prevSelectedViewIdRef.current = selectedViewId;
   }, [selectedViewId]);
 
-  // AI 完成后，用最终 pages 刷新画布（更新 initialPages 触发 useDesignBanvas 重新加载）
+  // ── 注册 pages 更新回调到 Layout ─────────────────────────────────────────
+  // AiBar 在 Layout 层，done 时调用此回调刷新画布
   const handleAiPagesUpdate = useCallback((aiPages: string[]) => {
     setInitialPages(aiPages);
   }, []);
+
+  useEffect(() => {
+    setOnCanvasPagesUpdate(handleAiPagesUpdate);
+  }, [setOnCanvasPagesUpdate, handleAiPagesUpdate]);
 
   /**
    * 自动保存名称/描述（仅已有应用，debounce）
@@ -143,7 +140,7 @@ const ApplicationDetail = () => {
           description: descRef.current,
         });
       } catch {
-        // 静默失败，不打扰用户
+        // 静默失败
       }
     }, AUTO_SAVE_DELAY);
   }, [isNew, id]);
@@ -164,7 +161,6 @@ const ApplicationDetail = () => {
     [triggerAutoSaveMeta],
   );
 
-  // 清理 timer
   useEffect(() => {
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -223,10 +219,7 @@ const ApplicationDetail = () => {
       const serializedPages = actions.getSerializedPages();
       const appJson = JSON.stringify(serializedPages);
 
-      // 检测当前平台
-      const platform: Platform = navigator.platform
-        .toLowerCase()
-        .includes("mac")
+      const platform: Platform = navigator.platform.toLowerCase().includes("mac")
         ? "mac"
         : navigator.platform.toLowerCase().includes("linux")
           ? "linux"
@@ -251,13 +244,7 @@ const ApplicationDetail = () => {
     }
   }, [applicationName, actions, canvasSize]);
 
-  const handleBack = () => {
-    navigate("/");
-  };
-
-  const handleDatabase = useCallback(() => {
-    if (id && !isNew) navigate(`/application/${id}/database`);
-  }, [id, isNew, navigate]);
+  const handleBack = () => navigate("/");
 
   if (!loaded) {
     return <div style={{ padding: 40, textAlign: "center" }}>加载中...</div>;
@@ -265,6 +252,7 @@ const ApplicationDetail = () => {
 
   return (
     <div className={styles.applicationDetailPage}>
+      {/* 顶部工具栏：应用信息 + 保存 + 构建（三个子页面共用 Tab，此处不再含 database/functions 跳转） */}
       <ComponentPalette
         applicationName={applicationName}
         applicationDescription={applicationDescription}
@@ -276,7 +264,6 @@ const ApplicationDetail = () => {
         onBack={handleBack}
         onBuild={handleBuild}
         building={buildSubmitting}
-        onDatabase={!isNew && id ? handleDatabase : undefined}
         builtinComponents={builtinComponents}
       />
       <div className={styles.mainContent} ref={mainContentRef}>
@@ -290,21 +277,12 @@ const ApplicationDetail = () => {
         </div>
 
         {/* 画布区域：撑满剩余空间 */}
-        <div className={styles.canvasSection} ref={canvasSectionRef}>
+        <div className={styles.canvasSection}>
           <div className={styles.canvasArea}>
             {Banvas}
           </div>
-          {!isNew && id && (
-            <>
-              <div className={styles.aiBarPlaceholder} />
-              <AiBar
-                appId={id}
-                onPagesUpdate={handleAiPagesUpdate}
-                onPagesSnapshot={handleAiPagesUpdate}
-                containerRef={canvasSectionRef}
-              />
-            </>
-          )}
+          {/* AiBar 占位：避免画布内容被底部 AiBar 遮挡 */}
+          {!isNew && id && <div className={styles.aiBarPlaceholder} />}
         </div>
 
         {/* 右侧抽屉：PropertyPanel */}

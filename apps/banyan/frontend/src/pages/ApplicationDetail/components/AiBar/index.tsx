@@ -1,7 +1,7 @@
 /**
  * AiBar 组件
  *
- * 固定在画布区域底部的 AI 对话栏，UI 风格参考 CatDesk。
+ * 固定在内容区底部的应用级 AI 对话栏，跨画布 / 数据库 / 云函数三个子页面。
  *
  * 布局：
  *   ┌─────────────────────────────────────────────┐
@@ -11,14 +11,22 @@
  *   │  │  图片预览区（有图片时显示）              │  │
  *   │  │  文本域（多行，自动增高）                │  │
  *   │  ├───────────────────────────────────────┤  │
- *   │  │  底部工具栏          [发送 / 停止 按钮] │  │
+ *   │  │  模式标签  模型选择    [发送 / 停止 按钮]│  │
  *   │  └───────────────────────────────────────┘  │
  *   └─────────────────────────────────────────────┘
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Spin, Image, Select } from 'antd'
-import { RobotOutlined, CloseOutlined, SendOutlined, StopOutlined } from '@ant-design/icons'
+import { Spin, Image, Select, Tag } from 'antd'
+import {
+  RobotOutlined,
+  CloseOutlined,
+  SendOutlined,
+  StopOutlined,
+  AppstoreOutlined,
+  DatabaseOutlined,
+  FunctionOutlined,
+} from '@ant-design/icons'
 import { useXiangDi } from '@/hooks/useXiangDi'
 import type { ProgressMessage } from '@/hooks/useXiangDi'
 import { aiApi } from '@/api'
@@ -26,14 +34,48 @@ import type { DisambiguationOptions, ProviderInfo } from '@/api'
 import DisambiguationPanel from '@/components/DisambiguationPanel'
 import styles from './index.module.scss'
 
+// ─── 模式定义 ─────────────────────────────────────────────────────────────────
+
+export type AiBarMode = 'canvas' | 'database' | 'functions'
+
+interface ModeConfig {
+  label: string
+  placeholder: string
+  color: string
+  icon: React.ReactNode
+}
+
+const MODE_CONFIG: Record<AiBarMode, ModeConfig> = {
+  canvas: {
+    label: '画布',
+    placeholder: '描述你想要的界面，可粘贴图片...',
+    color: '#1677ff',
+    icon: <AppstoreOutlined />,
+  },
+  database: {
+    label: '数据库',
+    placeholder: '描述你需要的数据结构，AI 将生成 Schema...',
+    color: '#52c41a',
+    icon: <DatabaseOutlined />,
+  },
+  functions: {
+    label: '云函数',
+    placeholder: '描述云函数的功能，AI 将生成函数 Flow...',
+    color: '#722ed1',
+    icon: <FunctionOutlined />,
+  },
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface AiBarProps {
   appId: string
+  /** 当前所在页面模式，决定 AI 的操作上下文 */
+  mode?: AiBarMode
   onPagesUpdate: (pages: string[]) => void
   /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
   onPagesSnapshot?: (pages: string[]) => void
-  /** canvasSection 容器的 ref，用于 fixed 定位时对齐水平位置 */
+  /** 容器的 ref，用于 fixed 定位时对齐水平位置 */
   containerRef: React.RefObject<HTMLDivElement | null>
 }
 
@@ -47,7 +89,15 @@ interface PastedImage {
 
 // ─── AiBar ────────────────────────────────────────────────────────────────────
 
-const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, onPagesSnapshot, containerRef }) => {
+const AiBar: React.FC<AiBarProps> = ({
+  appId,
+  mode = 'canvas',
+  onPagesUpdate,
+  onPagesSnapshot,
+  containerRef,
+}) => {
+  const modeConfig = MODE_CONFIG[mode]
+
   const [inputValue, setInputValue] = useState('')
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([])
   const [progressVisible, setProgressVisible] = useState(false)
@@ -89,7 +139,6 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, onPagesSnapshot, co
 
     const ro = new ResizeObserver(update)
     ro.observe(container)
-    // 窗口 resize 时也更新（容器位置可能因侧边栏宽度变化而移动）
     window.addEventListener('resize', update)
 
     return () => {
@@ -110,17 +159,14 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, onPagesSnapshot, co
     setDisambiguationState(null)
   }, [respondToDisambiguation])
 
-  // 有消息时自动展开进度区
   useEffect(() => {
     if (messages.length > 0 || loading) setProgressVisible(true)
   }, [messages.length, loading])
 
-  // 自动滚动进度区到底部
   useEffect(() => {
     progressEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, currentText])
 
-  // textarea 自动增高
   const autoResize = useCallback(() => {
     const el = textareaRef.current
     if (!el) return
@@ -132,7 +178,6 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, onPagesSnapshot, co
     autoResize()
   }, [inputValue, autoResize])
 
-  // 处理粘贴（支持图片）
   const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = Array.from(e.clipboardData.items)
     const imageItems = items.filter((item) => item.type.startsWith('image/'))
@@ -219,7 +264,6 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, onPagesSnapshot, co
 
       {/* 输入框容器 */}
       <div className={styles.inputWrapper}>
-        {/* 图片预览区 —— 用 antd Image.PreviewGroup 支持点击放大 + 多图切换 */}
         {pastedImages.length > 0 && (
           <div className={styles.imagePreviewRow}>
             <Image.PreviewGroup>
@@ -246,7 +290,6 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, onPagesSnapshot, co
           </div>
         )}
 
-        {/* 文本域 */}
         <textarea
           ref={textareaRef}
           className={styles.textarea}
@@ -254,14 +297,22 @@ const AiBar: React.FC<AiBarProps> = ({ appId, onPagesUpdate, onPagesSnapshot, co
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder="描述你想要的界面，可粘贴图片..."
+          placeholder={modeConfig.placeholder}
           rows={1}
           disabled={loading}
         />
 
-        {/* 底部工具栏 */}
         <div className={styles.toolbar}>
           <div className={styles.toolbarLeft}>
+            {/* 当前模式标签 */}
+            <Tag
+              icon={modeConfig.icon}
+              color={modeConfig.color}
+              className={styles.modeTag}
+            >
+              {modeConfig.label}
+            </Tag>
+
             {providers.length > 0 && (
               <Select
                 size="small"
