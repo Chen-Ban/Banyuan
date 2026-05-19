@@ -2,31 +2,30 @@
   "name": "banvas-flow",
   "version": "0.1.0",
   "description": "Banyuan 流程控制引擎 —— 声明式 FlowSchema 执行器，支持前后端统一的策略注册表模式",
-  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
     "./client": {
       "types": "./dist/presets/client.d.ts",
-      "import": "./dist/presets/client.js",
+      "import": "./dist/presets/client.mjs",
       "require": "./dist/presets/client.cjs"
     },
     "./server": {
       "types": "./dist/presets/server.d.ts",
-      "import": "./dist/presets/server.js",
+      "import": "./dist/presets/server.mjs",
       "require": "./dist/presets/server.cjs"
     },
     "./types": {
       "types": "./dist/types/index.d.ts",
-      "import": "./dist/types/index.js",
+      "import": "./dist/types/index.mjs",
       "require": "./dist/types/index.cjs"
     }
   },
   "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
