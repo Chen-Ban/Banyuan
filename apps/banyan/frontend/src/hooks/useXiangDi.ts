@@ -33,6 +33,12 @@ export interface ProgressMessage {
 
 export interface UseXiangDiOptions {
   appId: string
+  /**
+   * 获取当前最新 pages 的回调。
+   * sendPrompt 时会调用此函数，将返回的 pages 一同发送给 AI，
+   * 确保 AI 操作的是前端内存中的最新状态而非 DB 快照。
+   */
+  getPages: () => string[]
   /** AI 完成后回调，携带最终 pages JSON */
   onDone?: (pages: string[]) => void
   /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
@@ -66,7 +72,7 @@ function nextMsgId(): string {
 }
 
 export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
-  const { appId, onDone, onPagesSnapshot, onError, onDisambiguation } = options
+  const { appId, getPages, onDone, onPagesSnapshot, onError, onDisambiguation } = options
 
   const [loading, setLoading] = useState(false)
   const [messages, setMessages] = useState<ProgressMessage[]>([])
@@ -157,6 +163,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       const finalPages = await aiApi.aiChat({
         appId,
         prompt,
+        pages: getPages(),
         onEvent: handleEvent,
         signal: controller.signal,
       })
@@ -170,7 +177,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       setLoading(false)
       abortControllerRef.current = null
     }
-  }, [loading, appId, addMessage, onDone, onError])
+  }, [loading, appId, getPages, addMessage, onDone, onError])
 
   const respondToDisambiguationFn = useCallback(async (choiceId: string) => {
     await aiApi.respondToDisambiguation(choiceId)

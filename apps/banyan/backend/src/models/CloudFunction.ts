@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema } from 'mongoose'
 
 /**
  * 云函数（FlowSchema 定义）
@@ -6,7 +6,7 @@ import mongoose, { Schema, Document } from 'mongoose'
  * 每个云函数对应一个可视化编排的 FlowSchema，
  * 属于应用级资源，多页面共享。
  */
-export interface ICloudFunction extends Document {
+export interface ICloudFunction {
   /** 云函数唯一标识（UUID） */
   functionId: string
   /** 所属应用 ID */
@@ -18,7 +18,7 @@ export interface ICloudFunction extends Document {
   /** 描述 */
   description: string
   /** FlowSchema JSON（{ nodes: [], edges: [] }） */
-  schema: Record<string, unknown>
+  flowSchema: Record<string, unknown>
   /** 版本号 */
   version: number
   createdAt: Date
@@ -56,7 +56,7 @@ const CloudFunctionSchema = new Schema<ICloudFunction>(
       trim: true,
       maxlength: 500,
     },
-    schema: {
+    flowSchema: {
       type: Schema.Types.Mixed,
       default: { nodes: [], edges: [] },
     },

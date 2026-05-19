@@ -39,6 +39,7 @@
  *   tool_call       — 工具调用开始 { id, name, input }
  *   tool_result     — 工具调用结果 { id, name, result, isError }
  *   pages_snapshot  — 写操作后实时推送当前 pages { pages: string[] }
+ *   schema_update   — AI 调用 schema_set_collections 后推送新 Schema { collections: SchemaCollectionDef[] }
  *   human_gate      — 等待人工决策 { runId, trigger, prompt }
  *   disambiguation  — 检测到意图冲突，推送消歧选项 { conflictContext, options }
  *   done            — 完成，携带最终 pages { pages: string[] }
@@ -83,9 +84,10 @@ import {
     LLMRouter,
     LanceDBKnowledgeStore,
     registerKnowledgeSearchTool,
+    registerSchemaTools,
 } from 'xiangdi'
 import { createLLMClient, getModelsInfo, switchProvider, PROVIDER_CATALOG } from '../llm/createLLMClient.js'
-import type { BanvasHostAdapter, HumanDecision } from 'xiangdi'
+import type { BanvasHostAdapter, HumanDecision, SchemaCollectionDef, AppSchemaSnapshot } from 'xiangdi'
 import { version as banvasglVersion } from 'banvasgl'
 import path from 'node:path'
 import os from 'node:os'
@@ -248,7 +250,7 @@ function buildLoopWithSSE(res: ServerResponse, systemPrompt: string, activeModel
                 sseWrite(res, 'disambiguation', event.data.options)
                 break
             case 'disambiguation_pending':
-                disambiguationPendingResolve = event.data.resolve
+                disambiguationPendingResolve = event.data.pending.resolve
                 break
             case 'error':
                 sseWrite(res, 'error', { message: event.data.error.message })
@@ -262,13 +264,14 @@ function buildLoopWithSSE(res: ServerResponse, systemPrompt: string, activeModel
 // ─── POST /ai/run ─────────────────────────────────────────────────────────────
 
 router.post('/run', async (ctx) => {
-    const { appId, prompt, pages, runId: clientRunId, previousMessages, memoryHint } = ctx.request.body as {
+    const { appId, prompt, pages, runId: clientRunId, previousMessages, memoryHint, appSchema } = ctx.request.body as {
         appId?: string
         prompt?: string
         pages?: string[]
         runId?: string
         previousMessages?: Array<{ role: 'user' | 'assistant'; content: unknown }>
         memoryHint?: string
+        appSchema?: SchemaCollectionDef[]
     }
 
     if (!prompt || typeof prompt !== 'string') {
@@ -300,6 +303,17 @@ router.post('/run', async (ctx) => {
         const adapter = createMemoryAdapter(pages)
         const registry = createBanvasToolRegistry(adapter)
         registerKnowledgeSearchTool(registry, knowledgeStore)
+
+        // 1b. 注册 Schema 工具（schemaWriter 通过 SSE 推送 schema_update 事件给 banyan 后端）
+        const currentSchema: AppSchemaSnapshot = { collections: appSchema ?? [] }
+        registerSchemaTools(registry, {
+            schemaReader: () => currentSchema,
+            schemaWriter: (collections: SchemaCollectionDef[]) => {
+                // 同步更新内存快照，避免同一 session 中后续 schema_get 读到旧数据
+                currentSchema.collections = collections
+                sseWrite(res, 'schema_update', { collections })
+            },
+        })
 
         // 2. 初始化 LLM 客户端
         const client = await createLLMClient()
@@ -372,7 +386,7 @@ router.post('/run', async (ctx) => {
                     break
                 case 'disambiguation_pending':
                     // 存储 pending resolve，等待前端通过 POST /ai/disambiguation-response 调用
-                    disambiguationPendingResolve = event.data.resolve
+                    disambiguationPendingResolve = event.data.pending.resolve
                     break
                 case 'error':
                     sseWrite(res, 'error', { message: event.data.error.message })

@@ -75,6 +75,28 @@ export interface AiPagesSnapshotEvent {
   pages: string[]
 }
 
+export interface SchemaFieldDef {
+  name: string
+  displayName: string
+  type: string
+  required: boolean
+  defaultValue?: unknown
+  refCollection?: string
+  enumValues?: string[]
+}
+
+export interface SchemaCollectionDef {
+  name: string
+  displayName: string
+  fields: SchemaFieldDef[]
+}
+
+/** AI 调用 schema_set_collections 后，banyan 后端透传此事件给前端 */
+export interface AiSchemaUpdateEvent {
+  type: 'schema_update'
+  collections: SchemaCollectionDef[]
+}
+
 export interface AiDoneEvent {
   type: 'done'
   pages: string[]
@@ -108,6 +130,7 @@ export type AiStreamEvent =
   | AiToolCallEvent
   | AiToolResultEvent
   | AiPagesSnapshotEvent
+  | AiSchemaUpdateEvent
   | AiDisambiguationEvent
   | AiDoneEvent
   | AiErrorEvent
@@ -117,6 +140,9 @@ export type AiStreamEvent =
 export interface AiChatOptions {
   appId: string
   prompt: string
+  /** 当前内存中的 pages（从前端传入，AI 操作最新状态，而非 DB 快照） */
+  pages: string[]
+  conversationId?: string
   onEvent: (event: AiStreamEvent) => void
   signal?: AbortSignal
 }
@@ -141,12 +167,12 @@ export async function respondToDisambiguation(choiceId: string): Promise<void> {
  * 返回 Promise，在 done 或 error 事件后 resolve/reject
  */
 export async function aiChat(options: AiChatOptions): Promise<string[]> {
-  const { appId, prompt, onEvent, signal } = options
+  const { appId, prompt, pages, conversationId, onEvent, signal } = options
 
   const response = await fetch(`${BASE_URL}/ai/${appId}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, pages, conversationId }),
     signal,
   })
 
@@ -200,6 +226,9 @@ export async function aiChat(options: AiChatOptions): Promise<string[]> {
               break
             case 'pages_snapshot':
               onEvent({ type: 'pages_snapshot', pages: data.pages ?? [] })
+              break
+            case 'schema_update':
+              onEvent({ type: 'schema_update', collections: (data as AiSchemaUpdateEvent).collections ?? [] })
               break
             case 'disambiguation':
               onEvent({ type: 'disambiguation', options: data as DisambiguationOptions })
