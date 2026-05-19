@@ -6,7 +6,6 @@ import PropertiesTab from './PropertiesTab'
 import StyleTab from './StyleTab'
 import DataTab from './DataTab'
 import EventsTab from './EventsTab'
-import FunctionsTab from './FunctionsTab'
 import styles from './index.module.scss'
 
 interface PropertyPanelProps {
@@ -163,14 +162,9 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
             </div>
         )
 
-        const pageFunctionsTab = appId ? (
-            <FunctionsTab appId={appId} />
-        ) : null
-
         const pageTabItems = [
             { key: 'data', label: '数据', children: pageDataTab },
             ...(pageEventsTab ? [{ key: 'events', label: '事件', children: pageEventsTab }] : []),
-            ...(pageFunctionsTab ? [{ key: 'functions', label: '云函数', children: pageFunctionsTab }] : []),
             { key: 'size', label: '页面尺寸', children: pageSizeTab },
         ]
 

@@ -10,7 +10,6 @@ export type FlowNodeKind =
     | 'animate'
     | 'condition'
     | 'delay'
-    | 'callCloudFunction'
     | 'variable'
     | 'pageVar'
     | 'eventParam'
@@ -68,13 +67,6 @@ export const FLOW_NODE_MATERIALS: FlowNodeMaterial[] = [
         description: '等待指定毫秒后继续执行',
         category: 'action',
         color: '#3498db',
-    },
-    {
-        kind: 'callCloudFunction',
-        label: '调用云函数',
-        description: '调用应用的云函数并获取返回结果',
-        category: 'action',
-        color: '#8e44ad',
     },
     // ── 值节点 ──
     {
