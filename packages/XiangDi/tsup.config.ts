@@ -11,7 +11,7 @@ export default defineConfig({
     return { js: format === "esm" ? ".mjs" : ".cjs" };
   },
   clean: true,
-  external: ["banvasgl"],
+  external: ["@banyuan/canvas"],
   define: {
     __XIANGDI_VERSION__: JSON.stringify(pkg.version),
   },

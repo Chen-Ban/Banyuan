@@ -9,7 +9,7 @@
  *
  * 快速上手：
  * ```ts
- * import { LanceDBKnowledgeStore } from "xiangdi";
+ * import { LanceDBKnowledgeStore } from "@banyuan/agent";
  *
  * const store = new LanceDBKnowledgeStore();
  *
@@ -24,7 +24,7 @@
  *
  * GraphRAG（可选，用于关系推理）：
  * ```ts
- * import { GraphologyGraphStore } from "xiangdi";
+ * import { GraphologyGraphStore } from "@banyuan/agent";
  *
  * const graph = new GraphologyGraphStore();
  * await graph.addEntities([...]);

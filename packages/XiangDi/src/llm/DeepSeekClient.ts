@@ -7,7 +7,7 @@
  *
  * 使用示例：
  * ```ts
- * import { DeepSeekClient } from "xiangdi";
+ * import { DeepSeekClient } from "@banyuan/agent";
  *
  * const client = new DeepSeekClient({
  *   apiKey: "sk-xxx",

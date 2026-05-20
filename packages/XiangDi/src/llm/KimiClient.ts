@@ -11,7 +11,7 @@
  *
  * 使用示例：
  * ```ts
- * import { KimiClient } from "xiangdi";
+ * import { KimiClient } from "@banyuan/agent";
  *
  * const client = new KimiClient({
  *   apiKey: "sk-xxx",
