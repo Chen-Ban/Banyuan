@@ -16,19 +16,19 @@ const router = new Router({ prefix: '/api/v1/build' })
  *   platform         'mac' | 'win' | 'linux'
  *   width            number   画布宽度（px）
  *   height           number   画布高度（px）
- *   banvasglVersion  string   banvasgl 版本号（如 '0.1.0'）
+ *   canvasVersion  string   画布运行时版本号（如 '0.1.0'）
  *
  * Response 202:
  *   { success: true, taskId: string }
  */
 router.post('/app', async (ctx) => {
-  const { appJson, appName, platform, width, height, banvasglVersion } = ctx.request.body as {
+  const { appJson, appName, platform, width, height, canvasVersion } = ctx.request.body as {
     appJson?: string
     appName?: string
     platform?: string
     width?: number
     height?: number
-    banvasglVersion?: string
+    canvasVersion?: string
   }
 
   if (!appJson || typeof appJson !== 'string') {
@@ -52,9 +52,9 @@ router.post('/app', async (ctx) => {
     ctx.body = { success: false, error: 'width and height must be positive numbers' }
     return
   }
-  if (!banvasglVersion || typeof banvasglVersion !== 'string') {
+  if (!canvasVersion || typeof canvasVersion !== 'string') {
     ctx.status = 400
-    ctx.body = { success: false, error: 'banvasglVersion is required (e.g. "0.1.0")' }
+    ctx.body = { success: false, error: 'canvasVersion is required (e.g. "0.1.0")' }
     return
   }
 
@@ -73,7 +73,7 @@ router.post('/app', async (ctx) => {
     platform: platform as Platform,
     width: Number(width),
     height: Number(height),
-    banvasglVersion,
+    canvasVersion,
   })
 
   ctx.status = 202

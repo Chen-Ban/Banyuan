@@ -5,7 +5,7 @@ import mongoose, { Schema, Document } from 'mongoose'
  */
 export interface IApplication extends Document {
   /** 应用业务ID */
-  id: string
+  application_id: string
   /** 应用名称 */
   name: string
   /** 应用描述 */
@@ -33,7 +33,7 @@ export interface IApplication extends Document {
  */
 const ApplicationSchema = new Schema<IApplication>(
   {
-    id: {
+    application_id: {
       type: String,
       required: true,
       unique: true,
@@ -87,7 +87,7 @@ const ApplicationSchema = new Schema<IApplication>(
 )
 
 // 创建索引
-ApplicationSchema.index({ id: 1 }, { unique: true })
+ApplicationSchema.index({ application_id: 1 }, { unique: true })
 ApplicationSchema.index({ name: 1 })
 ApplicationSchema.index({ tags: 1 })
 ApplicationSchema.index({ createdBy: 1 })

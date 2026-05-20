@@ -29,8 +29,10 @@ export interface ScaffoldOptions {
   outputDir: string    // 生成项目的目标目录（绝对路径）
   width: number        // 画布宽度（px）
   height: number       // 画布高度（px）
-  /** banvasgl 版本号（由前端传入，确保与用户运行时一致） */
-  banvasglVersion: string
+  /** @banyuan/canvas 版本号（由前端传入，确保与用户运行时一致） */
+  canvasVersion: string
+  /** @banyuan/canvas-runtime 版本号 */
+  runtimeVersion?: string
   /** Vite build 产物目录，相对于 outputDir，默认 'dist' */
   distDir?: string
 }
@@ -45,7 +47,7 @@ function toKebabCase(name: string): string {
 }
 
 export async function scaffold(options: ScaffoldOptions): Promise<void> {
-  const { appJson, appName, outputDir, width, height, banvasglVersion, distDir = 'dist' } = options
+  const { appJson, appName, outputDir, width, height, canvasVersion, runtimeVersion, distDir = 'dist' } = options
 
   // 1. 创建目录
   fs.mkdirSync(outputDir, { recursive: true })
@@ -95,7 +97,8 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
     dependencies: {
       react: '^19.1.0',
       'react-dom': '^19.1.0',
-      banvasgl: `^${banvasglVersion}`,
+      '@banyuan/canvas': `^${canvasVersion}`,
+      '@banyuan/canvas-runtime': `^${runtimeVersion ?? canvasVersion}`,
     },
     devDependencies: {
       '@types/react': '^19.1.2',
@@ -167,7 +170,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 
   // 9. src/App.tsx — 异步加载 pages.json，不再内联大体积 JSON
   const appTsx = `import { useState, useEffect } from 'react'
-import useRuntimeBanvas from 'banvasgl/runtime'
+import { useRuntimeBanvas } from '@banyuan/canvas-runtime'
 
 export default function App() {
   const [pages, setPages] = useState<string[] | null>(null)

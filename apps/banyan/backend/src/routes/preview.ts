@@ -5,7 +5,7 @@ import { createPreview, getPreview, buildPreviewHtml } from '../services/preview
  * 预览路由（不挂在 /api/v1 下，因为 GET 需要直接返回 HTML）
  *
  * POST /preview
- *   Body: { appJson: string, width: number, height: number, banvasglVersion: string }
+ *   Body: { appJson: string, width: number, height: number, canvasVersion: string }
  *   Response 201: { success: true, previewId: string, url: string }
  *
  * GET /preview/:previewId
@@ -14,11 +14,11 @@ import { createPreview, getPreview, buildPreviewHtml } from '../services/preview
 const router = new Router({ prefix: '/preview' })
 
 router.post('/', async (ctx) => {
-  const { appJson, width, height, banvasglVersion } = ctx.request.body as {
+  const { appJson, width, height, canvasVersion } = ctx.request.body as {
     appJson?: string
     width?: number
     height?: number
-    banvasglVersion?: string
+    canvasVersion?: string
   }
 
   if (!appJson || typeof appJson !== 'string') {
@@ -31,9 +31,9 @@ router.post('/', async (ctx) => {
     ctx.body = { success: false, error: 'width and height must be positive numbers' }
     return
   }
-  if (!banvasglVersion || typeof banvasglVersion !== 'string') {
+  if (!canvasVersion || typeof canvasVersion !== 'string') {
     ctx.status = 400
-    ctx.body = { success: false, error: 'banvasglVersion is required (e.g. "0.1.0")' }
+    ctx.body = { success: false, error: 'canvasVersion is required (e.g. "0.1.0")' }
     return
   }
 
@@ -45,7 +45,7 @@ router.post('/', async (ctx) => {
     return
   }
 
-  const previewId = createPreview(appJson, Number(width), Number(height), banvasglVersion)
+  const previewId = createPreview(appJson, Number(width), Number(height), canvasVersion)
 
   const origin = `${ctx.protocol}://${ctx.host}`
   const url = `${origin}/preview/${previewId}`

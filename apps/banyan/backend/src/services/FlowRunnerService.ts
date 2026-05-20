@@ -8,8 +8,8 @@
  *   FlowRunnerService.run(appId, flowSchema, input) → result
  */
 
-import { createServerFlowRunner } from 'banvas-flow/server'
-import type { FlowContext, FlowSchema } from 'banvas-flow'
+import { createServerFlowRunner } from '@banyuan/flow/server'
+import type { FlowContext, FlowSchema } from '@banyuan/flow'
 import { OrmService } from './OrmService.js'
 import type { AppDB } from './OrmService.js'
 

@@ -1,7 +1,7 @@
 /**
  * preview service — 预览服务
  *
- * 不需要打包，直接在浏览器里通过 esm.sh CDN 加载 React + banvasgl/runtime，
+ * 不需要打包，直接在浏览器里通过 esm.sh CDN 加载 React + @banyuan/canvas-runtime，
  * 将 appJson 内联到 HTML 中，返回一个可直接在 iframe 里打开的页面。
  *
  * 流程：
@@ -16,7 +16,7 @@ export interface PreviewData {
   appJson: string
   width: number
   height: number
-  banvasglVersion: string
+  canvasVersion: string
   createdAt: number
 }
 
@@ -29,9 +29,9 @@ const PREVIEW_TTL_MS = 60 * 60 * 1000
 /**
  * 创建预览，返回 previewId
  */
-export function createPreview(appJson: string, width: number, height: number, banvasglVersion: string): string {
+export function createPreview(appJson: string, width: number, height: number, canvasVersion: string): string {
   const previewId = randomUUID()
-  previewMap.set(previewId, { previewId, appJson, width, height, banvasglVersion, createdAt: Date.now() })
+  previewMap.set(previewId, { previewId, appJson, width, height, canvasVersion, createdAt: Date.now() })
   // 定时清理，避免内存泄漏
   setTimeout(() => previewMap.delete(previewId), PREVIEW_TTL_MS)
   return previewId
@@ -47,13 +47,13 @@ export function getPreview(previewId: string): PreviewData | undefined {
 /**
  * 生成预览 HTML
  *
- * 使用 esm.sh 加载 React 和 banvasgl/runtime（ESM CDN），
+ * 使用 esm.sh 加载 React 和 @banyuan/canvas-runtime（ESM CDN），
  * 将 appJson 内联为 JS 常量，无需任何构建步骤。
  *
- * 注意：banvasgl 需要已发布到 npm 公网，版本号与 scaffold 保持一致。
+ * 注意：@banyuan/canvas-runtime 需要已发布到 npm 公网，版本号与 scaffold 保持一致。
  */
 export function buildPreviewHtml(data: PreviewData): string {
-  const { appJson, width, height, banvasglVersion } = data
+  const { appJson, width, height, canvasVersion } = data
   // 安全地内联 JSON：转义 </script> 防止 XSS
   const safeAppJson = JSON.stringify(appJson).replace(/<\/script>/gi, '<\\/script>')
 
@@ -79,7 +79,7 @@ export function buildPreviewHtml(data: PreviewData): string {
     <script type="module">
       import React from 'https://esm.sh/react@19.1.0'
       import { createRoot } from 'https://esm.sh/react-dom@19.1.0/client'
-      import useRuntimeBanvas from 'https://esm.sh/banvasgl@${banvasglVersion}/runtime'
+      import { useRuntimeBanvas } from 'https://esm.sh/@banyuan/canvas-runtime@${canvasVersion}'
 
       const APP_JSON = ${safeAppJson}
       const APP_PAGES = JSON.parse(APP_JSON)
