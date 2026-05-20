@@ -13,7 +13,7 @@ export interface SubmitBuildParams {
     platform: Platform
     width: number
     height: number
-    banvasglVersion: string
+    canvasVersion: string
 }
 
 export interface SubmitBuildResponse {

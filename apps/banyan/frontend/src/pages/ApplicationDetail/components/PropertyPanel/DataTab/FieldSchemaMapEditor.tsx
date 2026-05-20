@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react'
 import { Button, Input, Select } from 'antd'
-import type { IFieldSchema, IFieldSchemaMap } from 'banvasgl'
-import styles from './index.module.scss'
+import type { IFieldSchema, IFieldSchemaMap } from '@banyuan/sdk/core'
+import styles from '../index.module.scss'
 
 // ── 字段类型选项 ──
 

@@ -5,7 +5,7 @@ import type { ApiResponse } from './client'
  * 应用信息
  */
 export interface Application {
-  id: string
+  application_id: string
   name: string
   description?: string
   thumbnail?: string
@@ -64,7 +64,7 @@ export function fetchApplication(id: string): Promise<ApiResponse<Application>> 
 /**
  * 创建应用
  */
-export function createApplication(data: ApplicationFormData & { id: string }): Promise<ApiResponse<Application>> {
+export function createApplication(data: ApplicationFormData & { application_id: string }): Promise<ApiResponse<Application>> {
   return post<ApiResponse<Application>>('/applications', data)
 }
 

@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useFlowBanvas, NodeView, EdgeView } from 'banvasgl'
-import type { FlowSchema, FlowNode, FlowEdge, PortDirection } from 'banvasgl'
+import { useFlowBanvas, NodeView, EdgeView } from '@banyuan/sdk/flow'
+import type { FlowSchema, FlowNode, FlowEdge, PortDirection } from '@banyuan/sdk/core'
 import { getFlowNodeDragData } from './FlowNodePalette'
-import styles from './index.module.scss'
+import styles from '../index.module.scss'
 
 interface FlowCanvasProps {
     /** 当前绑定的 FlowSchema（null 表示尚未绑定） */

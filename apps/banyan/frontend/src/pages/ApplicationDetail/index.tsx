@@ -6,7 +6,8 @@ import {
   useRef,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDesignBanvas, version as banvasglVersion } from "banvasgl";
+import { useDesignBanvas } from '@banyuan/sdk/design';
+import { version as canvasVersion } from '@banyuan/sdk/core';
 import { message, Drawer } from "antd";
 import { applicationApi, buildApi } from "@/api";
 import type { Platform } from "@/api";
@@ -193,7 +194,7 @@ const ApplicationDetail = () => {
       if (isNew) {
         const newId = `app_${Date.now()}`;
         await applicationApi.createApplication({
-          id: newId,
+          application_id: newId,
           name: applicationName,
           description: applicationDescription,
           pages,
@@ -241,7 +242,7 @@ const ApplicationDetail = () => {
         platform,
         width: canvasSize.width,
         height: canvasSize.height,
-        banvasglVersion,
+        canvasVersion,
       });
 
       setBuildTaskId(res.taskId);

@@ -1,7 +1,7 @@
 import React from 'react'
-import type { IBanvasActions, IFieldSchemaMap } from 'banvasgl'
+import type { IBanvasActions, IFieldSchemaMap } from '@banyuan/sdk/core'
 import FieldSchemaMapEditor from './FieldSchemaMapEditor'
-import styles from './index.module.scss'
+import styles from '../index.module.scss'
 
 interface DataTabProps {
     selectedViewId: string

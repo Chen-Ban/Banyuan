@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { IContextMenuState } from 'banvasgl'
+import type { IContextMenuState } from '@banyuan/sdk/core'
 import styles from './index.module.scss'
 
 interface ContextMenuProps {

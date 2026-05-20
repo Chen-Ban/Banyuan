@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Select, Button, Tooltip, Tag } from 'antd'
 import { CloseCircleOutlined } from '@ant-design/icons'
-import type { IBanvasActions, IView } from 'banvasgl'
+import type { IBanvasActions, IView } from '@banyuan/canvas'
 import { fieldsApi } from '@/api'
 import type { FieldGroup, FieldDefinition } from '@/api'
-import styles from './index.module.scss'
+import styles from '../index.module.scss'
 
 interface DataTabProps {
   view: IView

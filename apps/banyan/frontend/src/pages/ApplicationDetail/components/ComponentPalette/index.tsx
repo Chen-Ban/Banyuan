@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Button, Tooltip, Popover } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, RocketOutlined } from '@ant-design/icons'
-import type { IComponentDefinition } from 'banvasgl'
+import type { IComponentDefinition } from '@banyuan/sdk/core'
 import styles from './index.module.scss'
 
 interface ComponentPaletteProps {
