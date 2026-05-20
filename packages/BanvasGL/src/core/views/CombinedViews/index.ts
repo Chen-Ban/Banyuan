@@ -1,4 +1,5 @@
 import { VIEWTYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
 import type { ViewOptions } from '@/core/views/View/View.js'
 import ContainerView from '@/core/views/ContainerView/index.js'
 import type { ContainerViewOptions } from '@/core/views/ContainerView/index.js'
@@ -11,7 +12,7 @@ import { generateId, generateName } from '@/core/utils'
  * 继承 ContainerView，拥有 addChild / removeChild / clear 等子节点管理能力。
  */
 export default class CombinedView extends ContainerView implements ICombinedView, ISerializable {
-    public type: VIEWTYPE = VIEWTYPE.COMBINEDVIEW
+    public type: ViewType = VIEWTYPE.COMBINEDVIEW
 
     constructor(options: ContainerViewOptions = {}) {
         super({ ...options })
@@ -41,6 +42,9 @@ export default class CombinedView extends ContainerView implements ICombinedView
         }
         if (this.boundingBox) {
             newView.boundingBox = this.boundingBox.copy()
+        }
+        if (this.decoration) {
+            newView.decoration = this.decoration.copy()
         }
 
         return newView

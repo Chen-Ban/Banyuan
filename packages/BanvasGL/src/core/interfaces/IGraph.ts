@@ -41,7 +41,7 @@ export interface IGraph {
     layout(constraintBounds?: Bounds): IGraph | void
 
     // 几何查询
-    isPointInPath(p: Point3): Boolean
+    isPointInPath(p: Point3, bufferCtx?: CanvasRenderingContext2D | null): Boolean
     getPointAt(t: number): Point3
     getTangentAt(t: number): Vector3
     getNormalAt(t: number): Vector3
@@ -383,7 +383,7 @@ export interface ITextFields extends IGraph {
     getParagraph(index: number): ITextParagraph | undefined
     getTextOptionsByIndex(textIndex: TextIndex): TextOptions
     layout(constraintBounds?: Bounds): ITextFields
-    point2TextElement(relativePoint: Point3): ITextElement | null
+    point2TextElement(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D | null): ITextElement | null
     element2Index(
         textElement: ITextElement,
         relativePoint: Point3

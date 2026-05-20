@@ -1,28 +1,17 @@
 {
-  "name": "banvasgl",
+  "name": "@banyuan/canvas",
   "version": "0.1.0",
   "description": "Banyuan 自研 2D 图形引擎，提供图形基元、场景管理、动画系统、序列化及编辑态/运行态 React Hook",
   "exports": {
     ".": {
-      "types": {
-        "node": "./dist/index.backend.d.ts",
-        "default": "./dist/index.frontend.d.ts"
-      },
-      "require": {
-        "node": "./dist/index.backend.cjs",
-        "default": "./dist/index.frontend.cjs"
-      },
-      "import": {
-        "node": "./dist/index.backend.mjs",
-        "default": "./dist/index.frontend.mjs"
-      }
-    },
-    "./runtime": {
-      "types": "./dist/index.runtime.d.ts",
-      "require": "./dist/index.runtime.cjs",
-      "import": "./dist/index.runtime.mjs"
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
     }
   },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "files": [
     "src",
     "dist"
@@ -42,16 +31,12 @@
   "license": "AGPL-3.0",
   "packageManager": "pnpm@10.10.0",
   "devDependencies": {
-    "@types/react": "^19.1.2",
     "@types/uuid": "^10.0.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.0"
   },
-  "peerDependencies": {
-    "react": "^19.1.0"
-  },
   "dependencies": {
-    "banvas-flow": "workspace:*",
+    "@banyuan/flow": "workspace:*",
     "uuid": "^11.1.0"
   }
 }

@@ -1,5 +1,5 @@
 export { default as Scene } from './Scene'
-export { OperationStack, DiffType, Operation, TransactionManager } from './operations'
+export { OperationStack, DiffType, Operation, TransactionManager, clearAllStates, flattenViewTree, isViewInTree } from './operations'
 export type { SceneOptions } from './Scene'
 export type {
   Diff,
@@ -10,4 +10,6 @@ export type {
   PropChange,
   ApplyDirection,
   OperationApplier,
+  GroupResult,
+  UngroupResult,
 } from './operations'

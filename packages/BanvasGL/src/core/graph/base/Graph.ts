@@ -2,7 +2,6 @@ import { GRAPHTYPE } from '@/core/constants'
 import Style from '@/core/style/Style'
 import { Matrix4, Point3, Vector3 } from '@/core/math'
 import Bounds from './Bounds'
-import { getActiveCanvasContext } from '@/core/renderer/CanvasContext'
 import { IGraph, ISerializable } from '@/core/interfaces'
 
 export default abstract class Graph implements IGraph, ISerializable {
@@ -48,11 +47,12 @@ export default abstract class Graph implements IGraph, ISerializable {
     /**
      * 判断点是否在图形内部
      * @param p 本地坐标系下的点
+     * @param bufferCtx 可选的离屏缓冲区上下文，传入时避免依赖全局 CanvasContext
      * @returns 是否在路径内
      */
-    public isPointInPath(p: Point3): Boolean {
-        const ctx = getActiveCanvasContext().bufferCtx
-        if (!ctx) return false
+    public isPointInPath(p: Point3, bufferCtx?: CanvasRenderingContext2D | null): Boolean {
+        const ctx = bufferCtx
+        if (!ctx) throw new Error('isPointInPath: 需要传入 bufferCtx')
         ctx.save()
         this.renderPath(ctx, true)
         const isIn = ctx.isPointInPath(p.x, p.y, 'nonzero')

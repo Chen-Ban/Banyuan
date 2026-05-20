@@ -1,5 +1,5 @@
 import Scene from "@/core/scene/Scene";
-import CanvasContext, { createCanvasContext, setActiveCanvasContext } from "./CanvasContext";
+import CanvasContext, { createCanvasContext } from "./CanvasContext";
 import { IRendererOptions } from '@/core/interfaces'
 
 export default class Renderer {
@@ -21,8 +21,19 @@ export default class Renderer {
     this.dpr = options.dpr ?? 1;
   }
 
-  // 获取当前实例的 CanvasContext
+  // 获取当前实例的 CanvasContext（内部 getter）
   private get canvasContext(): CanvasContext {
+    return this._canvasContext;
+  }
+
+  /**
+   * 获取当前 Renderer 持有的 CanvasContext 实例
+   *
+   * 应用层 / hook 层通过此方法获取 CanvasContext，
+   * 然后以参数传入 View.interact / View.render 等核心方法，
+   * 从而避免依赖全局 _activeCanvasContext 模块变量。
+   */
+  public getCanvasContext(): CanvasContext {
     return this._canvasContext;
   }
 
@@ -33,8 +44,6 @@ export default class Renderer {
     }
 
     this.isRendering = true;
-    // 设置当前活动的 CanvasContext，让 View/Graph 在渲染期间能访问正确的上下文
-    setActiveCanvasContext(this._canvasContext);
 
     try {
       // 清空画布并渲染场景
@@ -45,7 +54,7 @@ export default class Renderer {
         const ctx = canvasContext.getMainContext();
         ctx.save();
         ctx.scale(this.dpr, this.dpr);
-        scene.render();
+        scene.render(canvasContext);
         ctx.restore();
 
         // 渲染吸附对齐辅助线（在场景之上，不受 dpr scale 影响）
@@ -61,25 +70,10 @@ export default class Renderer {
     } catch (error) {
       console.error("Renderer error:", error);
     } finally {
-      setActiveCanvasContext(null);
       this.isRendering = false;
     }
   }
 
-  /**
-   * 将此 Renderer 的 CanvasContext 设为当前活动上下文。
-   * 在交互（命中检测）等非渲染调用前使用，确保 View.interact 可访问正确的 buffer context。
-   */
-  public activateContext(): void {
-    setActiveCanvasContext(this._canvasContext);
-  }
-
-  /**
-   * 清除活动上下文标记。
-   */
-  public deactivateContext(): void {
-    setActiveCanvasContext(null);
-  }
 
   // 清空画布
   public clear(): void {

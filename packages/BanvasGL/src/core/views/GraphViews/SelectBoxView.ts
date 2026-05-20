@@ -1,6 +1,7 @@
 import GraphView, { GraphViewOptions } from './index'
 import { Rectangle } from '@/core/graph'
 import { VIEWTYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
 import { generateId, generateName } from '@/core/utils'
 import { Point3 } from '@/core/math'
 import { Color, FillStyle, StrokeStyle, Style } from '@/core/style'
@@ -16,7 +17,7 @@ export interface SelectBoxViewOptions extends GraphViewOptions {
  * 继承自 GraphView，但具有特殊的类型标识，不参与交互
  */
 export default class SelectBoxView extends GraphView implements ISelectBoxView {
-    public type: VIEWTYPE = VIEWTYPE.SELECTBOXVIEW
+    public type: ViewType = VIEWTYPE.SELECTBOXVIEW
 
     constructor(options: SelectBoxViewOptions = {}) {
         // 内置框选样式
@@ -102,6 +103,9 @@ export default class SelectBoxView extends GraphView implements ISelectBoxView {
         }
         if (this.boundingBox) {
             newView.boundingBox = this.boundingBox.copy()
+        }
+        if (this.decoration) {
+            newView.decoration = this.decoration.copy()
         }
 
         return newView

@@ -1,4 +1,6 @@
-import { TextFields, VIEWTYPE } from '@/index.backend'
+import TextFields from '@/core/graph/text/TextFields'
+import { VIEWTYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
 import TextView, { TextViewOptions } from '@/core/views/TextView'
 import { IInput } from '@/core/interfaces'
 import { generateId, generateName } from '@/core/utils'
@@ -11,7 +13,7 @@ export interface InputOptions extends TextViewOptions {}
  * @description 继承自 TextView，默认为可编辑状态
  */
 export default class Input extends TextView implements IInput {
-    public readonly type: VIEWTYPE = VIEWTYPE.INPUT
+    public readonly type: ViewType = VIEWTYPE.INPUT
 
     constructor(text: TextFields, options: InputOptions = {}) {
         super(text, { ...options, editable: true })

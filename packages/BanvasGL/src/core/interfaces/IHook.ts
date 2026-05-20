@@ -7,7 +7,8 @@
  * 3. 零循环依赖：只引用 constants 枚举和其他接口类型
  */
 
-import type { VIEWTYPE, GRAPHTYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
+import type { GRAPHTYPE } from '@/core/constants'
 import type View from '@/core/views/View/View'
 import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from './IView'
 import type { ISceneLifetimes } from './IScene'
@@ -24,7 +25,7 @@ import type { ISceneLifetimes } from './IScene'
  */
 export interface IComponentTemplate {
     /** 对应创建的视图类型 */
-    viewType: VIEWTYPE
+    viewType: ViewType
     /** 对应的图形类型（仅 GRAPHVIEW 需要） */
     graphType?: GRAPHTYPE
     /** 创建实例时的默认构造参数 */
@@ -88,7 +89,7 @@ export interface IViewNode {
     /** 视图唯一标识 */
     id: string
     /** 视图类型 */
-    type: VIEWTYPE
+    type: ViewType
     /** 图形类型（仅 GraphView） */
     graphType?: GRAPHTYPE
     /** 显示名称 */
@@ -337,9 +338,9 @@ export interface IContextMenuState {
  * - 通过 actions 提供所有可用操作
  * - Banvas 仍然是 React 元素，业务方直接渲染
  */
-export interface IUseBanvasResult {
-    /** Canvas 渲染元素 */
-    Banvas: React.ReactElement
+export interface IUseBanvasResult<TElement = unknown> {
+    /** Canvas 渲染元素（React.ReactElement 或其他 UI 框架元素） */
+    Banvas: TElement
     /** 页面列表（含容器树），响应式更新 */
     pages: IPageNode[]
     /** 当前活跃页面 ID */

@@ -1,7 +1,6 @@
 import { GRAPHTYPE } from '@/core/constants'
 import { Style, Color } from '@/core/style'
 import TextOptions from './TextOptions'
-import { getActiveCanvasContext } from '@/core/renderer/CanvasContext'
 import Graph from '@/core/graph/base/Graph'
 import { Point3, Vector3, Matrix4 } from '@/core/math'
 import Bounds from '@/core/graph/base/Bounds'
@@ -26,6 +25,9 @@ export default abstract class TextElement extends Graph implements ITextElement 
     public bounds: Bounds
     public transfromOrigin: Point3
 
+    /** 标记是否需要重新测量尺寸（延迟到 layout 阶段） */
+    public _measureDirty: boolean = true
+
     constructor(
         content: string,
         options: TextOptions = TextOptions.DEFAULT,
@@ -42,8 +44,27 @@ export default abstract class TextElement extends Graph implements ITextElement 
 
     /**
      * 计算文字的实际宽高（由子类实现）
+     * @param ctx 可选的 CanvasRenderingContext2D，传入时直接使用，否则子类自行获取
      */
-    protected abstract calculateActualDimensions(): void
+    protected abstract calculateActualDimensions(ctx?: CanvasRenderingContext2D): void
+
+    /**
+     * 确保尺寸已测量（延迟测量的执行入口）
+     *
+     * TextFields.layout() 在布局前批量调用此方法，
+     * 传入 bufferCtx 避免依赖全局 CanvasContext。
+     *
+     * 当 ctx 为空时（如 Node.js 后端环境无 canvas），跳过测量并保持 dirty，
+     * 等待后续有 ctx 时再执行。
+     *
+     * @param ctx canvas context，用于 measureText
+     */
+    public ensureMeasured(ctx?: CanvasRenderingContext2D): void {
+        if (!this._measureDirty) return
+        if (!ctx) return // 无 context 时跳过，保持 dirty，后续渲染时重新触发
+        this.calculateActualDimensions(ctx)
+        this._measureDirty = false
+    }
     public abstract applyLayout(point: Point3, lineHeight: number): this
 
     public getLength(tStart: number, tEnd: number): number {
@@ -98,8 +119,8 @@ export default abstract class TextElement extends Graph implements ITextElement 
      */
     set options(options: TextOptions) {
         this._options = options
-        // 重新计算尺寸，因为字体选项可能已改变
-        this.calculateActualDimensions()
+        // 标记需要重新测量尺寸（延迟到 layout 阶段）
+        this._measureDirty = true
     }
 
     get options() {
@@ -111,8 +132,8 @@ export default abstract class TextElement extends Graph implements ITextElement 
      */
     set content(content: string) {
         this._content = content
-        // 重新计算尺寸，因为文字内容已改变
-        this.calculateActualDimensions()
+        // 标记需要重新测量尺寸（延迟到 layout 阶段）
+        this._measureDirty = true
     }
 
     get content() {
@@ -121,8 +142,8 @@ export default abstract class TextElement extends Graph implements ITextElement 
 
     set style(style: Style) {
         this._style = style
-        // 重新计算尺寸，因为样式可能已改变
-        this.calculateActualDimensions()
+        // 标记需要重新测量尺寸（延迟到 layout 阶段）
+        this._measureDirty = true
     }
 
     get style() {
@@ -330,17 +351,18 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
                 'PrintableTextElement content must be a single character'
             )
 
-        this.calculateActualDimensions()
+        // 标记 dirty，延迟到 layout 阶段由 TextFields.layout() 批量测量
+        this._measureDirty = true
         this.id = generateId(this.type)
     }
 
     /**
      * 计算文字的实际宽高
+     *
+     * @param ctx 用于 measureText 的 CanvasRenderingContext2D
      */
-    protected calculateActualDimensions(): void {
-        const ctx = getActiveCanvasContext().getBufferContext()
-
-        if (!ctx) throw new Error('无法获取真实字体尺寸')
+    protected calculateActualDimensions(ctx?: CanvasRenderingContext2D): void {
+        if (!ctx) throw new Error('calculateActualDimensions: 需要传入 ctx')
         ctx.save()
         // 设置字体样式
         ctx.font = this.options.fontString
@@ -502,6 +524,7 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
     constructor() {
         super('', TextOptions.DEFAULT, Style.DEFAULT)
         this.calculateActualDimensions()
+        this._measureDirty = false  // 固定尺寸，无需延迟
         this.id = generateId(this.type)
     }
 
@@ -538,9 +561,9 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
     }
 
     /**
-     * 计算文字的实际宽高（固定尺寸）
+     * 计算文字的实际宽高（固定尺寸，不需要 ctx）
      */
-    protected calculateActualDimensions(): void {
+    protected calculateActualDimensions(_ctx?: CanvasRenderingContext2D): void {
         this.width = 2
         this.height = 0
     }
