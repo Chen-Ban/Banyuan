@@ -2,7 +2,7 @@ import { Context } from 'koa'
 import applicationService from '../services/ApplicationService'
 
 interface CreateApplicationRequest {
-  id: string
+  application_id: string
   name: string
   description?: string
   pages: string[]
@@ -23,11 +23,11 @@ interface UpdateApplicationRequest {
 class ApplicationController {
   async getApplicationList(ctx: Context) {
     try {
-      const { name, id, tags, createdBy, page = '1', pageSize = '12' } = ctx.query
+      const { name, application_id, tags, createdBy, page = '1', pageSize = '12' } = ctx.query
 
       const query = {
         name: name as string | undefined,
-        id: id as string | undefined,
+        application_id: application_id as string | undefined,
         tags: tags as string | undefined,
         createdBy: createdBy as string | undefined,
       }
@@ -73,9 +73,9 @@ class ApplicationController {
     try {
       const data = ctx.request.body as CreateApplicationRequest
 
-      if (!data.id || !data.name || !data.pages) {
+      if (!data.application_id || !data.name || !data.pages) {
         ctx.status = 400
-        ctx.body = { success: false, message: 'id, name and pages are required' }
+        ctx.body = { success: false, message: 'application_id, name and pages are required' }
         return
       }
 
@@ -100,9 +100,9 @@ class ApplicationController {
       const { id } = ctx.params
       const updateData = ctx.request.body as UpdateApplicationRequest
 
-      if ((updateData as any).id) {
+      if ((updateData as any).application_id) {
         ctx.status = 400
-        ctx.body = { success: false, message: 'id cannot be updated' }
+        ctx.body = { success: false, message: 'application_id cannot be updated' }
         return
       }
 

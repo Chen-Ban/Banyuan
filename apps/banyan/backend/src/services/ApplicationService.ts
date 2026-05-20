@@ -1,9 +1,8 @@
 import { Application, IApplication } from '../models'
-import { Types } from 'mongoose'
 
 export interface IApplicationQuery {
   name?: string
-  id?: string
+  application_id?: string
   tags?: string
   createdBy?: string
 }
@@ -16,7 +15,7 @@ export interface IApplicationListResult {
 }
 
 export interface ICreateApplicationData {
-  id: string
+  application_id: string
   name: string
   description?: string
   pages: string[]
@@ -48,8 +47,8 @@ class ApplicationService {
     if (query.name) {
       filter.name = { $regex: query.name, $options: 'i' }
     }
-    if (query.id) {
-      filter.id = { $regex: query.id, $options: 'i' }
+    if (query.application_id) {
+      filter.application_id = { $regex: query.application_id, $options: 'i' }
     }
     if (query.tags) {
       filter.tags = { $in: [query.tags] }
@@ -81,13 +80,8 @@ class ApplicationService {
   /**
    * 根据ID获取应用详情（含 pages）
    */
-  async getApplicationById(id: string): Promise<IApplication | null> {
-    if (Types.ObjectId.isValid(id)) {
-      const application = await Application.findById(id).lean()
-      if (application) return application as unknown as IApplication
-    }
-
-    const application = await Application.findOne({ id }).lean()
+  async getApplicationById(applicationId: string): Promise<IApplication | null> {
+    const application = await Application.findOne({ application_id: applicationId }).lean()
     return application as unknown as IApplication | null
   }
 
@@ -95,9 +89,9 @@ class ApplicationService {
    * 创建应用
    */
   async createApplication(data: ICreateApplicationData): Promise<IApplication> {
-    const existing = await Application.findOne({ id: data.id })
+    const existing = await Application.findOne({ application_id: data.application_id })
     if (existing) {
-      throw new Error(`Application with id "${data.id}" already exists`)
+      throw new Error(`Application with application_id "${data.application_id}" already exists`)
     }
 
     const application = new Application({
@@ -113,16 +107,10 @@ class ApplicationService {
    * 更新应用（version 自增）
    */
   async updateApplication(
-    id: string,
+    applicationId: string,
     updateData: IUpdateApplicationData
   ): Promise<IApplication | null> {
-    let application
-
-    if (Types.ObjectId.isValid(id)) {
-      application = await Application.findById(id)
-    } else {
-      application = await Application.findOne({ id })
-    }
+    const application = await Application.findOne({ application_id: applicationId })
 
     if (!application) {
       return null
@@ -144,14 +132,8 @@ class ApplicationService {
   /**
    * 删除应用
    */
-  async deleteApplication(id: string): Promise<boolean> {
-    let application
-
-    if (Types.ObjectId.isValid(id)) {
-      application = await Application.findById(id)
-    } else {
-      application = await Application.findOne({ id })
-    }
+  async deleteApplication(applicationId: string): Promise<boolean> {
+    const application = await Application.findOne({ application_id: applicationId })
 
     if (!application) {
       return false
