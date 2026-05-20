@@ -16,9 +16,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { LanceDBKnowledgeStore, seedsToEntries } from "xiangdi";
-import type { SeedFile, SeedCategory } from "xiangdi";
-import { version as banvasglVersion } from "banvasgl";
+import { LanceDBKnowledgeStore, seedsToEntries } from "@banyuan/agent";
+import type { SeedFile, SeedCategory } from "@banyuan/agent";
+import { version as canvasVersion } from "@banyuan/canvas";
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ async function seedLayer(
 
 async function main(): Promise<void> {
   const layer = parseArgs();
-  const tableName = `knowledge_v${banvasglVersion}`;
+  const tableName = `knowledge_v${canvasVersion}`;
 
   console.log(`\n🌱 相地知识种子写入`);
   console.log(`   表名: ${tableName}`);

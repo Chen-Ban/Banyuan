@@ -85,10 +85,10 @@ import {
     LanceDBKnowledgeStore,
     registerKnowledgeSearchTool,
     registerSchemaTools,
-} from 'xiangdi'
+} from '@banyuan/agent'
 import { createLLMClient, getModelsInfo, switchProvider, PROVIDER_CATALOG } from '../llm/createLLMClient.js'
-import type { BanvasHostAdapter, HumanDecision, SchemaCollectionDef, AppSchemaSnapshot } from 'xiangdi'
-import { version as banvasglVersion } from 'banvasgl'
+import type { BanvasHostAdapter, HumanDecision, SchemaCollectionDef, AppSchemaSnapshot } from '@banyuan/agent'
+import { version as canvasVersion } from '@banyuan/canvas'
 import path from 'node:path'
 import os from 'node:os'
 
@@ -188,7 +188,7 @@ const aiSchemaDoc = generateAISchemaDoc();
 // ─── 版本化 KnowledgeStore（以 BanvasGL version 作为命名空间）─────────────
 
 const knowledgeStore = new LanceDBKnowledgeStore({
-    tableName: `knowledge_v${banvasglVersion}`,
+    tableName: `knowledge_v${canvasVersion}`,
 });
 
 // ─── 共享：构建 AgentLoop + 订阅 SSE ─────────────────────────────────────────
