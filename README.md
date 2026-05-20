@@ -10,8 +10,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-AGPL--3.0%20%2F%20Commercial-blue.svg" alt="License" />
-  <img src="https://img.shields.io/badge/banvasgl-v0.1.0-green.svg" alt="BanvasGL Version" />
-  <img src="https://img.shields.io/badge/xiangdi-v0.1.0-orange.svg" alt="XiangDi Version" />
+  <img src="https://img.shields.io/badge/@banyuan/canvas-v0.1.0-green.svg" alt="BanvasGL Version" />
+  <img src="https://img.shields.io/badge/@banyuan/agent-v0.1.0-orange.svg" alt="XiangDi Version" />
   <img src="https://img.shields.io/badge/react-19-61dafb.svg" alt="React 19" />
   <img src="https://img.shields.io/badge/electron-36-47848f.svg" alt="Electron 36" />
 </p>
@@ -26,39 +26,45 @@
 
 ## 模块概览
 
-Banyuan 是一个 monorepo，由三个相互独立的核心模块组成，依赖方向单向向下：应用层依赖引擎层，引擎层不感知应用层的存在。
+Banyuan 是一个 pnpm monorepo，由引擎层和应用层组成，依赖方向单向向下：应用层依赖引擎层，引擎层不感知应用层的存在。
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Banyan 低代码平台                          │
-│                                                             │
-│   ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│   │  React 编辑器 │  │  Koa API 服务 │  │  Electron 桌面壳  │  │
-│   │  拖拽 · AI   │  │  MongoDB     │  │  构建 · 打包      │  │
-│   └──────┬──────┘  └──────┬───────┘  └──────────────────┘  │
-│          │                │                                 │
-├──────────┼────────────────┼─────────────────────────────────┤
-│          ▼                ▼                                 │
-│   ┌─────────────┐  ┌──────────────────────────────────────┐ │
-│   │  BanvasGL   │  │           XiangDi                    │ │
-│   │  2D 渲染引擎  │  │         AI Agent 引擎                │ │
-│   └─────────────┘  └──────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Banyan 低代码平台                              │
+│                                                                     │
+│   ┌─────────────┐  ┌──────────────┐  ┌──────────────────┐          │
+│   │  React 编辑器 │  │  Koa API 服务 │  │  Electron 桌面壳  │          │
+│   │  拖拽 · AI   │  │  MongoDB     │  │  构建 · 打包      │          │
+│   └──────┬──────┘  └──────┬───────┘  └──────────────────┘          │
+│          │                │                                         │
+├──────────┼────────────────┼─────────────────────────────────────────┤
+│          ▼                ▼                                         │
+│   ┌──────────────────────────────────────────────────────────────┐  │
+│   │                   @banyuan/sdk（聚合 SDK）                     │  │
+│   │  canvas-design · canvas-runtime · flow-design · canvas(core) │  │
+│   └──────────────────────────────────────────────────────────────┘  │
+│          │                                                          │
+│   ┌──────▼──────┐  ┌──────────────────────────────────────────────┐ │
+│   │ @banyuan/   │  │           @banyuan/agent                     │ │
+│   │ canvas      │  │         AI Agent 引擎 (XiangDi)              │ │
+│   │ 2D 核心引擎  │  │                                              │ │
+│   └─────────────┘  └──────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### BanvasGL —— 自研 2D 图形引擎
+### BanvasGL —— 自研 2D 图形引擎（`@banyuan/canvas`）
 
-零外部依赖的 Canvas 2D 渲染引擎，是整个平台的图形基础。核心能力包括：完整的场景图体系（嵌套视图、分组、层级管理）、关键帧动画系统、可视化流程执行引擎（FlowRunner，用于编排组件交互逻辑）、事务化撤销/重做、以及序列化/反序列化。
+零外部依赖的 Canvas 2D 渲染引擎，是整个平台的图形基础。核心能力包括：完整的场景图体系（嵌套视图、分组、层级管理）、ViewRegistry 可扩展视图注册、关键帧动画系统、可注入的 SchemaRunner 抽象（用于流程逻辑执行）、事务化撤销/重做、FlexView 弹性布局容器、以及序列化/反序列化。
 
-引擎对外暴露三个物理隔离的入口：编辑态（完整设计器能力）、运行态（最小渲染集，不含编辑器代码）、服务端（去掉 DOM 依赖，可在 Node.js 中运行）。
+引擎采用单入口设计（`src/index.ts`），仅导出核心图形能力。编辑态 Hook（`useDesignBanvas`）、运行态 Hook（`useRuntimeBanvas`）、流程图编辑器（`useFlowBanvas`）已拆分为独立包，通过 `@banyuan/sdk` 统一消费。
 
 → 详见 [BanvasGL README](./packages/BanvasGL/README.md)
 
-### XiangDi —— AI Agent 引擎
+### XiangDi —— AI Agent 引擎（`@banyuan/agent`）
 
 驱动 AI 生成能力的 Agent 引擎，以独立 npm 包的形式存在，可被任何宿主集成。核心是一个 Spec 驱动的 Plan-and-Execute 架构：SpecPlanner 将自然语言规划为类型化的变更计划，AgentLoop 按计划驱动工具调用，Harness 层在关键节点提供前置守卫、后置验证和人工确认。
 
-引擎内置 AISchema ↔ BanvasGL 双向转换层，LLM 的输出可以直接映射为画布操作。
+引擎内置 AISchema ↔ BanvasGL 双向转换层，LLM 的输出可以直接映射为画布操作。支持多 LLM 提供商（DeepSeek、Kimi）通过 LLMRouter 做健康检测和路由。
 
 → 详见 [XiangDi README](./packages/XiangDi/README.md)
 
@@ -78,6 +84,10 @@ Banyuan 是一个 monorepo，由三个相互独立的核心模块组成，依赖
 
 Banyuan 的目标之一是让同一份应用能跑在浏览器、Electron 桌面、将来可能的移动端和小程序。DOM 是浏览器的产物，字体渲染、事件模型、滚动行为在不同平台上表现不一致，用 DOM 做跨平台注定要持续踩坑。Canvas 2D 在所有这些宿主里行为一致，是唯一能真正做到"一套渲染逻辑，多端运行"的底层。自研引擎的代价是要自己建场景图、事件系统这些基础设施，但换来的是渲染行为完全可控、跨平台路径清晰。
 
+### 分层拆包：编辑态 / 运行态 / 流程图必须物理隔离
+
+一个低代码平台的运行态产物不应包含编辑器代码——编辑器有 Worker 管理、交互分发、组件物料等重逻辑，全塞进运行态 bundle 会让产物体积膨胀数倍。通过将 BanvasGL 拆为核心引擎（`@banyuan/canvas`）+ 编辑态绑定（`@banyuan/canvas-design`）+ 运行态绑定（`@banyuan/canvas-runtime`）+ 流程图编辑器（`@banyuan/flow-design`），每个消费方只引入自己需要的部分，构建时自动 tree-shake。
+
 ### XiangDi：AI 生成的目标是有约束的结构，不是自由文本
 
 直接调 LLM API 或套现有框架，对于生成自由文本（文章、代码片段）是够用的。但 Banyuan 的 AI 生成目标是一个有严格数据结构约束的画布——LLM 的输出必须能精确映射为画布操作，必须在执行前对齐意图、执行后验证结果。这种"约束驱动的生成"在现有框架里没有原生支持，用户需要自己在外层实现，反而更复杂。XiangDi 把约束（Spec）和校验（Harness）内置为引擎的一等公民，是为了让这套机制对所有接入方都开箱即用，而不是每次都重新发明。
@@ -93,16 +103,43 @@ Banyuan 的目标之一是让同一份应用能跑在浏览器、Electron 桌面
 ```
 Banyuan/
 ├── packages/
-│   ├── BanvasGL/        # 核心 2D 图形引擎（npm 包）
-│   └── XiangDi/         # AI Agent 引擎（npm 包）
+│   ├── BanvasGL/           # 核心 2D 图形引擎 (@banyuan/canvas)
+│   ├── BanvasDesign/       # 编辑态 React Hook (@banyuan/canvas-design)
+│   ├── BanvasRuntime/      # 运行态 React Hook (@banyuan/canvas-runtime)
+│   ├── BanvasFlowEditor/   # 流程图编辑器 (@banyuan/flow-design)
+│   ├── BanvasFlow/         # 声明式流程执行器 (@banyuan/flow)
+│   ├── BanyanSDK/          # 统一 SDK 聚合导出 (@banyuan/sdk)
+│   └── XiangDi/            # AI Agent 引擎 (@banyuan/agent)
 ├── apps/
-│   ├── banyan/          # 低代码平台
-│   │   ├── frontend/    #   React 编辑器
-│   │   ├── backend/     #   Koa + MongoDB API 服务
-│   │   └── electron/    #   桌面壳
-│   └── xiangdi/         # XiangDi 独立 HTTP 服务
-└── examples/
-    └── lunlunglass/     # 示例：眼镜店管理系统
+│   ├── banyan/             # 低代码平台
+│   │   ├── frontend/       #   React 19 + Vite + Ant Design 6
+│   │   ├── backend/        #   Koa + MongoDB API 服务
+│   │   └── electron/       #   Electron 36 桌面壳
+│   └── xiangdi/            # XiangDi 独立 HTTP 服务 (:3002)
+├── examples/
+│   └── lunlunglass/        # 示例：眼镜店管理系统
+└── docs/
+    ├── adr/                # 架构决策记录
+    └── todos/              # 实现计划
+```
+
+### 包间依赖方向
+
+```
+@banyuan/flow (独立，无 workspace 依赖)
+    ↑
+@banyuan/canvas (依赖 @banyuan/flow)
+    ↑
+@banyuan/canvas-runtime (peerDep: canvas)
+@banyuan/canvas-design (peerDep: canvas + canvas-runtime)
+@banyuan/flow-design (peerDep: canvas + canvas-runtime)
+    ↑
+@banyuan/sdk (聚合以上全部)
+@banyuan/agent (optional peerDep: canvas)
+    ↑
+apps/banyan/frontend (依赖 sdk + 所有子包)
+apps/banyan/backend (依赖 @banyuan/flow)
+apps/xiangdi (依赖 agent + canvas)
 ```
 
 ---
@@ -155,11 +192,14 @@ pnpm dev:lunlunglass
 ## 路线图
 
 - [x] BanvasGL 引擎核心：场景图、渲染、动画、序列化
-- [x] BanvasGL 流程引擎（FlowRunner）：可视化交互逻辑编排
+- [x] BanvasGL FlowRunner：声明式流程逻辑执行
+- [x] BanvasGL 分层拆包：核心/编辑态/运行态/流程图物理隔离
+- [x] BanvasGL 单入口 + ViewRegistry + SchemaRunner + FlexView
 - [x] XiangDi AI Agent 引擎：AgentLoop + Spec 体系 + Harness
+- [x] XiangDi 多 LLM 支持：DeepSeek + Kimi + LLMRouter
 - [x] Banyan 编辑器：拖拽画布 + 属性面板 + AI 对话
-- [ ] 后端能力体系：Schema Builder + 自动 ORM + 云函数 Tab
-- [ ] 构建时服务器壳子：前端 bundle + Koa 服务器一键输出
+- [x] Banyan 后端 Phase 1：Schema Builder + 自动 ORM
+- [ ] 后端 Phase 2：云函数 Tab + 构建时服务器壳子
 - [ ] AI 生成云函数：自然语言 → 业务函数
 - [ ] MVP 发布
 

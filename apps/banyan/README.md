@@ -27,8 +27,8 @@ apps/banyan/
 ┌───────────────────────────────────────────────────────────┐
 │                    frontend（:5174）                        │
 │                                                           │
-│   BanvasGL 画布编辑器                                      │
-│   PropertyPanel（样式 / 数据 / 事件 / 流程 / 数据库 / 函数）│
+│   @banyuan/sdk 画布编辑器                                  │
+│   PropertyPanel（样式 / 属性 / 数据 / 事件 / 数据库 / 函数） │
 │   AiBar（自然语言输入）                                     │
 └───────────────────────┬───────────────────────────────────┘
                         │ REST API（/api/*）
@@ -114,10 +114,10 @@ pnpm install
 
 ```bash
 # 在 monorepo 根目录
-pnpm --filter banyan dev
+pnpm dev:banyan
 ```
 
-这会同时启动三个进程：
+这会同时启动所有进程：
 
 | 进程 | 地址 | 说明 |
 |------|------|------|
@@ -158,24 +158,30 @@ XIANGDI_URL=http://localhost:3002
 ```
 src/
 ├── api/           # axios 封装的 REST 客户端
-├── components/    # 跨页面复用组件（BuildTaskModal 等）
+│   ├── applications.ts   # 应用 CRUD（使用 application_id）
+│   ├── ai.ts             # AI 对话
+│   ├── build.ts          # 构建任务
+│   ├── cloudFunctions.ts # 云函数管理
+│   ├── data.ts           # 自动 CRUD
+│   └── schema.ts         # Schema Builder
+├── components/    # 跨页面复用组件（BuildTaskModal、DisambiguationPanel 等）
+├── hooks/         # React Hook（useXiangDi 等）
 ├── pages/
 │   ├── ApplicationList/    # 应用列表页
-│   └── ApplicationDetail/  # 画布编辑器页
-│       └── components/
-│           ├── ComponentPalette/  # 左侧组件面板
-│           ├── ContextMenu/       # 右键菜单
-│           ├── PageList/          # 页面管理面板
-│           └── PropertyPanel/     # 右侧属性面板
-│               ├── PropertiesTab.tsx   # 位置/尺寸/旋转属性
-│               ├── StyleTab.tsx        # 样式
-│               ├── DataTab.tsx         # 数据绑定
-│               ├── EventsTab.tsx       # 事件
-│               ├── FlowCanvas.tsx      # 流程画布（内嵌编辑器）
-│               ├── FlowEditorModal.tsx # 流程图全屏编辑弹窗
-│               ├── FlowNodePalette.tsx # 流程节点物料面板
-│               ├── DatabaseTab.tsx     # Schema Builder（Phase 1）
-│               └── FunctionsTab/       # 云函数编辑器（Phase 2，规划中）
+│   ├── ApplicationLayout/  # 应用详情布局壳
+│   ├── ApplicationDetail/  # 画布编辑器页
+│   │   └── components/
+│   │       ├── ComponentPalette/  # 左侧组件面板
+│   │       ├── ContextMenu/       # 右键菜单
+│   │       ├── PageList/          # 页面管理面板
+│   │       └── PropertyPanel/     # 右侧属性面板
+│   │           ├── PropertiesTab/     # 位置/尺寸/旋转属性
+│   │           ├── StyleTab/          # 样式（填充/描边/阴影）
+│   │           ├── DataTab/           # 数据绑定 + FieldSchemaMapEditor
+│   │           ├── EventsTab/         # 事件 + FlowEditorModal + FlowCanvas
+│   │           └── shared/            # 跨 Tab 复用组件（NumberInput）
+│   ├── DatabasePage/       # 数据库管理页（Phase 1）
+│   └── FunctionsPage/      # 云函数管理页（Phase 2）
 ├── routes/        # react-router-dom 路由配置
 └── utils/         # 工具函数
 ```
@@ -185,7 +191,7 @@ src/
 | 路径 | 页面 | 说明 |
 |------|------|------|
 | `/` | ApplicationList | 应用列表，支持搜索和新建 |
-| `/application/:id` | ApplicationDetail | 画布编辑器，多页面设计 |
+| `/application/:application_id` | ApplicationDetail | 画布编辑器，多页面设计 |
 | `/application/new` | ApplicationDetail | 新建应用（同编辑器页面） |
 
 ### Backend（`banyan-backend`）
@@ -197,33 +203,37 @@ src/
 ├── config/
 │   └── database.ts # MongoDB 连接配置
 ├── models/
-│   ├── Application.ts   # 应用数据模型
-│   ├── AppSchema.ts     # 用户定义的数据模型（Phase 1）
-│   ├── AppFunction.ts   # 云函数元数据（Phase 2，预留）
-│   ├── BuildTask.ts     # 构建任务记录
-│   └── Conversation.ts  # AI 对话历史
+│   ├── Application.ts     # 应用数据模型（含 application_id、canvasVersion）
+│   ├── AppSchema.ts       # 用户定义的数据模型（Phase 1）
+│   ├── CloudFunction.ts   # 云函数元数据（Phase 2）
+│   ├── BuildTask.ts       # 构建任务记录
+│   └── Conversation.ts    # AI 对话历史
 ├── services/
-│   ├── ApplicationService.ts  # 应用 CRUD
-│   ├── AiService.ts           # AI 代理（读 pages → 调 XiangDi → 写 pages）
-│   ├── ConversationService.ts # 对话历史管理
-│   ├── SummaryService.ts      # 对话摘要
-│   ├── SchemaService.ts       # Schema CRUD + 动态 Mongoose Model（Phase 1）
-│   ├── OrmService.ts          # 自动 ORM 访问层（Phase 1）
-│   ├── build/                 # 构建服务（生成跨平台安装包）
-│   └── preview/               # 预览服务（生成内存 HTML 预览）
+│   ├── ApplicationService.ts    # 应用 CRUD
+│   ├── AiService.ts             # AI 代理（读 pages → 调 XiangDi → 写 pages）
+│   ├── CloudFunctionService.ts  # 云函数 CRUD + 执行
+│   ├── ConversationService.ts   # 对话历史管理
+│   ├── SummaryService.ts        # 对话摘要
+│   ├── FlowRunnerService.ts     # 流程执行服务
+│   ├── SchemaService.ts         # Schema CRUD + 动态 Mongoose Model（Phase 1）
+│   ├── OrmService.ts            # 自动 ORM 访问层（Phase 1）
+│   ├── build/                   # 构建服务（生成跨平台安装包）
+│   └── preview/                 # 预览服务（生成内存 HTML 预览）
 ├── controllers/
 │   ├── ApplicationController.ts
 │   ├── AiController.ts
+│   ├── CloudFunctionController.ts
 │   ├── ConversationController.ts
-│   ├── DataController.ts      # 自动 CRUD（Phase 1）
-│   └── SchemaController.ts    # Schema Builder（Phase 1）
+│   ├── DataController.ts        # 自动 CRUD（Phase 1）
+│   └── SchemaController.ts      # Schema Builder（Phase 1）
 └── routes/
-    ├── index.ts          # 路由聚合 + 健康检查
     ├── applications.ts   # 应用 CRUD 路由
     ├── ai.ts             # AI 对话路由
+    ├── cloudFunctions.ts # 云函数路由
     ├── conversations.ts  # 对话历史路由
     ├── schema.ts         # Schema Builder 路由（Phase 1）
     ├── data.ts           # 自动 CRUD 路由（Phase 1）
+    ├── flows.ts          # 流程执行路由
     ├── build.ts          # 构建任务路由
     └── preview.ts        # 预览路由
 ```
@@ -234,16 +244,16 @@ src/
 |------|------|------|
 | GET | `/health` | 健康检查 |
 | GET | `/api/applications` | 获取应用列表（支持分页、关键词搜索） |
-| GET | `/api/applications/:id` | 获取应用详情 |
+| GET | `/api/applications/:application_id` | 获取应用详情 |
 | POST | `/api/applications` | 创建应用 |
-| PUT | `/api/applications/:id` | 更新应用 |
-| DELETE | `/api/applications/:id` | 删除应用 |
+| PUT | `/api/applications/:application_id` | 更新应用 |
+| DELETE | `/api/applications/:application_id` | 删除应用 |
 | POST | `/api/ai/:appId/chat` | AI 对话（SSE 流式，代理到 XiangDi 服务） |
 | GET/POST/PUT/DELETE | `/api/apps/:appId/schema` | Schema Builder（Phase 1） |
 | GET/POST/PUT/DELETE | `/api/apps/:appId/data/:collectionName` | 自动 CRUD（Phase 1） |
 | GET | `/api/ai/:appId/conversations` | 获取对话历史列表 |
 | GET/DELETE | `/api/ai/:appId/conversations/:id` | 获取/删除单条对话 |
-| GET/POST/PUT/DELETE | `/api/apps/:appId/functions` | 云函数管理（Phase 2，规划中） |
+| GET/POST/PUT/DELETE | `/api/apps/:appId/functions` | 云函数管理 |
 | POST | `/api/v1/build/app` | 提交构建任务 |
 | GET | `/api/v1/build/status/:taskId` | 查询构建任务状态 |
 | GET | `/api/v1/build/download/:taskId` | 下载构建产物 |
@@ -280,4 +290,6 @@ pnpm --filter banyan-electron build
 - 新增页面在 `src/routes/index.tsx` 中注册路由
 - 新增后端路由在 `src/routes/` 下创建文件，并在 `routes/index.ts` 中挂载
 - 前端开发服务器端口固定为 `5174`（`strictPort: true`），Electron 依赖此端口
-- 禁止在 backend 中直接 `import xiangdi`，AI 能力必须通过 HTTP 调用 XiangDi 服务（:3002）
+- 禁止在 backend 中直接 `import @banyuan/agent`，AI 能力必须通过 HTTP 调用 XiangDi 服务（:3002）
+- 应用标识使用 `application_id` 字段（非 `id`），所有 API 路径和前端代码保持一致
+- PropertyPanel 各 Tab 独立子目录，跨 Tab 复用组件放入 `shared/`
