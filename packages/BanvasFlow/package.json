@@ -1,7 +1,7 @@
 {
-  "name": "banvas-flow",
-  "version": "0.1.0",
-  "description": "Banyuan 流程控制引擎 —— 声明式 FlowSchema 执行器，支持前后端统一的策略注册表模式",
+  "name": "@banyuan/flow",
+  "version": "0.2.0",
+  "description": "Banyuan 流程控制引擎 —— 声明式 FlowSchema 执行器",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
