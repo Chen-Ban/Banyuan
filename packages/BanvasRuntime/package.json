@@ -1,0 +1,39 @@
+{
+  "name": "@banyuan/canvas-runtime",
+  "version": "0.1.0",
+  "description": "BanvasGL 运行态 React Hook（useCanvasInit + useRuntimeBanvas），用于低代码预览和独立打包应用",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch"
+  },
+  "keywords": [
+    "banvas",
+    "runtime",
+    "canvas",
+    "react"
+  ],
+  "license": "AGPL-3.0",
+  "peerDependencies": {
+    "react": "^19.1.0",
+    "@banyuan/canvas": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.2",
+    "tsup": "^8.4.0",
+    "typescript": "~5.7.3"
+  }
+}

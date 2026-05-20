@@ -3,8 +3,8 @@
  *
  * 导出核心运行时 + 类型 + 执行器注册表
  * 预组装 preset 通过子路径导入：
- *   import { createClientFlowRunner } from 'banvas-flow/client'
- *   import { createServerFlowRunner } from 'banvas-flow/server'
+ *   import { createClientFlowRunner } from '@banyuan/flow/client'
+ *   import { createServerFlowRunner } from '@banyuan/flow/server'
  */
 
 // 类型

@@ -1,0 +1,44 @@
+{
+  "name": "@banyuan/flow-design",
+  "version": "0.1.0",
+  "description": "BanvasGL 流程图编辑器 —— NodeView/PortView/EdgeView + useFlowBanvas + FlowRunner 集成",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch"
+  },
+  "keywords": [
+    "flow",
+    "editor",
+    "banvas",
+    "canvas"
+  ],
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@10.10.0",
+  "dependencies": {},
+  "peerDependencies": {
+    "@banyuan/canvas": "workspace:*",
+    "@banyuan/canvas-runtime": "workspace:*",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@banyuan/canvas": "workspace:*",
+    "@banyuan/canvas-runtime": "workspace:*",
+    "react": "^19.1.0",
+    "tsup": "^8.4.0"
+  }
+}
