@@ -39,6 +39,7 @@ import DenseTrajectory from '@/core/graph/trajectory/DenseTrajectory'
 
 // 容器类型
 import CombinedView from '@/core/views/CombinedViews'
+import FlexView from '@/core/views/FlexView'
 import GraphView from '@/core/views/GraphViews'
 import TextView from '@/core/views/TextView'
 import ImageView from '@/core/views/MediaViews/ImageView'
@@ -217,6 +218,7 @@ export default class Serializer {
         this.registerSerializable(GRAPHTYPE.DENSETRAJECTORY, DenseTrajectory as any)
         // 容器
         this.registerSerializable(VIEWTYPE.COMBINEDVIEW, CombinedView as any)
+        this.registerSerializable(VIEWTYPE.FLEXVIEW, FlexView as any)
         this.registerSerializable(VIEWTYPE.GRAPHVIEW, GraphView as any)
         this.registerSerializable(VIEWTYPE.TEXTVIEW, TextView as any)
         this.registerSerializable(VIEWTYPE.IMAGEVIEW, ImageView as any)

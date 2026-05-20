@@ -1,4 +1,4 @@
-export const enum GRAPHTYPE {
+export enum GRAPHTYPE {
     GRAPH = 'GRAPH',
     ANALYTICGRAPH = 'ANALYTICGRAPH',
     DENSETRAJECTORY = 'DENSETRAJECTORY',
@@ -28,25 +28,24 @@ export const enum GRAPHTYPE {
     TEXTFIELDS = 'TEXTFIELDS',
 }
 
-// 视图类型枚举
-export const enum VIEWTYPE {
-    VIEW = 'VIEW',
-    TEXTVIEW = 'TEXTVIEW',
-    GRAPHVIEW = 'GRAPHVIEW',
-    IMAGEVIEW = 'IMAGEVIEW',
-    VIDEOVIEW = 'VIDEOVIEW',
-    COMBINEDVIEW = 'COMBINEDVIEW',
-    SELECTBOXVIEW = 'SELECTBOXVIEW',
-    INPUT = 'INPUT',
-    EDITABLETEXT = 'EDITABLETEXT',
-    // 流程编辑器
-    NODEVIEW = 'NODEVIEW',
-    PORTVIEW = 'PORTVIEW',
-    EDGEVIEW = 'EDGEVIEW',
-}
+// 视图类型 —— 字符串联合，业务层可通过 `type` 字段自定义扩展类型
+export type ViewType = string
+
+export const VIEWTYPE = {
+    VIEW: 'VIEW',
+    TEXTVIEW: 'TEXTVIEW',
+    GRAPHVIEW: 'GRAPHVIEW',
+    IMAGEVIEW: 'IMAGEVIEW',
+    VIDEOVIEW: 'VIDEOVIEW',
+    COMBINEDVIEW: 'COMBINEDVIEW',
+    FLEXVIEW: 'FLEXVIEW',
+    SELECTBOXVIEW: 'SELECTBOXVIEW',
+    INPUT: 'INPUT',
+    EDITABLETEXT: 'EDITABLETEXT',
+} as const
 
 // 数学类型枚举
-export const enum MATHTYPE {
+export enum MATHTYPE {
     POINT3 = 'POINT3',
     VECTOR3 = 'VECTOR3',
     MATRIX4 = 'MATRIX4',
@@ -54,7 +53,7 @@ export const enum MATHTYPE {
 }
 
 // 样式类型枚举
-export const enum STYLETYPE {
+export enum STYLETYPE {
     COLOR = 'COLOR',
     GRADIENT = 'GRADIENT',
     IMAGE_PATTERN = 'IMAGE_PATTERN',
@@ -66,45 +65,46 @@ export const enum STYLETYPE {
 }
 
 // 场景类型枚举
-export const enum SCENETYPE {
+export enum SCENETYPE {
     SCENE = 'SCENE',
 }
 
 // 相机类型枚举
-export const enum CAMERATYPE {
+export enum CAMERATYPE {
     BASE = 'BASE_CAMERA',
     ORTHOGRAPHIC = 'ORTHOGRAPHIC_CAMERA',
     PERSPECTIVE = 'PERSPECTIVE_CAMERA',
 }
 
 // 插件类型枚举
-export const enum ADDONTYPE {
+export enum ADDONTYPE {
     BOUNDING_BOX = 'BOUNDING_BOX',
     VERTEX = 'VERTEX',
+    BOX_DECORATION = 'BOX_DECORATION',
 }
 
 // 文字对齐方式枚举
-export const enum VERTICALALIGN {
+export enum VERTICALALIGN {
     TOP = 'TOP',
     MIDDLE = 'MIDDLE',
     BOTTOM = 'BOTTOM',
 }
 
-export const enum HORIZONTALALIGN {
+export enum HORIZONTALALIGN {
     LEFT = 'LEFT',
     CENTER = 'CENTER',
     RIGHT = 'RIGHT',
 }
 
 // 字体样式枚举
-export const enum FontStyle {
+export enum FontStyle {
     NORMAL = 'normal',
     ITALIC = 'italic',
     OBLIQUE = 'oblique',
 }
 
 // 字体粗细枚举
-export const enum FontWeight {
+export enum FontWeight {
     NORMAL = 'normal',
     BOLD = 'bold',
     BOLDER = 'bolder',

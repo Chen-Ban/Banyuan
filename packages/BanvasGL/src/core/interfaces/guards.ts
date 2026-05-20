@@ -12,7 +12,7 @@
 
 import { GRAPHTYPE, VIEWTYPE, ADDONTYPE } from '@/core/constants'
 import type { IGraph, GraphTypeMap } from './IGraph'
-import type { IView, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IPortView, INodeView, IEdgeView } from './IView'
+import type { IView, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IBoxDecorationAddon, IPortView, INodeView, IEdgeView } from './IView'
 
 // ────────────────────────────────────────────
 //  Graph 类型守卫
@@ -90,23 +90,28 @@ export function isMediaElement(graph: IGraph): graph is GraphTypeMap[GRAPHTYPE.I
 }
 
 /** 快捷判断：是否为 TextView */
-export function isTextView(view: IView | null | undefined): view is ViewTypeMap[VIEWTYPE.TEXTVIEW] {
+export function isTextView(view: IView | null | undefined): view is ViewTypeMap[typeof VIEWTYPE.TEXTVIEW] {
     return !!view && view.type === VIEWTYPE.TEXTVIEW
 }
 
 /** 快捷判断：是否为 SelectBoxView */
-export function isSelectBoxView(view: IView | null | undefined): view is ViewTypeMap[VIEWTYPE.SELECTBOXVIEW] {
+export function isSelectBoxView(view: IView | null | undefined): view is ViewTypeMap[typeof VIEWTYPE.SELECTBOXVIEW] {
     return !!view && view.type === VIEWTYPE.SELECTBOXVIEW
 }
 
 /** 快捷判断：是否为 CombinedView */
-export function isCombinedView(view: IView | null | undefined): view is ViewTypeMap[VIEWTYPE.COMBINEDVIEW] {
+export function isCombinedView(view: IView | null | undefined): view is ViewTypeMap[typeof VIEWTYPE.COMBINEDVIEW] {
     return !!view && view.type === VIEWTYPE.COMBINEDVIEW
 }
 
-/** 快捷判断：是否为 ContainerView（CombinedView 或 NodeView，拥有子节点管理能力） */
+/** 快捷判断：是否为 ContainerView（拥有子节点管理能力） */
 export function isContainerView(view: IView | null | undefined): view is IContainerView {
-    return !!view && (view.type === VIEWTYPE.COMBINEDVIEW || view.type === VIEWTYPE.NODEVIEW)
+    return !!view && (view.type === VIEWTYPE.COMBINEDVIEW || view.type === VIEWTYPE.FLEXVIEW)
+}
+
+/** 快捷判断：是否为 FlexView */
+export function isFlexView(view: IView | null | undefined): view is ViewTypeMap[typeof VIEWTYPE.FLEXVIEW] {
+    return !!view && view.type === VIEWTYPE.FLEXVIEW
 }
 
 // ────────────────────────────────────────────
@@ -123,21 +128,27 @@ export function isVertexAddon(addon: IViewAddon | null | undefined): addon is IV
     return !!addon && addon.type === ADDONTYPE.VERTEX
 }
 
+/** 快捷判断：是否为 BoxDecorationAddon */
+export function isBoxDecorationAddon(addon: IViewAddon | null | undefined): addon is IBoxDecorationAddon {
+    return !!addon && addon.type === ADDONTYPE.BOX_DECORATION
+}
+
 // ────────────────────────────────────────────
-//  流程编辑器 View 守卫
+//  流程编辑器 View 守卫（Phase 1.4 将移至 banvas-flow-editor）
 // ────────────────────────────────────────────
 
 /** 快捷判断：是否为 PortView */
 export function isPortView(view: IView | null | undefined): view is IPortView {
-    return !!view && view.type === VIEWTYPE.PORTVIEW
+    return !!view && view.type === 'PORTVIEW'
 }
 
 /** 快捷判断：是否为 NodeView */
 export function isNodeView(view: IView | null | undefined): view is INodeView {
-    return !!view && view.type === VIEWTYPE.NODEVIEW
+    return !!view && view.type === 'NODEVIEW'
 }
 
 /** 快捷判断：是否为 EdgeView */
 export function isEdgeView(view: IView | null | undefined): view is IEdgeView {
-    return !!view && view.type === VIEWTYPE.EDGEVIEW
+    return !!view && view.type === 'EDGEVIEW'
 }
+

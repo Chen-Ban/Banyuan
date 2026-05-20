@@ -5,12 +5,13 @@
  * 外部消费者通过 interface + 类型守卫访问视图对象。
  *
  * 设计要点：
- *   - 接口中 `type` 保持为宽类型 `VIEWTYPE`，使 class 能直接 implements
+ *   - 接口中 `type` 保持为宽类型 `ViewType`，使 class 能直接 implements
  *   - 窄化在 ViewTypeMap 中通过交叉类型实现
  *   - IView / ISceneNode 定义在此文件中，作为唯一来源
  */
 
 import { VIEWTYPE, ADDONTYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
 import type { Matrix4, Point3, Vector3 } from '@/core/math'
 import type Bounds from '@/core/graph/base/Bounds'
 import type { Line, Rectangle, Circle } from '@/core/graph'
@@ -68,9 +69,9 @@ export type {
     FlowVarNode,
     FlowPageVarNode,
     FlowEventParamNode,
-} from 'banvas-flow'
+} from '@banyuan/flow'
 
-import type { FlowEdge as BanvasFlowEdge, FlowSchema as BanvasFlowSchema } from 'banvas-flow'
+import type { FlowEdge as BanvasFlowEdge, FlowSchema as BanvasFlowSchema } from '@banyuan/flow'
 
 /**
  * FlowEdge —— 节点间的有向连线（BanvasGL 扩展版）
@@ -165,9 +166,9 @@ export interface IViewEvents {
  * ── 各钩子说明 ──
  *
  * onCreated
- *   触发时机：View 实例构造完成后立即触发，此时 View 尚未挂载到任何场景
+ *   触发时机：View 首次挂载到 Scene 时触发（仅触发一次，在 onAttach 之前）
  *   典型用途：初始化 View 自身的 data 字段默认值
- *   注意：此时 parent、scene 均为 null，不可访问其他 View 或页面数据
+ *   注意：首次 onAttach 时按顺序执行 onCreated → onAttach，之后仅触发 onAttach
  *
  * onAttach
  *   触发时机：View 被添加到 Scene 或 CombinedView 的子树后触发
@@ -192,7 +193,7 @@ export interface IViewLifetimes {
 /** View 公共契约 —— 所有视图的统一接口 */
 export interface IView {
     id: string
-    readonly type: VIEWTYPE
+    readonly type: ViewType
     parent: ISceneNode | IView | null
     readonly children: IView[]
     matrix: Matrix4
@@ -200,6 +201,10 @@ export interface IView {
     viewport: Bounds
     layoutArea: Bounds
     boundingBox: IBoundingBoxAddon | null
+    /** 视觉装饰插件（背景、边框、圆角、裁剪），按需挂载 */
+    decoration: IBoxDecorationAddon | null
+    /** 布局参数（作为子元素参与父容器的布局时使用） */
+    layoutParams?: IFlexLayoutParams
 
     // 状态
     selected: boolean
@@ -317,8 +322,32 @@ export interface IVertexAddon extends IAddonBase {
     copy(): IVertexAddon
 }
 
+/**
+ * BoxDecorationAddon 的公共接口
+ *
+ * 视觉装饰插件，为任意 View 提供背景、边框、圆角、裁剪能力。
+ * 对标 Flutter 的 BoxDecoration，与布局策略正交。
+ */
+export interface IBoxDecorationAddon {
+    readonly type: ADDONTYPE.BOX_DECORATION
+    backgroundColor: string
+    borderWidth: number
+    borderColor: string
+    borderRadius: number | [number, number, number, number]
+    clipContent: boolean
+    opacity: number
+    /** 渲染背景填充和边框（在 content 之前调用） */
+    renderBackground(ctx: CanvasRenderingContext2D, viewport: Bounds): void
+    /** 构建圆角裁剪路径（clipContent = true 时使用） */
+    buildClipPath(ctx: CanvasRenderingContext2D, viewport: Bounds): void
+    /** 所有属性是否为默认值（是则跳过渲染） */
+    isDefault(): boolean
+    copy(): IBoxDecorationAddon
+    toJSON(): any
+}
+
 /** Addon 判别联合 —— 通过 type 字段收窄 */
-export type IViewAddon = IBoundingBoxAddon | IVertexAddon
+export type IViewAddon = IBoundingBoxAddon | IVertexAddon | IBoxDecorationAddon
 
 // ────────────────────────────────────────────
 //  交互类型
@@ -555,8 +584,58 @@ export interface ITextView extends IView {
     newLine(): void
 }
 
+/**
+ * ContainerView 接口 —— 拥有子节点管理能力的容器视图
+ *
+ * 只有容器类型的 View（CombinedView、NodeView）实现此接口。
+ * 叶子视图（GraphView、TextView 等）不实现此接口，其 children 始终为空数组。
+ */
+export interface IContainerView extends IView {
+    readonly children: IView[]
+    addChild(child: IView): void
+    removeChild(child: IView): void
+    clear(): void
+}
+
+/** CombinedView 接口 */
+export interface ICombinedView extends IContainerView {}
+
 // ────────────────────────────────────────────
-//  流程编辑器 View 接口
+//  FlexView 布局相关接口
+// ────────────────────────────────────────────
+
+/** 子元素参与 Flex 布局的参数（挂载在 View.layoutParams 上） */
+export interface IFlexLayoutParams {
+    /** flex 权重（0 或缺省 = 固定尺寸，> 0 = 弹性分配剩余空间） */
+    flex?: number
+    /** 覆盖容器的 crossAxisAlignment */
+    alignSelf?: 'start' | 'center' | 'end' | 'stretch'
+}
+
+/** FlexView 布局配置 */
+export interface IFlexStyle {
+    /** 主轴方向 */
+    direction: 'row' | 'column'
+    /** 子元素间距 */
+    gap: number
+    /** 主轴对齐方式 */
+    mainAxisAlignment: 'start' | 'center' | 'end' | 'spaceBetween' | 'spaceAround'
+    /** 交叉轴对齐方式 */
+    crossAxisAlignment: 'start' | 'center' | 'end' | 'stretch'
+    /** 内边距（布局区域缩进） */
+    padding: number | [number, number, number, number]
+}
+
+/** FlexView 接口 */
+export interface IFlexView extends IContainerView {
+    flexStyle: IFlexStyle
+}
+
+/** Input 接口（继承 TextView） */
+export interface IInput extends ITextView {}
+
+// ────────────────────────────────────────────
+//  流程编辑器 View 接口（Phase 1.4 将移至 banvas-flow-editor）
 // ────────────────────────────────────────────
 
 /** 端口方向 */
@@ -585,47 +664,27 @@ export interface IEdgeView extends IView {
     connect(fromPortId: string, toPortId: string): void
 }
 
-/**
- * ContainerView 接口 —— 拥有子节点管理能力的容器视图
- *
- * 只有容器类型的 View（CombinedView、NodeView）实现此接口。
- * 叶子视图（GraphView、TextView 等）不实现此接口，其 children 始终为空数组。
- */
-export interface IContainerView extends IView {
-    readonly children: IView[]
-    addChild(child: IView): void
-    removeChild(child: IView): void
-    clear(): void
-}
-
-/** CombinedView 接口 */
-export interface ICombinedView extends IContainerView {}
-
-/** Input 接口（继承 TextView） */
-export interface IInput extends ITextView {}
-
 // ────────────────────────────────────────────
 //  ViewTypeMap —— 枚举值 → 接口 + 窄 type 的映射
 // ────────────────────────────────────────────
 
 export interface ViewTypeMap {
     [VIEWTYPE.VIEW]: IView
-    [VIEWTYPE.GRAPHVIEW]: IGraphView & { readonly type: VIEWTYPE.GRAPHVIEW }
+    [VIEWTYPE.GRAPHVIEW]: IGraphView & { readonly type: typeof VIEWTYPE.GRAPHVIEW }
     [VIEWTYPE.SELECTBOXVIEW]: ISelectBoxView & {
-        readonly type: VIEWTYPE.SELECTBOXVIEW
+        readonly type: typeof VIEWTYPE.SELECTBOXVIEW
     }
-    [VIEWTYPE.IMAGEVIEW]: IImageView & { readonly type: VIEWTYPE.IMAGEVIEW }
-    [VIEWTYPE.VIDEOVIEW]: IVideoView & { readonly type: VIEWTYPE.VIDEOVIEW }
-    [VIEWTYPE.TEXTVIEW]: ITextView & { readonly type: VIEWTYPE.TEXTVIEW }
+    [VIEWTYPE.IMAGEVIEW]: IImageView & { readonly type: typeof VIEWTYPE.IMAGEVIEW }
+    [VIEWTYPE.VIDEOVIEW]: IVideoView & { readonly type: typeof VIEWTYPE.VIDEOVIEW }
+    [VIEWTYPE.TEXTVIEW]: ITextView & { readonly type: typeof VIEWTYPE.TEXTVIEW }
     [VIEWTYPE.COMBINEDVIEW]: ICombinedView & {
-        readonly type: VIEWTYPE.COMBINEDVIEW
+        readonly type: typeof VIEWTYPE.COMBINEDVIEW
     }
-    [VIEWTYPE.INPUT]: IInput & { readonly type: VIEWTYPE.INPUT }
+    [VIEWTYPE.INPUT]: IInput & { readonly type: typeof VIEWTYPE.INPUT }
     [VIEWTYPE.EDITABLETEXT]: ITextView & {
-        readonly type: VIEWTYPE.EDITABLETEXT
+        readonly type: typeof VIEWTYPE.EDITABLETEXT
     }
-    // 流程编辑器
-    [VIEWTYPE.NODEVIEW]: INodeView & { readonly type: VIEWTYPE.NODEVIEW }
-    [VIEWTYPE.PORTVIEW]: IPortView & { readonly type: VIEWTYPE.PORTVIEW }
-    [VIEWTYPE.EDGEVIEW]: IEdgeView & { readonly type: VIEWTYPE.EDGEVIEW }
+    [VIEWTYPE.FLEXVIEW]: IFlexView & {
+        readonly type: typeof VIEWTYPE.FLEXVIEW
+    }
 }

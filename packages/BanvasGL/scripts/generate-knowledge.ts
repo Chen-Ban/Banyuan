@@ -21,6 +21,7 @@ import {
   AICubicBezierNodeSchema,
   AIQuadraticBezierNodeSchema,
   AIGroupNodeSchema,
+  AIFlexNodeSchema,
   AIPageSchema,
   AIAppSchema,
 } from "../../../packages/XiangDi/src/schema/AISchema.js";
@@ -245,6 +246,47 @@ function generateMinimalExample(nodeType: string): Record<string, unknown> {
           },
         ],
       };
+    case "flex":
+      return {
+        id: "flex-001",
+        type: "flex",
+        transform: { ...baseTransform, size: { width: 375, height: 400 } },
+        flexStyle: {
+          direction: "column",
+          gap: 12,
+          mainAxisAlignment: "start",
+          crossAxisAlignment: "stretch",
+          padding: 16,
+        },
+        children: [
+          {
+            id: "child-rect-001",
+            type: "rect",
+            transform: {
+              position: { x: 0, y: 0 },
+              size: { width: 343, height: 60 },
+              rotation: 0,
+              opacity: 1,
+            },
+            fill: { type: "solid", color: "#f0f0f0" },
+            cornerRadius: 8,
+            layoutParams: { flex: 0 },
+          },
+          {
+            id: "child-rect-002",
+            type: "rect",
+            transform: {
+              position: { x: 0, y: 0 },
+              size: { width: 343, height: 100 },
+              rotation: 0,
+              opacity: 1,
+            },
+            fill: { type: "solid", color: "#e0e0ff" },
+            cornerRadius: 8,
+            layoutParams: { flex: 1 },
+          },
+        ],
+      };
     case "page":
       return {
         id: "page-001",
@@ -330,6 +372,14 @@ const NODE_TYPES: NodeTypeConfig[] = [
     schema: AIGroupNodeSchema,
     description:
       "分组节点，可包含多个子节点（children）。用于将相关节点组合为一个整体，便于统一移动、缩放。children 支持递归嵌套。",
+  },
+  {
+    schemaName: "AIFlexNodeSchema",
+    nodeType: "AIFlexNode",
+    typeLiteral: "flex",
+    schema: AIFlexNodeSchema,
+    description:
+      "Flex 布局容器节点。子元素位置由 flexStyle 自动计算（方向、间距、对齐），无需手动指定坐标。适用于列表、卡片网格、导航栏等需要自动排列的场景。子节点可通过 layoutParams.flex 指定弹性权重。",
   },
   {
     schemaName: "AIPageSchema",
@@ -422,7 +472,7 @@ function generateContent(config: NodeTypeConfig): string {
 
   // 通用 transform 说明（节点类型才有）
   if (
-    ["rect", "text", "image", "cubic_bezier", "quadratic_bezier", "group"].includes(
+    ["rect", "text", "image", "cubic_bezier", "quadratic_bezier", "group", "flex"].includes(
       config.typeLiteral
     )
   ) {

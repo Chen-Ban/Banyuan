@@ -11,7 +11,7 @@
  * 实际项目中可通过泛型或类型断言进一步收窄。
  */
 
-import type { AIApp, AIPage, AINode } from "./AISchema.js";
+import type { AIApp, AIPage, AINode, AIFlexNode } from "./AISchema.js";
 
 // ─── AISchema → BanvasGL ──────────────────────────────────────────────────────
 
@@ -134,6 +134,21 @@ function aiNodeToBanvas(node: AINode): unknown {
         ...base,
         type: "Group",
         children: node.children.map(aiNodeToBanvas),
+      };
+
+    case "flex":
+      return {
+        ...base,
+        type: "FLEXVIEW",
+        flexStyle: node.flexStyle,
+        children: node.children.map((child) => {
+          const banvasChild = aiNodeToBanvas(child) as Record<string, unknown>;
+          // 将 layoutParams 从 AINode 传递到 BanvasGL 子节点
+          if (child.layoutParams) {
+            banvasChild["layoutParams"] = child.layoutParams;
+          }
+          return banvasChild;
+        }),
       };
 
     default:
@@ -278,6 +293,38 @@ function banvasToAINode(raw: unknown): AINode | null {
           .map(banvasToAINode)
           .filter((n): n is AINode => n !== null),
       };
+
+    case "FLEXVIEW": {
+      const flexStyle = r["flexStyle"] as Record<string, unknown> | undefined;
+      const flexNode: AIFlexNode = {
+        ...base,
+        type: "flex",
+        flexStyle: {
+          direction: (flexStyle?.["direction"] as "row" | "column") ?? "column",
+          gap: Number(flexStyle?.["gap"] ?? 0),
+          mainAxisAlignment: (flexStyle?.["mainAxisAlignment"] as AIFlexNode["flexStyle"]["mainAxisAlignment"]) ?? "start",
+          crossAxisAlignment: (flexStyle?.["crossAxisAlignment"] as AIFlexNode["flexStyle"]["crossAxisAlignment"]) ?? "start",
+          padding: (flexStyle?.["padding"] as number | [number, number, number, number]) ?? 0,
+        },
+        children: (Array.isArray(r["children"]) ? r["children"] : [])
+          .map((child: unknown) => {
+            const aiChild = banvasToAINode(child);
+            if (!aiChild) return null;
+            // 恢复 layoutParams
+            const childRaw = child as Record<string, unknown>;
+            const lp = childRaw["layoutParams"] as Record<string, unknown> | undefined;
+            if (lp) {
+              (aiChild as Record<string, unknown>)["layoutParams"] = {
+                flex: lp["flex"] != null ? Number(lp["flex"]) : undefined,
+                alignSelf: lp["alignSelf"] as string | undefined,
+              };
+            }
+            return aiChild;
+          })
+          .filter((n): n is AINode => n !== null),
+      };
+      return flexNode;
+    }
 
     default:
       // 未知类型：记录警告并跳过，不静默降级为矩形

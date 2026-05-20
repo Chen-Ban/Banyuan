@@ -83,6 +83,9 @@ export {
   AITextNodeSchema,
   AIImageNodeSchema,
   AIGroupNodeSchema,
+  AIFlexNodeSchema,
+  AIFlexStyleSchema,
+  AIFlexLayoutParamsSchema,
   AITransformSchema,
   AIFillSchema,
   AIStrokeSchema,
@@ -95,7 +98,7 @@ export {
   banvasToAIApp,
 } from "./schema/index.js";
 
-export type { AIApp, AIPage, AINode } from "./schema/index.js";
+export type { AIApp, AIPage, AINode, AIFlexNode, AIGroupNode } from "./schema/index.js";
 
 // ─── 工具协议 ─────────────────────────────────────────────────────────────────
 export {
