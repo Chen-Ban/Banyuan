@@ -71,6 +71,7 @@ export type {
     IAddonBase,
     IBoundingBoxAddon,
     IVertexAddon,
+    IBoxDecorationAddon,
     IViewAddon,
     ExtraData,
     MoveData,
@@ -95,10 +96,13 @@ export type {
     ITextView,
     IContainerView,
     ICombinedView,
+    IFlexLayoutParams,
+    IFlexStyle,
+    IFlexView,
     ISelection,
     IInput,
     ViewTypeMap,
-    // 流程编辑器
+    // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
     PortDirection,
     IPortView,
     INodeView,
@@ -195,15 +199,9 @@ export type {
     ConflictGroup,
 } from './IPropertyAdapter'
 
-// ── Worker 接口 ──
-export type {
-    WorkerTaskType,
-    WorkerTask,
-    WorkerResult,
-} from './IWorker'
-
 // ── Runtime 接口 ──
-export type { BanvasRuntimeInput } from '@/core/runtime/FlowRunner'
+export type { ISchemaRunner, SchemaRunInput } from '@/core/runtime/SchemaRunner'
+export { setSchemaRunner, getSchemaRunner } from '@/core/runtime/SchemaRunner'
 
 // ── 统一类型守卫 ──
 export {
@@ -216,9 +214,11 @@ export {
     isSelectBoxView,
     isCombinedView,
     isContainerView,
+    isFlexView,
     isBoundingBoxAddon,
     isVertexAddon,
-    // 流程编辑器
+    isBoxDecorationAddon,
+    // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
     isPortView,
     isNodeView,
     isEdgeView,

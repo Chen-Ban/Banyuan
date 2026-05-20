@@ -1,6 +1,7 @@
 import { VIEWTYPE } from "@/core/constants";
+import type { ViewType } from "@/core/constants";
 import Matrix4 from "@/core/math/Matrix4";
-import { getActiveCanvasContext } from "@/core/renderer/CanvasContext";
+import CanvasContext from "@/core/renderer/CanvasContext";
 import {
   Action,
   Cursor,
@@ -13,13 +14,14 @@ import {
   ISerializable,
   IGraph,
 } from "@/core/interfaces";
-import type { IViewEvents, IViewLifetimes } from "@/core/interfaces";
+import type { IViewEvents, IViewLifetimes, IFlexLayoutParams } from "@/core/interfaces";
 
 // 导入图形相关类型
 import { Line, Rectangle } from "@/core/graph";
 
 // 导入addon类型
-import { BoundingBoxAddon } from "@/core/views/addon";
+import { BoundingBoxAddon, BoxDecorationAddon } from "@/core/views/addon";
+import type { BoxDecorationOptions } from "@/core/views/addon";
 import { MathUtils, Point3, Vector3 } from "@/core/math";
 import Bounds from "@/core/graph/base/Bounds";
 import { AnimationDescriptor, AnimationManager } from "@/core/animation";
@@ -30,7 +32,6 @@ import type {
   IAnimationDescriptor,
 } from "@/core/interfaces";
 import Scene from "@/core/scene/Scene";
-import { FlowRunner } from "@/core/runtime/FlowRunner";
 
 const RESIZE_SIZE_MAP = [
   { width: true, height: true },
@@ -75,6 +76,8 @@ export interface ViewOptions<D extends IFieldSchemaMap = any> {
   matrix?: Matrix4;
   lifetimes?: Partial<IViewLifetimes>;
   events?: Partial<IViewEvents>;
+  decoration?: BoxDecorationOptions;
+  layoutParams?: IFlexLayoutParams;
 }
 
 // TODO：不同容器的默认样式表
@@ -142,6 +145,9 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public scrollOffset: { x: number; y: number } = { x: 0, y: 0 };
   // 插件
   public boundingBox: BoundingBoxAddon | null = null;
+  public decoration: BoxDecorationAddon | null = null;
+  /** 布局参数（作为子元素参与父容器的 Flex 布局时生效） */
+  public layoutParams?: IFlexLayoutParams;
   // 视口
   public viewport: Bounds;
   /**
@@ -159,7 +165,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   // 排版约束区域：容器对内容的布局约束（描述内容可排版的空间）
   public constraintBounds: Bounds = Bounds.empty();
   // 类型
-  public abstract readonly type: VIEWTYPE;
+  public abstract readonly type: ViewType;
   //抽象方法
   public abstract copy(): View;
 
@@ -361,11 +367,12 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   /**
    * 检查内容是否被命中，子类可以重写此方法实现自定义逻辑
    * @param point 相对坐标点
+   * @param bufferCtx 用于命中检测的离屏上下文
    */
-  protected interactContent(point: Point3): InteractResult {
+  protected interactContent(point: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
     if (!this.content) return { view: null, content: null, extraData: null };
     const hitContent =
-      this.content.isPointInPath(point) ||
+      this.content.isPointInPath(point, bufferCtx) ||
       this.content.isPointOnCurve(point, 5);
     if (hitContent) {
       return {
@@ -377,9 +384,9 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     return { view: null, content: null, extraData: null };
   }
 
-  protected interactPlugins(relativePoint: Point3): InteractResult {
+  protected interactPlugins(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
     if (this.actived && this.boundingBox) {
-      const extraData = this.boundingBox.interact(relativePoint);
+      const extraData = this.boundingBox.interact(relativePoint, bufferCtx);
       if (extraData) {
         return { view: this, content: this.boundingBox, extraData };
       }
@@ -392,14 +399,14 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * 优先级：1. 插件 -> 2. 内容 -> 3. 子视图
    * @param worldPoint 世界坐标点
    */
-  public interact(worldPoint: Point3): InteractResult {
+  public interact(worldPoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
     const relativePoint = this.getMVPMatrix().inverse().multiply(worldPoint);
 
-    const ctx = getActiveCanvasContext().getBufferContext();
-    if (!ctx) throw new Error("交互失败");
+    const ctx = bufferCtx;
+    if (!ctx) throw new Error("交互失败：需要传入 bufferCtx");
 
     // 1. 检查插件（BoundingBox + 子类插件）—— 插件不随 scroll 移动，用原始坐标
-    const pluginsResult = this.interactPlugins(relativePoint);
+    const pluginsResult = this.interactPlugins(relativePoint, ctx);
     if (pluginsResult.view) return pluginsResult;
 
     // 2. 补偿 scroll 偏移：内容和子视图在渲染时被 translate 了 scrollOffset，
@@ -411,7 +418,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     );
 
     // 3. 检查内容（复杂图形由子类重写）
-    const contentResult = this.interactContent(scrolledPoint);
+    const contentResult = this.interactContent(scrolledPoint, ctx);
     if (contentResult.view) return contentResult;
 
     // 4. 递归检查子视图，数组靠后的 View 绘制在上方，优先命中
@@ -419,7 +426,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     const adjustedWorldPoint = this.getMVPMatrix().multiply(scrolledPoint);
     let best: InteractResult = { view: null, content: null, extraData: null };
     for (const child of this.children) {
-      const childResult = child.interact(adjustedWorldPoint);
+      const childResult = child.interact(adjustedWorldPoint, ctx);
       if (childResult.view && childResult.content && childResult.extraData) {
         // 数组中靠后的 child 绘制在上方，后遍历的胜出
         best = childResult;
@@ -460,6 +467,16 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     );
     this.boundingBox = new BoundingBoxAddon(this.viewport);
 
+    // 步骤1.5: 初始化装饰插件
+    if (options.decoration) {
+      this.decoration = new BoxDecorationAddon(options.decoration);
+    }
+
+    // 步骤1.6: 初始化布局参数
+    if (options.layoutParams) {
+      this.layoutParams = options.layoutParams;
+    }
+
     // 步骤2: 初始化布局区域(使用视口大小作为初始值)
     this.layoutArea = this.viewport.copy();
 
@@ -472,16 +489,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 3、让内容区域进行偏移
     this.layout();
 
-    // 触发用户自定义 onCreated 生命周期
-    // onCreated 在构造期触发，此时尚未挂载到 Scene，使用退化上下文（无场景能力）
-    if (this.lifetimes.onCreated) {
-      FlowRunner.run(this.lifetimes.onCreated, {
-        self: this,
-        page: null,
-        view: () => null,
-        eventArgs: [],
-      })
-    }
+    // onCreated 已移至 onAttach() 中触发（挂载到 Scene 后执行）
   }
 
   /**
@@ -517,6 +525,12 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
   public onAttach(): void {
     // 前序遍历：先触发自身生命周期，再递归子节点
+    // onCreated 在首次挂载时触发（仅一次），onAttach 每次挂载都触发
+    if (this.lifetimes.onCreated) {
+      this.getScene()?.triggerSchema(this, this.lifetimes.onCreated)
+      // 清除引用，确保只触发一次（null 是 FlowSchema | null 的合法值）
+      this.lifetimes.onCreated = null
+    }
     this.getScene()?.triggerSchema(this, this.lifetimes.onAttach)
     this.children.forEach(child => child.onAttach())
   }
@@ -638,19 +652,19 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   // 渲染方法
-  public render(): void {
+  public render(canvasContext?: CanvasContext): void {
     if (!this.visible) {
       return;
     }
-    this.renderToOffScreen();
+    if (!canvasContext) throw new Error("渲染失败：需要传入 CanvasContext");
+    this.renderToOffScreen(canvasContext);
 
     // TODO：这里可以利用离屏画布内容对每个容器做监控
 
-    this.renderFromCache();
+    this.renderFromCache(canvasContext);
   }
 
-  private renderToOffScreen(): void {
-    const canvasContext = getActiveCanvasContext();
+  private renderToOffScreen(canvasContext: CanvasContext): void {
 
     const offscreenCtx = canvasContext.getBufferContext();
     const viewport = this.renderViewport;
@@ -660,6 +674,21 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     }
 
     const transform = this.getMVPMatrix().transform;
+
+    // ── 第〇阶段：渲染 decoration 背景（在 clip 之前，作为最底层） ──
+    if (this.decoration && !this.decoration.isDefault()) {
+      offscreenCtx.save();
+      offscreenCtx.setTransform(
+        transform[0],
+        transform[4],
+        transform[1],
+        transform[5],
+        transform[3],
+        transform[7],
+      );
+      this.decoration.renderBackground(offscreenCtx, viewport);
+      offscreenCtx.restore();
+    }
 
     // ── 第一阶段：渲染内容和子节点（受 clip 约束） ──
     offscreenCtx.save();
@@ -673,15 +702,19 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     );
 
     if (this.style.overflow !== "visible") {
-      // 设置视口裁剪区域
-      offscreenCtx.beginPath();
-      offscreenCtx.rect(
-        viewport.x,
-        viewport.y,
-        viewport.width,
-        viewport.height,
-      );
-      offscreenCtx.clip();
+      // 裁剪区域：decoration 有圆角且 clipContent 时使用圆角路径，否则矩形
+      if (this.decoration?.clipContent) {
+        this.decoration.buildClipPath(offscreenCtx, viewport);
+      } else {
+        offscreenCtx.beginPath();
+        offscreenCtx.rect(
+          viewport.x,
+          viewport.y,
+          viewport.width,
+          viewport.height,
+        );
+        offscreenCtx.clip();
+      }
     }
 
     // 应用 scroll 偏移后渲染内容和子节点
@@ -691,7 +724,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     this.renderContent(offscreenCtx);
     this.children.forEach((view) => {
       if (!view.visible) return;
-      view.renderToOffScreen();
+      view.renderToOffScreen(canvasContext);
     });
 
     offscreenCtx.restore(); // 恢复 scroll translate
@@ -712,8 +745,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   // 从缓存渲染到主画布
-  private renderFromCache(): void {
-    const canvasContext = getActiveCanvasContext();
+  private renderFromCache(canvasContext: CanvasContext): void {
     const mainCtx = canvasContext.getMainContext();
     const offscreenCtx = canvasContext.getBufferContext();
     if (!offscreenCtx) return;
@@ -932,6 +964,14 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     if (data.matrix) this.matrix = Matrix4.fromJSON(data.matrix);
     if (data.viewport) this.viewport = Bounds.fromJSON(data.viewport);
     if (data.constraintBounds) this.constraintBounds = Bounds.fromJSON(data.constraintBounds);
+    // 恢复 decoration
+    if (data.decoration) {
+      this.decoration = BoxDecorationAddon.fromJSON(data.decoration);
+    }
+    // 恢复 layoutParams
+    if (data.layoutParams) {
+      this.layoutParams = data.layoutParams;
+    }
     // children 的恢复由 ContainerView 子类的 restoreFromJSON override 负责
     this.restoreLayout();
   }
@@ -971,6 +1011,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       matrix: this.matrix.toJSON(),
       viewport: this.viewport.toJSON(),
       constraintBounds: this.constraintBounds.toJSON(),
+      decoration: this.decoration ? this.decoration.toJSON() : undefined,
+      layoutParams: this.layoutParams ?? undefined,
       content: this.content
         ? {
             $type: (this.content as any).type,

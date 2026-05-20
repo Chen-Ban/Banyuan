@@ -69,6 +69,33 @@ export const AITextStyleSchema = z.object({
   lineHeight: z.number().positive().default(1.5),
 });
 
+// ─── Flex 布局 ────────────────────────────────────────────────────────────────
+
+export const AIFlexStyleSchema = z.object({
+  direction: z.enum(["row", "column"]).default("column").describe("主轴方向"),
+  gap: z.number().nonnegative().default(0).describe("子元素间距，单位 px"),
+  mainAxisAlignment: z
+    .enum(["start", "center", "end", "space-between", "space-around"])
+    .default("start")
+    .describe("主轴对齐方式"),
+  crossAxisAlignment: z
+    .enum(["start", "center", "end", "stretch"])
+    .default("start")
+    .describe("交叉轴对齐方式"),
+  padding: z
+    .union([
+      z.number().nonnegative(),
+      z.tuple([z.number(), z.number(), z.number(), z.number()]),
+    ])
+    .default(0)
+    .describe("内边距，单个数值或 [top, right, bottom, left]"),
+});
+
+export const AIFlexLayoutParamsSchema = z.object({
+  flex: z.number().nonnegative().optional().describe("flex 权重（0 或缺省 = 固定尺寸，> 0 = 弹性分配）"),
+  alignSelf: z.enum(["start", "center", "end", "stretch"]).optional().describe("覆盖容器的 crossAxisAlignment"),
+});
+
 // ─── 组件节点 ─────────────────────────────────────────────────────────────────
 
 const AIBaseNodeSchema = z.object({
@@ -77,6 +104,7 @@ const AIBaseNodeSchema = z.object({
   transform: AITransformSchema,
   zIndex: z.number().int().default(0),
   locked: z.boolean().default(false),
+  layoutParams: AIFlexLayoutParamsSchema.optional().describe("作为 flex 子元素时的布局参数"),
 });
 
 export const AIRectNodeSchema = AIBaseNodeSchema.extend({
@@ -129,14 +157,15 @@ export const AIQuadraticBezierNodeSchema = AIBaseNodeSchema.extend({
 
 // ─── AINode 输出类型（parse 后的完整类型，所有 default 字段已填充）────────────
 
-// AINode 类型必须先于 AIGroupNodeSchema 声明，因为 children 字段需要引用它
+// AINode 类型必须先于 AIGroupNodeSchema / AIFlexNodeSchema 声明，因为 children 字段需要引用它
 export type AINode =
   | z.infer<typeof AIRectNodeSchema>
   | z.infer<typeof AITextNodeSchema>
   | z.infer<typeof AIImageNodeSchema>
   | z.infer<typeof AICubicBezierNodeSchema>
   | z.infer<typeof AIQuadraticBezierNodeSchema>
-  | AIGroupNode;
+  | AIGroupNode
+  | AIFlexNode;
 
 /**
  * AIGroupNode 类型显式声明，避免内联在 AINode union 中导致 TypeScript 循环推断失败。
@@ -149,6 +178,23 @@ export interface AIGroupNode {
   transform: z.infer<typeof AITransformSchema>;
   zIndex: number;
   locked: boolean;
+  layoutParams?: z.infer<typeof AIFlexLayoutParamsSchema>;
+  children: AINode[];
+}
+
+/**
+ * AIFlexNode —— Flex 布局容器节点。
+ * 子元素位置由 flexStyle 自动计算，不需要手动指定坐标。
+ */
+export interface AIFlexNode {
+  type: "flex";
+  id: string;
+  name?: string;
+  transform: z.infer<typeof AITransformSchema>;
+  zIndex: number;
+  locked: boolean;
+  layoutParams?: z.infer<typeof AIFlexLayoutParamsSchema>;
+  flexStyle: z.infer<typeof AIFlexStyleSchema>;
   children: AINode[];
 }
 
@@ -167,7 +213,8 @@ export type AINodeInput =
   | z.input<typeof AIImageNodeSchema>
   | z.input<typeof AICubicBezierNodeSchema>
   | z.input<typeof AIQuadraticBezierNodeSchema>
-  | AIGroupNodeInput;
+  | AIGroupNodeInput
+  | AIFlexNodeInput;
 
 export interface AIGroupNodeInput {
   type: "group";
@@ -176,6 +223,19 @@ export interface AIGroupNodeInput {
   transform: z.input<typeof AITransformSchema>;
   zIndex?: number;
   locked?: boolean;
+  layoutParams?: z.input<typeof AIFlexLayoutParamsSchema>;
+  children: AINodeInput[];
+}
+
+export interface AIFlexNodeInput {
+  type: "flex";
+  id: string;
+  name?: string;
+  transform: z.input<typeof AITransformSchema>;
+  zIndex?: number;
+  locked?: boolean;
+  layoutParams?: z.input<typeof AIFlexLayoutParamsSchema>;
+  flexStyle?: z.input<typeof AIFlexStyleSchema>;
   children: AINodeInput[];
 }
 
@@ -189,6 +249,17 @@ export const AIGroupNodeSchema: z.ZodType<AIGroupNode, z.ZodTypeDef, AIGroupNode
     type: z.literal("group"),
     children: z.array(z.lazy(() => AINodeSchema)) as z.ZodType<AINode[], z.ZodTypeDef, AINodeInput[]>,
   }) as z.ZodType<AIGroupNode, z.ZodTypeDef, AIGroupNodeInput>;
+
+/**
+ * AIFlexNodeSchema —— Flex 布局容器。
+ * 与 AIGroupNodeSchema 同模式：z.lazy 递归 + 显式泛型标注。
+ */
+export const AIFlexNodeSchema: z.ZodType<AIFlexNode, z.ZodTypeDef, AIFlexNodeInput> =
+  AIBaseNodeSchema.extend({
+    type: z.literal("flex"),
+    flexStyle: AIFlexStyleSchema.default({}),
+    children: z.array(z.lazy(() => AINodeSchema)) as z.ZodType<AINode[], z.ZodTypeDef, AINodeInput[]>,
+  }) as z.ZodType<AIFlexNode, z.ZodTypeDef, AIFlexNodeInput>;
 
 /**
  * AINodeSchema 显式标注 ZodType<AINode, ZodTypeDef, AINodeInput>，
@@ -206,6 +277,7 @@ export const AINodeSchema: z.ZodType<AINode, z.ZodTypeDef, AINodeInput> = z.unio
   AICubicBezierNodeSchema,
   AIQuadraticBezierNodeSchema,
   AIGroupNodeSchema,
+  AIFlexNodeSchema,
 ]);
 
 // ─── 页面 ─────────────────────────────────────────────────────────────────────
