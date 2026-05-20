@@ -26,15 +26,15 @@ importers:
 
   apps/banyan/backend:
     dependencies:
+      '@banyuan/flow':
+        specifier: workspace:*
+        version: link:../../../packages/BanvasFlow
       '@koa/cors':
         specifier: ^5.0.0
         version: 5.0.0
       '@koa/router':
         specifier: ^13.0.0
         version: 13.1.1
-      banvas-flow:
-        specifier: workspace:*
-        version: link:../../../packages/BanvasFlow
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1
@@ -81,12 +81,12 @@ importers:
 
   apps/banyan/electron:
     devDependencies:
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../../../packages/BanvasGL
       '@types/node':
         specifier: ^22.10.2
         version: 22.19.19
-      banvasgl:
-        specifier: workspace:*
-        version: link:../../../packages/BanvasGL
       concurrently:
         specifier: ^9.2.1
         version: 9.2.1
@@ -105,6 +105,21 @@ importers:
       '@ant-design/icons':
         specifier: ^6.1.0
         version: 6.2.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../../../packages/BanvasGL
+      '@banyuan/canvas-design':
+        specifier: workspace:*
+        version: link:../../../packages/BanvasDesign
+      '@banyuan/canvas-runtime':
+        specifier: workspace:*
+        version: link:../../../packages/BanvasRuntime
+      '@banyuan/flow-design':
+        specifier: workspace:*
+        version: link:../../../packages/BanvasFlowEditor
+      '@banyuan/sdk':
+        specifier: workspace:*
+        version: link:../../../packages/BanyanSDK
       antd:
         specifier: ^6.0.0
         version: 6.4.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -130,9 +145,6 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.2(@types/node@25.9.0)(sass@1.99.0)(tsx@4.22.2))
-      banvasgl:
-        specifier: workspace:*
-        version: link:../../../packages/BanvasGL
       eslint:
         specifier: ^9.22.0
         version: 9.39.4
@@ -160,24 +172,24 @@ importers:
 
   apps/xiangdi:
     dependencies:
+      '@banyuan/agent':
+        specifier: workspace:*
+        version: link:../../packages/XiangDi
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../../packages/BanvasGL
       '@koa/cors':
         specifier: ^5.0.0
         version: 5.0.0
       '@koa/router':
         specifier: ^13.1.0
         version: 13.1.1
-      banvasgl:
-        specifier: workspace:*
-        version: link:../../packages/BanvasGL
       koa:
         specifier: ^2.15.3
         version: 2.16.4
       koa-body:
         specifier: ^6.0.1
         version: 6.0.1
-      xiangdi:
-        specifier: workspace:*
-        version: link:../../packages/XiangDi
     devDependencies:
       '@types/koa':
         specifier: ^2.15.0
@@ -463,6 +475,9 @@ importers:
         specifier: ^7.9.1
         version: 7.15.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
     devDependencies:
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../../../../packages/BanvasGL
       '@eslint/js':
         specifier: ^9.22.0
         version: 9.39.4
@@ -478,9 +493,6 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.2(@types/node@25.9.0)(sass@1.99.0)(tsx@4.22.2))
-      banvasgl:
-        specifier: workspace:*
-        version: link:../../../../packages/BanvasGL
       chokidar:
         specifier: ^4.0.3
         version: 4.0.3
@@ -509,6 +521,31 @@ importers:
         specifier: ^6.3.1
         version: 6.4.2(@types/node@25.9.0)(sass@1.99.0)(tsx@4.22.2)
 
+  packages/BanvasDesign:
+    dependencies:
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../BanvasGL
+      '@banyuan/canvas-runtime':
+        specifier: workspace:*
+        version: link:../BanvasRuntime
+      uuid:
+        specifier: ^11.1.0
+        version: 11.1.1
+    devDependencies:
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      react:
+        specifier: ^19.0.0
+        version: 19.2.6
+      tsup:
+        specifier: ^8.4.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.2)(typescript@5.7.3)
+      typescript:
+        specifier: ~5.7.0
+        version: 5.7.3
+
   packages/BanvasFlow:
     devDependencies:
       '@types/node':
@@ -518,21 +555,37 @@ importers:
         specifier: ^8.4.0
         version: 8.5.1(postcss@8.5.14)(tsx@4.22.2)(typescript@5.7.3)
 
-  packages/BanvasGL:
+  packages/BanvasFlowEditor:
     dependencies:
-      banvas-flow:
+      '@banyuan/flow':
         specifier: workspace:*
         version: link:../BanvasFlow
+    devDependencies:
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../BanvasGL
+      '@banyuan/canvas-runtime':
+        specifier: workspace:*
+        version: link:../BanvasRuntime
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
       react:
         specifier: ^19.1.0
         version: 19.2.6
+      tsup:
+        specifier: ^8.4.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.2)(typescript@5.7.3)
+
+  packages/BanvasGL:
+    dependencies:
+      '@banyuan/flow':
+        specifier: workspace:*
+        version: link:../BanvasFlow
       uuid:
         specifier: ^11.1.0
         version: 11.1.1
     devDependencies:
-      '@types/react':
-        specifier: ^19.1.2
-        version: 19.2.14
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0
@@ -543,17 +596,64 @@ importers:
         specifier: ^4.19.0
         version: 4.22.2
 
+  packages/BanvasRuntime:
+    dependencies:
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../BanvasGL
+      react:
+        specifier: ^19.1.0
+        version: 19.2.6
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.2
+        version: 19.2.14
+      tsup:
+        specifier: ^8.4.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.2)(typescript@5.7.3)
+      typescript:
+        specifier: ~5.7.3
+        version: 5.7.3
+
+  packages/BanyanSDK:
+    dependencies:
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../BanvasGL
+      '@banyuan/canvas-design':
+        specifier: workspace:*
+        version: link:../BanvasDesign
+      '@banyuan/canvas-runtime':
+        specifier: workspace:*
+        version: link:../BanvasRuntime
+      '@banyuan/flow-design':
+        specifier: workspace:*
+        version: link:../BanvasFlowEditor
+      react:
+        specifier: ^19.0.0
+        version: 19.2.6
+    devDependencies:
+      '@types/react':
+        specifier: ^19.1.2
+        version: 19.2.14
+      tsup:
+        specifier: ^8.4.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.2)(typescript@5.7.3)
+      typescript:
+        specifier: ~5.7.3
+        version: 5.7.3
+
   packages/XiangDi:
     dependencies:
+      '@banyuan/canvas':
+        specifier: workspace:*
+        version: link:../BanvasGL
       '@huggingface/transformers':
         specifier: ^4.2.0
         version: 4.2.0
       '@lancedb/lancedb':
         specifier: ^0.27.2
         version: 0.27.2(apache-arrow@18.1.0)
-      banvasgl:
-        specifier: workspace:*
-        version: link:../BanvasGL
       graphology:
         specifier: ^0.26.0
         version: 0.26.0(graphology-types@0.24.8)
@@ -1499,7 +1599,6 @@ packages:
   '@lancedb/lancedb@0.27.2':
     resolution: {integrity: sha512-JQpZHV5KzUzDI3flYCjtZcfHlEbL8lM54E0NT+jrRYe29aKYegfavvPsAsuZp0VdcMwFMZcpMkaBhjQMo/fwvg==}
     engines: {node: '>= 18'}
-    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     peerDependencies:
       apache-arrow: '>=15.0.0 <=18.1.0'
