@@ -3,13 +3,13 @@
 > 眼镜店管理系统示例应用。  
 > 演示如何用 React + Koa + Electron 构建一个完整的桌面端门店管理工具，涵盖订单、模板、用户、小票打印等核心场景。
 
-**LunlunGlass** 是 Banyuan monorepo 的示例项目，展示前后端 + 桌面壳的典型架构组合。它不是玩具 demo——包含真实的热敏小票打印（ESC/POS 协议）、MongoDB 持久化、文件上传等生产级功能。
+**LunlunGlass** 是 Banyuan monorepo 的示例项目，展示前后端 + 桌面壳的典型架构组合。它不是玩具 demo——包含真实的热敏小票打印（ESC/POS 协议）、MongoDB 持久化、文件上传等生产级功能。Studio 模板设计端集成了 `@banyuan/canvas` 画布引擎，用于设计小票打印模板。
 
 ---
 
 ## 技术栈
 
-前端使用 React 19 + Vite 构建，通过 Layout 组件统一布局，API 层封装了 orders、templates、users 等接口调用。后端基于 Koa，配合 Mongoose 操作 MongoDB。Electron 36 作为桌面壳，使用 wait-on 模式等待前后端就绪后启动窗口。小票打印通过 serialport 串口通信，共享打印库（`shared/printer`）内部实现了 EscPosEncoder（指令编码）、ImageComposer（图片合成）、PrinterTransport（传输层）三层抽象。
+前端使用 React 19 + Vite + Ant Design 6 构建，通过 Layout 组件统一布局，API 层封装了 orders、templates、users 等接口调用。Studio 端通过 `@banyuan/canvas`（devDependency）集成画布能力，包含 ComponentPalette（组件面板）、PropertyPanel（属性面板，含 PropertiesTab/StyleTab/DataTab 子目录结构）、PageList 等编辑组件。后端基于 Koa，配合 Mongoose 操作 MongoDB。Electron 36 作为桌面壳，使用 wait-on 模式等待前后端就绪后启动窗口。小票打印通过 serialport 串口通信，共享打印库（`shared/printer`）内部实现了 EscPosEncoder（指令编码）、ImageComposer（图片合成）、PrinterTransport（传输层）三层抽象。
 
 ---
 
@@ -99,7 +99,7 @@ lunlunglass/
 │   │       ├── pages/
 │   │       │   ├── index/         # 首页
 │   │       │   ├── TemplateList/  # 模板列表
-│   │       │   └── TemplateDetail/  # 模板详情（含 BanvasGL 画布编辑器）
+│   │       │   └── TemplateDetail/  # 模板详情（含 @banyuan/canvas 画布编辑器）
 │   │       └── api/               # API 客户端（templates, fields）
 │   ├── backend/           # Koa + MongoDB
 │   │   └── src/
