@@ -16,6 +16,13 @@ export default class App {
   public readonly animationManager: AnimationManager =
     AnimationManager.getInstance();
 
+  /**
+   * 应用 ID（可选）
+   *
+   * 由消费方（如 banyan 前端）设置，用于 FlowRunner 中 callFlow 节点
+   * 调用后端 API 时标识应用。通过 Scene.triggerSchema 注入到 SchemaRunInput。n   */
+  public appId: string | undefined = undefined;
+
   // 私有属性
   private _currentScene: Scene | null = null;
   private _currentPageIndex: number = -1; // 当前页面在栈中的索引
@@ -572,9 +579,6 @@ export default class App {
     // 清理已有场景，避免重复追加
     this.getScenes().forEach((scene) => this.removeScene(scene));
 
-    // 反序列化过程中 TextElement 等需要 CanvasContext 来测量文字尺寸，
-    // 此时还没有进入 render() 流程，需要临时激活 Renderer 的 context。
-    this.renderer.activateContext();
     try {
       const scenes = (serializedScenes || []).map((json) =>
         Serializer.getInstance().deserialize(json),
@@ -585,8 +589,6 @@ export default class App {
       }
     } catch (e) {
       console.warn("Failed to init scenes from serialized JSON:", e);
-    } finally {
-      this.renderer.deactivateContext();
     }
     return this;
   }

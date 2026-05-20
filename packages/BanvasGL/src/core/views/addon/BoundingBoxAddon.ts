@@ -160,13 +160,13 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
   /**
    * 交互接口
    */
-  interact(p: Point3): ExtraData | null {
+  interact(p: Point3, bufferCtx?: CanvasRenderingContext2D): ExtraData | null {
     const isMoving =
       this.region.isPointOnCurve(p, 5) || this.rotate[0].isPointOnCurve(p, 5);
     const isRotate =
-      this.rotate[1].isPointOnCurve(p, 2) || this.rotate[1].isPointInPath(p);
+      this.rotate[1].isPointOnCurve(p, 2) || this.rotate[1].isPointInPath(p, bufferCtx);
     const handler = this.handles.find(
-      (rec) => rec.isPointInPath(p) || rec.isPointOnCurve(p, 5),
+      (rec) => rec.isPointInPath(p, bufferCtx) || rec.isPointOnCurve(p, 5),
     );
 
     if (isRotate) {

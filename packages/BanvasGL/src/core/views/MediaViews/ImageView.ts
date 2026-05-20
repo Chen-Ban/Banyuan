@@ -1,6 +1,7 @@
 import View, { ViewOptions } from '@/core/views/View/View'
 import { ImageElement } from '@/core/graph/media'
-import { VIEWTYPE } from '@/index.backend'
+import { VIEWTYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
 import { IImageView, ISerializable } from '@/core/interfaces'
 import { generateId, generateName } from '@/core/utils'
 
@@ -13,7 +14,7 @@ export interface ImageViewOptions extends Omit<ViewOptions, 'content'> {
  * 图像视图 - 专门处理ImageElement类型内容
  */
 export default class ImageView extends View implements IImageView, ISerializable {
-    public type: VIEWTYPE = VIEWTYPE.IMAGEVIEW
+    public type: ViewType = VIEWTYPE.IMAGEVIEW
     public content: ImageElement
 
     constructor(image: ImageElement, options: ImageViewOptions = {}) {
@@ -44,6 +45,9 @@ export default class ImageView extends View implements IImageView, ISerializable
         // 复制插件
         if (this.boundingBox) {
             newView.boundingBox = this.boundingBox.copy()
+        }
+        if (this.decoration) {
+            newView.decoration = this.decoration.copy()
         }
 
         return newView

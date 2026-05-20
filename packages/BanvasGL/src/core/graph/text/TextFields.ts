@@ -11,6 +11,26 @@ import TextOptions from "./TextOptions";
 import { ITextFields, ISerializable } from "@/core/interfaces";
 import { generateId } from "@/core/utils";
 
+/**
+ * 模块级 fallback context：在没有传入 measureCtx 时（如反序列化阶段），
+ * 使用 OffscreenCanvas 提供 measureText 能力，避免依赖已挂载的真实 canvas。
+ *
+ * 在 Node.js 等无 OffscreenCanvas 的环境下返回 null，此时跳过测量
+ * （后端序列化场景不需要精确文字尺寸）。
+ */
+let _fallbackCtx: CanvasRenderingContext2D | null = null
+let _fallbackCtxResolved = false
+function getFallbackMeasureCtx(): CanvasRenderingContext2D | null {
+  if (!_fallbackCtxResolved) {
+    _fallbackCtxResolved = true
+    if (typeof OffscreenCanvas !== 'undefined') {
+      const canvas = new OffscreenCanvas(1, 1)
+      _fallbackCtx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D
+    }
+  }
+  return _fallbackCtx
+}
+
 //文本选区三元组： 段落号，字序号，字前｜字后
 export type TextIndex = [number, number, 0 | 1];
 
@@ -158,8 +178,19 @@ export default class TextFields
   /**
    * 布局文本域
    * @param constraintBounds 排版约束区域，由 View 传入，描述内容可排版的空间
+   * @param measureCtx 可选的 CanvasRenderingContext2D，用于延迟测量文字尺寸。
+   *                   传入时避免依赖全局 CanvasContext（P1a：TextElement lazy measurement）
    */
-  public layout(constraintBounds?: Bounds): TextFields {
+  public layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): TextFields {
+    // 批量确保所有文字元素尺寸已测量（延迟测量的执行点）
+    // 当没有传入 measureCtx 时（如反序列化/构造阶段），使用 OffscreenCanvas fallback
+    const ctx = measureCtx ?? getFallbackMeasureCtx() ?? undefined
+    for (const paragraph of this.paragraphs) {
+      for (const text of paragraph.texts) {
+        text.ensureMeasured(ctx)
+      }
+    }
+
     // 优先使用传入的约束，其次回退到自身已有 bounds
     const layoutArea = (constraintBounds ?? this.bounds ?? Bounds.empty()).copy();
 
@@ -467,11 +498,12 @@ export default class TextFields
   /**
    * 根据点选中TextElement
    * @param relativePoint 相对坐标
+   * @param bufferCtx 用于命中检测的离屏上下文
    */
-  public point2TextElement(relativePoint: Point3): TextElement | null {
+  public point2TextElement(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D | null): TextElement | null {
     const hitedParagraph = this.paragraphs.find(
       (paragraph: TextParagraph) =>
-        paragraph.isPointInPath(relativePoint) ||
+        paragraph.isPointInPath(relativePoint, bufferCtx) ||
         paragraph.isPointOnCurve(relativePoint, 5),
     );
     if (hitedParagraph) {
@@ -479,7 +511,7 @@ export default class TextFields
       for (const t of hitedParagraph.texts) {
         const tb = t.bounds;
         const tRect = new Rectangle(tb.x, tb.y, tb.width, tb.height);
-        const hitText = tRect.isPointInPath(relativePoint);
+        const hitText = tRect.isPointInPath(relativePoint, bufferCtx);
         if (hitText) {
           return t;
         }
@@ -494,7 +526,7 @@ export default class TextFields
     const layout = Rectangle.fromBounds(this.bounds);
     // 未命中段落，命中布局区域
     const hitedLayoutArea =
-      layout.isPointInPath(relativePoint) ||
+      layout.isPointInPath(relativePoint, bufferCtx) ||
       layout.isPointOnCurve(relativePoint, 5);
     if (hitedLayoutArea) {
       return this.probeTextElement(

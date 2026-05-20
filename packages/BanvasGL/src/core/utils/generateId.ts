@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
-import type { GRAPHTYPE, VIEWTYPE, SCENETYPE } from '@/core/constants'
+import type { GRAPHTYPE, SCENETYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
 
 /**
  * 统一的 ID 生成器
@@ -9,6 +10,6 @@ import type { GRAPHTYPE, VIEWTYPE, SCENETYPE } from '@/core/constants'
  *
  * @param type 实体的类型枚举值（GRAPHTYPE / VIEWTYPE / SCENETYPE）
  */
-export function generateId(type?: GRAPHTYPE | VIEWTYPE | SCENETYPE): string {
+export function generateId(type?: GRAPHTYPE | ViewType | SCENETYPE): string {
   return type ? `${type}_${uuidv4()}` : uuidv4()
 }

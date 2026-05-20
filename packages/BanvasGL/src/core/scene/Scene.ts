@@ -11,12 +11,13 @@ import {
   ungroupView,
 } from "./operations";
 import { ISerializable, isCombinedView, type ISceneLifetimes, type IView, type FlowSchema } from "@/core/interfaces";
-import { FlowRunner } from "@/core/runtime/FlowRunner";
+import { getSchemaRunner } from "@/core/runtime/SchemaRunner";
 import { AnimationDescriptor, AnimationManager } from "@/core/animation";
 import { SCENETYPE } from "@/core/constants";
 import { SnapAlignManager } from "./operations/snapAlign";
 import Serializer from "@/core/serializer";
 import CombinedView from "@/core/views/CombinedViews";
+import type CanvasContext from "@/core/renderer/CanvasContext";
 
 export interface SceneOptions {
   name?: string;
@@ -173,7 +174,7 @@ export default class Scene implements ISerializable {
   }
 
   // 渲染方法
-  public render(): void {
+  public render(canvasContext?: CanvasContext): void {
     if (!this._isVisible) {
       return;
     }
@@ -182,7 +183,7 @@ export default class Scene implements ISerializable {
     this.broadcastVPMatrix();
 
     this.children.forEach((view) => {
-      view.render();
+      view.render(canvasContext);
     });
   }
 
@@ -258,11 +259,12 @@ export default class Scene implements ISerializable {
     eventArgs: unknown[] = [],
   ): void {
     if (!schema) return
-    FlowRunner.run(schema, {
+    getSchemaRunner().run(schema, {
       self: view,
       page: this,
       view: (id) => this.findViewById(id) ?? null,
       eventArgs,
+      appId: this._app?.appId,
     }).catch((err) => {
       console.error('[Scene] schema 执行出错:', err)
     })

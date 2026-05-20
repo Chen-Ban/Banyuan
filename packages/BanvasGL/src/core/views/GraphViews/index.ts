@@ -2,6 +2,7 @@ import View, { InteractResult, ViewOptions } from "@/core/views/View/View";
 import { Graph, Line } from "@/core/graph";
 import { isAnalyticGraph, isCombinedGraph, IGraphView, ISerializable } from "@/core/interfaces";
 import { VIEWTYPE, GRAPHTYPE } from "@/core/constants";
+import type { ViewType } from "@/core/constants";
 import { generateId, generateName } from "@/core/utils";
 import { Point3, Vector3 } from "@/core/math";
 import { VertexAddon } from "@/core/views/addon";
@@ -19,7 +20,7 @@ export default class GraphView
   extends View
   implements IGraphView, ISerializable
 {
-  public type: VIEWTYPE = VIEWTYPE.GRAPHVIEW;
+  public type: ViewType = VIEWTYPE.GRAPHVIEW;
   public content: Graph;
   public controlPoints: VertexAddon | null = null;
 
@@ -45,9 +46,9 @@ export default class GraphView
     this.controlPoints = new VertexAddon(vertics, radiusStartIndex);
   }
 
-  protected interactPlugins(relativePoint: Point3): InteractResult {
+  protected interactPlugins(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
     // BoundingBox 优先（来自基类）
-    const baseResult = super.interactPlugins(relativePoint);
+    const baseResult = super.interactPlugins(relativePoint, bufferCtx);
     if (baseResult.view) return baseResult;
 
     // VertexAddon（控制点编辑）
@@ -169,6 +170,9 @@ newView.data = { ...this.data };
     }
     if (this.boundingBox) {
       newView.boundingBox = this.boundingBox.copy();
+    }
+    if (this.decoration) {
+      newView.decoration = this.decoration.copy();
     }
 
     return newView;

@@ -1,7 +1,7 @@
 import { GRAPHTYPE } from '@/core/constants'
 import MediaElement from './MediaElement'
 import { Style } from '@/core/style'
-import { Point3 } from '@/index.backend'
+import { Point3 } from '@/core/math'
 import { IImageElement, ISerializable } from '@/core/interfaces'
 import { generateId } from '@/core/utils'
 

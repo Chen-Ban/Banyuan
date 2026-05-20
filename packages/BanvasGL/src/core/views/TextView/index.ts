@@ -6,14 +6,12 @@ import { Point3, Vector3 } from '@/core/math'
 import { Action, Cursor, ITextView, ISerializable } from '@/core/interfaces'
 import Selection from './Selection'
 import { VERTICALALIGN, VIEWTYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
 import { generateId, generateName } from '@/core/utils'
 import Bounds from '@/core/graph/base/Bounds'
-import {
-    NonPrintableTextElement,
-    PrintableTextElement,
-    TextFields,
-    TextParagraphContent,
-} from '@/index.backend'
+import { NonPrintableTextElement, PrintableTextElement } from '@/core/graph/text/TextElement'
+import TextFields from '@/core/graph/text/TextFields'
+import type { TextParagraphContent } from '@/core/graph/text/TextParagraph'
 import { TextIndex } from '@/core/graph/text/TextFields'
 import type { IAnimationDescriptor } from '@/core/interfaces'
 
@@ -27,7 +25,7 @@ export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
  * 文本视图
  */
 export default class TextView extends View implements ITextView, ISerializable {
-    public readonly type: VIEWTYPE = VIEWTYPE.TEXTVIEW
+    public readonly type: ViewType = VIEWTYPE.TEXTVIEW
 
     public content: TextFields
     public selection: Selection = new Selection(undefined, undefined)
@@ -93,10 +91,10 @@ export default class TextView extends View implements ITextView, ISerializable {
      * 未命中文本域时返回 null，让外层回退到 MOVE 等 action。
      * 坐标约束只在拖拽选区阶段（InteractionDispatcher.handleTextSelection）进行。
      */
-    protected interactContent(relativePoint: Point3): InteractResult {
+    protected interactContent(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
         // 是否命中文本域
         const hitedFields =
-            this.content.isPointInPath(relativePoint) ||
+            this.content.isPointInPath(relativePoint, bufferCtx) ||
             this.content.isPointOnCurve(relativePoint, 5)
 
         // 未命中文本域，不做约束，交由外层处理
@@ -104,7 +102,7 @@ export default class TextView extends View implements ITextView, ISerializable {
             return { view: null, content: null, extraData: null }
         }
 
-        const textElement = this.content.point2TextElement(relativePoint)
+        const textElement = this.content.point2TextElement(relativePoint, bufferCtx)
         if (textElement) {
             return {
                 view: this,
@@ -510,6 +508,9 @@ newView.data = { ...this.data }
         }
         if (this.boundingBox) {
             newView.boundingBox = this.boundingBox.copy()
+        }
+        if (this.decoration) {
+            newView.decoration = this.decoration.copy()
         }
 
         return newView

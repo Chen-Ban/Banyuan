@@ -1,6 +1,7 @@
 import View, { ViewOptions } from '@/core/views/View/View'
 import { VideoElement } from '@/core/graph/media'
-import { VIEWTYPE } from '@/index.backend'
+import { VIEWTYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
 import { IVideoView, ISerializable } from '@/core/interfaces'
 import { generateId, generateName } from '@/core/utils'
 
@@ -13,7 +14,7 @@ export interface VideoViewOptions extends Omit<ViewOptions, 'content'> {
  * 视频视图 - 专门处理VideoElement类型内容
  */
 export default class VideoView extends View implements IVideoView, ISerializable {
-    public type: VIEWTYPE = VIEWTYPE.VIDEOVIEW
+    public type: ViewType = VIEWTYPE.VIDEOVIEW
     public content: VideoElement
 
     constructor(video: VideoElement, options: VideoViewOptions = {}) {
@@ -44,6 +45,9 @@ export default class VideoView extends View implements IVideoView, ISerializable
         // 复制插件
         if (this.boundingBox) {
             newView.boundingBox = this.boundingBox.copy()
+        }
+        if (this.decoration) {
+            newView.decoration = this.decoration.copy()
         }
 
         return newView

@@ -1,4 +1,5 @@
-import type { VIEWTYPE, SCENETYPE } from '@/core/constants'
+import type { ViewType } from '@/core/constants'
+import type { SCENETYPE } from '@/core/constants'
 
 /**
  * 全局名称计数器
@@ -8,7 +9,7 @@ import type { VIEWTYPE, SCENETYPE } from '@/core/constants'
  */
 const nameCounters: Record<string, number> = {}
 
-export function generateName(type: VIEWTYPE | SCENETYPE): string {
+export function generateName(type: ViewType | SCENETYPE): string {
     if (!nameCounters[type]) {
         nameCounters[type] = 0
     }
