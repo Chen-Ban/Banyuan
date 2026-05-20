@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "banvasgl": "workspace:*",
+    "@banyuan/canvas": "workspace:*",
     "concurrently": "^9.2.1",
     "electron": "^36.1.0",
     "typescript": "~5.7.2",
