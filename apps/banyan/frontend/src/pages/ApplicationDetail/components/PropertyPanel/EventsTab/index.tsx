@@ -1,8 +1,8 @@
 import React, { useState } from 'react'
 import { Button, Select } from 'antd'
-import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler, FlowSchema } from 'banvasgl'
+import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler, FlowSchema } from '@banyuan/sdk/core'
 import FlowEditorModal from './FlowEditorModal'
-import styles from './index.module.scss'
+import styles from '../index.module.scss'
 
 // ── View 模式 Props ──
 interface ViewEventsTabProps {
@@ -196,7 +196,6 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                     schema={modal.schema}
                     onChange={handleModalChange}
                     onClose={closeModal}
-                    appId={props.appId}
                 />
             </div>
         )
@@ -289,7 +288,6 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                 schema={modal.schema}
                 onChange={handleModalChange}
                 onClose={closeModal}
-                appId={props.appId}
             />
         </div>
     )

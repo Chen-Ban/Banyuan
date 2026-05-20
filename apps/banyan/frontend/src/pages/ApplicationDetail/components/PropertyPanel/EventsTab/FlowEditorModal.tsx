@@ -1,6 +1,6 @@
 import React from 'react'
 import { Modal } from 'antd'
-import type { FlowSchema } from 'banvasgl'
+import type { FlowSchema } from '@banyuan/sdk/core'
 import FlowNodePalette from './FlowNodePalette'
 import FlowCanvas from './FlowCanvas'
 import styles from './FlowEditorModal.module.scss'

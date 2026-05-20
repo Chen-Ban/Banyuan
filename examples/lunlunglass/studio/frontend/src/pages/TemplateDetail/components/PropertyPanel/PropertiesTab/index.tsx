@@ -1,9 +1,9 @@
 import React from 'react'
 import { Checkbox, Input, Tooltip } from 'antd'
-import type { IBanvasActions, IView } from 'banvasgl'
-import { GRAPHTYPE } from 'banvasgl'
-import NumberInput from './NumberInput'
-import styles from './index.module.scss'
+import type { IBanvasActions, IView } from '@banyuan/canvas'
+import { GRAPHTYPE } from '@banyuan/canvas'
+import NumberInput from '../shared/NumberInput'
+import styles from '../index.module.scss'
 
 const radiansToDegrees = (rad: number) => rad * (180 / Math.PI)
 const degreesToRadians = (deg: number) => deg * (Math.PI / 180)

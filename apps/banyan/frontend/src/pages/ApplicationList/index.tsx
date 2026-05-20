@@ -95,7 +95,7 @@ const ApplicationList = () => {
                         <Row gutter={[16, 16]}>
                             {applications.map((application) => (
                                 <Col
-                                    key={application.id}
+                                    key={application.application_id}
                                     xs={24}
                                     sm={12}
                                     md={8}
@@ -103,7 +103,7 @@ const ApplicationList = () => {
                                 >
                                     <Card
                                         onClick={() =>
-                                            handleViewDetail(application.id)
+                                            handleViewDetail(application.application_id)
                                         }
                                         hoverable
                                         className={styles.applicationCard}
@@ -132,7 +132,7 @@ const ApplicationList = () => {
                                                 icon={<EyeOutlined />}
                                                 onClick={(e) => {
                                                     e.stopPropagation()
-                                                    handleViewDetail(application.id)
+                                                    handleViewDetail(application.application_id)
                                                 }}
                                             >
                                                 编辑
@@ -141,7 +141,7 @@ const ApplicationList = () => {
                                                 type="link"
                                                 danger
                                                 icon={<DeleteOutlined />}
-                                                onClick={(e) => handleDelete(e, application.id)}
+                                                onClick={(e) => handleDelete(e, application.application_id)}
                                             >
                                                 删除
                                             </Button>,

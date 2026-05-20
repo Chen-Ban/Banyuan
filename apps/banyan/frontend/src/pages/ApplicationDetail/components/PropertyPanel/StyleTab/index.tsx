@@ -1,7 +1,7 @@
 import React from 'react'
 import { Select } from 'antd'
-import type { IView } from 'banvasgl'
-import styles from './index.module.scss'
+import type { IView } from '@banyuan/sdk/core'
+import styles from '../index.module.scss'
 
 interface StyleTabProps {
     view: IView

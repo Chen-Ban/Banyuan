@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Modal, Button, Descriptions, Tag, message, Spin } from 'antd'
 import { PrinterOutlined, ReloadOutlined } from '@ant-design/icons'
-import type { IBanvasActions, IPageNode } from 'banvasgl'
-import { VIEWTYPE } from 'banvasgl'
+import type { IBanvasActions, IPageNode } from '@banyuan/canvas'
+import { VIEWTYPE } from '@banyuan/canvas'
 import { fieldsApi, templateApi } from '@/api'
 import type { FieldGroup, FieldDefinition, IPrintField } from '@/api'
 
