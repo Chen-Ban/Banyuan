@@ -43,7 +43,7 @@ export type {
     FieldType,
     IFieldSchema,
     IFieldSchemaMap,
-    // Flow 类型（从 banvas-flow 透传，FlowEdge/FlowSchema 为 BanvasGL 扩展版）
+    // Flow 类型（从 @banyuan/flow 统一透传）
     FlowValue,
     FlowCondition,
     FlowLiteralValue,

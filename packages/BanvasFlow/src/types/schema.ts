@@ -33,6 +33,8 @@ export type FlowNode = { id: string; x?: number; y?: number } & (FlowActionNode 
 
 /** 有向边 */
 export interface FlowEdge {
+  /** 边的唯一标识（编辑器画布管理 + 序列化需要） */
+  id: string
   from: string
   to: string
   /** 条件分支边的标签 */
