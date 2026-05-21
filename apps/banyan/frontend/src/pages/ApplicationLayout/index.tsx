@@ -22,8 +22,8 @@ import { createContext, useCallback, useContext, useRef } from 'react'
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Tabs } from 'antd'
 import { AppstoreOutlined, DatabaseOutlined, FunctionOutlined } from '@ant-design/icons'
-import AiBar from '@/pages/ApplicationDetail/components/AiBar'
-import type { AiBarMode } from '@/pages/ApplicationDetail/components/AiBar'
+import AiBar from '@/components/AiBar'
+import type { AiBarMode } from '@/components/AiBar'
 import styles from './index.module.scss'
 
 // ─── Layout Context：将回调下发给子页面 ──────────────────────────────────────

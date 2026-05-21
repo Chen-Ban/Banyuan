@@ -27,7 +27,7 @@ apps/banyan/
 ┌───────────────────────────────────────────────────────────┐
 │                    frontend（:5174）                        │
 │                                                           │
-│   @banyuan/sdk 画布编辑器                                  │
+│   @banyuan/banyan-sdk 画布编辑器                                  │
 │   PropertyPanel（样式 / 属性 / 数据 / 事件 / 数据库 / 函数） │
 │   AiBar（自然语言输入）                                     │
 └───────────────────────┬───────────────────────────────────┘
@@ -290,6 +290,6 @@ pnpm --filter banyan-electron build
 - 新增页面在 `src/routes/index.tsx` 中注册路由
 - 新增后端路由在 `src/routes/` 下创建文件，并在 `routes/index.ts` 中挂载
 - 前端开发服务器端口固定为 `5174`（`strictPort: true`），Electron 依赖此端口
-- 禁止在 backend 中直接 `import @banyuan/agent`，AI 能力必须通过 HTTP 调用 XiangDi 服务（:3002）
+- 禁止在 backend 中直接 `import @banyuan/xiangdi-agent`，AI 能力必须通过 HTTP 调用 XiangDi 服务（:3002）
 - 应用标识使用 `application_id` 字段（非 `id`），所有 API 路径和前端代码保持一致
 - PropertyPanel 各 Tab 独立子目录，跨 Tab 复用组件放入 `shared/`

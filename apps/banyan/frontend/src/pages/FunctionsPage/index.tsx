@@ -22,13 +22,10 @@ import {
   SaveOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
-import type { FlowSchema } from "@banyuan/sdk/core";
+import type { FlowSchema } from "@banyuan/banyan-sdk";
+import { useFlowBanvas } from "@banyuan/banyan-sdk";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
-import FlowCanvas from "@/pages/ApplicationDetail/components/PropertyPanel/EventsTab/FlowCanvas";
-import FlowNodePalette, {
-  SERVER_FLOW_NODE_MATERIALS,
-} from "@/pages/ApplicationDetail/components/PropertyPanel/EventsTab/FlowNodePalette";
 import styles from "./index.module.scss";
 
 // ── 左侧：云函数列表 ─────────────────────────────────────────────────────────
@@ -197,42 +194,60 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
   dirty,
   onDirtyChange,
 }) => {
-  const [localSchema, setLocalSchema] = useState<FlowSchema>(
-    (fn.schema as FlowSchema) ?? { nodes: [], edges: [] },
-  );
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 600, height: 360 });
   const [localName, setLocalName] = useState(fn.name);
   const [localDisplayName, setLocalDisplayName] = useState(fn.displayName);
   const [localDescription, setLocalDescription] = useState(fn.description);
   const [saving, setSaving] = useState(false);
+  const [schemaDirty, setSchemaDirty] = useState(false);
 
-  // 同步外部 fn 变化
+  // 自适应容器尺寸
   useEffect(() => {
-    setLocalSchema((fn.schema as FlowSchema) ?? { nodes: [], edges: [] });
-    setLocalName(fn.name);
-    setLocalDisplayName(fn.displayName);
-    setLocalDescription(fn.description);
-  }, [fn]);
-
-  // dirty 检测
-  useEffect(() => {
-    const isDirty =
-      JSON.stringify(localSchema) !== JSON.stringify(fn.schema) ||
-      localName !== fn.name ||
-      localDisplayName !== fn.displayName ||
-      localDescription !== fn.description;
-    onDirtyChange(isDirty);
-  }, [
-    localSchema,
-    localName,
-    localDisplayName,
-    localDescription,
-    fn,
-    onDirtyChange,
-  ]);
-
-  const handleSchemaChange = useCallback((schema: FlowSchema) => {
-    setLocalSchema(schema);
+    const el = canvasWrapperRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setCanvasSize({ width: Math.floor(width), height: Math.floor(height) });
+        }
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
+
+  const initialSchema = useMemo<FlowSchema>(
+    () => (fn.schema as FlowSchema) ?? { nodes: [], edges: [] },
+    [fn],
+  );
+
+  // 直接使用 hook —— 返回 Canvas 元素 + schema + MaterialPalette
+  const { Canvas, app, schema, MaterialPalette } = useFlowBanvas(
+    { width: canvasSize.width, height: canvasSize.height, backgroundColor: "transparent" },
+    initialSchema,
+    "server",
+  );
+
+  // dirty 检测（元信息部分）
+  const metaDirty =
+    localName !== fn.name ||
+    localDisplayName !== fn.displayName ||
+    localDescription !== fn.description;
+
+  useEffect(() => {
+    onDirtyChange(metaDirty || schemaDirty);
+  }, [metaDirty, schemaDirty, onDirtyChange]);
+
+  // 监听画布 version 变化 → 标记 schema dirty
+  useEffect(() => {
+    if (!app) return;
+    const unsubscribe = app.subscribe(() => {
+      setSchemaDirty(true);
+    });
+    return unsubscribe;
+  }, [app]);
 
   const handleSave = async () => {
     if (!localName.trim()) {
@@ -246,10 +261,12 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
         name: localName.trim(),
         displayName: localDisplayName.trim() || localName.trim(),
         description: localDescription.trim(),
-        schema: localSchema as { nodes: unknown[]; edges: unknown[] },
+        schema: schema as { nodes: unknown[]; edges: unknown[] },
       });
       if (res.data) {
         onSaved(res.data);
+        onDirtyChange(false);
+        setSchemaDirty(false);
         message.success("保存成功");
       }
     } catch (err: unknown) {
@@ -301,17 +318,14 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
         </Button>
       </div>
 
-      {/* 节点物料面板（云函数使用后端节点） */}
+      {/* 节点物料面板（使用 hook 提供的默认 UI） */}
       <div className={styles.paletteArea}>
-        <FlowNodePalette
-          layout="horizontal"
-          materials={SERVER_FLOW_NODE_MATERIALS}
-        />
+        <MaterialPalette />
       </div>
 
       {/* 流程画布 */}
-      <div className={styles.canvasArea}>
-        <FlowCanvas schema={localSchema} onChange={handleSchemaChange} />
+      <div ref={canvasWrapperRef} className={styles.canvasArea}>
+        {Canvas}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Select } from 'antd'
-import type { IView } from '@banyuan/sdk/core'
+import type { IView } from '@banyuan/banyan-sdk'
 import styles from '../index.module.scss'
 
 interface StyleTabProps {

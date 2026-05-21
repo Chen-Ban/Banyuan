@@ -10,7 +10,7 @@ import {
   LockOutlined,
   UnlockOutlined,
 } from "@ant-design/icons";
-import type { IPageNode, IViewNode, IBanvasActions } from '@banyuan/sdk/core';
+import type { IPageNode, IViewNode, IBanvasActions } from '@banyuan/banyan-sdk';
 import styles from "./index.module.scss";
 
 interface PageListProps {

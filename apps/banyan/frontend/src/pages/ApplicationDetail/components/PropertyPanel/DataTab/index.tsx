@@ -1,5 +1,5 @@
 import React from 'react'
-import type { IBanvasActions, IFieldSchemaMap } from '@banyuan/sdk/core'
+import type { IBanvasActions, IFieldSchemaMap } from '@banyuan/banyan-sdk'
 import FieldSchemaMapEditor from './FieldSchemaMapEditor'
 import styles from '../index.module.scss'
 

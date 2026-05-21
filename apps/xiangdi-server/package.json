@@ -18,8 +18,8 @@
     "@koa/router": "^13.1.0",
     "@koa/cors": "^5.0.0",
     "koa-body": "^6.0.1",
-    "@banyuan/agent": "workspace:*",
-    "@banyuan/canvas": "workspace:*"
+    "@banyuan/xiangdi-agent": "workspace:*",
+    "@banyuan/banvasgl": "workspace:*"
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",

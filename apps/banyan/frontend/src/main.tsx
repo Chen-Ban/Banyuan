@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { installFlowViews } from '@banyuan/sdk/flow';
+import { installFlowViews } from '@banyuan/banyan-sdk';
 import "antd/dist/reset.css";
 import "./index.css";
 import App from "./App.tsx";

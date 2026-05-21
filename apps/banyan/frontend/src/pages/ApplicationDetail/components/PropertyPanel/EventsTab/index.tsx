@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Select } from 'antd'
-import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler, FlowSchema } from '@banyuan/sdk/core'
+import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler, FlowSchema } from '@banyuan/banyan-sdk'
 import FlowEditorModal from './FlowEditorModal'
 import styles from '../index.module.scss'
 
@@ -59,8 +59,10 @@ function handlerPreview(handler: EventHandler): string {
     return `${nodeCount} 节点 · ${edgeCount} 连线`
 }
 
-function toFlowSchema(handler: EventHandler): FlowSchema | null {
-    if (!handler || typeof handler === 'string' || typeof handler === 'function') return null
+function toFlowSchema(handler: EventHandler): FlowSchema {
+    if (!handler || typeof handler === 'string' || typeof handler === 'function') {
+        return { nodes: [], edges: [] }
+    }
     return handler as FlowSchema
 }
 
@@ -68,14 +70,14 @@ function toFlowSchema(handler: EventHandler): FlowSchema | null {
 interface ModalState {
     open: boolean
     title: string
-    schema: FlowSchema | null
+    initialSchema: FlowSchema
     onSave: (schema: FlowSchema) => void
 }
 
 const CLOSED_MODAL: ModalState = {
     open: false,
     title: '',
-    schema: null,
+    initialSchema: { nodes: [], edges: [] },
     onSave: () => {},
 }
 
@@ -153,16 +155,14 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
     // 必须在所有条件分支之前声明，避免违反 Hooks 规则
     const [addingEvent, setAddingEvent] = useState<keyof IViewEvents | ''>('')
 
-    const openModal = (title: string, schema: FlowSchema | null, onSave: (s: FlowSchema) => void) => {
-        setModal({ open: true, title, schema, onSave })
+    const openModal = (title: string, initialSchema: FlowSchema, onSave: (s: FlowSchema) => void) => {
+        setModal({ open: true, title, initialSchema, onSave })
     }
 
     const closeModal = () => setModal(CLOSED_MODAL)
 
-    const handleModalChange = (schema: FlowSchema) => {
-        // 实时写回，保持与原来展开画布一致的行为
+    const handleSave = (schema: FlowSchema) => {
         modal.onSave(schema)
-        setModal(prev => ({ ...prev, schema }))
     }
 
     // ── Page 模式：只展示 Scene 生命周期 ──
@@ -182,7 +182,7 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                             onEdit={() =>
                                 openModal(
                                     label,
-                                    toFlowSchema(lifetimes[key]) ?? { nodes: [], edges: [] },
+                                    toFlowSchema(lifetimes[key]),
                                     (schema) => actions.page.setPageLifetime(props.pageId, key, schema),
                                 )
                             }
@@ -193,8 +193,8 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                 <FlowEditorModal
                     open={modal.open}
                     title={modal.title}
-                    schema={modal.schema}
-                    onChange={handleModalChange}
+                    initialSchema={modal.initialSchema}
+                    onSave={handleSave}
                     onClose={closeModal}
                 />
             </div>
@@ -231,7 +231,7 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                         onEdit={() =>
                             openModal(
                                 label,
-                                toFlowSchema(lifetimes[key]) ?? { nodes: [], edges: [] },
+                                toFlowSchema(lifetimes[key]),
                                 (schema) => actions.view.setViewLifetime(selectedViewId, key, schema),
                             )
                         }
@@ -251,7 +251,7 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
                         onEdit={() =>
                             openModal(
                                 label,
-                                toFlowSchema(events[key]) ?? { nodes: [], edges: [] },
+                                toFlowSchema(events[key]),
                                 (schema) => actions.view.setViewEvent(selectedViewId, key, schema),
                             )
                         }
@@ -285,8 +285,8 @@ const EventsTab: React.FC<EventsTabProps> = (props) => {
             <FlowEditorModal
                 open={modal.open}
                 title={modal.title}
-                schema={modal.schema}
-                onChange={handleModalChange}
+                initialSchema={modal.initialSchema}
+                onSave={handleSave}
                 onClose={closeModal}
             />
         </div>

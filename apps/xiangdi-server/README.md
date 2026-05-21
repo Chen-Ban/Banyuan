@@ -1,6 +1,6 @@
 # xiangdi-server — XiangDi AI Agent HTTP 服务
 
-XiangDi HTTP 服务将 `@banyuan/agent` AI Agent 引擎封装为独立的无状态 HTTP 服务，运行在 `:3002`，供 banyan 后端通过 HTTP SSE 调用。
+XiangDi HTTP 服务将 `@banyuan/xiangdi-agent` AI Agent 引擎封装为独立的无状态 HTTP 服务，运行在 `:3002`，供 banyan 后端通过 HTTP SSE 调用。
 
 ## 架构定位
 
@@ -86,7 +86,7 @@ pnpm dev:banyan
 
 ```bash
 # 先确保引擎包已构建
-pnpm --filter @banyuan/canvas build && pnpm --filter @banyuan/agent build
+pnpm --filter @banyuan/banvasgl build && pnpm --filter @banyuan/xiangdi-agent build
 
 # 启动 XiangDi 服务
 pnpm --filter xiangdi-server dev
@@ -112,8 +112,8 @@ pnpm --filter xiangdi-server start
 | @koa/router | ^13.1 | 路由 |
 | @koa/cors | ^5.0 | 跨域支持 |
 | koa-body | ^6.0 | 请求体解析 |
-| @banyuan/agent | workspace:* | AI Agent 引擎 |
-| @banyuan/canvas | workspace:* | 2D 图形引擎（用于 Schema 转换） |
+| @banyuan/xiangdi-agent | workspace:* | AI Agent 引擎 |
+| @banyuan/banvasgl | workspace:* | 2D 图形引擎（用于 Schema 转换） |
 | tsx | ^4.19 | TypeScript 直接运行（开发模式） |
 
 ## 目录结构
@@ -136,7 +136,7 @@ src/
 
 ## 与 Monorepo 其他包的关系
 
-- **@banyuan/agent**（`packages/XiangDi`）：AI Agent 引擎，本服务是其 HTTP 宿主
-- **@banyuan/canvas**（`packages/BanvasGL`）：2D 图形引擎，用于 AISchema ↔ BanvasGL 双向转换
+- **@banyuan/xiangdi-agent**（`packages/XiangDi`）：AI Agent 引擎，本服务是其 HTTP 宿主
+- **@banyuan/banvasgl**（`packages/BanvasGL`）：2D 图形引擎，用于 AISchema ↔ BanvasGL 双向转换
 - **banyan 后端**（`apps/banyan/backend`）：唯一调用方，通过 `XIANGDI_URL` 环境变量（默认 `http://localhost:3002`）访问本服务
 - **MongoDB**：本服务不直接访问，持久化完全由 banyan 后端负责

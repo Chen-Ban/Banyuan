@@ -320,20 +320,3 @@
   border-top: 1px dashed #ecf0f1;
 }
 
-// ── 函数编辑画布（弹窗内，填满容器） ──
-
-.flowCanvasWrapper {
-  width: 100%;
-  height: 100%;
-  display: block;
-  line-height: 0; // 消除 canvas 下方的幽灵空白
-  position: relative;
-  overflow: hidden;
-
-  canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-}
-

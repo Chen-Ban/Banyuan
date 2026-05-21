@@ -6,13 +6,13 @@ import {
   useRef,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDesignBanvas } from '@banyuan/sdk/design';
-import { version as canvasVersion } from '@banyuan/sdk/core';
+import { useDesignBanvas } from '@banyuan/banyan-sdk';
+import { version as canvasVersion } from '@banyuan/banyan-sdk';
 import { message, Drawer } from "antd";
 import { applicationApi, buildApi } from "@/api";
 import type { Platform } from "@/api";
 import { getErrorMessage } from "@/utils/error";
-import BuildTaskModal from "@/components/BuildTaskModal";
+import BuildTaskModal from "./components/BuildTaskModal";
 import { useAppLayoutCtx } from "@/pages/ApplicationLayout";
 import styles from "./index.module.scss";
 import ComponentPalette from "./components/ComponentPalette";
@@ -106,7 +106,7 @@ const ApplicationDetail = () => {
     selectedViewId,
     actions,
     contextMenu,
-    builtinComponents,
+    MaterialPalette,
   } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
 
   useEffect(() => {
@@ -275,7 +275,7 @@ const ApplicationDetail = () => {
         onBack={handleBack}
         onBuild={handleBuild}
         building={buildSubmitting}
-        builtinComponents={builtinComponents}
+        materialContent={<MaterialPalette />}
       />
       <div className={styles.mainContent} ref={mainContentRef}>
         {/* 左侧固定：PageList */}

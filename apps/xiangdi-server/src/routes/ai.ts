@@ -85,10 +85,10 @@ import {
     LanceDBKnowledgeStore,
     registerKnowledgeSearchTool,
     registerSchemaTools,
-} from '@banyuan/agent'
+} from '@banyuan/xiangdi-agent'
 import { createLLMClient, getModelsInfo, switchProvider, PROVIDER_CATALOG } from '../llm/createLLMClient.js'
-import type { BanvasHostAdapter, HumanDecision, SchemaCollectionDef, AppSchemaSnapshot } from '@banyuan/agent'
-import { version as canvasVersion } from '@banyuan/canvas'
+import type { BanvasHostAdapter, HumanDecision, SchemaCollectionDef, AppSchemaSnapshot } from '@banyuan/xiangdi-agent'
+import { version as canvasVersion } from '@banyuan/banvasgl'
 import path from 'node:path'
 import os from 'node:os'
 
@@ -328,7 +328,7 @@ router.post('/run', async (ctx) => {
             context.pushMany(
                 previousMessages
                     .filter((m) => m.role === 'user' || m.role === 'assistant')
-                    .map((m) => ({ role: m.role, content: m.content as import('xiangdi').MessageContent }))
+                    .map((m) => ({ role: m.role, content: m.content as import('@banyuan/xiangdi-agent').MessageContent }))
             )
         }
 

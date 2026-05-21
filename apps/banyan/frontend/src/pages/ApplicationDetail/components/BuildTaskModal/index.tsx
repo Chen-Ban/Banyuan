@@ -17,8 +17,8 @@ import {
     DownloadOutlined,
     ClockCircleOutlined,
 } from '@ant-design/icons'
-import { buildApi } from '../../api'
-import type { BuildTaskInfo, BuildStatus } from '../../api'
+import { buildApi } from '@/api'
+import type { BuildTaskInfo, BuildStatus } from '@/api'
 
 const { Text } = Typography
 
