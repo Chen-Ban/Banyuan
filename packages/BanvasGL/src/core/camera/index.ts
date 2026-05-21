@@ -1,7 +1,0 @@
-export { default as BaseCamera } from './BaseCamera'
-export { default as PerspectiveCamera } from './PerspectiveCamera'
-export { default as OrthographicCamera } from './OrthographicCamera'
-
-export type { BaseCameraOptions } from './BaseCamera'
-export type { PerspectiveCameraOptions } from './PerspectiveCamera'
-export type { OrthographicCameraOptions } from './OrthographicCamera'

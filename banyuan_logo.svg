@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 580" width="500" height="580">
+  <rect width="500" height="580" fill="white"/>
+  <line x1="250" y1="25" x2="250" y2="190" stroke="black" stroke-width="5.5" stroke-linecap="round"/>
+  <path d="M250,190 C141.8,254.8 98.2,310.2 55,375" stroke="black" stroke-width="3.5" stroke-linecap="round" fill="none"/>  <path d="M250,190 C175.7,254.8 161.3,310.2 152,375" stroke="black" stroke-width="3.5" stroke-linecap="round" fill="none"/>  <line x1="250" y1="190" x2="250" y2="375" stroke="black" stroke-width="3.5" stroke-linecap="round"/>  <path d="M250,190 C324.3,254.8 338.7,310.2 348,375" stroke="black" stroke-width="3.5" stroke-linecap="round" fill="none"/>  <path d="M250,190 C358.2,254.8 401.8,310.2 445,375" stroke="black" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <text x="250" y="490"
+    font-family="'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif"
+    font-size="80" font-style="italic" font-weight="400"
+    text-anchor="middle" letter-spacing="1" fill="black">Banyuan</text>
+</svg>
