@@ -24,8 +24,12 @@ export interface ProgressMessage {
   content: string
   /** 工具调用时的工具名 */
   toolName?: string
+  /** 工具调用关联的 tool_use_id，用于匹配 tool_result */
+  toolCallId?: string
   /** 是否为错误 */
   isError?: boolean
+  /** 工具调用是否已完成（收到 tool_result 后标记） */
+  completed?: boolean
   timestamp: number
 }
 
@@ -116,10 +120,19 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
             type: 'tool_call',
             content: `正在执行：${friendlyName}`,
             toolName: event.name,
+            toolCallId: event.id,
           })
           break
         }
         case 'tool_result': {
+          // 将对应的 tool_call 消息标记为已完成，停止 Spin
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.type === 'tool_call' && m.toolCallId === event.id
+                ? { ...m, completed: true }
+                : m
+            )
+          )
           if (event.isError) {
             addMessage({
               type: 'tool_result',
@@ -127,7 +140,6 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
               isError: true,
             })
           }
-          // 成功的 tool_result 不展示，避免信息过载
           break
         }
         case 'pages_snapshot': {
