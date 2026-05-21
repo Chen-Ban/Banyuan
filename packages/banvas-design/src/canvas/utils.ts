@@ -1,4 +1,4 @@
-import { View, isCombinedView } from '@banyuan/canvas'
+import { View, isCombinedView } from '@banyuan/banvasgl'
 
 /**
  * 逐层激活机制：根据点击的 View 和当前激活状态，决定应该被 select 的目标。

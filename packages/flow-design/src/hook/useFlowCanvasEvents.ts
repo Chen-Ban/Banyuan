@@ -7,14 +7,14 @@ import {
   Cursor,
   isPortView,
   clearAllStates,
-} from "@banyuan/canvas";
+} from "@banyuan/banvasgl";
 import type {
   Scene,
   ExtraData,
   IViewAddon,
   IGraph,
   IPortView,
-} from "@banyuan/canvas";
+} from "@banyuan/banvasgl";
 import EdgeView from "../views/EdgeView.js";
 
 /** 将 MouseEvent 转为 canvas 物理像素坐标 */
@@ -29,6 +29,8 @@ export interface UseFlowCanvasEventsOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   /** 交互结束回调（移动/连线完成后触发，用于把变更写回 FlowSchema） */
   onInteractionEnd?: () => void;
+  /** 节点选中回调（点击节点时传 nodeId，点击空白时传 null） */
+  onNodeSelect?: (nodeId: string | null) => void;
 }
 
 /**
@@ -46,6 +48,7 @@ export function useFlowCanvasEvents({
   app,
   canvasRef,
   onInteractionEnd,
+  onNodeSelect,
 }: UseFlowCanvasEventsOptions) {
   const mouseDownPointRef = useRef<Point3 | null>(null);
   const lastPointRef = useRef<Point3 | null>(null);
@@ -263,14 +266,17 @@ export function useFlowCanvasEvents({
           ? e.metaKey
           : e.ctrlKey;
         scene.select(hitView, isMultiSelect);
+        // 通知业务层选中了哪个节点（取 hitView 所属的 NodeView id）
+        onNodeSelect?.(hitView.id ?? null);
       } else {
         clearAllStates(scene);
+        onNodeSelect?.(null);
       }
 
       canvasRef.current.style.cursor = Cursor.Default;
       actionRef.current = Action.NONE;
     },
-    [app, canvasRef],
+    [app, canvasRef, onNodeSelect],
   );
 
   // ── 绑定/解绑 ──

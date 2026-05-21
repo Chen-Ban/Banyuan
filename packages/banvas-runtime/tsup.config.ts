@@ -8,5 +8,5 @@ export default defineConfig({
         return { js: format === 'esm' ? '.mjs' : '.cjs' }
     },
     clean: true,
-    external: ['react', 'react-dom', '@banyuan/canvas'],
+    external: ['react', 'react-dom', '@banyuan/banvasgl'],
 })

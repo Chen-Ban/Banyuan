@@ -1,5 +1,5 @@
 {
-  "name": "@banyuan/canvas-runtime",
+  "name": "@banyuan/banvas-runtime",
   "version": "0.1.0",
   "description": "BanvasGL 运行态 React Hook（useCanvasInit + useRuntimeBanvas），用于低代码预览和独立打包应用",
   "exports": {
@@ -29,7 +29,7 @@
   "license": "AGPL-3.0",
   "peerDependencies": {
     "react": "^19.1.0",
-    "@banyuan/canvas": "workspace:*"
+    "@banyuan/banvasgl": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.1.2",

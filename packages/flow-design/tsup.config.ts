@@ -13,5 +13,5 @@ export default defineConfig({
   target: 'es2020',
   splitting: true,
   treeshake: true,
-  external: ['@banyuan/canvas', '@banyuan/flow', 'react'],
+  external: ['@banyuan/banvasgl', '@banyuan/flow', 'react'],
 })

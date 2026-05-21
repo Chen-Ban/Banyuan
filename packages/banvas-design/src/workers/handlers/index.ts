@@ -11,10 +11,10 @@
  * TODO: Phase 3.5 - 将 handlers 完整迁移到 BanvasDesign
  */
 
-// 这些类型从 @banyuan/canvas 重新导出，供 WorkerRuntime 编译使用
+// 这些类型从 @banyuan/banvasgl 重新导出，供 WorkerRuntime 编译使用
 export type { WorkerHandler, WorkerHandlerResult } from '../types.js'
 
-// 占位导出——实际 handler 仍由 @banyuan/canvas 的 worker bundle 提供
+// 占位导出——实际 handler 仍由 @banyuan/banvasgl 的 worker bundle 提供
 export const textLayoutHandler: any = () => { throw new Error('Not implemented in banvas-design stub') }
 export const graphIntersectionUnifiedHandler: any = () => { throw new Error('Not implemented in banvas-design stub') }
 export const trajectorySampleHandler: any = () => { throw new Error('Not implemented in banvas-design stub') }

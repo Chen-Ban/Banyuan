@@ -2,8 +2,8 @@
  * 右键菜单项生成器
  */
 
-import { isCombinedView } from '@banyuan/canvas'
-import type { IContextMenuItem, IBanvasActions, View, Scene } from '@banyuan/canvas'
+import { isCombinedView } from '@banyuan/banvasgl'
+import type { IContextMenuItem, IBanvasActions, View, Scene } from '@banyuan/banvasgl'
 import { getClipboard } from '../actions/index.js'
 
 export function buildViewContextMenuItems(

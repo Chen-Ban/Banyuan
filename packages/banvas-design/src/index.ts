@@ -11,6 +11,10 @@
 // ── 设计态 Hook ──
 export { default as useDesignBanvas } from './useDesignBanvas.js'
 
+// ── Components ──
+export { createDesignMaterialPalette } from './components/DesignMaterialPalette.js'
+export type { DesignMaterialPaletteProps } from './components/DesignMaterialPalette.js'
+
 // ── Workers ──
 export { WorkerExecutor, getDefaultWorkerExecutor } from './workers/WorkerExecutor.js'
 export { WorkerManager, getGlobalWorkerManager } from './workers/WorkerManager.js'

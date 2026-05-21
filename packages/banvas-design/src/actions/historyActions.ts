@@ -2,7 +2,7 @@
  * History（撤销/重做）操作
  */
 
-import type { IHistoryActions, App } from '@banyuan/canvas'
+import type { IHistoryActions, App } from '@banyuan/banvasgl'
 
 export function createHistoryActions(getApp: () => App | null): IHistoryActions {
     const notify = () => getApp()?.notify()

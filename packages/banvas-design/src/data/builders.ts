@@ -2,8 +2,8 @@
  * 数据构建工具函数
  */
 
-import { VIEWTYPE } from '@banyuan/canvas'
-import type { IViewNode, IPageNode, IFieldSchemaMap, App, View, Scene } from '@banyuan/canvas'
+import { VIEWTYPE } from '@banyuan/banvasgl'
+import type { IViewNode, IPageNode, IFieldSchemaMap, App, View, Scene } from '@banyuan/banvasgl'
 
 function getViewDisplayName(view: View): string {
     return view.name

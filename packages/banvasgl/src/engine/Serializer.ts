@@ -46,9 +46,9 @@ import ImageView from '@/view/MediaViews/ImageView'
 import VideoView from '@/view/MediaViews/VideoView'
 
 // 相机类型
-import BaseCamera from '@/engine/BaseCamera'
-import OrthographicCamera from '@/engine/OrthographicCamera'
-import PerspectiveCamera from '@/engine/PerspectiveCamera'
+import BaseCamera from '@/engine/camera/BaseCamera'
+import OrthographicCamera from '@/engine/camera/OrthographicCamera'
+import PerspectiveCamera from '@/engine/camera/PerspectiveCamera'
 
 // ISerializable
 import type { ISerializable, SerializableStatic } from '@/types'

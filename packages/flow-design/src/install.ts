@@ -6,7 +6,7 @@
  * 而不需要直接依赖本包，避免循环依赖。
  */
 
-import { registerViewFactories } from '@banyuan/canvas'
+import { registerViewFactories } from '@banyuan/banvasgl'
 import { FLOW_VIEWTYPE } from './constants.js'
 import NodeView from './views/NodeView.js'
 import EdgeView from './views/EdgeView.js'

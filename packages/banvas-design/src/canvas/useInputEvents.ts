@@ -4,8 +4,8 @@ import {
   Point3,
   isTextView,
   flattenViewTree,
-} from '@banyuan/canvas'
-import type { Scene, ITextView } from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
+import type { Scene, ITextView } from '@banyuan/banvasgl'
 
 export interface UseInputEventsOptions {
     inputRef: React.RefObject<HTMLInputElement | null>

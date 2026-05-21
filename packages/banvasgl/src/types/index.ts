@@ -188,6 +188,7 @@ export type {
     IBanvasActions,
     IContextMenuItem,
     IContextMenuState,
+    IDragProps,
     IUseBanvasResult,
 } from './hook'
 

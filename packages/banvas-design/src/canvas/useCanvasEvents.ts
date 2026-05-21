@@ -11,7 +11,7 @@ import {
   isNonPrintableTextElement,
   isPrintableTextElement,
   clearAllStates,
-} from "@banyuan/canvas";
+} from "@banyuan/banvasgl";
 import type {
   Scene,
   ExtraData,
@@ -20,7 +20,7 @@ import type {
   IEdgeView,
   IBanvasActions,
   IComponentTemplate,
-} from "@banyuan/canvas";
+} from "@banyuan/banvasgl";
 import { InteractionDispatcher } from "./InteractionDispatcher.js";
 import type { InteractionContext } from "./InteractionDispatcher.js";
 import { resolveActivationTarget } from "./utils.js";

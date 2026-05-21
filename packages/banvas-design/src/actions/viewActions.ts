@@ -7,7 +7,7 @@ import {
   clearAllStates,
   flattenViewTree,
   adapterRegistry,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 import type {
   IViewActions,
   IComponentTemplate,
@@ -17,7 +17,7 @@ import type {
   IViewEvents,
   IViewLifetimes,
   App,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 import { viewCreatorStrategies } from './viewCreateStrategies.js'
 
 /** 内部剪贴板（模块级单例） */

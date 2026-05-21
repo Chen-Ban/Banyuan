@@ -2,7 +2,7 @@
  * Page（Scene）级别操作
  */
 
-import { BaseCamera, Scene } from '@banyuan/canvas'
+import { BaseCamera, Scene } from '@banyuan/banvasgl'
 import type {
     IPageActions,
     IFieldSchema,
@@ -10,7 +10,7 @@ import type {
     EventHandler,
     ISceneLifetimes,
     App,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 
 export function createPageActions(
     getApp: () => App | null,

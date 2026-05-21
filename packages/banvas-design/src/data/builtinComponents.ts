@@ -2,8 +2,8 @@
  * 引擎内置物料列表
  */
 
-import { VIEWTYPE, GRAPHTYPE } from '@banyuan/canvas'
-import type { IComponentDefinition } from '@banyuan/canvas'
+import { VIEWTYPE, GRAPHTYPE } from '@banyuan/banvasgl'
+import type { IComponentDefinition } from '@banyuan/banvasgl'
 
 export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
   {

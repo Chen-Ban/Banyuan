@@ -1,5 +1,5 @@
 {
-  "name": "@banyuan/agent",
+  "name": "@banyuan/xiangdi-agent",
   "version": "0.1.0",
   "description": "相地 —— 造园之始，先察山川形势。Banyuan 的 AI Agent 引擎，集成 SDD（Spec-Driven Development）两层规范体系与 Harness Engineering，实现可审查、可中断、可回滚的 AI 驱动应用生成。",
   "main": "./dist/index.cjs",
@@ -50,10 +50,10 @@
     "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "@banyuan/canvas": "workspace:*"
+    "@banyuan/banvasgl": "workspace:*"
   },
   "peerDependenciesMeta": {
-    "@banyuan/canvas": {
+    "@banyuan/banvasgl": {
       "optional": true
     }
   }

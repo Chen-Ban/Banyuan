@@ -1,5 +1,5 @@
 {
-  "name": "@banyuan/sdk",
+  "name": "@banyuan/banyan-sdk",
   "version": "0.1.0",
   "description": "Banyan 低代码平台统一 SDK 入口（伞包），聚合 BanvasGL 核心引擎及运行态/编辑态/流程图编辑器",
   "exports": {
@@ -7,26 +7,6 @@
       "types": "./dist/index.d.mts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
-    },
-    "./core": {
-      "types": "./dist/core.d.mts",
-      "import": "./dist/core.mjs",
-      "require": "./dist/core.cjs"
-    },
-    "./design": {
-      "types": "./dist/design.d.mts",
-      "import": "./dist/design.mjs",
-      "require": "./dist/design.cjs"
-    },
-    "./runtime": {
-      "types": "./dist/runtime.d.mts",
-      "import": "./dist/runtime.mjs",
-      "require": "./dist/runtime.cjs"
-    },
-    "./flow": {
-      "types": "./dist/flow.d.mts",
-      "import": "./dist/flow.mjs",
-      "require": "./dist/flow.cjs"
     }
   },
   "main": "./dist/index.cjs",
@@ -48,10 +28,11 @@
   ],
   "license": "AGPL-3.0",
   "dependencies": {
-    "@banyuan/canvas": "workspace:*",
-    "@banyuan/canvas-runtime": "workspace:*",
-    "@banyuan/canvas-design": "workspace:*",
-    "@banyuan/flow-design": "workspace:*"
+    "@banyuan/banvasgl": "workspace:*",
+    "@banyuan/banvas-runtime": "workspace:*",
+    "@banyuan/banvas-design": "workspace:*",
+    "@banyuan/flow-design": "workspace:*",
+    "@banyuan/flow": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.0.0"
