@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
-import { Button, Tooltip, Popover } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, RocketOutlined } from '@ant-design/icons'
-import type { IComponentDefinition } from '@banyuan/sdk/core'
+import React from 'react'
+import { Button, Tooltip } from 'antd'
+import { ArrowLeftOutlined, SaveOutlined, RocketOutlined } from '@ant-design/icons'
 import styles from './index.module.scss'
 
 interface ComponentPaletteProps {
@@ -17,32 +16,16 @@ interface ComponentPaletteProps {
     onBuild: () => void
     /** 是否正在提交构建 */
     building?: boolean
-    /** 引擎内置物料，直接来自 useDesignBanvas().builtinComponents */
-    builtinComponents: IComponentDefinition[]
     /**
-     * 用户自定义物料（可选）
+     * 物料区域内容
      *
-     * 格式与内置物料完全一致，source 建议设为 'user'。
-     * 未来社区物料也通过同一接口接入，面板无需改动。
+     * 由外部使用 hook 返回的 MaterialPalette 组件渲染后传入：
+     * ```tsx
+     * <ComponentPalette materialContent={<MaterialPalette />} ... />
+     * ```
      */
-    userComponents?: IComponentDefinition[]
+    materialContent: React.ReactNode
 }
-
-/** 渲染物料图标 */
-const ComponentIcon: React.FC<{ icon: IComponentDefinition['icon'] }> = ({ icon }) => {
-    if (icon.type === 'svg') {
-        return (
-            <span
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                dangerouslySetInnerHTML={{ __html: icon.content }}
-            />
-        )
-    }
-    return <img src={icon.src} width={20} height={20} alt="" style={{ objectFit: 'contain' }} />
-}
-
-/** 栅格最多展示 6 个，超出折叠到「更多」 */
-const MAX_VISIBLE = 6
 
 const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     applicationName,
@@ -55,39 +38,8 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     onBack,
     onBuild,
     building = false,
-    builtinComponents,
-    userComponents = [],
+    materialContent,
 }) => {
-    const [moreOpen, setMoreOpen] = useState(false)
-
-    // 合并所有物料：内置在前，用户自定义在后
-    const allComponents = [...builtinComponents, ...userComponents]
-    const visibleComponents = allComponents.slice(0, MAX_VISIBLE)
-    const overflowComponents = allComponents.slice(MAX_VISIBLE)
-
-    const handleDragStart = (e: React.DragEvent, def: IComponentDefinition) => {
-        e.dataTransfer.setData('application/json', JSON.stringify({ template: def.template }))
-        e.dataTransfer.effectAllowed = 'copy'
-    }
-
-    const renderItem = (def: IComponentDefinition) => (
-        <Tooltip key={def.id} title={def.description ?? def.label} placement="bottom">
-            <div
-                className={styles.componentItem}
-                draggable
-                onDragStart={e => handleDragStart(e, def)}
-            >
-                <ComponentIcon icon={def.icon} />
-            </div>
-        </Tooltip>
-    )
-
-    const overflowPanel = (
-        <div className={styles.overflowGrid}>
-            {overflowComponents.map(renderItem)}
-        </div>
-    )
-
     return (
         <div className={styles.palette}>
             {/* 左侧：Header 操作区 */}
@@ -136,24 +88,9 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
             {/* 分隔线 */}
             <div className={styles.divider} />
 
-            {/* 右侧：组件区域（3x2 栅格 + 更多） */}
+            {/* 右侧：物料区域（由外部 MaterialPalette 渲染） */}
             <div className={styles.componentsSection}>
-                <div className={styles.componentsGrid}>
-                    {visibleComponents.map(renderItem)}
-                </div>
-                {overflowComponents.length > 0 && (
-                    <Popover
-                        content={overflowPanel}
-                        trigger="click"
-                        placement="bottomRight"
-                        open={moreOpen}
-                        onOpenChange={setMoreOpen}
-                    >
-                        <div className={styles.moreBtn}>
-                            <EllipsisOutlined />
-                        </div>
-                    </Popover>
-                )}
+                {materialContent}
             </div>
         </div>
     )

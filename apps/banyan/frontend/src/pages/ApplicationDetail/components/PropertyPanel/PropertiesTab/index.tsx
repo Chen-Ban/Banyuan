@@ -1,7 +1,7 @@
 import React from 'react'
 import { Input, Tooltip } from 'antd'
-import type { IBanvasActions, IView } from '@banyuan/sdk/core'
-import { GRAPHTYPE } from '@banyuan/sdk/core'
+import type { IBanvasActions, IView } from '@banyuan/banyan-sdk'
+import { GRAPHTYPE } from '@banyuan/banyan-sdk'
 import NumberInput from '../shared/NumberInput'
 import styles from '../index.module.scss'
 

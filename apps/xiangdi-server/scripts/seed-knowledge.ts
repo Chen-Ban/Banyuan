@@ -16,9 +16,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { LanceDBKnowledgeStore, seedsToEntries } from "@banyuan/agent";
-import type { SeedFile, SeedCategory } from "@banyuan/agent";
-import { version as canvasVersion } from "@banyuan/canvas";
+import { LanceDBKnowledgeStore, seedsToEntries } from "@banyuan/xiangdi-agent";
+import type { SeedFile, SeedCategory } from "@banyuan/xiangdi-agent";
+import { version as canvasVersion } from "@banyuan/banvasgl";
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SEEDS_BASE_DIR = path.resolve(
   __dirname,
-  "../../packages/XiangDi/src/knowledge/seeds"
+  "../../packages/xiangdi-agent/src/knowledge/seeds"
 );
 
 // ─── 工具函数 ──────────────────────────────────────────────────────────────────

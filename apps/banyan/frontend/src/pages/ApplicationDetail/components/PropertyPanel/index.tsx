@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { InputNumber, Radio, Tabs } from 'antd'
-import type { IBanvasActions, IPageNode } from '@banyuan/sdk/core'
+import type { IBanvasActions, IPageNode } from '@banyuan/banyan-sdk'
 import FieldSchemaMapEditor from './DataTab/FieldSchemaMapEditor'
 import PropertiesTab from './PropertiesTab'
 import StyleTab from './StyleTab'

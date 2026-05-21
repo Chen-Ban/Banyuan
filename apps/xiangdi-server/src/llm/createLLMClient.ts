@@ -1,5 +1,5 @@
-import { DeepSeekClient, KimiClient, LLMRouter } from '@banyuan/agent'
-import type { LLMClient, RoutingSignal } from '@banyuan/agent'
+import { DeepSeekClient, KimiClient, LLMRouter } from '@banyuan/xiangdi-agent'
+import type { LLMClient, RoutingSignal } from '@banyuan/xiangdi-agent'
 import { loadApiKey } from '../utils/loadApiKey.js'
 
 /**

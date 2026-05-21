@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { Button, Input, Select } from 'antd'
-import type { IFieldSchema, IFieldSchemaMap } from '@banyuan/sdk/core'
+import type { IFieldSchema, IFieldSchemaMap } from '@banyuan/banyan-sdk'
 import styles from '../index.module.scss'
 
 // ── 字段类型选项 ──
