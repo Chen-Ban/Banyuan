@@ -1,28 +1,22 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: [
-    'src/index.ts',
-    'src/core.ts',
-    'src/design.ts',
-    'src/runtime.ts',
-    'src/flow.ts',
-  ],
+  entry: ['src/index.ts'],
   dts: true,
   format: ['esm', 'cjs'],
   outExtension({ format }) {
     return { js: format === 'esm' ? '.mjs' : '.cjs' }
   },
-  // 所有实际实现都在子包中，伞包只做 re-export，标记为 external 避免重复打包
+  // bundle: true（默认）但 external 掉所有子包，
+  // 让 tsup 在 ESM 输出中保留 export * from '...' 语句
   external: [
     'react',
     'react-dom',
-    '@banyuan/canvas',
-    '@banyuan/canvas-runtime',
-    '@banyuan/canvas-design',
+    '@banyuan/banvasgl',
+    '@banyuan/banvas-runtime',
+    '@banyuan/banvas-design',
     '@banyuan/flow-design',
+    '@banyuan/flow',
   ],
-  // 关闭 splitting，避免纯 re-export 被抽到 chunk 后丢失 export 语义
-  splitting: false,
   clean: true,
 })

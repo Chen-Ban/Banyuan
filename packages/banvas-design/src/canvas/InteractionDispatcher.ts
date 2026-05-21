@@ -14,14 +14,14 @@ import {
   isNonPrintableTextElement,
   isPrintableTextElement,
   createView,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 import type {
   Scene,
   ExtraData,
   IViewAddon,
   IGraph,
   IEdgeView,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 import { resolveActivationTarget } from './utils.js'
 
 export interface InteractionContext {

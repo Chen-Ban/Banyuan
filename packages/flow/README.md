@@ -136,7 +136,7 @@ pnpm --filter @banyuan/flow dev     # 开发模式（watch）
 
 ## 与其他包的关系
 
-- **@banyuan/canvas**：依赖本包（`@banyuan/flow`），通过 `ISchemaRunner` 接口集成
+- **@banyuan/banvasgl**：依赖本包（`@banyuan/flow`），通过 `ISchemaRunner` 接口集成
 - **@banyuan/flow-design**：流程图可视化编辑器，编辑的产物即本包消费的 `FlowSchema`
 - **apps/banyan/backend**：服务端使用 `@banyuan/flow/server` 执行服务端流程
-- **@banyuan/canvas-runtime**：运行态通过本包执行客户端流程逻辑
+- **@banyuan/banvas-runtime**：运行态通过本包执行客户端流程逻辑

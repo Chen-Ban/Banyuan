@@ -12,8 +12,8 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react'
-import { Point3 } from '@banyuan/canvas'
-import type { App, View, Scene, FlowSchema } from '@banyuan/canvas'
+import { Point3 } from '@banyuan/banvasgl'
+import type { App, View, Scene, FlowSchema } from '@banyuan/banvasgl'
 
 // 拖拽判定阈值（物理像素）
 const DRAG_THRESHOLD = 4

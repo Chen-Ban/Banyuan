@@ -1,5 +1,5 @@
 {
-  "name": "@banyuan/canvas-design",
+  "name": "@banyuan/banvas-design",
   "version": "0.1.0",
   "description": "BanvasGL 设计态 React 绑定（编辑器 hook + Workers）",
   "type": "module",
@@ -27,8 +27,8 @@
   },
   "peerDependencies": {
     "react": ">=18.0.0",
-    "@banyuan/canvas": "workspace:*",
-    "@banyuan/canvas-runtime": "workspace:*"
+    "@banyuan/banvasgl": "workspace:*",
+    "@banyuan/banvas-runtime": "workspace:*"
   },
   "devDependencies": {
     "react": "^19.0.0",

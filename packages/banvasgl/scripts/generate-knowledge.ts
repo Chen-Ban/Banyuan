@@ -2,9 +2,9 @@
  * generate-knowledge.ts
  *
  * 从 AISchema 的 Zod 定义自动生成知识种子 JSON 文件。
- * 输出到 packages/XiangDi/src/knowledge/seeds/schema/ 目录。
+ * 输出到 packages/xiangdi-agent/src/knowledge/seeds/schema/ 目录。
  *
- * 运行方式：npx tsx packages/BanvasGL/scripts/generate-knowledge.ts
+ * 运行方式：npx tsx packages/banvasgl/scripts/generate-knowledge.ts
  *
  * 此脚本是 BanvasGL 的 postbuild 钩子，每次构建后自动运行，
  * 确保知识种子与 AISchema 定义保持同步。
@@ -24,9 +24,9 @@ import {
   AIFlexNodeSchema,
   AIPageSchema,
   AIAppSchema,
-} from "../../../packages/XiangDi/src/schema/AISchema.js";
+} from "../../../packages/xiangdi-agent/src/schema/AISchema.js";
 
-import type { SeedFile } from "../../../packages/XiangDi/src/knowledge/seeds/index.js";
+import type { SeedFile } from "../../../packages/xiangdi-agent/src/knowledge/seeds/index.js";
 
 // ─── 输出目录 ────────────────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ const __scriptDir = typeof __dirname !== "undefined"
 
 const OUTPUT_DIR = path.resolve(
   __scriptDir,
-  "../../../packages/XiangDi/src/knowledge/seeds/schema"
+  "../../../packages/xiangdi-agent/src/knowledge/seeds/schema"
 );
 
 // ─── Zod Schema 描述提取工具 ─────────────────────────────────────────────────

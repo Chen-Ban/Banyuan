@@ -13,12 +13,12 @@
  * 使用方式：
  *
  *   // 外部库注册（应用初始化时调用）
- *   import { registerViewFactory } from '@banyuan/canvas'
+ *   import { registerViewFactory } from '@banyuan/banvasgl'
  *   registerViewFactory('EDGEVIEW', (opts) => new EdgeView(opts))
  *   registerViewFactory('NODEVIEW', (opts) => new NodeView(opts))
  *
  *   // 编辑态/应用层按需创建
- *   import { createView, hasViewFactory } from '@banyuan/canvas'
+ *   import { createView, hasViewFactory } from '@banyuan/banvasgl'
  *   if (hasViewFactory('EDGEVIEW')) {
  *       const edge = createView<IEdgeView>('EDGEVIEW', { fromPortId: 'xxx' })
  *   }

@@ -8,7 +8,7 @@ export default defineConfig([
         dts: true,
         sourcemap: true,
         clean: true,
-        external: ['react', 'react-dom', '@banyuan/canvas', '@banyuan/canvas-runtime'],
+        external: ['react', 'react-dom', '@banyuan/banvasgl', '@banyuan/banvas-runtime'],
     },
     // Worker 入口：独立 bundle，不拆分
     {

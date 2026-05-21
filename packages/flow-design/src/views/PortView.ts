@@ -5,14 +5,14 @@ import {
     View,
     Circle,
     Bounds,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 import { FLOW_VIEWTYPE } from '../constants.js'
 import type {
     IPortView,
     PortDirection,
     InteractResult,
     ViewOptions,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 
 // 端口圆形半径（逻辑像素）
 const PORT_RADIUS = 8
@@ -41,7 +41,7 @@ export default class PortView extends View implements IPortView {
                 overflow: 'visible',
                 ...(options.style ?? {}),
             },
-            content: new Circle(new Point3(0, 0, 0), PORT_RADIUS),
+            content: new Circle(new Point3(PORT_RADIUS, PORT_RADIUS, 0), PORT_RADIUS),
         })
         this.portDirection = options.portDirection
         // 端口不挂 BoundingBox（由 NodeView 统一管理选中态）

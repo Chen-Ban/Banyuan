@@ -1,5 +1,5 @@
 /**
- * @banyuan/canvas — 核心 2D 图形引擎
+ * @banyuan/banvasgl — 核心 2D 图形引擎
  *
  * 五层架构：
  *   types      — 接口契约（纯类型，零实现）
@@ -9,9 +9,9 @@
  *   engine     — 引擎运转（Scene / Camera / Renderer / App / Animation / Operations）
  *
  * 已拆分至独立包：
- *   - useDesignBanvas → @banyuan/canvas-design
- *   - useCanvasInit / useRuntimeBanvas → @banyuan/canvas-runtime
- *   - Workers（WorkerExecutor、WorkerManager）→ @banyuan/canvas-design
+ *   - useDesignBanvas → @banyuan/banvas-design
+ *   - useCanvasInit / useRuntimeBanvas → @banyuan/banvas-runtime
+ *   - Workers（WorkerExecutor、WorkerManager）→ @banyuan/banvas-design
  */
 
 export * from "./types";

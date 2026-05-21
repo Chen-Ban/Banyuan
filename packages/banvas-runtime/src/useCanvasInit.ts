@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { App, BaseCamera, Scene } from '@banyuan/canvas'
-import type { IAppOptions, IRendererOptions } from '@banyuan/canvas'
+import { App, BaseCamera, Scene } from '@banyuan/banvasgl'
+import type { IAppOptions, IRendererOptions } from '@banyuan/banvasgl'
 
 // ── BOM 属性（内联，避免跨目录依赖） ──
 function useBOMProperties(): { dpr: number } {

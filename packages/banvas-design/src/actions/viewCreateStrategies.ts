@@ -20,8 +20,8 @@ import {
   ImageView,
   VIEWTYPE,
   GRAPHTYPE,
-} from '@banyuan/canvas'
-import type { IComponentTemplate } from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
+import type { IComponentTemplate } from '@banyuan/banvasgl'
 
 type DefaultProps = NonNullable<IComponentTemplate['defaultProps']>
 type GraphCreatorStrategy = (defaultProps: DefaultProps) => Graph

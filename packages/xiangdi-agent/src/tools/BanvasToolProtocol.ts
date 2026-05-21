@@ -70,7 +70,17 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: BANVAS_TOOLS.ADD_NODE,
     description:
-      "向指定页面添加一个新节点（矩形、文本、图片或分组）。返回新节点的 id。",
+      "向指定页面添加一个新节点。返回新节点的 id。\n\n" +
+      "【重要】node 必须包含 transform 嵌套结构来描述位置和尺寸：\n" +
+      "{\n" +
+      '  "type": "rect",\n' +
+      '  "transform": {\n' +
+      '    "position": { "x": 100, "y": 50 },\n' +
+      '    "size": { "width": 200, "height": 100 }\n' +
+      "  },\n" +
+      '  "fill": { "type": "solid", "color": "#ff0000" }\n' +
+      "}\n\n" +
+      "支持的 type: rect / text / image / group / flex / cubic_bezier / quadratic_bezier",
     input_schema: {
       type: "object",
       properties: {
@@ -78,7 +88,60 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
         node: {
           type: "object",
           description:
-            "节点描述，符合 AISchema 节点格式。type 可为 rect / text / image / group。",
+            "节点描述对象。必须包含 type 和 transform 字段。",
+          properties: {
+            type: {
+              type: "string",
+              enum: ["rect", "text", "image", "group", "flex", "cubic_bezier", "quadratic_bezier"],
+              description: "节点类型",
+            },
+            transform: {
+              type: "object",
+              description: "位置与尺寸信息（必填）",
+              properties: {
+                position: {
+                  type: "object",
+                  properties: {
+                    x: { type: "number", description: "水平位置 px，左上角为原点" },
+                    y: { type: "number", description: "垂直位置 px，左上角为原点" },
+                  },
+                  required: ["x", "y"],
+                },
+                size: {
+                  type: "object",
+                  properties: {
+                    width: { type: "number", description: "宽度 px" },
+                    height: { type: "number", description: "高度 px" },
+                  },
+                  required: ["width", "height"],
+                },
+                rotation: { type: "number", description: "旋转角度（默认 0）" },
+                opacity: { type: "number", description: "透明度 0-1（默认 1）" },
+              },
+              required: ["position", "size"],
+            },
+            name: { type: "string", description: "可读名称（可选）" },
+            fill: {
+              type: "object",
+              description: "填充（rect 适用）。示例：{ \"type\": \"solid\", \"color\": \"#ffffff\" }",
+            },
+            stroke: {
+              type: "object",
+              description: "描边。示例：{ \"color\": \"#000000\", \"width\": 1, \"style\": \"solid\" }",
+            },
+            cornerRadius: { type: "number", description: "圆角半径（rect 适用，默认 0）" },
+            content: { type: "string", description: "文本内容（text 类型必填）" },
+            style: {
+              type: "object",
+              description: "文本样式（text 适用）。示例：{ \"fontSize\": 16, \"color\": \"#000000\", \"align\": \"center\" }",
+            },
+            src: { type: "string", description: "图片 URL（image 类型必填）" },
+            children: {
+              type: "array",
+              description: "子节点数组（group/flex 类型适用）",
+            },
+          },
+          required: ["type", "transform"],
         },
       },
       required: ["pageId", "node"],

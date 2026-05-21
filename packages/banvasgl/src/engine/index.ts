@@ -8,12 +8,7 @@ export { default as Scene } from './Scene'
 export type { SceneOptions } from './Scene'
 
 // ── Camera ──
-export { default as BaseCamera } from './BaseCamera'
-export { default as PerspectiveCamera } from './PerspectiveCamera'
-export { default as OrthographicCamera } from './OrthographicCamera'
-export type { BaseCameraOptions } from './BaseCamera'
-export type { PerspectiveCameraOptions } from './PerspectiveCamera'
-export type { OrthographicCameraOptions } from './OrthographicCamera'
+export * from './camera'
 
 // ── Renderer ──
 export { default as Renderer } from './Renderer'

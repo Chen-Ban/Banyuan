@@ -5,13 +5,13 @@ import {
     View,
     Bounds,
     isPortView,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 import { FLOW_VIEWTYPE } from '../constants.js'
 import type {
     IEdgeView,
     InteractResult,
     ViewOptions,
-} from '@banyuan/canvas'
+} from '@banyuan/banvasgl'
 import type PortView from './PortView.js'
 
 export interface EdgeViewOptions extends ViewOptions {

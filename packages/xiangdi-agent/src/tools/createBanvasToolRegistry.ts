@@ -13,6 +13,7 @@
 
 import { ToolRegistry } from "../core/ToolRegistry.js";
 import { banvasToAIApp, aiAppToBanvas } from "../schema/converters.js";
+import { AINodeSchema } from "../schema/AISchema.js";
 import type { AIApp, AIPage, AINode } from "../schema/AISchema.js";
 import {
   BANVAS_TOOLS,
@@ -183,6 +184,36 @@ async function handleCreatePage(
   return { pageId: newPage.id, message: `页面 "${input.name}" 已创建` };
 }
 
+/**
+ * 宽容解析 LLM 传入的节点数据。
+ * LLM 经常传扁平格式 { x, y, width, height } 而非 AISchema 要求的
+ * { transform: { position: { x, y }, size: { width, height } } }。
+ * 本函数检测并自动修正这种常见错误。
+ */
+function normalizeNodeInput(raw: Record<string, unknown>): Record<string, unknown> {
+  // 如果已有 transform 字段，直接返回
+  if (raw["transform"] != null) return raw;
+
+  // 检测扁平格式：有 x/y 或 width/height 但无 transform
+  const hasFlat =
+    raw["x"] != null || raw["y"] != null ||
+    raw["width"] != null || raw["height"] != null;
+
+  if (!hasFlat) return raw;
+
+  // 从扁平字段构造 transform 结构
+  const { x, y, width, height, rotation, opacity, ...rest } = raw as Record<string, unknown>;
+  return {
+    ...rest,
+    transform: {
+      position: { x: Number(x ?? 0), y: Number(y ?? 0) },
+      size: { width: Number(width ?? 100), height: Number(height ?? 100) },
+      rotation: Number(rotation ?? 0),
+      opacity: Number(opacity ?? 1),
+    },
+  };
+}
+
 async function handleAddNode(
   adapter: BanvasHostAdapter,
   input: AddNodeInput,
@@ -193,8 +224,19 @@ async function handleAddNode(
   if (pageIdx === -1) return { error: `页面 ${input.pageId} 不存在` };
 
   const nodeId = (input.node["id"] as string | undefined) ?? `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-  const node = { ...input.node, id: nodeId } as unknown as AINode;
-  app.pages[pageIdx].nodes.push(node);
+
+  // 宽容解析 + Zod 校验
+  const normalized = normalizeNodeInput({ ...input.node, id: nodeId });
+  const parsed = AINodeSchema.safeParse(normalized);
+  if (!parsed.success) {
+    return {
+      error: "节点格式不合法，请使用 AISchema 结构",
+      details: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
+      hint: "节点必须包含 transform: { position: { x, y }, size: { width, height } }，以及 type 字段。示例：{ type: \"rect\", transform: { position: { x: 0, y: 0 }, size: { width: 100, height: 50 } } }",
+    };
+  }
+
+  app.pages[pageIdx].nodes.push(parsed.data);
   if (ctx) {
     ctx.dirty = true;
   } else {

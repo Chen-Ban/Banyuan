@@ -58,8 +58,8 @@ installFlowViews()  // 注册 NodeView/PortView/EdgeView 到全局 ViewRegistry
   },
   "peerDependencies": {
     "react": "^19.0.0",
-    "@banyuan/canvas": "workspace:*",
-    "@banyuan/canvas-runtime": "workspace:*"
+    "@banyuan/banvasgl": "workspace:*",
+    "@banyuan/banvas-runtime": "workspace:*"
   }
 }
 ```
@@ -79,8 +79,8 @@ installFlowViews()  // 注册 NodeView/PortView/EdgeView 到全局 ViewRegistry
 ```
 
 - **@banyuan/flow**：本包编辑的产物（FlowSchema）由其 FlowRunner 执行
-- **@banyuan/canvas**：本包的视图（NodeView/EdgeView/PortView）继承自核心引擎的 View 体系
-- **@banyuan/canvas-runtime**：流程图编辑画布底层使用 useCanvasInit
+- **@banyuan/banvasgl**：本包的视图（NodeView/EdgeView/PortView）继承自核心引擎的 View 体系
+- **@banyuan/banvas-runtime**：流程图编辑画布底层使用 useCanvasInit
 
 ---
 

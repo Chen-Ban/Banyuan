@@ -330,6 +330,19 @@ export interface IContextMenuState {
 // ────────────────────────────────────────────
 
 /**
+ * 拖拽属性 —— 绑定到可拖拽元素上的 props
+ *
+ * 业务方 spread 到 DOM 元素即可完成拖拽协议：
+ * ```tsx
+ * <div {...dragProps(component)}>...</div>
+ * ```
+ */
+export interface IDragProps {
+    draggable: true
+    onDragStart: (e: any) => void
+}
+
+/**
  * useDesignBanvas Hook 的返回值类型
  *
  * 特征：
@@ -352,10 +365,24 @@ export interface IUseBanvasResult<TElement = unknown> {
     /** 右键菜单上下文 */
     contextMenu: IContextMenuState
     /**
-     * 引擎内置物料列表（稳定引用，不随渲染变化）
+     * 物料列表（稳定引用，不随渲染变化）
      *
-     * 业务层可直接传给物料面板，也可与自定义物料合并后传入。
-     * 引擎升级时此列表自动更新，业务层无需手动维护。
+     * 包含引擎内置物料。业务层可与自定义物料合并后渲染面板。
+     */
+    materials: IComponentDefinition[]
+    /**
+     * 默认物料面板组件（已绑定 materials + dragProps）
+     *
+     * 提供开箱即用的图标网格 UI，支持 renderMaterial slot 自定义：
+     * ```tsx
+     * <MaterialPalette />
+     * // 或自定义渲染：
+     * <MaterialPalette renderMaterial={(m, dp) => <MyCard {...dp}>{m.label}</MyCard>} />
+     * ```
+     */
+    MaterialPalette: any
+    /**
+     * @deprecated 使用 materials 代替
      */
     builtinComponents: IComponentDefinition[]
 }

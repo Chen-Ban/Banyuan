@@ -5,7 +5,7 @@
  *
  * 使用方式：
  * ```ts
- * import { OrchestratorAgent } from "@banyuan/agent";
+ * import { OrchestratorAgent } from "@banyuan/xiangdi-agent";
  *
  * const orchestrator = new OrchestratorAgent({ maxConcurrency: 4 });
  * const result = await orchestrator.orchestrate(client, {

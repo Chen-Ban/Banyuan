@@ -5,8 +5,8 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { useCanvasInit } from '@banyuan/canvas-runtime'
-import type { SerializedPageJSON, UseCanvasOptions } from '@banyuan/canvas-runtime'
+import { useCanvasInit } from '@banyuan/banvas-runtime'
+import type { SerializedPageJSON, UseCanvasOptions } from '@banyuan/banvas-runtime'
 import { useCanvasEvents } from './canvas/useCanvasEvents.js'
 import type { ContextMenuHitResult } from './canvas/useCanvasEvents.js'
 import { useInputEvents } from './canvas/useInputEvents.js'
@@ -22,7 +22,11 @@ import type {
   IUseBanvasResult,
   IContextMenuState,
   IContextMenuItem,
-} from '@banyuan/canvas'
+  IComponentDefinition,
+  IDragProps,
+} from '@banyuan/banvasgl'
+import { createDesignMaterialPalette } from './components/DesignMaterialPalette.js'
+import type { DesignMaterialPaletteProps } from './components/DesignMaterialPalette.js'
 
 export type { SerializedPageJSON, UseCanvasOptions }
 
@@ -138,6 +142,21 @@ export default function useDesignBanvas(
     inputRef,
   });
 
+  // ── 物料拖拽 props 工厂 ──
+  const dragProps = useCallback(
+    (component: IComponentDefinition): IDragProps => ({
+      draggable: true,
+      onDragStart: (e: any) => {
+        e.dataTransfer.setData(
+          'application/json',
+          JSON.stringify({ template: component.template }),
+        );
+        e.dataTransfer.effectAllowed = 'copy';
+      },
+    }),
+    [],
+  );
+
   const canvasEl = useMemo(
     () => (
       <div
@@ -166,6 +185,12 @@ export default function useDesignBanvas(
     [],
   );
 
+  // ── 默认物料面板组件 ──
+  const MaterialPalette = useMemo(
+    () => createDesignMaterialPalette(BUILTIN_COMPONENTS, dragProps),
+    [dragProps],
+  );
+
   return {
     Banvas: canvasEl,
     pages,
@@ -173,6 +198,8 @@ export default function useDesignBanvas(
     selectedViewId,
     actions,
     contextMenu,
+    materials: BUILTIN_COMPONENTS,
+    MaterialPalette,
     builtinComponents: BUILTIN_COMPONENTS,
   };
 }

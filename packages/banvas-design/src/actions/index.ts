@@ -2,8 +2,8 @@
  * Actions 入口
  */
 
-import { preprocessForExport } from '@banyuan/canvas'
-import type { IBanvasActions, App } from '@banyuan/canvas'
+import { preprocessForExport } from '@banyuan/banvasgl'
+import type { IBanvasActions, App } from '@banyuan/banvasgl'
 import { createViewActions, getClipboard } from './viewActions.js'
 import { createPageActions } from './pageActions.js'
 import { createHistoryActions } from './historyActions.js'
