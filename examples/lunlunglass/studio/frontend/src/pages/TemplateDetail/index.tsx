@@ -6,8 +6,8 @@ import {
   useRef,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDesignBanvas } from "@banyuan/canvas";
-import { VIEWTYPE } from "@banyuan/canvas";
+import { useDesignBanvas } from "@banyuan/banvasgl";
+import { VIEWTYPE } from "@banyuan/banvasgl";
 import { message, Modal, Button } from "antd";
 import { templateApi } from "@/api";
 import type { IPrintField } from "@/api";

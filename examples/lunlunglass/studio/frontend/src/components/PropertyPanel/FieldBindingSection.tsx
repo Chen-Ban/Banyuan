@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Select, Button, Tooltip, Tag } from 'antd'
 import { CloseCircleOutlined } from '@ant-design/icons'
-import type { IBanvasActions, IView } from '@banyuan/canvas'
+import type { IBanvasActions, IView } from '@banyuan/banvasgl'
 import { fieldsApi } from '@/api'
 import type { FieldGroup, FieldDefinition } from '@/api'
 

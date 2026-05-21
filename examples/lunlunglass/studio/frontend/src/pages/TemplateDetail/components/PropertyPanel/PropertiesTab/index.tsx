@@ -1,7 +1,7 @@
 import React from 'react'
 import { Checkbox, Input, Tooltip } from 'antd'
-import type { IBanvasActions, IView } from '@banyuan/canvas'
-import { GRAPHTYPE } from '@banyuan/canvas'
+import type { IBanvasActions, IView } from '@banyuan/banvasgl'
+import { GRAPHTYPE } from '@banyuan/banvasgl'
 import NumberInput from '../shared/NumberInput'
 import styles from '../index.module.scss'
 
