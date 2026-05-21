@@ -45,8 +45,7 @@ export interface IFieldSchema {
 export type IFieldSchemaMap = Record<string, IFieldSchema>
 
 // ────────────────────────────────────────────
-//  Flow 类型 —— 从 banvas-flow 重导出
-//  FlowEdge 在 BanvasGL 层扩展了 id 字段（编辑器需要）
+//  Flow 类型 —— 从 @banyuan/flow 统一重导出
 // ────────────────────────────────────────────
 
 export type {
@@ -69,28 +68,12 @@ export type {
     FlowVarNode,
     FlowPageVarNode,
     FlowEventParamNode,
+    FlowEdge,
+    FlowSchema,
 } from '@banyuan/flow'
 
-import type { FlowEdge as BanvasFlowEdge, FlowSchema as BanvasFlowSchema } from '@banyuan/flow'
-
-/**
- * FlowEdge —— 节点间的有向连线（BanvasGL 扩展版）
- *
- * 在 banvas-flow 基础上增加 id 字段，供编辑器画布管理边的唯一标识。
- * 运行时执行前会自动剥除 id 字段，不影响 banvas-flow 执行逻辑。
- */
-export interface FlowEdge extends BanvasFlowEdge {
-    id: string
-}
-
-/**
- * FlowSchema —— 可视化事件编排的完整描述（BanvasGL 扩展版）
- *
- * edges 使用带 id 的 BanvasGL FlowEdge。
- */
-export interface FlowSchema extends Omit<BanvasFlowSchema, 'edges'> {
-    edges: FlowEdge[]
-}
+// 文件内使用（EventHandler 等需要引用 FlowSchema）
+import type { FlowSchema } from '@banyuan/flow'
 
 // ────────────────────────────────────────────
 //  IViewEvents / IViewLifetimes —— 事件与生命周期
