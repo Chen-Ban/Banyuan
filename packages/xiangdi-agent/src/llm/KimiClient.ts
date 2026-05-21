@@ -1,17 +1,21 @@
 /**
- * 相地 · DeepSeek LLM 客户端
+ * 相地 · Kimi LLM 客户端
  *
- * 基于 openai SDK（DeepSeek 兼容 OpenAI 协议）的 LLMClient 实现。
- * 将 XiangDi 的 Anthropic 风格接口（createMessage / stop_reason / content[]）
- * 适配到 openai SDK 的 chat.completions.create，无需手写 fetch 和格式转换。
+ * Kimi（Moonshot AI）完全兼容 OpenAI 协议，baseURL 为 https://api.moonshot.ai/v1。
+ * 实现与 DeepSeekClient 完全相同的 LLMClient 接口，内部同样基于 openai SDK。
+ *
+ * 支持的模型：
+ *   - moonshot-v1-8k   — 8k 上下文，适合短对话
+ *   - moonshot-v1-32k  — 32k 上下文，适合中等长度任务（推荐）
+ *   - moonshot-v1-128k — 128k 上下文，适合超长文档处理
  *
  * 使用示例：
  * ```ts
- * import { DeepSeekClient } from "@banyuan/agent";
+ * import { KimiClient } from "@banyuan/xiangdi-agent";
  *
- * const client = new DeepSeekClient({
+ * const client = new KimiClient({
  *   apiKey: "sk-xxx",
- *   model: "deepseek-chat",
+ *   model: "moonshot-v1-32k",
  * });
  *
  * // 直接用于 AgentLoop
@@ -26,34 +30,34 @@ import type { Message } from "../core/types.js";
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
 
-export interface DeepSeekConfig {
-  /** API Key */
+export interface KimiConfig {
+  /** API Key（从 https://platform.moonshot.cn 获取） */
   apiKey: string;
-  /** 模型名称，默认 "deepseek-chat"（也可用 "deepseek-reasoner"） */
+  /** 模型名称，默认 "moonshot-v1-32k" */
   model?: string;
-  /** API 基础 URL，默认 "https://api.deepseek.com/v1" */
+  /** API 基础 URL，默认 "https://api.moonshot.ai/v1" */
   baseUrl?: string;
   /** 请求超时（毫秒），默认 120000 */
   timeout?: number;
 }
 
-// ─── DeepSeekClient ────────────────────────────────────────────────────────────
+// ─── KimiClient ────────────────────────────────────────────────────────────────
 
 /**
- * DeepSeek LLM 客户端
+ * Kimi LLM 客户端
  *
  * 实现 XiangDi 的 LLMClient 接口（createMessage），
- * 内部通过 openai SDK 调用 DeepSeek OpenAI-compatible API。
+ * 内部通过 openai SDK 调用 Kimi OpenAI-compatible API。
  */
-export class DeepSeekClient implements LLMClient {
+export class KimiClient implements LLMClient {
   private readonly openai: OpenAI;
   private readonly defaultModel: string;
 
-  constructor(config: DeepSeekConfig) {
-    this.defaultModel = config.model ?? "deepseek-chat";
+  constructor(config: KimiConfig) {
+    this.defaultModel = config.model ?? "moonshot-v1-32k";
     this.openai = new OpenAI({
       apiKey: config.apiKey,
-      baseURL: config.baseUrl ?? "https://api.deepseek.com/v1",
+      baseURL: config.baseUrl ?? "https://api.moonshot.ai/v1",
       timeout: config.timeout ?? 120_000,
     });
   }
@@ -66,7 +70,6 @@ export class DeepSeekClient implements LLMClient {
     tools?: unknown[];
     temperature?: number;
   }): Promise<LLMResponse> {
-    // 将 XiangDi Message[] 转为 openai SDK 的 ChatCompletionMessageParam[]
     const openAIMessages = buildOpenAIMessages(params.system, params.messages);
 
     const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
@@ -101,7 +104,26 @@ function buildOpenAIMessages(
 
   for (const msg of messages) {
     if (msg.role === "user") {
-      result.push({ role: "user", content: extractTextContent(msg.content) });
+      // AgentLoop 以 Anthropic 风格将 ToolResultContent[] 作为 role:"user" 推入上下文。
+      // OpenAI 协议要求这些作为独立的 role:"tool" 消息紧跟在含 tool_calls 的 assistant 消息之后。
+      if (isToolResultArray(msg.content)) {
+        const toolResults = msg.content as ToolResultContentLike[];
+        for (const tr of toolResults) {
+          const contentStr =
+            typeof tr.content === "string"
+              ? tr.content
+              : Array.isArray(tr.content)
+                ? tr.content.map((c) => c.text).join("\n")
+                : "";
+          result.push({
+            role: "tool",
+            content: contentStr,
+            tool_call_id: tr.tool_use_id,
+          });
+        }
+      } else {
+        result.push({ role: "user", content: extractTextContent(msg.content) });
+      }
     } else if (msg.role === "assistant") {
       result.push(convertAssistantMessage(msg.content));
     } else if (msg.role === "tool") {
@@ -114,6 +136,27 @@ function buildOpenAIMessages(
   }
 
   return result;
+}
+
+/** ToolResultContent 的轻量类型守卫（避免直接 import 循环） */
+interface ToolResultContentLike {
+  type: "tool_result";
+  tool_use_id: string;
+  content: string | { type: "text"; text: string }[];
+  is_error?: boolean;
+}
+
+/**
+ * 判断 message.content 是否为 ToolResultContent[]
+ * AgentLoop 第 274 行推入时的实际形态：数组且每个元素 type === "tool_result"
+ */
+function isToolResultArray(content: Message["content"]): boolean {
+  if (!Array.isArray(content)) return false;
+  if (content.length === 0) return false;
+  return content.every(
+    (item) =>
+      typeof item === "object" && item !== null && item.type === "tool_result"
+  );
 }
 
 function extractTextContent(content: Message["content"]): string {
@@ -238,9 +281,6 @@ function convertToLLMResponse(
 
 // ─── 工具格式转换 ──────────────────────────────────────────────────────────────
 
-/**
- * 将 XiangDi 的工具定义（Anthropic 格式）转换为 openai SDK 的 ChatCompletionTool[]
- */
 function convertToOpenAITools(
   tools: unknown[]
 ): OpenAI.Chat.ChatCompletionTool[] {
