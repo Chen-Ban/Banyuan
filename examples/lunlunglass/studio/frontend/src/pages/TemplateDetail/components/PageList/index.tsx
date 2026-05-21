@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useEffect } from "react";
 import { Tree, Button, TreeNodeProps } from "antd";
 import { PlusOutlined, DownOutlined, RightOutlined, CloseOutlined } from "@ant-design/icons";
-import type { IPageNode, IViewNode, IBanvasActions } from "@banyuan/canvas";
+import type { IPageNode, IViewNode, IBanvasActions } from "@banyuan/banvasgl";
 import styles from "./index.module.scss";
 
 interface PageListProps {
