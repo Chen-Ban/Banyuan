@@ -1,5 +1,5 @@
 /**
- * useRuntimeEvents —— 运行模式下的 canvas 事件处理
+ * useRuntimeEvents —— 运行模式下的 canvas 事件处理（Web 平台适配）
  *
  * 命中 View 后读取对应的 FlowSchema，构建 RuntimeContext，交由 FlowRunner 执行。
  *
@@ -18,10 +18,12 @@ import type { App, View, Scene, FlowSchema } from '@banyuan/banvasgl'
 // 拖拽判定阈值（物理像素）
 const DRAG_THRESHOLD = 4
 
-/** 将 MouseEvent 转为 canvas 物理像素坐标 */
+/** 将 MouseEvent 转为 canvas 物理像素坐标（兼容 CSS 缩放） */
 const event2Point = (e: MouseEvent): Point3 => {
-    const ratio = window.devicePixelRatio
-    return new Point3(e.offsetX * ratio, e.offsetY * ratio, 0)
+    const canvas = e.target as HTMLCanvasElement
+    const scaleX = canvas.width / canvas.clientWidth
+    const scaleY = canvas.height / canvas.clientHeight
+    return new Point3(e.offsetX * scaleX, e.offsetY * scaleY, 0)
 }
 
 /** 在 Scene 中命中检测，返回最顶层的 View（或 null） */

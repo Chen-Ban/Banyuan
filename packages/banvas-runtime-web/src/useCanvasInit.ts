@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { App, BaseCamera, Scene } from '@banyuan/banvasgl'
 import type { IAppOptions, IRendererOptions } from '@banyuan/banvasgl'
+import type { SerializedPageJSON } from '@banyuan/banvas-runtime'
 
 // ── BOM 属性（内联，避免跨目录依赖） ──
 function useBOMProperties(): { dpr: number } {
@@ -36,9 +37,6 @@ function useBOMProperties(): { dpr: number } {
 
 // ── 公共类型 ──
 
-/** Scene 序列化后的 JSON 字符串（由 Serializer.serialize() 生成） */
-export type SerializedPageJSON = string
-
 /**
  * useCanvasInit 初始化选项
  *
@@ -72,8 +70,8 @@ export interface UseCanvasInitResult {
  * 网格、标尺、背景色等渲染配置统一通过 rendererOptions 传入，
  * 由 App 层透传给 Renderer，hook 层保持薄。
  *
- * 注意：这是跨平台适配的分叉点（Web / 小程序 / Native），
- * 如需适配非 Web 平台，在此处派生平台专属实现。
+ * 注意：这是 Web 平台适配的实现。
+ * 其他平台适配（iOS / Android / Desktop）将提供各自的初始化函数。
  */
 export function useCanvasInit(
     serializedPages: SerializedPageJSON[],
@@ -124,8 +122,9 @@ export function useCanvasInit(
         app.notify()
     }, [app, serializedPages])
 
-    // Effect 3: 尺寸 / DPR 变化时更新画布
-    // handleResize 内部同时处理：CSS style 尺寸、canvas 物理像素、bufferCanvas、Renderer DPR
+    // Effect 3: 尺寸 / DPR 变化时更新画布物理像素
+    // 引擎只关心虚拟尺寸（物理像素 = 逻辑尺寸 × DPR），
+    // CSS 样式尺寸（显示多大）由外层 useCanvasZoom 控制。
     useEffect(() => {
         if (!app) return
         app.handleResize(options.width * dpr, options.height * dpr, dpr)

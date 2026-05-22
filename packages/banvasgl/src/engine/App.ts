@@ -667,10 +667,10 @@ export default class App {
     return this;
   }
 
-  // 事件处理
-  // width/height 为物理像素尺寸，dpr 可选：传入时同步更新 CSS style 尺寸和 Renderer DPR
+  // 调整画布物理像素尺寸，并可选更新渲染 DPR
+  // 引擎只关心虚拟尺寸（物理像素），CSS 样式尺寸由外层控制
   public handleResize(width: number, height: number, dpr?: number): App {
-    this.renderer.resize(width, height, dpr);
+    this.renderer.resize(width, height);
     if (dpr !== undefined) {
       this.renderer.setDPR(dpr);
     }
