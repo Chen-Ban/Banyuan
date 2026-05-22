@@ -1,7 +1,7 @@
 /**
  * preview service — 预览服务
  *
- * 不需要打包，直接在浏览器里通过 esm.sh CDN 加载 React + @banyuan/banvas-runtime，
+ * 不需要打包，直接在浏览器里通过 esm.sh CDN 加载 React + @banyuan/banvas-runtime-web，
  * 将 appJson 内联到 HTML 中，返回一个可直接在 iframe 里打开的页面。
  *
  * 流程：
@@ -47,10 +47,10 @@ export function getPreview(previewId: string): PreviewData | undefined {
 /**
  * 生成预览 HTML
  *
- * 使用 esm.sh 加载 React 和 @banyuan/banvas-runtime（ESM CDN），
+ * 使用 esm.sh 加载 React 和 @banyuan/banvas-runtime-web（ESM CDN），
  * 将 appJson 内联为 JS 常量，无需任何构建步骤。
  *
- * 注意：@banyuan/banvas-runtime 需要已发布到 npm 公网，版本号与 scaffold 保持一致。
+ * 注意：@banyuan/banvas-runtime-web 需要已发布到 npm 公网，版本号与 scaffold 保持一致。
  */
 export function buildPreviewHtml(data: PreviewData): string {
   const { appJson, width, height, canvasVersion } = data
@@ -79,7 +79,7 @@ export function buildPreviewHtml(data: PreviewData): string {
     <script type="module">
       import React from 'https://esm.sh/react@19.1.0'
       import { createRoot } from 'https://esm.sh/react-dom@19.1.0/client'
-      import { useRuntimeBanvas } from 'https://esm.sh/@banyuan/banvas-runtime@${canvasVersion}'
+      import { useRuntimeBanvas } from 'https://esm.sh/@banyuan/banvas-runtime-web@${canvasVersion}'
 
       const APP_JSON = ${safeAppJson}
       const APP_PAGES = JSON.parse(APP_JSON)

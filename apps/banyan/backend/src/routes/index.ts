@@ -8,6 +8,7 @@ import schemaRouter from './schema.js'
 import dataRouter from './data.js'
 import flowsRouter from './flows.js'
 import cloudFunctionsRouter from './cloudFunctions.js'
+import { uploadRouter } from './upload.js'
 
 const router = new Router()
 
@@ -36,5 +37,8 @@ router.use(flowsRouter.routes(), flowsRouter.allowedMethods())
 
 // 云函数 CRUD
 router.use(cloudFunctionsRouter.routes(), cloudFunctionsRouter.allowedMethods())
+
+// 文件上传（缩略图 → OSS）
+router.use(uploadRouter.routes(), uploadRouter.allowedMethods())
 
 export default router
