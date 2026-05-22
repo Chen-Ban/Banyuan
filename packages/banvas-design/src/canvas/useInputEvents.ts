@@ -9,6 +9,7 @@ import type { Scene, ITextView } from '@banyuan/banvasgl'
 
 export interface UseInputEventsOptions {
     inputRef: React.RefObject<HTMLInputElement | null>
+    canvasRef: React.RefObject<HTMLCanvasElement | null>
     app: App | null
 }
 
@@ -29,6 +30,7 @@ function getSelectedTextViewAndScene(app: App | null): { view: ITextView; scene:
  */
 export function useInputEvents({
     inputRef,
+    canvasRef,
     app,
 }: UseInputEventsOptions) {
     const isComposingRef = useRef<boolean>(false)
@@ -172,10 +174,17 @@ export function useInputEvents({
                                     const worldBottomLeft = worldMatrix.multiply(relativeBottomLeft)
                                     const layoutBounds = nextView.layoutArea
 
-                                    if (layoutBounds) {
-                                        input.style.left = `${worldBottomLeft.x}px`
-                                        input.style.top = `${worldBottomLeft.y}px`
-                                        input.style.width = `${layoutBounds.width}px`
+                                    const canvas = canvasRef.current
+                                    if (layoutBounds && canvas) {
+                                        // 逻辑坐标 → CSS 坐标：乘以 (样式尺寸 / 逻辑尺寸)
+                                        const scaleX = canvas.clientWidth / canvas.width
+                                        const scaleY = canvas.clientHeight / canvas.height
+                                        // canvas 在容器中的偏移（flex 居中导致）
+                                        const offsetX = canvas.offsetLeft
+                                        const offsetY = canvas.offsetTop
+                                        input.style.left = `${offsetX + worldBottomLeft.x * scaleX}px`
+                                        input.style.top = `${offsetY + worldBottomLeft.y * scaleY}px`
+                                        input.style.width = `${layoutBounds.width * scaleX}px`
                                         input.style.height = `16px`
                                         input.style.display = 'block'
                                         input.focus()

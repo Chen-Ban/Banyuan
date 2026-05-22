@@ -27,12 +27,14 @@
   },
   "peerDependencies": {
     "react": ">=18.0.0",
+    "antd": ">=5.0.0",
     "@banyuan/banvasgl": "workspace:*",
-    "@banyuan/banvas-runtime": "workspace:*"
+    "@banyuan/banvas-runtime-web": "workspace:*"
   },
   "devDependencies": {
     "react": "^19.0.0",
     "@types/react": "^19.0.0",
+    "antd": "^5.0.0",
     "tsup": "^8.4.0",
     "typescript": "~5.7.0"
   },

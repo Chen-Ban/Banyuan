@@ -25,11 +25,12 @@ import { InteractionDispatcher } from "./InteractionDispatcher.js";
 import type { InteractionContext } from "./InteractionDispatcher.js";
 import { resolveActivationTarget } from "./utils.js";
 
-/** 将 MouseEvent 转为 canvas 物理像素坐标 */
+/** 将 MouseEvent 转为 canvas 物理像素坐标（兼容 CSS 缩放） */
 const event2Point = (e: MouseEvent): Point3 => {
-  const ratio = window.devicePixelRatio;
-  const { offsetX, offsetY } = e;
-  return new Point3(offsetX * ratio, offsetY * ratio, 0);
+  const canvas = e.target as HTMLCanvasElement;
+  const scaleX = canvas.width / canvas.clientWidth;
+  const scaleY = canvas.height / canvas.clientHeight;
+  return new Point3(e.offsetX * scaleX, e.offsetY * scaleY, 0);
 };
 
 export interface ContextMenuHitResult {
@@ -271,11 +272,18 @@ export function useCanvasEvents({
             );
             const worldBottomLeft = worldMatrix.multiply(relativeBottomLeft);
             const input = inputRef.current;
+            const canvas = canvasRef.current;
             const layoutBounds = indicateView.layoutArea;
-            if (input && layoutBounds) {
-              input.style.left = `${worldBottomLeft.x}px`;
-              input.style.top = `${worldBottomLeft.y}px`;
-              input.style.width = `${layoutBounds.width}px`;
+            if (input && layoutBounds && canvas) {
+              // 逻辑坐标 → CSS 坐标：乘以 (样式尺寸 / 逻辑尺寸)
+              const scaleX = canvas.clientWidth / canvas.width;
+              const scaleY = canvas.clientHeight / canvas.height;
+              // canvas 在容器中的偏移（flex 居中导致）
+              const offsetX = canvas.offsetLeft;
+              const offsetY = canvas.offsetTop;
+              input.style.left = `${offsetX + worldBottomLeft.x * scaleX}px`;
+              input.style.top = `${offsetY + worldBottomLeft.y * scaleY}px`;
+              input.style.width = `${layoutBounds.width * scaleX}px`;
               input.style.height = `16px`;
               input.style.display = "block";
               input.focus();
@@ -433,10 +441,12 @@ export function useCanvasEvents({
         };
         if (!template) return;
 
-        const rect = canvasRef.current.getBoundingClientRect();
-        const ratio = window.devicePixelRatio;
-        const x = (e.clientX - rect.left) * ratio;
-        const y = (e.clientY - rect.top) * ratio;
+        const canvas = canvasRef.current;
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
 
         actions.view.create(template, { x, y });
       } catch (error) {
