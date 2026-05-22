@@ -14,6 +14,7 @@ export default defineConfig({
     'react-dom',
     '@banyuan/banvasgl',
     '@banyuan/banvas-runtime',
+        '@banyuan/banvas-runtime-web',
     '@banyuan/banvas-design',
     '@banyuan/flow-design',
     '@banyuan/flow',
