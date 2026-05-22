@@ -1,20 +1,26 @@
 /**
- * banvas-runtime —— BanvasGL 运行态 React 绑定
+ * @banyuan/banvas-runtime —— 运行态统一接口层（平台无关契约）
  *
- * 提供：
- * - useCanvasInit：底层 Canvas/App 初始化 hook
- * - useRuntimeBanvas：运行态 hook（渲染 + 事件触发 FlowSchema）
- * - useRuntimeEvents：运行态事件绑定
+ * 本包定义所有平台适配需要实现的抽象接口，不包含具体实现。
+ * 具体实现由各平台适配包提供：
+ *   - @banyuan/banvas-runtime-web  — Web/React 实现（Canvas 2D + React Hook）
+ *   - @banyuan/banvas-runtime-ios  — 未来 iOS 实现
+ *   - @banyuan/banvas-runtime-desktop — 未来原生桌面实现
+ *
+ * 上层业务代码和其他引擎包（banvas-design、flow-design）依赖本包的类型，
+ * 而非具体平台实现，从而实现平台解耦。
  */
 
-// ── 底层初始化 ──
-export { useCanvasInit } from './useCanvasInit.js'
-export type { SerializedPageJSON, UseCanvasOptions, UseCanvasInitResult } from './useCanvasInit.js'
+// ── 类型与接口导出 ──
+export type {
+    SerializedPageJSON,
+    IRuntimeCanvasOptions,
+    IRuntimeCanvasResult,
+    IRuntimeRendererAdapter,
+    IRuntimePointerEvent,
+    IRuntimeEventBridge,
+    IRuntimeAdapter,
+} from './types.js'
 
-// ── 运行态 Hook ──
-export { default as useRuntimeBanvas } from './useRuntimeBanvas.js'
-export type { UseRuntimeBanvasOptions, UseRuntimeBanvasResult } from './useRuntimeBanvas.js'
+export { RuntimeEventType } from './types.js'
 
-// ── 运行态事件 ──
-export { useRuntimeEvents } from './useRuntimeEvents.js'
-export type { UseRuntimeEventsOptions } from './useRuntimeEvents.js'

@@ -92,9 +92,9 @@ export default class Renderer {
     }
   }
 
-  // 调整画布大小
-  public resize(width: number, height: number, dpr?: number): void {
-    this.canvasContext.resize(width, height, dpr);
+  // 调整画布物理像素尺寸
+  public resize(width: number, height: number): void {
+    this.canvasContext.resize(width, height);
   }
 
   // 获取画布尺寸

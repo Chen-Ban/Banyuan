@@ -11,7 +11,7 @@ export interface UseRuntimeBanvasResult {
 }
 
 /**
- * useRuntimeBanvas — 运行态 hook
+ * useRuntimeBanvas — 运行态 hook（Web 平台适配）
  *
  * 职责：
  *   - 加载序列化页面数据并渲染
@@ -21,7 +21,7 @@ export interface UseRuntimeBanvasResult {
  * 入参 serializedPages：每个元素是一个 Scene 的 JSON 字符串（由 Serializer 生成）。
  *
  * 使用场景：
- *   - 低代码平台内的"预览"模式（import from '@banyuan/banvas-runtime'）
+ *   - 低代码平台内的"预览"模式（import from '@banyuan/banvas-runtime-web'）
  *   - scaffold 打包后的独立运行时应用（同上）
  */
 export default function useRuntimeBanvas(

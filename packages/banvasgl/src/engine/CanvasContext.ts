@@ -136,20 +136,12 @@ class CanvasContext {
     }
   }
 
-  // 调整画布大小
-  // dpr 可选：传入时同步更新 CSS style 尺寸（逻辑像素 = 物理像素 / dpr）
-  public resize(width: number, height: number, dpr?: number): void {
-    // 设置主画布物理像素尺寸
+  // 调整画布物理像素尺寸
+  // 引擎只关心虚拟尺寸（物理像素），CSS 样式尺寸（显示多大）由外层控制
+  public resize(width: number, height: number): void {
     this.mainCanvas.width = width;
     this.mainCanvas.height = height;
 
-    // 同步 CSS style 尺寸（逻辑像素）
-    if (dpr) {
-      this.mainCanvas.style.width = `${width / dpr}px`;
-      this.mainCanvas.style.height = `${height / dpr}px`;
-    }
-
-    // 设置离屏画布尺寸
     if (this.bufferCanvas) {
       this.bufferCanvas.width = width;
       this.bufferCanvas.height = height;

@@ -1,7 +1,7 @@
 {
-  "name": "@banyuan/banvas-runtime",
-  "version": "0.2.0",
-  "description": "BanvasGL 运行态统一接口层 —— 平台无关的渲染/事件契约定义",
+  "name": "@banyuan/banvas-runtime-web",
+  "version": "0.1.0",
+  "description": "BanvasGL 运行态 Web 平台适配（React Hook + Canvas 2D）",
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
@@ -23,16 +23,21 @@
   "keywords": [
     "banvas",
     "runtime",
-    "interface",
-    "contract",
-    "cross-platform"
+    "web",
+    "react",
+    "canvas"
   ],
   "license": "AGPL-3.0",
   "peerDependencies": {
-    "@banyuan/banvasgl": "workspace:*"
+    "react": "^19.1.0",
+    "@banyuan/banvasgl": "workspace:*",
+    "@banyuan/banvas-runtime": "workspace:*"
   },
   "devDependencies": {
+    "@types/react": "^19.1.2",
     "@banyuan/banvasgl": "workspace:*",
+    "@banyuan/banvas-runtime": "workspace:*",
+    "react": "^19.1.0",
     "tsup": "^8.4.0",
     "typescript": "~5.7.3"
   }
