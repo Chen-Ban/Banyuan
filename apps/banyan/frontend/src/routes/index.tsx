@@ -1,7 +1,7 @@
 import { createBrowserRouter, RouteObject } from 'react-router-dom'
 import ApplicationList from '@/pages/ApplicationList'
-import ApplicationLayout from '@/pages/ApplicationLayout'
-import ApplicationDetail from '@/pages/ApplicationDetail'
+import ApplicationLayout from '@/layouts/ApplicationLayout'
+import UIPage from '@/pages/UIPage'
 import DatabasePage from '@/pages/DatabasePage'
 import FunctionsPage from '@/pages/FunctionsPage'
 
@@ -10,20 +10,12 @@ const routes: RouteObject[] = [
     path: '/',
     element: <ApplicationList />,
   },
-  // 新建应用：也走 Layout，但 Layout 内部检测 isNew 时不渲染 Tab / AiBar
-  {
-    path: '/application/new',
-    element: <ApplicationLayout />,
-    children: [
-      { index: true, element: <ApplicationDetail /> },
-    ],
-  },
-  // 已有应用：三个子页面共用 ApplicationLayout
+  // 应用详情：三个子页面共用 ApplicationLayout
   {
     path: '/application/:id',
     element: <ApplicationLayout />,
     children: [
-      { index: true, element: <ApplicationDetail /> },
+      { path: 'ui', element: <UIPage /> },
       { path: 'database', element: <DatabasePage /> },
       { path: 'functions', element: <FunctionsPage /> },
     ],

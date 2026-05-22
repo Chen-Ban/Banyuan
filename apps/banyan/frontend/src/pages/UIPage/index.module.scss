@@ -1,0 +1,54 @@
+.applicationDetailPage {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: row;
+  position: relative;   // antd Drawer rootStyle position:absolute 的定位基准
+  overflow: hidden;
+}
+
+// 左侧可拖拽面板：PageList
+.pageListPanel {
+  flex-shrink: 0;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+}
+
+// 拖拽手柄
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+  transition: background 0.15s;
+
+  &:hover,
+  &.resizing {
+    background: #1677ff;
+  }
+}
+
+// 画布区域撑满剩余空间
+.canvasSection {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: #f8f9fa;
+  position: relative;
+}
+
