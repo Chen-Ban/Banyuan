@@ -1,16 +1,6 @@
 import { Context } from 'koa'
 import applicationService from '../services/ApplicationService'
 
-interface CreateApplicationRequest {
-  application_id: string
-  name: string
-  description?: string
-  pages: string[]
-  thumbnail?: string
-  tags?: string[]
-  createdBy?: string
-}
-
 interface UpdateApplicationRequest {
   name?: string
   description?: string
@@ -71,26 +61,12 @@ class ApplicationController {
 
   async createApplication(ctx: Context) {
     try {
-      const data = ctx.request.body as CreateApplicationRequest
-
-      if (!data.application_id || !data.name || !data.pages) {
-        ctx.status = 400
-        ctx.body = { success: false, message: 'application_id, name and pages are required' }
-        return
-      }
-
-      if (!Array.isArray(data.pages)) {
-        ctx.status = 400
-        ctx.body = { success: false, message: 'pages must be an array of strings' }
-        return
-      }
-
-      const application = await applicationService.createApplication(data)
+      const application = await applicationService.createApplication()
 
       ctx.status = 201
       ctx.body = { success: true, data: application, message: 'Application created successfully' }
     } catch (error: any) {
-      ctx.status = error.message.includes('already exists') ? 409 : 500
+      ctx.status = 500
       ctx.body = { success: false, message: error.message || 'Failed to create application' }
     }
   }
