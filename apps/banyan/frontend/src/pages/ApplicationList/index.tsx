@@ -41,12 +41,22 @@ const ApplicationList = () => {
 
     // 查看应用详情
     const handleViewDetail = (applicationId: string) => {
-        navigate(`/application/${applicationId}`)
+        navigate(`/application/${applicationId}/ui`)
     }
 
-    // 创建新应用
-    const handleCreateApplication = () => {
-        navigate('/application/new')
+    // 创建新应用：先调后端创建空白应用，拿到 ID 后跳转
+    const [creating, setCreating] = useState(false)
+    const handleCreateApplication = async () => {
+        setCreating(true)
+        try {
+            const res = await applicationApi.createApplication()
+            const application = res.data!
+            navigate(`/application/${application.application_id}/ui`)
+        } catch (error: unknown) {
+            message.error(getErrorMessage(error))
+        } finally {
+            setCreating(false)
+        }
     }
 
     // 删除应用
@@ -65,7 +75,7 @@ const ApplicationList = () => {
         <div className={styles.applicationListPage}>
             <div className={styles.applicationListHeader}>
                 <h1>应用列表</h1>
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateApplication}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateApplication} loading={creating}>
                     创建新应用
                 </Button>
             </div>

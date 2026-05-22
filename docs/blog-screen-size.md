@@ -135,9 +135,9 @@ Flutter 的 logical pixel 类似于 iOS 的 pt。面对不同逻辑宽度，Flut
 
 ---
 
-## 四、Web 的特殊性：DPR ≠ 缩放因子
+## 四、Web 的特殊性：DPR 是最终合成比值
 
-前两章讲完了两层抽象的诞生（物理→逻辑→适配单位），这套模型在原生开发中已经足够清晰。但如果你是 Web 开发者，还需要理解一个额外的复杂性：浏览器在操作系统的缩放因子之上，又叠加了自己的一层缩放。
+前两章讲完了两层抽象的诞生（物理→逻辑→适配单位），这套模型在原生开发中已经足够清晰。但如果你是 Web 开发者，还需要理解一个额外的复杂性：浏览器暴露的 DPR 并不直接等于操作系统的缩放因子。
 
 ### 4.1 CSS 像素的定义
 
@@ -147,17 +147,21 @@ CSS 规范对 px 的定义是：**一个"参考像素"，等于在 96 DPI 屏幕
 
 ### 4.2 devicePixelRatio 的真实含义
 
-浏览器暴露的 `window.devicePixelRatio`（简称 **DPR**，设备像素比，表示 1 个 CSS 像素对应多少个物理像素）不仅仅等于操作系统的缩放因子，它是：
+浏览器暴露的 `window.devicePixelRatio`（简称 **DPR**，设备像素比）是一个**最终的合成比值**，它直接回答一个问题：**1 个 CSS 像素对应多少个物理像素？**
+
+DPR 的值由系统缩放因子和浏览器页面缩放级别共同决定：
 
 > **DPR = 系统缩放因子 × 浏览器页面缩放级别**
 
-一台 Windows 笔记本，系统缩放 150%（Scale Factor = 1.5），浏览器默认 100% 缩放时 DPR = 1.5。用户按 Ctrl+ 放大到 125%，DPR 变为 1.5 × 1.25 = 1.875。系统的 Scale Factor 没变，但 Web 开发者看到的 DPR 变了。
+但对开发者来说，不需要分别感知这两个因子——DPR 本身就是最终结果，是唯一需要关心的比值。它不是"叠加在系统缩放之上的额外缩放"，而是**替代**了系统缩放因子的角色，直接告诉你 CSS 像素到物理像素的换算关系。
 
-这意味着：如果你用 DPR 来决定 Canvas 缓冲区大小或图片资源选择，需要意识到这个值是"动态"的，会随用户的浏览器缩放实时变化。
+举例：一台 Windows 笔记本，系统缩放 150%（Scale Factor = 1.5），浏览器默认 100% 缩放时 DPR = 1.5。用户按 Ctrl+ 放大到 125%，DPR 变为 1.875。对开发者而言，只需要用这个最终的 DPR 值——Canvas 缓冲区大小 = CSS 尺寸 × DPR，不需要额外再乘系统缩放因子，因为 DPR 已经包含了它。
+
+这也意味着 DPR 是"动态"的，会随用户的浏览器缩放实时变化。如果你用它来决定 Canvas 缓冲区大小或图片资源选择，需要监听其变化。
 
 ### 4.3 移动端为何可以混淆
 
-在移动端，viewport meta 标签通常配合 `user-scalable=no` 锁住了用户缩放，浏览器缩放级别始终为 1，所以 DPR 恒等于系统 Scale Factor。这就是为什么大量文章把 DPR 和缩放因子当成同一个东西——在移动端确实如此，但这是一个巧合而非定义。
+在移动端，viewport meta 标签通常配合 `user-scalable=no` 锁住了用户缩放，浏览器缩放级别始终为 1，所以 DPR 恒等于系统 Scale Factor。这就是为什么大量文章把 DPR 和缩放因子当成同一个东西——在移动端确实如此，但这是一个巧合而非定义。在桌面端，两者会因为浏览器缩放而分离，DPR 成为真正的"最终比值"。
 
 ---
 
@@ -270,3 +274,180 @@ Windows 常见的 125%、150% 缩放导致 DPR 为 1.25、1.5。此时 1 个 CSS
 2. **我需要穿透到下一层吗？** 大部分时候不需要，但涉及位图清晰度、精细绘制、亚像素对齐时，你必须感知底层。
 
 想清楚这两个问题，尺寸适配就从一团乱麻变成了一条清晰的链路。
+
+---
+
+## 九、实战：BanvasGL 画布引擎的样式尺寸独立化
+
+> 以下记录了 BanvasGL 画布引擎在引入"CSS 样式尺寸与逻辑尺寸分离"过程中遇到的真实问题、决策和解决方案。
+
+### 9.1 背景：为什么要独立设置样式尺寸
+
+BanvasGL 是一个 2D 画布引擎，此前 Canvas 的逻辑尺寸（`canvas.width/height`，决定绘制坐标系）和 CSS 样式尺寸（`canvas.style.width/height`，决定 DOM 中的显示大小）始终保持 `1:DPR` 的固定比例。这意味着画布在页面上的显示大小完全由逻辑尺寸决定，无法独立缩放。
+
+但我们需要实现一个常见需求：**Cmd/Ctrl + 滚轮缩放画布视图**——用户滚动滚轮时，画布在页面中"变大"或"变小"，但逻辑坐标系不变（JSON IR 中的坐标不受影响）。这本质上就是：**逻辑尺寸不变，只改变 CSS 样式尺寸。**
+
+于是我们做了第一个决策：
+
+> **决策 1：CSS 样式尺寸由独立的缩放系统控制，逻辑尺寸始终等于用户配置的页面尺寸 × DPR。**
+
+### 9.2 useCanvasZoom：contain 适配 + 滚轮缩放
+
+我们实现了一个 `useCanvasZoom` hook，核心逻辑：
+
+- **初始化**：按 contain 策略（长边适配容器）计算 `initialScale`，使画布刚好完整显示在容器内
+- **交互**：Cmd/Ctrl + Wheel 驱动 `scale` 变化，范围约束在 `[0.1, 5]`
+- **输出**：`styleWidth = pageWidth × scale`，`styleHeight = pageHeight × scale`
+
+```ts
+function calcContainScale(pageWidth, pageHeight, containerWidth, containerHeight) {
+    return Math.min(containerWidth / pageWidth, containerHeight / pageHeight);
+}
+```
+
+这里需要容器的宽高来计算 contain 适配，引出了下一个问题。
+
+### 9.3 问题一：容器尺寸从哪里来？
+
+最初的方案是让**消费端**（如 `ApplicationDetail` 页面组件）通过 ResizeObserver 测量容器尺寸，然后作为 `containerWidth/containerHeight` 参数传给 hook。
+
+这带来了几个问题：
+
+1. 消费端需要写一堆与画布逻辑无关的测量代码（callback ref + ResizeObserver + state）
+2. hook 内部已经有一个 wrapper div，消费端又在外面套了一层用于测量的 div，层级冗余
+3. hook 的 API 变得更复杂——消费端本不应该关心"容器尺寸"这种内部实现细节
+
+> **决策 2：容器尺寸由 hook 内部自测量，消费端不需要传 `containerWidth/containerHeight`。**
+
+实现方式：hook 内部的 wrapper div 设为 `width: 100%; height: 100%`，通过 callback ref 在 DOM 挂载时立即测量一次，并用 ResizeObserver 持续监听尺寸变化：
+
+```tsx
+const mergedContainerRef = useCallback((node: HTMLDivElement | null) => {
+    if (roRef.current) { roRef.current.disconnect(); roRef.current = null; }
+    zoomContainerRef(node);
+    if (!node) return;
+
+    // 立即测量
+    const { width, height } = node.getBoundingClientRect();
+    if (width > 0 && height > 0) {
+        setContainerSize({ width: Math.floor(width), height: Math.floor(height) });
+    }
+
+    // 持续监听
+    const ro = new ResizeObserver((entries) => { /* 更新 containerSize */ });
+    ro.observe(node);
+    roRef.current = ro;
+}, [zoomContainerRef]);
+```
+
+**为什么用 callback ref 而不是 `useRef` + `useEffect`？** 因为 `useEffect` 的执行时机是 commit 阶段之后，如果 DOM 结构复杂或存在条件渲染，`useRef.current` 在 effect 运行时可能仍为 null。Callback ref 在 React 将 DOM 节点挂载（或卸载）时**同步**调用，保证拿到的是真实的 DOM 节点，立即测量不会拿到 0。
+
+### 9.4 问题二：wrapper 的职责归属
+
+之前消费端（`ApplicationDetail`）有一个 `.canvasArea` 的 div，负责：
+
+- `flex: 1` 撑满剩余空间
+- `display: flex; align-items: center; justify-content: center` 居中画布
+- `overflow: auto` 缩放超出时可滚动
+
+而 hook 内部也有自己的 wrapper div。两层 div 功能重叠。
+
+> **决策 3：hook 内部的 wrapper 承担全部容器职责（撑满、居中、滚动），消费端不再需要额外的画布容器 div。**
+
+hook 的 wrapper 样式最终为：
+
+```tsx
+style={{
+    position: 'relative',
+    overflow: 'auto',
+    width: '100%',
+    height: '100%',
+    flex: 1,
+    minHeight: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+}}
+```
+
+- `width: 100%; height: 100%`：初始撑满父容器，作为 ResizeObserver 的测量基准
+- `flex: 1; minHeight: 0`：在 flex column 父容器中正确撑满（`minHeight: 0` 防止 flex 子项被内容撑大）
+- `display: flex; align-items: center; justify-content: center`：画布居中
+- `overflow: auto`：缩放放大超出容器时出现滚动条
+
+消费端只需把 `{Banvas}` 直接放在布局中，不再套额外的 wrapper。
+
+### 9.5 问题三：点击坐标偏移——event2Point 的失效
+
+引入独立样式尺寸后，出现了一个 bug：**点击画布时，实际命中的位置和期望的位置不一致。**
+
+原因分析：原来的坐标转换函数是这样的：
+
+```ts
+const event2Point = (e: MouseEvent): Point3 => {
+    const ratio = window.devicePixelRatio;
+    return new Point3(e.offsetX * ratio, e.offsetY * ratio, 0);
+};
+```
+
+它假设 `canvas.style.width = canvas.width / DPR`，即 CSS 样式尺寸与逻辑尺寸之间只存在 DPR 这一个比例关系。所以 `offsetX × DPR` 就能从 CSS 坐标正确换算到缓冲区像素坐标。
+
+但现在 CSS 样式尺寸 = `pageWidth × scale`，而缓冲区像素 = `pageWidth × DPR`。两者之间的比值不再是 DPR，而是 `DPR / scale`。用硬编码的 DPR 做换算自然会偏。
+
+具体数学推导：
+
+```
+offsetX 的范围是 [0, canvas.style.width] = [0, pageWidth × scale]
+缓冲区坐标的范围是 [0, canvas.width] = [0, pageWidth × DPR]
+
+正确换算：bufferX = offsetX × (canvas.width / canvas.clientWidth)
+                   = offsetX × (pageWidth × DPR) / (pageWidth × scale)
+                   = offsetX × DPR / scale
+
+旧代码：  bufferX = offsetX × DPR    ← 只在 scale=1 时正确
+```
+
+> **决策 4：`event2Point` 从 canvas 元素本身动态获取换算比，不再硬编码 DPR。**
+
+修复后：
+
+```ts
+const event2Point = (e: MouseEvent): Point3 => {
+    const canvas = e.target as HTMLCanvasElement;
+    const scaleX = canvas.width / canvas.clientWidth;
+    const scaleY = canvas.height / canvas.clientHeight;
+    return new Point3(e.offsetX * scaleX, e.offsetY * scaleY, 0);
+};
+```
+
+`canvas.width / canvas.clientWidth` 这个比值天然包含了 DPR 和 CSS 缩放两个因素，无论样式如何变化都能正确换算。同理，拖拽创建元素时用 `getBoundingClientRect` + `(clientX - rect.left) × (canvas.width / rect.width)` 替代了原来的硬编码 DPR 方案。
+
+### 9.6 总结：三层尺寸的分离
+
+经过这次重构，BanvasGL 的画布尺寸体系清晰地分为三层：
+
+```
+┌────────────────────────────────────────────────┐
+│ 缓冲区像素 (canvas.width × canvas.height)        │
+│ = pageWidth × DPR  ×  pageHeight × DPR          │
+│ 决定：绘制精度，与物理像素 1:1 对应               │
+├────────────────────────────────────────────────┤
+│ 逻辑坐标系 (ctx.scale(dpr, dpr) 后的坐标)        │
+│ = pageWidth × pageHeight                         │
+│ 决定：JSON IR 坐标、图形基元位置、碰撞检测        │
+├────────────────────────────────────────────────┤
+│ CSS 样式尺寸 (canvas.style.width/height)         │
+│ = pageWidth × scale  ×  pageHeight × scale       │
+│ 决定：画布在页面中的视觉大小                      │
+│ 由 useCanvasZoom 的 contain 适配 + 滚轮控制       │
+└────────────────────────────────────────────────┘
+```
+
+坐标转换的正确公式：
+
+```
+CSS 坐标 → 缓冲区坐标：  offsetX × (canvas.width / canvas.clientWidth)
+缓冲区坐标 → 逻辑坐标：  bufferX / DPR  （由 ctx.scale(dpr,dpr) 隐式完成）
+```
+
+关键收获：当你将 CSS 样式尺寸从逻辑尺寸中解耦出来独立控制时，所有依赖"样式尺寸/逻辑尺寸 = 1/DPR"这个隐含假设的代码都会失效。**解法是用 `canvas.width / canvas.clientWidth` 这个运行时动态比值替代硬编码的 DPR，它在任何缩放状态下都是正确的。**

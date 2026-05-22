@@ -14,6 +14,7 @@
     "@banyuan/banvasgl": "workspace:*",
     "@banyuan/banvas-design": "workspace:*",
     "@banyuan/banvas-runtime": "workspace:*",
+    "@banyuan/banvas-runtime-web": "workspace:*",
     "@banyuan/flow-design": "workspace:*",
     "@banyuan/banyan-sdk": "workspace:*",
     "antd": "^6.0.0",
