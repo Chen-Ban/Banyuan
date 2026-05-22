@@ -28,6 +28,7 @@ export const CLIENT_FLOW_MATERIALS: FlowNodeMaterial[] = [
     { kind: 'animate', label: '播放动画', description: '触发某个 View 的预定义动画', category: 'action' },
     { kind: 'condition', label: '条件分支', description: '根据条件选择 true / false 分支', category: 'action' },
     { kind: 'delay', label: '延迟等待', description: '等待指定毫秒后继续执行', category: 'action' },
+    { kind: 'subFlow', label: '子流程', description: '可复用的子流程，内部包含一组节点和连线', category: 'action' },
     // ── 值节点 ──
     { kind: 'variable', label: 'View 变量', description: '引用某个 View 的 data 字段值', category: 'value' },
     { kind: 'pageVar', label: '页面变量', description: '引用当前页面的 data 字段值', category: 'value' },
@@ -48,4 +49,8 @@ export const SERVER_FLOW_MATERIALS: FlowNodeMaterial[] = [
     // ── 流程控制 ──
     { kind: 'condition', label: '条件分支', description: '根据条件选择 true / false 分支', category: 'action' },
     { kind: 'delay', label: '延迟等待', description: '等待指定毫秒后继续执行', category: 'action' },
+    { kind: 'setVariable', label: '设置变量', description: '设置流程局部变量或输出变量', category: 'action' },
+    { kind: 'subFlow', label: '子流程', description: '可复用的子流程，内部包含一组节点和连线', category: 'action' },
+    // ── 值节点 ──
+    { kind: 'eventParam', label: '事件参数', description: '引用触发云函数时传入的请求参数', category: 'value' },
 ]

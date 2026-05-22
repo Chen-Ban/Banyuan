@@ -7,7 +7,7 @@
 
 import { FlowRunner } from '../runtime/FlowRunner.js'
 import { NodeExecutorRegistry } from '../executors/registry.js'
-import { conditionExecutor, delayExecutor, setVariableExecutor, callFlowExecutor } from '../executors/shared/index.js'
+import { conditionExecutor, delayExecutor, setVariableExecutor, callFlowExecutor, subFlowExecutor } from '../executors/shared/index.js'
 import { setDataExecutor, navigateExecutor, animateExecutor, setVisibleExecutor } from '../executors/client/index.js'
 
 export function createClientFlowRunner(): FlowRunner {
@@ -17,6 +17,7 @@ export function createClientFlowRunner(): FlowRunner {
     .register('delay', delayExecutor)
     .register('setVariable', setVariableExecutor)
     .register('callFlow', callFlowExecutor)
+    .register('subFlow', subFlowExecutor)
     // 前端节点
     .register('setData', setDataExecutor)
     .register('navigate', navigateExecutor)

@@ -19,6 +19,8 @@ const PORT_RADIUS = 8
 
 export interface PortViewOptions extends ViewOptions {
     portDirection: PortDirection
+    /** 该端口允许的最大连线数（默认 1，Infinity 表示无限制） */
+    maxConnections?: number
 }
 
 /**
@@ -30,6 +32,8 @@ export interface PortViewOptions extends ViewOptions {
 export default class PortView extends View implements IPortView {
     public readonly type = FLOW_VIEWTYPE.PORTVIEW
     public portDirection: PortDirection
+    /** 该端口允许的最大连线数 */
+    public maxConnections: number
 
     constructor(options: PortViewOptions) {
         const size = PORT_RADIUS * 2
@@ -44,6 +48,7 @@ export default class PortView extends View implements IPortView {
             content: new Circle(new Point3(PORT_RADIUS, PORT_RADIUS, 0), PORT_RADIUS),
         })
         this.portDirection = options.portDirection
+        this.maxConnections = options.maxConnections ?? 1
         // 端口不挂 BoundingBox（由 NodeView 统一管理选中态）
         this.boundingBox = null
     }
@@ -109,6 +114,7 @@ export default class PortView extends View implements IPortView {
         return new PortView({
             id: this.id,
             portDirection: this.portDirection,
+            maxConnections: this.maxConnections,
             style: { ...this.style },
             matrix: this.matrix.copy(),
         })

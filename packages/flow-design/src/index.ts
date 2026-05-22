@@ -19,13 +19,19 @@ export type { EdgeViewOptions } from './views/index.js'
 
 // ── Hooks ──
 export { default as useFlowBanvas } from './hook/useFlowBanvas.js'
-export type { UseFlowBanvasOptions, UseFlowBanvasResult, FlowMode, IFlowDragProps } from './hook/useFlowBanvas.js'
+export type { UseFlowBanvasOptions, UseFlowBanvasResult, FlowMode, IFlowDragProps, SelectedNodePos } from './hook/useFlowBanvas.js'
 export { useFlowCanvasEvents } from './hook/useFlowCanvasEvents.js'
-export type { UseFlowCanvasEventsOptions } from './hook/useFlowCanvasEvents.js'
+export type { UseFlowCanvasEventsOptions, FlowContextMenuEvent } from './hook/useFlowCanvasEvents.js'
 
 // ── Components ──
 export { createFlowMaterialPalette } from './components/FlowMaterialPalette.js'
 export type { FlowMaterialPaletteProps } from './components/FlowMaterialPalette.js'
+export { FlowContextMenu } from './components/FlowContextMenu.js'
+export type { FlowContextMenuProps, FlowContextMenuState, FlowContextMenuItem } from './components/FlowContextMenu.js'
+export { FlowEditorModal } from './components/FlowEditorModal.js'
+export type { FlowEditorModalProps } from './components/FlowEditorModal.js'
+export { NodeSchemaPopover } from './components/NodeSchemaPopover.js'
+export type { NodeSchemaPopoverProps } from './components/NodeSchemaPopover.js'
 
 // ── Materials ──
 export { CLIENT_FLOW_MATERIALS, SERVER_FLOW_MATERIALS } from './materials.js'
