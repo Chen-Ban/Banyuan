@@ -30,6 +30,7 @@
   "dependencies": {
     "@banyuan/banvasgl": "workspace:*",
     "@banyuan/banvas-runtime": "workspace:*",
+    "@banyuan/banvas-runtime-web": "workspace:*",
     "@banyuan/banvas-design": "workspace:*",
     "@banyuan/flow-design": "workspace:*",
     "@banyuan/flow": "workspace:*"
