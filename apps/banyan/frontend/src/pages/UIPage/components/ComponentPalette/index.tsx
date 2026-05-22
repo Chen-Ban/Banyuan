@@ -7,7 +7,6 @@ interface ComponentPaletteProps {
     applicationName: string
     applicationDescription: string
     saving: boolean
-    isNew: boolean
     onNameChange: (value: string) => void
     onDescriptionChange: (value: string) => void
     onSave: () => void
@@ -31,7 +30,6 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     applicationName,
     applicationDescription,
     saving,
-    isNew,
     onNameChange,
     onDescriptionChange,
     onSave,
@@ -65,7 +63,7 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
                         onChange={e => onDescriptionChange(e.target.value)}
                     />
                 </div>
-                <Tooltip title={isNew ? '创建应用' : '保存应用'}>
+                <Tooltip title="保存应用">
                     <Button
                         type="text"
                         icon={<SaveOutlined />}

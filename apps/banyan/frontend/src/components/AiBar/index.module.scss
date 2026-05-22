@@ -1,14 +1,9 @@
 .aiBar {
-  position: fixed;
-  bottom: 0;
-  // left / width 由 JS 动态注入（跟随 canvasSection 的水平位置）
   display: flex;
   flex-direction: column;
   background: transparent;
   padding: 0 12px 12px;
-  // z-index 高于 antd Modal（1000），确保弹窗打开时 AiBar 仍可见
-  z-index: 1001;
-  // gap 去掉，progressPanel 和 inputWrapper 紧贴拼接
+  flex-shrink: 0;
 }
 
 // ─── 进度区 ───────────────────────────────────────────────────────────────────
@@ -216,8 +211,10 @@
 // ─── 文本域 ───────────────────────────────────────────────────────────────────
 
 .textarea {
-  width: 100%;
-  min-height: 40px;
+  // content-box: min-height/max-height 只约束内容区，不含 padding
+  box-sizing: content-box;
+  width: calc(100% - 28px); // 扣除左右 padding (14 + 14)
+  min-height: calc(1em * 1.6); // 一行行高
   max-height: 160px;
   padding: 12px 14px 4px;
   border: none;
@@ -228,7 +225,6 @@
   color: #1a1a1a;
   background: transparent;
   font-family: inherit;
-  box-sizing: border-box;
   overflow-y: auto;
 
   &::placeholder {
