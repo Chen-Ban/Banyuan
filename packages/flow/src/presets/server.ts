@@ -7,7 +7,7 @@
 
 import { FlowRunner } from '../runtime/FlowRunner.js'
 import { NodeExecutorRegistry } from '../executors/registry.js'
-import { conditionExecutor, delayExecutor, setVariableExecutor, callFlowExecutor } from '../executors/shared/index.js'
+import { conditionExecutor, delayExecutor, setVariableExecutor, callFlowExecutor, subFlowExecutor } from '../executors/shared/index.js'
 import {
   dbQueryExecutor,
   dbInsertExecutor,
@@ -25,6 +25,7 @@ export function createServerFlowRunner(): FlowRunner {
     .register('delay', delayExecutor)
     .register('setVariable', setVariableExecutor)
     .register('callFlow', callFlowExecutor)
+    .register('subFlow', subFlowExecutor)
     // 后端节点
     .register('dbQuery', dbQueryExecutor)
     .register('dbInsert', dbInsertExecutor)

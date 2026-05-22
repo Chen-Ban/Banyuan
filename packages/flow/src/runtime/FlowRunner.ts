@@ -28,8 +28,16 @@ export class FlowRunner {
     this.registry = registry
   }
 
+  /** 获取内部 registry（供 subFlow 执行器递归构造子 runner） */
+  getRegistry(): NodeExecutorRegistry {
+    return this.registry
+  }
+
   async run(schema: FlowSchema, ctx: FlowContext): Promise<void> {
     if (!schema.nodes.length) return
+
+    // 注入 runner 引用到 ctx.env，供 subFlow 执行器递归使用
+    if (!ctx.env.__runner) ctx.env.__runner = this
 
     const nodeMap = new Map<string, FlowNode>(
       schema.nodes.map(n => [n.id, n])

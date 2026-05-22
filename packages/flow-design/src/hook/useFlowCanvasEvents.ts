@@ -16,13 +16,26 @@ import type {
   IPortView,
 } from "@banyuan/banvasgl";
 import EdgeView from "../views/EdgeView.js";
+import NodeView from "../views/NodeView.js";
+import PortView from "../views/PortView.js";
 
-/** 将 MouseEvent 转为 canvas 物理像素坐标 */
+/** 将 MouseEvent 转为 canvas 物理像素坐标（兼容 CSS 缩放） */
 const event2Point = (e: MouseEvent): Point3 => {
-  const ratio = window.devicePixelRatio;
-  const { offsetX, offsetY } = e;
-  return new Point3(offsetX * ratio, offsetY * ratio, 0);
+  const canvas = e.target as HTMLCanvasElement;
+  const scaleX = canvas.width / canvas.clientWidth;
+  const scaleY = canvas.height / canvas.clientHeight;
+  return new Point3(e.offsetX * scaleX, e.offsetY * scaleY, 0);
 };
+
+/** 右键菜单事件信息 */
+export interface FlowContextMenuEvent {
+  /** 页面坐标（用于定位菜单） */
+  position: { x: number; y: number };
+  /** 右键点击的目标类型 */
+  targetType: "node" | "edge" | "canvas";
+  /** 目标 ID（节点或连线 ID，画布空白时为 null） */
+  targetId: string | null;
+}
 
 export interface UseFlowCanvasEventsOptions {
   app: App | null;
@@ -31,6 +44,8 @@ export interface UseFlowCanvasEventsOptions {
   onInteractionEnd?: () => void;
   /** 节点选中回调（点击节点时传 nodeId，点击空白时传 null） */
   onNodeSelect?: (nodeId: string | null) => void;
+  /** 右键菜单回调（画布 contextmenu 事件触发） */
+  onContextMenu?: (event: FlowContextMenuEvent) => void;
 }
 
 /**
@@ -42,13 +57,14 @@ export interface UseFlowCanvasEventsOptions {
  * - MOVE（拖动节点）
  * - CONNECT（端口连线）
  *
- * 不包含：框选、文本编辑、事务/undo、右键菜单、拖拽创建、RESIZE/ROTATE/EDIT_POINT
+ * 不包含：框选、文本编辑、事务/undo、拖拽创建、RESIZE/ROTATE/EDIT_POINT
  */
 export function useFlowCanvasEvents({
   app,
   canvasRef,
   onInteractionEnd,
   onNodeSelect,
+  onContextMenu: onContextMenuCallback,
 }: UseFlowCanvasEventsOptions) {
   const mouseDownPointRef = useRef<Point3 | null>(null);
   const lastPointRef = useRef<Point3 | null>(null);
@@ -218,6 +234,16 @@ export function useFlowCanvasEvents({
             const toNodeId = hit.id.replace(/_[^_]+$/, "");
             if (fromNodeId && fromNodeId === toNodeId) continue;
 
+            // maxConnections 校验：检查目标端口已有连线数是否达到上限
+            const targetPortView = hit as unknown as PortView;
+            if (targetPortView.maxConnections != null && targetPortView.maxConnections !== Infinity) {
+              const existingCount = scene.children.filter(
+                (v) => v instanceof EdgeView &&
+                  (v.toPortId === hit.id || v.fromPortId === hit.id)
+              ).length;
+              if (existingCount >= targetPortView.maxConnections) continue;
+            }
+
             targetPortId = hit.id;
             break;
           }
@@ -279,6 +305,99 @@ export function useFlowCanvasEvents({
     [app, canvasRef, onNodeSelect],
   );
 
+  // ── contextmenu（右键菜单） ──
+  const handleContextMenu = useCallback(
+    (e: MouseEvent) => {
+      e.preventDefault();
+      if (!app || !canvasRef.current || !onContextMenuCallback) return;
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+
+      const point = event2Point(e);
+      const bufferCtx = app.renderer.getCanvasContext().getBufferContext();
+
+      // 命中检测：判断右键点击了什么
+      let targetType: "node" | "edge" | "canvas" = "canvas";
+      let targetId: string | null = null;
+
+      for (const view of scene.children) {
+        const { view: hit } = view.interact(point, bufferCtx);
+        if (hit) {
+          if (view instanceof NodeView) {
+            targetType = "node";
+            targetId = view.id;
+            // 如果右键的节点未被选中，先选中它
+            if (!view.actived) {
+              scene.select(view);
+              onInteractionEnd?.();
+            }
+          } else if (view instanceof EdgeView) {
+            targetType = "edge";
+            targetId = view.id ?? null;
+            if (!view.actived) {
+              scene.select(view);
+              onInteractionEnd?.();
+            }
+          }
+          break;
+        }
+      }
+
+      const position = {
+        x: e.clientX,
+        y: e.clientY,
+      };
+
+      onContextMenuCallback({ position, targetType, targetId });
+    },
+    [app, canvasRef, onInteractionEnd, onContextMenuCallback],
+  );
+
+  // ── keydown（Delete/Backspace 删除选中的连线或节点）──
+  const onKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      if (!app) return;
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+
+      const actived = scene.getAllActived();
+      if (actived.length === 0) return;
+
+      // 阻止浏览器默认行为（如 Backspace 后退）
+      e.preventDefault();
+
+      let changed = false;
+      for (const view of [...actived]) {
+        if (view instanceof EdgeView) {
+          // 删除连线
+          scene.removeChild(view, false);
+          changed = true;
+        } else if (view instanceof NodeView) {
+          // 删除节点时，同时删除关联的连线
+          const nodeId = view.id;
+          const relatedEdges = scene.children.filter(
+            (v) =>
+              v instanceof EdgeView &&
+              (v.fromPortId?.startsWith(nodeId + "_") ||
+                v.toPortId?.startsWith(nodeId + "_")),
+          );
+          for (const edge of relatedEdges) {
+            scene.removeChild(edge, false);
+          }
+          scene.removeChild(view, false);
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        onInteractionEnd?.();
+        onNodeSelect?.(null);
+      }
+    },
+    [app, onInteractionEnd, onNodeSelect],
+  );
+
   // ── 绑定/解绑 ──
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -288,12 +407,17 @@ export function useFlowCanvasEvents({
     canvas.addEventListener("mousemove", onMouseMove, { passive: true });
     canvas.addEventListener("mouseup", onMouseUp, { passive: true });
     canvas.addEventListener("click", onClick, { passive: true });
+    canvas.addEventListener("contextmenu", handleContextMenu);
+    // keydown 需要绑定在 document 上（canvas 默认不可聚焦）
+    document.addEventListener("keydown", onKeyDown);
 
     return () => {
       canvas.removeEventListener("mousedown", onMouseDown);
       canvas.removeEventListener("mousemove", onMouseMove);
       canvas.removeEventListener("mouseup", onMouseUp);
       canvas.removeEventListener("click", onClick);
+      canvas.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("keydown", onKeyDown);
     };
-  }, [app, canvasRef, onMouseDown, onMouseMove, onMouseUp, onClick]);
+  }, [app, canvasRef, onMouseDown, onMouseMove, onMouseUp, onClick, handleContextMenu, onKeyDown]);
 }

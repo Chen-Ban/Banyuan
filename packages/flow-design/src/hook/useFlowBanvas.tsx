@@ -3,13 +3,15 @@ import React, {
     useEffect,
     useMemo,
     useRef,
+    useState,
     useSyncExternalStore,
 } from 'react'
 import { App } from '@banyuan/banvasgl'
-import { useCanvasInit } from '@banyuan/banvas-runtime'
-import type { SerializedPageJSON } from '@banyuan/banvas-runtime'
+import { useCanvasInit, useCanvasZoom } from '@banyuan/banvas-runtime-web'
+import type { SerializedPageJSON } from '@banyuan/banvas-runtime-web'
 import type { FlowSchema, FlowNode } from '@banyuan/flow'
 import { useFlowCanvasEvents } from './useFlowCanvasEvents.js'
+import type { FlowContextMenuEvent } from './useFlowCanvasEvents.js'
 import { extractSchema } from '../extractSchema.js'
 import { CLIENT_FLOW_MATERIALS, SERVER_FLOW_MATERIALS } from '../materials.js'
 import type { FlowNodeMaterial } from '../materials.js'
@@ -17,6 +19,7 @@ import NodeView from '../views/NodeView.js'
 import EdgeView from '../views/EdgeView.js'
 import { createFlowMaterialPalette } from '../components/FlowMaterialPalette.js'
 import type { FlowMaterialPaletteProps } from '../components/FlowMaterialPalette.js'
+import type { FlowContextMenuState, FlowContextMenuItem } from '../components/FlowContextMenu.js'
 
 // ── 拖拽协议 ──
 
@@ -41,11 +44,24 @@ export interface UseFlowBanvasOptions {
 /** 流程画布模式：client 前端事件流程 / server 云函数流程 */
 export type FlowMode = 'client' | 'server'
 
+export interface SelectedNodePos {
+    /** 节点左上角在画布物理像素坐标系中的 x */
+    x: number
+    /** 节点左上角在画布物理像素坐标系中的 y */
+    y: number
+    /** 节点宽度（物理像素） */
+    width: number
+    /** 节点高度（物理像素） */
+    height: number
+}
+
 export interface UseFlowBanvasResult {
     /** 渲染好的 Canvas React 元素 */
     Canvas: React.ReactElement
     /** App 实例引用 */
     app: App | null
+    /** canvas DOM 引用（用于 getBoundingClientRect 等） */
+    canvasRef: React.RefObject<HTMLCanvasElement | null>
     /**
      * 当前画布对应的完整 FlowSchema（version 驱动的派生值）
      *
@@ -56,6 +72,16 @@ export interface UseFlowBanvasResult {
      * 当前选中的节点 ID（null 表示无选中）
      */
     selectedNodeId: string | null
+    /**
+     * 当前选中节点在画布物理像素坐标系中的位置（null 表示无选中或选中非节点）
+     *
+     * 消费方可用于定位 Popover / 属性面板浮层。
+     */
+    selectedNodePos: SelectedNodePos | null
+    /**
+     * 当前选中节点的完整 FlowNode schema（null 表示无选中）
+     */
+    selectedNode: FlowNode | null
     /**
      * 当前模式对应的物料列表
      *
@@ -73,6 +99,14 @@ export interface UseFlowBanvasResult {
      * ```
      */
     MaterialPalette: React.FC<FlowMaterialPaletteProps>
+    /**
+     * 右键菜单状态
+     *
+     * 业务方将此状态传给 `<FlowContextMenu state={contextMenuState} />` 即可渲染右键菜单。
+     */
+    contextMenuState: FlowContextMenuState
+    /** 当前缩放比例（仅传了 containerWidth/containerHeight 时有意义） */
+    scale: number
 }
 
 /**
@@ -95,6 +129,19 @@ export default function useFlowBanvas(
     mode: FlowMode = 'client',
 ): UseFlowBanvasResult {
     const { width, height, backgroundColor } = options
+
+    // ── 容器尺寸自测量 ──
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 })
+
+    // ── Canvas 缩放（Cmd/Ctrl + Wheel） ──
+    // 只要测量到容器尺寸就启用缩放
+    const zoomEnabled = containerSize.width > 0 && containerSize.height > 0
+    const { scale, styleWidth, styleHeight, zoomContainerRef } = useCanvasZoom({
+        canvasWidth: width,
+        canvasHeight: height,
+        containerWidth: zoomEnabled ? containerSize.width : width,
+        containerHeight: zoomEnabled ? containerSize.height : height,
+    })
 
     // 空序列化页面（流程图不需要预加载页面）
     const serializedPages = useMemo<SerializedPageJSON[]>(() => [], [])
@@ -171,7 +218,7 @@ export default function useFlowBanvas(
         return extractSchema(scene)
     }, [app, _version])
 
-    // ── 选中节点 ID（version 驱动） ──
+    // ── 选中节点 ID + schema + 位置（version 驱动） ──
     const selectedNodeId = useMemo((): string | null => {
         if (!app) return null
         const scene = app.getCurrentScene()
@@ -181,11 +228,172 @@ export default function useFlowBanvas(
         return null
     }, [app, _version])
 
-    // ── 流程图画布事件（MOVE / CONNECT / click 选中） ──
+    const selectedNode = useMemo((): FlowNode | null => {
+        if (!app) return null
+        const scene = app.getCurrentScene()
+        if (!scene) return null
+        const selected = scene.getSelectedView()
+        if (selected instanceof NodeView) return selected.schema
+        return null
+    }, [app, _version])
+
+    const selectedNodePos = useMemo((): SelectedNodePos | null => {
+        if (!app) return null
+        const scene = app.getCurrentScene()
+        if (!scene) return null
+        const selected = scene.getSelectedView()
+        if (!(selected instanceof NodeView)) return null
+        // matrix 的平移分量存在 (0,3) (1,3)
+        const tx = selected.matrix.get(0, 3)
+        const ty = selected.matrix.get(1, 3)
+        const w  = (selected.style?.width  as number | undefined) ?? 160
+        const h  = (selected.style?.height as number | undefined) ?? 80
+        return { x: tx, y: ty, width: w, height: h }
+    }, [app, _version])
+
+    // ── 右键菜单状态 ──
+    const [contextMenuState, setContextMenuState] = useState<FlowContextMenuState>({
+        visible: false,
+        position: { x: 0, y: 0 },
+        targetType: 'canvas',
+        targetId: null,
+        items: [],
+        dismiss: () => {},
+    })
+
+    const dismissMenu = useCallback(() => {
+        setContextMenuState(prev => ({ ...prev, visible: false }))
+    }, [])
+
+    /** 根据右键目标生成菜单项 */
+    const handleContextMenu = useCallback((event: FlowContextMenuEvent) => {
+        if (!app) return
+        const scene = app.getCurrentScene()
+        if (!scene) return
+
+        const items: FlowContextMenuItem[] = []
+
+        if (event.targetType === 'node') {
+            items.push({
+                key: 'delete-node',
+                label: '删除节点',
+                shortcut: 'Delete',
+                handler: () => {
+                    if (!event.targetId) return
+                    const nodeView = scene.children.find(
+                        v => v instanceof NodeView && v.id === event.targetId
+                    )
+                    if (!nodeView) return
+                    // 删除关联连线
+                    const relatedEdges = scene.children.filter(
+                        v => v instanceof EdgeView &&
+                            (v.fromPortId?.startsWith(event.targetId + '_') ||
+                             v.toPortId?.startsWith(event.targetId + '_'))
+                    )
+                    for (const edge of relatedEdges) {
+                        scene.removeChild(edge, false)
+                    }
+                    scene.removeChild(nodeView, false)
+                    app.notify()
+                },
+            })
+            items.push({
+                key: 'duplicate-node',
+                label: '复制节点',
+                handler: () => {
+                    if (!event.targetId) return
+                    const nodeView = scene.children.find(
+                        v => v instanceof NodeView && v.id === event.targetId
+                    ) as NodeView | undefined
+                    if (!nodeView) return
+                    // 复制节点：生成新 id，偏移 20px
+                    const originX = nodeView.matrix.get(0, 3)
+                    const originY = nodeView.matrix.get(1, 3)
+                    const clonedSchema = {
+                        ...nodeView.schema,
+                        id: genId(),
+                    }
+                    const clonedView = new NodeView({
+                        schema: clonedSchema,
+                        style: { width: 140, height: 60 },
+                    })
+                    clonedView.translate(originX + 30, originY + 30, 0)
+                    scene.addChild(clonedView, false)
+                    app.notify()
+                },
+            })
+            items.push({
+                key: 'select-all',
+                label: '全选',
+                divider: true,
+                handler: () => {
+                    for (const v of scene.children) {
+                        if (v instanceof NodeView || v instanceof EdgeView) {
+                            v.actived = true
+                        }
+                    }
+                    app.notify()
+                },
+            })
+        } else if (event.targetType === 'edge') {
+            items.push({
+                key: 'delete-edge',
+                label: '删除连线',
+                shortcut: 'Delete',
+                handler: () => {
+                    const edgeView = scene.children.find(
+                        v => v instanceof EdgeView && v.id === event.targetId
+                    )
+                    if (edgeView) {
+                        scene.removeChild(edgeView, false)
+                        app.notify()
+                    }
+                },
+            })
+        } else {
+            // 画布空白处
+            items.push({
+                key: 'select-all',
+                label: '全选',
+                handler: () => {
+                    for (const v of scene.children) {
+                        if (v instanceof NodeView || v instanceof EdgeView) {
+                            v.actived = true
+                        }
+                    }
+                    app.notify()
+                },
+            })
+            items.push({
+                key: 'clear-canvas',
+                label: '清空画布',
+                divider: true,
+                handler: () => {
+                    const toRemove = [...scene.children]
+                    for (const v of toRemove) {
+                        scene.removeChild(v, false)
+                    }
+                    app.notify()
+                },
+            })
+        }
+
+        setContextMenuState({
+            visible: true,
+            position: event.position,
+            targetType: event.targetType,
+            targetId: event.targetId,
+            items,
+            dismiss: dismissMenu,
+        })
+    }, [app, dismissMenu])
+
+    // ── 流程图画布事件（MOVE / CONNECT / click 选中 / 右键菜单） ──
     useFlowCanvasEvents({
         app,
         canvasRef,
         onInteractionEnd: () => app?.notify(),
+        onContextMenu: handleContextMenu,
     })
 
     // ── Drop 事件绑定（内部处理拖拽创建节点） ──
@@ -210,11 +418,12 @@ export default function useFlowBanvas(
             const scene = app.getCurrentScene()
             if (!scene) return
 
-            // 计算画布内坐标
-            const dpr = window.devicePixelRatio || 1
+            // 计算画布内坐标（兼容 CSS 缩放）
             const rect = canvas.getBoundingClientRect()
-            const x = (e.clientX - rect.left) * dpr
-            const y = (e.clientY - rect.top) * dpr
+            const scaleX = canvas.width / rect.width
+            const scaleY = canvas.height / rect.height
+            const x = (e.clientX - rect.left) * scaleX
+            const y = (e.clientY - rect.top) * scaleY
 
             // 创建 NodeView 并添加到场景
             const nodeView = new NodeView({
@@ -253,14 +462,81 @@ export default function useFlowBanvas(
         [],
     )
 
+    // ── 容器 callback ref：挂载时测量 + ResizeObserver 持续监听 ──
+    const roRef = useRef<ResizeObserver | null>(null)
+    const mergedContainerRef = useCallback(
+        (node: HTMLDivElement | null) => {
+            // 清理旧 observer
+            if (roRef.current) {
+                roRef.current.disconnect()
+                roRef.current = null
+            }
+
+            zoomContainerRef(node)
+
+            if (!node) return
+
+            // 立即测量一次
+            const { width: w, height: h } = node.getBoundingClientRect()
+            if (w > 0 && h > 0) {
+                setContainerSize({ width: Math.floor(w), height: Math.floor(h) })
+            }
+
+            // 持续监听
+            const ro = new ResizeObserver((entries) => {
+                for (const entry of entries) {
+                    const rect = entry.contentRect
+                    if (rect.width > 0 && rect.height > 0) {
+                        setContainerSize({ width: Math.floor(rect.width), height: Math.floor(rect.height) })
+                    }
+                }
+            })
+            ro.observe(node)
+            roRef.current = ro
+        },
+        [zoomContainerRef],
+    )
+
+    const canvasStyle: React.CSSProperties = useMemo(
+        () => zoomEnabled
+            ? { display: 'block', width: styleWidth, height: styleHeight }
+            : { display: 'block' },
+        [zoomEnabled, styleWidth, styleHeight],
+    )
+
+    // 组件卸载时清理 observer
+    useEffect(() => {
+        return () => {
+            if (roRef.current) {
+                roRef.current.disconnect()
+                roRef.current = null
+            }
+        }
+    }, [])
+
     const canvasEl = useMemo(
         () => (
-            <canvas
-                ref={canvasCallbackRef}
-                style={{ display: 'block' }}
-            />
+            <div
+                ref={mergedContainerRef}
+                style={{
+                    position: 'relative',
+                    overflow: 'auto',
+                    width: '100%',
+                    height: '100%',
+                    flex: 1,
+                    minHeight: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+            >
+                <canvas
+                    ref={canvasCallbackRef}
+                    style={canvasStyle}
+                />
+            </div>
         ),
-        [canvasCallbackRef],
+        [mergedContainerRef, canvasCallbackRef, canvasStyle],
     )
 
     // ── 默认物料面板组件 ──
@@ -272,10 +548,15 @@ export default function useFlowBanvas(
     return {
         Canvas: canvasEl,
         app,
+        canvasRef,
         schema,
         selectedNodeId,
+        selectedNode,
+        selectedNodePos,
         materials,
         MaterialPalette,
+        contextMenuState,
+        scale,
     }
 }
 
@@ -359,6 +640,15 @@ function buildDefaultNode(kind: FlowNode['kind']): FlowNode | null {
             return { ...base, kind: 'setVariable', scope: 'local', key: '', value: { kind: 'literal', value: '' } }
         case 'callFlow':
             return { ...base, kind: 'callFlow', flowId: '', inputBindings: {}, outputBindings: {} }
+        case 'subFlow':
+            return {
+                ...base,
+                kind: 'subFlow',
+                name: '子流程',
+                body: { nodes: [], edges: [] },
+                inputs: [],
+                outputs: [],
+            }
         default:
             return null
     }

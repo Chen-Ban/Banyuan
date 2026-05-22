@@ -31,15 +31,17 @@
   "dependencies": {},
   "peerDependencies": {
     "@banyuan/banvasgl": "workspace:*",
-    "@banyuan/banvas-runtime": "workspace:*",
+    "@banyuan/banvas-runtime-web": "workspace:*",
     "@banyuan/flow": "workspace:*",
+    "antd": ">=5.0.0",
     "react": "^19.0.0"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
     "@banyuan/banvasgl": "workspace:*",
-    "@banyuan/banvas-runtime": "workspace:*",
+    "@banyuan/banvas-runtime-web": "workspace:*",
     "@banyuan/flow": "workspace:*",
+    "antd": "^5.0.0",
     "react": "^19.1.0",
     "tsup": "^8.4.0"
   }
