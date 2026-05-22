@@ -62,10 +62,10 @@ export function fetchApplication(id: string): Promise<ApiResponse<Application>> 
 }
 
 /**
- * 创建应用
+ * 创建空白应用（服务端自动生成 ID、默认名称、空 pages）
  */
-export function createApplication(data: ApplicationFormData & { application_id: string }): Promise<ApiResponse<Application>> {
-  return post<ApiResponse<Application>>('/applications', data)
+export function createApplication(): Promise<ApiResponse<Application>> {
+  return post<ApiResponse<Application>>('/applications', {})
 }
 
 /**
@@ -73,6 +73,15 @@ export function createApplication(data: ApplicationFormData & { application_id: 
  */
 export function updateApplication(id: string, data: Partial<ApplicationFormData>): Promise<ApiResponse<Application>> {
   return put<ApiResponse<Application>>(`/applications/${id}`, data)
+}
+
+/**
+ * 上传应用缩略图
+ */
+export function uploadThumbnail(id: string, blob: Blob): Promise<ApiResponse<{ thumbnail: string }>> {
+  const formData = new FormData()
+  formData.append('file', blob, 'thumbnail.png')
+  return post<ApiResponse<{ thumbnail: string }>>(`/applications/${id}/thumbnail`, formData)
 }
 
 /**
