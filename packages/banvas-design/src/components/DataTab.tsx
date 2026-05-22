@@ -1,0 +1,54 @@
+import React from 'react'
+import type { IBanvasActions, IFieldSchemaMap } from '@banyuan/banvasgl'
+import { FieldSchemaMapEditor } from './FieldSchemaMapEditor.js'
+
+// ── 内联样式 ──
+
+const tabContentStyle: React.CSSProperties = { padding: 12 }
+
+// ── 组件 ──
+
+export interface DataTabProps {
+    selectedViewId: string
+    actions: IBanvasActions
+    viewData: IFieldSchemaMap
+}
+
+export const DataTab: React.FC<DataTabProps> = ({
+    selectedViewId,
+    actions,
+    viewData,
+}) => {
+    const handleAdd = () => {
+        const existingKeys = Object.keys(viewData)
+        let n = existingKeys.length + 1
+        let newKey = `field_${n}`
+        while (existingKeys.includes(newKey)) newKey = `field_${++n}`
+        actions.view.setViewData(selectedViewId, newKey, { type: 'string', default: '' })
+    }
+
+    const handleRename = (oldKey: string, newKey: string) => {
+        const entries = Object.entries(viewData)
+        for (const [k, schema] of entries) {
+            if (k === oldKey) {
+                actions.view.deleteViewData(selectedViewId, oldKey)
+                actions.view.setViewData(selectedViewId, newKey, schema)
+            }
+        }
+    }
+
+    return (
+        <div style={tabContentStyle}>
+            <FieldSchemaMapEditor
+                title="数据 (data)"
+                schemaMap={viewData}
+                onUpdate={(key, schema) => actions.view.setViewData(selectedViewId, key, schema)}
+                onRename={handleRename}
+                onDelete={(key) => actions.view.deleteViewData(selectedViewId, key)}
+                onAdd={handleAdd}
+            />
+        </div>
+    )
+}
+
+export default DataTab

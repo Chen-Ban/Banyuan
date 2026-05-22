@@ -14,15 +14,14 @@ import {
   isNonPrintableTextElement,
   isPrintableTextElement,
   createView,
-} from '@banyuan/banvasgl'
+} from "@banyuan/banvasgl";
 import type {
   Scene,
   ExtraData,
   IViewAddon,
   IGraph,
   IEdgeView,
-} from '@banyuan/banvasgl'
-import { resolveActivationTarget } from './utils.js'
+} from "@banyuan/banvasgl";
 
 export interface InteractionContext {
   getIndicateView(): View | null;
@@ -77,7 +76,9 @@ export class InteractionDispatcher {
 
     let edge = this.ctx.getTempEdge();
     if (!edge) {
-      edge = createView<IEdgeView>('EDGEVIEW', { fromPortId: extraData.portViewId });
+      edge = createView<IEdgeView>("EDGEVIEW", {
+        fromPortId: extraData.portViewId,
+      });
       if (!edge) return;
       scene.addChild(edge as unknown as View, false);
       this.ctx.setTempEdge(edge);
@@ -85,7 +86,11 @@ export class InteractionDispatcher {
     edge.setTempTarget(point);
   }
 
-  finishConnect(scene: Scene, point: Point3, bufferCtx?: CanvasRenderingContext2D): void {
+  finishConnect(
+    scene: Scene,
+    point: Point3,
+    bufferCtx?: CanvasRenderingContext2D,
+  ): void {
     const edge = this.ctx.getTempEdge();
     if (!edge) return;
 
@@ -116,7 +121,9 @@ export class InteractionDispatcher {
     point: Point3,
     mouseDownPoint: Point3,
   ): void {
-    const moveVector = point.subtract(this.ctx.getLastPoint() || mouseDownPoint);
+    const moveVector = point.subtract(
+      this.ctx.getLastPoint() || mouseDownPoint,
+    );
     const indicateView = this.ctx.getIndicateView();
     if (!indicateView) return;
 
@@ -137,7 +144,8 @@ export class InteractionDispatcher {
     const indicateContent = this.ctx.getIndicateContent();
     if (
       isTextView(indicateView) &&
-      (isPrintableTextElement(indicateContent) || isNonPrintableTextElement(indicateContent))
+      (isPrintableTextElement(indicateContent) ||
+        isNonPrintableTextElement(indicateContent))
     ) {
       if (!indicateView.actived) {
         scene.select(indicateView as unknown as View);
@@ -152,17 +160,32 @@ export class InteractionDispatcher {
       let targetContent = content;
       let targetPoint = point;
 
-      if (!isPrintableTextElement(content) && !isNonPrintableTextElement(content)) {
-        const relativePoint = indicateView.getMVPMatrix().inverse().multiply(point);
+      if (
+        !isPrintableTextElement(content) &&
+        !isNonPrintableTextElement(content)
+      ) {
+        const relativePoint = indicateView
+          .getMVPMatrix()
+          .inverse()
+          .multiply(point);
         const constrainedRelative = indicateView.constraintPoint(relativePoint);
         targetPoint = indicateView.getMVPMatrix().multiply(constrainedRelative);
         const result = indicateView.interact(targetPoint, bufferCtx);
         targetContent = result.content;
       }
 
-      if (isPrintableTextElement(targetContent) || isNonPrintableTextElement(targetContent)) {
-        const dynamicIndex = indicateView.element2Index(targetContent, targetPoint);
-        indicateView.setSelection(indicateView.selection.fixedIndex, dynamicIndex);
+      if (
+        isPrintableTextElement(targetContent) ||
+        isNonPrintableTextElement(targetContent)
+      ) {
+        const dynamicIndex = indicateView.element2Index(
+          targetContent,
+          targetPoint,
+        );
+        indicateView.setSelection(
+          indicateView.selection.fixedIndex,
+          dynamicIndex,
+        );
       }
     }
   }
@@ -189,8 +212,10 @@ export class InteractionDispatcher {
       const { resizeFixedIndex, resizeDynamicIndex } = extraData;
       scene.getAllActived().forEach((view) => {
         if (!view.boundingBox) return;
-        const fixedPoint = view.boundingBox.handles[resizeFixedIndex].getCenter();
-        const dynamicPoint = view.boundingBox.handles[resizeDynamicIndex].getCenter();
+        const fixedPoint =
+          view.boundingBox.handles[resizeFixedIndex].getCenter();
+        const dynamicPoint =
+          view.boundingBox.handles[resizeDynamicIndex].getCenter();
         if (!fixedPoint || !dynamicPoint) return;
         view.resize(fixedPoint, dynamicPoint, vector, e.ctrlKey);
       });
@@ -208,7 +233,9 @@ export class InteractionDispatcher {
       const inverseMatrix = indicateView.getWorldMatrix().inverse();
       const lastVector = inverseMatrix.multiply(lastPoint).subtract(center);
       const currentVector = inverseMatrix.multiply(point).subtract(center);
-      const dot = currentVector.dot(lastVector) / (currentVector.length * lastVector.length);
+      const dot =
+        currentVector.dot(lastVector) /
+        (currentVector.length * lastVector.length);
       const clampedDot = Math.max(-1, Math.min(1, dot));
       const sign = Math.sign(currentVector.cross(lastVector).z);
       const angle = Math.acos(clampedDot) * sign;
@@ -216,7 +243,11 @@ export class InteractionDispatcher {
     }
   }
 
-  private handleBoxSelect(scene: Scene, point: Point3, mouseDownPoint: Point3): void {
+  private handleBoxSelect(
+    scene: Scene,
+    point: Point3,
+    mouseDownPoint: Point3,
+  ): void {
     this.ctx.setCursor(Cursor.Crosshair);
     const selectionRectView = this.ctx.getSelectionRectView();
     if (selectionRectView && mouseDownPoint) {
@@ -232,7 +263,9 @@ export class InteractionDispatcher {
         const content = view.content;
         if (content && content.bounds) {
           const contentRect = Rectangle.fromBounds(content.bounds);
-          const transformedContent = contentRect.transform(worldMatrix) as Graph;
+          const transformedContent = contentRect.transform(
+            worldMatrix,
+          ) as Graph;
 
           if (selectionRect.intersect(transformedContent).length > 0) {
             viewsToActivate.push(view);
@@ -251,7 +284,9 @@ export class InteractionDispatcher {
         } else {
           const viewport = view.viewport ?? Bounds.empty();
           const viewportRect = Rectangle.fromBounds(viewport);
-          const transformedViewport = viewportRect.transform(worldMatrix) as Graph;
+          const transformedViewport = viewportRect.transform(
+            worldMatrix,
+          ) as Graph;
 
           if (selectionRect.intersect(transformedViewport).length > 0) {
             viewsToActivate.push(view);
