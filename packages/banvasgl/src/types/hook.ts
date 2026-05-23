@@ -381,8 +381,4 @@ export interface IUseBanvasResult<TElement = unknown> {
      * ```
      */
     MaterialPalette: any
-    /**
-     * @deprecated 使用 materials 代替
-     */
-    builtinComponents: IComponentDefinition[]
 }
