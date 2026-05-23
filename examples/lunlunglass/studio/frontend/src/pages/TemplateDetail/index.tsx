@@ -106,13 +106,13 @@ const TemplateDetail = () => {
     selectedViewId,
     actions,
     contextMenu,
-    builtinComponents,
-  } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
+    materials,
+} = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
 
-  const printComponents = useMemo(
-    () => builtinComponents.filter(c => PRINT_COMPONENT_IDS.includes(c.id)),
-    [builtinComponents],
-  );
+const printComponents = useMemo(
+    () => materials.filter(c => PRINT_COMPONENT_IDS.includes(c.id)),
+    [materials],
+);
 
   /**
    * 自动保存名称/描述（仅已有模板，debounce）
@@ -328,7 +328,7 @@ const TemplateDetail = () => {
         onSave={handleSave}
         onBack={handleBack}
         onPreview={handlePreview}
-        builtinComponents={printComponents}
+        materials={printComponents}
         publishing={publishing}
         onPublish={handlePublish}
       />

@@ -14,8 +14,8 @@ interface ComponentPaletteProps {
     onSave: () => void
     onBack: () => void
     onPreview: () => void
-    /** 引擎内置物料，直接来自 useDesignBanvas().builtinComponents */
-    builtinComponents: IComponentDefinition[]
+    /** 引擎内置物料，直接来自 useDesignBanvas().materials */
+    materials: IComponentDefinition[]
     /**
      * 用户自定义物料（可选）
      *
@@ -55,7 +55,7 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     onSave,
     onBack,
     onPreview,
-    builtinComponents,
+    materials,
     userComponents = [],
     publishing = false,
     onPublish,
@@ -63,7 +63,7 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     const [moreOpen, setMoreOpen] = useState(false)
 
     // 合并所有物料：内置在前，用户自定义在后
-    const allComponents = [...builtinComponents, ...userComponents]
+    const allComponents = [...materials, ...userComponents]
     const visibleComponents = allComponents.slice(0, MAX_VISIBLE)
     const overflowComponents = allComponents.slice(MAX_VISIBLE)
 
