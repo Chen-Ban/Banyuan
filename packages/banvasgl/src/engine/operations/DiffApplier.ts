@@ -134,13 +134,16 @@ export default class DiffApplier {
         break
       case 'viewport':
         view.viewport = Bounds.fromJSON(value)
+        view.markLayoutDirty()
         break
       case 'content': {
         if (value === null) {
           view.content = null
+          view.markLayoutDirty()
           break
         }
         view.content = this.getReviver().revive(value)
+        view.markLayoutDirty()
         break
       }
       case 'children': {
@@ -151,7 +154,7 @@ export default class DiffApplier {
             return this.getReviver().revive(child)
           })
           for (const child of children) {
-            view.addChild(child)
+            view.addChild(child)  // addChild 内部已调用 markLayoutDirty
           }
         }
         break
@@ -164,6 +167,10 @@ export default class DiffApplier {
       case 'editable':
       case 'verticalAlign':
         view[path] = value
+        // style 变更可能影响布局（overflow、needStructViewport 等）
+        if (path === 'style') {
+          view.markLayoutDirty()
+        }
         break
       default:
         console.warn(`未知的属性路径: ${path}`)

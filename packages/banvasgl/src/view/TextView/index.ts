@@ -79,7 +79,7 @@ export default class TextView extends View implements ITextView, ISerializable {
         needResizeContent: boolean = false
     ) {
         super.resize(fixedPoint, dynamicPoint, vector, needResizeContent)
-        this.layout()
+        // super.resize 已标脏，此处无需额外操作
     }
 
     /**
