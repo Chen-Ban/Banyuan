@@ -1,20 +1,19 @@
 import { GRAPHTYPE } from "@/foundation/constants";
 import AnalyticGraph from "./AnalyticGraph";
-import { Point3, Vector3, Matrix4 } from "@/foundation/math";
+import { Point3, Vector3, Matrix4, MathUtils } from "@/foundation/math";
 import { Style } from "@/foundation/style";
 import Bounds from "@/graph/base/Bounds";
 import Graph from "@/graph/base/Graph";
-import { intersect } from "./IntersectionUtils";
-import { IArc } from '@/types';
-import type { ISerializable } from '@/types';
-import { generateId } from '@/foundation/utils';
+import { intersect } from "@/graph/algorithm/IntersectionUtils";
+import { IArc } from "@/types";
+import type { ISerializable } from "@/types";
+import { generateId } from "@/foundation/utils";
 
 export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   public type: GRAPHTYPE = GRAPHTYPE.ARC;
   public controlPoints: Point3[];
   public style: Style;
   public bounds: Bounds;
-  public transfromOrigin: Point3;
 
   // 椭圆弧属性
   public center: Point3;
@@ -25,6 +24,10 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   public endAngle: number; // 结束角度（弧度）
   public clockwise: boolean; // 是否顺时针
 
+  public isClosed(): boolean {
+    return Math.abs(this.endAngle - this.startAngle) >= 2 * Math.PI;
+  }
+
   constructor(
     center: Point3,
     xRadius: number,
@@ -34,7 +37,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
     endAngle: number,
     clockwise: boolean = false,
     style: Style = Style.DEFAULT,
-    id?: string
+    id?: string,
   ) {
     super(id);
     this.center = center;
@@ -48,11 +51,9 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
 
     // 计算控制点（用于边界框计算）
     this.controlPoints = this.calculateControlPoints();
-    this.transfromOrigin = center
 
-    // 逆时针时为正向扩展
-    this.bounds = this.updateBounds(!clockwise, !clockwise)
-    if (!id) this.id = generateId(this.type)
+    this.bounds = this.updateBounds();
+    if (!id) this.id = generateId(this.type);
   }
 
   // 计算控制点
@@ -84,25 +85,25 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   setCenter(center: Point3): Arc {
     this.center = center;
     this.controlPoints = this.calculateControlPoints();
-    this.bounds = this.updateBounds()
+    this.bounds = this.updateBounds();
     return this;
   }
 
   // 设置X轴半径
   setXRadius(xRadius: number): Arc {
-    if (xRadius < 0) throw new Error('x半径不能为负数')
-    this.xRadius = xRadius
+    if (xRadius < 0) throw new Error("x半径不能为负数");
+    this.xRadius = xRadius;
     this.controlPoints = this.calculateControlPoints();
-    this.bounds = this.updateBounds()
+    this.bounds = this.updateBounds();
     return this;
   }
 
   // 设置Y轴半径
   setYRadius(yRadius: number): Arc {
-    if (yRadius < 0) throw new Error('y半径不能为负数')
-    this.yRadius = yRadius
+    if (yRadius < 0) throw new Error("y半径不能为负数");
+    this.yRadius = yRadius;
     this.controlPoints = this.calculateControlPoints();
-    this.bounds = this.updateBounds()
+    this.bounds = this.updateBounds();
     return this;
   }
 
@@ -110,7 +111,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   setRotation(rotation: number): Arc {
     this.rotation = rotation;
     this.controlPoints = this.calculateControlPoints();
-    this.bounds = this.updateBounds()
+    this.bounds = this.updateBounds();
     return this;
   }
 
@@ -148,7 +149,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
       this.rotation,
       this.startAngle,
       this.endAngle,
-      this.clockwise
+      this.clockwise,
     );
   }
 
@@ -156,7 +157,11 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
     const bounds = this.bounds;
-    this.style.applyToContext(ctx, bounds.width, bounds.height);
+    this.style.applyToContext(
+      ctx,
+      Math.abs(bounds.width),
+      Math.abs(bounds.height),
+    );
     this.renderPath(ctx, true);
     ctx.stroke();
     ctx.restore();
@@ -175,7 +180,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
       endAngle: this.endAngle,
       clockwise: this.clockwise,
       style: this.style.toJSON(),
-    }
+    };
   }
 
   static fromJSON(data: any): Arc {
@@ -203,75 +208,124 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
       this.startAngle,
       this.endAngle,
       this.clockwise,
-      this.style.copy()
+      this.style.copy(),
     ) as this;
   }
 
-  // 计算椭圆弧的包围盒
-  public updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds {
-    const length = this.getTotalLength();
-    const points: Point3[] = [];
-    for (const i of Array.from({ length }).map((_, i) => i)) {
-      const point = this.getPointAt(i / length);
-      points.push(point);
+  // 计算椭圆弧的包围盒（解析求解极值点）
+  public updateBounds(): Bounds {
+    const cos = Math.cos(this.rotation);
+    const sin = Math.sin(this.rotation);
+    const a = this.xRadius;
+    const b = this.yRadius;
+
+    // 旋转椭圆参数方程：
+    //   x(θ) = cx + a·cosθ·cosR - b·sinθ·sinR
+    //   y(θ) = cy + a·cosθ·sinR + b·sinθ·cosR
+    // 令 dx/dθ = 0 → tanθ = -(b·sinR)/(a·cosR) → θ_x = atan2(-b·sin, a·cos)
+    // 令 dy/dθ = 0 → tanθ = (b·cosR)/(a·sinR)  → θ_y = atan2(b·cos, a·sin)
+
+    const thetaX = Math.atan2(-b * sin, a * cos);
+    const thetaY = Math.atan2(b * cos, a * sin);
+
+    // 极值候选角度：两个 x 极值 + 两个 y 极值
+    const candidates: number[] = [
+      thetaX, thetaX + Math.PI,
+      thetaY, thetaY + Math.PI,
+    ];
+
+    // 归一化角度到 [0, 2π)
+    const TWO_PI = MathUtils.TWO_PI;
+    const normalize = (angle: number): number => ((angle % TWO_PI) + TWO_PI) % TWO_PI;
+
+    const normStart = normalize(this.startAngle);
+    const normEnd = normalize(this.endAngle);
+
+    // 计算椭圆上角度 θ 对应的世界坐标点
+    const pointAtTheta = (theta: number): Point3 => {
+      const ct = Math.cos(theta);
+      const st = Math.sin(theta);
+      return new Point3(
+        this.center.x + a * ct * cos - b * st * sin,
+        this.center.y + a * ct * sin + b * st * cos,
+        0,
+      );
+    };
+
+    // 起止点必须包含
+    const points: Point3[] = [
+      pointAtTheta(this.startAngle),
+      pointAtTheta(this.endAngle),
+    ];
+
+    // 只添加落在弧范围内的极值点
+    for (const theta of candidates) {
+      const normTheta = normalize(theta);
+      if (MathUtils.isAngleInArcRange(normTheta, normStart, normEnd, this.clockwise)) {
+        points.push(pointAtTheta(theta));
+      }
     }
 
-    return Bounds.fromPoints(points, orientationX ?? this.bounds?.width > 0, orientationY ?? this.bounds?.height > 0)
+    return Bounds.fromPoints(points);
+  }
+
+  // ========== 椭圆极坐标计算 ==========
+
+  /**
+   * 通过笛卡尔极坐标角 φ 计算椭圆上的点（局部坐标系，未旋转）
+   *
+   * 椭圆极坐标方程（中心为原点）：
+   *   r(φ) = (a · b) / √((b·cosφ)² + (a·sinφ)²)
+   *   x = r·cosφ, y = r·sinφ
+   */
+  private getLocalPointAtAngle(angle: number): Point3 {
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+    const a = this.xRadius;
+    const b = this.yRadius;
+    const denom = Math.sqrt((b * cosA) ** 2 + (a * sinA) ** 2);
+    if (denom < MathUtils.FLOAT_EPSILON) {
+      return new Point3(0, 0, 0);
+    }
+    const r = (a * b) / denom;
+    return new Point3(r * cosA, r * sinA, 0);
   }
 
   // ========== AnalyticGraph 抽象方法实现 ==========
 
   public getPointAt(t: number): Point3 {
     const angle = this.startAngle + t * (this.endAngle - this.startAngle);
+    const localPoint = this.getLocalPointAtAngle(angle);
 
-    // 在局部坐标系中计算椭圆上的点
-    const localX = this.xRadius * Math.cos(angle);
-    const localY = this.yRadius * Math.sin(angle);
-    const localPoint = Matrix4.identity().rotateZ(this.rotation).multiply(new Point3(localX, localY, 0));
-
-    return localPoint.add(new Vector3(this.center.x, this.center.y, this.center.z));
+    // 应用旋转和平移
+    const rotated = Matrix4.identity()
+      .rotateZ(this.rotation)
+      .multiply(localPoint);
+    return rotated.add(
+      new Vector3(this.center.x, this.center.y, this.center.z),
+    );
   }
 
   public getTangentAt(t: number): Vector3 {
-    const angle = this.startAngle + t * (this.endAngle - this.startAngle);
-
-    // 在局部坐标系中的切线方向
-    const localTangentX = -this.xRadius * Math.sin(angle);
-    const localTangentY = this.yRadius * Math.cos(angle);
-
-    // 应用旋转
-    const cos = Math.cos(this.rotation);
-    const sin = Math.sin(this.rotation);
-    const rotatedX = localTangentX * cos - localTangentY * sin;
-    const rotatedY = localTangentX * sin + localTangentY * cos;
+    // 用微小差分求切线方向
+    const dt = MathUtils.DERIVATIVE_STEP;
+    const p0 = this.getPointAt(Math.max(0, t - dt));
+    const p1 = this.getPointAt(Math.min(1, t + dt));
+    const dx = p1.x - p0.x;
+    const dy = p1.y - p0.y;
 
     // 归一化
-    const length = Math.sqrt(rotatedX * rotatedX + rotatedY * rotatedY);
-    if (length < 1e-10) {
+    const length = Math.sqrt(dx * dx + dy * dy);
+    if (length < MathUtils.FLOAT_EPSILON) {
       return new Vector3(0, 0, 0);
     }
-    return new Vector3(rotatedX / length, rotatedY / length, 0);
+    return new Vector3(dx / length, dy / length, 0);
   }
 
   public getNormalAt(t: number): Vector3 {
-    const angle = this.startAngle + t * (this.endAngle - this.startAngle);
-
-    // 在局部坐标系中的法线方向（指向椭圆中心）
-    const localNormalX = this.xRadius * Math.cos(angle);
-    const localNormalY = this.yRadius * Math.sin(angle);
-
-    // 应用旋转
-    const cos = Math.cos(this.rotation);
-    const sin = Math.sin(this.rotation);
-    const rotatedX = localNormalX * cos - localNormalY * sin;
-    const rotatedY = localNormalX * sin + localNormalY * cos;
-
-    // 归一化
-    const length = Math.sqrt(rotatedX * rotatedX + rotatedY * rotatedY);
-    if (length < 1e-10) {
-      return new Vector3(0, 0, 0);
-    }
-    return new Vector3(rotatedX / length, rotatedY / length, 0);
+    const tangent = this.getTangentAt(t);
+    // 法线垂直于切线（顺时针旋转 90°）
+    return new Vector3(tangent.y, -tangent.x, 0);
   }
 
   public getClosestPoint(point: Point3): {
@@ -301,16 +355,62 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   }
 
   public getLength(tStart: number, tEnd: number): number {
-    const angleDiff = Math.abs((tEnd - tStart) * (this.endAngle - this.startAngle));
-    // 使用平均半径进行近似计算，待后续新增积分来计算精确长度
-    const avgRadius = (this.xRadius + this.yRadius) / 2;
-    return avgRadius * angleDiff;
+    // 自适应 Simpson 积分求弧长
+    // 被积函数 ds/dt = |dP/dt|，即参数曲线速度向量的模
+    const speed = (t: number): number => {
+      const dt = MathUtils.DERIVATIVE_STEP * 0.1;
+      const t0 = Math.max(tStart, t - dt);
+      const t1 = Math.min(tEnd, t + dt);
+      const p0 = this.getPointAt(t0);
+      const p1 = this.getPointAt(t1);
+      const dx = p1.x - p0.x;
+      const dy = p1.y - p0.y;
+      return Math.sqrt(dx * dx + dy * dy) / (t1 - t0);
+    };
+
+    // Simpson 公式：∫[a,b] f(x)dx ≈ (b-a)/6 · [f(a) + 4f(m) + f(b)]
+    const simpson = (a: number, b: number, fa: number, fm: number, fb: number): number => {
+      return ((b - a) / 6) * (fa + 4 * fm + fb);
+    };
+
+    // 自适应递归：比较整段 Simpson 与两半段之和，差异超阈值则继续细分
+    const adaptiveSimpson = (
+      a: number, b: number,
+      fa: number, fm: number, fb: number,
+      whole: number, eps: number, depth: number,
+    ): number => {
+      const m = (a + b) / 2;
+      const lm = (a + m) / 2;
+      const rm = (m + b) / 2;
+      const flm = speed(lm);
+      const frm = speed(rm);
+      const left = simpson(a, m, fa, flm, fm);
+      const right = simpson(m, b, fm, frm, fb);
+      const refined = left + right;
+      // 达到精度或最大深度则停止
+      if (depth <= 0 || Math.abs(refined - whole) <= 15 * eps) {
+        return refined + (refined - whole) / 15;
+      }
+      return (
+        adaptiveSimpson(a, m, fa, flm, fm, left, eps / 2, depth - 1) +
+        adaptiveSimpson(m, b, fm, frm, fb, right, eps / 2, depth - 1)
+      );
+    };
+
+    const fa = speed(tStart);
+    const fb = speed(tEnd);
+    const fm = speed((tStart + tEnd) / 2);
+    const whole = simpson(tStart, tEnd, fa, fm, fb);
+
+    return adaptiveSimpson(tStart, tEnd, fa, fm, fb, whole, MathUtils.INTEGRATION_TOLERANCE, 12);
   }
 
   public getArea(): number {
-    const angleDiff = Math.abs(this.endAngle - this.startAngle);
-    // 椭圆扇形面积
-    return 0.5 * this.xRadius * this.yRadius * angleDiff;
+    if (!this.isClosed()) {
+      throw new Error("Arc 未闭合，不具有面积");
+    }
+    // 完整椭圆面积 = π · a · b
+    return Math.PI * this.xRadius * this.yRadius;
   }
 
   public getCentroid(): Point3 {
@@ -318,15 +418,9 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
   }
 
   public transform(matrix: Matrix4): AnalyticGraph {
-    const transfromOrigin = this.transfromOrigin
-    const newCenter = matrix.multiply(Point3.origin).add(transfromOrigin.subtract(Point3.origin));
-
-    this.center = newCenter;
-    const up = new Vector3(0, 1, 0)
-    const rotation = matrix.multiply(up).dot(up)
-    this.rotation += rotation
+    this.center = matrix.multiply(this.center);
     this.controlPoints = this.calculateControlPoints();
-    this.bounds = this.updateBounds()
+    this.bounds = this.updateBounds();
     return this;
   }
 
@@ -344,25 +438,35 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
     return other.intersect(this);
   }
 
-  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+  public resize(
+    fixedPoint: Point3,
+    dynamicPoint: Point3,
+    resizeVector: Vector3,
+  ): void {
+    const referenceVector = dynamicPoint.subtract(fixedPoint);
+    const width = Math.abs(referenceVector.x) || Infinity;
+    const height = Math.abs(referenceVector.y) || Infinity;
 
-    const referenceVector = dynamicPoint.subtract(fixedPoint)
-    // TODO: 此时不应该使用viewport作为参考系，而是该采用内容包围盒
-    let width = Math.abs(referenceVector.x) || Infinity
-    let height = Math.abs(referenceVector.y) || Infinity
-    // 变化比例：(dimension + delta) / dimension
-    const scaleX = 1 + resizeVector.x * Math.sign(referenceVector.x) / width;
-    const scaleY = 1 + resizeVector.y * Math.sign(referenceVector.y) / height;
+    // center 按其到 fixedPoint 的距离比例缩放
+    const scaleX = Math.abs(this.center.x - fixedPoint.x) / width;
+    const scaleY = Math.abs(this.center.y - fixedPoint.y) / height;
 
-    this.center = new Point3(this.center.x * scaleX, this.center.y * scaleY, 0)
+    this.center = new Point3(
+      this.center.x + resizeVector.x * scaleX,
+      this.center.y + resizeVector.y * scaleY,
+      this.center.z,
+    );
 
-    this.xRadius = Math.abs(this.xRadius * scaleX)
-    this.yRadius = Math.abs(this.yRadius * scaleY)
+    // 半径按整体缩放比例调整
+    const newWidth = width + resizeVector.x * Math.sign(referenceVector.x);
+    const newHeight = height + resizeVector.y * Math.sign(referenceVector.y);
+    const ratioX = Math.abs(newWidth / width);
+    const ratioY = Math.abs(newHeight / height);
 
-    // 计算控制点（用于边界框计算）
+    this.xRadius = Math.max(0, this.xRadius * ratioX);
+    this.yRadius = Math.max(0, this.yRadius * ratioY);
+
     this.controlPoints = this.calculateControlPoints();
-
-    this.bounds = this.updateBounds(referenceVector.x - resizeVector.x > 0, referenceVector.y - resizeVector.y > 0)
+    this.bounds = this.updateBounds();
   }
 }
-

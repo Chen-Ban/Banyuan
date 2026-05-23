@@ -1,12 +1,15 @@
 import { GRAPHTYPE } from "@/foundation/constants";
 import Bezier from "./Bezier";
-import { Point3, Vector3 } from "@/foundation/math";
+import { MathUtils, Point3, Vector3 } from "@/foundation/math";
 import { Style } from "@/foundation/style";
-import { ICubicBezier } from '@/types';
-import type { ISerializable } from '@/types';
-import { generateId } from '@/foundation/utils';
+import { ICubicBezier } from "@/types";
+import type { ISerializable } from "@/types";
+import { generateId } from "@/foundation/utils";
 
-export default class CubicBezier extends Bezier implements ICubicBezier, ISerializable {
+export default class CubicBezier
+  extends Bezier
+  implements ICubicBezier, ISerializable
+{
   public type: GRAPHTYPE = GRAPHTYPE.CUBIC_BEZIER;
 
   constructor(
@@ -15,10 +18,10 @@ export default class CubicBezier extends Bezier implements ICubicBezier, ISerial
     controlPoint2: Point3,
     endPoint: Point3,
     style: Style = Style.DEFAULT,
-    id?:string
+    id?: string,
   ) {
-    super([startPoint, controlPoint1, controlPoint2, endPoint], style,id);
-    if (!id) this.id = generateId(this.type)
+    super([startPoint, controlPoint1, controlPoint2, endPoint], style, id);
+    if (!id) this.id = generateId(this.type);
   }
 
   // 获取第一个控制点
@@ -46,9 +49,9 @@ export default class CubicBezier extends Bezier implements ICubicBezier, ISerial
   // 设置指定位置的控制点（重写基类方法）
   public override setControlPoint(index: number, point: Point3): void {
     if (index >= 0 && index < this.controlPoints.length) {
-      this.controlPoints[index] = point.copy()
+      this.controlPoints[index] = point.copy();
     }
-    this.bounds = this.updateBounds()
+    this.bounds = this.updateBounds();
   }
 
   // 计算三次贝塞尔曲线上的点
@@ -115,36 +118,6 @@ export default class CubicBezier extends Bezier implements ICubicBezier, ISerial
     return new Vector3(dx, dy, dz);
   }
 
-  // 计算三次贝塞尔曲线的法线方向
-  public getNormalAt(t: number): Vector3 {
-    const tangent = this.getTangentAt(t);
-    // 法线是切线的垂直方向
-    return new Vector3(-tangent.y, tangent.x, 0);
-  }
-
-  // 计算指定参数范围内的弧长（AnalyticGraph 要求）
-  public getLength(tStart: number, tEnd: number): number {
-    const clampedStart = Math.max(0, Math.min(1, tStart));
-    const clampedEnd = Math.max(0, Math.min(1, tEnd));
-
-    if (clampedStart >= clampedEnd) return 0;
-
-    const steps = 100;
-    let length = 0;
-    let prevPoint = this.getPointAt(clampedStart);
-
-    for (let i = 1; i <= steps; i++) {
-      const t = clampedStart + ((clampedEnd - clampedStart) * i) / steps;
-      const currentPoint = this.getPointAt(t);
-      const dx = currentPoint.x - prevPoint.x;
-      const dy = currentPoint.y - prevPoint.y;
-      length += Math.sqrt(dx * dx + dy * dy);
-      prevPoint = currentPoint;
-    }
-
-    return length;
-  }
-
   // 获取三次贝塞尔曲线的拐点
   getInflectionPoints(): Point3[] {
     const start = this.controlPoints[0];
@@ -160,9 +133,9 @@ export default class CubicBezier extends Bezier implements ICubicBezier, ISerial
 
     const inflectionPoints: Point3[] = [];
 
-    if (Math.abs(a) < 1e-10) {
+    if (Math.abs(a) < MathUtils.FLOAT_EPSILON) {
       // 二次方程情况
-      if (Math.abs(b) > 1e-10) {
+      if (Math.abs(b) > MathUtils.FLOAT_EPSILON) {
         const t = -c / b;
         if (t >= 0 && t <= 1) {
           inflectionPoints.push(this.getPointAt(t));
@@ -188,33 +161,25 @@ export default class CubicBezier extends Bezier implements ICubicBezier, ISerial
     return inflectionPoints;
   }
 
-  // 检查三次贝塞尔曲线是否是直线
-  isLinear(): boolean {
-    const start = this.controlPoints[0];
-    const control1 = this.controlPoints[1];
-    const control2 = this.controlPoints[2];
-    const end = this.controlPoints[3];
-
-    // 检查所有控制点是否在起始点和结束点的连线上
-    const crossProduct1 = (control1.x - start.x) * (end.y - start.y) - (control1.y - start.y) * (end.x - start.x);
-    const crossProduct2 = (control2.x - start.x) * (end.y - start.y) - (control2.y - start.y) * (end.x - start.x);
-
-    return Math.abs(crossProduct1) < 1e-10 && Math.abs(crossProduct2) < 1e-10;
-  }
-
   // ── 序列化 ──
   toJSON(): any {
     return {
       id: this.id,
       type: this.type,
-      controlPoints: this.controlPoints.map(p => p.toJSON()),
+      controlPoints: this.controlPoints.map((p) => p.toJSON()),
       style: this.style.toJSON(),
-    }
+    };
   }
 
   static fromJSON(data: any): CubicBezier {
     const points = data.controlPoints.map((p: any) => Point3.fromJSON(p));
-    const cb = new CubicBezier(points[0], points[1], points[2], points[3], Style.fromJSON(data.style));
+    const cb = new CubicBezier(
+      points[0],
+      points[1],
+      points[2],
+      points[3],
+      Style.fromJSON(data.style),
+    );
     cb.id = data.id;
     return cb;
   }
@@ -226,12 +191,7 @@ export default class CubicBezier extends Bezier implements ICubicBezier, ISerial
       this.controlPoints[1].copy(),
       this.controlPoints[2].copy(),
       this.controlPoints[3].copy(),
-      this.style.copy()
+      this.style.copy(),
     ) as this;
-  }
-
-
-  public getArea(): number {
-    return 0;
   }
 }

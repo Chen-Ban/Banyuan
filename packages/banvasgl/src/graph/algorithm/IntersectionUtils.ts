@@ -166,7 +166,7 @@ function lineEllipseIntersect(
 
   const discriminant = b_coeff * b_coeff - 4 * a_coeff * c_coeff;
 
-  if (discriminant < 0 || Math.abs(a_coeff) < 1e-10) {
+  if (discriminant < 0 || Math.abs(a_coeff) < MathUtils.FLOAT_EPSILON) {
     return []; // 无交点
   }
 
@@ -291,14 +291,14 @@ function numericalIntersection(
       }
 
       // 数值梯度：d(distance)/dt ≈ (dist(t+h) - dist(t-h)) / (2h)
-      const h = 1e-6;
+      const h = MathUtils.DERIVATIVE_STEP;
       const tPlus = Math.min(1, t + h);
       const tMinus = Math.max(0, t - h);
       const distPlus = other.getClosestPoint(curve.getPointAt(tPlus)).distance;
       const distMinus = other.getClosestPoint(curve.getPointAt(tMinus)).distance;
       const gradient = (distPlus - distMinus) / (tPlus - tMinus);
 
-      if (Math.abs(gradient) < 1e-12) break; // 梯度消失，无法继续
+      if (Math.abs(gradient) < MathUtils.FLOAT_EPSILON) break; // 梯度消失，无法继续
 
       t = t - distance / gradient;
       t = Math.max(0, Math.min(1, t)); // 钳位到 [0, 1]
@@ -334,7 +334,7 @@ function numericalIntersection(
     const tSpan = tMax - tMin;
     const sSpan = sMax - sMin;
 
-    if (tSpan < 1e-6 && sSpan < 1e-6 || depth >= maxDepth) {
+    if (tSpan < MathUtils.INTEGRATION_TOLERANCE && sSpan < MathUtils.INTEGRATION_TOLERANCE || depth >= maxDepth) {
       const tMid = (tMin + tMax) / 2;
       const refined = refineIntersection(tMid);
       if (refined) {
