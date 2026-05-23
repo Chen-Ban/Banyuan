@@ -8,7 +8,7 @@ import Color from '@/foundation/style/Color'
 import FillStyle from '@/foundation/style/FillStyle'
 import StrokeStyle from '@/foundation/style/StrokeStyle'
 import ShadowStyle from '@/foundation/style/ShadowStyle'
-import Gradient from '@/foundation/style/Gradient'
+import { LinearGradient, RadialGradient, ConicGradient } from '@/foundation/style/gradient/index'
 import ImagePattern from '@/foundation/style/Image'
 import VideoPattern from '@/foundation/style/Video'
 import Bounds from '@/graph/base/Bounds'
@@ -51,7 +51,7 @@ import OrthographicCamera from '@/engine/camera/OrthographicCamera'
 import PerspectiveCamera from '@/engine/camera/PerspectiveCamera'
 
 // ISerializable
-import type { ISerializable, SerializableStatic } from '@/types'
+import type { ISerializable, ISerializableClass } from '@/types'
 import { MATHTYPE, STYLETYPE, GRAPHTYPE, VIEWTYPE, SCENETYPE, CAMERATYPE } from '@/foundation/constants'
 
 /**
@@ -139,7 +139,7 @@ export default class Serializer {
      */
     private registerSerializable(
         typeName: string,
-        ctor: SerializableStatic
+        ctor: ISerializableClass
     ): void {
         this.typeRegistry.set(typeName, {
             type: typeName,
@@ -184,7 +184,9 @@ export default class Serializer {
         this.registerSerializable(MATHTYPE.BOUNDS, Bounds as any)
         // 样式
         this.registerSerializable(STYLETYPE.COLOR, Color as any)
-        this.registerSerializable(STYLETYPE.GRADIENT, Gradient as any)
+        this.registerSerializable(STYLETYPE.LINEAR_GRADIENT, LinearGradient as any)
+        this.registerSerializable(STYLETYPE.RADIAL_GRADIENT, RadialGradient as any)
+        this.registerSerializable(STYLETYPE.CONIC_GRADIENT, ConicGradient as any)
         this.registerSerializable(STYLETYPE.IMAGE_PATTERN, ImagePattern as any)
         this.registerSerializable(STYLETYPE.VIDEO_PATTERN, VideoPattern as any)
         this.registerSerializable(STYLETYPE.FILL_STYLE, FillStyle as any)
