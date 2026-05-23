@@ -59,9 +59,9 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
         this.height = Math.max(0, height)
 
         const r = typeof radii === 'number' ? [radii, radii, radii, radii] as [number, number, number, number] : radii
-        this.radii = this._clampRadii(r)
+        this.radii = this.clampRadii(r)
 
-        this._rebuild()
+        this.rebuildEdges()
         this.id = generateId(this.type)
     }
 
@@ -72,29 +72,29 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
     public setPosition(x: number, y: number): RoundedRect {
         this.x = x
         this.y = y
-        this._rebuild()
+        this.rebuildEdges()
         return this
     }
 
     public setSize(width: number, height: number): RoundedRect {
         this.width = Math.max(0, width)
         this.height = Math.max(0, height)
-        this.radii = this._clampRadii(this.radii)
-        this._rebuild()
+        this.radii = this.clampRadii(this.radii)
+        this.rebuildEdges()
         return this
     }
 
     public setRadius(index: 0 | 1 | 2 | 3, radius: number): RoundedRect {
         this.radii[index] = Math.max(0, radius)
-        this.radii = this._clampRadii(this.radii)
-        this._rebuild()
+        this.radii = this.clampRadii(this.radii)
+        this.rebuildEdges()
         return this
     }
 
     public setAllRadii(radius: number): RoundedRect {
         const r = Math.max(0, radius)
-        this.radii = this._clampRadii([r, r, r, r])
-        this._rebuild()
+        this.radii = this.clampRadii([r, r, r, r])
+        this.rebuildEdges()
         return this
     }
 
@@ -103,9 +103,8 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
     }
 
     /**
-     * Override CombinedGraph.getCentroid()
-     * 父类构造函数会在 graphs 为空时调用此方法（reduce 需要初始值），
-     * 这里直接基于自身的 x/y/width/height 返回中心点，不依赖 graphs。
+     * 优化：直接基于 x/y/width/height 计算中心点，
+     * 避免遍历子图形（arc + line）做 midpoint 累加。
      */
     public getCentroid(): Point3 {
         return this.getCenter()
@@ -138,11 +137,11 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
      * 拖拽边中点（1,3,5,7）：只改变单轴尺寸
      * 拖拽圆角点（8-11）：改变对应角的圆角半径
      */
-    public get controlPoints(): Point3[] {
+    public override syncControlPoints(): void {
         const { x, y, width: w, height: h } = this
         const [rtl, rtr, rbr, rbl] = this.radii
 
-        return [
+        this.controlPoints = [
             // 尺寸控制点（8 个，顺时针从左上开始）
             new Point3(x,         y,         0),   // 0 左上角
             new Point3(x + w / 2, y,         0),   // 1 上边中点
@@ -235,8 +234,8 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
             this.radii[index - 8] = r
         }
 
-        this.radii = this._clampRadii(this.radii)
-        this._rebuild()
+        this.radii = this.clampRadii(this.radii)
+        this.rebuildEdges()
     }
 
     // ─────────────────────────────────────────────
@@ -246,9 +245,9 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
     public render(ctx: CanvasRenderingContext2D): void {
         const bounds = this.bounds
         ctx.save()
-        this.style.applyToContext(ctx, bounds.width, bounds.height)
+        this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
         ctx.beginPath()
-        this._buildPath(ctx)
+        this.buildCanvasPath(ctx)
         ctx.closePath()
         ctx.fill()
         ctx.stroke()
@@ -257,7 +256,7 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
 
     public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
         dependent && ctx.beginPath()
-        this._buildPath(ctx)
+        this.buildCanvasPath(ctx)
         ctx.closePath()
     }
 
@@ -278,12 +277,9 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
         this.height = Math.max(0, this.height * scaleY)
         // 圆角半径等比缩放（取两轴最小缩放比，保持视觉一致）
         const scale = Math.min(Math.abs(scaleX), Math.abs(scaleY))
-        this.radii = this._clampRadii(this.radii.map(r => r * scale) as [number, number, number, number])
+        this.radii = this.clampRadii(this.radii.map(r => r * scale) as [number, number, number, number])
 
-        this._rebuild()
-        const orientX = referenceVector.x - resizeVector.x > 0
-        const orientY = referenceVector.y - resizeVector.y > 0
-        this.bounds = this.updateBounds(orientX, orientY)
+        this.rebuildEdges()
     }
 
     // ─────────────────────────────────────────────
@@ -335,7 +331,7 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
      * 限制圆角半径：每个角的半径不超过相邻两边长度的一半
      * 若两角半径之和超过对应边长，则等比缩小
      */
-    private _clampRadii(radii: [number, number, number, number]): [number, number, number, number] {
+    private clampRadii(radii: [number, number, number, number]): [number, number, number, number] {
         let [rtl, rtr, rbr, rbl] = radii.map(r => Math.max(0, r))
         const w = this.width
         const h = this.height
@@ -358,7 +354,7 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
      *   Arc(左上) → Line(上) → Arc(右上) → Line(右)
      *   → Arc(右下) → Line(下) → Arc(左下) → Line(左)
      */
-    private _rebuild(): void {
+    protected rebuildEdges(): void {
         const { x, y, width: w, height: h, style } = this
         const [rtl, rtr, rbr, rbl] = this.radii
 
@@ -412,14 +408,14 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
         )
 
         this.graphs = [arcTL, linTop, arcTR, linRight, arcBR, linBot, arcBL, linLeft]
-        this.bounds = this.updateBounds(true, true)
-        this.transfromOrigin = this.getCenter()
+        this.syncControlPoints()
+        this.bounds = this.updateBounds()
     }
 
     /**
      * 直接用 Canvas API 绘制圆角矩形路径（比逐段渲染更精确）
      */
-    private _buildPath(ctx: CanvasRenderingContext2D): void {
+    private buildCanvasPath(ctx: CanvasRenderingContext2D): void {
         const { x, y, width: w, height: h } = this
         const [rtl, rtr, rbr, rbl] = this.radii
         const PI = Math.PI
