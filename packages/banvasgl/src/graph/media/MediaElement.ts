@@ -13,7 +13,10 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
     public controlPoints: Point3[]
     public style: Style
     public bounds: Bounds
-    public transfromOrigin: Point3
+
+    public isClosed(): boolean {
+        return true;
+    }
 
     // 媒体相关属性
     public x: number
@@ -41,33 +44,21 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
         this.height = height
         this.style = style
 
-        // 初始化控制点（裁剪区域的八个点）
+        // 初始化控制点（矩形四个角点）
         this.controlPoints = this.calculateControlPoints()
 
-        this.bounds = this.updateBounds(true, true)
-        this.transfromOrigin = new Point3(
-            this.x + this.width / 2,
-            this.y + this.height / 2,
-            0
-        )
+        this.bounds = this.updateBounds()
         this.loadMedia()
     }
 
-    public updateBounds(
-        orientationX?: boolean,
-        orientationY?: boolean
-    ): Bounds {
+    public updateBounds(): Bounds {
         const points = [
             new Point3(this.x, this.y, 0),
             new Point3(this.x + this.width, this.y, 0),
             new Point3(this.x + this.width, this.y + this.height, 0),
             new Point3(this.x, this.y + this.height, 0),
         ]
-        return Bounds.fromPoints(
-            points,
-            orientationX ?? this.bounds?.width > 0,
-            orientationY ?? this.bounds.height > 0
-        )
+        return Bounds.fromPoints(points)
     }
 
     /**
@@ -95,33 +86,20 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
         return this
     }
 
-    /**
-     * 检查点是否在曲线上
-     */
-    isPointOnCurve(point: Point3, tolerance: number): boolean {
+    /** 媒体元素为矩形区域，不支持曲线判定 */
+    isPointOnCurve(_point: Point3, _tolerance: number): boolean {
         return false
     }
 
     /**
-     * 计算裁剪区域的控制点（八个点）
+     * 计算矩形四个角点作为控制点
      */
     protected calculateControlPoints(): Point3[] {
-        if (!this.loaded) {
-            // 如果媒体未加载，返回默认控制点
-            return [new Point3(this.x, this.y, 0)]
-        }
-
-        const actualX = this.x
-        const actualY = this.y
-        const displayWidth = this.width
-        const displayHeight = this.height
-
-        // 返回裁剪区域的八个控制点
         return [
-            new Point3(actualX, actualY, 0), // 左上角
-            new Point3(actualX + displayWidth, actualY, 0), // 右上角
-            new Point3(actualX + displayWidth, actualY + displayHeight, 0), // 右下角
-            new Point3(actualX, actualY + displayHeight, 0), // 左下角
+            new Point3(this.x, this.y, 0), // 左上角
+            new Point3(this.x + this.width, this.y, 0), // 右上角
+            new Point3(this.x + this.width, this.y + this.height, 0), // 右下角
+            new Point3(this.x, this.y + this.height, 0), // 左下角
         ]
     }
 
@@ -245,7 +223,7 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
         closestPoint: Point3
         parameter: number
     } {
-        // 计算点到矩形边界的最短距离
+        // 将点限制在矩形边界上找到最近点
         const closestX = Math.max(
             this.x,
             Math.min(point.x, this.x + this.width)
@@ -255,29 +233,24 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
             Math.min(point.y, this.y + this.height)
         )
         const closestPoint = new Point3(closestX, closestY, 0)
-        const distance = Math.sqrt(
-            Math.pow(point.x - closestPoint.x, 2) +
-                Math.pow(point.y - closestPoint.y, 2)
-        )
+        const distance = point.distance(closestPoint)
 
-        // 计算参数t（简化版本，基于最近点在矩形边界上的位置）
+        // 计算参数t：按周长顺时针方向（上→右→下→左）
         const perimeter = 2 * (this.width + this.height)
         let t = 0
 
-        if (closestX === this.x) {
-            // 左边
-            t = (this.y + this.height - closestY) / perimeter
-        } else if (closestX === this.x + this.width) {
-            // 右边
-            t = (this.width + this.height + closestY - this.y) / perimeter
-        } else if (closestY === this.y) {
+        if (closestY === this.y && closestX >= this.x && closestX <= this.x + this.width) {
             // 上边
             t = (closestX - this.x) / perimeter
-        } else {
+        } else if (closestX === this.x + this.width) {
+            // 右边
+            t = (this.width + (closestY - this.y)) / perimeter
+        } else if (closestY === this.y + this.height) {
             // 下边
-            t =
-                (this.width + this.height + this.width - (closestX - this.x)) /
-                perimeter
+            t = (this.width + this.height + (this.x + this.width - closestX)) / perimeter
+        } else {
+            // 左边
+            t = (this.width + this.height + this.width + (this.y + this.height - closestY)) / perimeter
         }
 
         return {
@@ -311,26 +284,14 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
 
     /**
      * 应用变换矩阵到图形
+     * 对四个角点逐一应用矩阵变换，然后从变换后的控制点反推位置和尺寸
      */
     public transform(matrix: Matrix4): Graph {
-        // 变换左上角点作为新的位置
-        const topLeft = matrix.multiply(new Point3(this.x, this.y, 0))
-        this.x = topLeft.x
-        this.y = topLeft.y
-
-        // 变换宽度和高度向量以支持旋转和拉伸
-        const widthVector = matrix.multiply(new Vector3(this.width, 0, 0))
-        const heightVector = matrix.multiply(new Vector3(0, this.height, 0))
-
-        // 计算变换后的宽度和高度（向量的长度）
-        this.width = Math.sqrt(
-            widthVector.x * widthVector.x + widthVector.y * widthVector.y
-        )
-        this.height = Math.sqrt(
-            heightVector.x * heightVector.x + heightVector.y * heightVector.y
-        )
-
-        this.updateControlPoints()
+        for (const [i] of this.controlPoints.entries()) {
+            this.controlPoints[i] = matrix.multiply(this.controlPoints[i])
+        }
+        this.syncFromControlPoints()
+        this.bounds = this.updateBounds()
         return this
     }
 
@@ -340,9 +301,7 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
      * @returns 相交点数组
      */
     public intersect(other: Graph): Point3[] {
-        return Rectangle.fromBounds(
-            this.bounds ?? this.updateBounds()
-        ).intersect(other)
+        return Rectangle.fromBounds(this.bounds).intersect(other)
     }
 
     public resize(
@@ -364,14 +323,24 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
 
             this.controlPoints[i] = p.add(new Vector3(dx, dy, 0))
         }
-        const referenceVector = dynamicPoint.subtract(fixedPoint)
-
-        this.bounds = this.updateBounds(
-            referenceVector.x - resizeVector.x > 0,
-            referenceVector.y - resizeVector.y > 0
-        )
+        this.syncFromControlPoints()
+        this.bounds = this.updateBounds()
     }
 
     /** 媒体元素不支持顶点编辑 */
     public setControlPoint(_index: number, _point: Point3): void {}
+
+    /**
+     * 从控制点反推 x/y/width/height
+     * 取左上角和右下角控制点计算位置和尺寸
+     */
+    protected syncFromControlPoints(): void {
+        if (this.controlPoints.length < 4) return
+        const topLeft = this.controlPoints[0]
+        const bottomRight = this.controlPoints[2]
+        this.x = topLeft.x
+        this.y = topLeft.y
+        this.width = bottomRight.x - topLeft.x
+        this.height = bottomRight.y - topLeft.y
+    }
 }

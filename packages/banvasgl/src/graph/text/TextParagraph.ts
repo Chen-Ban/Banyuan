@@ -1,17 +1,12 @@
 import { GRAPHTYPE } from '@/foundation/constants'
 import Graph from '@/graph/base/Graph'
-import { Point3, Vector3, Matrix4 } from '@/foundation/math'
+import { MathUtils, Point3, Vector3, Matrix4 } from '@/foundation/math'
 import { Style } from '@/foundation/style'
 import { NonPrintableTextElement, PrintableTextElement } from './TextElement'
 import ParagraphOptions from './ParagraphOptions'
 import Bounds from '@/graph/base/Bounds'
 import TextOptions from './TextOptions'
-import { Rectangle } from '@/graph/combined'
-import {
-    isNonPrintableTextElement,
-    isPrintableTextElement,
-} from './TextElement'
-import { ITextParagraph, ISerializable } from '@/types'
+import { ITextParagraph, ISerializable, isGraphType } from '@/types'
 import { generateId } from '@/foundation/utils'
 
 export type TextParagraphContent = [
@@ -31,7 +26,10 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
     public texts: TextParagraphContent
     public isLayouted: boolean = false
     public bounds: Bounds
-    public transfromOrigin: Point3
+
+    public isClosed(): boolean {
+        return false;
+    }
 
     constructor(
         texts: TextParagraphContent = [new NonPrintableTextElement()],
@@ -45,7 +43,6 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         // 初始化时不设置控制点和包围盒，等待布局时设置
         this.controlPoints = []
         this.bounds = Bounds.empty()
-        this.transfromOrigin = Point3.origin
         this.id = generateId(this.type)
     }
 
@@ -53,10 +50,11 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         const length = this.texts.filter(
             (text) => text instanceof PrintableTextElement
         ).length
-        if (length !== this.texts.length - 1)
-            throw new Error(
-                'Text length is not equal to the number of printable text elements'
+        if (length !== this.texts.length - 1) {
+            console.warn(
+                '[TextParagraph] Text length is not equal to the number of printable text elements'
             )
+        }
         return length
     }
 
@@ -126,7 +124,7 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         return this
     }
 
-    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: boolean): void {
         dependent && ctx.beginPath()
         const bounds = this.bounds
         ctx.moveTo(bounds.x, bounds.y)
@@ -136,86 +134,24 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         ctx.lineTo(bounds.x, bounds.y)
     }
 
-    isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
-        const bounds = this.bounds
-        return new Rectangle(
-            bounds.x,
-            bounds.y,
-            bounds.width,
-            bounds.height
-        ).isPointOnCurve(point, tolerance)
+    isPointOnCurve(_point: Point3, _tolerance: number = MathUtils.EPSILON): boolean {
+        return false
     }
 
-    public getPointAt(t: number): Point3 {
-        const bounds = this.bounds
-        const perimeter = 2 * (bounds.width + bounds.height)
-        const clampedT = Math.max(0, Math.min(1, t))
-        let currentLength = clampedT * perimeter
-
-        // 上边
-        if (currentLength <= bounds.width) {
-            return new Point3(bounds.x + currentLength, bounds.y, 0)
-        }
-        currentLength -= bounds.width
-
-        // 右边
-        if (currentLength <= bounds.height) {
-            return new Point3(
-                bounds.x + bounds.width,
-                bounds.y + currentLength,
-                0
-            )
-        }
-        currentLength -= bounds.height
-
-        // 下边
-        if (currentLength <= bounds.width) {
-            return new Point3(
-                bounds.x + bounds.width - currentLength,
-                bounds.y + bounds.height,
-                0
-            )
-        }
-        currentLength -= bounds.width
-
-        // 左边
-        return new Point3(bounds.x, bounds.y + bounds.height - currentLength, 0)
+    public getPointAt(_t: number): Point3 {
+        return this.controlPoints[0] ?? new Point3(0, 0, 0)
     }
 
-    public getLength(tStart: number, tEnd: number): number {
-        const bounds = this.bounds
-        return 2 * (bounds.width + bounds.height) * Math.abs(tEnd - tStart)
+    public getLength(_tStart: number, _tEnd: number): number {
+        return 0
     }
 
-    public getTangentAt(t: number): Vector3 {
-        const bounds = this.bounds
-        const perimeter = 2 * (bounds.width + bounds.height)
-        let currentLength = 0
-
-        // 上边：向右
-        if (t * perimeter <= bounds.width) {
-            return new Vector3(1, 0, 0)
-        }
-        currentLength += bounds.width
-
-        // 右边：向下
-        if (t * perimeter <= currentLength + bounds.height) {
-            return new Vector3(0, 1, 0)
-        }
-        currentLength += bounds.height
-
-        // 下边：向左
-        if (t * perimeter <= currentLength + bounds.width) {
-            return new Vector3(-1, 0, 0)
-        }
-
-        // 左边：向上
-        return new Vector3(0, -1, 0)
+    public getTangentAt(_t: number): Vector3 {
+        return new Vector3(1, 0, 0)
     }
 
-    public getNormalAt(t: number): Vector3 {
-        const tangent = this.getTangentAt(t)
-        return new Vector3(-tangent.y, tangent.x, 0)
+    public getNormalAt(_t: number): Vector3 {
+        return new Vector3(0, 1, 0)
     }
 
     public getClosestPoint(point: Point3): {
@@ -223,73 +159,15 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         closestPoint: Point3
         parameter: number
     } {
-        const bounds = this.bounds
-        const closestX = Math.max(
-            bounds.x,
-            Math.min(point.x, bounds.x + bounds.width)
-        )
-        const closestY = Math.max(
-            bounds.y,
-            Math.min(point.y, bounds.y + bounds.height)
-        )
-        const closestPoint = new Point3(closestX, closestY, 0)
-        const distance = Math.sqrt(
-            Math.pow(point.x - closestPoint.x, 2) +
-                Math.pow(point.y - closestPoint.y, 2)
-        )
-
-        // 计算参数t（基于周长）
-        const perimeter = 2 * (bounds.width + bounds.height)
-        let t = 0
-        if (closestX === bounds.x + bounds.width && closestY === bounds.y) {
-            t = bounds.width / perimeter
-        } else if (
-            closestX === bounds.x + bounds.width &&
-            closestY === bounds.y + bounds.height
-        ) {
-            t = (bounds.width + bounds.height) / perimeter
-        } else if (
-            closestX === bounds.x &&
-            closestY === bounds.y + bounds.height
-        ) {
-            t = (2 * bounds.width + bounds.height) / perimeter
-        } else if (closestX === bounds.x && closestY === bounds.y) {
-            t = 0
-        } else if (closestY === bounds.y) {
-            t = (closestX - bounds.x) / perimeter
-        } else if (closestX === bounds.x + bounds.width) {
-            t = (bounds.width + closestY - bounds.y) / perimeter
-        } else if (closestY === bounds.y + bounds.height) {
-            t =
-                (bounds.width +
-                    bounds.height +
-                    bounds.width -
-                    (closestX - bounds.x)) /
-                perimeter
-        } else {
-            t =
-                (2 * bounds.width +
-                    bounds.height +
-                    bounds.height -
-                    (closestY - bounds.y)) /
-                perimeter
-        }
-
-        return { distance, closestPoint, parameter: t }
+        return { distance: 0, closestPoint: point, parameter: 0 }
     }
 
     public getArea(): number {
-        const bounds = this.bounds
-        return bounds.width * bounds.height
+        return 0
     }
 
     public getCentroid(): Point3 {
-        const bounds = this.bounds
-        return new Point3(
-            bounds.x + bounds.width / 2,
-            bounds.y + bounds.height / 2,
-            0
-        )
+        return this.controlPoints[0] ?? new Point3(0, 0, 0)
     }
 
     public transform(matrix: Matrix4): Graph {
@@ -321,7 +199,7 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         ctx.save()
         // 应用样式
         const bounds = this.bounds
-        this.style.applyToContext(ctx, bounds.width, bounds.height)
+        this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
         this.renderPath(ctx, true)
         ctx.strokeStyle = '#bfa'
         ctx.setLineDash([1, 1])
@@ -363,7 +241,6 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         this.controlPoints = [position.copy()]
         // 计算包围盒
         this.bounds = this.updateBounds()
-        this.transfromOrigin = position.copy()
         return this
     }
 
@@ -434,14 +311,6 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
 }
 
 // 类型守卫函数
-export function isTextParagraph(graph: any): graph is TextParagraph {
-    return (
-        graph !== null &&
-        graph !== undefined &&
-        graph.type === GRAPHTYPE.TEXTPARAGRAPH
-    )
-}
-
 export function isTextParagraphContent(
     content: any
 ): content is TextParagraphContent {
@@ -451,13 +320,13 @@ export function isTextParagraphContent(
 
     // 检查最后一个元素是否是 NonPrintableTextElement
     const lastElement = content[content.length - 1]
-    if (!isNonPrintableTextElement(lastElement)) {
+    if (!isGraphType(lastElement, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT)) {
         return false
     }
 
     // 检查前面的所有元素（如果有）是否是 PrintableTextElement
     for (let i = 0; i < content.length - 1; i++) {
-        if (!isPrintableTextElement(content[i])) {
+        if (!isGraphType(content[i], GRAPHTYPE.PRINTABLE_TEXTELEMENT)) {
             return false
         }
     }

@@ -1,7 +1,6 @@
 import { GRAPHTYPE } from '@/foundation/constants'
 import MediaElement from './MediaElement'
 import { Style } from '@/foundation/style'
-import { Point3 } from '@/foundation/math'
 import { IImageElement, ISerializable } from '@/types'
 import { generateId } from '@/foundation/utils'
 
@@ -44,18 +43,11 @@ export default class ImageElement extends MediaElement implements IImageElement,
 
             img.onload = () => {
                 this.image = img
-                this.width = img.naturalWidth
                 this.actualWidth = img.naturalWidth
                 this.actualHeight = img.naturalHeight
-                this.height = img.naturalHeight
                 this.loaded = true
                 // 媒体加载完成后，更新控制点和边界框
                 this.updateControlPoints()
-                this.transfromOrigin = new Point3(
-                    this.x + this.width / 2,
-                    this.y + this.height / 2,
-                    0
-                )
                 resolve()
             }
 
@@ -95,7 +87,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
 
         // 应用样式
         const bounds = this.bounds
-        this.style.applyToContext(ctx, bounds.width, bounds.height)
+        this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
 
         // 使用设置的尺寸绘制图片，而不是原始尺寸
         ctx.drawImage(this.image, this.x, this.y, this.width, this.height)
@@ -158,7 +150,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
             this.y,
             this.width,
             this.height,
-            this.style
+            this.style.copy()
         )
         return copy as this
     }
@@ -205,13 +197,14 @@ export default class ImageElement extends MediaElement implements IImageElement,
             img.src = canvas.toDataURL()
             img.onload = () => {
                 element.image = img
+                element.actualWidth = img.naturalWidth
+                element.actualHeight = img.naturalHeight
                 element.loaded = true
-                element
-                    .loadMedia()
-                    .then(() => {
-                        resolve(element)
-                    })
-                    .catch((error) => reject(error))
+                element.updateControlPoints()
+                resolve(element)
+            }
+            img.onerror = () => {
+                reject(new Error('Failed to create image from canvas'))
             }
         })
     }
