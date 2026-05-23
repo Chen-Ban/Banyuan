@@ -284,6 +284,5 @@ export default function useDesignBanvas(
     contextMenu,
     materials: BUILTIN_COMPONENTS,
     MaterialPalette,
-    builtinComponents: BUILTIN_COMPONENTS,
   };
 }

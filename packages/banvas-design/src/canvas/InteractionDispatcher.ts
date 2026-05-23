@@ -4,15 +4,15 @@ import {
   Point3,
   Action,
   Cursor,
+  GRAPHTYPE,
   isTextView,
   isSelectBoxView,
+  isGraphType,
   isPortView,
   Rectangle,
   Graph,
   Bounds,
   clearAllStates,
-  isNonPrintableTextElement,
-  isPrintableTextElement,
   createView,
 } from "@banyuan/banvasgl";
 import type {
@@ -144,12 +144,13 @@ export class InteractionDispatcher {
     const indicateContent = this.ctx.getIndicateContent();
     if (
       isTextView(indicateView) &&
-      (isPrintableTextElement(indicateContent) ||
-        isNonPrintableTextElement(indicateContent))
+      indicateContent !== null &&
+      (isGraphType(indicateContent as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) ||
+        isGraphType(indicateContent as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT))
     ) {
       if (!indicateView.actived) {
         scene.select(indicateView as unknown as View);
-        const fixedIndex = indicateView.element2Index(indicateContent, point);
+        const fixedIndex = indicateView.element2Index(indicateContent as any, point);
         indicateView.setSelection(fixedIndex, fixedIndex);
         return;
       }
@@ -161,8 +162,8 @@ export class InteractionDispatcher {
       let targetPoint = point;
 
       if (
-        !isPrintableTextElement(content) &&
-        !isNonPrintableTextElement(content)
+        !isGraphType(content as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) &&
+        !isGraphType(content as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT)
       ) {
         const relativePoint = indicateView
           .getMVPMatrix()
@@ -175,11 +176,11 @@ export class InteractionDispatcher {
       }
 
       if (
-        isPrintableTextElement(targetContent) ||
-        isNonPrintableTextElement(targetContent)
+        isGraphType(targetContent as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) ||
+        isGraphType(targetContent as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT)
       ) {
         const dynamicIndex = indicateView.element2Index(
-          targetContent,
+          targetContent as any,
           targetPoint,
         );
         indicateView.setSelection(

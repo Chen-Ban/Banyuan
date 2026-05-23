@@ -6,10 +6,10 @@ import {
   SelectBoxView,
   Action,
   Cursor,
+  GRAPHTYPE,
   isTextView,
   isSelectBoxView,
-  isNonPrintableTextElement,
-  isPrintableTextElement,
+  isGraphType,
   clearAllStates,
 } from "@banyuan/banvasgl";
 import type {
@@ -251,8 +251,8 @@ export function useCanvasEvents({
           const isTextEditTarget =
             isTextView(indicateView) &&
             indicateContent !== null &&
-            (isPrintableTextElement(indicateContent) ||
-              isNonPrintableTextElement(indicateContent));
+            (isGraphType(indicateContent as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) ||
+              isGraphType(indicateContent as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT));
 
           if (isTextEditTarget && isTextView(indicateView)) {
             const fixedIndex = indicateView.element2Index(
@@ -378,8 +378,9 @@ export function useCanvasEvents({
       ) {
         if (
           isTextView(indicateViewRef.current) &&
-          (isPrintableTextElement(indicateContentRef.current) ||
-            isNonPrintableTextElement(indicateContentRef.current))
+          indicateContentRef.current !== null &&
+          (isGraphType(indicateContentRef.current as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) ||
+            isGraphType(indicateContentRef.current as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT))
         ) {
           // 双击选中一整行（可扩展）
         }
