@@ -129,4 +129,108 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
       defaultProps: { length: 120 },
     },
   },
+  {
+    id: 'builtin.triangle',
+    label: '三角形',
+    description: '等边三角形',
+    source: 'builtin',
+    icon: {
+      type: 'svg',
+      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="12,4 21,20 3,20" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/>
+</svg>`,
+    },
+    template: {
+      viewType: VIEWTYPE.GRAPHVIEW,
+      graphType: GRAPHTYPE.TRIANGLE,
+      defaultProps: { size: 100 },
+    },
+  },
+  {
+    id: 'builtin.regular-polygon',
+    label: '正多边形',
+    description: '正六边形（可调边数）',
+    source: 'builtin',
+    icon: {
+      type: 'svg',
+      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <polygon points="12,3 20.5,7.5 20.5,16.5 12,21 3.5,16.5 3.5,7.5" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/>
+</svg>`,
+    },
+    template: {
+      viewType: VIEWTYPE.GRAPHVIEW,
+      graphType: GRAPHTYPE.REGULAR_POLYGON,
+      defaultProps: { radius: 50, sides: 6 },
+    },
+  },
+  {
+    id: 'builtin.arc',
+    label: '弧线',
+    description: '椭圆弧线',
+    source: 'builtin',
+    icon: {
+      type: 'svg',
+      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M4 18 A10 10 0 0 1 20 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+</svg>`,
+    },
+    template: {
+      viewType: VIEWTYPE.GRAPHVIEW,
+      graphType: GRAPHTYPE.ARC,
+      defaultProps: { radius: 50 },
+    },
+  },
+  {
+    id: 'builtin.flex',
+    label: '弹性容器',
+    description: '弹性布局容器，子元素自动排列',
+    source: 'builtin',
+    icon: {
+      type: 'svg',
+      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2" y="4" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+  <line x1="9" y1="4" x2="9" y2="20" stroke="currentColor" stroke-width="1.5"/>
+  <line x1="16" y1="4" x2="16" y2="20" stroke="currentColor" stroke-width="1.5"/>
+</svg>`,
+    },
+    template: {
+      viewType: VIEWTYPE.FLEXVIEW,
+      defaultProps: { width: 300, height: 100 },
+    },
+  },
+  {
+    id: 'builtin.input',
+    label: '输入框',
+    description: '可编辑输入框',
+    source: 'builtin',
+    icon: {
+      type: 'svg',
+      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2" y="7" width="20" height="10" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+  <line x1="6" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <line x1="7" y1="9.5" x2="7" y2="14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`,
+    },
+    template: {
+      viewType: VIEWTYPE.INPUT,
+      defaultProps: { text: '' },
+    },
+  },
+  {
+    id: 'builtin.video',
+    label: '视频',
+    description: '视频播放组件',
+    source: 'builtin',
+    icon: {
+      type: 'svg',
+      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2" y="5" width="15" height="14" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+  <polyline points="17,9 22,6 22,18 17,15" stroke="currentColor" stroke-width="2" stroke-linejoin="round" fill="none"/>
+</svg>`,
+    },
+    template: {
+      viewType: VIEWTYPE.VIDEOVIEW,
+      defaultProps: { videoSrc: '', width: 320, height: 180 },
+    },
+  },
 ]

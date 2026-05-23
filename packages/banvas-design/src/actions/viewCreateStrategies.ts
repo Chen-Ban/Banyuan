@@ -10,7 +10,11 @@ import {
   RoundedRect,
   CubicBezier,
   QuadraticBezier,
+  Arc,
+  Triangle,
+  RegularPolygon,
   ImageElement,
+  VideoElement,
   TextParagraph,
   TextFields,
   Graph,
@@ -18,6 +22,9 @@ import {
   GraphView,
   TextView,
   ImageView,
+  VideoView,
+  Input,
+  FlexView,
   VIEWTYPE,
   GRAPHTYPE,
 } from '@banyuan/banvasgl'
@@ -71,6 +78,49 @@ export const graphCreatorStrategies = new Map<string, GraphCreatorStrategy>([
             )
         },
     ],
+    [
+        GRAPHTYPE.TRIANGLE,
+        (props) => {
+            const size = (props.size as number | undefined) ?? 100
+            const h = size * Math.sqrt(3) / 2
+            return new Triangle(
+                new Point3(size / 2, 0,    0),
+                new Point3(size,     h,    0),
+                new Point3(0,        h,    0),
+                Style.DEFAULT,
+            )
+        },
+    ],
+    [
+        GRAPHTYPE.REGULAR_POLYGON,
+        (props) => {
+            const radius = (props.radius as number | undefined) ?? 50
+            const sides  = (props.sides  as number | undefined) ?? 6
+            return new RegularPolygon(
+                new Point3(radius, radius, 0),
+                radius,
+                sides,
+                0,
+                Style.DEFAULT,
+            )
+        },
+    ],
+    [
+        GRAPHTYPE.ARC,
+        (props) => {
+            const radius = (props.radius as number | undefined) ?? 50
+            return new Arc(
+                new Point3(radius, radius, 0),
+                radius,
+                radius,
+                0,
+                Math.PI,
+                2 * Math.PI,
+                false,
+                Style.DEFAULT,
+            )
+        },
+    ],
 ])
 
 export const viewCreatorStrategies = new Map<string, ViewCreatorStrategy>([
@@ -115,6 +165,39 @@ export const viewCreatorStrategies = new Map<string, ViewCreatorStrategy>([
             const height   = (props.height  as number | undefined) ?? 300
             const imageElement = new ImageElement(imageSrc, 0, 0, width, height, Style.DEFAULT)
             return new ImageView(imageElement, {
+                style: { width, height },
+            }).translate(x, y, 0)
+        },
+    ],
+    [
+        VIEWTYPE.VIDEOVIEW,
+        (props, x, y) => {
+            const videoSrc = (props.videoSrc as string | undefined) ?? ''
+            const width    = (props.width    as number | undefined) ?? 320
+            const height   = (props.height   as number | undefined) ?? 180
+            const videoElement = new VideoElement(videoSrc, 0, 0, width, height, Style.DEFAULT)
+            return new VideoView(videoElement, {
+                style: { width, height },
+            }).translate(x, y, 0)
+        },
+    ],
+    [
+        VIEWTYPE.INPUT,
+        (props, x, y) => {
+            const text = (props.text as string | undefined) ?? ''
+            const textParagraph = TextParagraph.simple(text)
+            const textFields = new TextFields([textParagraph])
+            return new Input(textFields, {
+                style: { width: 200, height: 36 },
+            }).translate(x, y, 0)
+        },
+    ],
+    [
+        VIEWTYPE.FLEXVIEW,
+        (props, x, y) => {
+            const width  = (props.width  as number | undefined) ?? 300
+            const height = (props.height as number | undefined) ?? 100
+            return new FlexView({
                 style: { width, height },
             }).translate(x, y, 0)
         },
