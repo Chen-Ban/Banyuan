@@ -16,13 +16,13 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
   public height: number;
 
   constructor(x: number, y: number, width: number, height: number, style?: Style) {
-    const vertices = [
+    const points = [
       new Point3(x, y, 0),
       new Point3(x + width, y, 0),
       new Point3(x + width, y + height, 0),
       new Point3(x, y + height, 0),
     ];
-    super(vertices, style, true);
+    super(points, style, true);
     this.width = width;
     this.height = height;
     this.id = generateId(this.type)
@@ -32,14 +32,14 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * 获取矩形的左上角坐标
    */
   public getTopLeft(): Point3 {
-    return this.vertices[0].copy();
+    return this.controlPoints[0].copy();
   }
 
   /**
    * 获取矩形的右下角坐标
    */
   public getBottomRight(): Point3 {
-    return this.vertices[2].copy();
+    return this.controlPoints[2].copy();
   }
 
   /**
@@ -54,14 +54,13 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * 设置矩形位置
    */
   public setPosition(x: number, y: number): Rectangle {
-    this.vertices = [
+    this.controlPoints = [
       new Point3(x, y, 0),
       new Point3(x + this.width, y, 0),
       new Point3(x + this.width, y + this.height, 0),
       new Point3(x, y + this.height, 0),
     ];
-    this.buildPolygonFromVertices();
-    this.updateBounds()
+    this.rebuildEdges();
     return this;
   }
 
@@ -72,15 +71,15 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
     this.width = width;
     this.height = height;
     const { x, y } = this.controlPoints[0]
-    this.vertices = [
+    this.controlPoints = [
       new Point3(x, y, 0),
       new Point3(x + this.width, y, 0),
       new Point3(x + this.width, y + this.height, 0),
       new Point3(x, y + this.height, 0),
     ];
 
-    this.buildPolygonFromVertices(width > 0, height > 0);
-    this.updateBounds(width > 0, height > 0)
+    this.rebuildEdges();
+    this.bounds = this.updateBounds()
 
     return this;
   }
@@ -163,10 +162,10 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
   public override setControlPoint(index: number, point: Point3): void {
     if (index < 0 || index >= 4) return
 
-    const v = this.vertices
+    const v = this.controlPoints
     switch (index) {
       case 0: // 左上 → 对角是右下(2)
-        this.vertices = [
+        this.controlPoints = [
           new Point3(point.x, point.y, 0),
           new Point3(v[2].x,  point.y, 0),
           new Point3(v[2].x,  v[2].y,  0),
@@ -174,7 +173,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
         ]
         break
       case 1: // 右上 → 对角是左下(3)
-        this.vertices = [
+        this.controlPoints = [
           new Point3(v[3].x,  point.y, 0),
           new Point3(point.x, point.y, 0),
           new Point3(point.x, v[3].y,  0),
@@ -182,7 +181,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
         ]
         break
       case 2: // 右下 → 对角是左上(0)
-        this.vertices = [
+        this.controlPoints = [
           new Point3(v[0].x,  v[0].y,  0),
           new Point3(point.x, v[0].y,  0),
           new Point3(point.x, point.y, 0),
@@ -190,7 +189,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
         ]
         break
       case 3: // 左下 → 对角是右上(1)
-        this.vertices = [
+        this.controlPoints = [
           new Point3(point.x, v[1].y,  0),
           new Point3(v[1].x,  v[1].y,  0),
           new Point3(v[1].x,  point.y, 0),
@@ -200,10 +199,10 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
     }
 
     // 重新计算 width/height（允许负值翻转后取绝对值）
-    this.width  = Math.abs(this.vertices[2].x - this.vertices[0].x)
-    this.height = Math.abs(this.vertices[2].y - this.vertices[0].y)
-    this.buildPolygonFromVertices(this.width > 0, this.height > 0)
-    this.bounds = this.updateBounds(this.width > 0, this.height > 0)
+    this.width  = Math.abs(this.controlPoints[2].x - this.controlPoints[0].x)
+    this.height = Math.abs(this.controlPoints[2].y - this.controlPoints[0].y)
+    this.rebuildEdges()
+    this.bounds = this.updateBounds()
   }
 
   // ── 序列化 ──

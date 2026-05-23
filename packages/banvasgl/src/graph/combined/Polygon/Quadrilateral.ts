@@ -1,10 +1,9 @@
 import { GRAPHTYPE } from '@/foundation/constants'
 import Style from '@/foundation/style/Style'
-import { Point3 } from '@/foundation/math'
+import { Point3, MathUtils } from '@/foundation/math'
 import Polygon from './Polygon'
 import { IQuadrilateral, ISerializable } from '@/types'
 import { generateId } from '@/foundation/utils'
-import MathUtils from '@/foundation/math/MathUtils'
 
 /**
  * Quadrilateral — 自由四边形
@@ -29,62 +28,18 @@ export default class Quadrilateral
   // ── 几何判断工具 ──────────────────────────────────────────
 
   /**
-   * 计算两向量的叉积 z 分量（判断平行/垂直用）
-   */
-  private static cross2D(ax: number, ay: number, bx: number, by: number): number {
-    return ax * by - ay * bx
-  }
-
-  /**
-   * 计算两向量的点积
-   */
-  private static dot2D(ax: number, ay: number, bx: number, by: number): number {
-    return ax * bx + ay * by
-  }
-
-  /**
-   * 判断两组向量是否平行（叉积接近 0）
-   */
-  private static isParallel(
-    ax: number, ay: number,
-    bx: number, by: number,
-    tolerance: number
-  ): boolean {
-    const lenA = Math.sqrt(ax * ax + ay * ay)
-    const lenB = Math.sqrt(bx * bx + by * by)
-    if (lenA < MathUtils.EPSILON || lenB < MathUtils.EPSILON) return false
-    return Math.abs(Quadrilateral.cross2D(ax / lenA, ay / lenA, bx / lenB, by / lenB)) < tolerance
-  }
-
-  /**
-   * 判断两组向量是否垂直（点积接近 0）
-   */
-  private static isPerpendicular(
-    ax: number, ay: number,
-    bx: number, by: number,
-    tolerance: number
-  ): boolean {
-    const lenA = Math.sqrt(ax * ax + ay * ay)
-    const lenB = Math.sqrt(bx * bx + by * by)
-    if (lenA < MathUtils.EPSILON || lenB < MathUtils.EPSILON) return false
-    return Math.abs(Quadrilateral.dot2D(ax / lenA, ay / lenA, bx / lenB, by / lenB)) < tolerance
-  }
-
-  /**
    * 判断是否为平行四边形（两组对边分别平行）
    */
   public isParallelogram(tolerance: number = 0.01): boolean {
-    const [v0, v1, v2, v3] = this.vertices
-    // 边 01 与 边 32（方向相同）
-    const side01x = v1.x - v0.x, side01y = v1.y - v0.y
-    const side32x = v2.x - v3.x, side32y = v2.y - v3.y
-    // 边 12 与 边 03
-    const side12x = v2.x - v1.x, side12y = v2.y - v1.y
-    const side03x = v3.x - v0.x, side03y = v3.y - v0.y
+    const [v0, v1, v2, v3] = this.controlPoints
+    const side01 = v1.subtract(v0)
+    const side32 = v2.subtract(v3)
+    const side12 = v2.subtract(v1)
+    const side03 = v3.subtract(v0)
 
     return (
-      Quadrilateral.isParallel(side01x, side01y, side32x, side32y, tolerance) &&
-      Quadrilateral.isParallel(side12x, side12y, side03x, side03y, tolerance)
+      MathUtils.isParallel(side01, side32, tolerance) &&
+      MathUtils.isParallel(side12, side03, tolerance)
     )
   }
 
@@ -93,7 +48,7 @@ export default class Quadrilateral
    */
   public isRhombus(tolerance: number = 0.01): boolean {
     if (!this.isParallelogram(tolerance)) return false
-    const [v0, v1, v2, v3] = this.vertices
+    const [v0, v1, v2, v3] = this.controlPoints
     const len01 = v0.distance(v1)
     const len12 = v1.distance(v2)
     const len23 = v2.distance(v3)
@@ -112,10 +67,10 @@ export default class Quadrilateral
    */
   public isRectangle(tolerance: number = 0.01): boolean {
     if (!this.isParallelogram(tolerance)) return false
-    const [v0, v1, , v3] = this.vertices
-    const side01x = v1.x - v0.x, side01y = v1.y - v0.y
-    const side03x = v3.x - v0.x, side03y = v3.y - v0.y
-    return Quadrilateral.isPerpendicular(side01x, side01y, side03x, side03y, tolerance)
+    const [v0, v1, , v3] = this.controlPoints
+    const side01 = v1.subtract(v0)
+    const side03 = v3.subtract(v0)
+    return MathUtils.isPerpendicular(side01, side03, tolerance)
   }
 
   /**
@@ -129,14 +84,14 @@ export default class Quadrilateral
    * 判断是否为梯形（恰好一组对边平行，另一组不平行）
    */
   public isTrapezoid(tolerance: number = 0.01): boolean {
-    const [v0, v1, v2, v3] = this.vertices
-    const side01x = v1.x - v0.x, side01y = v1.y - v0.y
-    const side32x = v2.x - v3.x, side32y = v2.y - v3.y
-    const side12x = v2.x - v1.x, side12y = v2.y - v1.y
-    const side03x = v3.x - v0.x, side03y = v3.y - v0.y
+    const [v0, v1, v2, v3] = this.controlPoints
+    const side01 = v1.subtract(v0)
+    const side32 = v2.subtract(v3)
+    const side12 = v2.subtract(v1)
+    const side03 = v3.subtract(v0)
 
-    const pair1Parallel = Quadrilateral.isParallel(side01x, side01y, side32x, side32y, tolerance)
-    const pair2Parallel = Quadrilateral.isParallel(side12x, side12y, side03x, side03y, tolerance)
+    const pair1Parallel = MathUtils.isParallel(side01, side32, tolerance)
+    const pair2Parallel = MathUtils.isParallel(side12, side03, tolerance)
 
     return pair1Parallel !== pair2Parallel // 恰好一组平行
   }
@@ -174,24 +129,22 @@ export default class Quadrilateral
     return {
       id: this.id,
       type: this.type,
-      vertices: this.vertices.map(v => v.toJSON()),
-      isClosed: this.isClosed,
-      fillMode: this.fillMode,
+      controlPoints: this.controlPoints.map(v => v.toJSON()),
+      closed: this.closed,
       style: this.style.toJSON(),
     }
   }
 
   public static fromJSON(data: any): Quadrilateral {
-    const [p0, p1, p2, p3] = data.vertices.map((v: any) => Point3.fromJSON(v))
+    const [p0, p1, p2, p3] = data.controlPoints.map((v: any) => Point3.fromJSON(v))
     const style = Style.fromJSON(data.style)
     const q = new Quadrilateral(p0, p1, p2, p3, style)
     q.id = data.id
-    q.fillMode = data.fillMode
     return q
   }
 
   public copy(): this {
-    const [p0, p1, p2, p3] = this.vertices
+    const [p0, p1, p2, p3] = this.controlPoints
     return new Quadrilateral(p0.copy(), p1.copy(), p2.copy(), p3.copy(), this.style.copy()) as this
   }
 }

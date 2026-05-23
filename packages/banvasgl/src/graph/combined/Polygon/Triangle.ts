@@ -1,6 +1,6 @@
 import { GRAPHTYPE } from "@/foundation/constants";
 import Style from "@/foundation/style/Style";
-import { Point3 } from "@/foundation/math";
+import { MathUtils, Point3, GeometryUtils } from "@/foundation/math";
 import Polygon from "./Polygon";
 import { ITriangle, ISerializable } from '@/types';
 
@@ -16,13 +16,13 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
   }
 
   /**
-   * 获取三角形的三个顶点
+   * 获取三角形的三个顶点（拷贝，外部修改不影响内部状态）
    */
   public getVertices(): { p1: Point3; p2: Point3; p3: Point3 } {
     return {
-      p1: this.vertices[0].copy(),
-      p2: this.vertices[1].copy(),
-      p3: this.vertices[2].copy(),
+      p1: this.controlPoints[0].copy(),
+      p2: this.controlPoints[1].copy(),
+      p3: this.controlPoints[2].copy(),
     };
   }
 
@@ -30,77 +30,87 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    * 设置三角形的三个顶点
    */
   public setVertices(p1: Point3, p2: Point3, p3: Point3): Triangle {
-    this.vertices = [p1.copy(), p2.copy(), p3.copy()];
-    this.buildPolygonFromVertices();
+    this.controlPoints = [p1.copy(), p2.copy(), p3.copy()];
+    this.rebuildEdges();
     return this;
   }
 
   /**
-   * 计算三角形的高
+   * 计算从指定顶点到对边的高（垂线长度）
+   *
+   * @param vertex - 必须是三角形的某个顶点
+   * @returns 从 vertex 到对边的垂直距离
    */
-  public getHeight(): number {
-    const { p1, p2, p3: _p3 } = this.getVertices();
-    const base = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-    const area = this.getArea();
-    return (2 * area) / base;
+  public getHeight(vertex: Point3): number {
+    const [p0, p1, p2] = this.controlPoints
+    let base0: Point3, base1: Point3
+    if (vertex.isSame(p0)) {
+      base0 = p1; base1 = p2
+    } else if (vertex.isSame(p1)) {
+      base0 = p0; base1 = p2
+    } else if (vertex.isSame(p2)) {
+      base0 = p0; base1 = p1
+    } else {
+      throw new Error('传入的 vertex 不是三角形的顶点')
+    }
+    return GeometryUtils.perpendicularDistance(vertex, base0, base1)
   }
 
   /**
    * 判断三角形类型
    */
-  public getTriangleType(): "equilateral" | "isosceles" | "scalene" | "right" {
-    const { p1, p2, p3 } = this.getVertices();
+  public getTriangleType(): 'equilateral' | 'isosceles' | 'scalene' | 'right' | 'right-isosceles' {
+    const [p0, p1, p2] = this.controlPoints
 
-    const side1 = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-    const side2 = Math.sqrt(Math.pow(p3.x - p2.x, 2) + Math.pow(p3.y - p2.y, 2));
-    const side3 = Math.sqrt(Math.pow(p1.x - p3.x, 2) + Math.pow(p1.y - p3.y, 2));
+    const side1 = p0.distance(p1)
+    const side2 = p1.distance(p2)
+    const side3 = p2.distance(p0)
 
-    const sides = [side1, side2, side3].sort((a, b) => a - b);
-    const [a, b, c] = sides;
+    const sides = [side1, side2, side3].sort((a, b) => a - b)
+    const [a, b, c] = sides
 
-    // 检查是否为直角三角形
-    if (Math.abs(a * a + b * b - c * c) < 0.001) {
-      return "right";
-    }
+    const isRight = Math.abs(a * a + b * b - c * c) < MathUtils.EPSILON
+    const isEquilateral =
+      Math.abs(side1 - side2) < MathUtils.EPSILON &&
+      Math.abs(side2 - side3) < MathUtils.EPSILON
+    const isIsosceles =
+      Math.abs(side1 - side2) < MathUtils.EPSILON ||
+      Math.abs(side2 - side3) < MathUtils.EPSILON ||
+      Math.abs(side1 - side3) < MathUtils.EPSILON
 
-    // 检查是否为等边三角形
-    if (Math.abs(side1 - side2) < 0.001 && Math.abs(side2 - side3) < 0.001) {
-      return "equilateral";
-    }
-
-    // 检查是否为等腰三角形
-    if (Math.abs(side1 - side2) < 0.001 || Math.abs(side2 - side3) < 0.001 || Math.abs(side1 - side3) < 0.001) {
-      return "isosceles";
-    }
-
-    return "scalene";
+    if (isEquilateral) return 'equilateral'
+    if (isRight && isIsosceles) return 'right-isosceles'
+    if (isRight) return 'right'
+    if (isIsosceles) return 'isosceles'
+    return 'scalene'
   }
 
   /**
    * 获取三角形的重心
    */
   public getCentroid(): Point3 {
-    const { p1, p2, p3 } = this.getVertices();
-    return new Point3((p1.x + p2.x + p3.x) / 3, (p1.y + p2.y + p3.y) / 3, (p1.z + p2.z + p3.z) / 3);
+    // 防御性检查：构造期 super() 链中 controlPoints 尚未赋值时，fallback 到父类实现
+    if (!this.controlPoints || this.controlPoints.length < 3) {
+      return super.getCentroid();
+    }
+    const [p0, p1, p2] = this.controlPoints
+    return new Point3((p0.x + p1.x + p2.x) / 3, (p0.y + p1.y + p2.y) / 3, (p0.z + p1.z + p2.z) / 3);
   }
 
   /**
    * 获取三角形的外心
    */
   public getCircumcenter(): Point3 {
-    const { p1, p2, p3 } = this.getVertices();
+    const [p0, p1, p2] = this.controlPoints
 
-    const ax = p1.x;
-    const ay = p1.y;
-    const bx = p2.x;
-    const by = p2.y;
-    const cx = p3.x;
-    const cy = p3.y;
+    const ax = p0.x, ay = p0.y
+    const bx = p1.x, by = p1.y
+    const cx = p2.x, cy = p2.y
 
     const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
 
-    if (Math.abs(d) < 0.001) {
-      // 三点共线，返回中心点
+    if (Math.abs(d) < MathUtils.EPSILON) {
+      // 三点共线，返回重心
       return this.getCentroid();
     }
 
@@ -109,7 +119,7 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
     const uy =
       ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
 
-    return new Point3(ux, uy, (p1.z + p2.z + p3.z) / 3);
+    return new Point3(ux, uy, (p0.z + p1.z + p2.z) / 3);
   }
 
   // ── 序列化 ──
@@ -117,15 +127,15 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
     return {
       id: this.id,
       type: this.type,
-      vertices: this.vertices.map(v => v.toJSON()),
+      controlPoints: this.controlPoints.map(v => v.toJSON()),
       style: this.style.toJSON(),
     }
   }
 
   public static fromJSON(data: any): Triangle {
-    const vertices = data.vertices.map((v: any) => Point3.fromJSON(v))
+    const points = data.controlPoints.map((v: any) => Point3.fromJSON(v))
     const style = Style.fromJSON(data.style)
-    const triangle = new Triangle(vertices[0], vertices[1], vertices[2], style)
+    const triangle = new Triangle(points[0], points[1], points[2], style)
     triangle.id = data.id
     return triangle
   }
@@ -134,8 +144,8 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    * 复制三角形
    */
   public copy(): this {
-    const { p1, p2, p3 } = this.getVertices();
-    return new Triangle(p1, p2, p3, this.style.copy()) as this;
+    const [p0, p1, p2] = this.controlPoints
+    return new Triangle(p0.copy(), p1.copy(), p2.copy(), this.style.copy()) as this;
   }
 
   /**

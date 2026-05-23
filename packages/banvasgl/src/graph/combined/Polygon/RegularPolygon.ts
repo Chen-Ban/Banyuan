@@ -2,7 +2,7 @@ import { GRAPHTYPE } from "@/foundation/constants";
 import Style from "@/foundation/style/Style";
 import { Point3 } from "@/foundation/math";
 import Polygon from "./Polygon";
-import { IRegularPolygon, ISerializable } from '@/types';
+import { IRegularPolygon, ISerializable } from "@/types";
 
 /**
  * RegularPolygon类 - 正多边形
@@ -16,8 +16,8 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
   public rotation: number;
 
   constructor(center: Point3, radius: number, sides: number, rotation: number = 0, style?: Style) {
-    const vertices = RegularPolygon.generateVertices(center, radius, sides, rotation);
-    super(vertices, style, true);
+    const points = RegularPolygon.generatePoints(center, radius, sides, rotation);
+    super(points, style, true);
     this.center = center.copy();
     this.radius = radius;
     this.sides = sides;
@@ -27,18 +27,18 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
   /**
    * 生成正多边形的顶点
    */
-  private static generateVertices(center: Point3, radius: number, sides: number, rotation: number): Point3[] {
-    const vertices: Point3[] = [];
+  private static generatePoints(center: Point3, radius: number, sides: number, rotation: number): Point3[] {
+    const points: Point3[] = [];
     const angleStep = (2 * Math.PI) / sides;
 
     for (let i = 0; i < sides; i++) {
       const angle = i * angleStep + rotation;
       const x = center.x + radius * Math.cos(angle);
       const y = center.y + radius * Math.sin(angle);
-      vertices.push(new Point3(x, y, center.z));
+      points.push(new Point3(x, y, center.z));
     }
 
-    return vertices;
+    return points;
   }
 
   /**
@@ -46,8 +46,8 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
    */
   public setCenter(center: Point3): RegularPolygon {
     this.center = center.copy();
-    this.vertices = RegularPolygon.generateVertices(this.center, this.radius, this.sides, this.rotation);
-    this.buildPolygonFromVertices();
+    this.controlPoints = RegularPolygon.generatePoints(this.center, this.radius, this.sides, this.rotation);
+    this.rebuildEdges();
     return this;
   }
 
@@ -56,8 +56,8 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
    */
   public setRadius(radius: number): RegularPolygon {
     this.radius = radius;
-    this.vertices = RegularPolygon.generateVertices(this.center, this.radius, this.sides, this.rotation);
-    this.buildPolygonFromVertices();
+    this.controlPoints = RegularPolygon.generatePoints(this.center, this.radius, this.sides, this.rotation);
+    this.rebuildEdges();
     return this;
   }
 
@@ -69,14 +69,10 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
       throw new Error("Regular polygon must have at least 3 sides");
     }
     this.sides = sides;
-    this.vertices = RegularPolygon.generateVertices(this.center, this.radius, this.sides, this.rotation);
-    this.buildPolygonFromVertices();
+    this.controlPoints = RegularPolygon.generatePoints(this.center, this.radius, this.sides, this.rotation);
+    this.rebuildEdges();
     return this;
   }
-
-  /**
-   * 设置旋转角度
-   */
 
   /**
    * 获取内角
@@ -127,7 +123,7 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
     if (index < 0 || index >= this.sides) {
       throw new Error("Vertex index out of bounds");
     }
-    return this.vertices[index].copy();
+    return this.controlPoints[index].copy();
   }
 
   /**
@@ -223,8 +219,8 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
     points: number,
     rotation: number = 0,
     style?: Style
-  ): RegularPolygon {
-    const vertices: Point3[] = [];
+  ): Polygon {
+    const starPoints: Point3[] = [];
     const angleStep = Math.PI / points;
 
     for (let i = 0; i < points * 2; i++) {
@@ -232,9 +228,9 @@ export default class RegularPolygon extends Polygon implements IRegularPolygon, 
       const radius = i % 2 === 0 ? outerRadius : innerRadius;
       const x = center.x + radius * Math.cos(angle);
       const y = center.y + radius * Math.sin(angle);
-      vertices.push(new Point3(x, y, center.z));
+      starPoints.push(new Point3(x, y, center.z));
     }
 
-    return new RegularPolygon(center, outerRadius, points * 2, rotation, style);
+    return new Polygon(starPoints, style, true);
   }
 }
