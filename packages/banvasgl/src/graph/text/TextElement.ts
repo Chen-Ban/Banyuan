@@ -2,7 +2,7 @@ import { GRAPHTYPE } from '@/foundation/constants'
 import { Style, Color } from '@/foundation/style'
 import TextOptions from './TextOptions'
 import Graph from '@/graph/base/Graph'
-import { Point3, Vector3, Matrix4 } from '@/foundation/math'
+import { MathUtils, Point3, Vector3, Matrix4 } from '@/foundation/math'
 import Bounds from '@/graph/base/Bounds'
 import { Rectangle } from '@/graph/combined'
 import { ITextElement, IPrintableTextElement, INonPrintableTextElement, ISerializable } from '@/types'
@@ -23,10 +23,13 @@ export default abstract class TextElement extends Graph implements ITextElement 
     public height: number = 0
     public lineHeight: number = 0
     public bounds: Bounds
-    public transfromOrigin: Point3
 
     /** 标记是否需要重新测量尺寸（延迟到 layout 阶段） */
     public _measureDirty: boolean = true
+
+    public isClosed(): boolean {
+        return false;
+    }
 
     constructor(
         content: string,
@@ -39,7 +42,6 @@ export default abstract class TextElement extends Graph implements ITextElement 
         this._style = style
         this.controlPoints = []
         this.bounds = Bounds.empty()
-        this.transfromOrigin = Point3.origin
     }
 
     /**
@@ -67,18 +69,15 @@ export default abstract class TextElement extends Graph implements ITextElement 
     }
     public abstract applyLayout(point: Point3, lineHeight: number): this
 
-    public getLength(tStart: number, tEnd: number): number {
-        return (this.width + this.lineHeight) * 2 * (tEnd - tStart)
+    public getLength(_tStart: number, _tEnd: number): number {
+        return 0
     }
 
-    public getPointAt(t: number): Point3 {
+    public getPointAt(_t: number): Point3 {
         return this.controlPoints[0]
     }
 
-    public updateBounds(
-        orientationX?: boolean,
-        orientationY?: boolean
-    ): Bounds {
+    public updateBounds(): Bounds {
         if (this.isLayouted && this.controlPoints.length > 0) {
             const { x, y } = this.controlPoints[0]
             const startPoint = new Point3(
@@ -104,11 +103,7 @@ export default abstract class TextElement extends Graph implements ITextElement 
                 ),
                 startPoint.add(new Vector3(0, this.lineHeight, 0)),
             ]
-            return Bounds.fromPoints(
-                points,
-                orientationX ?? this.bounds?.width >= 0,
-                orientationY ?? this.bounds?.height >= 0
-            )
+            return Bounds.fromPoints(points)
         } else {
             return Bounds.empty()
         }
@@ -150,7 +145,7 @@ export default abstract class TextElement extends Graph implements ITextElement 
         return this._style
     }
 
-    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+    public renderPath(ctx: CanvasRenderingContext2D, dependent: boolean): void {
         dependent && ctx.beginPath()
         const bounds = this.bounds
         ctx.moveTo(bounds.x, bounds.y)
@@ -165,45 +160,16 @@ export default abstract class TextElement extends Graph implements ITextElement 
      */
     public abstract render(ctx: CanvasRenderingContext2D): void
 
-    isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
-        const bounds = this.bounds
-        return new Rectangle(
-            bounds.x,
-            bounds.y,
-            bounds.width,
-            bounds.height
-        ).isPointOnCurve(point, tolerance)
+    isPointOnCurve(_point: Point3, _tolerance: number = MathUtils.EPSILON): boolean {
+        return false
     }
 
-    public getTangentAt(t: number): Vector3 {
-        const bounds = this.bounds
-        const perimeter = 2 * (bounds.width + bounds.height)
-        let currentLength = 0
-
-        // 上边：向右
-        if (t * perimeter <= bounds.width) {
-            return new Vector3(1, 0, 0)
-        }
-        currentLength += bounds.width
-
-        // 右边：向下
-        if (t * perimeter <= currentLength + bounds.height) {
-            return new Vector3(0, 1, 0)
-        }
-        currentLength += bounds.height
-
-        // 下边：向左
-        if (t * perimeter <= currentLength + bounds.width) {
-            return new Vector3(-1, 0, 0)
-        }
-
-        // 左边：向上
-        return new Vector3(0, -1, 0)
+    public getTangentAt(_t: number): Vector3 {
+        return new Vector3(1, 0, 0)
     }
 
-    public getNormalAt(t: number): Vector3 {
-        const tangent = this.getTangentAt(t)
-        return new Vector3(-tangent.y, tangent.x, 0)
+    public getNormalAt(_t: number): Vector3 {
+        return new Vector3(0, 1, 0)
     }
 
     public getClosestPoint(point: Point3): {
@@ -211,81 +177,15 @@ export default abstract class TextElement extends Graph implements ITextElement 
         closestPoint: Point3
         parameter: number
     } {
-        const bounds = this.bounds
-        const closestX = Math.max(
-            bounds.x,
-            Math.min(point.x, bounds.x + bounds.width)
-        )
-        const closestY = Math.max(
-            bounds.y,
-            Math.min(point.y, bounds.y + bounds.height)
-        )
-        const closestPoint = new Point3(closestX, closestY, 0)
-        const distance = Math.sqrt(
-            Math.pow(point.x - closestPoint.x, 2) +
-                Math.pow(point.y - closestPoint.y, 2)
-        )
-
-        // 计算参数t（基于周长）
-        const perimeter = 2 * (bounds.width + bounds.height)
-        let t = 0
-        if (closestX === bounds.x + bounds.width && closestY === bounds.y) {
-            // 右上角
-            t = bounds.width / perimeter
-        } else if (
-            closestX === bounds.x + bounds.width &&
-            closestY === bounds.y + bounds.height
-        ) {
-            // 右下角
-            t = (bounds.width + bounds.height) / perimeter
-        } else if (
-            closestX === bounds.x &&
-            closestY === bounds.y + bounds.height
-        ) {
-            // 左下角
-            t = (2 * bounds.width + bounds.height) / perimeter
-        } else if (closestX === bounds.x && closestY === bounds.y) {
-            // 左上角
-            t = 0
-        } else if (closestY === bounds.y) {
-            // 上边
-            t = (closestX - bounds.x) / perimeter
-        } else if (closestX === bounds.x + bounds.width) {
-            // 右边
-            t = (bounds.width + closestY - bounds.y) / perimeter
-        } else if (closestY === bounds.y + bounds.height) {
-            // 下边
-            t =
-                (bounds.width +
-                    bounds.height +
-                    bounds.width -
-                    (closestX - bounds.x)) /
-                perimeter
-        } else {
-            // 左边
-            t =
-                (2 * bounds.width +
-                    bounds.height +
-                    bounds.height -
-                    (closestY - bounds.y)) /
-                perimeter
-        }
-
-        return { distance, closestPoint, parameter: t }
+        return { distance: 0, closestPoint: point, parameter: 0 }
     }
 
     public getArea(): number {
-        const bounds = this.bounds
-        return bounds.width * bounds.height
+        return 0
     }
 
     public getCentroid(): Point3 {
-        const bounds = this.bounds
-        return new Point3(
-            bounds.x + bounds.width / 2,
-            bounds.y + bounds.height / 2,
-            0
-        )
+        return this.controlPoints[0] ?? new Point3(0, 0, 0)
     }
 
     public transform(matrix: Matrix4): Graph {
@@ -385,6 +285,10 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
         super.content = content
     }
 
+    get content(): string {
+        return super.content
+    }
+
     /**
      * 布局方法 - 在TextView中调用时设置位置和计算包围盒
      */
@@ -394,10 +298,6 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
         this.lineHeight = lineHeight
         // 计算包围盒并设置正确的controlPoints
         this.bounds = this.updateBounds()
-        // 将变换原点放到左上角
-        this.transfromOrigin = position.add(
-            new Vector3(0, this.height - lineHeight, 0)
-        )
         return this
     }
 
@@ -414,7 +314,7 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
 
         // 应用样式（但不覆盖文字颜色）
         const bounds = this.bounds
-        this.style.applyToContext(ctx, bounds.width, bounds.height)
+        this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
 
         // 设置文字颜色（在应用样式后设置，确保不被覆盖）
         ctx.fillStyle = this.options.color.rgba
@@ -556,7 +456,6 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
         this.lineHeight = lineHeight
         // 计算包围盒并设置正确的controlPoints
         this.bounds = this.updateBounds()
-        this.transfromOrigin = position.copy()
         return this
     }
 
@@ -606,22 +505,3 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
     }
 }
 
-// 类型守卫函数
-
-/**
- * 检查是否为可打印的文字元素
- */
-export function isPrintableTextElement(
-    graph: any
-): graph is PrintableTextElement {
-    return graph instanceof PrintableTextElement
-}
-
-/**
- * 检查是否为不可打印的文字元素
- */
-export function isNonPrintableTextElement(
-    graph: any
-): graph is NonPrintableTextElement {
-    return graph instanceof NonPrintableTextElement
-}

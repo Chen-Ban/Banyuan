@@ -1,14 +1,14 @@
 import { GRAPHTYPE, HORIZONTALALIGN, VERTICALALIGN } from "@/foundation/constants";
 import Graph from "@/graph/base/Graph";
-import { Point3, Vector3, Matrix4 } from "@/foundation/math";
+import { MathUtils, Point3, Vector3, Matrix4 } from "@/foundation/math";
 import { Style } from "@/foundation/style";
 import TextParagraph from "./TextParagraph";
 import TextFieldsOptions from "./TextFieldsOptions";
 import Bounds from "@/graph/base/Bounds";
 import { Rectangle } from "@/graph/combined";
-import TextElement, { isNonPrintableTextElement } from "./TextElement";
+import TextElement from "./TextElement";
 import TextOptions from "./TextOptions";
-import { ITextFields, ISerializable } from "@/types";
+import { ITextFields, ISerializable, isGraphType } from "@/types";
 import { generateId } from "@/foundation/utils";
 
 /**
@@ -49,7 +49,10 @@ export default class TextFields
   public options: TextFieldsOptions;
   public paragraphs: TextParagraph[];
   public bounds: Bounds;
-  public transfromOrigin: Point3;
+
+  public isClosed(): boolean {
+    return false;
+  }
 
   constructor(
     paragraphs: TextParagraph[] = [],
@@ -62,7 +65,6 @@ export default class TextFields
     this.paragraphs = paragraphs;
     this.controlPoints = [];
     this.bounds = Bounds.empty();
-    this.transfromOrigin = Point3.origin;
     this.id = generateId(this.type);
   }
 
@@ -222,7 +224,8 @@ export default class TextFields
     let currentY = layoutArea.getTopLeft().y;
 
     // 遍历所有段落进行布局
-    for (const paragraph of paragraphs) {
+    for (let i = 0; i < paragraphs.length; i++) {
+      const paragraph = paragraphs[i];
       this.layoutParagraph(
         paragraph,
         layoutArea.getTopLeft().x,
@@ -231,6 +234,10 @@ export default class TextFields
       );
       const paragraphBounds = paragraph.bounds;
       currentY += paragraphBounds.height;
+      // 段落间距（最后一个段落后不加）
+      if (i < paragraphs.length - 1) {
+        currentY += this.options.paragraphSpacing;
+      }
     }
     this.adjustParagraphVerticalAlignment(paragraphs, layoutArea);
   }
@@ -443,8 +450,8 @@ export default class TextFields
 
     if (offsetY === 0) return;
 
-    let offsetVector = new Vector3(0, offsetY, 0);
-    // 调整所有段落内文字元素的位置
+    const offsetVector = new Vector3(0, offsetY, 0);
+    // 调整所有段落内文字元素的位置（统一偏移）
     for (const paragraph of paragraphs) {
       for (const textElement of paragraph.texts) {
         textElement.applyLayout(
@@ -452,9 +459,6 @@ export default class TextFields
           textElement.lineHeight,
         );
       }
-      offsetVector = offsetVector.add(
-        new Vector3(0, paragraph.bounds.height, 0),
-      );
     }
   }
 
@@ -482,13 +486,14 @@ export default class TextFields
    * 计算基于首字符宽度的缩进
    */
   private calculateIndentationWidth(paragraph: TextParagraph): number {
-    if (paragraph.texts.length === 0) {
+    if (paragraph.texts.length === 0 || paragraph.options.indentation === 0) {
       return 0;
     }
 
     // 获取首字符
     const firstTextElement = paragraph.texts[0];
 
+    // 若首字符尚未测量（无 ctx 环境），宽度为 0，缩进回退为 0
     const firstCharWidth = firstTextElement.width;
 
     // 根据段落选项中的indentation值（作为倍数）计算实际缩进宽度
@@ -559,8 +564,9 @@ export default class TextFields
           if (relativePoint.x >= midPoint.x) {
             index[2] = 1;
           }
-          if (isNonPrintableTextElement(t)) {
-            index[1] -= 1;
+          if (isGraphType(t, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT)) {
+            // 空段落时 j=0，确保索引不为负数
+            index[1] = Math.max(0, index[1] - 1);
           }
           return index;
         }
@@ -573,12 +579,12 @@ export default class TextFields
    * 探测文本元素（优先级：左上、右下、左下、右上）
    * @param textElements 需要探测的文本元素数组
    * @param p 相对坐标点
-   * @returns 命中文本元素
+   * @returns 命中文本元素，未命中返回 null
    */
   private probeTextElement(
     textElements: TextElement[],
     p: Point3,
-  ): TextElement {
+  ): TextElement | null {
     const leftTop = textElements.filter((b) => {
       const bounds = b.bounds;
       return bounds.x < p.x && bounds.y < p.y;
@@ -622,7 +628,7 @@ export default class TextFields
     return hitedTextElement;
   }
 
-  public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+  public renderPath(ctx: CanvasRenderingContext2D, dependent: boolean): void {
     dependent && ctx.beginPath();
     const bounds = this.bounds;
     ctx.moveTo(bounds.x, bounds.y);
@@ -632,82 +638,24 @@ export default class TextFields
     ctx.lineTo(bounds.x, bounds.y);
   }
 
-  isPointOnCurve(point: Point3, tolerance: number = 1e-6): boolean {
-    const bounds = this.bounds;
-    return new Rectangle(
-      bounds.x,
-      bounds.y,
-      bounds.width,
-      bounds.height,
-    ).isPointOnCurve(point, tolerance);
+  isPointOnCurve(_point: Point3, _tolerance: number = MathUtils.EPSILON): boolean {
+    return false;
   }
 
-  public getPointAt(t: number): Point3 {
-    const bounds = this.bounds;
-    const perimeter = 2 * (bounds.width + bounds.height);
-    const clampedT = Math.max(0, Math.min(1, t));
-    let currentLength = clampedT * perimeter;
-
-    // 上边
-    if (currentLength <= bounds.width) {
-      return new Point3(bounds.x + currentLength, bounds.y, 0);
-    }
-    currentLength -= bounds.width;
-
-    // 右边
-    if (currentLength <= bounds.height) {
-      return new Point3(bounds.x + bounds.width, bounds.y + currentLength, 0);
-    }
-    currentLength -= bounds.height;
-
-    // 下边
-    if (currentLength <= bounds.width) {
-      return new Point3(
-        bounds.x + bounds.width - currentLength,
-        bounds.y + bounds.height,
-        0,
-      );
-    }
-    currentLength -= bounds.width;
-
-    // 左边
-    return new Point3(bounds.x, bounds.y + bounds.height - currentLength, 0);
+  public getPointAt(_t: number): Point3 {
+    return this.controlPoints[0] ?? new Point3(0, 0, 0);
   }
 
-  public getLength(tStart: number, tEnd: number): number {
-    const bounds = this.bounds;
-    return 2 * (bounds.width + bounds.height) * Math.abs(tEnd - tStart);
+  public getLength(_tStart: number, _tEnd: number): number {
+    return 0;
   }
 
-  public getTangentAt(t: number): Vector3 {
-    const bounds = this.bounds;
-    const perimeter = 2 * (bounds.width + bounds.height);
-    let currentLength = 0;
-
-    // 上边：向右
-    if (t * perimeter <= bounds.width) {
-      return new Vector3(1, 0, 0);
-    }
-    currentLength += bounds.width;
-
-    // 右边：向下
-    if (t * perimeter <= currentLength + bounds.height) {
-      return new Vector3(0, 1, 0);
-    }
-    currentLength += bounds.height;
-
-    // 下边：向左
-    if (t * perimeter <= currentLength + bounds.width) {
-      return new Vector3(-1, 0, 0);
-    }
-
-    // 左边：向上
-    return new Vector3(0, -1, 0);
+  public getTangentAt(_t: number): Vector3 {
+    return new Vector3(1, 0, 0);
   }
 
-  public getNormalAt(t: number): Vector3 {
-    const tangent = this.getTangentAt(t);
-    return new Vector3(-tangent.y, tangent.x, 0);
+  public getNormalAt(_t: number): Vector3 {
+    return new Vector3(0, 1, 0);
   }
 
   public getClosestPoint(point: Point3): {
@@ -715,67 +663,15 @@ export default class TextFields
     closestPoint: Point3;
     parameter: number;
   } {
-    const bounds = this.bounds;
-    const closestX = Math.max(
-      bounds.x,
-      Math.min(point.x, bounds.x + bounds.width),
-    );
-    const closestY = Math.max(
-      bounds.y,
-      Math.min(point.y, bounds.y + bounds.height),
-    );
-    const closestPoint = new Point3(closestX, closestY, 0);
-    const distance = Math.sqrt(
-      Math.pow(point.x - closestPoint.x, 2) +
-        Math.pow(point.y - closestPoint.y, 2),
-    );
-
-    // 计算参数t（基于周长）
-    const perimeter = 2 * (bounds.width + bounds.height);
-    let t = 0;
-    if (closestX === bounds.x + bounds.width && closestY === bounds.y) {
-      t = bounds.width / perimeter;
-    } else if (
-      closestX === bounds.x + bounds.width &&
-      closestY === bounds.y + bounds.height
-    ) {
-      t = (bounds.width + bounds.height) / perimeter;
-    } else if (closestX === bounds.x && closestY === bounds.y + bounds.height) {
-      t = (2 * bounds.width + bounds.height) / perimeter;
-    } else if (closestX === bounds.x && closestY === bounds.y) {
-      t = 0;
-    } else if (closestY === bounds.y) {
-      t = (closestX - bounds.x) / perimeter;
-    } else if (closestX === bounds.x + bounds.width) {
-      t = (bounds.width + closestY - bounds.y) / perimeter;
-    } else if (closestY === bounds.y + bounds.height) {
-      t =
-        (bounds.width + bounds.height + bounds.width - (closestX - bounds.x)) /
-        perimeter;
-    } else {
-      t =
-        (2 * bounds.width +
-          bounds.height +
-          bounds.height -
-          (closestY - bounds.y)) /
-        perimeter;
-    }
-
-    return { distance, closestPoint, parameter: t };
+    return { distance: 0, closestPoint: point, parameter: 0 };
   }
 
   public getArea(): number {
-    const bounds = this.bounds;
-    return bounds.width * bounds.height;
+    return 0;
   }
 
   public getCentroid(): Point3 {
-    const bounds = this.bounds;
-    return new Point3(
-      bounds.x + bounds.width / 2,
-      bounds.y + bounds.height / 2,
-      0,
-    );
+    return this.controlPoints[0] ?? new Point3(0, 0, 0);
   }
 
   public transform(matrix: Matrix4): Graph {
@@ -803,7 +699,7 @@ export default class TextFields
 
     // 应用样式
     const bounds = this.bounds;
-    this.style.applyToContext(ctx, bounds.width, bounds.height);
+    this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
 
     // 渲染背景（如果有）
     this.renderPath(ctx, true);
@@ -832,7 +728,6 @@ export default class TextFields
     if (this.controlPoints.length > 0) {
       newTextFields.controlPoints = [this.controlPoints[0].copy()];
       newTextFields.bounds = this.bounds.copy();
-      newTextFields.transfromOrigin = this.transfromOrigin.copy();
     }
 
     return newTextFields as this;
@@ -896,9 +791,3 @@ export default class TextFields
   }
 }
 
-// 类型守卫函数
-export function isTextFields(graph: any): graph is TextFields {
-  return (
-    graph !== null && graph !== undefined && graph.type === GRAPHTYPE.TEXTFIELDS
-  );
-}

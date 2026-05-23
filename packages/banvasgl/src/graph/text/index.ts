@@ -2,17 +2,14 @@
 export {
   default as TextParagraph,
   type TextParagraphContent,
-  isTextParagraph,
   isTextParagraphContent,
 } from "./TextParagraph";
 export {
   default as TextElement,
   PrintableTextElement,
   NonPrintableTextElement,
-  isNonPrintableTextElement,
-  isPrintableTextElement,
 } from "./TextElement";
-export { default as TextFields, isTextFields } from "./TextFields";
+export { default as TextFields } from "./TextFields";
 
 // 选项类导出
 export { default as ParagraphOptions } from "./ParagraphOptions";

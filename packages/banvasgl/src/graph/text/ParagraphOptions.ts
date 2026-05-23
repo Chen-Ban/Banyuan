@@ -65,15 +65,15 @@ export default class ParagraphOptions {
   /**
    * 静态工厂方法 - 创建居中对齐段落选项
    */
-  static center(leading: number = 1.2, letterSpacing: number = 0): ParagraphOptions {
-    return new ParagraphOptions(HORIZONTALALIGN.CENTER, leading, letterSpacing);
+  static center(leading: number = 1.2): ParagraphOptions {
+    return new ParagraphOptions(HORIZONTALALIGN.CENTER, leading);
   }
 
   /**
    * 静态工厂方法 - 创建右对齐段落选项
    */
-  static right(leading: number = 1.2, letterSpacing: number = 0): ParagraphOptions {
-    return new ParagraphOptions(HORIZONTALALIGN.RIGHT, leading, letterSpacing);
+  static right(leading: number = 1.2): ParagraphOptions {
+    return new ParagraphOptions(HORIZONTALALIGN.RIGHT, leading);
   }
 
   // ── 序列化 ──

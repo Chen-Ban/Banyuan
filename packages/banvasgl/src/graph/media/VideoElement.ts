@@ -1,6 +1,5 @@
 import { GRAPHTYPE } from "@/foundation/constants";
 import MediaElement from "./MediaElement";
-import { Point3 } from "@/foundation/math";
 import { Style } from "@/foundation/style";
 import { IVideoElement, ISerializable } from '@/types';
 import { generateId } from '@/foundation/utils';
@@ -51,14 +50,11 @@ export default class VideoElement extends MediaElement implements IVideoElement,
 
       video.onloadedmetadata = () => {
         this.video = video;
-        this.width = video.videoWidth;
-        this.height = video.videoHeight;
-        this.actualWidth = video.videoWidth
-        this.actualHeight = video.videoHeight
+        this.actualWidth = video.videoWidth;
+        this.actualHeight = video.videoHeight;
         this.loaded = true;
         // 媒体加载完成后，更新控制点和边界框
         this.updateControlPoints();
-        this.transfromOrigin = new Point3(this.x + this.width / 2, this.y + this.height / 2, 0)
         resolve();
       };
 
@@ -177,18 +173,21 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * 渲染视频
    */
   public render(ctx: CanvasRenderingContext2D): void {
+    ctx.save();
     if (!this.video || !this.loaded) {
       // 如果视频未加载，绘制占位符
       this.renderPlaceholder(ctx);
+      ctx.restore();
       return;
     }
 
     // 应用样式
     const bounds = this.bounds;
-    this.style.applyToContext(ctx, bounds.width, bounds.height);
+    this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
 
     // 绘制视频（使用设置的尺寸）
     ctx.drawImage(this.video, this.x, this.y, this.width, this.height);
+    ctx.restore();
   }
 
   /**
@@ -221,17 +220,6 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   }
 
   /**
-   * 检查点是否在视频内
-   */
-  containsPoint(point: Point3): boolean {
-    if (!this.video || !this.loaded) {
-      return false;
-    }
-
-    return point.x >= this.x && point.x <= this.x + this.width && point.y >= this.y && point.y <= this.y + this.height;
-  }
-
-  /**
    * 获取视频的像素数据
    */
   getImageData(): ImageData | null {
@@ -253,20 +241,11 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * 复制视频元素
    */
   public copy(): this {
-    const copy = new VideoElement(this.src, this.x, this.y,this.width,this.height, this.style);
-    copy.width = this.width;
-    copy.height = this.height;
+    const copy = new VideoElement(this.src, this.x, this.y, this.width, this.height, this.style.copy());
     copy.autoplay = this.autoplay;
     copy.loop = this.loop;
     copy.muted = this.muted;
     return copy as this;
-  }
-
-  /**
-   * 检查是否是视频元素
-   */
-  public isVideoElement(): boolean {
-    return true;
   }
 
   // ── 序列化 ──
