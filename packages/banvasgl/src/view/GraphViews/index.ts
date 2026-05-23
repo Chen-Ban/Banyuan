@@ -126,12 +126,8 @@ export default class GraphView
     this.controlPoints.vertices = actualPoints
     this.controlPoints.activeVertex = actualPoints[index]
 
-    // 重算 layoutArea
-    this.layoutArea = Bounds.union(
-      this.content.bounds ?? Bounds.empty(),
-      this.measureChildren()
-    )
-    this.layout()
+    // 标记布局脏，延迟到渲染时重算
+    this.markLayoutDirty()
   }
 
   public getSnapObjects(): [Point3[], Line[]] {

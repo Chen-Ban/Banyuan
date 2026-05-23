@@ -90,7 +90,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public data: D = {} as D;
   public content: IGraph | null;
   /** 类级空数组常量，避免每次 getter 调用创建新引用 */
-  private static readonly EMPTY_CHILDREN: View[] = []
+  private static readonly EMPTY_CHILDREN: View[] = [];
 
   /**
    * 子视图列表。
@@ -98,29 +98,29 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * ContainerView 子类 override 此 getter 返回实际 children。
    */
   get children(): View[] {
-    return View.EMPTY_CHILDREN
+    return View.EMPTY_CHILDREN;
   }
   public parent: ISceneNode | View | null = null;
 
   // 事件与生命周期
   public events: IViewEvents = {
     // 点击类
-    onClick:       null,
+    onClick: null,
     onDoubleClick: null,
     onContextMenu: null,
     // 鼠标移动类
-    onMouseEnter:  null,
-    onMouseLeave:  null,
-    onMouseMove:   null,
-    onMouseDown:   null,
-    onMouseUp:     null,
+    onMouseEnter: null,
+    onMouseLeave: null,
+    onMouseMove: null,
+    onMouseDown: null,
+    onMouseUp: null,
     // 拖拽类
-    onDragStart:   null,
-    onDrag:        null,
-    onDragEnd:     null,
+    onDragStart: null,
+    onDrag: null,
+    onDragEnd: null,
     // 焦点类
-    onFocus:       null,
-    onBlur:        null,
+    onFocus: null,
+    onBlur: null,
   };
   public lifetimes: IViewLifetimes = {
     onCreated: null,
@@ -158,10 +158,12 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   _animatedViewport: Bounds | null = null;
   /** 渲染时使用的视口：动画覆盖层优先，否则取真实 viewport */
   get renderViewport(): Bounds {
-    return this._animatedViewport ?? this.viewport
+    return this._animatedViewport ?? this.viewport;
   }
   // 内容布局区域
   public layoutArea: Bounds;
+  /** 布局脏标记：为 true 时下次渲染前需要重新执行 layout */
+  protected _layoutDirty: boolean = true;
   // 排版约束区域：容器对内容的布局约束（描述内容可排版的空间）
   public constraintBounds: Bounds = Bounds.empty();
   // 类型
@@ -306,14 +308,15 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
     if (this.content) {
       const fixedPoint = new Point3(viewport.x, viewport.y, 0);
-      const dynamicPoint = new Point3(viewport.x + oldWidth, viewport.y + oldHeight, 0);
+      const dynamicPoint = new Point3(
+        viewport.x + oldWidth,
+        viewport.y + oldHeight,
+        0,
+      );
       const resizeVector = new Vector3(deltaX, deltaY, 0);
       this.content.resize(fixedPoint, dynamicPoint, resizeVector);
-      this.layoutArea = Bounds.union(
-        this.content.bounds ?? Bounds.empty(),
-        this.measureChildren(),
-      );
-      this.layout();
+      // 标记布局脏，延迟到渲染时重算
+      this.markLayoutDirty();
     }
 
     // 递归提交子 View
@@ -324,7 +327,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       const childVp = child.viewport;
       if (!childVp) return;
       child._animatedViewport = child._animatedViewport ?? childVp.copy();
-      child._animatedViewport.setSize(childVp.width * scaleX, childVp.height * scaleY);
+      child._animatedViewport.setSize(
+        childVp.width * scaleX,
+        childVp.height * scaleY,
+      );
       child._commitAnimatedViewport();
     });
   }
@@ -340,11 +346,13 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   // 获取内容
-  public layoutContent(): Bounds {
+  public layoutContent(ctx?: CanvasRenderingContext2D): Bounds {
     // 内容布局区域，优先调用布局方法(主要只有文字需要进行内容布局)，然后看已有bounds
     // constraintBounds 由 View 持有并传递给 content.layout() 作为排版约束
     return (
-      this.content?.layout(this.constraintBounds)?.bounds ?? this.content?.bounds ?? Bounds.empty()
+      this.content?.layout(this.constraintBounds, ctx)?.bounds ??
+      this.content?.bounds ??
+      Bounds.empty()
     );
   }
 
@@ -357,7 +365,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 应用各自的变换矩阵
     childRects.forEach((rect, i) => rect.transform(this.children[i].matrix));
     // 计算所有子容器在本地坐标系下的总包围盒
-    return Bounds.fromPoints(childRects.map((rect) => rect.vertices).flat());
+    return Bounds.fromPoints(childRects.map((rect) => rect.controlPoints).flat());
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
@@ -369,7 +377,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * @param point 相对坐标点
    * @param bufferCtx 用于命中检测的离屏上下文
    */
-  protected interactContent(point: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
+  protected interactContent(
+    point: Point3,
+    bufferCtx?: CanvasRenderingContext2D,
+  ): InteractResult {
     if (!this.content) return { view: null, content: null, extraData: null };
     const hitContent =
       this.content.isPointInPath(point, bufferCtx) ||
@@ -384,7 +395,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     return { view: null, content: null, extraData: null };
   }
 
-  protected interactPlugins(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
+  protected interactPlugins(
+    relativePoint: Point3,
+    bufferCtx?: CanvasRenderingContext2D,
+  ): InteractResult {
     if (this.actived && this.boundingBox) {
       const extraData = this.boundingBox.interact(relativePoint, bufferCtx);
       if (extraData) {
@@ -399,7 +413,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * 优先级：1. 插件 -> 2. 内容 -> 3. 子视图
    * @param worldPoint 世界坐标点
    */
-  public interact(worldPoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
+  public interact(
+    worldPoint: Point3,
+    bufferCtx?: CanvasRenderingContext2D,
+  ): InteractResult {
     const relativePoint = this.getMVPMatrix().inverse().multiply(worldPoint);
 
     const ctx = bufferCtx;
@@ -483,11 +500,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 步骤3: 初始化排版约束区域（容器对内容的布局约束）
     this.constraintBounds = this.viewport.copy();
 
-    // 步骤4: 执行布局
-    // 1、不同容器独有的布局（比如文本容器）
-    // 2、获取实际布局区域
-    // 3、让内容区域进行偏移
-    this.layout();
+    // 步骤4: 布局延迟到首次渲染时执行（_layoutDirty 初始为 true）
 
     // onCreated 已移至 onAttach() 中触发（挂载到 Scene 后执行）
   }
@@ -498,11 +511,11 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * 若 View 尚未挂载到任何 Scene（如在构造期调用），返回 null。
    */
   public getScene(): Scene | null {
-    let node: unknown = this.parent
-    while (node && !('camera' in (node as object))) {
-      node = (node as { parent?: unknown }).parent
+    let node: unknown = this.parent;
+    while (node && !("camera" in (node as object))) {
+      node = (node as { parent?: unknown }).parent;
     }
-    return (node as Scene | null) ?? null
+    return (node as Scene | null) ?? null;
   }
 
   /**
@@ -511,12 +524,14 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * 只写入各字段的 value，不修改 default 和 type。
    * key 不存在于 data 中时静默忽略。
    */
-  public setData(values: Record<string, string | number | boolean | object>): void {
+  public setData(
+    values: Record<string, string | number | boolean | object>,
+  ): void {
     // 通过基类型 IFieldSchemaMap 操作，绕过泛型 D 的写入限制
-    const data = this.data as IFieldSchemaMap
+    const data = this.data as IFieldSchemaMap;
     for (const key of Object.keys(values)) {
       if (key in data) {
-        data[key] = { ...data[key], value: values[key] }
+        data[key] = { ...data[key], value: values[key] };
       }
     }
   }
@@ -527,17 +542,17 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 前序遍历：先触发自身生命周期，再递归子节点
     // onCreated 在首次挂载时触发（仅一次），onAttach 每次挂载都触发
     if (this.lifetimes.onCreated) {
-      this.getScene()?.triggerSchema(this, this.lifetimes.onCreated)
+      this.getScene()?.triggerSchema(this, this.lifetimes.onCreated);
       // 清除引用，确保只触发一次（null 是 FlowSchema | null 的合法值）
-      this.lifetimes.onCreated = null
+      this.lifetimes.onCreated = null;
     }
-    this.getScene()?.triggerSchema(this, this.lifetimes.onAttach)
-    this.children.forEach(child => child.onAttach())
+    this.getScene()?.triggerSchema(this, this.lifetimes.onAttach);
+    this.children.forEach((child) => child.onAttach());
   }
 
   public onDestroy(): void {
     // 先触发生命周期（清理前 Scene 引用还在）
-    this.getScene()?.triggerSchema(this, this.lifetimes.onDestroy)
+    this.getScene()?.triggerSchema(this, this.lifetimes.onDestroy);
     // 清理引用（children 的清理由 ContainerView 子类负责）
     this.parent = null;
     this.content = null;
@@ -635,19 +650,11 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     });
 
     if (needResizeContent && this.content) {
-      // 将世界坐标的锚点转换到本地坐标系，与 relativeVector 保持一致
-      const localFixedPoint = inverseMvp.multiply(fixedPoint);
-      const localDynamicPoint = inverseMvp.multiply(dynamicPoint);
-      this.content.resize(localFixedPoint, localDynamicPoint, relativeVector);
+      this.content.resize(fixedPoint, fixedPoint, relativeVector);
       // resize 后将内容实际边界回写为新的排版约束
       this.constraintBounds = this.content.bounds?.copy() ?? Bounds.empty();
-      // 更新完内容后更新实际布局区域
-      this.layoutArea = Bounds.union(
-        // this.viewport 先不加入视口区域，避免文本布局跟着视口跑
-        this.content.bounds ?? Bounds.empty(),
-        this.measureChildren(),
-      );
-      this.layout();
+      // 标记布局脏，延迟到渲染时重算
+      this.markLayoutDirty();
     }
   }
 
@@ -665,8 +672,13 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   private renderToOffScreen(canvasContext: CanvasContext): void {
-
     const offscreenCtx = canvasContext.getBufferContext();
+
+    // 布局收口：渲染前检查脏标记，统一执行布局（传入 ctx 供文本测量使用）
+    if (this._layoutDirty) {
+      this.layout(offscreenCtx);
+    }
+
     const viewport = this.renderViewport;
 
     if (!viewport) {
@@ -852,20 +864,44 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     return this;
   }
 
+  /**
+   * 标记布局为脏，向上冒泡到根节点。
+   * 子类和外部模块通过此方法触发延迟布局。
+   */
+  public markLayoutDirty(): void {
+    if (this._layoutDirty) return; // 已脏，无需重复冒泡
+    this._layoutDirty = true;
+    // 向上冒泡：父节点也需要重新布局（FlexView 等容器需要重排所有子节点）
+    if (this.parent && this.parent instanceof View) {
+      this.parent.markLayoutDirty();
+    }
+  }
+
   // 布局管理
-  public layout(): void {
+  public layout(ctx?: CanvasRenderingContext2D): Bounds {
+    this._layoutDirty = false;
     // 1、执行布局,获取最新的内容布局区域并更新
-    const contentBounds = this.layoutContent(); // 拓展方向为第一个图形的拓展方向
+    const contentBounds = this.layoutContent(ctx); // 拓展方向为第一个图形的拓展方向
     this.layoutArea = Bounds.union(
       this.viewport, // 将视口加入进来，主导布局区域的拓展方向，并且保证布局区域包含视口
       contentBounds,
-      this.layoutArea,
+      this.measureChildren(),
     );
     if (this.style.needStructViewport) {
       this.viewport = this.layoutArea.copy();
       this.boundingBox = new BoundingBoxAddon(this.viewport);
     }
-    // 2、计算scroll偏移（纯渲染层偏移，不修改content和children的数据）
+    // 2、计算 scroll 偏移
+    this.computeScroll();
+    // 3、返回实际视口（供父容器"归"阶段使用）
+    return this.viewport;
+  }
+
+  /**
+   * 计算 scroll 偏移量和滚动条（纯渲染层偏移，不修改 content 和 children 的数据）。
+   * 从 layout() 中提取为独立方法，便于子类 override 或单独调用。
+   */
+  protected computeScroll(): void {
     if (this.style.overflow === "scroll") {
       const scrollX = this.style.scrollX ?? 0;
       const scrollY = this.style.scrollY ?? 0;
@@ -963,7 +999,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     if (data.style) this.style = data.style;
     if (data.matrix) this.matrix = Matrix4.fromJSON(data.matrix);
     if (data.viewport) this.viewport = Bounds.fromJSON(data.viewport);
-    if (data.constraintBounds) this.constraintBounds = Bounds.fromJSON(data.constraintBounds);
+    if (data.constraintBounds)
+      this.constraintBounds = Bounds.fromJSON(data.constraintBounds);
     // 恢复 decoration
     if (data.decoration) {
       this.decoration = BoxDecorationAddon.fromJSON(data.decoration);
@@ -985,13 +1022,14 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     if (this.boundingBox !== null) {
       this.boundingBox = new BoundingBoxAddon(this.viewport);
     }
-    // 同步 layoutArea 并触发布局计算
+    // 同步 layoutArea
     this.layoutArea = this.viewport.copy();
     // constraintBounds 已由 fromJSON 恢复，若缺失则用 viewport 兜底
     if (!this.constraintBounds || this.constraintBounds.isEmpty) {
       this.constraintBounds = this.viewport.copy();
     }
-    this.layout();
+    // 标记布局脏，延迟到渲染时执行
+    this.markLayoutDirty();
   }
 
   /**

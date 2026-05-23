@@ -202,10 +202,10 @@ export interface IView {
     scrollBarVertical: Rectangle | null
 
     // 布局与渲染
-    layoutContent(): Bounds
+    layoutContent(ctx?: CanvasRenderingContext2D): Bounds
     measureChildren(): Bounds
     renderContent(ctx: CanvasRenderingContext2D): void
-    layout(): void
+    layout(ctx?: CanvasRenderingContext2D): Bounds
     render(): void
     copy(): IView
 

@@ -24,6 +24,7 @@ import { type IFlexView, type IFlexStyle, type ISerializable } from '@/types/ind
 import { generateId, generateName } from '@/foundation/utils.js'
 import Matrix4 from '@/foundation/math/Matrix4.js'
 import { BoundingBoxAddon } from '@/view/addon/index.js'
+import Bounds from '@/graph/base/Bounds.js'
 
 // ────────────────────────────────────────────
 //  FlexView Options
@@ -74,7 +75,9 @@ export default class FlexView extends ContainerView implements IFlexView, ISeria
      * 5. 遍历 children 设置 matrix 位置（主轴累积 + 交叉轴对齐）
      * 6. 调用基类更新 layoutArea 和 scrollBar
      */
-    public override layout(): void {
+    public override layout(ctx?: CanvasRenderingContext2D): Bounds {
+        this._layoutDirty = false;
+
         const { direction, gap, mainAxisAlignment, crossAxisAlignment, padding } = this.flexStyle
         const viewport = this.viewport
 
@@ -92,8 +95,7 @@ export default class FlexView extends ContainerView implements IFlexView, ISeria
         const children = this.children
         if (children.length === 0) {
             // 无子元素时直接走基类逻辑
-            super.layout()
-            return
+            return super.layout(ctx)
         }
 
         // 2. 第一遍：统计固定尺寸总占用 + flex 权重总和
@@ -227,7 +229,7 @@ export default class FlexView extends ContainerView implements IFlexView, ISeria
         }
 
         // 6. 调用基类 layout 完成 layoutArea 和 scrollBar 更新
-        super.layout()
+        return super.layout(ctx)
     }
 
     // ==================== 编辑态支持 ====================
@@ -259,8 +261,8 @@ export default class FlexView extends ContainerView implements IFlexView, ISeria
         const clampedIndex = Math.max(0, Math.min(newIndex, children.length))
         children.splice(clampedIndex, 0, child)
 
-        // 触发重新布局
-        this.layout()
+        // 标记布局脏，延迟到渲染时重排
+        this.markLayoutDirty()
     }
 
     /**

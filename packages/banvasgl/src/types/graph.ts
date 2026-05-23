@@ -31,16 +31,15 @@ export interface IGraph {
     controlPoints: Point3[] | Float32Array
     style: Style
     bounds: Bounds
-    transfromOrigin: Point3
-
     // 渲染
     renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void
     render(ctx: CanvasRenderingContext2D): void
     copy(): IGraph
-    updateBounds(orientationX?: boolean, orientationY?: boolean): Bounds
-    layout(constraintBounds?: Bounds): IGraph | void
+    updateBounds(): Bounds
+    layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): IGraph | void
 
     // 几何查询
+    isClosed(): boolean
     isPointInPath(p: Point3, bufferCtx?: CanvasRenderingContext2D | null): Boolean
     getPointAt(t: number): Point3
     getTangentAt(t: number): Vector3
@@ -105,15 +104,8 @@ export interface IArc extends IAnalyticGraph {
 /** Circle 接口 */
 export interface ICircle extends IArc {
     readonly diameter: number
-    readonly circumference: number
 
     setRadius(radius: number): ICircle
-    getPointOnCircle(angle: number): Point3
-    getTangentDirection(angle: number): Point3
-    getNormalDirection(angle: number): Point3
-    intersects(other: ICircle): boolean
-    isTangent(other: ICircle, tolerance: number): boolean
-    contains(other: ICircle): boolean
 }
 
 /** Bezier 基础接口 */
@@ -125,6 +117,7 @@ export interface IBezier extends IAnalyticGraph {
     getControlPoint(index: number): Point3 | null
     setControlPoint(index: number, point: Point3): void
     getBezierType(): string
+    isLinear(): boolean
 }
 
 /** QuadraticBezier 接口 */
@@ -132,7 +125,6 @@ export interface IQuadraticBezier extends IBezier {
     readonly controlPoint: Point3
 
     setQuadraticControlPoint(controlPoint: Point3): IQuadraticBezier
-    isLinear(): boolean
 }
 
 /** CubicBezier 接口 */
@@ -143,7 +135,6 @@ export interface ICubicBezier extends IBezier {
     setControlPoint1(controlPoint1: Point3): ICubicBezier
     setControlPoint2(controlPoint2: Point3): ICubicBezier
     getInflectionPoints(): Point3[]
-    isLinear(): boolean
 }
 
 // ────────────────────────────────────────────
@@ -162,11 +153,7 @@ export interface ICombinedGraph extends IGraph {
 
 /** Polygon 接口 */
 export interface IPolygon extends ICombinedGraph {
-    vertices: Point3[]
-    isClosed: boolean
-    fillMode: 'fill' | 'stroke' | 'both'
-
-    setFillMode(mode: 'fill' | 'stroke' | 'both'): IPolygon
+    closed: boolean
     getPolygonCenter(): Point3
     getPerimeter(): number
     containsPoint(point: Point3): boolean
@@ -174,11 +161,11 @@ export interface IPolygon extends ICombinedGraph {
 
 /** Triangle 接口 */
 export interface ITriangle extends IPolygon {
-    getVertices(): { p1: Point3; p2: Point3; p3: Point3 }
-    setVertices(p1: Point3, p2: Point3, p3: Point3): ITriangle
-    getHeight(): number
-    getTriangleType(): 'equilateral' | 'isosceles' | 'scalene' | 'right'
-    getCircumcenter(): Point3
+getVertices(): { p1: Point3; p2: Point3; p3: Point3 }
+setVertices(p1: Point3, p2: Point3, p3: Point3): ITriangle
+getHeight(vertex: Point3): number
+getTriangleType(): 'equilateral' | 'isosceles' | 'scalene' | 'right' | 'right-isosceles'
+getCircumcenter(): Point3
 }
 
 /** Quadrilateral 接口 — 自由四边形，4 个顶点无约束 */
@@ -258,8 +245,6 @@ export interface IRoundedRect extends ICombinedGraph {
 /** DenseTrajectory 接口 —— controlPoints 收窄为 Float32Array */
 export interface IDenseTrajectory extends IGraph {
     controlPoints: Float32Array
-
-    isDenseTrajectory(): boolean
 }
 
 // ────────────────────────────────────────────
@@ -312,8 +297,6 @@ export interface IVideoElement extends IMediaElement {
     getDuration(): number
     setVolume(volume: number): void
     getVolume(): number
-    containsPoint(point: Point3): boolean
-    isVideoElement(): boolean
 }
 
 // ────────────────────────────────────────────
@@ -382,7 +365,7 @@ export interface ITextFields extends IGraph {
     clearParagraphs(): ITextFields
     getParagraph(index: number): ITextParagraph | undefined
     getTextOptionsByIndex(textIndex: TextIndex): TextOptions
-    layout(constraintBounds?: Bounds): ITextFields
+    layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): ITextFields
     point2TextElement(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D | null): ITextElement | null
     element2Index(
         textElement: ITextElement,
@@ -415,6 +398,8 @@ export interface GraphTypeMap {
     [GRAPHTYPE.IMAGE]: IImageElement & { readonly type: GRAPHTYPE.IMAGE }
     [GRAPHTYPE.VIDEO]: IVideoElement & { readonly type: GRAPHTYPE.VIDEO }
     [GRAPHTYPE.TEXTELEMENT]: ITextElement & { readonly type: GRAPHTYPE.TEXTELEMENT }
+    [GRAPHTYPE.PRINTABLE_TEXTELEMENT]: IPrintableTextElement & { readonly type: GRAPHTYPE.PRINTABLE_TEXTELEMENT }
+    [GRAPHTYPE.NONPRINTABLE_TEXTELEMENT]: INonPrintableTextElement & { readonly type: GRAPHTYPE.NONPRINTABLE_TEXTELEMENT }
     [GRAPHTYPE.TEXTPARAGRAPH]: ITextParagraph & { readonly type: GRAPHTYPE.TEXTPARAGRAPH }
     [GRAPHTYPE.TEXTFIELDS]: ITextFields & { readonly type: GRAPHTYPE.TEXTFIELDS }
 }

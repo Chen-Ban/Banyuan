@@ -50,6 +50,8 @@ export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSc
             if (this.getScene()) {
                 child.onAttach()
             }
+            // 子节点变更，标记布局脏
+            this.markLayoutDirty()
         }
     }
 
@@ -58,6 +60,8 @@ export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSc
         if (index > -1) {
             this._children.splice(index, 1)
             child.parent = null
+            // 子节点变更，标记布局脏
+            this.markLayoutDirty()
         }
     }
 
