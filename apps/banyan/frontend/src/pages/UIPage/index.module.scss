@@ -1,29 +1,34 @@
-.applicationDetailPage {
+// UIPage — 左右结构布局
+
+.page {
   width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+// ── 左侧面板：PageList ───────────────────────────────────────────────────────
+
+.leftPanel {
+  flex-shrink: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.mainContent {
-  flex: 1;
-  display: flex;
-  flex-direction: row;
-  position: relative;   // antd Drawer rootStyle position:absolute 的定位基准
-  overflow: hidden;
-}
-
-// 左侧可拖拽面板：PageList
-.pageListPanel {
-  flex-shrink: 0;
-  height: 100%;
-  overflow: hidden;
   position: relative;
-  display: flex;
+  background: #fafafa;
+  border-right: 1px solid #e9ecef;
 }
 
-// 拖拽手柄
+// PageList 撑满全部高度
+.pageListSection {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+// 拖拽手柄（贴左侧面板右边缘）
 .resizeHandle {
   position: absolute;
   top: 0;
@@ -40,7 +45,19 @@
   }
 }
 
-// 画布区域撑满剩余空间
+// ── 右侧：物料 + 画布 + PropertyDrawer ──────────────────────────────────────
+
+.mainContent {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  position: relative;   // antd Drawer rootStyle position:absolute 的定位基准
+  overflow: hidden;
+}
+
+// canvasSection：纵向三段（物料 / 画布 / 底部预留）
 .canvasSection {
   flex: 1;
   min-width: 0;
@@ -49,6 +66,14 @@
   flex-direction: column;
   overflow: hidden;
   background-color: #f8f9fa;
-  position: relative;
 }
 
+// 画布区域：撑满剩余高度
+.canvasArea {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
