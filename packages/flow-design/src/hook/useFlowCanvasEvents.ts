@@ -15,6 +15,7 @@ import type {
   IGraph,
   IPortView,
 } from "@banyuan/banvasgl";
+import type { FlowNode } from "@banyuan/flow";
 import EdgeView from "../views/EdgeView.js";
 import NodeView from "../views/NodeView.js";
 import PortView from "../views/PortView.js";
@@ -40,12 +41,14 @@ export interface FlowContextMenuEvent {
 export interface UseFlowCanvasEventsOptions {
   app: App | null;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  /** 交互结束回调（移动/连线完成后触发，用于把变更写回 FlowSchema） */
+  /** 交互结束回调（移动/连线/Drop 完成后触发，用于触发 version 更新） */
   onInteractionEnd?: () => void;
   /** 节点选中回调（点击节点时传 nodeId，点击空白时传 null） */
   onNodeSelect?: (nodeId: string | null) => void;
   /** 右键菜单回调（画布 contextmenu 事件触发） */
   onContextMenu?: (event: FlowContextMenuEvent) => void;
+  /** 用于识别拖入节点的 dataTransfer type（不传则不监听 drop 事件） */
+  dragType?: string;
 }
 
 /**
@@ -57,7 +60,7 @@ export interface UseFlowCanvasEventsOptions {
  * - MOVE（拖动节点）
  * - CONNECT（端口连线）
  *
- * 不包含：框选、文本编辑、事务/undo、拖拽创建、RESIZE/ROTATE/EDIT_POINT
+ * 不包含：框选、文本编辑、事务/undo、RESIZE/ROTATE/EDIT_POINT
  */
 export function useFlowCanvasEvents({
   app,
@@ -65,6 +68,7 @@ export function useFlowCanvasEvents({
   onInteractionEnd,
   onNodeSelect,
   onContextMenu: onContextMenuCallback,
+  dragType,
 }: UseFlowCanvasEventsOptions) {
   const mouseDownPointRef = useRef<Point3 | null>(null);
   const lastPointRef = useRef<Point3 | null>(null);
@@ -398,6 +402,52 @@ export function useFlowCanvasEvents({
     [app, onInteractionEnd, onNodeSelect],
   );
 
+  // ── dragover + drop（物料面板拖入创建节点） ──
+  const handleDragOver = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+    },
+    [],
+  );
+
+  const handleDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      if (!dragType || !app) return;
+
+      const kind = e.dataTransfer?.getData(dragType);
+      if (!kind) return;
+
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      // 计算画布内坐标（兼容 CSS 缩放）
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      // 创建节点
+      const newNode = buildDefaultNode(kind as FlowNode["kind"]);
+      if (!newNode) return;
+
+      const nodeView = new NodeView({
+        schema: newNode,
+        style: { width: 140, height: 60 },
+      });
+      nodeView.translate(x, y, 0);
+      scene.addChild(nodeView, false);
+
+      onInteractionEnd?.();
+    },
+    [app, canvasRef, dragType, onInteractionEnd],
+  );
+
   // ── 绑定/解绑 ──
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -411,6 +461,12 @@ export function useFlowCanvasEvents({
     // keydown 需要绑定在 document 上（canvas 默认不可聚焦）
     document.addEventListener("keydown", onKeyDown);
 
+    // drop 事件（仅当配置了 dragType 时绑定）
+    if (dragType) {
+      canvas.addEventListener("dragover", handleDragOver);
+      canvas.addEventListener("drop", handleDrop);
+    }
+
     return () => {
       canvas.removeEventListener("mousedown", onMouseDown);
       canvas.removeEventListener("mousemove", onMouseMove);
@@ -418,6 +474,81 @@ export function useFlowCanvasEvents({
       canvas.removeEventListener("click", onClick);
       canvas.removeEventListener("contextmenu", handleContextMenu);
       document.removeEventListener("keydown", onKeyDown);
+      canvas.removeEventListener("dragover", handleDragOver);
+      canvas.removeEventListener("drop", handleDrop);
     };
-  }, [app, canvasRef, onMouseDown, onMouseMove, onMouseUp, onClick, handleContextMenu, onKeyDown]);
+  }, [app, canvasRef, onMouseDown, onMouseMove, onMouseUp, onClick, handleContextMenu, onKeyDown, dragType, handleDragOver, handleDrop]);
+}
+
+// ── 内部辅助 ──
+
+/** 生成简单唯一 id */
+function genId(): string {
+  return `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+/**
+ * 根据 kind 构建带默认参数的 FlowNode
+ */
+function buildDefaultNode(kind: FlowNode["kind"]): FlowNode | null {
+  const id = genId();
+  const base = { id, x: 0, y: 0 };
+
+  switch (kind) {
+    case "setData":
+      return { ...base, kind: "setData", viewId: "self", key: "", value: { kind: "literal", value: "" } };
+    case "setVisible":
+      return { ...base, kind: "setVisible", viewId: "self", visible: true };
+    case "navigate":
+      return { ...base, kind: "navigate", pageId: "" };
+    case "animate":
+      return { ...base, kind: "animate", viewId: "self", animationId: "" };
+    case "dbQuery":
+      return { ...base, kind: "dbQuery", collection: "", filter: {}, outputVariable: "queryResult" };
+    case "dbInsert":
+      return { ...base, kind: "dbInsert", collection: "", document: {}, outputVariable: "insertedId" };
+    case "dbUpdate":
+      return { ...base, kind: "dbUpdate", collection: "", filter: {}, update: {}, outputVariable: "modifiedCount" };
+    case "dbDelete":
+      return { ...base, kind: "dbDelete", collection: "", filter: {}, outputVariable: "deletedCount" };
+    case "httpRequest":
+      return { ...base, kind: "httpRequest", url: { kind: "literal", value: "" }, method: "GET", outputVariable: "response" };
+    case "transform":
+      return { ...base, kind: "transform", expression: "", variables: {}, outputVariable: "result" };
+    case "script":
+      return { ...base, kind: "script", code: "", inputBindings: {}, outputBindings: {} };
+    case "condition":
+      return {
+        ...base,
+        kind: "condition",
+        condition: {
+          left: { kind: "literal", value: "" },
+          op: "==",
+          right: { kind: "literal", value: "" },
+        },
+      };
+    case "delay":
+      return { ...base, kind: "delay", ms: 500 };
+    case "variable":
+      return { ...base, kind: "variable", viewId: "self", key: "" };
+    case "pageVar":
+      return { ...base, kind: "pageVar", key: "" };
+    case "eventParam":
+      return { ...base, kind: "eventParam", index: 0 };
+    case "setVariable":
+      return { ...base, kind: "setVariable", scope: "local", key: "", value: { kind: "literal", value: "" } };
+    case "callFlow":
+      return { ...base, kind: "callFlow", flowId: "", inputBindings: {}, outputBindings: {} };
+    case "subFlow":
+      return {
+        ...base,
+        kind: "subFlow",
+        name: "子流程",
+        body: { nodes: [], edges: [] },
+        inputs: [],
+        outputs: [],
+      };
+    default:
+      return null;
+  }
 }

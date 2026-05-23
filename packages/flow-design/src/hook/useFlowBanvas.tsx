@@ -105,8 +105,6 @@ export interface UseFlowBanvasResult {
      * 业务方将此状态传给 `<FlowContextMenu state={contextMenuState} />` 即可渲染右键菜单。
      */
     contextMenuState: FlowContextMenuState
-    /** 当前缩放比例（仅传了 containerWidth/containerHeight 时有意义） */
-    scale: number
 }
 
 /**
@@ -136,7 +134,7 @@ export default function useFlowBanvas(
     // ── Canvas 缩放（Cmd/Ctrl + Wheel） ──
     // 只要测量到容器尺寸就启用缩放
     const zoomEnabled = containerSize.width > 0 && containerSize.height > 0
-    const { scale, styleWidth, styleHeight, zoomContainerRef } = useCanvasZoom({
+    const { styleWidth, styleHeight, zoomContainerRef } = useCanvasZoom({
         canvasWidth: width,
         canvasHeight: height,
         containerWidth: zoomEnabled ? containerSize.width : width,
@@ -311,7 +309,7 @@ export default function useFlowBanvas(
                     const originY = nodeView.matrix.get(1, 3)
                     const clonedSchema = {
                         ...nodeView.schema,
-                        id: genId(),
+                        id: `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                     }
                     const clonedView = new NodeView({
                         schema: clonedSchema,
@@ -388,61 +386,14 @@ export default function useFlowBanvas(
         })
     }, [app, dismissMenu])
 
-    // ── 流程图画布事件（MOVE / CONNECT / click 选中 / 右键菜单） ──
+    // ── 流程图画布事件（MOVE / CONNECT / click 选中 / 右键菜单 / Drop 创建节点） ──
     useFlowCanvasEvents({
         app,
         canvasRef,
         onInteractionEnd: () => app?.notify(),
         onContextMenu: handleContextMenu,
+        dragType: FLOW_NODE_DRAG_TYPE,
     })
-
-    // ── Drop 事件绑定（内部处理拖拽创建节点） ──
-    useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas || !app) return
-
-        const handleDragOver = (e: DragEvent) => {
-            e.preventDefault()
-            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
-        }
-
-        const handleDrop = (e: DragEvent) => {
-            e.preventDefault()
-
-            const kind = e.dataTransfer?.getData(FLOW_NODE_DRAG_TYPE)
-            if (!kind) return
-
-            const newNode = buildDefaultNode(kind as FlowNode['kind'])
-            if (!newNode) return
-
-            const scene = app.getCurrentScene()
-            if (!scene) return
-
-            // 计算画布内坐标（兼容 CSS 缩放）
-            const rect = canvas.getBoundingClientRect()
-            const scaleX = canvas.width / rect.width
-            const scaleY = canvas.height / rect.height
-            const x = (e.clientX - rect.left) * scaleX
-            const y = (e.clientY - rect.top) * scaleY
-
-            // 创建 NodeView 并添加到场景
-            const nodeView = new NodeView({
-                schema: newNode,
-                style: { width: 140, height: 60 },
-            })
-            nodeView.translate(x, y, 0)
-            scene.addChild(nodeView, false)
-
-            app.notify()
-        }
-
-        canvas.addEventListener('dragover', handleDragOver)
-        canvas.addEventListener('drop', handleDrop)
-        return () => {
-            canvas.removeEventListener('dragover', handleDragOver)
-            canvas.removeEventListener('drop', handleDrop)
-        }
-    }, [app, canvasRef])
 
     // ── 物料列表 ──
     const materials = useMemo(
@@ -556,7 +507,6 @@ export default function useFlowBanvas(
         materials,
         MaterialPalette,
         contextMenuState,
-        scale,
     }
 }
 
@@ -583,73 +533,3 @@ function resolveEdgePorts(
     return { fromPortId, toPortId }
 }
 
-/** 生成简单唯一 id */
-function genId(): string {
-    return `node_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
-}
-
-/**
- * 根据 kind 构建带默认参数的 FlowNode
- */
-function buildDefaultNode(kind: FlowNode['kind']): FlowNode | null {
-    const id = genId()
-    const base = { id, x: 0, y: 0 }
-
-    switch (kind) {
-        case 'setData':
-            return { ...base, kind: 'setData', viewId: 'self', key: '', value: { kind: 'literal', value: '' } }
-        case 'setVisible':
-            return { ...base, kind: 'setVisible', viewId: 'self', visible: true }
-        case 'navigate':
-            return { ...base, kind: 'navigate', pageId: '' }
-        case 'animate':
-            return { ...base, kind: 'animate', viewId: 'self', animationId: '' }
-        case 'dbQuery':
-            return { ...base, kind: 'dbQuery', collection: '', filter: {}, outputVariable: 'queryResult' }
-        case 'dbInsert':
-            return { ...base, kind: 'dbInsert', collection: '', document: {}, outputVariable: 'insertedId' }
-        case 'dbUpdate':
-            return { ...base, kind: 'dbUpdate', collection: '', filter: {}, update: {}, outputVariable: 'modifiedCount' }
-        case 'dbDelete':
-            return { ...base, kind: 'dbDelete', collection: '', filter: {}, outputVariable: 'deletedCount' }
-        case 'httpRequest':
-            return { ...base, kind: 'httpRequest', url: { kind: 'literal', value: '' }, method: 'GET', outputVariable: 'response' }
-        case 'transform':
-            return { ...base, kind: 'transform', expression: '', variables: {}, outputVariable: 'result' }
-        case 'script':
-            return { ...base, kind: 'script', code: '', inputBindings: {}, outputBindings: {} }
-        case 'condition':
-            return {
-                ...base,
-                kind: 'condition',
-                condition: {
-                    left:  { kind: 'literal', value: '' },
-                    op:    '==',
-                    right: { kind: 'literal', value: '' },
-                },
-            }
-        case 'delay':
-            return { ...base, kind: 'delay', ms: 500 }
-        case 'variable':
-            return { ...base, kind: 'variable', viewId: 'self', key: '' }
-        case 'pageVar':
-            return { ...base, kind: 'pageVar', key: '' }
-        case 'eventParam':
-            return { ...base, kind: 'eventParam', index: 0 }
-        case 'setVariable':
-            return { ...base, kind: 'setVariable', scope: 'local', key: '', value: { kind: 'literal', value: '' } }
-        case 'callFlow':
-            return { ...base, kind: 'callFlow', flowId: '', inputBindings: {}, outputBindings: {} }
-        case 'subFlow':
-            return {
-                ...base,
-                kind: 'subFlow',
-                name: '子流程',
-                body: { nodes: [], edges: [] },
-                inputs: [],
-                outputs: [],
-            }
-        default:
-            return null
-    }
-}
