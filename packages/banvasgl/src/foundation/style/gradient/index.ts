@@ -1,0 +1,5 @@
+export { default as Gradient } from './Gradient.js'
+export { default as LinearGradient } from './LinearGradient.js'
+export { default as RadialGradient } from './RadialGradient.js'
+export { default as ConicGradient } from './ConicGradient.js'
+export type { GradientStop } from './Gradient.js'

@@ -1,6 +1,20 @@
 import { STYLETYPE } from '@/foundation/constants'
 import type { ISerializable } from '@/types'
 
+/**
+ * RGBA 颜色
+ *
+ * 表示一个 RGBA 颜色值，各通道范围：r/g/b ∈ [0, 255]，a ∈ [0, 1]。
+ * 支持 RGB、HSL、HEX 格式互转，以及常用颜色操作（提亮、加深、饱和、混合等）。
+ * 构造时自动 clamp 到合法范围。
+ *
+ * @example
+ * ```ts
+ * const red = Color.fromHex('#f00')
+ * const lighter = red.lighten(20)
+ * const blended = red.blend(Color.BLUE, 0.5)
+ * ```
+ */
 export default class Color implements ISerializable {
   public readonly type: STYLETYPE = STYLETYPE.COLOR;
   private _r: number
@@ -8,6 +22,22 @@ export default class Color implements ISerializable {
   private _b: number
   private _a: number
 
+  /**
+   * 构造颜色
+   *
+   * 创建一个 RGBA 颜色实例，各通道值会被自动 clamp 到合法范围。
+   *
+   * @param r - 红色通道，范围 [0, 255]，默认 0
+   * @param g - 绿色通道，范围 [0, 255]，默认 0
+   * @param b - 蓝色通道，范围 [0, 255]，默认 0
+   * @param a - 透明度，范围 [0, 1]，默认 1（完全不透明）
+   *
+   * @example
+   * ```ts
+   * const red = new Color(255, 0, 0)
+   * const semiTransparentBlue = new Color(0, 0, 255, 0.5)
+   * ```
+   */
   constructor(r: number = 0, g: number = 0, b: number = 0, a: number = 1) {
     this._r = Math.max(0, Math.min(255, r))
     this._g = Math.max(0, Math.min(255, g))
@@ -15,19 +45,29 @@ export default class Color implements ISerializable {
     this._a = Math.max(0, Math.min(1, a))
   }
 
-  // Getters
   get r(): number { return this._r }
   get g(): number { return this._g }
   get b(): number { return this._b }
   get a(): number { return this._a }
 
-  // Setters
   set r(value: number) { this._r = Math.max(0, Math.min(255, value)) }
   set g(value: number) { this._g = Math.max(0, Math.min(255, value)) }
   set b(value: number) { this._b = Math.max(0, Math.min(255, value)) }
   set a(value: number) { this._a = Math.max(0, Math.min(1, value)) }
 
-  // RGB to normalized RGB (0-1)
+  /**
+   * 获取归一化颜色
+   *
+   * 将 RGB 各通道从 [0, 255] 映射到 [0, 1]，透明度保持不变。
+   *
+   * @returns 归一化后的 RGBA 对象，各通道 ∈ [0, 1]
+   *
+   * @example
+   * ```ts
+   * const c = new Color(128, 64, 255)
+   * const { r, g, b, a } = c.normalized // r ≈ 0.502, g ≈ 0.251, b = 1
+   * ```
+   */
   get normalized(): { r: number, g: number, b: number, a: number } {
     return {
       r: this._r / 255,
@@ -37,7 +77,19 @@ export default class Color implements ISerializable {
     }
   }
 
-  // RGB to HSL
+  /**
+   * 转换为 HSL 色彩空间
+   *
+   * 将当前 RGB 颜色转换为 HSL（色相/饱和度/亮度）表示。
+   *
+   * @returns HSL 对象：h ∈ [0, 360]，s ∈ [0, 100]，l ∈ [0, 100]，a ∈ [0, 1]
+   *
+   * @example
+   * ```ts
+   * const red = new Color(255, 0, 0)
+   * const { h, s, l } = red.hsl // h = 0, s = 100, l = 50
+   * ```
+   */
   get hsl(): { h: number, s: number, l: number, a: number } {
     const { r, g, b } = this.normalized
     const max = Math.max(r, g, b)
@@ -73,106 +125,102 @@ export default class Color implements ISerializable {
     }
   }
 
-  // RGB to HSV
-  get hsv(): { h: number, s: number, v: number, a: number } {
-    const { r, g, b } = this.normalized
-    const max = Math.max(r, g, b)
-    const min = Math.min(r, g, b)
-    const diff = max - min
-
-    let h = 0
-    const s = max === 0 ? 0 : diff / max
-    const v = max
-
-    if (diff !== 0) {
-      switch (max) {
-        case r:
-          h = (g - b) / diff + (g < b ? 6 : 0)
-          break
-        case g:
-          h = (b - r) / diff + 2
-          break
-        case b:
-          h = (r - g) / diff + 4
-          break
-      }
-      h /= 6
-    }
-
-    return {
-      h: h * 360,
-      s: s * 100,
-      v: v * 100,
-      a: this._a
-    }
-  }
-
-  // RGB to CMYK
-  get cmyk(): { c: number, m: number, y: number, k: number, a: number } {
-    const { r, g, b } = this.normalized
-    const k = 1 - Math.max(r, g, b)
-    
-    if (k === 1) {
-      return { c: 0, m: 0, y: 0, k: 100, a: this._a }
-    }
-
-    const c = (1 - r - k) / (1 - k)
-    const m = (1 - g - k) / (1 - k)
-    const y = (1 - b - k) / (1 - k)
-
-    return {
-      c: c * 100,
-      m: m * 100,
-      y: y * 100,
-      k: k * 100,
-      a: this._a
-    }
-  }
-
-  // RGB to LAB
-  get lab(): { l: number, a: number, b: number, alpha: number } {
-    const { r, g, b } = this.normalized
-    
-    // RGB to XYZ
-    const xyz = Color.rgbToXyz(r, g, b)
-    
-    // XYZ to LAB
-    const lab = Color.xyzToLab(xyz.x, xyz.y, xyz.z)
-    
-    return {
-      l: lab.l,
-      a: lab.a,
-      b: lab.b,
-      alpha: this._a
-    }
-  }
-
-  // RGB to HEX
+  /**
+   * 获取 HEX 字符串
+   *
+   * 返回 6 位十六进制颜色字符串（不含透明度）。
+   *
+   * @returns 格式为 `#rrggbb` 的字符串
+   *
+   * @example
+   * ```ts
+   * new Color(255, 128, 0).hex // '#ff8000'
+   * ```
+   */
   get hex(): string {
     const toHex = (n: number) => Math.round(n).toString(16).padStart(2, '0')
     return `#${toHex(this._r)}${toHex(this._g)}${toHex(this._b)}`
   }
 
-  // RGB to RGBA string
+  /**
+   * 获取 CSS rgba 字符串
+   *
+   * 返回可直接用于 CSS/Canvas 的 rgba() 函数字符串。
+   *
+   * @returns 格式为 `rgba(r, g, b, a)` 的字符串
+   *
+   * @example
+   * ```ts
+   * new Color(255, 0, 0, 0.5).rgba // 'rgba(255, 0, 0, 0.5)'
+   * ```
+   */
   get rgba(): string {
     return `rgba(${Math.round(this._r)}, ${Math.round(this._g)}, ${Math.round(this._b)}, ${this._a})`
   }
 
-  // RGB to HSLA string
+  /**
+   * 获取 CSS hsla 字符串
+   *
+   * 返回可直接用于 CSS 的 hsla() 函数字符串。
+   *
+   * @returns 格式为 `hsla(h, s%, l%, a)` 的字符串
+   *
+   * @example
+   * ```ts
+   * new Color(255, 0, 0).hsla // 'hsla(0, 100%, 50%, 1)'
+   * ```
+   */
   get hsla(): string {
     const { h, s, l, a } = this.hsl
     return `hsla(${Math.round(h)}, ${Math.round(s)}%, ${Math.round(l)}%, ${a})`
   }
 
-  // Static factory methods
+  /**
+   * 从 HEX 创建颜色
+   *
+   * 解析十六进制颜色字符串，支持 3/4/6/8 位格式，# 符号可省略。
+   * 3 位自动扩展为 6 位（如 `#f00` → `#ff0000`），4 位同理含透明度。
+   *
+   * @param hex - 十六进制颜色字符串，如 `'#ff0000'`、`'f00'`、`'#rgba'`
+   * @returns 对应的 Color 实例
+   *
+   * @example
+   * ```ts
+   * const red = Color.fromHex('#f00')       // 简写
+   * const blue = Color.fromHex('0000ff')    // 无 # 号
+   * const semi = Color.fromHex('#ff000080') // 含透明度
+   * ```
+   */
   static fromHex(hex: string): Color {
-    const cleanHex = hex.replace('#', '')
-    const r = parseInt(cleanHex.substr(0, 2), 16)
-    const g = parseInt(cleanHex.substr(2, 2), 16)
-    const b = parseInt(cleanHex.substr(4, 2), 16)
-    return new Color(r, g, b)
+    let h = hex.replace('#', '')
+    // 支持简写形式：#RGB / #RGBA → #RRGGBB / #RRGGBBAA
+    if (h.length === 3 || h.length === 4) {
+      h = h.split('').map(c => c + c).join('')
+    }
+    const r = parseInt(h.substring(0, 2), 16)
+    const g = parseInt(h.substring(2, 4), 16)
+    const b = parseInt(h.substring(4, 6), 16)
+    const a = h.length === 8 ? parseInt(h.substring(6, 8), 16) / 255 : 1
+    return new Color(r, g, b, a)
   }
 
+  /**
+   * 从 HSL 创建颜色
+   *
+   * 将 HSL 色彩空间的值转换为 RGB 并创建 Color 实例。
+   *
+   * @param h - 色相，范围 [0, 360]
+   * @param s - 饱和度，范围 [0, 100]
+   * @param l - 亮度，范围 [0, 100]
+   * @param a - 透明度，范围 [0, 1]，默认 1
+   * @returns 对应的 Color 实例
+   *
+   * @example
+   * ```ts
+   * const red = Color.fromHSL(0, 100, 50)      // 纯红
+   * const sky = Color.fromHSL(200, 80, 60, 0.8) // 半透明天蓝
+   * ```
+   */
   static fromHSL(h: number, s: number, l: number, a: number = 1): Color {
     h = h / 360
     s = s / 100
@@ -202,88 +250,133 @@ export default class Color implements ISerializable {
     return new Color(r * 255, g * 255, b * 255, a)
   }
 
-  static fromHSV(h: number, s: number, v: number, a: number = 1): Color {
-    h = h / 360
-    s = s / 100
-    v = v / 100
-
-    const c = v * s
-    const x = c * (1 - Math.abs((h * 6) % 2 - 1))
-    const m = v - c
-
-    let r, g, b
-
-    if (h < 1/6) {
-      r = c; g = x; b = 0
-    } else if (h < 2/6) {
-      r = x; g = c; b = 0
-    } else if (h < 3/6) {
-      r = 0; g = c; b = x
-    } else if (h < 4/6) {
-      r = 0; g = x; b = c
-    } else if (h < 5/6) {
-      r = x; g = 0; b = c
-    } else {
-      r = c; g = 0; b = x
-    }
-
-    return new Color((r + m) * 255, (g + m) * 255, (b + m) * 255, a)
-  }
-
-  static fromCMYK(c: number, m: number, y: number, k: number, a: number = 1): Color {
-    c = c / 100
-    m = m / 100
-    y = y / 100
-    k = k / 100
-
-    const r = 255 * (1 - c) * (1 - k)
-    const g = 255 * (1 - m) * (1 - k)
-    const b = 255 * (1 - y) * (1 - k)
-
-    return new Color(r, g, b, a)
-  }
-
-  static fromLAB(l: number, a: number, b: number, alpha: number = 1): Color {
-    // LAB to XYZ
-    const xyz = Color.labToXyz(l, a, b)
-    
-    // XYZ to RGB
-    const rgb = Color.xyzToRgb(xyz.x, xyz.y, xyz.z)
-    
-    return new Color(rgb.r * 255, rgb.g * 255, rgb.b * 255, alpha)
-  }
-
-  // Color operations
+  /**
+   * 提亮颜色
+   *
+   * 在 HSL 色彩空间中增加亮度值，返回新的 Color 实例。
+   *
+   * @param amount - HSL 亮度增量（0-100 范围内的绝对值增量）
+   * @returns 提亮后的新 Color 实例
+   *
+   * @example
+   * ```ts
+   * const dark = Color.fromHex('#333')
+   * const lighter = dark.lighten(30) // 亮度 +30
+   * ```
+   */
   lighten(amount: number): Color {
     const { h, s, l, a } = this.hsl
     return Color.fromHSL(h, s, Math.min(100, l + amount), a)
   }
 
+  /**
+   * 加深颜色
+   *
+   * 在 HSL 色彩空间中降低亮度值，返回新的 Color 实例。
+   *
+   * @param amount - HSL 亮度减量（0-100 范围内的绝对值减量）
+   * @returns 加深后的新 Color 实例
+   *
+   * @example
+   * ```ts
+   * const light = Color.fromHex('#ccc')
+   * const darker = light.darken(20) // 亮度 -20
+   * ```
+   */
   darken(amount: number): Color {
     const { h, s, l, a } = this.hsl
     return Color.fromHSL(h, s, Math.max(0, l - amount), a)
   }
 
+  /**
+   * 增加饱和度
+   *
+   * 在 HSL 色彩空间中增加饱和度值，使颜色更鲜艳。
+   *
+   * @param amount - HSL 饱和度增量（0-100 范围内的绝对值增量）
+   * @returns 饱和度增加后的新 Color 实例
+   *
+   * @example
+   * ```ts
+   * const muted = Color.fromHSL(200, 30, 50)
+   * const vivid = muted.saturate(40) // 饱和度 → 70
+   * ```
+   */
   saturate(amount: number): Color {
     const { h, s, l, a } = this.hsl
     return Color.fromHSL(h, Math.min(100, s + amount), l, a)
   }
 
+  /**
+   * 降低饱和度
+   *
+   * 在 HSL 色彩空间中降低饱和度值，使颜色更灰暗。
+   *
+   * @param amount - HSL 饱和度减量（0-100 范围内的绝对值减量）
+   * @returns 饱和度降低后的新 Color 实例
+   *
+   * @example
+   * ```ts
+   * const vivid = Color.fromHSL(200, 90, 50)
+   * const grey = vivid.desaturate(60) // 饱和度 → 30
+   * ```
+   */
   desaturate(amount: number): Color {
     const { h, s, l, a } = this.hsl
     return Color.fromHSL(h, Math.max(0, s - amount), l, a)
   }
 
+  /**
+   * 色相旋转
+   *
+   * 在色轮上旋转指定角度，返回新的 Color 实例。
+   *
+   * @param degrees - 旋转角度（度），正值顺时针
+   * @returns 色相旋转后的新 Color 实例
+   *
+   * @example
+   * ```ts
+   * const red = Color.fromHex('#f00')
+   * const green = red.rotate(120) // 色相 0 → 120（绿色）
+   * ```
+   */
   rotate(degrees: number): Color {
     const { h, s, l, a } = this.hsl
     return Color.fromHSL((h + degrees) % 360, s, l, a)
   }
 
+  /**
+   * 获取互补色
+   *
+   * 返回色相旋转 180° 后的颜色（色轮对面的颜色）。
+   *
+   * @returns 互补色的新 Color 实例
+   *
+   * @example
+   * ```ts
+   * const red = Color.fromHex('#f00')
+   * const cyan = red.complement() // 互补色：青色
+   * ```
+   */
   complement(): Color {
     return this.rotate(180)
   }
 
-  // Color blending
+  /**
+   * 颜色混合
+   *
+   * 将当前颜色与目标颜色按比例线性插值混合。
+   *
+   * @param other - 目标颜色
+   * @param ratio - 混合比例，0 = 完全当前色，1 = 完全目标色，默认 0.5
+   * @returns 混合后的新 Color 实例
+   *
+   * @example
+   * ```ts
+   * const purple = Color.RED.blend(Color.BLUE, 0.5) // 红蓝各半 → 紫色
+   * const nearRed = Color.RED.blend(Color.BLUE, 0.2) // 偏红
+   * ```
+   */
   blend(other: Color, ratio: number = 0.5): Color {
     const r = this._r + (other._r - this._r) * ratio
     const g = this._g + (other._g - this._g) * ratio
@@ -292,20 +385,71 @@ export default class Color implements ISerializable {
     return new Color(r, g, b, a)
   }
 
-  // ── 序列化 ──
+  /**
+   * 序列化为 JSON
+   *
+   * 将颜色转换为可序列化的纯对象，配合 Serializer 使用。
+   *
+   * @returns 包含 r/g/b/a 的纯对象
+   *
+   * @example
+   * ```ts
+   * const json = Color.RED.toJSON() // { r: 255, g: 0, b: 0, a: 1 }
+   * ```
+   */
   toJSON(): { r: number; g: number; b: number; a: number } {
     return { r: this._r, g: this._g, b: this._b, a: this._a }
   }
 
+  /**
+   * 从 JSON 反序列化
+   *
+   * 从 toJSON() 产生的纯对象还原 Color 实例。
+   *
+   * @param data - 包含 r/g/b/a 的纯对象
+   * @returns 还原的 Color 实例
+   *
+   * @example
+   * ```ts
+   * const color = Color.fromJSON({ r: 255, g: 0, b: 0, a: 1 })
+   * ```
+   */
   static fromJSON(data: { r: number; g: number; b: number; a: number }): Color {
     return new Color(data.r, data.g, data.b, data.a)
   }
 
-  // Utility methods
+  /**
+   * 深拷贝
+   *
+   * 创建当前颜色的独立副本，修改副本不影响原对象。
+   *
+   * @returns 新的 Color 实例，值与当前相同
+   *
+   * @example
+   * ```ts
+   * const original = Color.RED
+   * const cloned = original.copy()
+   * cloned.r = 128 // original.r 仍为 255
+   * ```
+   */
   copy(): Color {
     return new Color(this._r, this._g, this._b, this._a)
   }
 
+  /**
+   * 判断相等
+   *
+   * 逐通道精确比较两个颜色是否完全相同。
+   *
+   * @param other - 待比较的颜色
+   * @returns 所有通道均相等时返回 true
+   *
+   * @example
+   * ```ts
+   * Color.RED.equals(new Color(255, 0, 0)) // true
+   * Color.RED.equals(Color.BLUE)           // false
+   * ```
+   */
   equals(other: Color): boolean {
     return this._r === other._r && 
            this._g === other._g && 
@@ -313,87 +457,7 @@ export default class Color implements ISerializable {
            this._a === other._a
   }
 
-  // Helper methods for color space conversions
-  private static rgbToXyz(r: number, g: number, b: number): { x: number, y: number, z: number } {
-    // Apply gamma correction
-    const gammaCorrect = (c: number) => 
-      c > 0.04045 ? Math.pow((c + 0.055) / 1.055, 2.4) : c / 12.92
-
-    r = gammaCorrect(r)
-    g = gammaCorrect(g)
-    b = gammaCorrect(b)
-
-    // Convert to XYZ using sRGB matrix
-    const x = r * 0.4124564 + g * 0.3575761 + b * 0.1804375
-    const y = r * 0.2126729 + g * 0.7151522 + b * 0.0721750
-    const z = r * 0.0193339 + g * 0.1191920 + b * 0.9503041
-
-    return { x, y, z }
-  }
-
-  private static xyzToLab(x: number, y: number, z: number): { l: number, a: number, b: number } {
-    // D65 illuminant
-    const xn = 0.95047
-    const yn = 1.00000
-    const zn = 1.08883
-
-    x = x / xn
-    y = y / yn
-    z = z / zn
-
-    const delta = 6/29
-    const delta2 = delta * delta
-    const delta3 = delta2 * delta
-
-    const fx = x > delta3 ? Math.pow(x, 1/3) : (x / (3 * delta2)) + (4/29)
-    const fy = y > delta3 ? Math.pow(y, 1/3) : (y / (3 * delta2)) + (4/29)
-    const fz = z > delta3 ? Math.pow(z, 1/3) : (z / (3 * delta2)) + (4/29)
-
-    const l = 116 * fy - 16
-    const a = 500 * (fx - fy)
-    const b = 200 * (fy - fz)
-
-    return { l, a, b }
-  }
-
-  private static labToXyz(l: number, a: number, b: number): { x: number, y: number, z: number } {
-    const fy = (l + 16) / 116
-    const fx = a / 500 + fy
-    const fz = fy - b / 200
-
-    const delta = 6/29
-    const delta2 = delta * delta
-
-    const x = fx > delta ? Math.pow(fx, 3) : 3 * delta2 * (fx - 4/29)
-    const y = fy > delta ? Math.pow(fy, 3) : 3 * delta2 * (fy - 4/29)
-    const z = fz > delta ? Math.pow(fz, 3) : 3 * delta2 * (fz - 4/29)
-
-    // D65 illuminant
-    const xn = 0.95047
-    const yn = 1.00000
-    const zn = 1.08883
-
-    return { x: x * xn, y: y * yn, z: z * zn }
-  }
-
-  private static xyzToRgb(x: number, y: number, z: number): { r: number, g: number, b: number } {
-    // Convert XYZ to RGB using sRGB matrix
-    let r = x * 3.2404542 + y * -1.5371385 + z * -0.4985314
-    let g = x * -0.9692660 + y * 1.8760108 + z * 0.0415560
-    let b = x * 0.0556434 + y * -0.2040259 + z * 1.0572252
-
-    // Apply gamma correction
-    const gammaCorrect = (c: number) => 
-      c > 0.0031308 ? 1.055 * Math.pow(c, 1/2.4) - 0.055 : 12.92 * c
-
-    r = Math.max(0, Math.min(1, gammaCorrect(r)))
-    g = Math.max(0, Math.min(1, gammaCorrect(g)))
-    b = Math.max(0, Math.min(1, gammaCorrect(b)))
-
-    return { r, g, b }
-  }
-
-  // Predefined colors
+  // ── 预定义颜色 ──
   static readonly RED = new Color(255, 0, 0)
   static readonly GREEN = new Color(0, 255, 0)
   static readonly BLUE = new Color(0, 0, 255)
