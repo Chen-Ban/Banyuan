@@ -1,5 +1,5 @@
 import BaseCamera, { BaseCameraOptions } from './BaseCamera'
-import { Matrix4, Vector3 } from '@/foundation/math'
+import { MathUtils, Matrix4, Vector3 } from '@/foundation/math'
 import { CAMERATYPE } from '@/foundation/constants'
 
 export interface PerspectiveCameraOptions extends BaseCameraOptions {
@@ -250,7 +250,7 @@ export default class PerspectiveCamera extends BaseCamera {
         const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
 
         // 透视除法
-        if (Math.abs(clipPos.z) < 1e-10) return false
+        if (Math.abs(clipPos.z) < MathUtils.FLOAT_EPSILON) return false
 
         const ndcX = clipPos.x / clipPos.z
         const ndcY = clipPos.y / clipPos.z
@@ -272,7 +272,7 @@ export default class PerspectiveCamera extends BaseCamera {
         const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
 
         // 透视除法
-        if (Math.abs(clipPos.z) < 1e-10) return false
+        if (Math.abs(clipPos.z) < MathUtils.FLOAT_EPSILON) return false
 
         const ndcX = clipPos.x / clipPos.z
         const ndcY = clipPos.y / clipPos.z

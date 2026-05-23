@@ -1,4 +1,5 @@
 import type { EasingFunction } from './types'
+import { MathUtils } from '@/foundation/math'
 
 /**
  * 内置缓动函数集合
@@ -112,9 +113,9 @@ export function cubicBezier(x1: number, y1: number, x2: number, y2: number): Eas
         let t = x
         for (let i = 0; i < 8; i++) {
             const currentX = sampleCurveX(t) - x
-            if (Math.abs(currentX) < 1e-7) return t
+            if (Math.abs(currentX) < MathUtils.INTEGRATION_TOLERANCE) return t
             const derivative = sampleCurveDerivativeX(t)
-            if (Math.abs(derivative) < 1e-7) break
+            if (Math.abs(derivative) < MathUtils.INTEGRATION_TOLERANCE) break
             t -= currentX / derivative
         }
         // 回退到二分法
@@ -122,7 +123,7 @@ export function cubicBezier(x1: number, y1: number, x2: number, y2: number): Eas
         t = x
         while (lo < hi) {
             const mid = sampleCurveX(t)
-            if (Math.abs(mid - x) < 1e-7) return t
+            if (Math.abs(mid - x) < MathUtils.INTEGRATION_TOLERANCE) return t
             if (x > mid) lo = t
             else hi = t
             t = (lo + hi) / 2
