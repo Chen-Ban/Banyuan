@@ -169,7 +169,7 @@ export type {
 } from './animation'
 
 // ── 序列化接口 ──
-export type { ISerializable, SerializableStatic } from './serializable'
+export type { ISerializable, ISerializableClass } from './serializable'
 
 // ── Worker 传输接口 ──
 export type { ITransferable, TransferableData } from './transferable'
