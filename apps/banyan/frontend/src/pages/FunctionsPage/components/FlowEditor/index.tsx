@@ -1,8 +1,12 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button, Input, message } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import type { FlowSchema } from "@banyuan/banyan-sdk";
-import { useFlowBanvas, FlowContextMenu } from "@banyuan/banyan-sdk";
+import {
+  useFlowBanvas,
+  FlowContextMenu,
+  NodeSchemaPopover,
+} from "@banyuan/banyan-sdk";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
 import styles from "./index.module.scss";
@@ -37,7 +41,16 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
   );
 
   // 直接使用 hook —— 返回 Canvas 元素 + schema + MaterialPalette + contextMenuState
-  const { Canvas, app, schema, MaterialPalette, contextMenuState } = useFlowBanvas(
+  const {
+    Canvas,
+    app,
+    schema,
+    canvasRef,
+    selectedNode,
+    selectedNodePos,
+    MaterialPalette,
+    contextMenuState,
+  } = useFlowBanvas(
     {
       width: CANVAS_WIDTH,
       height: CANVAS_HEIGHT,
@@ -46,6 +59,27 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
     initialSchema,
     "server",
   );
+
+  // ── 节点属性浮层开关（对齐 FlowEditorModal 的做法） ──
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const prevSelectedNodeIdRef = useRef<string | null>(null);
+  const currentNodeId = selectedNode?.id ?? null;
+
+  if (currentNodeId !== prevSelectedNodeIdRef.current) {
+    prevSelectedNodeIdRef.current = currentNodeId;
+    if (currentNodeId !== null && !popoverOpen) {
+      Promise.resolve().then(() => setPopoverOpen(true));
+    } else if (currentNodeId === null) {
+      Promise.resolve().then(() => setPopoverOpen(false));
+    }
+  }
+
+  const handleClosePopover = useCallback(() => setPopoverOpen(false), []);
+
+  // canvas 的 DOMRect（Popover 定位用）
+  const canvasRect = canvasRef.current
+    ? canvasRef.current.getBoundingClientRect()
+    : null;
 
   // dirty 检测（元信息部分）
   const metaDirty =
@@ -147,6 +181,16 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
 
       {/* 右键菜单 */}
       <FlowContextMenu state={contextMenuState} />
+
+      {/* 节点属性浮层 */}
+      {popoverOpen && selectedNode && selectedNodePos && (
+        <NodeSchemaPopover
+          node={selectedNode}
+          nodePos={selectedNodePos}
+          canvasRect={canvasRect}
+          onClose={handleClosePopover}
+        />
+      )}
     </div>
   );
 };
