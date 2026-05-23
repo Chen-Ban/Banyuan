@@ -4,6 +4,9 @@ export * from "./base";
 // 解析式图形
 export * from "./analytic";
 
+// 图形关系算法
+export * from "./algorithm";
+
 // 组合图形
 export * from "./combined";
 

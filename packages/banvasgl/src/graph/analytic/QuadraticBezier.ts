@@ -82,25 +82,6 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
         return new Vector3(dx, dy, dz)
     }
 
-    // 计算二次贝塞尔曲线的法线方向
-    public getNormalAt(t: number): Vector3 {
-        const tangent = this.getTangentAt(t)
-        // 法线是切线的垂直方向
-        return new Vector3(-tangent.y, tangent.x, 0).normalized
-    }
-
-    // 检查二次贝塞尔曲线是否是直线
-    isLinear(): boolean {
-        const start = this.controlPoints[0]
-        const control = this.controlPoints[1]
-        const end = this.controlPoints[2]
-
-        // 检查控制点是否在起始点和结束点的连线上
-        const crossProduct =
-            (control.x - start.x) * (end.y - start.y) -
-            (control.y - start.y) * (end.x - start.x)
-        return Math.abs(crossProduct) < 1e-10
-    }
 
     // ── 序列化 ──
     toJSON(): any {
@@ -129,12 +110,5 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
         ) as this
     }
 
-    public getLength(tStart: number, tEnd: number): number {
-        return this.calculateApproximateLength(100) * Math.abs(tEnd - tStart)
-    }
-
-    public getArea(): number {
-        return 0
-    }
 }
 

@@ -1,6 +1,6 @@
 import { GRAPHTYPE } from "@/foundation/constants";
 import Arc from "./Arc";
-import { Point3 } from "@/foundation/math";
+import { MathUtils, Point3, Vector3 } from "@/foundation/math";
 import { Style } from "@/foundation/style";
 import { ICircle } from '@/types';
 import type { ISerializable } from '@/types';
@@ -14,114 +14,71 @@ export default class Circle extends Arc implements ICircle, ISerializable {
     super(center, radius, radius, 0, 0, 2 * Math.PI, false, style);
   }
 
-  // 设置中心点
-  setCenter(center: Point3): Circle {
-    this.center = center;
-    this.controlPoints = this.calculateControlPoints();
-    return this;
-  }
-
-  // 设置半径
+  // 设置半径（同时维护 xRadius === yRadius 约束）
   setRadius(radius: number): Circle {
     this.xRadius = Math.max(0, radius);
     this.yRadius = Math.max(0, radius);
     this.controlPoints = this.calculateControlPoints();
-    this.bounds = this.updateBounds(this.bounds.width>0,this.bounds.height>0)
+    this.bounds = this.updateBounds();
     return this;
   }
 
-  // 获取直径
+  // 直径 = 2r
   get diameter(): number {
-    return (this.xRadius + this.yRadius);
+    return 2 * this.xRadius;
   }
 
-  // 获取周长（椭圆周长近似公式）
-  get circumference(): number {
-    const a = this.xRadius;
-    const b = this.yRadius;
-    // 使用Ramanujan近似公式
-    const h = Math.pow((a - b) / (a + b), 2);
-    return Math.PI * (a + b) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
+  // 重写：圆的弧长与参数 t 呈线性关系，O(1) 精确计算，跳过父类 Simpson 积分
+  public getLength(tStart: number, tEnd: number): number {
+    return 2 * Math.PI * this.xRadius * Math.abs(tEnd - tStart);
   }
 
-  // 获取面积
-  get area(): number {
-    return Math.PI * this.xRadius * this.yRadius;
-  }
 
-  // 获取圆上的点（根据角度）
-  getPointOnCircle(angle: number): Point3 {
-    // 使用父类的 getPointAt 方法，但需要将角度转换为参数 t
-    const t = angle / (2 * Math.PI);
-    return this.getPointAt(t);
-  }
+  // 重写 resize，保持 xRadius === yRadius 的圆形约束
+  public resize(
+    fixedPoint: Point3,
+    dynamicPoint: Point3,
+    resizeVector: Vector3,
+  ): void {
+    const referenceVector = dynamicPoint.subtract(fixedPoint);
+    const width = Math.abs(referenceVector.x) || Infinity;
+    const height = Math.abs(referenceVector.y) || Infinity;
 
-  // 获取圆上的切线方向
-  getTangentDirection(angle: number): Point3 {
-    // 切线方向垂直于半径方向
-    const tangentX = -Math.sin(angle);
-    const tangentY = Math.cos(angle);
-    return new Point3(tangentX, tangentY, 0);
-  }
+    // center 按其到 fixedPoint 的距离比例缩放
+    const scaleX = Math.abs(this.center.x - fixedPoint.x) / width;
+    const scaleY = Math.abs(this.center.y - fixedPoint.y) / height;
 
-  // 获取圆上的法线方向
-  getNormalDirection(angle: number): Point3 {
-    // 法线方向就是半径方向
-    const normalX = Math.cos(angle);
-    const normalY = Math.sin(angle);
-    return new Point3(normalX, normalY, 0);
-  }
+    this.center = new Point3(
+      this.center.x + resizeVector.x * scaleX,
+      this.center.y + resizeVector.y * scaleY,
+      this.center.z,
+    );
 
-  // 检查两个圆是否相交
-  intersects(other: Circle): boolean {
-    const dx = other.center.x - this.center.x;
-    const dy = other.center.y - this.center.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const thisRadius = (this.xRadius + this.yRadius) / 2;
-    const otherRadius = (other.xRadius + other.yRadius) / 2;
-    return distance <= thisRadius + otherRadius && distance >= Math.abs(thisRadius - otherRadius);
-  }
+    // 半径取两轴缩放比的均值，保持圆形
+    const newWidth = width + resizeVector.x * Math.sign(referenceVector.x);
+    const newHeight = height + resizeVector.y * Math.sign(referenceVector.y);
+    const ratioX = Math.abs(newWidth / width);
+    const ratioY = Math.abs(newHeight / height);
+    const ratio = (ratioX + ratioY) / 2;
 
-  // 检查两个圆是否相切
-  isTangent(other: Circle, tolerance: number = 1): boolean {
-    const dx = other.center.x - this.center.x;
-    const dy = other.center.y - this.center.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const thisRadius = (this.xRadius + this.yRadius) / 2;
-    const otherRadius = (other.xRadius + other.yRadius) / 2;
-    const sumRadii = thisRadius + otherRadius;
-    const diffRadii = Math.abs(thisRadius - otherRadius);
-    return Math.abs(distance - sumRadii) <= tolerance || Math.abs(distance - diffRadii) <= tolerance;
-  }
+    const newRadius = Math.max(0, this.xRadius * ratio);
+    this.xRadius = newRadius;
+    this.yRadius = newRadius;
 
-  // 检查一个圆是否包含另一个圆
-  contains(other: Circle): boolean {
-    const dx = other.center.x - this.center.x;
-    const dy = other.center.y - this.center.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const thisRadius = (this.xRadius + this.yRadius) / 2;
-    const otherRadius = (other.xRadius + other.yRadius) / 2;
-    return distance + otherRadius <= thisRadius;
+    this.controlPoints = this.calculateControlPoints();
+    this.bounds = this.updateBounds();
   }
 
   // 渲染圆形（重写父类方法以支持填充）
   public render(ctx: CanvasRenderingContext2D): void {
     ctx.save();
     const bounds = this.bounds;
-    this.style.applyToContext(ctx, bounds.width, bounds.height);
+    this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
 
     ctx.beginPath();
     this.renderPath(ctx, true);
-
-    // 如果有填充样式，先填充
-    if (this.style.fillStyle) {
-      ctx.fill();
-    }
-
-    // 如果有描边样式，再描边
-    if (this.style.strokeStyle) {
-      ctx.stroke();
-    }
+    ctx.fill();
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -148,8 +105,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
 
   // 复制圆形
   public copy(): this {
-    const radius = (this.xRadius + this.yRadius) / 2;
-    return new Circle(this.center.copy(), radius, this.style.copy()) as this;
+    return new Circle(this.center.copy(), this.xRadius, this.style.copy()) as this;
   }
 
   // 静态工厂方法
@@ -157,9 +113,6 @@ export default class Circle extends Arc implements ICircle, ISerializable {
     centerX: number,
     centerY: number,
     radius: number,
-    startAngle: number = 0,
-    endAngle: number = 2 * Math.PI,
-    clockwise: boolean = false,
     style: Style = Style.DEFAULT
   ): Circle {
     return new Circle(new Point3(centerX, centerY, 0), radius, style);
@@ -203,7 +156,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
     const b = (x1 * x1 + y1 * y1) * (y3 - y2) + (x2 * x2 + y2 * y2) * (y1 - y3) + (x3 * x3 + y3 * y3) * (y2 - y1);
     const c = (x1 * x1 + y1 * y1) * (x2 - x3) + (x2 * x2 + y2 * y2) * (x3 - x1) + (x3 * x3 + y3 * y3) * (x1 - x2);
 
-    if (Math.abs(a) < 1e-10) {
+    if (Math.abs(a) < MathUtils.FLOAT_EPSILON) {
       // 三点共线，返回一个很小的圆
       return new Circle(new Point3(0, 0, 0), 0.1, style);
     }
@@ -219,4 +172,3 @@ export default class Circle extends Arc implements ICircle, ISerializable {
   static readonly UNIT_CIRCLE = new Circle(new Point3(0, 0, 0), 1);
   static readonly EMPTY_CIRCLE = new Circle(new Point3(0, 0, 0), 0);
 }
-

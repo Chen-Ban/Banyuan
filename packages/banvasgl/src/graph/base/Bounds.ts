@@ -1,6 +1,6 @@
-import Point3 from '@/foundation/math/Point3'
-import { MATHTYPE } from '@/foundation/constants'
-import type { ISerializable } from '@/types'
+import Point3 from "@/foundation/math/Point3";
+import { MATHTYPE } from "@/foundation/constants";
+import type { ISerializable } from "@/types";
 /**
  * 边界框类
  * @description 用于表示图形的包围盒，包含位置和尺寸信息。基于本地坐标系定位。
@@ -13,13 +13,17 @@ export default class Bounds implements ISerializable {
   public width: number;
   public height: number;
 
-  constructor(x: number = 0, y: number = 0, width: number = 0, height: number = 0) {
+  constructor(
+    x: number = 0,
+    y: number = 0,
+    width: number = 0,
+    height: number = 0,
+  ) {
     this.x = x;
     this.y = y;
     this.width = width;
     this.height = height;
   }
-
 
   /**
    * 设置位置
@@ -115,20 +119,25 @@ export default class Bounds implements ISerializable {
    * 检查边界框是否为空（宽度或高度为0）
    */
   get isEmpty(): boolean {
-    return this.width <= 0 || this.height <= 0;
+    return this.width === 0 || this.height === 0;
   }
 
   // ── 序列化 ──
   toJSON(): { x: number; y: number; width: number; height: number } {
     return { x: this.x, y: this.y, width: this.width, height: this.height };
   }
-  static fromJSON(data: { x: number; y: number; width: number; height: number }): Bounds {
+  static fromJSON(data: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): Bounds {
     return new Bounds(data.x, data.y, data.width, data.height);
   }
 
   /**
-  * 复制边界框
-  */
+   * 复制边界框
+   */
   copy(): Bounds {
     return new Bounds(this.x, this.y, this.width, this.height);
   }
@@ -145,7 +154,11 @@ export default class Bounds implements ISerializable {
    * @description 从点集合创建边界框，返回一个包含所有点集的最小边界框。
    * @description 默认为向右下扩展。
    */
-  static fromPoints(points: Point3[], orientationX: boolean = true, orientationY: boolean = true): Bounds {
+  static fromPoints(
+    points: Point3[],
+    orientationX: boolean = true,
+    orientationY: boolean = true,
+  ): Bounds {
     if (points.length === 0) {
       return Bounds.empty();
     }
@@ -161,17 +174,17 @@ export default class Bounds implements ISerializable {
       minY = Math.min(minY, point.y);
       maxY = Math.max(maxY, point.y);
     }
-    let x = minX
-    let y = minY
-    let width = maxX - minX
-    let height = maxY - minY
+    let x = minX;
+    let y = minY;
+    let width = maxX - minX;
+    let height = maxY - minY;
     if (!orientationX) {
-      x = maxX
-      width = -width
+      x = maxX;
+      width = -width;
     }
     if (!orientationY) {
-      y = maxY
-      height = -height
+      y = maxY;
+      height = -height;
     }
 
     return new Bounds(x, y, width, height);
