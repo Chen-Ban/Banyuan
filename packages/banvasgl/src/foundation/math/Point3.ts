@@ -1,6 +1,6 @@
 import MathUtils from "./MathUtils";
 import Vector3 from "./Vector3";
-import { MATHTYPE } from "@/foundation/constants";
+import { MathType } from "@/foundation/constants";
 import type { ISerializable } from "@/types";
 
 /**
@@ -17,7 +17,7 @@ import type { ISerializable } from "@/types";
  * ```
  */
 export default class Point3 implements ISerializable {
-  public readonly type: MATHTYPE = MATHTYPE.POINT3;
+  public readonly type: MathType = MathType.POINT3;
   private transform: Float32Array;
   /**
    * 构造三维点

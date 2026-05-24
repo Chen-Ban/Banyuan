@@ -2,7 +2,7 @@ import Color from "./Color";
 import FillStyle from "./FillStyle";
 import StrokeStyle from "./StrokeStyle";
 import ShadowStyle from "./ShadowStyle";
-import { STYLETYPE } from "@/foundation/constants";
+import { StyleType } from "@/foundation/constants";
 import type { ISerializable } from "@/types";
 
 /**
@@ -21,7 +21,7 @@ import type { ISerializable } from "@/types";
  * ```
  */
 export default class Style implements ISerializable {
-  public readonly type: STYLETYPE = STYLETYPE.STYLE;
+  public readonly type: StyleType = StyleType.STYLE;
   fillStyle: FillStyle;
   strokeStyle: StrokeStyle;
   shadowStyle: ShadowStyle;
@@ -325,6 +325,36 @@ export default class Style implements ISerializable {
       this.strokeStyle.equals(other.strokeStyle) &&
       this.shadowStyle.equals(other.shadowStyle)
     );
+  }
+
+  /**
+   * 创建一个新 Style，用 computedStyle 中非 null 的子样式覆盖当前样式。
+   *
+   * 用于 View 层渲染管线：defaultStyle.withOverrides(computedStyle) → mergedStyle。
+   * 不修改当前实例，返回新实例。
+   *
+   * @param overrides - 覆盖配置，fill/stroke/shadow 为 null 时保留当前值
+   * @returns 合并后的新 Style 实例
+   * @example
+   * ```ts
+   * const merged = defaultStyle.withOverrides({
+   *   fill: computedStyle.fill,       // FillStyle | null
+   *   stroke: computedStyle.stroke,   // StrokeStyle | null
+   *   shadow: computedStyle.shadow,   // ShadowStyle | null
+   * })
+   * graph.render(ctx, merged)
+   * ```
+   */
+  withOverrides(overrides: {
+    fill?: FillStyle | null;
+    stroke?: StrokeStyle | null;
+    shadow?: ShadowStyle | null;
+  }): Style {
+    return new Style({
+      fillStyle: overrides.fill ?? this.fillStyle,
+      strokeStyle: overrides.stroke ?? this.strokeStyle,
+      shadowStyle: overrides.shadow ?? this.shadowStyle,
+    });
   }
 
   // ── 预定义样式 ──

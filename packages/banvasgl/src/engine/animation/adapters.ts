@@ -11,8 +11,8 @@ import { lerpAngle } from './trs'
 import type { PropertyCategory } from '@/types'
 import {
     adapterRegistry as baseRegistry,
-    SPATIAL_PROPERTIES,
-    SIZE_PROPERTIES,
+    SpatialProperties,
+    SizeProperties,
 } from '@/engine/property'
 
 export type { PropertyCategory }
@@ -89,13 +89,13 @@ export class AnimationAdapterRegistry {
 export const animationAdapterRegistry = new AnimationAdapterRegistry()
 
 // 注册所有空间属性（rotation 使用短弧插值，其余线性）
-for (const prop of SPATIAL_PROPERTIES) {
+for (const prop of SpatialProperties) {
     animationAdapterRegistry.register(prop, prop === 'rotation' ? lerpAngle : undefined)
 }
 
 // 注册所有尺寸属性（均使用线性插值）
-for (const prop of SIZE_PROPERTIES) {
+for (const prop of SizeProperties) {
     animationAdapterRegistry.register(prop)
 }
 
-export { SPATIAL_PROPERTIES, SIZE_PROPERTIES }
+export { SpatialProperties, SizeProperties }

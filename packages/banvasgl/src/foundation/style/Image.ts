@@ -25,7 +25,7 @@ export interface PatternSize {
   height: number
 }
 
-import { STYLETYPE } from '@/foundation/constants'
+import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types'
 
 /**
@@ -41,7 +41,7 @@ import type { ISerializable } from '@/types'
  * ```
  */
 export default class Image implements ISerializable {
-  public readonly type: STYLETYPE = STYLETYPE.IMAGE_PATTERN;
+  public readonly type: StyleType = StyleType.IMAGE_PATTERN;
   src: string | null
   size: PatternSize | null
   repeat: PatternRepeat

@@ -37,7 +37,7 @@ export interface PreprocessOptions {
     clearInteractionStates?: boolean
     // 以下为后续扩展预留
     // hideHelperLayers?: boolean
-    // hideSpecificViewTypes?: VIEWTYPE[]
+    // hideSpecificViewTypes?: ViewType[]
     // exportBackground?: string
 }
 

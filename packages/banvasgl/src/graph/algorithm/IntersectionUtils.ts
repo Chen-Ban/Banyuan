@@ -1,6 +1,6 @@
 import { Point3, GeometryUtils } from "@/foundation/math";
 import MathUtils from "@/foundation/math/MathUtils";
-import { GRAPHTYPE } from "@/foundation/constants";
+import { GraphType } from "@/foundation/constants";
 import type { IAnalyticGraph, ILine, IArc, ICircle, IQuadraticBezier, ICubicBezier } from "@/types";
 
 /**
@@ -32,32 +32,32 @@ class IntersectionManager {
 
   private registerHandlers(): void {
     // 线与其他图形的相交
-    this.register(GRAPHTYPE.LINE, GRAPHTYPE.LINE, lineLineIntersect);
-    this.register(GRAPHTYPE.LINE, GRAPHTYPE.ARC, lineArcIntersect);
-    this.register(GRAPHTYPE.LINE, GRAPHTYPE.CIRCLE, lineCircleIntersect);
-    this.register(GRAPHTYPE.LINE, GRAPHTYPE.QUADRATIC_BEZIER, lineQuadraticBezierIntersect);
-    this.register(GRAPHTYPE.LINE, GRAPHTYPE.CUBIC_BEZIER, lineCubicBezierIntersect);
+    this.register(GraphType.LINE, GraphType.LINE, lineLineIntersect);
+    this.register(GraphType.LINE, GraphType.ARC, lineArcIntersect);
+    this.register(GraphType.LINE, GraphType.CIRCLE, lineCircleIntersect);
+    this.register(GraphType.LINE, GraphType.QUADRATIC_BEZIER, lineQuadraticBezierIntersect);
+    this.register(GraphType.LINE, GraphType.CUBIC_BEZIER, lineCubicBezierIntersect);
 
     // 圆弧与其他图形的相交
-    this.register(GRAPHTYPE.ARC, GRAPHTYPE.ARC, arcArcIntersect);
-    this.register(GRAPHTYPE.ARC, GRAPHTYPE.CIRCLE, arcCircleIntersect);
-    this.register(GRAPHTYPE.ARC, GRAPHTYPE.QUADRATIC_BEZIER, arcQuadraticBezierIntersect);
-    this.register(GRAPHTYPE.ARC, GRAPHTYPE.CUBIC_BEZIER, arcCubicBezierIntersect);
+    this.register(GraphType.ARC, GraphType.ARC, arcArcIntersect);
+    this.register(GraphType.ARC, GraphType.CIRCLE, arcCircleIntersect);
+    this.register(GraphType.ARC, GraphType.QUADRATIC_BEZIER, arcQuadraticBezierIntersect);
+    this.register(GraphType.ARC, GraphType.CUBIC_BEZIER, arcCubicBezierIntersect);
 
     // 圆与其他图形的相交
-    this.register(GRAPHTYPE.CIRCLE, GRAPHTYPE.CIRCLE, circleCircleIntersect);
-    this.register(GRAPHTYPE.CIRCLE, GRAPHTYPE.QUADRATIC_BEZIER, circleQuadraticBezierIntersect);
-    this.register(GRAPHTYPE.CIRCLE, GRAPHTYPE.CUBIC_BEZIER, circleCubicBezierIntersect);
+    this.register(GraphType.CIRCLE, GraphType.CIRCLE, circleCircleIntersect);
+    this.register(GraphType.CIRCLE, GraphType.QUADRATIC_BEZIER, circleQuadraticBezierIntersect);
+    this.register(GraphType.CIRCLE, GraphType.CUBIC_BEZIER, circleCubicBezierIntersect);
 
     // 贝塞尔曲线之间的相交
-    this.register(GRAPHTYPE.QUADRATIC_BEZIER, GRAPHTYPE.QUADRATIC_BEZIER, quadraticBezierQuadraticBezierIntersect);
-    this.register(GRAPHTYPE.QUADRATIC_BEZIER, GRAPHTYPE.CUBIC_BEZIER, quadraticBezierCubicBezierIntersect);
-    this.register(GRAPHTYPE.CUBIC_BEZIER, GRAPHTYPE.CUBIC_BEZIER, cubicBezierCubicBezierIntersect);
+    this.register(GraphType.QUADRATIC_BEZIER, GraphType.QUADRATIC_BEZIER, quadraticBezierQuadraticBezierIntersect);
+    this.register(GraphType.QUADRATIC_BEZIER, GraphType.CUBIC_BEZIER, quadraticBezierCubicBezierIntersect);
+    this.register(GraphType.CUBIC_BEZIER, GraphType.CUBIC_BEZIER, cubicBezierCubicBezierIntersect);
   }
 
   private register<A extends IAnalyticGraph, B extends IAnalyticGraph>(
-    typeA: GRAPHTYPE,
-    typeB: GRAPHTYPE,
+    typeA: GraphType,
+    typeB: GraphType,
     handler: IntersectionHandler<A, B>
   ): void {
     const key = this.getKey(typeA, typeB);
@@ -70,7 +70,7 @@ class IntersectionManager {
     }
   }
 
-  private getKey(typeA: GRAPHTYPE, typeB: GRAPHTYPE): string {
+  private getKey(typeA: GraphType, typeB: GraphType): string {
     return `${typeA}-${typeB}`;
   }
 

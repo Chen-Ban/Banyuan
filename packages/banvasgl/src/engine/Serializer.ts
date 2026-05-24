@@ -52,7 +52,7 @@ import PerspectiveCamera from '@/engine/camera/PerspectiveCamera'
 
 // ISerializable
 import type { ISerializable, ISerializableClass } from '@/types'
-import { MATHTYPE, STYLETYPE, GRAPHTYPE, VIEWTYPE, SCENETYPE, CAMERATYPE } from '@/foundation/constants'
+import { MathType, StyleType, GraphType, ViewType, SceneType, CameraType } from '@/foundation/constants'
 
 /**
  * 序列化配置选项
@@ -178,59 +178,59 @@ export default class Serializer {
         // key 使用各类的 type 枚举值，与实例上的 type 属性一一对应
 
         // 数学
-        this.registerSerializable(MATHTYPE.MATRIX4, Matrix4)
-        this.registerSerializable(MATHTYPE.POINT3, Point3 as any)
-        this.registerSerializable(MATHTYPE.VECTOR3, Vector3 as any)
-        this.registerSerializable(MATHTYPE.BOUNDS, Bounds as any)
+        this.registerSerializable(MathType.MATRIX4, Matrix4)
+        this.registerSerializable(MathType.POINT3, Point3 as any)
+        this.registerSerializable(MathType.VECTOR3, Vector3 as any)
+        this.registerSerializable(MathType.BOUNDS, Bounds as any)
         // 样式
-        this.registerSerializable(STYLETYPE.COLOR, Color as any)
-        this.registerSerializable(STYLETYPE.LINEAR_GRADIENT, LinearGradient as any)
-        this.registerSerializable(STYLETYPE.RADIAL_GRADIENT, RadialGradient as any)
-        this.registerSerializable(STYLETYPE.CONIC_GRADIENT, ConicGradient as any)
-        this.registerSerializable(STYLETYPE.IMAGE_PATTERN, ImagePattern as any)
-        this.registerSerializable(STYLETYPE.VIDEO_PATTERN, VideoPattern as any)
-        this.registerSerializable(STYLETYPE.FILL_STYLE, FillStyle as any)
-        this.registerSerializable(STYLETYPE.STROKE_STYLE, StrokeStyle as any)
-        this.registerSerializable(STYLETYPE.SHADOW_STYLE, ShadowStyle as any)
-        this.registerSerializable(STYLETYPE.STYLE, Style as any)
+        this.registerSerializable(StyleType.COLOR, Color as any)
+        this.registerSerializable(StyleType.LINEAR_GRADIENT, LinearGradient as any)
+        this.registerSerializable(StyleType.RADIAL_GRADIENT, RadialGradient as any)
+        this.registerSerializable(StyleType.CONIC_GRADIENT, ConicGradient as any)
+        this.registerSerializable(StyleType.IMAGE_PATTERN, ImagePattern as any)
+        this.registerSerializable(StyleType.VIDEO_PATTERN, VideoPattern as any)
+        this.registerSerializable(StyleType.FILL_STYLE, FillStyle as any)
+        this.registerSerializable(StyleType.STROKE_STYLE, StrokeStyle as any)
+        this.registerSerializable(StyleType.SHADOW_STYLE, ShadowStyle as any)
+        this.registerSerializable(StyleType.STYLE, Style as any)
         // 图形
-        this.registerSerializable(GRAPHTYPE.LINE, Line as any)
-        this.registerSerializable(GRAPHTYPE.ARC, Arc as any)
-        this.registerSerializable(GRAPHTYPE.CIRCLE, Circle as any)
-        this.registerSerializable(GRAPHTYPE.QUADRATIC_BEZIER, QuadraticBezier as any)
-        this.registerSerializable(GRAPHTYPE.CUBIC_BEZIER, CubicBezier as any)
-        this.registerSerializable(GRAPHTYPE.COMBINED_GRAPH, CombinedGraph as any)
-        this.registerSerializable(GRAPHTYPE.POLYGON, Polygon as any)
-        this.registerSerializable(GRAPHTYPE.TRIANGLE, Triangle as any)
-        this.registerSerializable(GRAPHTYPE.RECTANGLE, Rectangle as any)
-        this.registerSerializable(GRAPHTYPE.REGULAR_POLYGON, RegularPolygon as any)
-        this.registerSerializable(GRAPHTYPE.ROUNDED_RECT, RoundedRect as any)
-        this.registerSerializable(GRAPHTYPE.IMAGE, ImageElement as any)
-        this.registerSerializable(GRAPHTYPE.VIDEO, VideoElement as any)
-        this.registerSerializable(GRAPHTYPE.TEXTFIELDS, TextFields as any)
-        this.registerSerializable(GRAPHTYPE.TEXTPARAGRAPH, TextParagraph as any)
+        this.registerSerializable(GraphType.LINE, Line as any)
+        this.registerSerializable(GraphType.ARC, Arc as any)
+        this.registerSerializable(GraphType.CIRCLE, Circle as any)
+        this.registerSerializable(GraphType.QUADRATIC_BEZIER, QuadraticBezier as any)
+        this.registerSerializable(GraphType.CUBIC_BEZIER, CubicBezier as any)
+        this.registerSerializable(GraphType.COMBINED_GRAPH, CombinedGraph as any)
+        this.registerSerializable(GraphType.POLYGON, Polygon as any)
+        this.registerSerializable(GraphType.TRIANGLE, Triangle as any)
+        this.registerSerializable(GraphType.RECTANGLE, Rectangle as any)
+        this.registerSerializable(GraphType.REGULAR_POLYGON, RegularPolygon as any)
+        this.registerSerializable(GraphType.ROUNDED_RECT, RoundedRect as any)
+        this.registerSerializable(GraphType.IMAGE, ImageElement as any)
+        this.registerSerializable(GraphType.VIDEO, VideoElement as any)
+        this.registerSerializable(GraphType.TEXTFIELDS, TextFields as any)
+        this.registerSerializable(GraphType.TEXTPARAGRAPH, TextParagraph as any)
         this.registerSerializable(
-            GRAPHTYPE.PRINTABLE_TEXTELEMENT,
+            GraphType.PRINTABLE_TEXTELEMENT,
             PrintableTextElement as any
         )
         this.registerSerializable(
-            GRAPHTYPE.NONPRINTABLE_TEXTELEMENT,
+            GraphType.NONPRINTABLE_TEXTELEMENT,
             NonPrintableTextElement as any
         )
-        this.registerSerializable(GRAPHTYPE.DENSETRAJECTORY, DenseTrajectory as any)
+        this.registerSerializable(GraphType.DENSETRAJECTORY, DenseTrajectory as any)
         // 容器
-        this.registerSerializable(VIEWTYPE.COMBINEDVIEW, CombinedView as any)
-        this.registerSerializable(VIEWTYPE.FLEXVIEW, FlexView as any)
-        this.registerSerializable(VIEWTYPE.GRAPHVIEW, GraphView as any)
-        this.registerSerializable(VIEWTYPE.TEXTVIEW, TextView as any)
-        this.registerSerializable(VIEWTYPE.IMAGEVIEW, ImageView as any)
-        this.registerSerializable(VIEWTYPE.VIDEOVIEW, VideoView as any)
+        this.registerSerializable(ViewType.COMBINEDVIEW, CombinedView as any)
+        this.registerSerializable(ViewType.FLEXVIEW, FlexView as any)
+        this.registerSerializable(ViewType.GRAPHVIEW, GraphView as any)
+        this.registerSerializable(ViewType.TEXTVIEW, TextView as any)
+        this.registerSerializable(ViewType.IMAGEVIEW, ImageView as any)
+        this.registerSerializable(ViewType.VIDEOVIEW, VideoView as any)
         // 场景
-        this.registerSerializable(SCENETYPE.SCENE, Scene as any)
+        this.registerSerializable(SceneType.SCENE, Scene as any)
         // 相机
-        this.registerSerializable(CAMERATYPE.BASE, BaseCamera as any)
-        this.registerSerializable(CAMERATYPE.ORTHOGRAPHIC, OrthographicCamera as any)
-        this.registerSerializable(CAMERATYPE.PERSPECTIVE, PerspectiveCamera as any)
+        this.registerSerializable(CameraType.BASE, BaseCamera as any)
+        this.registerSerializable(CameraType.ORTHOGRAPHIC, OrthographicCamera as any)
+        this.registerSerializable(CameraType.PERSPECTIVE, PerspectiveCamera as any)
 
     }
 

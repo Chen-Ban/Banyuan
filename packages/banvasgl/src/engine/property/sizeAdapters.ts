@@ -8,7 +8,7 @@
  *   set 时将 viewport 尺寸乘以目标 scale 值。
  *
  * 注意：set 操作仅修改 viewport 尺寸，不触发 content resize。
- * 如需等比缩放内容，应使用 View._animationResize()。
+ * 如需等比缩放内容，应使用 AnimationAddon._animationResize()。
  */
 
 import type View from '@/view/View/View'

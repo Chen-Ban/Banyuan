@@ -99,7 +99,7 @@ export default class AnimationExecutor {
         this._resolveConflictsAndBuildSegments()
 
         // ---- 注册到 View 的动画列表 ----
-        target._addAnimation(this.descriptor)
+        target.addAnimation(this.descriptor)
 
         // ---- fillMode backwards/both：立即应用第一帧状态 ----
         const fm = this.descriptor.fillMode
@@ -186,11 +186,11 @@ export default class AnimationExecutor {
 
         // 清空覆盖层，View 自动恢复真实 viewport
         if (this.descriptor.sizeProps.length > 0) {
-            this._target._clearAnimatedViewport()
+            this._target.clearAnimatedViewport()
         }
 
         this.descriptor.computedValues = {}
-        this._target._removeAnimation(this.descriptor)
+        this._target.removeAnimation(this.descriptor)
         this.descriptor.onCancel?.()
     }
 
@@ -212,7 +212,7 @@ export default class AnimationExecutor {
         desc.onUpdate?.(1)
         this._commit()
         desc.state = 'finished'
-        this._target?._removeAnimation(desc)
+        this._target?.removeAnimation(desc)
         desc.onFinish?.()
         desc._finishResolve?.()
     }
@@ -377,7 +377,7 @@ export default class AnimationExecutor {
         if (desc.sizeProps.length > 0) {
             const currentWidth  = this._interpolateSizeProp('width', progress)
             const currentHeight = this._interpolateSizeProp('height', progress)
-            this._target._animationResize(currentWidth, currentHeight)
+            this._target.animationResize(currentWidth, currentHeight)
         }
 
         // ---- 直通属性：线性插值 → computedValues ----
@@ -448,7 +448,7 @@ export default class AnimationExecutor {
             }
             // 将覆盖视口提交为真实 viewport
             if (desc.sizeProps.length > 0) {
-                this._target._commitAnimatedViewport()
+                this._target.commitAnimatedViewport()
             }
         } else {
             if (desc.spatialProps.length > 0) {
@@ -456,7 +456,7 @@ export default class AnimationExecutor {
             }
             // 清空覆盖层，View 恢复真实 viewport
             if (desc.sizeProps.length > 0) {
-                this._target._clearAnimatedViewport()
+                this._target.clearAnimatedViewport()
             }
         }
 
@@ -467,7 +467,7 @@ export default class AnimationExecutor {
 
     private _findConflictingDescriptor(prop: string): AnimationDescriptor | null {
         if (!this._target) return null
-        const animations = this._target._getAnimations()
+        const animations = this._target.getAnimations()
         for (const anim of animations) {
             if (anim !== this.descriptor && anim.isActive && anim.properties.includes(prop)) {
                 return anim as AnimationDescriptor

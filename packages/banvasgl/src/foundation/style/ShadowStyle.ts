@@ -1,5 +1,5 @@
 import Color from "./Color";
-import { STYLETYPE } from "@/foundation/constants";
+import { StyleType } from "@/foundation/constants";
 import type { ISerializable } from "@/types";
 
 /**
@@ -15,7 +15,7 @@ import type { ISerializable } from "@/types";
  * ```
  */
 export default class ShadowStyle implements ISerializable {
-  public readonly type: STYLETYPE = STYLETYPE.SHADOW_STYLE;
+  public readonly type: StyleType = StyleType.SHADOW_STYLE;
   color: Color;
   offsetX: number;
   offsetY: number;

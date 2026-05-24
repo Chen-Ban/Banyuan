@@ -60,8 +60,8 @@ export type {
 export {
     PropertyAdapterRegistry,
     adapterRegistry,
-    SPATIAL_PROPERTIES,
-    SIZE_PROPERTIES,
+    SpatialProperties,
+    SizeProperties,
     radiansToDegrees,
     degreesToRadians,
 } from './property'

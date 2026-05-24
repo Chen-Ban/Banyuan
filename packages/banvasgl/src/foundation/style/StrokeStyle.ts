@@ -1,7 +1,7 @@
 import Color from './Color'
 import { LinearGradient, RadialGradient, ConicGradient } from './gradient/index'
 import Image from './Image'
-import { STYLETYPE } from '@/foundation/constants'
+import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types'
 
 /** 描边类型枚举：纯色、三种渐变、图片图案 */
@@ -20,7 +20,7 @@ export type StrokeType = 'color' | 'linearGradient' | 'radialGradient' | 'conicG
  * ```
  */
 export default class StrokeStyle implements ISerializable {
-  public readonly type: STYLETYPE = STYLETYPE.STROKE_STYLE;
+  public readonly type: StyleType = StyleType.STROKE_STYLE;
   strokeType: StrokeType
   color: Color
   linearGradient: LinearGradient | null

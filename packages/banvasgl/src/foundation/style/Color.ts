@@ -1,4 +1,4 @@
-import { STYLETYPE } from '@/foundation/constants'
+import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types'
 
 /**
@@ -16,7 +16,7 @@ import type { ISerializable } from '@/types'
  * ```
  */
 export default class Color implements ISerializable {
-  public readonly type: STYLETYPE = STYLETYPE.COLOR;
+  public readonly type: StyleType = StyleType.COLOR;
   private _r: number
   private _g: number
   private _b: number
@@ -202,6 +202,57 @@ export default class Color implements ISerializable {
     const b = parseInt(h.substring(4, 6), 16)
     const a = h.length === 8 ? parseInt(h.substring(6, 8), 16) / 255 : 1
     return new Color(r, g, b, a)
+  }
+
+  /**
+   * 从 CSS 色值字符串创建颜色
+   *
+   * 支持多种 CSS 格式：
+   * - 十六进制：`'#ff0000'`、`'#f00'`、`'#ff000080'`
+   * - rgb：`'rgb(255, 0, 0)'`
+   * - rgba：`'rgba(255, 0, 0, 0.5)'`
+   * - 颜色关键字：`'transparent'`、`'white'`、`'black'`（仅支持常用关键字）
+   *
+   * 无法解析时回退到黑色（Color.BLACK），不抛出异常。
+   *
+   * @param css - CSS 色值字符串
+   * @returns 对应的 Color 实例
+   *
+   * @example
+   * ```ts
+   * Color.fromCSSString('#3498db')           // hex
+   * Color.fromCSSString('rgba(255,0,0,0.5)') // rgba
+   * Color.fromCSSString('transparent')       // 透明
+   * ```
+   */
+  static fromCSSString(css: string): Color {
+    const s = css.trim().toLowerCase()
+
+    // 颜色关键字
+    if (s === 'transparent') return new Color(0, 0, 0, 0)
+    if (s === 'white')       return Color.WHITE
+    if (s === 'black')       return Color.BLACK
+    if (s === 'red')         return Color.RED
+    if (s === 'green')       return Color.GREEN
+    if (s === 'blue')        return Color.BLUE
+
+    // hex
+    if (s.startsWith('#')) {
+      try { return Color.fromHex(s) } catch { /* fall through */ }
+    }
+
+    // rgba(r, g, b, a)
+    const rgbaMatch = s.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)(?:\s*,\s*([\d.]+))?\s*\)$/)
+    if (rgbaMatch) {
+      const r = parseFloat(rgbaMatch[1])
+      const g = parseFloat(rgbaMatch[2])
+      const b = parseFloat(rgbaMatch[3])
+      const a = rgbaMatch[4] !== undefined ? parseFloat(rgbaMatch[4]) : 1
+      return new Color(r, g, b, a)
+    }
+
+    // 无法解析，回退黑色
+    return Color.BLACK
   }
 
   /**

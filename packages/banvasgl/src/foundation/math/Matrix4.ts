@@ -1,7 +1,7 @@
 import Point3 from "./Point3";
 import Vector3 from "./Vector3";
 import { MathUtils } from "./MathUtils";
-import { MATHTYPE } from '@/foundation/constants';
+import { MathType } from '@/foundation/constants';
 import type { ISerializable } from '@/types';
 
 /**
@@ -17,7 +17,7 @@ import type { ISerializable } from '@/types';
  * ```
  */
 export default class Matrix4 implements ISerializable {
-  public readonly type: MATHTYPE = MATHTYPE.MATRIX4;
+  public readonly type: MathType = MathType.MATRIX4;
   private data: Float32Array;
 
   /**
