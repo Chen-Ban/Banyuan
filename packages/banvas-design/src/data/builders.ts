@@ -2,7 +2,7 @@
  * 数据构建工具函数
  */
 
-import { VIEWTYPE } from '@banyuan/banvasgl'
+import { ViewType } from '@banyuan/banvasgl'
 import type { IViewNode, IPageNode, IFieldSchemaMap, App, View, Scene } from '@banyuan/banvasgl'
 
 function getViewDisplayName(view: View): string {
@@ -35,7 +35,7 @@ export function buildPageNode(scene: Scene, index: number, isCurrent: boolean): 
         index,
         data: (scene.data ?? {}) as IFieldSchemaMap,
         children: scene.children
-            .filter((child) => (child as View).type !== VIEWTYPE.SELECTBOXVIEW)
+            .filter((child) => (child as View).type !== ViewType.SELECTBOXVIEW)
             .map((child) => buildViewNode(child as View, 0)),
     }
 }

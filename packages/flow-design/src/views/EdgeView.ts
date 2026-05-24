@@ -6,15 +6,15 @@ import {
     Bounds,
     isPortView,
 } from '@banyuan/banvasgl'
-import { FLOW_VIEWTYPE } from '../constants.js'
+import { FlowViewType } from '../constants.js'
 import type {
     IEdgeView,
-    InteractResult,
-    ViewOptions,
+    IInteractResult,
+    IViewOptions,
 } from '@banyuan/banvasgl'
 import type PortView from './PortView.js'
 
-export interface EdgeViewOptions extends ViewOptions {
+export interface EdgeViewOptions extends IViewOptions {
     fromPortId?: string | null
     toPortId?: string | null
 }
@@ -26,7 +26,7 @@ export interface EdgeViewOptions extends ViewOptions {
  * 渲染为三次贝塞尔曲线，命中曲线路径时返回 MoveData（支持选中/删除）。
  */
 export default class EdgeView extends View implements IEdgeView {
-    public readonly type = FLOW_VIEWTYPE.EDGEVIEW
+    public readonly type = FlowViewType.EDGEVIEW
 
     public fromPortId: string | null
     public toPortId: string | null
@@ -168,7 +168,7 @@ export default class EdgeView extends View implements IEdgeView {
     /**
      * EdgeView 在世界坐标系下绘制，interact 直接用世界坐标做命中检测
      */
-    public interact(worldPoint: Point3): InteractResult {
+    public interact(worldPoint: Point3): IInteractResult {
         const endpoints = this._resolveEndpoints()
         if (!endpoints) return { view: null, content: null, extraData: null }
 
@@ -221,7 +221,7 @@ export default class EdgeView extends View implements IEdgeView {
         return Bounds.empty()
     }
 
-    protected interactContent(_point: Point3, _bufferCtx?: CanvasRenderingContext2D): InteractResult {
+    protected interactContent(_point: Point3, _bufferCtx?: CanvasRenderingContext2D): IInteractResult {
         return { view: null, content: null, extraData: null }
     }
 }

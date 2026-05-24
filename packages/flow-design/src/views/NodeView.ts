@@ -4,12 +4,12 @@ import {
     Rectangle,
     Bounds,
 } from '@banyuan/banvasgl'
-import { FLOW_VIEWTYPE } from '../constants.js'
+import { FlowViewType } from '../constants.js'
 import type {
     INodeView,
     PortDirection,
-    InteractResult,
-    ContainerViewOptions,
+    IInteractResult,
+    IContainerViewOptions,
 } from '@banyuan/banvasgl'
 import type { FlowNode } from '@banyuan/flow'
 import PortView from './PortView.js'
@@ -93,7 +93,7 @@ export interface PortDefinition {
     maxConnections?: number
 }
 
-export interface NodeViewOptions extends ContainerViewOptions {
+export interface NodeViewOptions extends IContainerViewOptions {
     /** 节点的完整业务 schema（必传） */
     schema: FlowNode
     /** 覆盖自动推导的标题 */
@@ -186,7 +186,7 @@ function deriveTitleFromSchema(schema: FlowNode): string {
  * interact 优先级：PortView child > BoundingBox > 节点内容
  */
 export default class NodeView extends ContainerView implements INodeView {
-    public readonly type = FLOW_VIEWTYPE.NODEVIEW
+    public readonly type = FlowViewType.NODEVIEW
     public nodeTitle: string
     /** 完整的流程节点业务 schema */
     public schema: FlowNode
@@ -255,13 +255,14 @@ export default class NodeView extends ContainerView implements INodeView {
     /**
      * override interact：PortView child 优先于 BoundingBox
      */
-    public interact(worldPoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
+    public interact(worldPoint: Point3, bufferCtx?: CanvasRenderingContext2D): IInteractResult {
         const relativePoint = this.getMVPMatrix().inverse().multiply(worldPoint)
 
         // 1. 先检查 PortView children（端口优先级最高）
+        const scrollOffset = this.decoration?.computedStyle.scrollOffset ?? { x: 0, y: 0 }
         const scrolledPoint = new Point3(
-            relativePoint.x - this.scrollOffset.x,
-            relativePoint.y - this.scrollOffset.y,
+            relativePoint.x - scrollOffset.x,
+            relativePoint.y - scrollOffset.y,
             relativePoint.z,
         )
         const adjustedWorldPoint = this.getMVPMatrix().multiply(scrolledPoint)

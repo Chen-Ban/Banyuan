@@ -25,8 +25,8 @@ import {
   VideoView,
   Input,
   FlexView,
-  VIEWTYPE,
-  GRAPHTYPE,
+  ViewType,
+  GraphType,
 } from '@banyuan/banvasgl'
 import type { IComponentTemplate } from '@banyuan/banvasgl'
 
@@ -36,18 +36,18 @@ type ViewCreatorStrategy = (defaultProps: DefaultProps, x: number, y: number) =>
 
 export const graphCreatorStrategies = new Map<string, GraphCreatorStrategy>([
     [
-        GRAPHTYPE.LINE,
+        GraphType.LINE,
         (_props) => new Line(new Point3(0, 0, 0), new Point3(50, 50, 0), Style.DEFAULT),
     ],
     [
-        GRAPHTYPE.CIRCLE,
+        GraphType.CIRCLE,
         (props) => {
             const radius = (props.radius as number | undefined) ?? 50
             return new Circle(new Point3(radius, radius, 0), radius, Style.DEFAULT)
         },
     ],
     [
-        GRAPHTYPE.ROUNDED_RECT,
+        GraphType.ROUNDED_RECT,
         (props) => {
             const width  = (props.width  as number | undefined) ?? 100
             const height = (props.height as number | undefined) ?? 100
@@ -56,7 +56,7 @@ export const graphCreatorStrategies = new Map<string, GraphCreatorStrategy>([
         },
     ],
     [
-        GRAPHTYPE.CUBIC_BEZIER,
+        GraphType.CUBIC_BEZIER,
         (props) => {
             const len = (props.length as number | undefined) ?? 120
             return new CubicBezier(
@@ -68,7 +68,7 @@ export const graphCreatorStrategies = new Map<string, GraphCreatorStrategy>([
         },
     ],
     [
-        GRAPHTYPE.QUADRATIC_BEZIER,
+        GraphType.QUADRATIC_BEZIER,
         (props) => {
             const len = (props.length as number | undefined) ?? 120
             return new QuadraticBezier(
@@ -79,7 +79,7 @@ export const graphCreatorStrategies = new Map<string, GraphCreatorStrategy>([
         },
     ],
     [
-        GRAPHTYPE.TRIANGLE,
+        GraphType.TRIANGLE,
         (props) => {
             const size = (props.size as number | undefined) ?? 100
             const h = size * Math.sqrt(3) / 2
@@ -92,7 +92,7 @@ export const graphCreatorStrategies = new Map<string, GraphCreatorStrategy>([
         },
     ],
     [
-        GRAPHTYPE.REGULAR_POLYGON,
+        GraphType.REGULAR_POLYGON,
         (props) => {
             const radius = (props.radius as number | undefined) ?? 50
             const sides  = (props.sides  as number | undefined) ?? 6
@@ -106,7 +106,7 @@ export const graphCreatorStrategies = new Map<string, GraphCreatorStrategy>([
         },
     ],
     [
-        GRAPHTYPE.ARC,
+        GraphType.ARC,
         (props) => {
             const radius = (props.radius as number | undefined) ?? 50
             return new Arc(
@@ -125,7 +125,7 @@ export const graphCreatorStrategies = new Map<string, GraphCreatorStrategy>([
 
 export const viewCreatorStrategies = new Map<string, ViewCreatorStrategy>([
     [
-        VIEWTYPE.GRAPHVIEW,
+        ViewType.GRAPHVIEW,
         (props, x, y) => {
             const graphType = props._graphType as string | undefined
             if (!graphType) {
@@ -147,7 +147,7 @@ export const viewCreatorStrategies = new Map<string, ViewCreatorStrategy>([
         },
     ],
     [
-        VIEWTYPE.TEXTVIEW,
+        ViewType.TEXTVIEW,
         (props, x, y) => {
             const text = (props.text as string | undefined) ?? '文本'
             const textParagraph = TextParagraph.simple(text)
@@ -158,7 +158,7 @@ export const viewCreatorStrategies = new Map<string, ViewCreatorStrategy>([
         },
     ],
     [
-        VIEWTYPE.IMAGEVIEW,
+        ViewType.IMAGEVIEW,
         (props, x, y) => {
             const imageSrc = (props.imageSrc as string | undefined) ?? ''
             const width    = (props.width   as number | undefined) ?? 200
@@ -170,7 +170,7 @@ export const viewCreatorStrategies = new Map<string, ViewCreatorStrategy>([
         },
     ],
     [
-        VIEWTYPE.VIDEOVIEW,
+        ViewType.VIDEOVIEW,
         (props, x, y) => {
             const videoSrc = (props.videoSrc as string | undefined) ?? ''
             const width    = (props.width    as number | undefined) ?? 320
@@ -182,7 +182,7 @@ export const viewCreatorStrategies = new Map<string, ViewCreatorStrategy>([
         },
     ],
     [
-        VIEWTYPE.INPUT,
+        ViewType.INPUT,
         (props, x, y) => {
             const text = (props.text as string | undefined) ?? ''
             const textParagraph = TextParagraph.simple(text)
@@ -193,7 +193,7 @@ export const viewCreatorStrategies = new Map<string, ViewCreatorStrategy>([
         },
     ],
     [
-        VIEWTYPE.FLEXVIEW,
+        ViewType.FLEXVIEW,
         (props, x, y) => {
             const width  = (props.width  as number | undefined) ?? 300
             const height = (props.height as number | undefined) ?? 100

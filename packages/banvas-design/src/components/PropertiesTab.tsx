@@ -1,7 +1,7 @@
 import React from 'react'
 import { Input, Tooltip } from 'antd'
 import type { IBanvasActions } from '@banyuan/banvasgl'
-import { GRAPHTYPE, View } from '@banyuan/banvasgl'
+import { GraphType, View } from '@banyuan/banvasgl'
 import { NumberInput } from './NumberInput.js'
 
 // ── 内联样式 ──
@@ -114,7 +114,7 @@ export const PropertiesTab: React.FC<PropertiesTabProps> = ({
     const height = view.viewport.height
 
     const content = view.content as any
-    const isRoundedRect = content && content.type === GRAPHTYPE.ROUNDED_RECT
+    const isRoundedRect = content && content.type === GraphType.ROUNDED_RECT
     const radii: [number, number, number, number] = isRoundedRect ? content.radii : [0, 0, 0, 0]
 
     return (

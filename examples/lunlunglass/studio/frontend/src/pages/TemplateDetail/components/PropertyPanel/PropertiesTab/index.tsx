@@ -1,7 +1,7 @@
 import React from 'react'
 import { Checkbox, Input, Tooltip } from 'antd'
 import type { IBanvasActions, IView } from '@banyuan/banvasgl'
-import { GRAPHTYPE } from '@banyuan/banvasgl'
+import { GraphType } from '@banyuan/banvasgl'
 import NumberInput from '../shared/NumberInput'
 import styles from '../index.module.scss'
 
@@ -31,7 +31,7 @@ const PropertiesTab: React.FC<PropertiesTabProps> = ({
     const height = view.viewport.height
 
     const content = view.content as any
-    const isRoundedRect = content && content.type === GRAPHTYPE.ROUNDED_RECT
+    const isRoundedRect = content && content.type === GraphType.ROUNDED_RECT
     const radii: [number, number, number, number] = isRoundedRect ? content.radii : [0, 0, 0, 0]
 
     return (

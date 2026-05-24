@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { Modal, Button, Descriptions, Tag, message, Spin } from 'antd'
 import { PrinterOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { IBanvasActions, IPageNode } from '@banyuan/banvasgl'
-import { VIEWTYPE } from '@banyuan/banvasgl'
+import { ViewType } from '@banyuan/banvasgl'
 import { fieldsApi, templateApi } from '@/api'
 import type { FieldGroup, FieldDefinition, IPrintField } from '@/api'
 
@@ -90,7 +90,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
     for (const page of pages) {
       const collectFields = (nodes: typeof page.children) => {
         for (const node of nodes) {
-          if (node.type === VIEWTYPE.TEXTVIEW) {
+          if (node.type === ViewType.TEXTVIEW) {
             const viewInstance = actions.view.getViewInstance(node.id)
             if (viewInstance) {
               const fieldKeySchema = viewInstance.data?.fieldKey
