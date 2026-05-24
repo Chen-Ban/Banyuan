@@ -206,29 +206,29 @@ export interface IAnimationManager {
 // ── 动画系统内部契约 ─────────────────────────────────────────────────────────
 
 /**
- * IAnimatable —— 动画系统与 View 之间的内部契约
+ * IAnimatable —— 动画系统内部契约
  *
- * View 实现此接口，AnimationExecutor 通过它操作目标 View，
+ * AnimationAddon 实现此接口，AnimationExecutor 通过它操作动画目标，
  * 业务层无需感知这些方法的存在。
  *
  * @internal
  */
 export interface IAnimatable {
     // ── 动画列表管理 ──
-    /** 将动画注册到 View 的活跃列表 @internal */
-    _addAnimation(anim: IAnimationDescriptor): void
-    /** 将动画从 View 的活跃列表移除 @internal */
-    _removeAnimation(anim: IAnimationDescriptor): void
-    /** 获取 View 当前所有活跃动画（用于冲突检测） @internal */
-    _getAnimations(): IAnimationDescriptor[]
-    /** 动画运行期间更新覆盖视口（不修改真实 viewport）@internal */
-    _animationResize(targetWidth: number, targetHeight: number): void
-    /** 将覆盖视口提交为真实 viewport（fillMode: forwards 时调用）@internal */
-    _commitAnimatedViewport(): void
-    /** 清空覆盖视口，恢复使用真实 viewport（fillMode: none 时调用）@internal */
-    _clearAnimatedViewport(): void
+    /** 将动画注册到活跃列表 */
+    addAnimation(anim: IAnimationDescriptor): void
+    /** 将动画从活跃列表移除 */
+    removeAnimation(anim: IAnimationDescriptor): void
+    /** 获取当前所有活跃动画（用于冲突检测） */
+    getAnimations(): IAnimationDescriptor[]
+    /** 动画运行期间更新覆盖视口（不修改真实 viewport） */
+    animationResize(targetWidth: number, targetHeight: number): void
+    /** 将覆盖视口提交为真实 viewport（fillMode: forwards 时调用） */
+    commitAnimatedViewport(): void
+    /** 清空覆盖视口，恢复使用真实 viewport（fillMode: none 时调用） */
+    clearAnimatedViewport(): void
 
-    // ── AnimationExecutor 内部计算所需的 View 属性 ──
+    // ── AnimationExecutor 内部计算所需的属性（代理自宿主 View） ──
     matrix: Matrix4
     viewport: Bounds
     parent: unknown

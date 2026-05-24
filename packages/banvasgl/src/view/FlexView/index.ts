@@ -15,24 +15,15 @@
  * - FlexView = 自动排列（子元素 matrix 由 layout 算法计算）
  */
 
-import { VIEWTYPE } from '@/foundation/constants.js'
-import type { ViewType } from '@/foundation/constants.js'
+import { ViewType } from '@/foundation/constants.js'
 import ContainerView from '@/view/ContainerView/index.js'
-import type { ContainerViewOptions } from '@/view/ContainerView/index.js'
 import type View from '@/view/View/View.js'
 import { type IFlexView, type IFlexStyle, type ISerializable } from '@/types/index.js'
+import type { IFlexViewOptions } from '@/types/index.js'
 import { generateId, generateName } from '@/foundation/utils.js'
 import Matrix4 from '@/foundation/math/Matrix4.js'
 import { BoundingBoxAddon } from '@/view/addon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
-
-// ────────────────────────────────────────────
-//  FlexView Options
-// ────────────────────────────────────────────
-
-export interface FlexViewOptions extends ContainerViewOptions {
-    flexStyle?: Partial<IFlexStyle>
-}
 
 // ────────────────────────────────────────────
 //  默认值
@@ -51,11 +42,11 @@ const DEFAULT_FLEX_STYLE: IFlexStyle = {
 // ────────────────────────────────────────────
 
 export default class FlexView extends ContainerView implements IFlexView, ISerializable {
-    public type: ViewType = VIEWTYPE.FLEXVIEW
+    public type: ViewType = ViewType.FLEXVIEW
 
     public flexStyle: IFlexStyle
 
-    constructor(options: FlexViewOptions = {}) {
+    constructor(options: IFlexViewOptions = {}) {
         super(options)
         this.id = options.id || generateId(this.type)
         this.name = options.name || generateName(this.type)
@@ -342,7 +333,8 @@ export default class FlexView extends ContainerView implements IFlexView, ISeria
             flexStyle: data.flexStyle,
         })
         if (data.content) view.content = data.content
-        view.restoreFromJSON(data)
+        view.restoreCommonFields(data)
+        view.markLayoutDirty()
         return view
     }
 

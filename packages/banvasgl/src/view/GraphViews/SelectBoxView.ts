@@ -1,38 +1,27 @@
-import GraphView, { GraphViewOptions } from './index'
+import GraphView from './index'
 import { Rectangle } from '@/graph'
-import { VIEWTYPE } from '@/foundation/constants'
-import type { ViewType } from '@/foundation/constants'
+import { ViewType } from '@/foundation/constants'
 import { generateId, generateName } from '@/foundation/utils'
 import { Point3 } from '@/foundation/math'
 import { Color, FillStyle, StrokeStyle, Style } from '@/foundation/style'
 import { ISelectBoxView } from '@/types'
-
-// 框选视图选项接口
-export interface SelectBoxViewOptions extends GraphViewOptions {
-    // 框选视图特有的选项可以在这里添加
-}
-
+import type { ISelectBoxViewOptions } from '@/types'
 /**
  * 框选视图 - 专门用于矩形框选操作
  * 继承自 GraphView，但具有特殊的类型标识，不参与交互
  */
-export default class SelectBoxView extends GraphView implements ISelectBoxView {
-    public type: ViewType = VIEWTYPE.SELECTBOXVIEW
 
-    constructor(options: SelectBoxViewOptions = {}) {
-        // 内置框选样式
-        const selectionColor = new Color(100, 150, 255, 0.8)
-        const selectionStrokeStyle = StrokeStyle.dashed(
-            selectionColor,
-            1,
-            [5, 5]
-        )
-        const selectionFillStyle = FillStyle.fromRGBA(0, 0, 144, 0.1)
-        const selectionStyle = new Style({
-            fillStyle: selectionFillStyle,
-            strokeStyle: selectionStrokeStyle,
-        })
-        const selectionRect = new Rectangle(0, 0, 0, 0, selectionStyle)
+/** SelectBox 专用渲染样式（框选矩形） */
+const SELECTION_STYLE = new Style({
+    fillStyle: FillStyle.fromRGBA(0, 0, 144, 0.1),
+    strokeStyle: StrokeStyle.dashed(new Color(100, 150, 255, 0.8), 1, [5, 5]),
+})
+
+export default class SelectBoxView extends GraphView implements ISelectBoxView {
+    public type: ViewType = ViewType.SELECTBOXVIEW
+
+    constructor(options: ISelectBoxViewOptions = {}) {
+        const selectionRect = new Rectangle(0, 0, 0, 0)
 
         super(selectionRect, options)
         this.id = options.id || generateId(this.type)
@@ -41,6 +30,13 @@ export default class SelectBoxView extends GraphView implements ISelectBoxView {
         this.actived = false
         this.selected = false
         this.freezed = true // 冻结框选视图，防止被操作
+    }
+
+    /**
+     * 重写渲染内容，使用 SelectBox 专用样式
+     */
+    public override renderContent(ctx: CanvasRenderingContext2D): void {
+        this.content?.render(ctx, SELECTION_STYLE)
     }
 
     /**

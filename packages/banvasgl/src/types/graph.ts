@@ -6,13 +6,13 @@
  * 而无需直接 import 具体 class 实现。
  *
  * 设计要点：
- *   - 接口中 `type` 保持为宽类型 `GRAPHTYPE`，使 class 能直接 implements
- *   - 窄化（判别联合）在 GraphTypeMap 中通过交叉类型 `& { readonly type: GRAPHTYPE.XXX }` 实现
- *   - 类型守卫 `isGraphType(graph, GRAPHTYPE.LINE)` 返回 `GraphTypeMap[GRAPHTYPE.LINE]`
- *     即 `ILine & { readonly type: GRAPHTYPE.LINE }`，同时拥有接口属性和窄 type
+ *   - 接口中 `type` 保持为宽类型 `GraphType`，使 class 能直接 implements
+ *   - 窄化（判别联合）在 GraphTypeMap 中通过交叉类型 `& { readonly type: GraphType.XXX }` 实现
+ *   - 类型守卫 `isGraphType(graph, GraphType.LINE)` 返回 `GraphTypeMap[GraphType.LINE]`
+ *     即 `ILine & { readonly type: GraphType.LINE }`，同时拥有接口属性和窄 type
  */
 
-import { GRAPHTYPE } from '@/foundation/constants'
+import { GraphType } from '@/foundation/constants'
 import type { Matrix4, Point3, Vector3 } from '@/foundation/math'
 import type Bounds from '@/graph/base/Bounds'
 import type Style from '@/foundation/style/Style'
@@ -27,13 +27,12 @@ import type TextFieldsOptions from '@/graph/text/TextFieldsOptions'
 /** Graph 基类接口 —— 所有图形的公共契约 */
 export interface IGraph {
     readonly id: string
-    readonly type: GRAPHTYPE
+    readonly type: GraphType
     controlPoints: Point3[] | Float32Array
-    style: Style
     bounds: Bounds
     // 渲染
     renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void
-    render(ctx: CanvasRenderingContext2D): void
+    render(ctx: CanvasRenderingContext2D, style: Style): void
     copy(): IGraph
     updateBounds(): Bounds
     layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): IGraph | void
@@ -148,7 +147,7 @@ export interface ICombinedGraph extends IGraph {
 
     addGraph(graph: IGraph): ICombinedGraph
     addGraphs(graphs: IGraph[]): ICombinedGraph
-    getGraphsByType(type: GRAPHTYPE): IGraph[]
+    getGraphsByType(type: GraphType): IGraph[]
 }
 
 /** Polygon 接口 */
@@ -379,27 +378,27 @@ export interface ITextFields extends IGraph {
 // ────────────────────────────────────────────
 
 export interface GraphTypeMap {
-    [GRAPHTYPE.GRAPH]: IGraph
-    [GRAPHTYPE.ANALYTICGRAPH]: IAnalyticGraph & { readonly type: GRAPHTYPE.ANALYTICGRAPH }
-    [GRAPHTYPE.LINE]: ILine & { readonly type: GRAPHTYPE.LINE }
-    [GRAPHTYPE.ARC]: IArc & { readonly type: GRAPHTYPE.ARC }
-    [GRAPHTYPE.CIRCLE]: ICircle & { readonly type: GRAPHTYPE.CIRCLE }
-    [GRAPHTYPE.BEZIER]: IBezier & { readonly type: GRAPHTYPE.BEZIER }
-    [GRAPHTYPE.QUADRATIC_BEZIER]: IQuadraticBezier & { readonly type: GRAPHTYPE.QUADRATIC_BEZIER }
-    [GRAPHTYPE.CUBIC_BEZIER]: ICubicBezier & { readonly type: GRAPHTYPE.CUBIC_BEZIER }
-    [GRAPHTYPE.COMBINED_GRAPH]: ICombinedGraph & { readonly type: GRAPHTYPE.COMBINED_GRAPH }
-    [GRAPHTYPE.POLYGON]: IPolygon & { readonly type: GRAPHTYPE.POLYGON }
-    [GRAPHTYPE.TRIANGLE]: ITriangle & { readonly type: GRAPHTYPE.TRIANGLE }
-    [GRAPHTYPE.QUADRILATERAL]: IQuadrilateral & { readonly type: GRAPHTYPE.QUADRILATERAL }
-    [GRAPHTYPE.RECTANGLE]: IRectangle & { readonly type: GRAPHTYPE.RECTANGLE }
-    [GRAPHTYPE.REGULAR_POLYGON]: IRegularPolygon & { readonly type: GRAPHTYPE.REGULAR_POLYGON }
-    [GRAPHTYPE.ROUNDED_RECT]: IRoundedRect & { readonly type: GRAPHTYPE.ROUNDED_RECT }
-    [GRAPHTYPE.DENSETRAJECTORY]: IDenseTrajectory & { readonly type: GRAPHTYPE.DENSETRAJECTORY }
-    [GRAPHTYPE.IMAGE]: IImageElement & { readonly type: GRAPHTYPE.IMAGE }
-    [GRAPHTYPE.VIDEO]: IVideoElement & { readonly type: GRAPHTYPE.VIDEO }
-    [GRAPHTYPE.TEXTELEMENT]: ITextElement & { readonly type: GRAPHTYPE.TEXTELEMENT }
-    [GRAPHTYPE.PRINTABLE_TEXTELEMENT]: IPrintableTextElement & { readonly type: GRAPHTYPE.PRINTABLE_TEXTELEMENT }
-    [GRAPHTYPE.NONPRINTABLE_TEXTELEMENT]: INonPrintableTextElement & { readonly type: GRAPHTYPE.NONPRINTABLE_TEXTELEMENT }
-    [GRAPHTYPE.TEXTPARAGRAPH]: ITextParagraph & { readonly type: GRAPHTYPE.TEXTPARAGRAPH }
-    [GRAPHTYPE.TEXTFIELDS]: ITextFields & { readonly type: GRAPHTYPE.TEXTFIELDS }
+    [GraphType.GRAPH]: IGraph
+    [GraphType.ANALYTICGRAPH]: IAnalyticGraph & { readonly type: GraphType.ANALYTICGRAPH }
+    [GraphType.LINE]: ILine & { readonly type: GraphType.LINE }
+    [GraphType.ARC]: IArc & { readonly type: GraphType.ARC }
+    [GraphType.CIRCLE]: ICircle & { readonly type: GraphType.CIRCLE }
+    [GraphType.BEZIER]: IBezier & { readonly type: GraphType.BEZIER }
+    [GraphType.QUADRATIC_BEZIER]: IQuadraticBezier & { readonly type: GraphType.QUADRATIC_BEZIER }
+    [GraphType.CUBIC_BEZIER]: ICubicBezier & { readonly type: GraphType.CUBIC_BEZIER }
+    [GraphType.COMBINED_GRAPH]: ICombinedGraph & { readonly type: GraphType.COMBINED_GRAPH }
+    [GraphType.POLYGON]: IPolygon & { readonly type: GraphType.POLYGON }
+    [GraphType.TRIANGLE]: ITriangle & { readonly type: GraphType.TRIANGLE }
+    [GraphType.QUADRILATERAL]: IQuadrilateral & { readonly type: GraphType.QUADRILATERAL }
+    [GraphType.RECTANGLE]: IRectangle & { readonly type: GraphType.RECTANGLE }
+    [GraphType.REGULAR_POLYGON]: IRegularPolygon & { readonly type: GraphType.REGULAR_POLYGON }
+    [GraphType.ROUNDED_RECT]: IRoundedRect & { readonly type: GraphType.ROUNDED_RECT }
+    [GraphType.DENSETRAJECTORY]: IDenseTrajectory & { readonly type: GraphType.DENSETRAJECTORY }
+    [GraphType.IMAGE]: IImageElement & { readonly type: GraphType.IMAGE }
+    [GraphType.VIDEO]: IVideoElement & { readonly type: GraphType.VIDEO }
+    [GraphType.TEXTELEMENT]: ITextElement & { readonly type: GraphType.TEXTELEMENT }
+    [GraphType.PRINTABLE_TEXTELEMENT]: IPrintableTextElement & { readonly type: GraphType.PRINTABLE_TEXTELEMENT }
+    [GraphType.NONPRINTABLE_TEXTELEMENT]: INonPrintableTextElement & { readonly type: GraphType.NONPRINTABLE_TEXTELEMENT }
+    [GraphType.TEXTPARAGRAPH]: ITextParagraph & { readonly type: GraphType.TEXTPARAGRAPH }
+    [GraphType.TEXTFIELDS]: ITextFields & { readonly type: GraphType.TEXTFIELDS }
 }

@@ -3,7 +3,7 @@
  *
  * 所有图形和视图的接口、类型映射、统一类型守卫从这里统一导出。
  * 消费方只需：
- *   import { ILine, isGraphType, GRAPHTYPE } from '@/types'
+ *   import { ILine, isGraphType, GraphType } from '@/types'
  */
 
 // ── Graph 接口 ──
@@ -71,7 +71,13 @@ export type {
     IAddonBase,
     IBoundingBoxAddon,
     IVertexAddon,
+    IBoxDecorationOptions,
     IBoxDecorationAddon,
+    IComputedStyle,
+    IFillStyleOptions,
+    IStrokeStyleOptions,
+    IShadowStyleOptions,
+    ITextSelectionAddon,
     IViewAddon,
     ExtraData,
     MoveData,
@@ -84,6 +90,15 @@ export type {
     ConnectData,
     NoneData,
     IInteractResult,
+    IViewOptions,
+    IContainerViewOptions,
+    IGraphViewOptions,
+    ISelectBoxViewOptions,
+    IImageViewOptions,
+    IVideoViewOptions,
+    ITextViewOptions,
+    IInputOptions,
+    IFlexViewOptions,
     IViewStyle,
     TransformOriginKeyword,
     TransformOrigin,
@@ -99,7 +114,7 @@ export type {
     IFlexLayoutParams,
     IFlexStyle,
     IFlexView,
-    ISelection,
+    ITextSelection,
     IInput,
     ViewTypeMap,
     // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
@@ -109,7 +124,7 @@ export type {
     IEdgeView,
 } from './view'
 
-export { Cursor, Action, cursorMap } from './view'
+export { AddonCapability, Cursor, Action, cursorMap } from './view'
 
 // ── Camera 接口 ──
 export type {

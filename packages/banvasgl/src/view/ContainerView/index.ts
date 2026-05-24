@@ -8,15 +8,11 @@
  *   - 持有 children 数组
  *   - 提供 addChild / removeChild / clear 方法
  *   - override onDestroy 以递归销毁子节点
- *   - override restoreFromJSON 以恢复 children
+ *   - override restoreCommonFields 以恢复 children
  */
 
-import View, { ViewOptions } from '@/view/View/View.js'
-import type { IContainerView, IFieldSchemaMap } from '@/types'
-
-export interface ContainerViewOptions<D extends IFieldSchemaMap = any> extends ViewOptions<D> {
-    children?: View[]
-}
+import View from '@/view/View/View.js'
+import type { IContainerView, IFieldSchemaMap, IContainerViewOptions } from '@/types'
 
 export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSchemaMap>
     extends View<D>
@@ -32,10 +28,10 @@ export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSc
         return this._children
     }
 
-    constructor(options: ContainerViewOptions<D> = {}) {
+    constructor(options: IContainerViewOptions<D> = {}) {
         super(options)
         if (options.children && options.children.length > 0) {
-            this._children = [...options.children]
+            this._children = [...options.children] as View[]
             this.initRef(this._children)
         }
     }
@@ -88,9 +84,9 @@ export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSc
 
     // ==================== 序列化 override ====================
 
-    protected override restoreFromJSON(data: any): void {
-        super.restoreFromJSON(data)
-        // 基类 restoreFromJSON 不再处理 children，由容器子类接管
+    protected override restoreCommonFields(data: any): void {
+        super.restoreCommonFields(data)
+        // 容器子类负责恢复 children
         if (data.children) {
             this._children = []
             data.children.forEach((child: View) => {

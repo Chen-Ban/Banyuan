@@ -8,7 +8,7 @@
  */
 
 import type { ViewType } from '@/foundation/constants'
-import type { GRAPHTYPE } from '@/foundation/constants'
+import type { GraphType } from '@/foundation/constants'
 import type View from '@/view/View/View'
 import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from './view'
 import type { ISceneLifetimes } from './scene'
@@ -27,7 +27,7 @@ export interface IComponentTemplate {
     /** 对应创建的视图类型 */
     viewType: ViewType
     /** 对应的图形类型（仅 GRAPHVIEW 需要） */
-    graphType?: GRAPHTYPE
+    graphType?: GraphType
     /** 创建实例时的默认构造参数 */
     defaultProps?: Record<string, any>
 }
@@ -91,7 +91,7 @@ export interface IViewNode {
     /** 视图类型 */
     type: ViewType
     /** 图形类型（仅 GraphView） */
-    graphType?: GRAPHTYPE
+    graphType?: GraphType
     /** 显示名称 */
     name: string
     /** 是否可见 */

@@ -1,23 +1,18 @@
-import View, { ViewOptions } from '@/view/View/View'
+import View from '@/view/View/View'
 import { VideoElement } from '@/graph/media'
-import { VIEWTYPE } from '@/foundation/constants'
-import type { ViewType } from '@/foundation/constants'
+import { ViewType } from '@/foundation/constants'
 import { IVideoView, ISerializable } from '@/types'
+import type { IVideoViewOptions } from '@/types'
 import { generateId, generateName } from '@/foundation/utils'
-
-// 视频视图选项接口
-export interface VideoViewOptions extends Omit<ViewOptions, 'content'> {
-    // 视频视图特有的选项可以在这里添加
-}
 
 /**
  * 视频视图 - 专门处理VideoElement类型内容
  */
 export default class VideoView extends View implements IVideoView, ISerializable {
-    public type: ViewType = VIEWTYPE.VIDEOVIEW
+    public type: ViewType = ViewType.VIDEOVIEW
     public content: VideoElement
 
-    constructor(video: VideoElement, options: VideoViewOptions = {}) {
+    constructor(video: VideoElement, options: IVideoViewOptions = {}) {
         // 将video作为content传递给父类构造函数
         super({ ...options, content: video })
         this.id = options.id || generateId(this.type)
@@ -59,10 +54,11 @@ export default class VideoView extends View implements IVideoView, ISerializable
      * 从纯数据对象恢复 VideoView 实例。
      * data.content 应由 Serializer 预先解析为 VideoElement 实例后传入。
      */
-    static fromJSON(data: any): VideoView {
-        const view = new VideoView(data.content)
-        view.restoreFromJSON(data)
-        return view
-    }
+static fromJSON(data: any): VideoView {
+    const view = new VideoView(data.content)
+    view.restoreCommonFields(data)
+    view.markLayoutDirty()
+    return view
+}
 }
 

@@ -1,17 +1,12 @@
-import View, { InteractResult, ViewOptions } from "@/view/View/View";
+import View from "@/view/View/View";
+import type { IAddonBase, IGraphViewOptions } from "@/types";
 import { Graph, Line } from "@/graph";
 import { isAnalyticGraph, isCombinedGraph, IGraphView, ISerializable } from "@/types";
-import { VIEWTYPE, GRAPHTYPE } from "@/foundation/constants";
-import type { ViewType } from "@/foundation/constants";
+import { ViewType, GraphType } from "@/foundation/constants";
 import { generateId, generateName } from "@/foundation/utils";
 import { Point3, Vector3 } from "@/foundation/math";
 import { VertexAddon } from "@/view/addon";
 import Bounds from "@/graph/base/Bounds";
-
-// 图形视图选项接口
-export interface GraphViewOptions extends Omit<ViewOptions, "content"> {
-  // 图形视图特有的选项可以在这里添加
-}
 
 /**
  * 图形视图 - 专门处理Graph类型内容
@@ -20,11 +15,11 @@ export default class GraphView
   extends View
   implements IGraphView, ISerializable
 {
-  public type: ViewType = VIEWTYPE.GRAPHVIEW;
+  public type: ViewType = ViewType.GRAPHVIEW;
   public content: Graph;
   public controlPoints: VertexAddon | null = null;
 
-  constructor(graph: Graph, options: GraphViewOptions = {}) {
+  constructor(graph: Graph, options: IGraphViewOptions = {}) {
     // 将graph作为content传递给父类构造函数
     super({ ...options });
     this.id = options.id || generateId(this.type);
@@ -42,29 +37,18 @@ export default class GraphView
         ? Point3.fromArray(this.content.controlPoints)
         : this.content.controlPoints;
     // RoundedRect: 前8个为尺寸控制点（4角+4边中点），后4个为圆角控制点
-    const radiusStartIndex = graph.type === GRAPHTYPE.ROUNDED_RECT ? 8 : -1;
+    const radiusStartIndex = graph.type === GraphType.ROUNDED_RECT ? 8 : -1;
     this.controlPoints = new VertexAddon(vertics, radiusStartIndex);
   }
 
-  protected interactPlugins(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
-    // BoundingBox 优先（来自基类）
-    const baseResult = super.interactPlugins(relativePoint, bufferCtx);
-    if (baseResult.view) return baseResult;
-
-    // VertexAddon（控制点编辑）
-    if (this.actived && this.controlPoints) {
-      const data = this.controlPoints.interact(relativePoint);
-      if (data) {
-        return { view: this, content: this.controlPoints, extraData: data };
-      }
-    }
-    return { view: null, content: null, extraData: null };
-  }
-
-  public renderPlugins(ctx: CanvasRenderingContext2D): void {
-    super.renderPlugins(ctx);
-    if (!this.actived) return;
-    this.controlPoints?.render(ctx);
+  /**
+   * 追加 VertexAddon 到 addon 管线。
+   * 管线自动按 priority 排序并根据 capabilities 调度 render/interact。
+   */
+  protected override get activeAddons(): IAddonBase[] {
+    const addons = super.activeAddons;
+    if (this.controlPoints) addons.push(this.controlPoints);
+    return addons;
   }
 
   /**
@@ -180,9 +164,10 @@ newView.data = { ...this.data };
    * 从纯数据对象恢复 GraphView 实例。
    * data.content 应由 Serializer 预先解析为 Graph 实例后传入。
    */
-  static fromJSON(data: any): GraphView {
+static fromJSON(data: any): GraphView {
     const view = new GraphView(data.content);
-    view.restoreFromJSON(data);
+    view.restoreCommonFields(data);
+    view.markLayoutDirty();
     return view;
-  }
+}
 }

@@ -4,14 +4,15 @@ import Style from "@/foundation/style/Style";
 import { Point3, Vector3 } from "@/foundation/math";
 import {
   Action,
+  AddonCapability,
   Cursor,
   cursorMap,
   ExtraData,
   IBoundingBoxAddon,
 } from "@/types";
-import { ADDONTYPE } from "@/foundation/constants";
+import { AddonType } from "@/foundation/constants";
 import { Circle, Line } from "@/graph";
-import { Color, FillStyle, StrokeStyle } from "@/foundation/style";
+import { Color, StrokeStyle } from "@/foundation/style";
 
 /**
  * 主题色常量（PPT 风格）
@@ -33,8 +34,24 @@ const THEME = {
   rotateLine: new Color(76, 175, 80, 0.8),
 } as const;
 
+/**
+ * 包围盒插件 —— 选中态交互控件
+ *
+ * 职责：RENDER + INTERACT + LOGIC
+ * - RENDER：选中时渲染边框、8 个缩放手柄、旋转控件
+ * - INTERACT：选中时检测手柄/边框/旋转控件的命中
+ * - LOGIC：多选 resize 时仅提供几何数据（handles 坐标），不渲染不交互
+ *
+ * 优先级：0（默认，最先执行）
+ */
 export default class BoundingBoxAddon implements IBoundingBoxAddon {
-  public readonly type = ADDONTYPE.BOUNDING_BOX;
+  public readonly type = AddonType.BOUNDING_BOX;
+  public readonly capabilities = [
+    AddonCapability.RENDER,
+    AddonCapability.INTERACT,
+    AddonCapability.LOGIC,
+  ] as const;
+  public readonly priority = 0;
   public region: Rectangle;
   public handles: Rectangle[];
   public rotate: [Line, Circle];
@@ -43,8 +60,36 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
   private viewport: Bounds;
   private handleSize: number = 8;
 
+  // 渲染样式
+  private regionStyle: Style;
+  private handleStyle: Style;
+  private lineStyle: Style;
+  private circleStyle: Style;
+
   constructor(viewport: Bounds) {
     this.viewport = viewport;
+    this.regionStyle = new Style({
+      strokeStyle: new StrokeStyle({
+        strokeType: "color",
+        color: THEME.primaryLight,
+        width: 1,
+      }),
+    });
+    this.handleStyle = new Style()
+      .setStrokeWidth(1.5)
+      .setFillColor(THEME.handleFill)
+      .setStrokeColor(THEME.handleStroke);
+    this.lineStyle = new Style({
+      strokeStyle: new StrokeStyle({
+        strokeType: "color",
+        color: THEME.rotateLine,
+        width: 1,
+      }),
+    });
+    this.circleStyle = new Style()
+      .setStrokeWidth(1.5)
+      .setFillColor(THEME.rotateFill)
+      .setStrokeColor(THEME.rotateStroke);
     this.region = this.computeRegion();
     this.handles = this.createHandles(this.region);
     this.rotate = this.createRotate();
@@ -68,12 +113,8 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
       new Point3(topLeft.x, topLeft.y + height / 2, 0),
     ];
 
-    const handleStyle = new Style()
-      .setStrokeWidth(1.5)
-      .setFillColor(THEME.handleFill)
-      .setStrokeColor(THEME.handleStroke);
     return points.map(
-      (p) => new Rectangle(p.x - half, p.y - half, size, size, handleStyle),
+      (p) => new Rectangle(p.x - half, p.y - half, size, size),
     );
   }
 
@@ -84,34 +125,13 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
     const startPoint = center.add(up.scale(Math.abs(this.region.height) / 2));
     const endPoint = startPoint.add(up.scale(15));
     const circleCenter = startPoint.add(up.scale(20));
-    const lineStyle = new Style({
-      strokeStyle: new StrokeStyle({
-        strokeType: "color",
-        color: THEME.rotateLine,
-        width: 1,
-      }),
-    });
-    const circleStyle = new Style()
-      .setStrokeWidth(1.5)
-      .setFillColor(THEME.rotateFill)
-      .setStrokeColor(THEME.rotateStroke);
-    const line = new Line(startPoint, endPoint, lineStyle);
-    const circle = new Circle(circleCenter, 5, circleStyle);
+    const line = new Line(startPoint, endPoint);
+    const circle = new Circle(circleCenter, 5);
     return [line, circle];
   }
 
   private computeRegion(): Rectangle {
-    return Rectangle.fromBounds(
-      this.viewport.copy(),
-      new Style({
-        fillStyle: new FillStyle({ fillType: "color", color: Color.TRANSPARENT }),
-        strokeStyle: new StrokeStyle({
-          strokeType: "color",
-          color: THEME.primary,
-          width: 1,
-        }),
-      }),
-    );
+    return Rectangle.fromBounds(this.viewport.copy());
   }
 
   public updateSize(): BoundingBoxAddon {
@@ -136,9 +156,10 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
     if (!bounds) return;
     ctx.save();
     try {
-      this.region.render(ctx);
-      this.handles.forEach((h) => h.render(ctx));
-      this.rotate.forEach((r) => r.render(ctx));
+      this.region.render(ctx, this.regionStyle);
+      this.handles.forEach((h) => h.render(ctx, this.handleStyle));
+      this.rotate[0].render(ctx, this.lineStyle);
+      this.rotate[1].render(ctx, this.circleStyle);
     } finally {
       ctx.restore();
     }

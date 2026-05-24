@@ -1,6 +1,6 @@
 import { Point3 } from '@/foundation/math'
-import { Action, Cursor, ExtraData, IVertexAddon } from '@/types'
-import { ADDONTYPE } from '@/foundation/constants'
+import { Action, AddonCapability, Cursor, ExtraData, IVertexAddon } from '@/types'
+import { AddonType } from '@/foundation/constants'
 
 /**
  * 顶点样式主题（PPT 风格）
@@ -38,8 +38,22 @@ const THEME = {
  */
 const RADIUS_COLLAPSED_OFFSET = 12
 
+/**
+ * 顶点插件 —— 图形控制点编辑
+ *
+ * 职责：RENDER + INTERACT
+ * - RENDER：选中时渲染角点方块、边中点圆、圆角菱形控制点
+ * - INTERACT：选中时检测控制点命中，触发顶点编辑
+ *
+ * 优先级：10（在 BoundingBox 之后执行）
+ */
 export default class VertexAddon implements IVertexAddon {
-    public readonly type = ADDONTYPE.VERTEX
+    public readonly type = AddonType.VERTEX
+    public readonly capabilities = [
+        AddonCapability.RENDER,
+        AddonCapability.INTERACT,
+    ] as const
+    public readonly priority = 10
     public vertices: Point3[]
     public activeVertex: Point3 | null = null
     isEditing: boolean = true

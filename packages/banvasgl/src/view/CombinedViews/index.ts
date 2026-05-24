@@ -1,8 +1,6 @@
-import { VIEWTYPE } from '@/foundation/constants'
-import type { ViewType } from '@/foundation/constants'
-import type { ViewOptions } from '@/view/View/View.js'
+import { ViewType } from '@/foundation/constants'
 import ContainerView from '@/view/ContainerView/index.js'
-import type { ContainerViewOptions } from '@/view/ContainerView/index.js'
+import type { IContainerViewOptions } from '@/types'
 import { ICombinedView, ISerializable } from '@/types'
 import { generateId, generateName } from '@/foundation/utils'
 
@@ -12,9 +10,9 @@ import { generateId, generateName } from '@/foundation/utils'
  * 继承 ContainerView，拥有 addChild / removeChild / clear 等子节点管理能力。
  */
 export default class CombinedView extends ContainerView implements ICombinedView, ISerializable {
-    public type: ViewType = VIEWTYPE.COMBINEDVIEW
+    public type: ViewType = ViewType.COMBINEDVIEW
 
-    constructor(options: ContainerViewOptions = {}) {
+    constructor(options: IContainerViewOptions = {}) {
         super({ ...options })
         this.id = options.id || generateId(this.type)
         this.name = options.name || generateName(this.type)
@@ -56,10 +54,11 @@ export default class CombinedView extends ContainerView implements ICombinedView
      * 从纯数据对象恢复 CombinedView 实例。
      * content / children 中的 { $type, $value } 应由 Serializer 预先解析为实例后传入。
      */
-    static fromJSON(data: any): CombinedView {
-        const view = new CombinedView({})
-        if (data.content) view.content = data.content // 已由 Serializer 解析
-        view.restoreFromJSON(data)
-        return view
-    }
+static fromJSON(data: any): CombinedView {
+    const view = new CombinedView({})
+    if (data.content) view.content = data.content // 已由 Serializer 解析
+    view.restoreCommonFields(data)
+    view.markLayoutDirty()
+    return view
+}
 }
