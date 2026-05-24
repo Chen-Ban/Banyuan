@@ -1,21 +1,18 @@
 import TextFields from '@/graph/text/TextFields'
-import { VIEWTYPE } from '@/foundation/constants'
-import type { ViewType } from '@/foundation/constants'
-import TextView, { TextViewOptions } from '@/view/TextView'
+import { ViewType } from '@/foundation/constants'
+import TextView from '@/view/TextView'
 import { IInput } from '@/types'
+import type { IInputOptions } from '@/types'
 import { generateId, generateName } from '@/foundation/utils'
-
-// 输入框选项接口
-export interface InputOptions extends TextViewOptions {}
 
 /**
  * 输入框视图
  * @description 继承自 TextView，默认为可编辑状态
  */
 export default class Input extends TextView implements IInput {
-    public readonly type: ViewType = VIEWTYPE.INPUT
+    public readonly type: ViewType = ViewType.INPUT
 
-    constructor(text: TextFields, options: InputOptions = {}) {
+    constructor(text: TextFields, options: IInputOptions = {}) {
         super(text, { ...options, editable: true })
         this.id = options.id || generateId(this.type)
         this.name = options.name || generateName(this.type)

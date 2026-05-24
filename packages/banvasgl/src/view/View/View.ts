@@ -1,9 +1,9 @@
-import { VIEWTYPE } from "@/foundation/constants";
-import type { ViewType } from "@/foundation/constants";
+import { ViewType } from "@/foundation/constants";
 import Matrix4 from "@/foundation/math/Matrix4";
 import CanvasContext from "@/engine/CanvasContext";
 import {
   Action,
+  AddonCapability,
   Cursor,
   ISceneNode,
   IView,
@@ -14,73 +14,28 @@ import {
   ISerializable,
   IGraph,
 } from "@/types";
-import type { IViewEvents, IViewLifetimes, IFlexLayoutParams } from "@/types";
+import type { IAddonBase, IViewEvents, IViewLifetimes, IFlexLayoutParams, IInteractResult, IViewOptions } from "@/types";
 
 // 导入图形相关类型
-import { Line, Rectangle } from "@/graph";
+import { Line } from "@/graph";
+import { Rectangle } from "@/graph/combined/Polygon";
+import { getDefaultStyle } from "@/graph/DefaultStyleRegistry";
 
 // 导入addon类型
 import { BoundingBoxAddon, BoxDecorationAddon } from "@/view/addon";
-import type { BoxDecorationOptions } from "@/view/addon";
 import { MathUtils, Point3, Vector3 } from "@/foundation/math";
 import Bounds from "@/graph/base/Bounds";
-import { AnimationDescriptor, AnimationManager } from "@/engine/animation";
-import type {
-  AnimationOptions,
-  KeyframeDefinition,
-  AnimatableValue,
-  IAnimationDescriptor,
-} from "@/types";
+import type { AnimatableValue } from "@/types";
 import Scene from "@/engine/Scene";
+import AnimationAddon from "@/view/addon/AnimationAddon";
+import {
+  RESIZE_SIZE_MAP,
+  RESIZE_ORIGIN_MAP,
+  createDefaultEvents,
+  createDefaultLifetimes,
+} from "./constant.js";
+import { calculateDimensionDelta } from "./utils.js";
 
-const RESIZE_SIZE_MAP = [
-  { width: true, height: true },
-  { width: false, height: true },
-  { width: true, height: true },
-  { width: true, height: false },
-
-  { width: true, height: true },
-  { width: false, height: true },
-  { width: true, height: true },
-  { width: true, height: false },
-];
-
-// 控制 resize 时是否需要移动视口起点
-// 当拖拽手柄在固定点的左侧时需要移动 x，在上方时需要移动 y
-const RESIZE_ORIGIN_MAP = [
-  { x: true, y: true }, // 0: 左上角 → 起点x和y都要反向偏移
-  { x: false, y: true }, // 1: 上中 → 只偏移y
-  { x: false, y: true }, // 2: 右上角 → 只偏移y
-  { x: false, y: false }, // 3: 右中 → 不偏移
-  { x: false, y: false }, // 4: 右下角 → 不偏移
-  { x: false, y: false }, // 5: 下中 → 不偏移
-  { x: true, y: false }, // 6: 左下角 → 只偏移x
-  { x: true, y: false }, // 7: 左中 → 只偏移x
-];
-
-export interface InteractResult {
-  view: IView | null;
-  content: IGraph | IViewAddon | null;
-  extraData: ExtraData | null;
-}
-
-// 视图选项接口
-export interface ViewOptions<D extends IFieldSchemaMap = any> {
-  id?: string;
-  name?: string;
-  content?: IGraph; // 改为IGraph，多图形用组合图形替代
-  children?: View[];
-  parent?: ISceneNode | View;
-  data?: D;
-  style?: IViewStyle;
-  matrix?: Matrix4;
-  lifetimes?: Partial<IViewLifetimes>;
-  events?: Partial<IViewEvents>;
-  decoration?: BoxDecorationOptions;
-  layoutParams?: IFlexLayoutParams;
-}
-
-// TODO：不同容器的默认样式表
 export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   implements IView, ISerializable
 {
@@ -103,30 +58,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public parent: ISceneNode | View | null = null;
 
   // 事件与生命周期
-  public events: IViewEvents = {
-    // 点击类
-    onClick: null,
-    onDoubleClick: null,
-    onContextMenu: null,
-    // 鼠标移动类
-    onMouseEnter: null,
-    onMouseLeave: null,
-    onMouseMove: null,
-    onMouseDown: null,
-    onMouseUp: null,
-    // 拖拽类
-    onDragStart: null,
-    onDrag: null,
-    onDragEnd: null,
-    // 焦点类
-    onFocus: null,
-    onBlur: null,
-  };
-  public lifetimes: IViewLifetimes = {
-    onCreated: null,
-    onAttach: null,
-    onDestroy: null,
-  };
+  public events: IViewEvents = createDefaultEvents();
+  public lifetimes: IViewLifetimes = createDefaultLifetimes();
 
   // 样式和状态
   public style: IViewStyle = {};
@@ -134,31 +67,23 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public actived: boolean = false;
   public freezed: boolean = false;
   public visible: boolean = true;
-  // 滚动条图形
-  public scrollBarHorization: Rectangle | null = null;
-  public scrollBarVertical: Rectangle | null = null;
   // 变换矩阵
   public matrix: Matrix4 = Matrix4.identity();
   // VP 矩阵缓存（由 Scene 在每帧渲染前广播设置）
   private _vpMatrix: Matrix4 = Matrix4.identity();
-  // 滚动偏移量（由 layout 计算，渲染和交互时使用）
-  public scrollOffset: { x: number; y: number } = { x: 0, y: 0 };
   // 插件
   public boundingBox: BoundingBoxAddon | null = null;
+  /** 纯视觉装饰插件（背景/边框/圆角），不参与交互检测 */
   public decoration: BoxDecorationAddon | null = null;
+  /** 纯视觉动画插件（关键帧动画驱动），不参与交互检测 */
+  public animation: AnimationAddon | null = null;
   /** 布局参数（作为子元素参与父容器的 Flex 布局时生效） */
   public layoutParams?: IFlexLayoutParams;
   // 视口
   public viewport: Bounds;
-  /**
-   * 动画覆盖视口（动画运行期间由动画系统写入，渲染时优先读取）
-   * 动画结束后由 _commitAnimatedViewport / _clearAnimatedViewport 处理
-   * @internal
-   */
-  _animatedViewport: Bounds | null = null;
   /** 渲染时使用的视口：动画覆盖层优先，否则取真实 viewport */
   get renderViewport(): Bounds {
-    return this._animatedViewport ?? this.viewport;
+    return this.animation?.animatedViewport ?? this.viewport;
   }
   // 内容布局区域
   public layoutArea: Bounds;
@@ -171,178 +96,14 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   //抽象方法
   public abstract copy(): View;
 
-  // ==================== 动画系统 ====================
-  private _animations: IAnimationDescriptor[] = [];
-
-  /**
-   * 创建并播放动画
-   * @example
-   * // KeyframeDefinition + options
-   * view.animate({ to: { x: 200, y: 300 } }, { duration: 500, easing: Easings.easeOutCubic })
-   *
-   * // 带中间帧
-   * view.animate({ '25': { x: 80 }, '75': { x: 180 }, to: { x: 200 } }, { duration: 1000 })
-   */
-  public animate(
-    definition: KeyframeDefinition,
-    options: AnimationOptions,
-  ): AnimationDescriptor {
-    const descriptor = new AnimationDescriptor(definition, options);
-    descriptor.play();
-    AnimationManager.getInstance().add(descriptor, this);
-    return descriptor;
-  }
+  // ==================== 动画系统（通过 AnimationAddon 提供） ====================
 
   /**
    * 获取渲染时应使用的属性值（动画计算值优先）
-   * 从后向前遍历动画列表，后注册的动画优先级更高
+   * 代理到 AnimationAddon，无 addon 时返回 undefined
    */
   public getAnimatedValue(prop: string): AnimatableValue | undefined {
-    for (let i = this._animations.length - 1; i >= 0; i--) {
-      const anim = this._animations[i];
-      if (anim.isActive) {
-        const val = anim.computedValues[prop];
-        if (val !== undefined) return val;
-      }
-    }
-    return undefined;
-  }
-
-  /**
-   * 取消该 View 上的所有动画
-   */
-  public cancelAnimations(): void {
-    const anims = [...this._animations];
-    for (const anim of anims) {
-      anim.cancel();
-    }
-  }
-
-  /**
-   * 立即完成该 View 上的所有动画
-   */
-  public finishAnimations(): void {
-    const anims = [...this._animations];
-    for (const anim of anims) {
-      anim.finish();
-    }
-  }
-
-  /** @internal 由 AnimationExecutor 调用 */
-  _addAnimation(anim: IAnimationDescriptor): void {
-    if (!this._animations.includes(anim)) {
-      this._animations.push(anim);
-    }
-  }
-
-  /** @internal 由 AnimationExecutor 调用 */
-  _removeAnimation(anim: IAnimationDescriptor): void {
-    const index = this._animations.indexOf(anim);
-    if (index !== -1) {
-      this._animations.splice(index, 1);
-    }
-  }
-
-  /** @internal 由 AnimationExecutor 调用 */
-  _getAnimations(): IAnimationDescriptor[] {
-    return this._animations;
-  }
-
-  /**
-   * 动画专用 resize 方法
-   *
-   * 只更新 _animatedViewport 覆盖层，不修改真实 viewport。
-   * 渲染时通过 renderViewport getter 优先读取覆盖层。
-   * 子 View 同样只更新覆盖层，保持等比缩放关系。
-   *
-   * @param targetWidth 目标宽度
-   * @param targetHeight 目标高度
-   * @internal
-   */
-  _animationResize(targetWidth: number, targetHeight: number): void {
-    const baseViewport = this.viewport;
-    if (!baseViewport) return;
-    if (targetWidth === 0 || targetHeight === 0) return;
-
-    // 写入覆盖层（复用已有对象避免每帧 GC，首次创建）
-    if (!this._animatedViewport) {
-      this._animatedViewport = baseViewport.copy();
-    }
-    this._animatedViewport.setSize(targetWidth, targetHeight);
-
-    // 递归子 View（基于真实 viewport 计算缩放比，保持相对比例）
-    const scaleX = targetWidth / baseViewport.width;
-    const scaleY = targetHeight / baseViewport.height;
-    this.children.forEach((child) => {
-      const childVp = child.viewport;
-      if (!childVp) return;
-      child._animationResize(childVp.width * scaleX, childVp.height * scaleY);
-    });
-  }
-
-  /**
-   * 将动画覆盖视口提交为真实 viewport（fillMode: forwards 时调用）
-   *
-   * 执行完整的 resize 逻辑：更新 viewport、content、布局区域，
-   * 然后清空覆盖层。
-   * @internal
-   */
-  _commitAnimatedViewport(): void {
-    if (!this._animatedViewport) return;
-    const targetWidth = this._animatedViewport.width;
-    const targetHeight = this._animatedViewport.height;
-    this._animatedViewport = null;
-
-    const viewport = this.viewport;
-    if (!viewport) return;
-    const oldWidth = viewport.width;
-    const oldHeight = viewport.height;
-    if (oldWidth === 0 || oldHeight === 0) return;
-    if (targetWidth === 0 || targetHeight === 0) return;
-
-    const deltaX = targetWidth - oldWidth;
-    const deltaY = targetHeight - oldHeight;
-
-    viewport.setSize(targetWidth, targetHeight);
-    this.boundingBox?.updateSize();
-
-    if (this.content) {
-      const fixedPoint = new Point3(viewport.x, viewport.y, 0);
-      const dynamicPoint = new Point3(
-        viewport.x + oldWidth,
-        viewport.y + oldHeight,
-        0,
-      );
-      const resizeVector = new Vector3(deltaX, deltaY, 0);
-      this.content.resize(fixedPoint, dynamicPoint, resizeVector);
-      // 标记布局脏，延迟到渲染时重算
-      this.markLayoutDirty();
-    }
-
-    // 递归提交子 View
-    const scaleX = targetWidth / oldWidth;
-    const scaleY = targetHeight / oldHeight;
-    this.children.forEach((child) => {
-      // 先把子 View 的覆盖层设置为提交目标尺寸，再提交
-      const childVp = child.viewport;
-      if (!childVp) return;
-      child._animatedViewport = child._animatedViewport ?? childVp.copy();
-      child._animatedViewport.setSize(
-        childVp.width * scaleX,
-        childVp.height * scaleY,
-      );
-      child._commitAnimatedViewport();
-    });
-  }
-
-  /**
-   * 清空动画覆盖视口（fillMode: none/backwards 时调用）
-   * 直接丢弃覆盖层，View 恢复使用真实 viewport，无需任何恢复操作。
-   * @internal
-   */
-  _clearAnimatedViewport(): void {
-    this._animatedViewport = null;
-    this.children.forEach((child) => child._clearAnimatedViewport());
+    return this.animation?.getAnimatedValue(prop);
   }
 
   // 获取内容
@@ -365,11 +126,25 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 应用各自的变换矩阵
     childRects.forEach((rect, i) => rect.transform(this.children[i].matrix));
     // 计算所有子容器在本地坐标系下的总包围盒
-    return Bounds.fromPoints(childRects.map((rect) => rect.controlPoints).flat());
+    return Bounds.fromPoints(
+      childRects.map((rect) => rect.controlPoints).flat(),
+    );
   }
 
   public renderContent(ctx: CanvasRenderingContext2D): void {
-    this.content?.render(ctx);
+    if (!this.content) return;
+    // 从 DefaultStyleRegistry 获取该图形类型的默认样式
+    const defaultStyle = getDefaultStyle(this.content.type);
+    // 用 computedStyle 中非 null 的 fill/stroke/shadow 覆盖默认样式
+    const computedStyle = this.decoration?.computedStyle;
+    const mergedStyle = computedStyle
+      ? defaultStyle.withOverrides({
+          fill: computedStyle.fill,
+          stroke: computedStyle.stroke,
+          shadow: computedStyle.shadow,
+        })
+      : defaultStyle;
+    this.content.render(ctx, mergedStyle);
   }
 
   /**
@@ -380,7 +155,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   protected interactContent(
     point: Point3,
     bufferCtx?: CanvasRenderingContext2D,
-  ): InteractResult {
+  ): IInteractResult {
     if (!this.content) return { view: null, content: null, extraData: null };
     const hitContent =
       this.content.isPointInPath(point, bufferCtx) ||
@@ -395,14 +170,46 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     return { view: null, content: null, extraData: null };
   }
 
+  // ==================== Addon 管线 ====================
+
+  /**
+   * 获取当前 View 实例上所有活跃的 addon 列表。
+   *
+   * 子类通过 override 此 getter 追加自己的 addon（如 GraphView 追加 VertexAddon）。
+   * 管线（renderPlugins / interactPlugins）统一遍历此列表，
+   * 根据 addon.capabilities 决定是否调用 render/interact，
+   * 按 addon.priority 排序执行（数值越小越先执行）。
+   *
+   * @example
+   * ```ts
+   * // GraphView 中追加 VertexAddon
+   * protected override get activeAddons(): IAddonBase[] {
+   *   return [...super.activeAddons, this.controlPoints].filter(Boolean)
+   * }
+   * ```
+   */
+  protected get activeAddons(): IAddonBase[] {
+    const addons: IAddonBase[] = [];
+    if (this.decoration) addons.push(this.decoration);
+    if (this.boundingBox) addons.push(this.boundingBox);
+    return addons;
+  }
+
   protected interactPlugins(
     relativePoint: Point3,
     bufferCtx?: CanvasRenderingContext2D,
-  ): InteractResult {
-    if (this.actived && this.boundingBox) {
-      const extraData = this.boundingBox.interact(relativePoint, bufferCtx);
+  ): IInteractResult {
+    if (!this.actived) return { view: null, content: null, extraData: null };
+
+    // 按 priority 排序，遍历具有 INTERACT 能力的 addon
+    const interactAddons = this.activeAddons
+      .filter((a) => a.capabilities.includes(AddonCapability.INTERACT))
+      .sort((a, b) => a.priority - b.priority);
+
+    for (const addon of interactAddons) {
+      const extraData = addon.interact(relativePoint, bufferCtx);
       if (extraData) {
-        return { view: this, content: this.boundingBox, extraData };
+        return { view: this, content: addon as any, extraData };
       }
     }
     return { view: null, content: null, extraData: null };
@@ -416,7 +223,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   public interact(
     worldPoint: Point3,
     bufferCtx?: CanvasRenderingContext2D,
-  ): InteractResult {
+  ): IInteractResult {
     const relativePoint = this.getMVPMatrix().inverse().multiply(worldPoint);
 
     const ctx = bufferCtx;
@@ -428,9 +235,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
     // 2. 补偿 scroll 偏移：内容和子视图在渲染时被 translate 了 scrollOffset，
     //    命中检测时需要反向补偿，将点转换到"内容坐标系"
+    const scrollOffset = this.decoration?.computedStyle.scrollOffset ?? { x: 0, y: 0 };
     const scrolledPoint = new Point3(
-      relativePoint.x - this.scrollOffset.x,
-      relativePoint.y - this.scrollOffset.y,
+      relativePoint.x - scrollOffset.x,
+      relativePoint.y - scrollOffset.y,
       relativePoint.z,
     );
 
@@ -441,7 +249,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 4. 递归检查子视图，数组靠后的 View 绘制在上方，优先命中
     //    将 scrolledPoint 转回世界坐标传给子视图，子视图再用自己的 MVP 逆矩阵转本地坐标
     const adjustedWorldPoint = this.getMVPMatrix().multiply(scrolledPoint);
-    let best: InteractResult = { view: null, content: null, extraData: null };
+    let best: IInteractResult = { view: null, content: null, extraData: null };
     for (const child of this.children) {
       const childResult = child.interact(adjustedWorldPoint, ctx);
       if (childResult.view && childResult.content && childResult.extraData) {
@@ -453,7 +261,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     return best;
   }
 
-  constructor(options: ViewOptions<D>) {
+  constructor(options: IViewOptions<D>) {
     // 属性初始化
     this.id = options.id || "";
     this.data = options.data || ({} as D);
@@ -566,20 +374,6 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   }
 
   /**
-   * 尺寸变化方向由三个因素决定：
-   * 1. 视口当前尺寸方向（正/负）
-   * 2. 参考向量的方向（本地坐标系下容器的变化方向）
-   * 3. 传入向量的方向（预期变化方向，拖拽方向）
-   */
-  private calulateDimensionDelta(
-    dimension: number,
-    reference: number,
-    delta: number,
-  ) {
-    return Math.sign(dimension * reference * delta) * Math.abs(delta);
-  }
-
-  /**
    * 编辑顶点 — 子类可 override 实现具体逻辑
    * @param point 当前鼠标位置（屏幕坐标）
    * @param delta 位移向量（屏幕坐标）
@@ -605,12 +399,12 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
     const referenceVector = dynamicPoint.subtract(fixedPoint);
 
-    const deltaX = this.calulateDimensionDelta(
+    const deltaX = calculateDimensionDelta(
       viewport.width,
       referenceVector.x,
       relativeVector.x,
     );
-    const deltaY = this.calulateDimensionDelta(
+    const deltaY = calculateDimensionDelta(
       viewport.height,
       referenceVector.y,
       relativeVector.y,
@@ -626,7 +420,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       const newHeight = viewport.height + Number(canResize.height) * deltaY;
 
       // 当resize结果为0时，不进行操作，避免后续计算出错
-      // 1、calulateDimensionDelta出错导致视口不变化
+      // 1、calculateDimensionDelta出错导致视口不变化
       // 2、graph resize在边界时比例失调
       if (newWidth === 0 || newHeight === 0) return;
 
@@ -688,7 +482,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     const transform = this.getMVPMatrix().transform;
 
     // ── 第〇阶段：渲染 decoration 背景（在 clip 之前，作为最底层） ──
-    if (this.decoration && !this.decoration.isDefault()) {
+    if (this.decoration?.hasDecoration()) {
       offscreenCtx.save();
       offscreenCtx.setTransform(
         transform[0],
@@ -713,9 +507,11 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       transform[7],
     );
 
-    if (this.style.overflow !== "visible") {
-      // 裁剪区域：decoration 有圆角且 clipContent 时使用圆角路径，否则矩形
-      if (this.decoration?.clipContent) {
+    // computeStyle() 保证：overflow 非 visible 时 decoration 一定存在并已 compute
+    const computedOverflow = this.decoration?.computedStyle.overflow ?? 'visible'
+    if (computedOverflow !== "visible") {
+      // 裁剪区域：computedStyle.clipContent 时使用圆角路径，否则矩形
+      if (this.decoration?.computedStyle.clipContent) {
         this.decoration.buildClipPath(offscreenCtx, viewport);
       } else {
         offscreenCtx.beginPath();
@@ -729,9 +525,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       }
     }
 
-    // 应用 scroll 偏移后渲染内容和子节点
+    // 应用 scroll 偏移后渲染内容和子节点（偏移量来自 decoration.computedStyle）
+    const scrollOffset = this.decoration?.computedStyle.scrollOffset ?? { x: 0, y: 0 };
     offscreenCtx.save();
-    offscreenCtx.translate(this.scrollOffset.x, this.scrollOffset.y);
+    offscreenCtx.translate(scrollOffset.x, scrollOffset.y);
 
     this.renderContent(offscreenCtx);
     this.children.forEach((view) => {
@@ -774,13 +571,24 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     canvasContext.restore();
   }
 
-  // 渲染插件
+  /**
+   * 渲染插件管线
+   *
+   * 统一遍历 activeAddons，按 priority 排序，
+   * 仅调用具有 RENDER 能力的 addon 的 render() 方法。
+   * BoxDecorationAddon(priority=-10) 最先渲染滚动条，BoundingBoxAddon(priority=0) 在其后渲染。
+   */
   protected renderPlugins(ctx: CanvasRenderingContext2D): void {
     if (!this.actived) return;
-    this.boundingBox?.render(ctx);
-    // 滚动条始终在 clip 之前渲染，不会被裁掉
-    this.scrollBarHorization?.render(ctx);
-    this.scrollBarVertical?.render(ctx);
+
+    // 按 priority 排序，遍历具有 RENDER 能力的 addon
+    const renderAddons = this.activeAddons
+      .filter((a) => a.capabilities.includes(AddonCapability.RENDER))
+      .sort((a, b) => a.priority - b.priority);
+
+    for (const addon of renderAddons) {
+      addon.render(ctx);
+    }
   }
 
   // 获取世界矩阵（考虑父view的matrix）
@@ -891,105 +699,48 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
       this.viewport = this.layoutArea.copy();
       this.boundingBox = new BoundingBoxAddon(this.viewport);
     }
-    // 2、计算 scroll 偏移
-    this.computeScroll();
+    // 2、计算样式（rawStyle -> computedStyle，包含 scrollOffset）
+    this.computeStyle();
     // 3、返回实际视口（供父容器"归"阶段使用）
     return this.viewport;
   }
 
   /**
-   * 计算 scroll 偏移量和滚动条（纯渲染层偏移，不修改 content 和 children 的数据）。
-   * 从 layout() 中提取为独立方法，便于子类 override 或单独调用。
+   * 将 rawStyle 计算为 computedStyle。
+   *
+   * 若 View 没有 decoration，则任何需要 computedStyle 的读取（如 scrollOffset）
+   * 都会走 `decoration?.computedStyle ?? fallback` 的默认分支，无需处理。
+   *
+   * 若 View 有 decoration，委托 BoxDecorationAddon.compute() 完成全量计算：
+   * 装饰字段 + overflow + scrollOffset 一次性更新。
+   *
+   * 若 View 没有 decoration 但需要 overflow=scroll 能力，
+   * 需先在构造时（或此处）按需创建 BoxDecorationAddon。
    */
-  protected computeScroll(): void {
-    if (this.style.overflow === "scroll") {
-      const scrollX = this.style.scrollX ?? 0;
-      const scrollY = this.style.scrollY ?? 0;
-      const la = this.layoutArea;
-      const vp = this.viewport;
+  protected computeStyle(): void {
+    const overflow = this.style.overflow;
 
-      // 可滚动范围 = 内容溢出视口的部分
-      const maxScrollX = Math.abs(la.width) - Math.abs(vp.width);
-      const maxScrollY = Math.abs(la.height) - Math.abs(vp.height);
-
-      // clamp 到合法区间，不可滚动方向归零
-      const clampedScrollX =
-        maxScrollX > 0 ? Math.max(0, Math.min(scrollX, maxScrollX)) : 0;
-      const clampedScrollY =
-        maxScrollY > 0 ? Math.max(0, Math.min(scrollY, maxScrollY)) : 0;
-
-      // scroll增大 → 内容向扩展方向的反方向移动
-      this.scrollOffset = {
-        x: -Math.sign(la.width) * clampedScrollX,
-        y: -Math.sign(la.height) * clampedScrollY,
-      };
-
-      // 更新滚动条
-      this.updateScrollBars(
-        clampedScrollX,
-        clampedScrollY,
-        maxScrollX,
-        maxScrollY,
-      );
-    } else {
-      // 非scroll模式，清零偏移和滚动条
-      this.scrollOffset = { x: 0, y: 0 };
-      this.scrollBarHorization = null;
-      this.scrollBarVertical = null;
+    if (overflow === "scroll" || overflow === "hidden") {
+      // overflow 非 visible：需要 decoration 来持有 computedStyle
+      if (!this.decoration) {
+        this.decoration = new BoxDecorationAddon();
+      }
+      this.decoration.compute(this.style, this.viewport, this.layoutArea);
+    } else if (this.decoration) {
+      // overflow = visible（或未设置）：decoration 存在时仍然 compute（同步装饰字段）
+      this.decoration.compute(this.style, this.viewport, this.layoutArea);
     }
-  }
-
-  /**
-   * 更新滚动条的尺寸和位置
-   * 滚动条长度 = 视口尺寸的平方 / 布局区域尺寸（等比例缩放）
-   * 滚动条位置 = 根据滚动进度在视口范围内线性插值
-   */
-  private updateScrollBars(
-    scrollX: number,
-    scrollY: number,
-    maxScrollX: number,
-    maxScrollY: number,
-  ): void {
-    const vp = this.viewport;
-    const SCROLLBAR_THICKNESS = 4;
-
-    // 水平滚动条
-    if (maxScrollX > 0) {
-      const ratio = Math.abs(vp.width) / Math.abs(this.layoutArea.width);
-      const barWidth = vp.width * ratio;
-      const travel = Math.abs(vp.width) - Math.abs(barWidth);
-      const progress = scrollX / maxScrollX;
-      const barX = vp.x + Math.sign(vp.width) * progress * travel;
-      const barHeight = SCROLLBAR_THICKNESS * Math.sign(vp.height);
-      const barY = vp.y + vp.height - barHeight;
-      this.scrollBarHorization = new Rectangle(barX, barY, barWidth, barHeight);
-    } else {
-      this.scrollBarHorization = null;
-    }
-
-    // 垂直滚动条
-    if (maxScrollY > 0) {
-      const ratio = Math.abs(vp.height) / Math.abs(this.layoutArea.height);
-      const barHeight = vp.height * ratio;
-      const travel = Math.abs(vp.height) - Math.abs(barHeight);
-      const progress = scrollY / maxScrollY;
-      const barY = vp.y + Math.sign(vp.height) * progress * travel;
-      const barWidth = SCROLLBAR_THICKNESS * Math.sign(vp.width);
-      const barX = vp.x + vp.width - barWidth;
-      this.scrollBarVertical = new Rectangle(barX, barY, barWidth, barHeight);
-    } else {
-      this.scrollBarVertical = null;
-    }
+    // overflow = visible 且无 decoration：无 scrollOffset 需求，跳过
   }
 
   // ==================== 序列化 ====================
 
   /**
-   * 从纯数据对象恢复 View 公共字段。
-   * 子类 fromJSON 中构造实例后调用此方法完成公共属性恢复。
-   * 恢复顺序：基本属性 → viewport/constraintBounds → children → restoreLayout
+   * 从纯数据对象恢复 View 公共字段（纯字段赋值，不触发布局标脏）。
+   * 子类 fromJSON 中构造实例后调用此方法完成公共属性恢复，
+   * 随后由子类自行调用 markLayoutDirty() 标脏。
    */
-  protected restoreFromJSON(data: any): void {
+  protected restoreCommonFields(data: any): void {
     this.id = data.id;
     this.visible = data.visible;
     this.freezed = data.freezed;
@@ -1009,27 +760,17 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     if (data.layoutParams) {
       this.layoutParams = data.layoutParams;
     }
-    // children 的恢复由 ContainerView 子类的 restoreFromJSON override 负责
-    this.restoreLayout();
-  }
-
-  /**
-   * 从 fromJSON 恢复后调用，同步 boundingBox 和 layoutArea。
-   * 必须在 viewport、style、children 全部恢复之后调用。
-   */
-  protected restoreLayout(): void {
     // 重建 boundingBox（绑定到新的 viewport 引用）
     if (this.boundingBox !== null) {
       this.boundingBox = new BoundingBoxAddon(this.viewport);
     }
     // 同步 layoutArea
     this.layoutArea = this.viewport.copy();
-    // constraintBounds 已由 fromJSON 恢复，若缺失则用 viewport 兜底
+    // constraintBounds 兜底
     if (!this.constraintBounds || this.constraintBounds.isEmpty) {
       this.constraintBounds = this.viewport.copy();
     }
-    // 标记布局脏，延迟到渲染时执行
-    this.markLayoutDirty();
+    // children 的恢复由 ContainerView 子类的 restoreCommonFields override 负责
   }
 
   /**

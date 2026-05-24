@@ -1,23 +1,18 @@
-import View, { ViewOptions } from '@/view/View/View'
+import View from '@/view/View/View'
 import { ImageElement } from '@/graph/media'
-import { VIEWTYPE } from '@/foundation/constants'
-import type { ViewType } from '@/foundation/constants'
+import { ViewType } from '@/foundation/constants'
 import { IImageView, ISerializable } from '@/types'
+import type { IImageViewOptions } from '@/types'
 import { generateId, generateName } from '@/foundation/utils'
-
-// 图像视图选项接口
-export interface ImageViewOptions extends Omit<ViewOptions, 'content'> {
-    // 图像视图特有的选项可以在这里添加
-}
 
 /**
  * 图像视图 - 专门处理ImageElement类型内容
  */
 export default class ImageView extends View implements IImageView, ISerializable {
-    public type: ViewType = VIEWTYPE.IMAGEVIEW
+    public type: ViewType = ViewType.IMAGEVIEW
     public content: ImageElement
 
-    constructor(image: ImageElement, options: ImageViewOptions = {}) {
+    constructor(image: ImageElement, options: IImageViewOptions = {}) {
         // 将image作为content传递给父类构造函数
         super({ ...options, content: image })
         this.id = options.id || generateId(this.type)
@@ -59,10 +54,11 @@ export default class ImageView extends View implements IImageView, ISerializable
      * 从纯数据对象恢复 ImageView 实例。
      * data.content 应由 Serializer 预先解析为 ImageElement 实例后传入。
      */
-    static fromJSON(data: any): ImageView {
-        const view = new ImageView(data.content)
-        view.restoreFromJSON(data)
-        return view
-    }
+static fromJSON(data: any): ImageView {
+    const view = new ImageView(data.content)
+    view.restoreCommonFields(data)
+    view.markLayoutDirty()
+    return view
+}
 }
 
