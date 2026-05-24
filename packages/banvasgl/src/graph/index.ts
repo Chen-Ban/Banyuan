@@ -19,3 +19,7 @@ export * from "./text";
 // 图像元素
 export * from "./media";
 
+// 默认样式注册表
+export { registerDefaultStyle, getDefaultStyle } from "./DefaultStyleRegistry";
+export type { DefaultStyleFactory } from "./DefaultStyleRegistry";
+

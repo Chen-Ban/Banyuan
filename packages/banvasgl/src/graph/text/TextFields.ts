@@ -1,4 +1,4 @@
-import { GRAPHTYPE, HORIZONTALALIGN, VERTICALALIGN } from "@/foundation/constants";
+import { GraphType, HorizontalAlign, VerticalAlign } from "@/foundation/constants";
 import Graph from "@/graph/base/Graph";
 import { MathUtils, Point3, Vector3, Matrix4 } from "@/foundation/math";
 import { Style } from "@/foundation/style";
@@ -10,26 +10,6 @@ import TextElement from "./TextElement";
 import TextOptions from "./TextOptions";
 import { ITextFields, ISerializable, isGraphType } from "@/types";
 import { generateId } from "@/foundation/utils";
-
-/**
- * 模块级 fallback context：在没有传入 measureCtx 时（如反序列化阶段），
- * 使用 OffscreenCanvas 提供 measureText 能力，避免依赖已挂载的真实 canvas。
- *
- * 在 Node.js 等无 OffscreenCanvas 的环境下返回 null，此时跳过测量
- * （后端序列化场景不需要精确文字尺寸）。
- */
-let _fallbackCtx: CanvasRenderingContext2D | null = null
-let _fallbackCtxResolved = false
-function getFallbackMeasureCtx(): CanvasRenderingContext2D | null {
-  if (!_fallbackCtxResolved) {
-    _fallbackCtxResolved = true
-    if (typeof OffscreenCanvas !== 'undefined') {
-      const canvas = new OffscreenCanvas(1, 1)
-      _fallbackCtx = canvas.getContext('2d') as unknown as CanvasRenderingContext2D
-    }
-  }
-  return _fallbackCtx
-}
 
 //文本选区三元组： 段落号，字序号，字前｜字后
 export type TextIndex = [number, number, 0 | 1];
@@ -43,9 +23,8 @@ export default class TextFields
   extends Graph
   implements ITextFields, ISerializable
 {
-  public type: GRAPHTYPE = GRAPHTYPE.TEXTFIELDS;
+  public type: GraphType = GraphType.TEXTFIELDS;
   public controlPoints: Point3[];
-  public style: Style;
   public options: TextFieldsOptions;
   public paragraphs: TextParagraph[];
   public bounds: Bounds;
@@ -57,11 +36,10 @@ export default class TextFields
   constructor(
     paragraphs: TextParagraph[] = [],
     options: TextFieldsOptions = TextFieldsOptions.DEFAULT,
-    style: Style = Style.DEFAULT,
+    _style?: Style,
   ) {
     super();
     this.options = options;
-    this.style = style;
     this.paragraphs = paragraphs;
     this.controlPoints = [];
     this.bounds = Bounds.empty();
@@ -185,11 +163,10 @@ export default class TextFields
    */
   public layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): TextFields {
     // 批量确保所有文字元素尺寸已测量（延迟测量的执行点）
-    // 当没有传入 measureCtx 时（如反序列化/构造阶段），使用 OffscreenCanvas fallback
-    const ctx = measureCtx ?? getFallbackMeasureCtx() ?? undefined
+    // measureCtx 由渲染帧的 bufferCtx 传入；无 ctx 时跳过测量（保持 dirty，后续渲染时重新触发）
     for (const paragraph of this.paragraphs) {
       for (const text of paragraph.texts) {
-        text.ensureMeasured(ctx)
+        text.ensureMeasured(measureCtx)
       }
     }
 
@@ -398,13 +375,13 @@ export default class TextFields
     let offsetX = 0;
 
     switch (paragraph.options.horizontalAlign) {
-      case HORIZONTALALIGN.CENTER:
+      case HorizontalAlign.CENTER:
         offsetX = (maxWidth - paragraphBounds.width) / 2;
         break;
-      case HORIZONTALALIGN.RIGHT:
+      case HorizontalAlign.RIGHT:
         offsetX = maxWidth - paragraphBounds.width;
         break;
-      case HORIZONTALALIGN.LEFT:
+      case HorizontalAlign.LEFT:
       default:
         offsetX = 0;
         break;
@@ -436,13 +413,13 @@ export default class TextFields
 
     let offsetY = 0;
     switch (this.options.verticalAlign) {
-      case VERTICALALIGN.MIDDLE:
+      case VerticalAlign.MIDDLE:
         offsetY = (layoutArea.height - textsBounds.height) / 2;
         break;
-      case VERTICALALIGN.BOTTOM:
+      case VerticalAlign.BOTTOM:
         offsetY = layoutArea.height - textsBounds.height;
         break;
-      case VERTICALALIGN.TOP:
+      case VerticalAlign.TOP:
       default:
         offsetY = 0;
         break;
@@ -564,7 +541,7 @@ export default class TextFields
           if (relativePoint.x >= midPoint.x) {
             index[2] = 1;
           }
-          if (isGraphType(t, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT)) {
+          if (isGraphType(t, GraphType.NONPRINTABLE_TEXTELEMENT)) {
             // 空段落时 j=0，确保索引不为负数
             index[1] = Math.max(0, index[1] - 1);
           }
@@ -694,12 +671,12 @@ export default class TextFields
   /**
    * 渲染文本域
    */
-  public render(ctx: CanvasRenderingContext2D): void {
+  public render(ctx: CanvasRenderingContext2D, style: Style): void {
     ctx.save();
 
     // 应用样式
     const bounds = this.bounds;
-    this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
+    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
 
     // 渲染背景（如果有）
     this.renderPath(ctx, true);
@@ -707,7 +684,7 @@ export default class TextFields
 
     // 渲染所有段落
     for (const paragraph of this.paragraphs) {
-      paragraph.render(ctx);
+      paragraph.render(ctx, style);
     }
 
     ctx.restore();
@@ -721,7 +698,6 @@ export default class TextFields
     const newTextFields = new TextFields(
       copiedParagraphs,
       this.options.copy(),
-      this.style.copy(),
     );
 
     // 如果原对象已经布局，则复制布局信息
@@ -754,7 +730,6 @@ export default class TextFields
       type: this.type,
       paragraphs: this.paragraphs.map((p) => p.toJSON()),
       options: this.options.toJSON(),
-      style: this.style.toJSON(),
     };
   }
 
@@ -765,7 +740,6 @@ export default class TextFields
     const fields = new TextFields(
       paragraphs,
       TextFieldsOptions.fromJSON(data.options),
-      Style.fromJSON(data.style),
     );
     fields.id = data.id;
     return fields;

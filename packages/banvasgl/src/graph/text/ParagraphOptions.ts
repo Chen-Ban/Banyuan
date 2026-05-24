@@ -1,4 +1,4 @@
-import { HORIZONTALALIGN } from "@/foundation/constants";
+import { HorizontalAlign } from "@/foundation/constants";
 import Graph from "@/graph/base/Graph";
 import TextElement from "./TextElement";
 
@@ -7,7 +7,7 @@ import TextElement from "./TextElement";
  * 包含段落级别的样式和布局配置
  */
 export default class ParagraphOptions {
-  public horizontalAlign: HORIZONTALALIGN;
+  public horizontalAlign: HorizontalAlign;
   public leading: number;
   public preHeight: number;
   public postHeight: number;
@@ -16,7 +16,7 @@ export default class ParagraphOptions {
   public preWidth: number;
 
   constructor(
-    horizontalAlign: HORIZONTALALIGN = HORIZONTALALIGN.LEFT,
+    horizontalAlign: HorizontalAlign = HorizontalAlign.LEFT,
     leading: number = 1.2,
     preHeight: number = 0,
     postHeight: number = 0,
@@ -66,14 +66,14 @@ export default class ParagraphOptions {
    * 静态工厂方法 - 创建居中对齐段落选项
    */
   static center(leading: number = 1.2): ParagraphOptions {
-    return new ParagraphOptions(HORIZONTALALIGN.CENTER, leading);
+    return new ParagraphOptions(HorizontalAlign.CENTER, leading);
   }
 
   /**
    * 静态工厂方法 - 创建右对齐段落选项
    */
   static right(leading: number = 1.2): ParagraphOptions {
-    return new ParagraphOptions(HORIZONTALALIGN.RIGHT, leading);
+    return new ParagraphOptions(HorizontalAlign.RIGHT, leading);
   }
 
   // ── 序列化 ──

@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from "@/foundation/constants";
+import { GraphType } from "@/foundation/constants";
 import Graph from "@/graph/base/Graph";
 import { MathUtils, Point3, Vector3, Matrix4 } from "@/foundation/math";
 import Style from "@/foundation/style/Style";
@@ -8,23 +8,91 @@ import { IDenseTrajectory, ISerializable } from "@/types";
 import type { ITransferable, TransferableData } from "@/types";
 import { generateId } from "@/foundation/utils";
 
+/**
+ * 密集轨迹类。
+ *
+ * DenseTrajectory 继承自 {@link Graph}，实现 {@link IDenseTrajectory}、{@link ISerializable} 和 {@link ITransferable} 接口，
+ * 用于表示由大量离散点组成的折线轨迹。
+ *
+ * **存储格式**：控制点使用 `Float32Array` 存储，每 **3 个连续分量** 表示一个三维点 `(x, y, z)`，
+ * 因此 `controlPoints.length / 3` 即为点的数量。这种紧凑存储格式在 Web Worker 传输时可实现零拷贝。
+ *
+ * **参数化路径**：
+ * - {@link getPointAt}：线性插值，将归一化参数 `t ∈ [0, 1]` 映射到轨迹上的点
+ * - {@link getTangentAt}：相邻点差分计算切线向量
+ * - {@link getClosestPoint}：逐段遍历的暴力最近点算法
+ * - {@link getLength}：逐段累加欧几里得距离
+ *
+ * **零拷贝传输**：{@link toTransferable} 提取 `Float32Array` 的底层 `ArrayBuffer`，
+ * 传输后当前实例的 `controlPoints` 被 detach（不可用）；
+ * Worker 处理完毕后通过 {@link fromTransferable} 在传入的 `ArrayBuffer` 上直接创建视图，
+ * 绕过构造函数的 `Float32Array.from()` 拷贝，实现真正的零拷贝。
+ *
+ * @extends Graph
+ * @implements IDenseTrajectory
+ * @implements ISerializable
+ * @implements ITransferable
+ *
+ * @example
+ * ```ts
+ * const points = new Float32Array([0, 0, 0, 100, 0, 0, 100, 100, 0]);
+ * const traj = new DenseTrajectory(points);
+ * traj.getPointAt(0.5);  // 中间点附近
+ * traj.getLength(0, 1);  // 总长度 ≈ 200
+ * ```
+ */
 export default class DenseTrajectory
   extends Graph
   implements IDenseTrajectory, ISerializable, ITransferable
 {
-  public type: GRAPHTYPE = GRAPHTYPE.DENSETRAJECTORY;
+  /** 图形类型标识 */
+  public type: GraphType = GraphType.DENSETRAJECTORY;
+  /**
+   * 控制点数组。使用 `Float32Array` 存储，每 3 个连续分量表示一个三维点 `(x, y, z)`。
+   * 点的数量 = `controlPoints.length / 3`。
+   */
   public controlPoints: Float32Array;
-  public style: Style;
+  /** 元素包围盒 */
   public bounds: Bounds;
 
-  constructor(points: Float32Array, style: Style = Style.DEFAULT) {
+  /**
+   * 创建密集轨迹实例。
+   *
+   * 使用 `Float32Array.from()` 对传入的点数组进行拷贝，确保内部数据独立。
+   * 构造时自动计算包围盒和生成唯一 ID。
+   *
+   * @param {Float32Array} points - 轨迹点数组，每 3 个分量表示一个点 `(x, y, z)`
+   * @param {Style} [style=Style.DEFAULT] - 元素样式
+   *
+   * @example
+   * ```ts
+   * const points = new Float32Array([0, 0, 0, 100, 50, 0, 200, 0, 0]);
+   * const traj = new DenseTrajectory(points);
+   * ```
+   */
+  constructor(points: Float32Array, _style?: Style) {
     super();
-    this.style = style;
     this.controlPoints = Float32Array.from(points);
     this.bounds = this.updateBounds();
     this.id = generateId(this.type);
   }
 
+  /**
+   * 判断轨迹是否闭合。
+   *
+   * 当轨迹至少有 2 个点（6 个分量），且第一个点和最后一个点坐标完全相同时，视为闭合。
+   *
+   * @returns {boolean} 闭合时返回 `true`，否则返回 `false`
+   *
+   * @example
+   * ```ts
+   * const open = new DenseTrajectory(new Float32Array([0,0,0, 100,0,0]));
+   * open.isClosed(); // false
+   *
+   * const closed = new DenseTrajectory(new Float32Array([0,0,0, 100,0,0, 0,0,0]));
+   * closed.isClosed(); // true
+   * ```
+   */
   public isClosed(): boolean {
     const pts = this.controlPoints;
     if (pts.length < 6) return false; // 至少两个点（每点3分量）
@@ -32,6 +100,21 @@ export default class DenseTrajectory
     return pts[0] === pts[lastIdx] && pts[1] === pts[lastIdx + 1] && pts[2] === pts[lastIdx + 2];
   }
 
+  /**
+   * 将密集轨迹的渲染路径绘制到 Canvas 上下文中。
+   *
+   * 使用 `moveTo` 到第一个点，然后依次 `lineTo` 到后续各点。
+   * 当 `dependent` 为 `true` 时先调用 `ctx.beginPath()`。
+   *
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {Boolean} dependent - 是否开启新路径
+   *
+   * @example
+   * ```ts
+   * traj.renderPath(ctx, true);
+   * ctx.stroke();
+   * ```
+   */
   public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
     dependent && ctx.beginPath();
     ctx.moveTo(this.controlPoints[0], this.controlPoints[1]);
@@ -41,20 +124,60 @@ export default class DenseTrajectory
     }
   }
 
-  public render(ctx: CanvasRenderingContext2D): void {
+  /**
+   * 渲染密集轨迹到 Canvas。
+   *
+   * 应用样式后调用 {@link renderPath} 绘制路径，然后描边。
+   *
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   *
+   * @example
+   * ```ts
+   * traj.render(ctx);
+   * ```
+   */
+  public render(ctx: CanvasRenderingContext2D, style: Style): void {
     ctx.save();
-    this.style.applyToContext(ctx, Math.abs(this.bounds.width), Math.abs(this.bounds.height));
+    style.applyToContext(ctx, Math.abs(this.bounds.width), Math.abs(this.bounds.height));
     this.renderPath(ctx, true);
     ctx.stroke();
     ctx.restore();
   }
+
+  /**
+   * 复制密集轨迹。
+   *
+   * 创建一个新的 {@link DenseTrajectory} 实例，使用 `Float32Array.from()` 拷贝控制点数组，
+   * 同时拷贝样式。
+   *
+   * @returns {this} 新的密集轨迹实例
+   *
+   * @example
+   * ```ts
+   * const copy = traj.copy();
+   * ```
+   */
   public copy(): this {
     return new DenseTrajectory(
       Float32Array.from(this.controlPoints),
-      this.style.copy(),
     ) as this;
   }
 
+  /**
+   * 更新密集轨迹的包围盒。
+   *
+   * 遍历所有控制点（每 3 个分量一个点），构造 {@link Point3} 数组，
+   * 然后通过 {@link Bounds.fromPoints} 计算包围盒。
+   *
+   * @returns {Bounds} 更新后的包围盒
+   *
+   * @example
+   * ```ts
+   * const bounds = traj.updateBounds();
+   * bounds.width;  // x 范围
+   * bounds.height; // y 范围
+   * ```
+   */
   public updateBounds(): Bounds {
     let points = [];
     const length = this.controlPoints.length;
@@ -70,10 +193,44 @@ export default class DenseTrajectory
     return Bounds.fromPoints(points);
   }
 
+  /**
+   * 判断给定点是否在曲线上。密集轨迹暂不支持曲线判定，始终返回 `false`。
+   *
+   * @param {Point3} p - 待检测的点
+   * @param {number} [tolerance=MathUtils.EPSILON] - 容差距离
+   * @returns {boolean} 始终返回 `false`
+   *
+   * @example
+   * ```ts
+   * traj.isPointOnCurve(new Point3(50, 0, 0)); // false
+   * ```
+   */
   public isPointOnCurve(p: Point3, tolerance: number = MathUtils.EPSILON): boolean {
     return false;
   }
 
+  /**
+   * 获取轨迹上指定参数 `t` 处的点（线性插值）。
+   *
+   * 将归一化参数 `t ∈ [0, 1]` 映射到轨迹点序列上的连续索引，
+   * 取相邻两点的整数索引 `i` 和 `i+1`，按小数部分 `fraction` 进行线性插值。
+   *
+   * - 0 个点时返回原点
+   * - 1 个点时返回该点
+   * - `t` 会被 clamp 到 `[0, 1]`
+   *
+   * @param {number} t - 归一化参数，范围 `[0, 1]`
+   * @returns {Point3} 插值后的三维点
+   *
+   * @example
+   * ```ts
+   * const pts = new Float32Array([0,0,0, 100,0,0, 100,100,0]);
+   * const traj = new DenseTrajectory(pts);
+   * traj.getPointAt(0);    // Point3(0, 0, 0)
+   * traj.getPointAt(0.5);  // Point3(100, 0, 0)  — 中间点
+   * traj.getPointAt(1);    // Point3(100, 100, 0) — 最后一个点
+   * ```
+   */
   public getPointAt(t: number): Point3 {
     const pointCount = this.controlPoints.length / 3;
     if (pointCount === 0) return new Point3(0, 0, 0);
@@ -113,6 +270,25 @@ export default class DenseTrajectory
     );
   }
 
+  /**
+   * 获取轨迹上指定参数 `t` 处的切线向量（相邻点差分）。
+   *
+   * 计算参数 `t` 所在段的相邻两点 `(p[i], p[i+1])`，切线 = `p[i+1] - p[i]`。
+   * 末尾段使用倒数第二段到最后一段的差分。
+   *
+   * - 少于 2 个点时返回 `(1, 0, 0)`
+   *
+   * @param {number} t - 归一化参数，范围 `[0, 1]`
+   * @returns {Vector3} 差分切线向量（未归一化）
+   *
+   * @example
+   * ```ts
+   * const pts = new Float32Array([0,0,0, 100,0,0, 100,100,0]);
+   * const traj = new DenseTrajectory(pts);
+   * traj.getTangentAt(0);   // Vector3(100, 0, 0)  — 第一段向右
+   * traj.getTangentAt(0.5); // Vector3(0, 100, 0)   — 第二段向下
+   * ```
+   */
   public getTangentAt(t: number): Vector3 {
     const pointCount = this.controlPoints.length / 3;
     if (pointCount < 2) return new Vector3(1, 0, 0);
@@ -140,11 +316,54 @@ export default class DenseTrajectory
     );
   }
 
+  /**
+   * 获取轨迹上指定参数 `t` 处的法向量。
+   *
+   * 由切线向量逆时针旋转 90° 得到：`normal = (-tangent.y, tangent.x, 0)`。
+   *
+   * @param {number} t - 归一化参数，范围 `[0, 1]`
+   * @returns {Vector3} 法向量
+   *
+   * @example
+   * ```ts
+   * const pts = new Float32Array([0,0,0, 100,0,0]);
+   * const traj = new DenseTrajectory(pts);
+   * traj.getNormalAt(0); // Vector3(0, 100, 0) — 切线(100,0,0)的逆时针90°
+   * ```
+   */
   public getNormalAt(t: number): Vector3 {
     const tangent = this.getTangentAt(t);
     return new Vector3(-tangent.y, tangent.x, 0);
   }
 
+  /**
+   * 计算给定点到轨迹的最近点（逐段遍历的暴力算法）。
+   *
+   * 对轨迹中每一对相邻点 `(p1, p2)` 构成一条线段，计算 `point` 在该线段上的投影参数 `t`：
+   * - `t = dot(point - p1, p2 - p1) / |p2 - p1|²`，clamp 到 `[0, 1]`
+   * - 投影点 `closest = p1 + t * (p2 - p1)`
+   * - 计算投影距离
+   *
+   * 遍历所有段后返回距离最小的结果。
+   *
+   * - 0 个点时返回 `distance = Infinity`
+   * - 1 个点时直接计算到该点的距离
+   *
+   * @param {Point3} point - 待查询的三维点
+   * @returns {{ distance: number; closestPoint: Point3; parameter: number }}
+   *   - `distance`：点到最近点的欧几里得距离
+   *   - `closestPoint`：轨迹上距离最近的点
+   *   - `parameter`：最近点对应的归一化参数 `t`，范围 `[0, 1]`
+   *
+   * @example
+   * ```ts
+   * const pts = new Float32Array([0,0,0, 100,0,0]);
+   * const traj = new DenseTrajectory(pts);
+   * const result = traj.getClosestPoint(new Point3(50, 50, 0));
+   * // result.closestPoint → Point3(50, 0, 0)
+   * // result.distance → 50
+   * ```
+   */
   public getClosestPoint(point: Point3): {
     distance: number;
     closestPoint: Point3;
@@ -231,6 +450,25 @@ export default class DenseTrajectory
     return { distance: minDistance, closestPoint, parameter: closestT };
   }
 
+  /**
+   * 计算轨迹在指定参数范围 `[tStart, tEnd]` 内的弧长（逐段累加）。
+   *
+   * 将 `tStart`/`tEnd` 映射到点索引，逐段计算相邻点的欧几里得距离并累加。
+   *
+   * - 少于 2 个点时返回 `0`
+   *
+   * @param {number} tStart - 起始归一化参数
+   * @param {number} tEnd - 结束归一化参数
+   * @returns {number} 累计弧长
+   *
+   * @example
+   * ```ts
+   * const pts = new Float32Array([0,0,0, 100,0,0, 100,100,0]);
+   * const traj = new DenseTrajectory(pts);
+   * traj.getLength(0, 1);   // ≈ 200（100 + 100）
+   * traj.getLength(0, 0.5); // ≈ 100（第一段）
+   * ```
+   */
   public getLength(tStart: number, tEnd: number): number {
     const pointCount = this.controlPoints.length / 3;
     if (pointCount < 2) return 0;
@@ -255,6 +493,22 @@ export default class DenseTrajectory
     return length;
   }
 
+  /**
+   * 计算闭合轨迹的面积（鞋带公式）。
+   *
+   * 使用鞋带公式（Shoelace formula）计算闭合轨迹围成区域的面积：
+   * `area = |Σ(x_i × y_{i+1} - x_{i+1} × y_i)| / 2`
+   *
+   * @returns {number} 面积值
+   * @throws {Error} 当轨迹未闭合时抛出错误
+   *
+   * @example
+   * ```ts
+   * const pts = new Float32Array([0,0,0, 100,0,0, 100,100,0, 0,0,0]);
+   * const traj = new DenseTrajectory(pts);
+   * traj.getArea(); // 5000
+   * ```
+   */
   public getArea(): number {
     if (!this.isClosed()) {
       throw new Error('DenseTrajectory 未闭合，不具有面积');
@@ -273,6 +527,18 @@ export default class DenseTrajectory
     return Math.abs(area) / 2;
   }
 
+  /**
+   * 计算轨迹的质心（所有点的算术平均值）。
+   *
+   * @returns {Point3} 质心点；0 个点时返回原点
+   *
+   * @example
+   * ```ts
+   * const pts = new Float32Array([0,0,0, 100,0,0, 50,100,0]);
+   * const traj = new DenseTrajectory(pts);
+   * traj.getCentroid(); // Point3(50, 33.33, 0)
+   * ```
+   */
   public getCentroid(): Point3 {
     const pointCount = this.controlPoints.length / 3;
     if (pointCount === 0) return new Point3(0, 0, 0);
@@ -290,6 +556,21 @@ export default class DenseTrajectory
     return new Point3(sumX / pointCount, sumY / pointCount, sumZ / pointCount);
   }
 
+  /**
+   * 对密集轨迹应用矩阵变换。
+   *
+   * 逐点对 `controlPoints` 中的每个三维点应用 `matrix` 乘法，
+   * 将变换后的坐标写回 `Float32Array`，然后重新计算包围盒。
+   *
+   * @param {Matrix4} matrix - 4×4 变换矩阵
+   * @returns {Graph} 当前实例
+   *
+   * @example
+   * ```ts
+   * const moveMatrix = Matrix4.translation(50, 50, 0);
+   * traj.transform(moveMatrix); // 所有点平移 (50, 50, 0)
+   * ```
+   */
   public transform(matrix: Matrix4): Graph {
     for (let i = 0; i < this.controlPoints.length; i += 3) {
       const point = new Point3(
@@ -307,9 +588,21 @@ export default class DenseTrajectory
   }
 
   /**
-   * 计算与另一个图形的相交点
-   * @param other 另一个图形
-   * @returns 相交点数组（暂未实现）
+   * 计算与另一个图形的相交点。
+   *
+   * 将密集轨迹视为相邻点构成的线段序列，每段构造 {@link Line} 对象，
+   * 逐段与目标图形求交，合并所有交点。
+   *
+   * @param {Graph} other - 另一个图形
+   * @returns {Point3[]} 相交点数组
+   *
+   * @example
+   * ```ts
+   * const pts = new Float32Array([0,50,0, 200,50,0]);
+   * const traj = new DenseTrajectory(pts);
+   * const line = new Line(new Point3(100, 0, 0), new Point3(100, 100, 0));
+   * traj.intersect(line); // [Point3(100, 50, 0)]
+   * ```
    */
   public intersect(other: Graph): Point3[] {
     const points = [];
@@ -329,19 +622,44 @@ export default class DenseTrajectory
     });
     return lines.map((line) => line.intersect(other)).flat();
   }
+
   // ── 序列化（JSON，用于持久化存储） ──
+
+  /**
+   * 将密集轨迹序列化为 JSON 对象，用于持久化存储。
+   *
+   * `controlPoints` 通过 `Array.from()` 转为普通数组以便 JSON 序列化。
+   *
+   * @returns {any} 包含 id、type、controlPoints 和 style 的 JSON 对象
+   *
+   * @example
+   * ```ts
+   * const json = traj.toJSON();
+   * // { id: '...', type: 9, controlPoints: [0,0,0, 100,0,0], style: {...} }
+   * ```
+   */
   toJSON(): any {
     return {
       id: this.id,
       type: this.type,
       controlPoints: Array.from(this.controlPoints),
-      style: this.style.toJSON(),
     };
   }
 
+  /**
+   * 从 JSON 对象反序列化创建密集轨迹。
+   *
+   * @param {any} data - 序列化后的 JSON 数据
+   * @returns {DenseTrajectory} 恢复的密集轨迹实例
+   *
+   * @example
+   * ```ts
+   * const traj = DenseTrajectory.fromJSON(jsonData);
+   * ```
+   */
   static fromJSON(data: any): DenseTrajectory {
     const points = new Float32Array(data.controlPoints);
-    const dt = new DenseTrajectory(points, Style.fromJSON(data.style));
+    const dt = new DenseTrajectory(points);
     dt.id = data.id;
     return dt;
   }
@@ -350,8 +668,23 @@ export default class DenseTrajectory
 
   /**
    * 提取 controlPoints 的底层 ArrayBuffer 用于零拷贝传输。
-   * 调用后当前实例的 controlPoints 将被 detach（不可用），
-   * Worker 处理完毕后应通过 fromTransferable 归还 buffer。
+   *
+   * 调用后当前实例的 `controlPoints` 将被 **detach**（不可用），
+   * 因为 `ArrayBuffer` 的所有权已转移给 Worker 传输通道。
+   * Worker 处理完毕后应通过 {@link fromTransferable} 归还 buffer。
+   *
+   * 返回的 {@link TransferableData} 包含：
+   * - `meta`：轨迹的元信息（id、type、byteOffset、length、style）
+   * - `buffers`：`[ArrayBuffer]` — controlPoints 的底层 buffer
+   *
+   * @returns {TransferableData} 可传输的数据对象
+   *
+   * @example
+   * ```ts
+   * const data = traj.toTransferable();
+   * // traj.controlPoints 此时已被 detach，不可再访问
+   * worker.postMessage(data, data.buffers);
+   * ```
    */
   toTransferable(): TransferableData {
     const buffer = this.controlPoints.buffer;
@@ -362,7 +695,6 @@ export default class DenseTrajectory
         type: this.type,
         byteOffset: this.controlPoints.byteOffset,
         length: this.controlPoints.length,
-        style: this.style.toJSON(),
       },
       buffers: [buffer],
     };
@@ -370,7 +702,22 @@ export default class DenseTrajectory
 
   /**
    * 从 TransferableData 重建 DenseTrajectory 实例（零拷贝）。
-   * 绕过构造函数的 Float32Array.from() 拷贝，直接在传入的 ArrayBuffer 上创建视图。
+   *
+   * 直接在传入的 `ArrayBuffer` 上创建 `Float32Array` 视图，
+   * 绕过构造函数的 `Float32Array.from()` 拷贝，实现真正的零拷贝传输。
+   *
+   * 使用 `Object.create(DenseTrajectory.prototype)` 绕过构造函数，
+   * 手动初始化所有属性。
+   *
+   * @param {TransferableData} data - Worker 传输回来的数据对象
+   * @returns {DenseTrajectory} 重建的密集轨迹实例
+   *
+   * @example
+   * ```ts
+   * // 在 Worker 中接收：
+   * const traj = DenseTrajectory.fromTransferable(receivedData);
+   * // traj.controlPoints 直接引用传入的 ArrayBuffer，无额外拷贝
+   * ```
    */
   static fromTransferable(data: TransferableData): DenseTrajectory {
     const { meta, buffers } = data;
@@ -382,13 +729,32 @@ export default class DenseTrajectory
     // 绕过构造函数避免 Float32Array.from 的隐式拷贝
     const dt = Object.create(DenseTrajectory.prototype) as DenseTrajectory;
     dt.id = meta.id;
-    dt.type = GRAPHTYPE.DENSETRAJECTORY;
+    dt.type = GraphType.DENSETRAJECTORY;
     dt.controlPoints = controlPoints;
-    dt.style = Style.fromJSON(meta.style);
     dt.bounds = dt.updateBounds();
     return dt;
   }
 
+  /**
+   * 按比例缩放调整密集轨迹的尺寸。
+   *
+   * 根据固定点（`fixedPoint`）和动态点（`dynamicPoint`）确定的参考矩形，
+   * 计算每个控制点到固定点的相对比例，再将 `resizeVector` 按该比例分配给各控制点，
+   * 直接修改 `Float32Array` 中的坐标值，然后重新计算包围盒。
+   *
+   * @param {Point3} fixedPoint - 缩放固定点
+   * @param {Point3} dynamicPoint - 缩放动态点
+   * @param {Vector3} resizeVector - 缩放方向和幅值向量
+   *
+   * @example
+   * ```ts
+   * traj.resize(
+   *   new Point3(0, 0, 0),
+   *   new Point3(100, 100, 0),
+   *   new Vector3(10, 10, 0)
+   * );
+   * ```
+   */
   public resize(
     fixedPoint: Point3,
     dynamicPoint: Point3,
@@ -413,6 +779,16 @@ export default class DenseTrajectory
     this.bounds = this.updateBounds();
   }
 
-  /** 密集轨迹不支持单点顶点编辑 */
+  /**
+   * 设置指定索引的控制点。密集轨迹不支持单点顶点编辑，此方法为空操作。
+   *
+   * @param {number} _index - 控制点索引（未使用）
+   * @param {Point3} _point - 新的控制点位置（未使用）
+   *
+   * @example
+   * ```ts
+   * traj.setControlPoint(0, new Point3(10, 10, 0)); // 无效果
+   * ```
+   */
   public setControlPoint(_index: number, _point: Point3): void {}
 }
