@@ -1,4 +1,4 @@
-import { GRAPHTYPE } from '@/foundation/constants'
+import { GraphType } from '@/foundation/constants'
 import Graph from '@/graph/base/Graph'
 import { MathUtils, Point3, Vector3, Matrix4 } from '@/foundation/math'
 import { Style } from '@/foundation/style'
@@ -19,9 +19,8 @@ export type TextParagraphContent = [
  * 表示一个段落，包含多个文字元素 - TODO: 文本装饰的设计与实现
  */
 export default class TextParagraph extends Graph implements ITextParagraph, ISerializable {
-    public type: GRAPHTYPE = GRAPHTYPE.TEXTPARAGRAPH
+    public type: GraphType = GraphType.TEXTPARAGRAPH
     public controlPoints: Point3[]
-    public style: Style
     public options: ParagraphOptions
     public texts: TextParagraphContent
     public isLayouted: boolean = false
@@ -34,11 +33,9 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
     constructor(
         texts: TextParagraphContent = [new NonPrintableTextElement()],
         options: ParagraphOptions = ParagraphOptions.DEFAULT,
-        style: Style = Style.DEFAULT
     ) {
         super()
         this.options = options
-        this.style = style
         this.texts = texts
         // 初始化时不设置控制点和包围盒，等待布局时设置
         this.controlPoints = []
@@ -195,11 +192,11 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
     /**
      * 渲染段落
      */
-    public render(ctx: CanvasRenderingContext2D): void {
+    public render(ctx: CanvasRenderingContext2D, style: Style): void {
         ctx.save()
         // 应用样式
         const bounds = this.bounds
-        this.style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
+        style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
         this.renderPath(ctx, true)
         ctx.strokeStyle = '#bfa'
         ctx.setLineDash([1, 1])
@@ -208,7 +205,7 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
 
         // 渲染所有文字元素
         for (const textElement of this.texts) {
-            textElement.render(ctx)
+            textElement.render(ctx, style)
         }
         ctx.restore()
     }
@@ -223,7 +220,6 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         const newParagraph = new TextParagraph(
             texts,
             this.options.copy(),
-            this.style.copy()
         )
         // 如果原对象已经布局，则设置position
         if (this.isLayouted) {
@@ -251,7 +247,6 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
             type: this.type,
             texts: this.texts.map(t => t.toJSON()),
             options: this.options.toJSON(),
-            style: this.style.toJSON(),
         }
     }
 
@@ -265,7 +260,6 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         const paragraph = new TextParagraph(
             texts,
             ParagraphOptions.fromJSON(data.options),
-            Style.fromJSON(data.style),
         )
         paragraph.id = data.id
         return paragraph
@@ -320,13 +314,13 @@ export function isTextParagraphContent(
 
     // 检查最后一个元素是否是 NonPrintableTextElement
     const lastElement = content[content.length - 1]
-    if (!isGraphType(lastElement, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT)) {
+    if (!isGraphType(lastElement, GraphType.NONPRINTABLE_TEXTELEMENT)) {
         return false
     }
 
     // 检查前面的所有元素（如果有）是否是 PrintableTextElement
     for (let i = 0; i < content.length - 1; i++) {
-        if (!isGraphType(content[i], GRAPHTYPE.PRINTABLE_TEXTELEMENT)) {
+        if (!isGraphType(content[i], GraphType.PRINTABLE_TEXTELEMENT)) {
             return false
         }
     }

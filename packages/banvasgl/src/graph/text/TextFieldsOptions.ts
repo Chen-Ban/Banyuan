@@ -1,4 +1,4 @@
-import { VERTICALALIGN } from '@/foundation/constants'
+import { VerticalAlign } from '@/foundation/constants'
 
 /**
  * 文本域选项类
@@ -6,7 +6,7 @@ import { VERTICALALIGN } from '@/foundation/constants'
  */
 export default class TextFieldsOptions {
     /** 垂直对齐方式 */
-    public verticalAlign: VERTICALALIGN
+    public verticalAlign: VerticalAlign
     /** 段落间距 */
     public paragraphSpacing: number
     /** 固定宽度 */
@@ -15,7 +15,7 @@ export default class TextFieldsOptions {
     public fixedHeight: boolean
 
     constructor(options: Partial<TextFieldsOptions>) {
-        this.verticalAlign = options.verticalAlign ?? VERTICALALIGN.TOP
+        this.verticalAlign = options.verticalAlign ?? VerticalAlign.TOP
         this.paragraphSpacing = options.paragraphSpacing ?? 0
         this.fixedWidth = options.fixedWidth ?? true
         this.fixedHeight = options.fixedHeight ?? false
@@ -71,7 +71,7 @@ export default class TextFieldsOptions {
      */
     static center(): TextFieldsOptions {
         return new TextFieldsOptions({
-            verticalAlign: VERTICALALIGN.MIDDLE,
+            verticalAlign: VerticalAlign.MIDDLE,
         })
     }
 
