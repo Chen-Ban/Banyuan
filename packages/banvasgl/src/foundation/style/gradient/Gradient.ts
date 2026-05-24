@@ -1,5 +1,5 @@
 import Color from '../Color.js'
-import { STYLETYPE } from '@/foundation/constants'
+import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types'
 
 export type GradientStop = {
@@ -17,7 +17,7 @@ export type GradientStop = {
  * ```ts
  * // 子类继承 Gradient 并实现抽象方法
  * class MyGradient extends Gradient {
- *   readonly type = STYLETYPE.LINEAR_GRADIENT
+ *   readonly type = StyleType.LINEAR_GRADIENT
  *   createCanvasGradient(ctx, width, height) { ... }
  *   toJSON() { ... }
  *   copy() { ... }
@@ -26,7 +26,7 @@ export type GradientStop = {
  * ```
  */
 export default abstract class Gradient implements ISerializable {
-  abstract readonly type: STYLETYPE
+  abstract readonly type: StyleType
   stops: GradientStop[]
 
   /**

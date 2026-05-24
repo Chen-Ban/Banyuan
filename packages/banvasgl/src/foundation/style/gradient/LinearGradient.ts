@@ -1,6 +1,6 @@
 import Color from '../Color.js'
 import Gradient, { type GradientStop } from './Gradient.js'
-import { STYLETYPE } from '@/foundation/constants'
+import { StyleType } from '@/foundation/constants'
 
 /**
  * 线性渐变
@@ -17,7 +17,7 @@ import { STYLETYPE } from '@/foundation/constants'
  * ```
  */
 export default class LinearGradient extends Gradient {
-  readonly type: STYLETYPE = STYLETYPE.LINEAR_GRADIENT
+  readonly type: StyleType = StyleType.LINEAR_GRADIENT
 
   x0: number
   y0: number

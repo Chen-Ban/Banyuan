@@ -1,6 +1,6 @@
 import Matrix4 from '@/foundation/math/Matrix4'
 import Vector3 from '@/foundation/math/Vector3'
-import { CAMERATYPE } from '@/foundation/constants'
+import { CameraType } from '@/foundation/constants'
 
 export interface BaseCameraOptions {
     position?: [number, number, number]
@@ -9,7 +9,7 @@ export interface BaseCameraOptions {
 }
 
 export default class BaseCamera {
-    public readonly type: CAMERATYPE = CAMERATYPE.BASE
+    public readonly type: CameraType = CameraType.BASE
     protected _position: Vector3
     protected _target: Vector3
     protected _up: Vector3

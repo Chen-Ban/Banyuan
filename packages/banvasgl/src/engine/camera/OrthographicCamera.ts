@@ -1,7 +1,7 @@
 import BaseCamera, { BaseCameraOptions } from './BaseCamera'
 import Matrix4 from '@/foundation/math/Matrix4'
 import Vector3 from '@/foundation/math/Vector3'
-import { CAMERATYPE } from '@/foundation/constants'
+import { CameraType } from '@/foundation/constants'
 
 export interface OrthographicCameraOptions extends BaseCameraOptions {
     left?: number
@@ -14,7 +14,7 @@ export interface OrthographicCameraOptions extends BaseCameraOptions {
 }
 
 export default class OrthographicCamera extends BaseCamera {
-    public readonly type: CAMERATYPE = CAMERATYPE.ORTHOGRAPHIC
+    public readonly type: CameraType = CameraType.ORTHOGRAPHIC
     private _left: number
     private _right: number
     private _bottom: number

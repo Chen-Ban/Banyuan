@@ -25,7 +25,7 @@ export interface VideoSize {
   height: number
 }
 
-import { STYLETYPE } from '@/foundation/constants'
+import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types'
 
 /**
@@ -42,7 +42,7 @@ import type { ISerializable } from '@/types'
  * ```
  */
 export default class Video implements ISerializable {
-  public readonly type: STYLETYPE = STYLETYPE.VIDEO_PATTERN;
+  public readonly type: StyleType = StyleType.VIDEO_PATTERN;
   src: string | null
   size: VideoSize | null
   repeat: VideoRepeat

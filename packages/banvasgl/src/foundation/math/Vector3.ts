@@ -1,4 +1,4 @@
-import { MATHTYPE } from "@/foundation/constants";
+import { MathType } from "@/foundation/constants";
 import type { ISerializable } from "@/types";
 
 /**
@@ -16,7 +16,7 @@ import type { ISerializable } from "@/types";
  * ```
  */
 export default class Vector3 implements ISerializable {
-  public readonly type: MATHTYPE = MATHTYPE.VECTOR3;
+  public readonly type: MathType = MathType.VECTOR3;
   private transform: Float32Array;
   /**
    * 构造三维向量

@@ -1,5 +1,5 @@
 import Gradient, { type GradientStop } from './Gradient.js'
-import { STYLETYPE } from '@/foundation/constants'
+import { StyleType } from '@/foundation/constants'
 
 /**
  * 圆锥渐变（角度渐变）
@@ -17,7 +17,7 @@ import { STYLETYPE } from '@/foundation/constants'
  * ```
  */
 export default class ConicGradient extends Gradient {
-  readonly type: STYLETYPE = STYLETYPE.CONIC_GRADIENT
+  readonly type: StyleType = StyleType.CONIC_GRADIENT
 
   /** 起始角度（弧度） */
   angle: number

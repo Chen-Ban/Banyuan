@@ -1,7 +1,7 @@
 import Color from "./Color";
 import { LinearGradient, RadialGradient, ConicGradient } from "./gradient/index";
 import Image from "./Image";
-import { STYLETYPE } from '@/foundation/constants';
+import { StyleType } from '@/foundation/constants';
 import type { ISerializable } from '@/types';
 
 /** 填充类型枚举：纯色、三种渐变、图片图案 */
@@ -27,7 +27,7 @@ export type FillType = "color" | "linearGradient" | "radialGradient" | "conicGra
  * ```
  */
 export default class FillStyle implements ISerializable {
-  public readonly type: STYLETYPE = STYLETYPE.FILL_STYLE;
+  public readonly type: StyleType = StyleType.FILL_STYLE;
   fillType: FillType;
   color: Color;
   linearGradient: LinearGradient | null;

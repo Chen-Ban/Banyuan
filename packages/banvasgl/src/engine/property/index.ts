@@ -162,10 +162,10 @@ export const adapterRegistry = new PropertyAdapterRegistry({
 // ========== 属性列表常量 ==========
 
 /** 空间属性列表（x/y/rotation → matrix） */
-export const SPATIAL_PROPERTIES = adapterRegistry.getProperties('spatial')
+export const SpatialProperties = adapterRegistry.getProperties('spatial')
 
 /** 尺寸属性列表（width/height/scaleX/scaleY → viewport） */
-export const SIZE_PROPERTIES = adapterRegistry.getProperties('size')
+export const SizeProperties = adapterRegistry.getProperties('size')
 
 // ========== 角度转换工具 ==========
 

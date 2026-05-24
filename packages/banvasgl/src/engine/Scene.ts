@@ -13,7 +13,8 @@ import {
 import { ISerializable, isCombinedView, type ISceneLifetimes, type IView, type FlowSchema } from "@/types";
 import { getSchemaRunner } from "@/engine/SchemaRunner";
 import { AnimationDescriptor, AnimationManager } from "@/engine/animation";
-import { SCENETYPE } from "@/foundation/constants";
+import AnimationAddon from "@/view/addon/AnimationAddon";
+import { SceneType } from "@/foundation/constants";
 import { SnapAlignManager } from "./operations/snap";
 import Serializer from "@/engine/Serializer";
 import CombinedView from "@/view/CombinedViews";
@@ -28,7 +29,7 @@ export interface SceneOptions {
 
 export default class Scene implements ISerializable {
   // 基本属性
-  public readonly type: SCENETYPE = SCENETYPE.SCENE;
+  public readonly type: SceneType = SceneType.SCENE;
   public id: string = "";
   public name: string = "";
   public children: View[] = [];
@@ -222,11 +223,15 @@ export default class Scene implements ISerializable {
       console.warn(`[Scene] playAnimation: 找不到 View "${viewId}"`);
       return false;
     }
+    // 确保目标 View 已挂载 AnimationAddon
+    if (!view.animation) {
+      view.animation = new AnimationAddon(view);
+    }
     if (anim.isActive) {
       anim.cancel();
     }
     anim.play();
-    AnimationManager.getInstance().add(anim, view);
+    AnimationManager.getInstance().add(anim, view.animation);
     return true;
   }
 

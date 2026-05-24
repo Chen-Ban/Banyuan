@@ -2,18 +2,18 @@
  * 图形基元类型枚举
  *
  * 标识 BanvasGL 中所有图形基元的类型，用于 Serializer 注册和 type 字段判断。
- * 每个 Graph 子类通过 type 属性持有对应的 GRAPHTYPE 值。
+ * 每个 Graph 子类通过 type 属性持有对应的 GraphType 值。
  *
  * @example
  * ```ts
- * import { GRAPHTYPE } from '@banyuan/banvasgl'
+ * import { GraphType } from '@banyuan/banvasgl'
  *
- * if (graph.type === GRAPHTYPE.RECTANGLE) {
+ * if (graph.type === GraphType.RECTANGLE) {
  *   // 处理矩形图形
  * }
  * ```
  */
-export enum GRAPHTYPE {
+export enum GraphType {
     GRAPH = 'GRAPH',
     ANALYTICGRAPH = 'ANALYTICGRAPH',
     DENSETRAJECTORY = 'DENSETRAJECTORY',
@@ -47,7 +47,7 @@ export enum GRAPHTYPE {
  * 视图类型标识
  *
  * 使用 string 而非 enum，允许业务层通过 ViewRegistry 动态注册自定义视图类型。
- * 内置类型定义在 VIEWTYPE 常量对象中，自定义类型可为任意字符串。
+ * 内置类型定义在 ViewType 常量对象中，自定义类型可为任意字符串。
  *
  * @example
  * ```ts
@@ -65,14 +65,14 @@ export type ViewType = string
  *
  * @example
  * ```ts
- * import { VIEWTYPE } from '@banyuan/banvasgl'
+ * import { ViewType } from '@banyuan/banvasgl'
  *
- * if (view.viewType === VIEWTYPE.TEXTVIEW) {
+ * if (view.viewType === ViewType.TEXTVIEW) {
  *   // 处理文本视图
  * }
  * ```
  */
-export const VIEWTYPE = {
+export const ViewType = {
     VIEW: 'VIEW',
     TEXTVIEW: 'TEXTVIEW',
     GRAPHVIEW: 'GRAPHVIEW',
@@ -93,14 +93,14 @@ export const VIEWTYPE = {
  *
  * @example
  * ```ts
- * import { MATHTYPE } from '@banyuan/banvasgl'
+ * import { MathType } from '@banyuan/banvasgl'
  *
- * if (obj.type === MATHTYPE.POINT3) {
+ * if (obj.type === MathType.POINT3) {
  *   const point = obj as Point3
  * }
  * ```
  */
-export enum MATHTYPE {
+export enum MathType {
     POINT3 = 'POINT3',
     VECTOR3 = 'VECTOR3',
     MATRIX4 = 'MATRIX4',
@@ -115,19 +115,19 @@ export enum MATHTYPE {
  *
  * @example
  * ```ts
- * import { STYLETYPE } from '@banyuan/banvasgl'
+ * import { StyleType } from '@banyuan/banvasgl'
  *
  * switch (styleObj.type) {
- *   case STYLETYPE.COLOR:
+ *   case StyleType.COLOR:
  *     // 处理纯色
  *     break
- *   case STYLETYPE.LINEAR_GRADIENT:
+ *   case StyleType.LINEAR_GRADIENT:
  *     // 处理线性渐变
  *     break
  * }
  * ```
  */
-export enum STYLETYPE {
+export enum StyleType {
     COLOR = 'COLOR',
     LINEAR_GRADIENT = 'LINEAR_GRADIENT',
     RADIAL_GRADIENT = 'RADIAL_GRADIENT',
@@ -147,12 +147,12 @@ export enum STYLETYPE {
  *
  * @example
  * ```ts
- * if (obj.type === SCENETYPE.SCENE) {
+ * if (obj.type === SceneType.SCENE) {
  *   // 处理场景对象
  * }
  * ```
  */
-export enum SCENETYPE {
+export enum SceneType {
     SCENE = 'SCENE',
 }
 
@@ -163,15 +163,15 @@ export enum SCENETYPE {
  *
  * @example
  * ```ts
- * import { CAMERATYPE } from '@banyuan/banvasgl'
+ * import { CameraType } from '@banyuan/banvasgl'
  *
  * const camera = scene.getCamera()
- * if (camera.type === CAMERATYPE.ORTHOGRAPHIC) {
+ * if (camera.type === CameraType.ORTHOGRAPHIC) {
  *   // 正交投影模式
  * }
  * ```
  */
-export enum CAMERATYPE {
+export enum CameraType {
     BASE = 'BASE_CAMERA',
     ORTHOGRAPHIC = 'ORTHOGRAPHIC_CAMERA',
     PERSPECTIVE = 'PERSPECTIVE_CAMERA',
@@ -185,17 +185,18 @@ export enum CAMERATYPE {
  *
  * @example
  * ```ts
- * import { ADDONTYPE } from '@banyuan/banvasgl'
+ * import { AddonType } from '@banyuan/banvasgl'
  *
- * if (addon.type === ADDONTYPE.BOUNDING_BOX) {
+ * if (addon.type === AddonType.BOUNDING_BOX) {
  *   // 处理包围盒插件
  * }
  * ```
  */
-export enum ADDONTYPE {
+export enum AddonType {
     BOUNDING_BOX = 'BOUNDING_BOX',
     VERTEX = 'VERTEX',
     BOX_DECORATION = 'BOX_DECORATION',
+    TEXT_SELECTION = 'TEXT_SELECTION',
 }
 
 /**
@@ -205,12 +206,12 @@ export enum ADDONTYPE {
  *
  * @example
  * ```ts
- * import { VERTICALALIGN } from '@banyuan/banvasgl'
+ * import { VerticalAlign } from '@banyuan/banvasgl'
  *
- * textView.setVerticalAlign(VERTICALALIGN.MIDDLE)
+ * textView.setVerticalAlign(VerticalAlign.MIDDLE)
  * ```
  */
-export enum VERTICALALIGN {
+export enum VerticalAlign {
     TOP = 'TOP',
     MIDDLE = 'MIDDLE',
     BOTTOM = 'BOTTOM',
@@ -223,12 +224,12 @@ export enum VERTICALALIGN {
  *
  * @example
  * ```ts
- * import { HORIZONTALALIGN } from '@banyuan/banvasgl'
+ * import { HorizontalAlign } from '@banyuan/banvasgl'
  *
- * textView.setHorizontalAlign(HORIZONTALALIGN.CENTER)
+ * textView.setHorizontalAlign(HorizontalAlign.CENTER)
  * ```
  */
-export enum HORIZONTALALIGN {
+export enum HorizontalAlign {
     LEFT = 'LEFT',
     CENTER = 'CENTER',
     RIGHT = 'RIGHT',
