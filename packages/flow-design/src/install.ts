@@ -7,7 +7,7 @@
  */
 
 import { registerViewFactories } from '@banyuan/banvasgl'
-import { FLOW_VIEWTYPE } from './constants.js'
+import { FlowViewType } from './constants.js'
 import NodeView from './views/NodeView.js'
 import EdgeView from './views/EdgeView.js'
 import PortView from './views/PortView.js'
@@ -20,8 +20,8 @@ import PortView from './views/PortView.js'
  */
 export function installFlowViews(): void {
     registerViewFactories([
-        [FLOW_VIEWTYPE.NODEVIEW, (opts) => new NodeView(opts)],
-        [FLOW_VIEWTYPE.EDGEVIEW, (opts) => new EdgeView(opts)],
-        [FLOW_VIEWTYPE.PORTVIEW, (opts) => new PortView(opts)],
+        [FlowViewType.NODEVIEW, (opts) => new NodeView(opts)],
+        [FlowViewType.EDGEVIEW, (opts) => new EdgeView(opts)],
+        [FlowViewType.PORTVIEW, (opts) => new PortView(opts)],
     ])
 }

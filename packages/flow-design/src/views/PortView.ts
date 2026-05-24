@@ -6,18 +6,18 @@ import {
     Circle,
     Bounds,
 } from '@banyuan/banvasgl'
-import { FLOW_VIEWTYPE } from '../constants.js'
+import { FlowViewType } from '../constants.js'
 import type {
     IPortView,
     PortDirection,
-    InteractResult,
-    ViewOptions,
+    IInteractResult,
+    IViewOptions,
 } from '@banyuan/banvasgl'
 
 // 端口圆形半径（逻辑像素）
 const PORT_RADIUS = 8
 
-export interface PortViewOptions extends ViewOptions {
+export interface PortViewOptions extends IViewOptions {
     portDirection: PortDirection
     /** 该端口允许的最大连线数（默认 1，Infinity 表示无限制） */
     maxConnections?: number
@@ -30,7 +30,7 @@ export interface PortViewOptions extends ViewOptions {
  * 通常作为 NodeView 的 child，由 NodeView 构造时自动布局。
  */
 export default class PortView extends View implements IPortView {
-    public readonly type = FLOW_VIEWTYPE.PORTVIEW
+    public readonly type = FlowViewType.PORTVIEW
     public portDirection: PortDirection
     /** 该端口允许的最大连线数 */
     public maxConnections: number
@@ -69,7 +69,7 @@ export default class PortView extends View implements IPortView {
     /**
      * 命中端口时返回 ConnectData，触发连线交互
      */
-    protected interactContent(point: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
+    protected interactContent(point: Point3, bufferCtx?: CanvasRenderingContext2D): IInteractResult {
         if (!this.content) return { view: null, content: null, extraData: null }
         const hit =
             this.content.isPointInPath(point, bufferCtx) ||

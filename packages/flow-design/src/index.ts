@@ -9,7 +9,7 @@
  */
 
 // ── Constants ──
-export { FLOW_VIEWTYPE } from './constants.js'
+export { FlowViewType } from './constants.js'
 
 // ── Views ──
 export { NodeView, PortView, EdgeView } from './views/index.js'

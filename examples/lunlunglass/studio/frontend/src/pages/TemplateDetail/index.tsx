@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDesignBanvas } from "@banyuan/banvasgl";
-import { VIEWTYPE } from "@banyuan/banvasgl";
+import { ViewType } from "@banyuan/banvasgl";
 import { message, Modal, Button } from "antd";
 import { templateApi } from "@/api";
 import type { IPrintField } from "@/api";
@@ -232,7 +232,7 @@ const printComponents = useMemo(
       for (const page of pages) {
         const collectFields = (nodes: typeof page.children) => {
           for (const node of nodes) {
-            if (node.type === VIEWTYPE.TEXTVIEW) {
+            if (node.type === ViewType.TEXTVIEW) {
               const viewInstance = actions.view.getViewInstance(node.id);
               if (viewInstance) {
                 const fieldKeySchema = viewInstance.data?.fieldKey;

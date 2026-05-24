@@ -6,7 +6,7 @@ import {
   SelectBoxView,
   Action,
   Cursor,
-  GRAPHTYPE,
+  GraphType,
   isTextView,
   isSelectBoxView,
   isGraphType,
@@ -251,8 +251,8 @@ export function useCanvasEvents({
           const isTextEditTarget =
             isTextView(indicateView) &&
             indicateContent !== null &&
-            (isGraphType(indicateContent as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) ||
-              isGraphType(indicateContent as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT));
+            (isGraphType(indicateContent as any, GraphType.PRINTABLE_TEXTELEMENT) ||
+              isGraphType(indicateContent as any, GraphType.NONPRINTABLE_TEXTELEMENT));
 
           if (isTextEditTarget && isTextView(indicateView)) {
             const fixedIndex = indicateView.element2Index(
@@ -379,8 +379,8 @@ export function useCanvasEvents({
         if (
           isTextView(indicateViewRef.current) &&
           indicateContentRef.current !== null &&
-          (isGraphType(indicateContentRef.current as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) ||
-            isGraphType(indicateContentRef.current as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT))
+          (isGraphType(indicateContentRef.current as any, GraphType.PRINTABLE_TEXTELEMENT) ||
+            isGraphType(indicateContentRef.current as any, GraphType.NONPRINTABLE_TEXTELEMENT))
         ) {
           // 双击选中一整行（可扩展）
         }

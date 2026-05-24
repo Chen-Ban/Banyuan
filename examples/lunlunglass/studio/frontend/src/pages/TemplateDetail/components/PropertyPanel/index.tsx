@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { InputNumber, Radio, Tabs } from 'antd'
 import type { IBanvasActions, IPageNode } from '@banyuan/banvasgl'
-import { VIEWTYPE } from '@banyuan/banvasgl'
+import { ViewType } from '@banyuan/banvasgl'
 import PropertiesTab from './PropertiesTab'
 import StyleTab from './StyleTab'
 import DataTab from './DataTab'
@@ -134,7 +134,7 @@ const PropertyPanel: React.FC<PropertyPanelProps> = ({
     }
 
     // 仅 TextView 显示字段绑定 Tab
-    const isTextView = view.type === VIEWTYPE.TEXTVIEW
+    const isTextView = view.type === ViewType.TEXTVIEW
 
     const tabItems = [
         {

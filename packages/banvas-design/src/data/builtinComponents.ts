@@ -2,7 +2,7 @@
  * 引擎内置物料列表
  */
 
-import { VIEWTYPE, GRAPHTYPE } from '@banyuan/banvasgl'
+import { ViewType, GraphType } from '@banyuan/banvasgl'
 import type { IComponentDefinition } from '@banyuan/banvasgl'
 
 export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
@@ -18,8 +18,8 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.GRAPHVIEW,
-      graphType: GRAPHTYPE.LINE,
+      viewType: ViewType.GRAPHVIEW,
+      graphType: GraphType.LINE,
       defaultProps: {},
     },
   },
@@ -35,8 +35,8 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.GRAPHVIEW,
-      graphType: GRAPHTYPE.CIRCLE,
+      viewType: ViewType.GRAPHVIEW,
+      graphType: GraphType.CIRCLE,
       defaultProps: { radius: 50 },
     },
   },
@@ -52,8 +52,8 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.GRAPHVIEW,
-      graphType: GRAPHTYPE.ROUNDED_RECT,
+      viewType: ViewType.GRAPHVIEW,
+      graphType: GraphType.ROUNDED_RECT,
       defaultProps: { width: 100, height: 100, radii: 12 },
     },
   },
@@ -69,7 +69,7 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.TEXTVIEW,
+      viewType: ViewType.TEXTVIEW,
       defaultProps: { text: '文本' },
     },
   },
@@ -87,7 +87,7 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.IMAGEVIEW,
+      viewType: ViewType.IMAGEVIEW,
       defaultProps: {
         imageSrc: 'https://picsum.photos/200/300',
         width: 200,
@@ -107,8 +107,8 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.GRAPHVIEW,
-      graphType: GRAPHTYPE.CUBIC_BEZIER,
+      viewType: ViewType.GRAPHVIEW,
+      graphType: GraphType.CUBIC_BEZIER,
       defaultProps: { length: 120 },
     },
   },
@@ -124,8 +124,8 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.GRAPHVIEW,
-      graphType: GRAPHTYPE.QUADRATIC_BEZIER,
+      viewType: ViewType.GRAPHVIEW,
+      graphType: GraphType.QUADRATIC_BEZIER,
       defaultProps: { length: 120 },
     },
   },
@@ -141,8 +141,8 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.GRAPHVIEW,
-      graphType: GRAPHTYPE.TRIANGLE,
+      viewType: ViewType.GRAPHVIEW,
+      graphType: GraphType.TRIANGLE,
       defaultProps: { size: 100 },
     },
   },
@@ -158,8 +158,8 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.GRAPHVIEW,
-      graphType: GRAPHTYPE.REGULAR_POLYGON,
+      viewType: ViewType.GRAPHVIEW,
+      graphType: GraphType.REGULAR_POLYGON,
       defaultProps: { radius: 50, sides: 6 },
     },
   },
@@ -175,8 +175,8 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.GRAPHVIEW,
-      graphType: GRAPHTYPE.ARC,
+      viewType: ViewType.GRAPHVIEW,
+      graphType: GraphType.ARC,
       defaultProps: { radius: 50 },
     },
   },
@@ -194,7 +194,7 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.FLEXVIEW,
+      viewType: ViewType.FLEXVIEW,
       defaultProps: { width: 300, height: 100 },
     },
   },
@@ -212,7 +212,7 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.INPUT,
+      viewType: ViewType.INPUT,
       defaultProps: { text: '' },
     },
   },
@@ -229,7 +229,7 @@ export const BUILTIN_COMPONENTS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: VIEWTYPE.VIDEOVIEW,
+      viewType: ViewType.VIDEOVIEW,
       defaultProps: { videoSrc: '', width: 320, height: 180 },
     },
   },

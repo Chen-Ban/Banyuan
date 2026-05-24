@@ -4,7 +4,7 @@ import {
   Point3,
   Action,
   Cursor,
-  GRAPHTYPE,
+  GraphType,
   isTextView,
   isSelectBoxView,
   isGraphType,
@@ -145,8 +145,8 @@ export class InteractionDispatcher {
     if (
       isTextView(indicateView) &&
       indicateContent !== null &&
-      (isGraphType(indicateContent as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) ||
-        isGraphType(indicateContent as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT))
+      (isGraphType(indicateContent as any, GraphType.PRINTABLE_TEXTELEMENT) ||
+        isGraphType(indicateContent as any, GraphType.NONPRINTABLE_TEXTELEMENT))
     ) {
       if (!indicateView.actived) {
         scene.select(indicateView as unknown as View);
@@ -162,8 +162,8 @@ export class InteractionDispatcher {
       let targetPoint = point;
 
       if (
-        !isGraphType(content as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) &&
-        !isGraphType(content as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT)
+        !isGraphType(content as any, GraphType.PRINTABLE_TEXTELEMENT) &&
+        !isGraphType(content as any, GraphType.NONPRINTABLE_TEXTELEMENT)
       ) {
         const relativePoint = indicateView
           .getMVPMatrix()
@@ -176,8 +176,8 @@ export class InteractionDispatcher {
       }
 
       if (
-        isGraphType(targetContent as any, GRAPHTYPE.PRINTABLE_TEXTELEMENT) ||
-        isGraphType(targetContent as any, GRAPHTYPE.NONPRINTABLE_TEXTELEMENT)
+        isGraphType(targetContent as any, GraphType.PRINTABLE_TEXTELEMENT) ||
+        isGraphType(targetContent as any, GraphType.NONPRINTABLE_TEXTELEMENT)
       ) {
         const dynamicIndex = indicateView.element2Index(
           targetContent as any,
