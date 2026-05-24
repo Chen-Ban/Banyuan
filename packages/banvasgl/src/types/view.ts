@@ -10,12 +10,17 @@
  *   - IView / ISceneNode 定义在此文件中，作为唯一来源
  */
 
-import { VIEWTYPE, ADDONTYPE } from '@/foundation/constants'
-import type { ViewType } from '@/foundation/constants'
+import { ViewType, AddonType } from '@/foundation/constants'
 import type { Matrix4, Point3, Vector3 } from '@/foundation/math'
 import type Bounds from '@/graph/base/Bounds'
 import type { Line, Rectangle, Circle } from '@/graph'
 import type { IGraph, ITextElement, ITextFields, TextIndex } from './graph'
+import type { LinearGradient, RadialGradient, ConicGradient } from '@/foundation/style/gradient/index'
+import type Image from '@/foundation/style/Image'
+// IViewStyle、IComputedStyle 及辅助类型（IFillStyleOptions 等）已迁移到 ./style.ts。
+// 此处 import 供文件内部使用，同时 re-export 维持 types/index.ts 导出链。
+import type { IComputedStyle, IViewStyle } from './style'
+export type { IComputedStyle, IViewStyle, IFillStyleOptions, IStrokeStyleOptions, IShadowStyleOptions, TransformOriginKeyword, TransformOrigin } from './style'
 
 // ────────────────────────────────────────────
 //  IFieldSchema —— data 的字段定义
@@ -195,11 +200,8 @@ export interface IView {
     freezed: boolean
     visible: boolean
 
-    // 样式与滚动
+    // 样式
     style: IViewStyle
-    scrollOffset: { x: number; y: number }
-    scrollBarHorization: Rectangle | null
-    scrollBarVertical: Rectangle | null
 
     // 布局与渲染
     layoutContent(ctx?: CanvasRenderingContext2D): Bounds
@@ -270,17 +272,61 @@ export interface ISceneNode {
 //  Addon 接口（从 addon 模块提升到此处避免循环）
 // ────────────────────────────────────────────
 
-/** Addon 基础接口 —— 所有 addon 共有的契约 */
+/**
+ * Addon 职责标识
+ *
+ * 每个 addon 通过 capabilities 声明自己参与哪些管线：
+ * - RENDER：参与渲染管线（renderPlugins 阶段调用 render()）
+ * - INTERACT：参与交互管线（interactPlugins 阶段调用 interact()）
+ * - LOGIC：参与逻辑计算（如 BoundingBox 在多选 resize 时提供几何数据，
+ *   但不渲染也不交互）
+ *
+ * 一个 addon 可以同时声明多个职责，管线根据 capabilities 决定是否调用对应方法。
+ * 这避免了管线空跑（调用 render/interact 后 early return）的性能浪费，
+ * 也让 addon 的设计意图在代码层面自文档化。
+ */
+export enum AddonCapability {
+    /** 参与渲染管线 —— renderPlugins 阶段调用 render() */
+    RENDER = 'RENDER',
+    /** 参与交互管线 —— interactPlugins 阶段调用 interact() */
+    INTERACT = 'INTERACT',
+    /** 参与逻辑计算 —— 不渲染不交互，仅提供数据/计算能力 */
+    LOGIC = 'LOGIC',
+}
+
+/**
+ * Addon 基础接口 —— 所有 addon 共有的契约
+ *
+ * 设计原则：
+ * - capabilities 声明职责，管线据此决定调度策略
+ * - priority 决定同管线内多个 addon 的执行顺序（数值越小越先执行）
+ * - render/interact 方法仅在 capabilities 包含对应职责时被管线调用
+ */
 export interface IAddonBase {
-    readonly type: ADDONTYPE
+    readonly type: AddonType
+    /** addon 职责声明，管线据此决定是否调用 render/interact */
+    readonly capabilities: readonly AddonCapability[]
+    /** 管线内执行优先级（数值越小越先执行，默认 0） */
+    readonly priority: number
     render(ctx: CanvasRenderingContext2D): void
     copy(): IAddonBase
-    interact(p: Point3): ExtraData | null
+    interact(p: Point3, bufferCtx?: CanvasRenderingContext2D): ExtraData | null
+}
+
+/** TextSelectionAddon 的公共接口 */
+export interface ITextSelectionAddon extends IAddonBase {
+    readonly type: AddonType.TEXT_SELECTION
+    readonly selection: ITextSelection
+    cursorOpacity: number
+    setSelection(fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void
+    computeSelectionBoxes(): void
+    stopCursorAnimation(): void
+    copy(): ITextSelectionAddon
 }
 
 /** BoundingBoxAddon 的公共接口 */
 export interface IBoundingBoxAddon extends IAddonBase {
-    readonly type: ADDONTYPE.BOUNDING_BOX
+    readonly type: AddonType.BOUNDING_BOX
     region: Rectangle
     handles: Rectangle[]
     rotate: [Line, Circle]
@@ -291,7 +337,7 @@ export interface IBoundingBoxAddon extends IAddonBase {
 
 /** VertexAddon 的公共接口 */
 export interface IVertexAddon extends IAddonBase {
-    readonly type: ADDONTYPE.VERTEX
+    readonly type: AddonType.VERTEX
     vertices: Point3[]
     activeVertex: Point3 | null
     isEditing: boolean
@@ -305,32 +351,66 @@ export interface IVertexAddon extends IAddonBase {
     copy(): IVertexAddon
 }
 
+/** BoxDecoration 构造选项 —— 纯数据接口（用户传入的原始装饰参数） */
+export interface IBoxDecorationOptions {
+    backgroundColor?: string
+    borderWidth?: number
+    borderColor?: string
+    borderRadius?: number | [number, number, number, number]
+    clipContent?: boolean
+    opacity?: number
+}
+
 /**
  * BoxDecorationAddon 的公共接口
  *
- * 视觉装饰插件，为任意 View 提供背景、边框、圆角、裁剪能力。
- * 对标 Flutter 的 BoxDecoration，与布局策略正交。
+ * 样式层核心插件：持有 rawStyle（用户原始值）和 computedStyle（计算值），
+ * 所有渲染与业务逻辑均读取 computedStyle，原始值仅在 compute() 调用时消费。
+ *
+ * 职责：
+ * 1. 视觉装饰渲染（背景/边框/圆角/裁剪）—— 容器装饰域
+ * 2. 滚动条渲染（overflow=scroll 时）—— 布局域派生
+ * 3. 维护 computedStyle，包括 scrollOffset 运行时状态和图形绘制域实例
+ * 4. 提供 compute() 方法，在每次 layout 末尾将 rawStyle → computedStyle
+ *
+ * compute() 的三域处理：
+ * - 布局域：解析 overflow，计算 scrollOffset（clamp）
+ * - 容器装饰域：直通 decoration 字段（归一化 borderRadius）
+ * - 图形绘制域：将 IFillStyleOptions / IStrokeStyleOptions / IShadowStyleOptions
+ *   实例化为 FillStyle / StrokeStyle / ShadowStyle；未设置时写入 null，
+ *   Graph.render() 看到 null 则使用自身内置默认样式。
  */
 export interface IBoxDecorationAddon {
-    readonly type: ADDONTYPE.BOX_DECORATION
-    backgroundColor: string
-    borderWidth: number
-    borderColor: string
-    borderRadius: number | [number, number, number, number]
-    clipContent: boolean
-    opacity: number
+    readonly type: AddonType.BOX_DECORATION
+    readonly capabilities: readonly AddonCapability[]
+    readonly priority: number
+    /** 装饰原始配置（用户传入值，序列化来源） */
+    decoration: IBoxDecorationOptions
+    /** 计算样式（渲染和逻辑的唯一数据源） */
+    readonly computedStyle: IComputedStyle
     /** 渲染背景填充和边框（在 content 之前调用） */
     renderBackground(ctx: CanvasRenderingContext2D, viewport: Bounds): void
-    /** 构建圆角裁剪路径（clipContent = true 时使用） */
+    /** 渲染滚动条（在 renderPlugins 管线中调用） */
+    renderScrollBars(ctx: CanvasRenderingContext2D): void
+    /** 构建圆角裁剪路径（computedStyle.clipContent = true 时使用） */
     buildClipPath(ctx: CanvasRenderingContext2D, viewport: Bounds): void
-    /** 所有属性是否为默认值（是则跳过渲染） */
-    isDefault(): boolean
+    /** 装饰层是否有视觉效果（false 时 renderBackground 零开销跳过） */
+    hasDecoration(): boolean
+    /**
+     * 将 rawStyle 计算为 computedStyle，同时更新 scrollOffset 和图形绘制域实例。
+     * 在每次 layout() 末尾由 View 调用。
+     *
+     * @param rawStyle   用户原始样式（IViewStyle，三域合一）
+     * @param viewport   View 当前视口
+     * @param layoutArea View 当前布局区域
+     */
+    compute(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void
     copy(): IBoxDecorationAddon
     toJSON(): any
 }
 
 /** Addon 判别联合 —— 通过 type 字段收窄 */
-export type IViewAddon = IBoundingBoxAddon | IVertexAddon | IBoxDecorationAddon
+export type IViewAddon = IBoundingBoxAddon | IVertexAddon | IBoxDecorationAddon | ITextSelectionAddon
 
 // ────────────────────────────────────────────
 //  交互类型
@@ -479,45 +559,56 @@ export interface IInteractResult {
     extraData: ExtraData | null
 }
 
-/**
- * 变换原点关键字
- *
- * 相对于 viewport 的预设位置：
- * - 'center': 视口中心（默认值）
- * - 'topLeft': 视口左上角
- * - 'top': 视口上边中点
- * - 'topRight': 视口右上角
- * - 'left': 视口左边中点
- * - 'right': 视口右边中点
- * - 'bottomLeft': 视口左下角
- * - 'bottom': 视口下边中点
- * - 'bottomRight': 视口右下角
- */
-export type TransformOriginKeyword =
-    | 'center'
-    | 'topLeft'
-    | 'top'
-    | 'topRight'
-    | 'left'
-    | 'right'
-    | 'bottomLeft'
-    | 'bottom'
-    | 'bottomRight'
-
-/** 变换原点：可以是关键字或自定义坐标点 */
-export type TransformOrigin = TransformOriginKeyword | Point3
-
-/** 视图样式 */
-export interface IViewStyle {
-    width?: number
-    height?: number
-    overflow?: 'visible' | 'hidden' | 'scroll'
-    scrollX?: number
-    scrollY?: number
-    /** 变换原点，默认为 'center'（视口中心） */
-    transformOrigin?: TransformOrigin
-    needStructViewport?: boolean
+/** View 构造选项 —— 纯数据接口，不依赖具体 View 类 */
+export interface IViewOptions<D extends IFieldSchemaMap = any> {
+    id?: string
+    name?: string
+    content?: IGraph
+    children?: IView[]
+    parent?: ISceneNode | IView
+    data?: D
+    style?: IViewStyle
+    matrix?: Matrix4
+    lifetimes?: Partial<IViewLifetimes>
+    events?: Partial<IViewEvents>
+    decoration?: IBoxDecorationOptions
+    layoutParams?: IFlexLayoutParams
 }
+
+/** ContainerView 构造选项 */
+export interface IContainerViewOptions<D extends IFieldSchemaMap = any> extends IViewOptions<D> {
+    children?: IView[]
+}
+
+/** GraphView 构造选项（content 由构造函数单独传入） */
+export interface IGraphViewOptions extends Omit<IViewOptions, 'content'> {}
+
+/** SelectBoxView 构造选项 */
+export interface ISelectBoxViewOptions extends IGraphViewOptions {}
+
+/** ImageView 构造选项（content 由构造函数单独传入） */
+export interface IImageViewOptions extends Omit<IViewOptions, 'content'> {}
+
+/** VideoView 构造选项（content 由构造函数单独传入） */
+export interface IVideoViewOptions extends Omit<IViewOptions, 'content'> {}
+
+/** TextView 构造选项（content 由构造函数单独传入） */
+export interface ITextViewOptions extends Omit<IViewOptions, 'content'> {
+    editable?: boolean
+    verticalAlign?: string
+}
+
+/** Input 构造选项 */
+export interface IInputOptions extends ITextViewOptions {}
+
+/** FlexView 构造选项 */
+export interface IFlexViewOptions extends IContainerViewOptions {
+    flexStyle?: Partial<IFlexStyle>
+}
+
+// TransformOriginKeyword、TransformOrigin、IFillStyleOptions、IStrokeStyleOptions、
+// IShadowStyleOptions、IViewStyle、IComputedStyle 已迁移到 ./style.ts，
+// 顶部已 re-export，外部消费者行为不变。
 
 // ────────────────────────────────────────────
 //  具体 View 接口
@@ -541,8 +632,8 @@ export interface IImageView extends IView {}
 /** VideoView 接口 */
 export interface IVideoView extends IView {}
 
-/** Selection 公共接口 */
-export interface ISelection {
+/** TextSelection 公共接口 */
+export interface ITextSelection {
     fixedIndex: TextIndex | undefined
     dynamicIndex: TextIndex | undefined
     readonly isSelection: boolean
@@ -552,7 +643,7 @@ export interface ISelection {
 export interface ITextView extends IView {
     content: ITextFields
     editable: boolean
-    selection: ISelection
+    selection: ITextSelection
 
     // 文本编辑能力
     getContentText(): string[]
@@ -652,22 +743,22 @@ export interface IEdgeView extends IView {
 // ────────────────────────────────────────────
 
 export interface ViewTypeMap {
-    [VIEWTYPE.VIEW]: IView
-    [VIEWTYPE.GRAPHVIEW]: IGraphView & { readonly type: typeof VIEWTYPE.GRAPHVIEW }
-    [VIEWTYPE.SELECTBOXVIEW]: ISelectBoxView & {
-        readonly type: typeof VIEWTYPE.SELECTBOXVIEW
+    [ViewType.VIEW]: IView
+    [ViewType.GRAPHVIEW]: IGraphView & { readonly type: typeof ViewType.GRAPHVIEW }
+    [ViewType.SELECTBOXVIEW]: ISelectBoxView & {
+        readonly type: typeof ViewType.SELECTBOXVIEW
     }
-    [VIEWTYPE.IMAGEVIEW]: IImageView & { readonly type: typeof VIEWTYPE.IMAGEVIEW }
-    [VIEWTYPE.VIDEOVIEW]: IVideoView & { readonly type: typeof VIEWTYPE.VIDEOVIEW }
-    [VIEWTYPE.TEXTVIEW]: ITextView & { readonly type: typeof VIEWTYPE.TEXTVIEW }
-    [VIEWTYPE.COMBINEDVIEW]: ICombinedView & {
-        readonly type: typeof VIEWTYPE.COMBINEDVIEW
+    [ViewType.IMAGEVIEW]: IImageView & { readonly type: typeof ViewType.IMAGEVIEW }
+    [ViewType.VIDEOVIEW]: IVideoView & { readonly type: typeof ViewType.VIDEOVIEW }
+    [ViewType.TEXTVIEW]: ITextView & { readonly type: typeof ViewType.TEXTVIEW }
+    [ViewType.COMBINEDVIEW]: ICombinedView & {
+        readonly type: typeof ViewType.COMBINEDVIEW
     }
-    [VIEWTYPE.INPUT]: IInput & { readonly type: typeof VIEWTYPE.INPUT }
-    [VIEWTYPE.EDITABLETEXT]: ITextView & {
-        readonly type: typeof VIEWTYPE.EDITABLETEXT
+    [ViewType.INPUT]: IInput & { readonly type: typeof ViewType.INPUT }
+    [ViewType.EDITABLETEXT]: ITextView & {
+        readonly type: typeof ViewType.EDITABLETEXT
     }
-    [VIEWTYPE.FLEXVIEW]: IFlexView & {
-        readonly type: typeof VIEWTYPE.FLEXVIEW
+    [ViewType.FLEXVIEW]: IFlexView & {
+        readonly type: typeof ViewType.FLEXVIEW
     }
 }
