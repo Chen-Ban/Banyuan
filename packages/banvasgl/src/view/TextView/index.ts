@@ -1,53 +1,55 @@
-import View, { InteractResult, ViewOptions } from '@/view/View/View'
+import View from '@/view/View/View'
 import TextParagraph from '@/graph/text/TextParagraph'
 import TextElement from '@/graph/text/TextElement'
-import { Rectangle } from '@/graph/combined/Polygon'
 import { Point3, Vector3 } from '@/foundation/math'
+import { Rectangle } from "@/graph/combined/Polygon";
 import { Action, Cursor, ITextView, ISerializable } from '@/types'
-import Selection from './Selection'
-import { VERTICALALIGN, VIEWTYPE } from '@/foundation/constants'
-import type { ViewType } from '@/foundation/constants'
+import type { IInteractResult, ITextViewOptions } from '@/types'
+import TextSelection from '@/view/addon/TextSelection.js'
+import { VerticalAlign, ViewType } from '@/foundation/constants'
 import { generateId, generateName } from '@/foundation/utils'
 import Bounds from '@/graph/base/Bounds'
 import { NonPrintableTextElement, PrintableTextElement } from '@/graph/text/TextElement'
 import TextFields from '@/graph/text/TextFields'
 import type { TextParagraphContent } from '@/graph/text/TextParagraph'
 import { TextIndex } from '@/graph/text/TextFields'
-import type { IAnimationDescriptor } from '@/types'
-
-// 文本视图选项接口
-export interface TextViewOptions extends Omit<ViewOptions, 'content'> {
-    editable?: boolean
-    verticalAlign?: string
-}
+import TextSelectionAddon from '@/view/addon/TextSelectionAddon.js'
 
 /**
  * 文本视图
  */
 export default class TextView extends View implements ITextView, ISerializable {
-    public readonly type: ViewType = VIEWTYPE.TEXTVIEW
+    public readonly type: ViewType = ViewType.TEXTVIEW
 
     public content: TextFields
-    public selection: Selection = new Selection(undefined, undefined)
+    /** 文本选区插件（仅 editable=true 时挂载） */
+    public selectionAddon: TextSelectionAddon | null = null
 
     public editable: boolean
-    public verticalAlign: string = VERTICALALIGN.TOP
+    public verticalAlign: string = VerticalAlign.TOP
     public fixedWidth: boolean = false
 
-    /** 光标闪烁动画描述符，用于在 setSelection 时重置动画 */
-    private _cursorAnimation: IAnimationDescriptor | null = null
-
-    /** 当前光标不透明度（由动画系统驱动，0~1） */
-    public cursorOpacity: number = 1
-
-    constructor(text: TextFields, options: TextViewOptions = {}) {
+    constructor(text: TextFields, options: ITextViewOptions = {}) {
         // 将text作为content传递给父类构造函数
         super({ ...options, content: text })
         this.id = options.id || generateId(this.type)
         this.name = options.name || generateName(this.type)
         this.content = text
-        this.verticalAlign = options?.verticalAlign ?? VERTICALALIGN.TOP
+        this.verticalAlign = options?.verticalAlign ?? VerticalAlign.TOP
         this.editable = options?.editable ?? true
+        // 按需挂载选区插件
+        if (this.editable) {
+            this.selectionAddon = new TextSelectionAddon(this)
+        }
+    }
+
+    /**
+     * 将 TextSelectionAddon 加入 activeAddons 管线。
+     * selectionAddon 声明了 RENDER + LOGIC capability，
+     * 由 renderPlugins 负责调用 render()（光标/选区高亮渲染）。
+     */
+    protected override get activeAddons() {
+        return [...super.activeAddons, this.selectionAddon].filter(Boolean) as import('@/types').IAddonBase[]
     }
 
     public getContentText(): string[] {
@@ -56,9 +58,8 @@ export default class TextView extends View implements ITextView, ISerializable {
 
     public renderContent(ctx: CanvasRenderingContext2D): void {
         super.renderContent(ctx)
-        // 渲染选择区域，光标状态时传入动画驱动的 cursorOpacity
-        const cursorOpacity = (this.getAnimatedValue('cursorOpacity') as number) ?? this.cursorOpacity
-        this.selection.render(ctx, cursorOpacity)
+        // 触发选区矩形计算（布局已完成）；实际渲染由 TextSelectionAddon 在 renderPlugins 管线中完成
+        this.selectionAddon?.computeSelectionBoxes()
     }
 
     /**
@@ -91,7 +92,7 @@ export default class TextView extends View implements ITextView, ISerializable {
      * 未命中文本域时返回 null，让外层回退到 MOVE 等 action。
      * 坐标约束只在拖拽选区阶段（InteractionDispatcher.handleTextSelection）进行。
      */
-    protected interactContent(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D): InteractResult {
+    protected interactContent(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D): IInteractResult {
         // 是否命中文本域
         const hitedFields =
             this.content.isPointInPath(relativePoint, bufferCtx) ||
@@ -124,90 +125,27 @@ export default class TextView extends View implements ITextView, ISerializable {
     }
 
     /**
-     * 设置选择框
-     * @param fixedIndex 固定光标,当第二个为undefined时，代表动态光标
+     * 设置选择意图（纯数据操作），委托给 TextSelectionAddon。
+     * 实际的光标/选区矩形计算延迟到渲染帧布局完成后执行。
+     * @param fixedIndex 固定光标，当第二个为 undefined 时代表动态光标
      * @param dynamicIndex 动态光标
-     * @description 两个都为undefined时，不出现光标
+     * @description 两个都为 undefined 时，不出现光标
      */
     public setSelection(
         fixedIndex: TextIndex | undefined,
         dynamicIndex: TextIndex | undefined
     ): void {
-        const [start, end] = Selection.toDirectionlessIndex(
-            fixedIndex,
-            dynamicIndex
-        )
-        if (!start || !end) {
-            this.selection.setSelectionBoxs([])
-            return
-        }
-
-        const boxs = []
-        // 选中光标
-        if (Selection.isCursor(start, end)) {
-            const textElement =
-                this.content.paragraphs[start[0]].texts[start[1]]
-            const bounds = textElement.bounds
-            const x = start[2] === 0 ? bounds.x - 2 : bounds.x + bounds.width
-            boxs.push(new Rectangle(x, bounds.y, 2, bounds.height))
-        } else {
-            if (start[2] === 1) {
-                start[1]++
-                start[2] = 0
-            }
-            if (end[2] === 1) {
-                end[1]++
-                end[2] = 0
-            }
-            const startPriorityNum = Number(start.join(''))
-            const endPriorityNum = Number(end.join(''))
-
-            // 获取范围内所有rect(范围选中)
-            for (const [i, paragraph] of this.content.paragraphs.entries()) {
-                for (const [j, textElement] of paragraph.texts.entries()) {
-                    const curPriorityNum = Number([i, j, 0].join(''))
-                    if (
-                        curPriorityNum >= startPriorityNum &&
-                        curPriorityNum < endPriorityNum
-                    ) {
-                        const bounds = textElement.bounds
-                        boxs.push(
-                            new Rectangle(
-                                bounds.x,
-                                bounds.y,
-                                bounds.width,
-                                bounds.height
-                            )
-                        )
-                    }
-                }
-            }
-        }
-        this.selection.setSelectionBoxs(boxs)
-
-        this.selection.fixedIndex = fixedIndex
-        this.selection.dynamicIndex = dynamicIndex
-
-        // 光标状态时启动/重置闪烁动画；范围选中或清空时停止动画
-        if (Selection.isCursor(fixedIndex, dynamicIndex)) {
-            // 停止旧动画（如果有），立即重新开始，保证每次定位光标都从不透明开始
-            if (this._cursorAnimation) {
-                this._cursorAnimation.cancel()
-                this._cursorAnimation = null
-            }
-            this.cursorOpacity = 1
-            this._cursorAnimation = this.animate(
-                { to: { cursorOpacity: 0 } },
-                { duration: 530, iterations: Infinity, direction: 'alternate' },
-            )
-        } else {
-            if (this._cursorAnimation) {
-                this._cursorAnimation.cancel()
-                this._cursorAnimation = null
-            }
-            this.cursorOpacity = 1
-        }
+        this.selectionAddon?.setSelection(fixedIndex, dynamicIndex)
     }
+
+    /**
+     * 获取选区对象（外部读取 fixedIndex/dynamicIndex 的入口）。
+     * 委托给 selectionAddon；不可编辑时返回空选区。
+     */
+    public get selection(): TextSelection {
+        return (this.selectionAddon?.selection as TextSelection) ?? new TextSelection(undefined, undefined)
+    }
+
 
     // ==================== 编辑相关方法 ====================
     // 以下方法仅在 editable=true 时有效
@@ -216,7 +154,7 @@ export default class TextView extends View implements ITextView, ISerializable {
      * 处理输入事件
      * @param content 输入的文本内容
      * @param isComposition 是否是合成输入（中文输入法等）
-     * @description 完整流程：删除选中范围->插入新文本->重新布局->设置selection
+     * @description 完整流程：删除选中范围->插入新文本->标脏->设置selection意图
      * @description 如果isComposition为true，则selection包含输入的内容，否则selection不包含输入的内容，置于输入内容的结束位置
      */
     public input(content: string, isComposition: boolean): void {
@@ -246,10 +184,10 @@ export default class TextView extends View implements ITextView, ISerializable {
         const textInsertIndex = textIndex + position
         paragraph.addText(content, textInsertIndex, textOptions)
 
-        // 重新布局
-        this.layout()
+        // 标脏，延迟到渲染帧统一布局
+        this.markLayoutDirty()
 
-        // 更新光标位置（布局后设置selection，因为selectionBoxs依赖于文字的包围盒）
+        // 记录期望的光标位置（渲染时布局完成后自动计算矩形）
         if (isComposition) {
             // 合成输入时：fixedIndex 保持不变，dynamicIndex 根据输入长度动态更新
             const newDynamicIndex: TextIndex = [
@@ -283,10 +221,10 @@ export default class TextView extends View implements ITextView, ISerializable {
             newIndex = this.deleteAtCursor(isBackspace)
         }
 
-        // 重新布局
-        this.layout()
+        // 标脏，延迟到渲染帧统一布局
+        this.markLayoutDirty()
 
-        // 布局后设置selection（因为selectionBoxs依赖于文字的包围盒）
+        // 记录期望的光标位置
         if (newIndex) {
             this.setSelection(newIndex, [...newIndex])
         }
@@ -445,15 +383,13 @@ export default class TextView extends View implements ITextView, ISerializable {
         const paragraph = this.content.paragraphs[paragraphIndex]
         if (!paragraph) return
 
-        // 获取当前段落的选项和样式
+        // 获取当前段落的选项
         const paragraphOptions = paragraph.options.copy()
-        const paragraphStyle = paragraph.style
 
         // 创建新段落，包含分割点后的内容
         const newParagraph = new TextParagraph(
             [new NonPrintableTextElement()],
             paragraphOptions,
-            paragraphStyle
         )
         if (splitIndex < paragraph.texts.length) {
             // 将分割点后的文本移动到新段落
@@ -467,10 +403,10 @@ export default class TextView extends View implements ITextView, ISerializable {
         // 插入新段落到内容数组
         this.content.paragraphs.splice(paragraphIndex + 1, 0, newParagraph)
 
-        // 重新布局
-        this.layout()
+        // 标脏，延迟到渲染帧统一布局
+        this.markLayoutDirty()
 
-        // 布局后设置selection（因为selectionBoxs依赖于文字的包围盒）
+        // 记录期望的光标位置
         const newIndex: TextIndex = [paragraphIndex + 1, 0, 0]
         this.setSelection(newIndex, [...newIndex])
     }
@@ -496,11 +432,10 @@ newView.data = { ...this.data }
         newView.fixedWidth = this.fixedWidth
         newView.verticalAlign = this.verticalAlign
 
-        // 复制选择区域
-        newView.selection = new Selection(
-            this.selection.fixedIndex,
-            this.selection.dynamicIndex
-        )
+        // 复制选区插件
+        if (this.selectionAddon) {
+            newView.selectionAddon = this.selectionAddon.copy() as TextSelectionAddon
+        }
 
         // 复制插件
         if (this.viewport) {
@@ -539,8 +474,8 @@ newView.data = { ...this.data }
             editable: data.editable,
             verticalAlign: data.verticalAlign,
         })
-        view.restoreFromJSON(data)
+        view.restoreCommonFields(data)
+        view.markLayoutDirty()
         return view
     }
 }
-
