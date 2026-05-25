@@ -12,7 +12,11 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "jsx": "react-jsx",
-    "lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"]
+    "lib": ["ES2020", "DOM", "DOM.Iterable", "WebWorker"],
+    "baseUrl": ".",
+    "paths": {
+      "@banyuan/banvasgl": ["../banvasgl/dist/index.d.mts"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

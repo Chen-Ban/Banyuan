@@ -1,16 +1,16 @@
 /**
- * IAnimation —— 动画系统公共接口与类型
+ * 动画系统公共接口与类型
  *
- * 将原本散落在 core/animation/types.ts 中的公共类型统一收录于此，
- * 消除接口层反向依赖实现层（animation/types）的问题。
- *
- * @internal 标注的类型（Keyframe、KeyframeProps）仍保留在 animation/types.ts，
- * 不属于公共 API。
+ * 所有动画相关的公共类型定义于此文件，消除接口层反向依赖实现层的问题。
+ * 模块内部使用的 @internal 类型（Keyframe、AnimationTarget）保留在
+ * engine/animation/types.ts，不属于公共 API。
  */
 
 import type Matrix4 from '@/foundation/math/Matrix4'
 import type View from '@/view/View/View'
 import type Bounds from '@/graph/base/Bounds'
+import { AddonType } from '@/foundation/constants'
+import type { IAddonBase } from '../view/addon'
 
 // ── 基础值类型 ──────────────────────────────────────────────────────────────
 
@@ -189,18 +189,27 @@ export interface IAnimationDescriptor {
     finish(): IAnimationDescriptor
 }
 
+// ── 动画插件公共接口 ──────────────────────────────────────────────────────────
+
 /**
- * AnimationManager 的公共接口
+ * IAnimationAddon —— 动画插件公共接口
+ *
+ * AnimationAddon 为 View 提供关键帧动画驱动能力，对标 Web Animation API。
+ * 作为 addon 体系的一员，继承 IAddonBase，但 capabilities 为空数组
+ * （不参与 renderPlugins / interactPlugins 管线），由 AnimationManager 每帧 tick 驱动。
  */
-export interface IAnimationManager {
-    /** 注册动画并开始执行 */
-    add(descriptor: IAnimationDescriptor, target: IAnimatable): void
-    /** 移除动画 */
-    remove(descriptor: IAnimationDescriptor): void
-    /** 每帧驱动所有活跃动画 */
-    tick(timestamp: number): void
-    /** 当前活跃动画数量 */
-    readonly count: number
+export interface IAnimationAddon extends IAddonBase, IAnimatable {
+    readonly type: AddonType.ANIMATION
+    /** 创建并播放动画 */
+    animate(definition: KeyframeDefinition, options: AnimationOptions): IAnimationDescriptor
+    /** 获取渲染时应使用的属性值（动画计算值优先） */
+    getAnimatedValue(prop: string): AnimatableValue | undefined
+    /** 取消该 View 上的所有动画 */
+    cancelAll(): void
+    /** 立即完成该 View 上的所有动画 */
+    finishAll(): void
+    /** 动画覆盖视口（动画运行期间写入，渲染时优先读取） */
+    animatedViewport: Bounds | null
 }
 
 // ── 动画系统内部契约 ─────────────────────────────────────────────────────────

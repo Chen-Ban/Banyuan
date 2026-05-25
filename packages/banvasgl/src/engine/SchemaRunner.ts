@@ -8,7 +8,7 @@
  * 未注入时默认为 no-op，避免核心层在无运行时环境（如纯测试）下报错。
  */
 
-import type { FlowSchema, IView } from '@/types/view.js'
+import type { FlowSchema, IView } from '@/types/view/view.js'
 import type Scene from '@/engine/Scene.js'
 
 // ────────────────────────────────────────────

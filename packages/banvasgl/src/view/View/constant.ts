@@ -5,7 +5,7 @@
  * 保持 View.ts 聚焦于类逻辑本身。
  */
 
-import type { IViewEvents, IViewLifetimes } from '@/types'
+import type { IViewEvents, IViewLifetimes, IViewStyle } from '@/types'
 
 // ── 默认事件与生命周期 ────────────────────────────────────────────────────────
 
@@ -91,3 +91,40 @@ export const RESIZE_ORIGIN_MAP = [
 
 /** 滚动条粗细（像素） */
 export const SCROLLBAR_THICKNESS = 4
+
+// ── 默认 View 样式 ───────────────────────────────────────────────────────────
+
+/**
+ * 创建 View 基础默认样式（每次返回新对象，避免实例间共享污染）
+ *
+ * 包含所有 IViewStyle 字段的合理默认值：
+ * - 布局域：overflow=visible，needStructViewport=false，scrollX/Y=0，
+ *           transformOrigin=center，width/height 不设置（由子类或用户决定）
+ * - 容器装饰域：backgroundColor=transparent，borderWidth=0，
+ *               borderColor=transparent，borderRadius=0，clipContent=false，opacity=1
+ * - 图形绘制域：fill/stroke/shadow 不设置（由 Graph 自身默认样式工厂提供）
+ *
+ * 使用场景：View 构造函数中与 options.style 做二层合并的基础值。
+ */
+export function createDefaultViewStyle(): IViewStyle {
+  return {
+    // ── 域一：布局域 ──
+    overflow: 'visible',
+    needStructViewport: false,
+    scrollX: 0,
+    scrollY: 0,
+    transformOrigin: 'center',
+    // width / height 不设默认值，由子类或用户显式传入
+
+    // ── 域二：容器装饰域 ──
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    borderRadius: 0,
+    clipContent: false,
+    opacity: 1,
+
+    // ── 域三：图形绘制域 ──
+    // fill / stroke / shadow 不设默认值，由 Graph 自身 DefaultStyleRegistry 提供
+  }
+}

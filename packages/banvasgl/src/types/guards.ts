@@ -11,8 +11,8 @@
  */
 
 import { GraphType, ViewType, AddonType } from '@/foundation/constants'
-import type { IGraph, GraphTypeMap } from './graph'
-import type { IView, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IBoxDecorationAddon, IPortView, INodeView, IEdgeView } from './view'
+import type { IGraph, GraphTypeMap } from './graph/graph'
+import type { IView, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IBoxDecorationAddon, IPortView, INodeView, IEdgeView } from './view/view'
 
 // ────────────────────────────────────────────
 //  Graph 类型守卫

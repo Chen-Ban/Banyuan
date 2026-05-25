@@ -37,10 +37,3 @@ export interface Keyframe {
     [property: string]: AnimatableValue | number | EasingFunction | undefined
 }
 
-/**
- * 动画目标接口——View 需要满足的约束
- * @internal
- */
-export interface AnimationTarget {
-    [key: string]: any
-}

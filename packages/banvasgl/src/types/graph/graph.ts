@@ -188,9 +188,8 @@ export interface IRectangle extends IPolygon {
     getCenter(): Point3
     setPosition(x: number, y: number): IRectangle
     setSize(width: number, height: number): IRectangle
-    move(dx: number, dy: number): IRectangle
-    intersects(other: IRectangle): boolean
-    getDiagonal(): number
+  move(dx: number, dy: number): IRectangle
+  getDiagonal(): number
     getAspectRatio(): number
 }
 

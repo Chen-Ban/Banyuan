@@ -10,5 +10,4 @@ export type {
     KeyframeDefinition,
     AnimationOptions,
     Interpolator,
-    AnimationTarget,
 } from './types'

@@ -1,13 +1,16 @@
 import Bounds from '@/graph/base/Bounds'
 import { Point3, Vector3 } from '@/foundation/math'
 import { AnimationDescriptor, AnimationManager } from '@/engine/animation'
+import { AddonType } from '@/foundation/constants'
+import { AddonCapability } from '@/types'
 import type {
   AnimationOptions,
   KeyframeDefinition,
   AnimatableValue,
   IAnimationDescriptor,
-  IAnimatable,
+  IAnimationAddon,
 } from '@/types'
+import type { ExtraData } from '@/types'
 import type View from '@/view/View/View'
 
 /**
@@ -26,7 +29,33 @@ import type View from '@/view/View/View'
  * - 动画运行期间通过 animatedViewport 覆盖层影响渲染尺寸，
  *   不修改真实 viewport，动画结束后根据 fillMode 决定是否提交
  */
-export default class AnimationAddon implements IAnimatable {
+export default class AnimationAddon implements IAnimationAddon {
+  // ==================== IAddonBase 契约 ====================
+
+  readonly type = AddonType.ANIMATION
+
+  /** 动画插件不参与 render/interact 管线，由 AnimationManager tick 驱动 */
+  capabilities: AddonCapability[] = []
+
+  readonly priority = 0
+
+  /** 动画插件不参与渲染管线（由 AnimationManager 每帧 tick 驱动） */
+  render(_ctx: CanvasRenderingContext2D): void {
+    // noop —— 动画渲染由 AnimationManager tick 驱动，不走 renderPlugins 管线
+  }
+
+  /** 动画插件不参与交互管线 */
+  interact(_p: Point3, _bufferCtx?: CanvasRenderingContext2D): ExtraData | null {
+    return null
+  }
+
+  /** 复制插件（动画状态不可复制，返回空白实例） */
+  copy(): AnimationAddon {
+    return new AnimationAddon(this._view)
+  }
+
+  // ==================== 内部状态 ====================
+
   /** 宿主 View */
   private _view: View
 

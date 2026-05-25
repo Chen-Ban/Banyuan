@@ -556,7 +556,7 @@ export default class CombinedGraph
    * 变换后自动更新每个子图形及组合图形的包围盒。
    *
    * @param {Matrix4} matrix - 4×4 变换矩阵
-   * @returns {CombinedGraph} 变换后的组合图形（当前实例）
+   * @returns 变换后的组合图形（当前实例）
    *
    * @example
    * ```ts
@@ -564,7 +564,7 @@ export default class CombinedGraph
    * combined.transform(matrix);
    * ```
    */
-  public transform(matrix: Matrix4): CombinedGraph {
+  public transform(matrix: Matrix4): this {
     for (const graph of this.graphs) {
       graph.transform(matrix);
       graph.bounds = graph.updateBounds();

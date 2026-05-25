@@ -56,7 +56,7 @@ import Color from '@/foundation/style/Color.js'
  */
 export default class BoxDecorationAddon implements IBoxDecorationAddon {
     public readonly type = AddonType.BOX_DECORATION
-    public readonly capabilities = [AddonCapability.RENDER, AddonCapability.LOGIC] as const
+    public capabilities = [AddonCapability.RENDER, AddonCapability.LOGIC]
     /** priority -10：在 BoundingBoxAddon(0) 之前，作为最底层背景；滚动条也随此优先级在管线中渲染 */
     public readonly priority = -10
 

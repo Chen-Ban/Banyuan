@@ -24,7 +24,7 @@
  *   }
  */
 
-import type { IView } from '@/types/view.js'
+import type { IView } from '@/types/view/view.js'
 
 // ────────────────────────────────────────────
 //  IViewFactory —— 视图工厂函数签名

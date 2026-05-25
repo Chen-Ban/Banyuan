@@ -1,5 +1,5 @@
 import { Rectangle } from '@/graph'
-import { AddonCapability, ExtraData, IAddonBase } from '@/types'
+import { AddonCapability, ExtraData, ITextSelectionAddon } from '@/types'
 import { AddonType } from '@/foundation/constants'
 import type { Point3 } from '@/foundation/math'
 import type { TextIndex } from '@/types'
@@ -24,12 +24,12 @@ import type TextView from '@/view/TextView/index.js'
  *
  * 复用性：Input 继承 TextView，天然复用本 addon 的全部选区逻辑。
  */
-export default class TextSelectionAddon implements IAddonBase {
+export default class TextSelectionAddon implements ITextSelectionAddon {
   public readonly type = AddonType.TEXT_SELECTION
-  public readonly capabilities = [
+  public capabilities = [
     AddonCapability.RENDER,
     AddonCapability.LOGIC,
-  ] as const
+  ]
   /** 优先级 5：在 BoundingBoxAddon(0) 之后渲染 */
   public readonly priority = 5
 
