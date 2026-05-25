@@ -27,7 +27,8 @@ Banyuan/
 │   │   ├── frontend/        #   React 19 + Vite + Ant Design 6 (:5174)
 │   │   ├── backend/         #   Koa + MongoDB (mongoose) + 构建/预览/AI代理 (:3001)
 │   │   └── electron/        #   Electron 36 桌面壳
-│   └── xiangdi-server/      # XiangDi AI Agent 独立 HTTP 服务 (:3002)
+│   ├── xiangdi-server/      # XiangDi AI Agent 独立 HTTP 服务 (:3002)
+│   └── knowledge-server/    # BanvasGL 知识微服务，向量检索 + 混合检索 (:3003)
 ├── examples/
 │   └── lunlunglass/         # 示例：眼镜店管理系统
 │       ├── shared/printer/  #   共享打印库 (@lunlunglass/printer)
@@ -36,7 +37,7 @@ Banyuan/
 └── docs/
     ├── business.md          # 业务上下文
     ├── pitfalls.md          # 踩坑记录
-    └── adr/                 # 架构决策记录（共 20 条，ADR-001 ~ ADR-020）
+    └── adr/                 # 架构决策记录（共 22 条，ADR-001 ~ ADR-022）
 ```
 
 ## 包间依赖方向
@@ -53,6 +54,7 @@ apps/banyan/frontend ──▶ @banyuan/banyan-sdk (workspace:*)
 apps/banyan/backend ──▶ @banyuan/flow (workspace:*)
 apps/xiangdi-server ──▶ @banyuan/xiangdi-agent (workspace:*)
                     ──▶ @banyuan/banvasgl (workspace:*)
+apps/knowledge-server ──▶ @banyuan/banvasgl (workspace:*)  # 仅读取 version 做表名隔离
 
 @banyuan/xiangdi-agent ──optional peerDep──▶ @banyuan/banvasgl
 @banyuan/banvas-design ──peerDep──▶ @banyuan/banvasgl, @banyuan/banvas-runtime-web
@@ -69,14 +71,16 @@ apps/xiangdi-server ──▶ @banyuan/xiangdi-agent (workspace:*)
                                           │
                                           │ HTTP SSE 代理
                                           ▼
-                                   XiangDi 服务(:3002)
-                                   apps/xiangdi-server
+                                   XiangDi 服务(:3002) ──▶ 知识服务(:3003)
+                                   apps/xiangdi-server      apps/knowledge-server
 ```
 
 - **banyan 后端(:3001)**：`apps/banyan/backend`，负责 MongoDB 持久化、应用 CRUD、构建/预览任务、AI 请求代理
-- **XiangDi 服务(:3002)**：`apps/xiangdi-server`，无状态 AI Agent 服务，pages 随请求传入/随 done 事件返回，不访问 MongoDB
-- **AI 请求流程**：前端 → banyan 后端（读 pages from MongoDB）→ XiangDi 服务（执行 Agent）→ banyan 后端（写 pages to MongoDB）→ 前端
+- **XiangDi 服务(:3002)**：`apps/xiangdi-server`，无状态 AI Agent 服务（MasterGraph V2），pages 随请求传入/随 done 事件返回，不访问 MongoDB
+- **知识服务(:3003)**：`apps/knowledge-server`，独立知识微服务，LanceDB 向量存储 + BM25 混合检索 + Cross-Encoder 精排，按 BanvasGL 版本隔离知识表
+- **AI 请求流程**：前端 → banyan 后端（读 pages from MongoDB）→ XiangDi 服务（MasterGraph V2 执行）→ banyan 后端（写 pages to MongoDB）→ 前端
 - **XiangDi 服务地址**：通过环境变量 `XIANGDI_URL` 配置，默认 `http://localhost:3002`
+- **知识服务地址**：通过环境变量 `KNOWLEDGE_URL` 配置，默认 `http://localhost:3003`
 
 ## 技术栈
 
@@ -126,15 +130,14 @@ apps/xiangdi-server ──▶ @banyuan/xiangdi-agent (workspace:*)
 
 ### XiangDi（@banyuan/xiangdi-agent）
 
-- 执行模式：Anthropic Agentic Loop（tool_use 机制），不是经典 ReAct
+- 执行模式：LangGraph StateGraph（`graph/masterGraph.ts`），节点为 `START → spec → think → tools → extractPreferences → END`；不是手写 AgentLoop，也不是经典 ReAct
 - 信息三层架构：ProjectSpec（全局约束，管线注入）+ KnowledgeStore（按需知识，Tool 模式）+ 工具调用（实时状态）
 - Spec 是架构一等公民：SpecPlanner 规划 → HarnessRunner 执行 → Guard/Checkpoint 验证
 - Tool Handler 签名：`(input: TInput) => Promise<TOutput>`，通过 ToolRegistry 注册
 - LLM 客户端接口：`LLMClient`，DeepSeek（主）+ Kimi（备），通过 `LLMRouter` 做健康检测
-- 生命周期状态机：`AgentLifecycle` 双层（AgentPhase 7 态 + AgentStep 9 态）
-- 冲突检测：`ConflictDetector` + `DecisionLog` + `DisambiguationHandler`，只有 `user_confirmed` 来源的决策才触发消歧
-- 记忆层：`LocalEpisodicMemory`（中期经验）+ `LocalSemanticMemory`（长期事实）
-- 编排层：`OrchestratorAgent` → `LayoutPlanner` → `SubAgentRunner`（并发 4）→ `Assembler` → `AuditorAgent`
+- 冲突检测：`ConflictDetector` + `DisambiguationHandler`，只有 `user_confirmed` 来源的决策才触发消歧
+- 记忆层：`LocalEpisodicMemory`（中期经验）+ `LocalSemanticMemory`（长期事实）；`extractPreferences` 节点在 graph 末端提取用户偏好写入记忆
+- Harness 层：`HarnessRunner` 按 ChangeSpec 分发任务 → `checkpoint.ts` 做阶段性验证
 
 ### Banyan
 
@@ -158,11 +161,17 @@ apps/xiangdi-server ──▶ @banyuan/xiangdi-agent (workspace:*)
 | Flow 图编辑器入口 | `packages/flow-design/src/index.ts` |
 | Banyan SDK 伞包入口 | `packages/banyan-sdk/src/index.ts` |
 | XiangDi 公共 API | `packages/xiangdi-agent/src/index.ts` |
-| XiangDi AgentLoop 核心 | `packages/xiangdi-agent/src/core/AgentLoop.ts` |
+| XiangDi Graph 核心 | `packages/xiangdi-agent/src/graph/masterGraph.ts` |
 | XiangDi Spec 体系 | `packages/xiangdi-agent/src/spec/types.ts` |
 | XiangDi 工具协议 | `packages/xiangdi-agent/src/tools/BanvasToolProtocol.ts` |
 | XiangDi AISchema 定义 | `packages/xiangdi-agent/src/schema/AISchema.ts` |
 | XiangDi AISchema ↔ BanvasGL 双向转换器 | `packages/xiangdi-agent/src/schema/converters.ts` |
+| XiangDi 知识种子 | `packages/xiangdi-agent/src/knowledge/seeds/` |
+| 知识服务入口 | `apps/knowledge-server/src/app.ts` |
+| 知识服务路由 | `apps/knowledge-server/src/routes/knowledge.ts` |
+| KnowledgeService（混合检索） | `apps/knowledge-server/src/services/KnowledgeService.ts` |
+| EmbeddingService（ONNX 推理） | `apps/knowledge-server/src/services/EmbeddingService.ts` |
+| RerankerService（精排） | `apps/knowledge-server/src/services/RerankerService.ts` |
 | Banyan 前端路由 | `apps/banyan/frontend/src/routes/index.tsx` |
 | Banyan 前端应用级布局 | `apps/banyan/frontend/src/layouts/ApplicationLayout/index.tsx` |
 | Banyan 后端入口 | `apps/banyan/backend/src/app.ts` |
@@ -176,9 +185,12 @@ apps/xiangdi-server ──▶ @banyuan/xiangdi-agent (workspace:*)
 
 - **禁止**在 `@banyuan/banvasgl` 核心包中引入编辑态模块（`useDesignBanvas`、Worker 等），这些已迁移至 `@banyuan/banvas-design`
 - **禁止**直接修改 BanvasGL Scene 内部状态，必须通过 `TransactionManager` 或 XiangDi 工具协议
-- **禁止**在 XiangDi AgentLoop 中硬编码特定 LLM provider，必须通过 `LLMClient` 接口
+- **禁止**在 XiangDi Graph 节点中硬编码特定 LLM provider，必须通过 `LLMClient` 接口
 - **禁止**在 `apps/banyan/backend` 中直接 `import @banyuan/xiangdi-agent`，必须通过 HTTP 调用 XiangDi 服务（:3002）
 - **禁止**在 `apps/xiangdi-server`（XiangDi 服务）中访问 MongoDB，持久化由 banyan 后端负责
+- **禁止**在 `apps/knowledge-server` 中访问 MongoDB，知识服务只操作 LanceDB，与业务数据完全隔离
+- **禁止**在 `apps/knowledge-server` 中直接 `import @banyuan/xiangdi-agent` 的业务逻辑；种子脚本通过 HTTP API 写入，不依赖 Agent 运行时
+- **禁止**在生产环境中不设置 `KNOWLEDGE_INTERNAL_TOKEN`；知识服务写操作必须经过认证
 - **禁止**跨包直接引用 `src/` 内部路径（必须通过包的公共导出）
 - **禁止**在 `packages/` 目录下的库包中引入 React/DOM 等宿主环境依赖（除非在 hook/ 目录中且声明为 peerDep）
 - **禁止**向 git 提交 API Key（`apiKey.json` 等文件已在 `.gitignore` 中）

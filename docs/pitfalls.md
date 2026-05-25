@@ -5,11 +5,11 @@
 
 ## BanvasGL
 
-### 三入口导出不同步
+### 分层拆包的包边界意识
 
-**问题**：新增模块后只在 `index.frontend.ts` 中导出，忘记在 `index.runtime.ts` 或 `index.backend.ts` 中同步，导致运行态/服务端环境下引用报错或包含了不该有的代码。
+**问题**：BanvasGL 采用分层拆包而非三入口隔离（参见 ADR-016）。`@banyuan/banvasgl` 核心包是单入口（`src/index.ts`），不含任何编辑态或运行态能力。如果在核心包中不小心引入了 React hooks、Worker 调度、或设计器 UI，会破坏包边界，导致运行态产物体积膨胀，或在 Node.js 服务端环境中报 DOM/Worker 相关错误。
 
-**规避**：每次新增导出时，检查所有三个入口文件。运行态入口只能导出 core + `useRuntimeBanvas` + `useRuntimeCanvasInit`，绝不能包含编辑态 hook 和 Worker。
+**规避**：严格遵守包职责——编辑态能力（hooks、Worker、设计器组件）只能放入 `@banyuan/banvas-design`；运行态接口层放入 `@banyuan/banvas-runtime` 和 `@banyuan/banvas-runtime-web`；`@banyuan/banvasgl` 核心包中禁止 `import` 上述任何子包。新增导出时只需维护对应包的 `index.ts`，无需同步多个入口。
 
 ### Canvas 2D 坐标系与 DPR
 
@@ -43,11 +43,11 @@
 
 **规避**：注册到 ToolRegistry 时使用 `handler as unknown as ToolHandler` 双跳转。这是有意为之的类型安全让步——ToolRegistry 内部按名称动态分发，无法在类型层面精确匹配每个 handler 的泛型参数。参见 `WebSearchTool.ts` 和 `KnowledgeSearchTool.ts` 中的处理方式。
 
-### AgentLoop 的 stopReason 判断
+### LangGraph 节点的 stop_reason 判断
 
-**问题**：LLM 返回 `stop_reason: "end_turn"` 表示模型主动结束，`"tool_use"` 表示需要执行工具调用后继续循环。如果不正确判断，会导致 Agent 提前终止或陷入空轮。
+**问题**：XiangDi 已迁移至 LangGraph StateGraph（`graph/masterGraph.ts`），不再是手写的 AgentLoop。LLM 返回 `stop_reason: "end_turn"` 表示模型主动结束，`"tool_use"` 表示需要执行工具调用后继续循环。如果节点路由逻辑不正确判断，会导致 Agent 提前终止或陷入空轮。
 
-**规避**：AgentLoop 中已有清晰的 switch-case 处理。扩展新的 stop_reason 值时，必须在 switch 中显式处理，不要依赖 default 分支。
+**规避**：`graph/masterGraph.ts` 的条件边（conditional edge）中已有清晰的路由判断。扩展新的 stop_reason 值时，必须在对应的条件函数中显式处理，不要依赖 default 分支，并同步更新 `graph/state.ts` 中的 StateAnnotation 字段。
 
 ### Zod Schema 的 discriminatedUnion 与 optional 字段
 
@@ -99,7 +99,7 @@
 
 **问题**：tsup 打包时如果不 external 掉 peer dependencies，会将其打入 bundle，导致 duplicate module 问题（尤其是 React）。
 
-**规避**：BanvasGL 的 tsup.config.ts 已 external `react` 和 `react-dom`。XiangDi 已 external `banvasgl`。新增 peer dependency 时，记得在 tsup.config.ts 的 external 数组中添加。
+**规避**：`@banyuan/banvasgl` 核心包自包含，`tsup.config.ts` 中 `external` 为空数组（无 peer dep）。`@banyuan/banvas-design`、`@banyuan/banvas-runtime-web` 等子包将 `banvasgl` 声明为 peerDep，并在各自的 tsup.config.ts 中 external 掉。`@banyuan/xiangdi-agent` 将 `banvasgl` external 为 optional peer dep。新增 peer dependency 时，记得同步更新对应包的 tsup.config.ts `external` 数组和 package.json `peerDependencies`。
 
 ### ESM 导入路径的 .js 后缀
 
