@@ -12,7 +12,7 @@ import {
 } from "@/types";
 import { AddonType } from "@/foundation/constants";
 import { Circle, Line } from "@/graph";
-import { Color, StrokeStyle } from "@/foundation/style";
+import { Color, FillStyle, StrokeStyle } from "@/foundation/style";
 
 /**
  * 主题色常量（PPT 风格）
@@ -46,11 +46,11 @@ const THEME = {
  */
 export default class BoundingBoxAddon implements IBoundingBoxAddon {
   public readonly type = AddonType.BOUNDING_BOX;
-  public readonly capabilities = [
+  public capabilities = [
     AddonCapability.RENDER,
     AddonCapability.INTERACT,
     AddonCapability.LOGIC,
-  ] as const;
+  ];
   public readonly priority = 0;
   public region: Rectangle;
   public handles: Rectangle[];
@@ -69,6 +69,8 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
   constructor(viewport: Bounds) {
     this.viewport = viewport;
     this.regionStyle = new Style({
+      // 透明填充：避免 Style 默认白色 fillStyle 覆盖内容区域
+      fillStyle: FillStyle.fromRGBA(0, 0, 0, 0),
       strokeStyle: new StrokeStyle({
         strokeType: "color",
         color: THEME.primaryLight,

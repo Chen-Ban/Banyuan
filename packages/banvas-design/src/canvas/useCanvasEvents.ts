@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   App,
   Point3,
+  Matrix4,
   View,
   SelectBoxView,
   Action,
@@ -105,12 +106,13 @@ export function useCanvasEvents({
       isMouseDownRef.current = true;
       if (!indicateViewRef.current && !indicateContentRef.current) {
         actionRef.current = Action.SELECT;
-        selectionRectViewRef.current = new SelectBoxView({
-          style: {
-            width: canvasRef.current?.width,
-            height: canvasRef.current?.height,
-          },
-        });
+        const selectView = new SelectBoxView();
+        selectView.matrix = Matrix4.translation(
+          mouseDownPointRef.current.x,
+          mouseDownPointRef.current.y,
+          0,
+        );
+        selectionRectViewRef.current = selectView;
         scene.addChild(selectionRectViewRef.current, false);
       } else if (actionRef.current === Action.CONNECT) {
         // CONNECT 不开启事务
@@ -251,8 +253,14 @@ export function useCanvasEvents({
           const isTextEditTarget =
             isTextView(indicateView) &&
             indicateContent !== null &&
-            (isGraphType(indicateContent as any, GraphType.PRINTABLE_TEXTELEMENT) ||
-              isGraphType(indicateContent as any, GraphType.NONPRINTABLE_TEXTELEMENT));
+            (isGraphType(
+              indicateContent as any,
+              GraphType.PRINTABLE_TEXTELEMENT,
+            ) ||
+              isGraphType(
+                indicateContent as any,
+                GraphType.NONPRINTABLE_TEXTELEMENT,
+              ));
 
           if (isTextEditTarget && isTextView(indicateView)) {
             const fixedIndex = indicateView.element2Index(
@@ -379,8 +387,14 @@ export function useCanvasEvents({
         if (
           isTextView(indicateViewRef.current) &&
           indicateContentRef.current !== null &&
-          (isGraphType(indicateContentRef.current as any, GraphType.PRINTABLE_TEXTELEMENT) ||
-            isGraphType(indicateContentRef.current as any, GraphType.NONPRINTABLE_TEXTELEMENT))
+          (isGraphType(
+            indicateContentRef.current as any,
+            GraphType.PRINTABLE_TEXTELEMENT,
+          ) ||
+            isGraphType(
+              indicateContentRef.current as any,
+              GraphType.NONPRINTABLE_TEXTELEMENT,
+            ))
         ) {
           // 双击选中一整行（可扩展）
         }

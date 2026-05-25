@@ -11,7 +11,7 @@ import type { ViewType } from '@/foundation/constants'
 import type { GraphType } from '@/foundation/constants'
 import type View from '@/view/View/View'
 import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from './view'
-import type { ISceneLifetimes } from './scene'
+import type { ISceneLifetimes } from '../engine/scene'
 
 // ────────────────────────────────────────────
 //  组件物料（Component Definition）

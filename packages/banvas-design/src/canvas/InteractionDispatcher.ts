@@ -59,7 +59,7 @@ export class InteractionDispatcher {
       case Action.ROTATE:
         return this.handleRotate(scene, point);
       case Action.SELECT:
-        return this.handleBoxSelect(scene, point, mouseDownPoint);
+        return this.handleBoxSelect(scene, point);
       case Action.CONNECT:
         return this.handleConnect(scene, point);
       case Action.EDIT_VIEWPORT:
@@ -150,7 +150,10 @@ export class InteractionDispatcher {
     ) {
       if (!indicateView.actived) {
         scene.select(indicateView as unknown as View);
-        const fixedIndex = indicateView.element2Index(indicateContent as any, point);
+        const fixedIndex = indicateView.element2Index(
+          indicateContent as any,
+          point,
+        );
         indicateView.setSelection(fixedIndex, fixedIndex);
         return;
       }
@@ -244,71 +247,61 @@ export class InteractionDispatcher {
     }
   }
 
-  private handleBoxSelect(
-    scene: Scene,
-    point: Point3,
-    mouseDownPoint: Point3,
-  ): void {
+  private handleBoxSelect(scene: Scene, point: Point3): void {
     this.ctx.setCursor(Cursor.Crosshair);
     const selectionRectView = this.ctx.getSelectionRectView();
-    if (selectionRectView && mouseDownPoint) {
-      selectionRectView.updateSelect(mouseDownPoint, point);
-      const selectionRect = selectionRectView.content as Rectangle;
-      const viewsToActivate: View[] = [];
-      const allViews = scene.children;
+    if (!selectionRectView) return;
 
-      for (const view of allViews) {
-        if (isSelectBoxView(view)) continue;
-        const worldMatrix = view.getWorldMatrix();
+    // point 是 canvas 物理像素坐标（世界坐标），与 SelectBoxView.matrix 平移分量同一坐标系
+    selectionRectView.updateSelect(point);
 
-        const content = view.content;
-        if (content && content.bounds) {
-          const contentRect = Rectangle.fromBounds(content.bounds);
-          const transformedContent = contentRect.transform(
-            worldMatrix,
-          ) as Graph;
+    const selectionRect = selectionRectView.content;
+    const selectionWorldMatrix = selectionRectView.getWorldMatrix();
+    const worldSelectionRect = selectionRect
+      .copy()
+      .transform(selectionWorldMatrix);
 
-          if (selectionRect.intersect(transformedContent).length > 0) {
-            viewsToActivate.push(view);
-            continue;
-          }
+    const viewsToActivate: View[] = [];
 
-          const cBounds = transformedContent.bounds;
-          const contentCenter = new Point3(
-            cBounds.x + cBounds.width / 2,
-            cBounds.y + cBounds.height / 2,
-            0,
-          );
-          if (selectionRect.containsPoint(contentCenter)) {
-            viewsToActivate.push(view);
-          }
-        } else {
-          const viewport = view.viewport ?? Bounds.empty();
-          const viewportRect = Rectangle.fromBounds(viewport);
-          const transformedViewport = viewportRect.transform(
-            worldMatrix,
-          ) as Graph;
+    for (const view of scene.children) {
+      if (isSelectBoxView(view)) continue;
+      const worldMatrix = view.getWorldMatrix();
 
-          if (selectionRect.intersect(transformedViewport).length > 0) {
-            viewsToActivate.push(view);
-            continue;
-          }
+      if (!view.actived) {
+        // 未激活：用内容包围盒检测是否与框选矩形相交
+        const contentBounds = view.content?.bounds;
+        if (!contentBounds) continue;
+        const contentRect = Rectangle.fromBounds(contentBounds);
+        const worldContentRect = contentRect.transform(worldMatrix);
 
-          const vBounds = transformedViewport.bounds;
-          const viewportCenter = new Point3(
-            vBounds.x + vBounds.width / 2,
-            vBounds.y + vBounds.height / 2,
-            0,
-          );
-          if (selectionRect.containsPoint(viewportCenter)) {
-            viewsToActivate.push(view);
-          }
+        if (worldSelectionRect.intersect(worldContentRect).length > 0) {
+          viewsToActivate.push(view);
+          continue;
+        }
+      } else {
+        // 已激活：用视口包围盒检测是否与框选矩形相交
+        const viewportBounds = view.viewport ?? Bounds.empty();
+        const viewportRect = Rectangle.fromBounds(viewportBounds);
+        const worldViewportRect = viewportRect.transform(worldMatrix);
+
+        if (worldSelectionRect.intersect(worldViewportRect).length > 0) {
+          viewsToActivate.push(view);
+          continue;
         }
       }
-      clearAllStates(scene);
-      for (const view of viewsToActivate) {
-        scene.select(view, true);
+
+      // 兜底：框选矩形完全包含视口时（边不相交但视口在框选内）
+      const vpBounds = view.viewport ?? Bounds.empty();
+      const vpRect = Rectangle.fromBounds(vpBounds);
+      const worldVpRect = vpRect.transform(worldMatrix);
+      if (worldSelectionRect.containsPoint(worldVpRect.getCentroid())) {
+        viewsToActivate.push(view);
       }
+    }
+
+    clearAllStates(scene);
+    for (const view of viewsToActivate) {
+      scene.select(view, true);
     }
   }
 }

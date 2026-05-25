@@ -4,6 +4,15 @@
  * 所有图形和视图的接口、类型映射、统一类型守卫从这里统一导出。
  * 消费方只需：
  *   import { ILine, isGraphType, GraphType } from '@/types'
+ *
+ * 目录结构：
+ *   types/
+ *   ├── engine/    — App、Scene、Camera、Renderer、Animation
+ *   ├── foundation/ — Style、Serializable、Transferable
+ *   ├── graph/     — Graph 基元接口
+ *   ├── view/      — View、Addon、Hook、Property
+ *   ├── guards.ts  — 跨层类型守卫
+ *   └── index.ts   — 本文件（总 barrel）
  */
 
 // ── Graph 接口 ──
@@ -34,9 +43,8 @@ export type {
     ITextParagraph,
     ITextFields,
     GraphTypeMap,
-} from './graph'
-
-export type { TextIndex } from './graph'
+    TextIndex,
+} from './graph/graph'
 
 // ── View 接口 ──
 export type {
@@ -122,16 +130,16 @@ export type {
     IPortView,
     INodeView,
     IEdgeView,
-} from './view'
+} from './view/view'
 
-export { AddonCapability, Cursor, Action, cursorMap } from './view'
+export { AddonCapability, Cursor, Action, cursorMap } from './view/view'
 
 // ── Camera 接口 ──
 export type {
     ICamera,
     IOrthographicCamera,
     IPerspectiveCamera,
-} from './camera'
+} from './engine/camera'
 
 // ── Renderer 接口 ──
 export type {
@@ -139,7 +147,7 @@ export type {
     ICanvasContext,
     IRendererOptions,
     IRenderer,
-} from './renderer'
+} from './engine/renderer'
 
 // ── Scene 接口 ──
 export type {
@@ -154,9 +162,9 @@ export type {
     ReorderDiff,
     PropChange,
     ApplyDirection,
-} from './scene'
+} from './engine/scene'
 
-export { DiffType, Operation } from './scene'
+export { DiffType, Operation } from './engine/scene'
 
 // ── App 接口 ──
 export type {
@@ -165,7 +173,7 @@ export type {
     INavigationOptions,
     IApp,
     IAppStatic,
-} from './app'
+} from './engine/app'
 
 // ── Animation 接口 ──
 export type {
@@ -179,15 +187,15 @@ export type {
     AnimationOptions,
     Interpolator,
     IAnimationDescriptor,
-    IAnimationManager,
+    IAnimationAddon,
     IAnimatable,
-} from './animation'
+} from './engine/animation'
 
 // ── 序列化接口 ──
-export type { ISerializable, ISerializableClass } from './serializable'
+export type { ISerializable, ISerializableClass } from './foundation/serializable'
 
 // ── Worker 传输接口 ──
-export type { ITransferable, TransferableData } from './transferable'
+export type { ITransferable, TransferableData } from './foundation/transferable'
 
 // ── Hook 公共接口 ──
 export type {
@@ -205,7 +213,7 @@ export type {
     IContextMenuState,
     IDragProps,
     IUseBanvasResult,
-} from './hook'
+} from './view/hook'
 
 // ── PropertyAdapter 接口 ──
 export type {
@@ -213,7 +221,7 @@ export type {
     PropertyAdapter,
     PropertyDescriptor,
     ConflictGroup,
-} from './property'
+} from './view/property'
 
 // ── Runtime 接口 ──
 export type { ISchemaRunner, SchemaRunInput } from '@/engine/SchemaRunner'

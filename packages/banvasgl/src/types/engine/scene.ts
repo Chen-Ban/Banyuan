@@ -9,7 +9,7 @@
  *   - Diff/Operation 相关类型从 utils 直接 re-export
  */
 
-import type { IView, FlowSchema } from './view'
+import type { IView, FlowSchema } from '../view/view'
 import type { ICamera } from './camera'
 import type { IAnimationDescriptor } from './animation'
 

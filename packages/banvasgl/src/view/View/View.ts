@@ -8,13 +8,18 @@ import {
   ISceneNode,
   IView,
   IViewStyle,
-  IViewAddon,
   IFieldSchemaMap,
-  ExtraData,
   ISerializable,
   IGraph,
 } from "@/types";
-import type { IAddonBase, IViewEvents, IViewLifetimes, IFlexLayoutParams, IInteractResult, IViewOptions } from "@/types";
+import type {
+  IAddonBase,
+  IViewEvents,
+  IViewLifetimes,
+  IFlexLayoutParams,
+  IInteractResult,
+  IViewOptions,
+} from "@/types";
 
 // 导入图形相关类型
 import { Line } from "@/graph";
@@ -33,6 +38,7 @@ import {
   RESIZE_ORIGIN_MAP,
   createDefaultEvents,
   createDefaultLifetimes,
+  createDefaultViewStyle,
 } from "./constant.js";
 import { calculateDimensionDelta } from "./utils.js";
 
@@ -63,6 +69,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
   // 样式和状态
   public style: IViewStyle = {};
+
   public selected: boolean = false;
   public actived: boolean = false;
   public freezed: boolean = false;
@@ -235,7 +242,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
     // 2. 补偿 scroll 偏移：内容和子视图在渲染时被 translate 了 scrollOffset，
     //    命中检测时需要反向补偿，将点转换到"内容坐标系"
-    const scrollOffset = this.decoration?.computedStyle.scrollOffset ?? { x: 0, y: 0 };
+    const scrollOffset = this.decoration?.computedStyle.scrollOffset ?? {
+      x: 0,
+      y: 0,
+    };
     const scrolledPoint = new Point3(
       relativePoint.x - scrollOffset.x,
       relativePoint.y - scrollOffset.y,
@@ -265,9 +275,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     // 属性初始化
     this.id = options.id || "";
     this.data = options.data || ({} as D);
+    // 二层合并：createDefaultViewStyle() → 用户传入 options.style
+    // 靠右优先级更高，用户传入值始终不被覆盖
     this.style = {
-      overflow: "visible",
-      needStructViewport: false,
+      ...createDefaultViewStyle(),
       ...(options.style || {}),
     };
     this.matrix = options.matrix ?? Matrix4.identity();
@@ -508,7 +519,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     );
 
     // computeStyle() 保证：overflow 非 visible 时 decoration 一定存在并已 compute
-    const computedOverflow = this.decoration?.computedStyle.overflow ?? 'visible'
+    const computedOverflow =
+      this.decoration?.computedStyle.overflow ?? "visible";
     if (computedOverflow !== "visible") {
       // 裁剪区域：computedStyle.clipContent 时使用圆角路径，否则矩形
       if (this.decoration?.computedStyle.clipContent) {
@@ -526,7 +538,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     }
 
     // 应用 scroll 偏移后渲染内容和子节点（偏移量来自 decoration.computedStyle）
-    const scrollOffset = this.decoration?.computedStyle.scrollOffset ?? { x: 0, y: 0 };
+    const scrollOffset = this.decoration?.computedStyle.scrollOffset ?? {
+      x: 0,
+      y: 0,
+    };
     offscreenCtx.save();
     offscreenCtx.translate(scrollOffset.x, scrollOffset.y);
 
@@ -697,7 +712,9 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     );
     if (this.style.needStructViewport) {
       this.viewport = this.layoutArea.copy();
+      const prevCapabilities = this.boundingBox?.capabilities;
       this.boundingBox = new BoundingBoxAddon(this.viewport);
+      if (prevCapabilities) this.boundingBox.capabilities = prevCapabilities;
     }
     // 2、计算样式（rawStyle -> computedStyle，包含 scrollOffset）
     this.computeStyle();
@@ -762,7 +779,9 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     }
     // 重建 boundingBox（绑定到新的 viewport 引用）
     if (this.boundingBox !== null) {
+      const prevCapabilities = this.boundingBox.capabilities;
       this.boundingBox = new BoundingBoxAddon(this.viewport);
+      this.boundingBox.capabilities = prevCapabilities;
     }
     // 同步 layoutArea
     this.layoutArea = this.viewport.copy();

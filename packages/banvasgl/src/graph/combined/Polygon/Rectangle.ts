@@ -3,8 +3,8 @@ import Style from "@/foundation/style/Style";
 import { Point3 } from "@/foundation/math";
 import Polygon from "./Polygon";
 import Bounds from "@/graph/base/Bounds";
-import { IRectangle, ISerializable } from '@/types';
-import { generateId } from '@/foundation/utils';
+import { IRectangle, ISerializable } from "@/types";
+import { generateId } from "@/foundation/utils";
 
 /**
  * 矩形 —— 轴对齐的四边形，具有宽度和高度约束。
@@ -37,7 +37,10 @@ import { generateId } from '@/foundation/utils';
  * console.log(rect.width, rect.height); // 200, 100
  * ```
  */
-export default class Rectangle extends Polygon implements IRectangle, ISerializable {
+export default class Rectangle
+  extends Polygon
+  implements IRectangle, ISerializable
+{
   /** 图形类型标识 */
   public type: GraphType = GraphType.RECTANGLE;
 
@@ -61,7 +64,13 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * const rect = new Rectangle(10, 20, 200, 100, style);
    * ```
    */
-  constructor(x: number, y: number, width: number, height: number, _style?: Style) {
+  constructor(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    _style?: Style,
+  ) {
     const points = [
       new Point3(x, y, 0),
       new Point3(x + width, y, 0),
@@ -71,7 +80,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
     super(points, undefined, true);
     this.width = width;
     this.height = height;
-    this.id = generateId(this.type)
+    this.id = generateId(this.type);
   }
 
   /**
@@ -115,7 +124,11 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    */
   public getCenter(): Point3 {
     const topLeft = this.getTopLeft();
-    return new Point3(topLeft.x + this.width / 2, topLeft.y + this.height / 2, topLeft.z);
+    return new Point3(
+      topLeft.x + this.width / 2,
+      topLeft.y + this.height / 2,
+      topLeft.z,
+    );
   }
 
   /**
@@ -160,7 +173,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
   public setSize(width: number, height: number): Rectangle {
     this.width = width;
     this.height = height;
-    const { x, y } = this.controlPoints[0]
+    const { x, y } = this.controlPoints[0];
     this.controlPoints = [
       new Point3(x, y, 0),
       new Point3(x + this.width, y, 0),
@@ -169,7 +182,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
     ];
 
     this.rebuildEdges();
-    this.bounds = this.updateBounds()
+    this.bounds = this.updateBounds();
 
     return this;
   }
@@ -190,54 +203,6 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
     const topLeft = this.getTopLeft();
     this.setPosition(topLeft.x + dx, topLeft.y + dy);
     return this;
-  }
-
-  /**
-   * 检查点是否在矩形内部。
-   *
-   * 使用轴对齐包围盒（AABB）检测，比 Polygon 的射线法更高效。
-   *
-   * @param {Point3} point - 待检测的点
-   * @returns {boolean} 是否在矩形内部
-   *
-   * @example
-   * ```ts
-   * const inside = rect.containsPoint(new Point3(50, 50, 0));
-   * ```
-   */
-  public containsPoint(point: Point3): boolean {
-    const topLeft = this.getTopLeft();
-    return (
-      point.x >= topLeft.x &&
-      point.x <= topLeft.x + this.width &&
-      point.y >= topLeft.y &&
-      point.y <= topLeft.y + this.height
-    );
-  }
-
-  /**
-   * 检查矩形是否与另一个矩形相交（AABB 碰撞检测）。
-   *
-   * 使用分离轴定理的简化版本：只要任一轴上不相交即判定为不相交。
-   *
-   * @param {Rectangle} other - 另一个矩形
-   * @returns {boolean} 是否相交
-   *
-   * @example
-   * ```ts
-   * const overlap = rect.intersects(otherRect);
-   * ```
-   */
-  public intersects(other: Rectangle): boolean {
-    const thisTopLeft = this.getTopLeft();
-    const otherTopLeft = other.getTopLeft();
-
-    return !(
-      thisTopLeft.x + this.width < otherTopLeft.x ||
-      otherTopLeft.x + other.width < thisTopLeft.x ||
-      thisTopLeft.y + this.height < otherTopLeft.y ||
-      otherTopLeft.y + other.height < thisTopLeft.y
-    );
   }
 
   /**
@@ -321,49 +286,49 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * ```
    */
   public override setControlPoint(index: number, point: Point3): void {
-    if (index < 0 || index >= 4) return
+    if (index < 0 || index >= 4) return;
 
-    const v = this.controlPoints
+    const v = this.controlPoints;
     switch (index) {
       case 0: // 左上 → 对角是右下(2)
         this.controlPoints = [
           new Point3(point.x, point.y, 0),
-          new Point3(v[2].x,  point.y, 0),
-          new Point3(v[2].x,  v[2].y,  0),
-          new Point3(point.x, v[2].y,  0),
-        ]
-        break
+          new Point3(v[2].x, point.y, 0),
+          new Point3(v[2].x, v[2].y, 0),
+          new Point3(point.x, v[2].y, 0),
+        ];
+        break;
       case 1: // 右上 → 对角是左下(3)
         this.controlPoints = [
-          new Point3(v[3].x,  point.y, 0),
+          new Point3(v[3].x, point.y, 0),
           new Point3(point.x, point.y, 0),
-          new Point3(point.x, v[3].y,  0),
-          new Point3(v[3].x,  v[3].y,  0),
-        ]
-        break
+          new Point3(point.x, v[3].y, 0),
+          new Point3(v[3].x, v[3].y, 0),
+        ];
+        break;
       case 2: // 右下 → 对角是左上(0)
         this.controlPoints = [
-          new Point3(v[0].x,  v[0].y,  0),
-          new Point3(point.x, v[0].y,  0),
+          new Point3(v[0].x, v[0].y, 0),
+          new Point3(point.x, v[0].y, 0),
           new Point3(point.x, point.y, 0),
-          new Point3(v[0].x,  point.y, 0),
-        ]
-        break
+          new Point3(v[0].x, point.y, 0),
+        ];
+        break;
       case 3: // 左下 → 对角是右上(1)
         this.controlPoints = [
-          new Point3(point.x, v[1].y,  0),
-          new Point3(v[1].x,  v[1].y,  0),
-          new Point3(v[1].x,  point.y, 0),
+          new Point3(point.x, v[1].y, 0),
+          new Point3(v[1].x, v[1].y, 0),
+          new Point3(v[1].x, point.y, 0),
           new Point3(point.x, point.y, 0),
-        ]
-        break
+        ];
+        break;
     }
 
     // 重新计算 width/height（允许负值翻转后取绝对值）
-    this.width  = Math.abs(this.controlPoints[2].x - this.controlPoints[0].x)
-    this.height = Math.abs(this.controlPoints[2].y - this.controlPoints[0].y)
-    this.rebuildEdges()
-    this.bounds = this.updateBounds()
+    this.width = Math.abs(this.controlPoints[2].x - this.controlPoints[0].x);
+    this.height = Math.abs(this.controlPoints[2].y - this.controlPoints[0].y);
+    this.rebuildEdges();
+    this.bounds = this.updateBounds();
   }
 
   // ── 序列化 ──
@@ -382,7 +347,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * ```
    */
   public toJSON(): any {
-    const topLeft = this.getTopLeft()
+    const topLeft = this.getTopLeft();
     return {
       id: this.id,
       type: this.type,
@@ -390,7 +355,7 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
       y: topLeft.y,
       width: this.width,
       height: this.height,
-    }
+    };
   }
 
   /**
@@ -405,9 +370,15 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * ```
    */
   public static fromJSON(data: any): Rectangle {
-    const rect = new Rectangle(data.x, data.y, data.width, data.height, undefined)
-    rect.id = data.id
-    return rect
+    const rect = new Rectangle(
+      data.x,
+      data.y,
+      data.width,
+      data.height,
+      undefined,
+    );
+    rect.id = data.id;
+    return rect;
   }
 
   /**
@@ -422,7 +393,13 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    */
   public copy(): this {
     const topLeft = this.getTopLeft();
-    return new Rectangle(topLeft.x, topLeft.y, this.width, this.height, undefined) as this;
+    return new Rectangle(
+      topLeft.x,
+      topLeft.y,
+      this.width,
+      this.height,
+      undefined,
+    ) as this;
   }
 
   /**
@@ -439,7 +416,12 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * const square = Rectangle.createSquare(0, 0, 100, style);
    * ```
    */
-  public static createSquare(x: number, y: number, size: number, _style?: Style): Rectangle {
+  public static createSquare(
+    x: number,
+    y: number,
+    size: number,
+    _style?: Style,
+  ): Rectangle {
     return new Rectangle(x, y, size, size, undefined);
   }
 
@@ -463,9 +445,15 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
     centerY: number,
     width: number,
     height: number,
-    _style?: Style
+    _style?: Style,
   ): Rectangle {
-    return new Rectangle(centerX - width / 2, centerY - height / 2, width, height, undefined);
+    return new Rectangle(
+      centerX - width / 2,
+      centerY - height / 2,
+      width,
+      height,
+      undefined,
+    );
   }
 
   /**
@@ -484,7 +472,12 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * const golden = Rectangle.createGoldenRatio(0, 0, 200, style);
    * ```
    */
-  public static createGoldenRatio(x: number, y: number, width: number, _style?: Style): Rectangle {
+  public static createGoldenRatio(
+    x: number,
+    y: number,
+    width: number,
+    _style?: Style,
+  ): Rectangle {
     const goldenRatio = (1 + Math.sqrt(5)) / 2;
     const height = width / goldenRatio;
     return new Rectangle(x, y, width, height, undefined);
@@ -503,6 +496,12 @@ export default class Rectangle extends Polygon implements IRectangle, ISerializa
    * ```
    */
   public static fromBounds(bounds: Bounds, _style?: Style): Rectangle {
-    return new Rectangle(bounds.x, bounds.y, bounds.width, bounds.height, undefined);
+    return new Rectangle(
+      bounds.x,
+      bounds.y,
+      bounds.width,
+      bounds.height,
+      undefined,
+    );
   }
 }

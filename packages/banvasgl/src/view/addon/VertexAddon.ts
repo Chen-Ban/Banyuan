@@ -49,10 +49,10 @@ const RADIUS_COLLAPSED_OFFSET = 12
  */
 export default class VertexAddon implements IVertexAddon {
     public readonly type = AddonType.VERTEX
-    public readonly capabilities = [
+    public capabilities = [
         AddonCapability.RENDER,
         AddonCapability.INTERACT,
-    ] as const
+    ]
     public readonly priority = 10
     public vertices: Point3[]
     public activeVertex: Point3 | null = null

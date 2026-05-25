@@ -106,24 +106,26 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * ```
    */
   protected rebuildEdges(): void {
+    // 快照顶点：addGraph 内部的 syncControlPoints 会覆写 this.controlPoints，
+    // 必须在循环前保存副本，否则循环边界和索引会被中途破坏（只生成 2 条边的 bug 根因）
+    const vertices = this.controlPoints.slice();
     this.graphs = [];
-    if (this.controlPoints.length < 2) {
+    if (vertices.length < 2) {
       return;
     }
-    // 创建边线
-    for (let i = 0; i < this.controlPoints.length; i++) {
-      const current = this.controlPoints[i];
-      const next = this.controlPoints[(i + 1) % this.controlPoints.length];
-
+    // 直接 push 到 this.graphs，跳过 addGraph 的中间 syncControlPoints 触发
+    for (let i = 0; i < vertices.length; i++) {
       // 如果不是闭合多边形且是最后一条边，跳过
-      if (!this.closed && i === this.controlPoints.length - 1) {
+      if (!this.closed && i === vertices.length - 1) {
         break;
       }
-
-      const line = new Line(current, next);
-      this.addGraph(line);
+      const current = vertices[i];
+      const next = vertices[(i + 1) % vertices.length];
+      this.graphs.push(new Line(current, next));
     }
-    this.bounds = this.updateBounds()
+    // 边重建完毕后统一同步控制点和包围盒
+    this.syncControlPoints();
+    this.bounds = this.updateBounds();
   }
 
   /**
@@ -132,7 +134,7 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * 委托给父类对所有子图形执行变换，然后重新同步控制点。
    *
    * @param {Matrix4} matrix - 4×4 变换矩阵
-   * @returns {CombinedGraph} 变换后的多边形（当前实例）
+   * @returns 变换后的多边形（当前实例）
    *
    * @example
    * ```ts
@@ -140,7 +142,7 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * polygon.transform(matrix);
    * ```
    */
-  public override transform(matrix: Matrix4): CombinedGraph {
+  public override transform(matrix: Matrix4): this {
     super.transform(matrix);
     this.syncControlPoints();
     return this;
