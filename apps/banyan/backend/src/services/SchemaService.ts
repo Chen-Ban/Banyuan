@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import AppSchemaModel, { ICollectionDef, IFieldDef } from '../models/AppSchema.js'
+import CollectionSchemaModel, { ICollectionDef, IFieldDef } from '../models/CollectionSchema.js'
 
 // ── 动态 Model 缓存 ───────────────────────────────────────────────────────────
 // key: `${appId}__${collectionName}`
@@ -142,7 +142,7 @@ export class SchemaService {
    * 获取应用的 Schema（不存在则返回空 Schema）
    */
   static async getSchema(appId: string) {
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
     if (!doc) {
       return { appId, collections: [], version: 0 }
     }
@@ -153,7 +153,7 @@ export class SchemaService {
    * 获取单个 Collection 定义
    */
   static async getCollection(appId: string, collectionName: string): Promise<ICollectionDef | null> {
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
     if (!doc) return null
     return doc.collections.find((c) => c.name === collectionName) ?? null
   }
@@ -165,7 +165,7 @@ export class SchemaService {
     appId: string,
     collection: ICollectionDef,
   ) {
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
 
     if (doc) {
       const exists = doc.collections.some((c) => c.name === collection.name)
@@ -177,7 +177,7 @@ export class SchemaService {
       await doc.save()
       return doc.toObject()
     } else {
-      const newDoc = await AppSchemaModel.create({
+      const newDoc = await CollectionSchemaModel.create({
         appId,
         collections: [collection],
         version: 1,
@@ -194,9 +194,9 @@ export class SchemaService {
     collectionName: string,
     updates: Partial<Pick<ICollectionDef, 'displayName' | 'fields'>>,
   ) {
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
     if (!doc) {
-      throw Object.assign(new Error(`AppSchema for app "${appId}" not found`), { status: 404 })
+      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
     }
 
     const idx = doc.collections.findIndex((c) => c.name === collectionName)
@@ -222,9 +222,9 @@ export class SchemaService {
    * 删除 Collection
    */
   static async deleteCollection(appId: string, collectionName: string) {
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
     if (!doc) {
-      throw Object.assign(new Error(`AppSchema for app "${appId}" not found`), { status: 404 })
+      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
     }
 
     const before = doc.collections.length
@@ -251,9 +251,9 @@ export class SchemaService {
     collectionName: string,
     field: IFieldDef,
   ) {
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
     if (!doc) {
-      throw Object.assign(new Error(`AppSchema for app "${appId}" not found`), { status: 404 })
+      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
     }
 
     const collection = doc.collections.find((c) => c.name === collectionName)
@@ -283,9 +283,9 @@ export class SchemaService {
     fieldName: string,
     updates: Partial<IFieldDef>,
   ) {
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
     if (!doc) {
-      throw Object.assign(new Error(`AppSchema for app "${appId}" not found`), { status: 404 })
+      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
     }
 
     const collection = doc.collections.find((c) => c.name === collectionName)
@@ -314,9 +314,9 @@ export class SchemaService {
     collectionName: string,
     fieldName: string,
   ) {
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
     if (!doc) {
-      throw Object.assign(new Error(`AppSchema for app "${appId}" not found`), { status: 404 })
+      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
     }
 
     const collection = doc.collections.find((c) => c.name === collectionName)
@@ -348,14 +348,14 @@ export class SchemaService {
     // 清除所有旧 Model 缓存（新 Schema 可能增删集合或改字段）
     invalidateAllDynamicModels(appId)
 
-    const doc = await AppSchemaModel.findOne({ appId })
+    const doc = await CollectionSchemaModel.findOne({ appId })
     if (doc) {
       doc.collections = collections
       doc.version += 1
       await doc.save()
       return doc.toObject()
     } else {
-      const newDoc = await AppSchemaModel.create({
+      const newDoc = await CollectionSchemaModel.create({
         appId,
         collections,
         version: 1,

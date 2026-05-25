@@ -9,6 +9,8 @@ import dataRouter from './data.js'
 import flowsRouter from './flows.js'
 import cloudFunctionsRouter from './cloudFunctions.js'
 import { uploadRouter } from './upload.js'
+import knowledgeRouter from './knowledge.js'
+import internalRouter from './internal.js'
 
 const router = new Router()
 
@@ -40,5 +42,11 @@ router.use(cloudFunctionsRouter.routes(), cloudFunctionsRouter.allowedMethods())
 
 // 文件上传（缩略图 → OSS）
 router.use(uploadRouter.routes(), uploadRouter.allowedMethods())
+
+// 知识库（向量检索 + 持久化）
+router.use(knowledgeRouter.routes(), knowledgeRouter.allowedMethods())
+
+// 内部 API（供 XiangDi 服务回调读取应用状态）
+router.use(internalRouter.routes(), internalRouter.allowedMethods())
 
 export default router

@@ -4,7 +4,7 @@ import { OrmService } from '../services/OrmService.js'
 
 /**
  * 自动 CRUD 控制器
- * 基于 AppSchema 动态生成的 Collection 提供标准 CRUD 操作
+ * 基于 CollectionSchema 动态生成的 Collection 提供标准 CRUD 操作
  * 路由前缀：/api/apps/:appId/data/:collectionName
  */
 export class DataController {

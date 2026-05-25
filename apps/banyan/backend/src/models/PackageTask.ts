@@ -6,7 +6,7 @@ import mongoose, { Schema, Document } from 'mongoose'
  * 将构建任务状态持久化到 MongoDB，解决进程重启后任务状态丢失的问题。
  * 前端轮询 /build/:taskId 时，即使进程重启也能从 DB 恢复任务状态。
  */
-export interface IBuildTask extends Document {
+export interface IPackageTask extends Document {
   /** 任务 UUID */
   taskId: string
   /** 应用名称 */
@@ -25,7 +25,7 @@ export interface IBuildTask extends Document {
   updatedAt: Date
 }
 
-const BuildTaskSchema = new Schema<IBuildTask>(
+const PackageTaskSchema = new Schema<IPackageTask>(
   {
     taskId: { type: String, required: true, unique: true, index: true },
     appName: { type: String, required: true },
@@ -47,6 +47,6 @@ const BuildTaskSchema = new Schema<IBuildTask>(
 )
 
 // 30 天 TTL：基于 updatedAt，任务完成后 30 天自动清理
-BuildTaskSchema.index({ updatedAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 })
+PackageTaskSchema.index({ updatedAt: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 })
 
-export default mongoose.model<IBuildTask>('BuildTask', BuildTaskSchema)
+export default mongoose.model<IPackageTask>('PackageTask', PackageTaskSchema)

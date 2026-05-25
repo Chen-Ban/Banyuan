@@ -1,31 +1,21 @@
 /**
  * 对话会话路由
  *
- * GET    /api/conversations/:appId                        — 列出应用的所有会话
- * GET    /api/conversations/:appId/:conversationId        — 获取会话详情（含消息历史）
- * PATCH  /api/conversations/:appId/:conversationId        — 更新会话标题
- * DELETE /api/conversations/:appId/:conversationId        — 删除单个会话
- * DELETE /api/conversations/:appId                        — 删除应用的所有会话
+ * 基于"1 App = 1 Conversation"模型，路由挂载在 /api/applications/:appId 下。
+ * 会话只增不删，仅提供消息读取接口。
+ *
+ * GET /api/applications/:appId/conversation/messages — 获取对话历史消息
  */
 
 import Router from '@koa/router'
 import conversationController from '../controllers/ConversationController.js'
 
-const router = new Router({ prefix: '/api/conversations' })
+const router = new Router({ prefix: '/api/applications' })
 
-// 列出应用的所有会话
-router.get('/:appId', conversationController.list.bind(conversationController))
-
-// 获取会话详情
-router.get('/:appId/:conversationId', conversationController.detail.bind(conversationController))
-
-// 更新会话标题
-router.patch('/:appId/:conversationId', conversationController.updateTitle.bind(conversationController))
-
-// 删除单个会话
-router.delete('/:appId/:conversationId', conversationController.delete.bind(conversationController))
-
-// 删除应用的所有会话
-router.delete('/:appId', conversationController.deleteByApp.bind(conversationController))
+// 获取对话历史消息
+router.get(
+  '/:appId/conversation/messages',
+  conversationController.getMessages.bind(conversationController)
+)
 
 export default router
