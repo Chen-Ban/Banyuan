@@ -90,6 +90,15 @@ export interface ProjectSpec {
    * 供云函数工具等理解可操作的数据结构
    */
   appSchema?: AppSchemaCollection[];
+  /**
+   * 设计规范 Token（可选）
+   * 颜色、字体、间距等视觉设计约束
+   */
+  designTokens?: {
+    colors?: Record<string, string>;
+    typography?: Record<string, unknown>;
+    spacing?: Record<string, string | number>;
+  };
   /** 原始内容，保留用于注入 system prompt */
   raw: ProjectSpecRaw;
 }

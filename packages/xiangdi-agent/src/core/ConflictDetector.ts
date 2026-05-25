@@ -46,7 +46,7 @@ export class DecisionLog {
   private currentRound = 0;
 
   /**
-   * 推进轮次（每次 AgentLoop 迭代调用）
+   * 推进轮次（每次 MasterGraph 迭代调用）
    */
   advanceRound(): void {
     this.currentRound++;

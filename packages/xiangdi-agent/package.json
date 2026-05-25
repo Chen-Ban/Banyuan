@@ -43,6 +43,8 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^4.2.0",
+    "@langchain/core": "^0.3.26",
+    "@langchain/langgraph": "^0.2.36",
     "@lancedb/lancedb": "^0.27.2",
     "graphology": "^0.26.0",
     "graphology-traversal": "^0.3.1",

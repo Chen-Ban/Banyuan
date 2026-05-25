@@ -77,7 +77,7 @@ export interface RegisteredTool<
 // ─── Agent 配置 ───────────────────────────────────────────────────────────────
 
 export interface LLMConfig {
-  /** 模型标识，如 "deepseek-chat" */
+  /** 模型标识，如 "deepseek-v4-pro" */
   model: string;
   /** API 基础 URL */
   baseURL?: string;
@@ -97,10 +97,9 @@ export interface AgentConfig {
 
 // ─── 流式事件 ─────────────────────────────────────────────────────────────────
 
-import type { LifecycleEvent, AgentStateSnapshot } from "./AgentLifecycle.js";
 import type { ConflictReport } from "./ConflictDetector.js";
 import type { DisambiguationOptions } from "./DisambiguationHandler.js";
-import type { DisambiguationPending } from "./AgentLoop.js";
+import type { DisambiguationPending } from "./llmTypes.js";
 
 export type StreamEventType =
   | "text_delta"
@@ -108,9 +107,10 @@ export type StreamEventType =
   | "tool_result"
   | "done"
   | "error"
-  | "lifecycle"
   | "disambiguation"
-  | "disambiguation_pending";
+  | "disambiguation_pending"
+  | "round_summary"
+  | "memory_update";
 
 export interface StreamEvent {
   type: StreamEventType;
@@ -142,19 +142,6 @@ export interface ErrorEvent extends StreamEvent {
   data: { error: Error };
 }
 
-/**
- * 生命周期事件（通过 StreamBridge 统一通道暴露）
- *
- * 使 UI 层可通过同一个事件流同时接收：
- *   - 文本增量（text_delta）
- *   - 工具调用/结果（tool_call / tool_result）
- *   - Agent 状态变迁（lifecycle）
- */
-export interface LifecycleStreamEvent extends StreamEvent {
-  type: "lifecycle";
-  data: { event: LifecycleEvent; snapshot: AgentStateSnapshot };
-}
-
 /** 消歧选项事件（通知 UI 层展示选项） */
 export interface DisambiguationEvent extends StreamEvent {
   type: "disambiguation";
@@ -167,14 +154,42 @@ export interface DisambiguationPendingEvent extends StreamEvent {
   data: { pending: DisambiguationPending };
 }
 
+/** 轮次摘要事件（summarize 节点产出整轮摘要后发出） */
+export interface RoundSummaryEvent extends StreamEvent {
+  type: "round_summary";
+  data: { summary: string };
+}
+
+/** 记忆更新事件（extractMemory 节点提取经验/事实后发出） */
+export interface MemoryUpdateEvent extends StreamEvent {
+  type: "memory_update";
+  data: {
+    episode: {
+      title: string;
+      content: string;
+      outcome: "success" | "failure" | "partial" | "aborted";
+      lessons: string[];
+      involvedEntities: string[];
+      tags: string[];
+      importance: number;
+    } | null;
+    facts: Array<{
+      category: string;
+      content: string;
+      confidence: number;
+    }>;
+  };
+}
+
 export type TypedStreamEvent =
   | TextDeltaEvent
   | ToolCallEvent
   | ToolResultEvent
   | DoneEvent
   | ErrorEvent
-  | LifecycleStreamEvent
   | DisambiguationEvent
-  | DisambiguationPendingEvent;
+  | DisambiguationPendingEvent
+  | RoundSummaryEvent
+  | MemoryUpdateEvent;
 
 export type StreamCallback = (event: TypedStreamEvent) => void;

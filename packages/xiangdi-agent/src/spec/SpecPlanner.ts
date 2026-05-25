@@ -2,11 +2,11 @@
  * 相地 · SpecPlanner
  *
  * 用一次专门的 LLM 调用，将用户的自然语言输入转化为结构化的 ChangeSpec。
- * 这是"理解 → 对齐"链路的自动化实现。
+ * 这是“理解 → 对齐”链路的自动化实现。
  *
- * 与 AgentLoop 的区别：
- *   - SpecPlanner：单次调用，无工具，只输出 JSON，职责是"规划"
- *   - AgentLoop：多轮循环，带工具，职责是"执行"
+ * 与 MasterGraph 的区别：
+ *   - SpecPlanner：单次调用，无工具，只输出 JSON，职责是“规划”
+ *   - MasterGraph：多轮节点图执行，带工具，职责是“执行”
  *
  * 典型流程：
  *   用户输入
@@ -15,10 +15,10 @@
  *     → HumanGate 用户确认/修改
  *     → ChangeSpec (approved)
  *     → HarnessRunner.run()
- *     → AgentLoop 执行
+ *     → MasterGraph 执行
  */
 
-import type { LLMClient } from "../core/AgentLoop.js";
+import type { LLMClient } from "../core/llmTypes.js";
 import type { ProjectSpec } from "./types.js";
 import { ChangeSpecBuilder } from "./ChangeSpecBuilder.js";
 import type { ChangeSpec } from "./types.js";

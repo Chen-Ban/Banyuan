@@ -109,8 +109,6 @@ export class FileProjectSpecLoader implements ProjectSpecLoader {
   }
 
   private async fileExists(path: string): Promise<boolean> {
-    // TODO: 在 Node.js 环境中使用 fs.access，在浏览器环境中始终返回 false
-    // 此处为骨架实现，调用方可通过子类覆盖
     try {
       const { access } = await import("node:fs/promises");
       await access(path);
@@ -121,7 +119,6 @@ export class FileProjectSpecLoader implements ProjectSpecLoader {
   }
 
   private async readFile(path: string): Promise<string | null> {
-    // TODO: 在 Node.js 环境中使用 fs.readFile
     try {
       const { readFile } = await import("node:fs/promises");
       return await readFile(path, "utf-8");

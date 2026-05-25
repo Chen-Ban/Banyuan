@@ -14,7 +14,7 @@
  *   - 失败时默认 hybrid，确保不影响主流程
  */
 
-import type { LLMClient } from "../core/AgentLoop.js";
+import type { LLMClient } from "../core/llmTypes.js";
 import type { Message } from "../core/types.js";
 import type {
   RetrievalRouter,
@@ -28,7 +28,7 @@ import type {
 export interface RetrievalRouterConfig {
   /** LLM 客户端（用于路由决策，建议使用轻量模型） */
   llmClient: LLMClient;
-  /** 模型名称，默认 "deepseek-chat" */
+  /** 模型名称，默认 "deepseek-v4-pro" */
   model?: string;
   /** 是否启用决策缓存，默认 true */
   enableCache?: boolean;
@@ -47,7 +47,7 @@ export class LLMRetrievalRouter implements RetrievalRouter {
 
   constructor(config: RetrievalRouterConfig) {
     this.llmClient = config.llmClient;
-    this.model = config.model ?? "deepseek-chat";
+    this.model = config.model ?? "deepseek-v4-pro";
     this.enableCache = config.enableCache ?? true;
     this.cacheSize = config.cacheSize ?? 100;
     this.cache = new Map();

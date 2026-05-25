@@ -4,7 +4,7 @@
  * 为 Agent 提供跨任务的经验积累和知识沉淀能力。
  *
  * 记忆三层：
- *   - 短期（Working Memory）：ContextManager 管理（已有）
+ *   - 短期（Working Memory）：MasterGraph 状态中的对话上下文
  *   - 中期（Episodic Memory）：跨任务的执行经验
  *   - 长期（Semantic Memory）：稳定的知识和偏好
  *

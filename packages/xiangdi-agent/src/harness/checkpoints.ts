@@ -2,11 +2,11 @@
  * 相地 · 内置 Checkpoints（检查点）
  *
  * 开箱即用的后置验证函数，可直接传入 HarnessConfig.checkpoints。
- * 在 AgentLoop 执行完成后运行，验证输出是否符合预期。
+ * 在 MasterGraph 执行完成后运行，验证输出是否符合预期。
  *
  * 使用示例：
  * ```ts
- * const harness = new HarnessRunner(agentLoop, client, {
+ * const harness = new HarnessRunner(masterGraph, client, {
  *   checkpoints: [
  *     Checkpoints.outputNotEmpty(),
  *     Checkpoints.outputMatchesPattern(/成功|完成/),
@@ -22,7 +22,7 @@ import { ChangeSpecBuilder } from "../spec/ChangeSpecBuilder.js";
 // ─── Checkpoint 工厂函数 ──────────────────────────────────────────────────────
 
 /**
- * 检查 AgentLoop 的输出不为空
+ * 检查 MasterGraph 的输出不为空
  */
 export function outputNotEmpty(): Checkpoint {
   return {

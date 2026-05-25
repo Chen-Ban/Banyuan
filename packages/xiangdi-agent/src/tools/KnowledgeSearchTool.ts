@@ -2,10 +2,7 @@
  * 相地 · 知识检索工具
  *
  * 内置基础工具：知识库按需检索。
- *
- * 架构变迁：
- *   原先 KnowledgeStore 作为管线（pipeline）在 HarnessRunner 中自动注入 system prompt，
- *   即"无脑塞入"模式。现重构为 Tool 模式，由 LLM 主动发起检索调用。
+ * 由 LLM 在 MasterGraph 的 tools 节点中主动发起检索调用。
  *
  * 优势：
  *   - 按需加载：SpecPlanner 已明确当前任务涉及哪些组件，LLM 按需检索对应知识

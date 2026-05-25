@@ -2,7 +2,7 @@
  * 相地 · 工具注册表
  *
  * 如园中工匠各司其职，工具注册表统筹所有可用工具，
- * 按名索引，供 AgentLoop 在规划时调度。
+ * 按名索引，供 MasterGraph 在 tools 节点中调度。
  */
 
 import type {

@@ -37,7 +37,7 @@
  */
 
 import type { ToolDefinition, ToolHandler } from "../core/types.js";
-import type { LLMClient } from "../core/AgentLoop.js";
+import type { LLMClient } from "../core/llmTypes.js";
 import { ToolRegistry } from "../core/ToolRegistry.js";
 
 // ─── AppSchema 类型（与 ProjectSpec 中的 appSchema 对齐）────────────────────────

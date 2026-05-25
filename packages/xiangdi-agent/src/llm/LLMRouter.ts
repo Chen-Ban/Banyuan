@@ -28,12 +28,12 @@
  *   onSignal: (signal) => console.log("LLM issue detected:", signal),
  * });
  *
- * // 当作普通 LLMClient 使用，对 AgentLoop 透明
- * const result = await agentLoop.run(router, "创建一个登录页");
+ * // 当作普通 LLMClient 使用，对 MasterGraph 透明
+ * const response = await router.createMessage(messages, tools);
  * ```
  */
 
-import type { LLMClient, LLMResponse } from "../core/AgentLoop.js";
+import type { LLMClient, LLMResponse } from "../core/llmTypes.js";
 import type { Message } from "../core/types.js";
 
 // ─── 类型定义 ──────────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ export interface LLMRouterConfig {
 /**
  * LLM 动态路由器
  *
- * 实现 LLMClient 接口，对 AgentLoop 完全透明。
+ * 实现 LLMClient 接口，对 MasterGraph 完全透明。
  * MVP 阶段：检测异常、记录健康状态、发射信号，不做真正切换。
  * 底层重试由 openai SDK 负责，Router 只处理 SDK 最终抛出的错误。
  */

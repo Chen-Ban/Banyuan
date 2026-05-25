@@ -2,6 +2,7 @@
   "name": "xiangdi-server",
   "version": "0.0.1",
   "description": "XiangDi AI Agent 独立 HTTP 服务",
+  "type": "module",
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -19,7 +20,10 @@
     "@koa/cors": "^5.0.0",
     "koa-body": "^6.0.1",
     "@banyuan/xiangdi-agent": "workspace:*",
-    "@banyuan/banvasgl": "workspace:*"
+    "@banyuan/banvasgl": "workspace:*",
+    "@langchain/core": "^0.3.26",
+    "@langchain/langgraph": "^0.2.36",
+    "@langchain/langgraph-checkpoint-sqlite": "^0.1.0"
   },
   "devDependencies": {
     "@types/koa": "^2.15.0",
