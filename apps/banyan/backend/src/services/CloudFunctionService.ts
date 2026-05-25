@@ -98,6 +98,71 @@ class CloudFunctionService {
     const result = await CloudFunction.deleteOne({ appId, functionId })
     return result.deletedCount > 0
   }
+
+  /**
+   * 批量同步云函数（前端快照覆盖式写入）
+   *
+   * 前端在 AI chat 请求时上传当前内存中的所有云函数，
+   * 后端以此为"单一事实来源"覆盖式同步到 DB：
+   *   - 已存在的 functionId → 更新 name/displayName/description/flowSchema + version++
+   *   - 新 functionId → 创建
+   *   - DB 中存在但前端未传的 → 删除（说明用户已在前端删除）
+   *
+   * @param appId       目标应用 ID
+   * @param functions   前端传入的云函数快照列表
+   */
+  async bulkSync(
+    appId: string,
+    functions: Array<{
+      functionId: string
+      name: string
+      displayName?: string
+      description?: string
+      flowSchema?: Record<string, unknown>
+    }>
+  ): Promise<void> {
+    // 获取 DB 中该应用现有的所有云函数
+    const existing = await CloudFunction.find({ appId }).lean()
+    const existingMap = new Map(existing.map((f) => [f.functionId, f]))
+
+    const incomingIds = new Set(functions.map((f) => f.functionId))
+
+    // 1. 删除前端不再包含的函数
+    const toDelete = existing.filter((f) => !incomingIds.has(f.functionId))
+    if (toDelete.length > 0) {
+      await CloudFunction.deleteMany({
+        appId,
+        functionId: { $in: toDelete.map((f) => f.functionId) },
+      })
+    }
+
+    // 2. 逐条 upsert（更新或创建）
+    const ops = functions.map((fn) => ({
+      updateOne: {
+        filter: { appId, functionId: fn.functionId },
+        update: {
+          $set: {
+            name: fn.name.trim(),
+            displayName: fn.displayName?.trim() || fn.name.trim(),
+            description: fn.description?.trim() || '',
+            flowSchema: fn.flowSchema ?? { nodes: [], edges: [] },
+          },
+          $setOnInsert: {
+            appId,
+            functionId: fn.functionId,
+            version: 1,
+          },
+          // 已存在时 version 自增
+          ...(existingMap.has(fn.functionId) ? { $inc: { version: 1 } } : {}),
+        },
+        upsert: true,
+      },
+    }))
+
+    if (ops.length > 0) {
+      await CloudFunction.bulkWrite(ops)
+    }
+  }
 }
 
 export default new CloudFunctionService()

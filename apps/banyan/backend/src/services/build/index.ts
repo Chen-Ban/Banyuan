@@ -6,7 +6,7 @@
  *   2. bundle()        — Vite 打包
  *   3. buildElectron() — electron-builder 打包
  *
- * 任务状态持久化到 MongoDB（BuildTask 模型），进程重启后可从 DB 恢复。
+ * 任务状态持久化到 MongoDB（PackageTask 模型），进程重启后可从 DB 恢复。
  */
 
 import * as os from 'os'
@@ -17,7 +17,7 @@ import { scaffold } from './scaffold.js'
 import { bundle } from './bundler.js'
 import { buildElectron } from './electron.js'
 import type { Platform } from './electron.js'
-import { BuildTaskModel } from '../../models/index.js'
+import { PackageTaskModel } from '../../models/index.js'
 
 export { scaffold, bundle, buildElectron }
 export type { Platform }
@@ -32,11 +32,11 @@ export type { ElectronBuildOptions } from './electron.js'
 const STORAGE_DIR = path.resolve(process.cwd(), 'storage/builds')
 fs.mkdirSync(STORAGE_DIR, { recursive: true })
 
-// ── 任务状态（与 IBuildTask 保持一致）──
+// ── 任务状态（与 IPackageTask 保持一致）──
 
 export type TaskStatus = 'pending' | 'running' | 'success' | 'failed'
 
-export interface BuildTask {
+export interface PackageTask {
   taskId: string
   appName: string
   platform: Platform
@@ -53,8 +53,8 @@ export interface BuildTask {
  * 从 MongoDB 查询任务状态
  * 进程重启后仍可查询历史任务
  */
-export async function getTask(taskId: string): Promise<BuildTask | undefined> {
-  const doc = await BuildTaskModel.findOne({ taskId }).lean()
+export async function getTask(taskId: string): Promise<PackageTask | undefined> {
+  const doc = await PackageTaskModel.findOne({ taskId }).lean()
   if (!doc) return undefined
   return {
     taskId: doc.taskId,
@@ -127,7 +127,7 @@ export async function startBuild(options: StartBuildOptions): Promise<string> {
   const taskId = randomUUID()
 
   // 持久化到 MongoDB
-  await BuildTaskModel.create({
+  await PackageTaskModel.create({
     taskId,
     appName: options.appName,
     platform: options.platform,
@@ -153,7 +153,7 @@ async function runBuild(taskId: string, options: StartBuildOptions): Promise<voi
 
   /** 更新 MongoDB 中的任务状态 */
   const update = async (patch: Partial<{ status: TaskStatus; outputFile: string; error: string }>) => {
-    await BuildTaskModel.updateOne({ taskId }, { $set: patch }).catch((err) => {
+    await PackageTaskModel.updateOne({ taskId }, { $set: patch }).catch((err) => {
       console.warn(`[Build ${taskId}] DB update failed:`, err)
     })
   }

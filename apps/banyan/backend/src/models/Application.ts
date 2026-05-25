@@ -1,5 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
+// ─── 应用文档接口 ──────────────────────────────────────────────────────────────
+
 /**
  * 应用文档接口
  */
@@ -28,9 +30,8 @@ export interface IApplication extends Document {
   updatedAt: Date
 }
 
-/**
- * 应用 Schema
- */
+// ─── Application Schema ───────────────────────────────────────────────────────
+
 const ApplicationSchema = new Schema<IApplication>(
   {
     application_id: {

@@ -34,9 +34,9 @@ export interface ICollectionDef {
   fields: IFieldDef[]
 }
 
-// ── AppSchema 文档接口 ─────────────────────────────────────────────────────────
+// ── CollectionSchema 文档接口 ──────────────────────────────────────────────────
 
-export interface IAppSchema extends Document {
+export interface ICollectionSchema extends Document {
   appId: string
   collections: ICollectionDef[]
   version: number
@@ -72,7 +72,7 @@ const CollectionDefSchema = new Schema<ICollectionDef>(
   { _id: false },
 )
 
-const AppSchemaSchema = new Schema<IAppSchema>(
+const CollectionSchemaDefinition = new Schema<ICollectionSchema>(
   {
     appId: { type: String, required: true, unique: true, index: true },
     collections: { type: [CollectionDefSchema], default: [] },
@@ -81,4 +81,4 @@ const AppSchemaSchema = new Schema<IAppSchema>(
   { timestamps: true },
 )
 
-export default mongoose.model<IAppSchema>('AppSchema', AppSchemaSchema)
+export default mongoose.model<ICollectionSchema>('CollectionSchema', CollectionSchemaDefinition)
