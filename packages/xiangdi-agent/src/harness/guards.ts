@@ -6,7 +6,7 @@
  *
  * 使用示例：
  * ```ts
- * const harness = new HarnessRunner(agentLoop, client, {
+ * const harness = new HarnessRunner(masterGraph, client, {
  *   guards: [
  *     Guards.specApproved(),
  *     Guards.hasAtLeastOneTask(),

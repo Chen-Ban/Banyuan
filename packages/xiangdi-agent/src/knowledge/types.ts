@@ -13,7 +13,7 @@
  *
  *   3. 工具调用（动态状态，实时获取）
  *      - 画布当前状态、节点位置等运行时数据
- *      - 由 AgentLoop 通过工具调用实时获取
+ *      - 由 MasterGraph 通过工具调用实时获取
  *
  * 三层各司其职：ProjectSpec 告诉 Agent "什么不能做"，
  * KnowledgeStore 告诉 Agent "怎么做（参考知识）"，

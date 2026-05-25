@@ -13,11 +13,11 @@ import { loadApiKey } from '../utils/loadApiKey.js'
  *   LLM_PROVIDER      — 当前激活的 provider，默认 "deepseek"
  *
  *   DEEPSEEK_API_KEY  — DeepSeek API Key（优先于 src/apiKey.json）
- *   DEEPSEEK_MODEL    — DeepSeek 模型名，默认 "deepseek-chat"
+ *   DEEPSEEK_MODEL    — DeepSeek 模型名，默认 "deepseek-v4-pro"
  *   DEEPSEEK_BASE_URL — DeepSeek API 基础 URL，默认 "https://api.deepseek.com"
  *
  *   KIMI_API_KEY      — Kimi API Key（优先于 src/apiKey.json 中的 kimiApiKey）
- *   KIMI_MODEL        — Kimi 模型名，默认 "moonshot-v1-32k"
+ *   KIMI_MODEL        — Kimi 模型名，默认 "kimi-k2.6"
  *   KIMI_BASE_URL     — Kimi API 基础 URL，默认 "https://api.moonshot.ai/v1"
  *
  *   LLM_HIGH_LATENCY_MS             — 高延迟阈值（ms），默认 60000
@@ -39,12 +39,12 @@ export interface ModelInfo {
 
 export const PROVIDER_CATALOG: Record<string, { defaultModel: string; availableModels: string[] }> = {
     deepseek: {
-        defaultModel: 'deepseek-chat',
-        availableModels: ['deepseek-chat', 'deepseek-reasoner'],
+        defaultModel: 'deepseek-v4-pro',
+        availableModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
     },
     kimi: {
-        defaultModel: 'moonshot-v1-32k',
-        availableModels: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+        defaultModel: 'kimi-k2.6',
+        availableModels: ['kimi-k2.6'],
     },
 }
 

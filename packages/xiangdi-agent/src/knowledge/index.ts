@@ -53,6 +53,15 @@ export type {
 // ─── 实现 ──────────────────────────────────────────────────────────────────────
 
 /**
+ * EmbeddingService — 公共文本向量化服务
+ * 从 LanceDBKnowledgeStore 中提取的独立 Embedding 能力
+ * 使用 @huggingface/transformers 做本地 ONNX 推理（multilingual-e5-small，384 维）
+ * 支持 embedQuery / embedPassage / cosineSimilarity 等公共 API
+ */
+export { EmbeddingService, EMBEDDING_DIMENSIONS } from "./EmbeddingService.js";
+export type { EmbeddingServiceConfig } from "./EmbeddingService.js";
+
+/**
  * LanceDB 知识库（生产推荐）
  * 向量检索 + BM25 全文检索，RRF 融合，数据持久化到本地磁盘
  * 内置 multilingual-e5-small 本地 ONNX 推理（支持中英文）

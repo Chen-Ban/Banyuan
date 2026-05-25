@@ -4,8 +4,8 @@
  * Agent 记忆分三层：
  *
  *   1. 短期记忆（Working Memory）
- *      - 单次 AgentLoop.run() 中的对话上下文
- *      - 由 ContextManager 管理（已有实现）
+ *      - MasterGraph 单次执行中的对话上下文
+ *      - 由 MasterGraph 状态管理
  *      - 生命周期：单次执行
  *
  *   2. 中期记忆（Episodic Memory）

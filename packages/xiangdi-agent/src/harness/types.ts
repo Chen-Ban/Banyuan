@@ -3,15 +3,14 @@
  *
  * Harness Engineering 的核心契约。
  *
- * Harness（缰绳）是包裹 AgentLoop 的外壳，提供：
+ * Harness（缰绳）是包裹 Agent Graph 的外壳，提供：
  *   - Guard（守卫）：执行前的前置检查，可阻断执行
  *   - Checkpoint（检查点）：执行后的后置验证，可触发回滚
- *   - HumanGate（人工介入节点）：暂停等待人工确认
- *   - Rollback（回滚）：检查点失败时的恢复策略
+ *   - Human-in-the-Loop：通过 LangGraph interrupt() 实现人工介入
  *
  * 设计原则：
- *   - Harness 是外壳，不侵入 AgentLoop 内部逻辑
- *   - Agent = Model + Harness
+ *   - Harness 是外壳，不侵入 Agent Graph 内部逻辑
+ *   - Agent = Graph + Harness
  *   - 每个 Guard / Checkpoint 是独立的、可组合的函数
  */
 
@@ -33,7 +32,7 @@ export interface GuardResult {
 
 /**
  * Guard 函数签名
- * 在 AgentLoop 执行前运行，返回 false 则阻断执行
+ * 在 MasterGraph 执行前运行，返回 false 则阻断执行
  *
  * @param context 当前执行上下文
  */
@@ -67,7 +66,7 @@ export interface CheckpointResult {
 
 /**
  * Checkpoint 函数签名
- * 在 AgentLoop 执行后运行，验证结果是否符合预期
+ * 在 MasterGraph 执行后运行，验证结果是否符合预期
  *
  * @param context 当前执行上下文（含执行结果）
  */
@@ -84,47 +83,6 @@ export interface Checkpoint {
   rollback?: (context: HarnessContext) => Promise<void>;
 }
 
-// ─── HumanGate（人工介入节点）────────────────────────────────────────────────
-
-/**
- * 人工介入节点的触发时机
- */
-export type HumanGateTrigger =
-  | "before_run"      // 执行前（如：审核 ChangeSpec 的 proposal）
-  | "after_planning"  // 规划完成后（如：审核 tasks 列表）
-  | "after_run"       // 执行后（如：确认结果）
-  | "on_error";       // 出错时
-
-/**
- * 人工介入节点
- * Harness 在此节点暂停，等待外部（用户/系统）提供决策
- */
-export interface HumanGate {
-  trigger: HumanGateTrigger;
-  /**
-   * 向用户展示的提示信息
-   * 支持函数形式，可根据上下文动态生成
-   */
-  prompt: string | ((context: HarnessContext) => string);
-  /**
-   * 处理用户决策的回调
-   * 返回 true 表示继续，false 表示中止
-   */
-  onDecision: (decision: HumanDecision, context: HarnessContext) => Promise<boolean>;
-}
-
-/**
- * 人工决策
- */
-export interface HumanDecision {
-  /** 是否批准继续 */
-  approved: boolean;
-  /** 用户的附加说明或修改意见 */
-  comment?: string;
-  /** 用户对 ChangeSpec 的修改（可选） */
-  specPatch?: Partial<ChangeSpec>;
-}
-
 // ─── HarnessContext（执行上下文）─────────────────────────────────────────────
 
 /**
@@ -136,7 +94,7 @@ export interface HarnessContext {
   changeSpec: ChangeSpec;
   /** 当前执行阶段 */
   phase: HarnessPhase;
-  /** AgentLoop 的执行结果（仅在 after_run 阶段可用） */
+  /** MasterGraph 的执行结果（仅在 after_run 阶段可用） */
   result?: string;
   /** 执行过程中的错误（仅在 on_error 阶段可用） */
   error?: Error;
@@ -151,7 +109,7 @@ export type HarnessPhase =
   | "idle"
   | "guarding"      // 正在运行 Guards
   | "waiting_human" // 等待人工介入
-  | "running"       // AgentLoop 执行中
+  | "running"       // MasterGraph 执行中
   | "checkpointing" // 正在运行 Checkpoints
   | "done"
   | "aborted"
@@ -167,8 +125,6 @@ export interface HarnessConfig {
   guards?: Guard[];
   /** 后置检查点列表（按顺序执行） */
   checkpoints?: Checkpoint[];
-  /** 人工介入节点列表 */
-  humanGates?: HumanGate[];
   /**
    * 是否在所有 Guards 通过后自动执行（不等待人工确认）
    * 默认 false（需要人工确认 before_run 节点）
@@ -189,7 +145,7 @@ export interface HarnessConfig {
 export interface HarnessRunResult {
   /** 是否成功完成 */
   success: boolean;
-  /** AgentLoop 的最终输出 */
+  /** MasterGraph 的最终输出 */
   output?: string;
   /** 失败原因 */
   failureReason?: string;

@@ -8,7 +8,7 @@
  * 待用户确认后将选择写回 DecisionLog，使后续执行有据可依。
  */
 
-import type { LLMClient } from "./AgentLoop.js";
+import type { LLMClient } from "./llmTypes.js";
 import type {
   ConflictReport,
   ConflictItem,
@@ -48,7 +48,7 @@ export class DisambiguationHandler {
   private readonly llmClient: LLMClient;
   private readonly model: string;
 
-  constructor(llmClient: LLMClient, model = "deepseek-chat") {
+  constructor(llmClient: LLMClient, model = "deepseek-v4-pro") {
     this.llmClient = llmClient;
     this.model = model;
   }

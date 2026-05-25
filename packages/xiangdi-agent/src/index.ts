@@ -12,11 +12,7 @@
 
 // ─── 核心引擎 ─────────────────────────────────────────────────────────────────
 export {
-  AgentLoop,
   ToolRegistry,
-  ContextManager,
-  StreamBridge,
-  AgentLifecycle,
   ConflictDetector,
   DecisionLog,
   DisambiguationHandler,
@@ -38,25 +34,20 @@ export type {
   // 配置
   LLMConfig,
   AgentConfig,
-  // 生命周期状态机
-  AgentPhase,
-  AgentStep,
-  LifecycleEvent,
-  LifecycleEventDetail,
-  AgentStateSnapshot,
-  LifecycleListener,
   // 流式事件
   StreamEvent,
   StreamCallback,
+  StreamEventType,
   TypedStreamEvent,
   TextDeltaEvent,
   ToolCallEvent,
   ToolResultEvent,
   DoneEvent,
   ErrorEvent,
-  LifecycleStreamEvent,
   DisambiguationEvent,
   DisambiguationPendingEvent,
+  RoundSummaryEvent,
+  MemoryUpdateEvent,
   // LLM 客户端接口
   LLMClient,
   LLMResponse,
@@ -72,6 +63,26 @@ export type {
   DisambiguationOption,
   DisambiguationOptions,
 } from "./core/index.js";
+
+// ─── Graph Module (LangGraph) ────────────────────────────────────────────────
+export {
+  MasterStateAnnotation,
+  ExecuteStateAnnotation,
+  createMasterGraph,
+  buildSpecSystemPrompt,
+  loadSpecPrompt,
+  createExtractMemoryNode,
+} from "./graph/index.js";
+export type {
+  MasterState,
+  ExecuteState,
+  PlanTask,
+  PlanOutput,
+  MasterGraphConfig,
+  SpecNodeConfig,
+  ExtractMemoryConfig,
+  MemoryNodeState,
+} from "./graph/index.js";
 
 // ─── Schema 层 ────────────────────────────────────────────────────────────────
 export {
@@ -225,15 +236,10 @@ export type {
   PlanResult,
 } from "./spec/index.js";
 
-// ─── Harness 层（约束 + 反馈回路 + 人工介入）────────────────────────────────
+// ─── Harness 层（约束 + 反馈回路）────────────────────────────────────────────
 export {
-  HarnessRunner,
-  SSEHarnessRunner,
-  injectHumanDecision,
   Guards,
   Checkpoints,
-  HumanGates,
-  LocalCheckpointStore,
   specApproved,
   hasAtLeastOneTask,
   noProhibitedKeywords,
@@ -244,10 +250,6 @@ export {
   allTasksDone,
   outputMinLength,
   customCheckpoint,
-  reviewProposal,
-  reviewTasks,
-  confirmResult,
-  retryOnError,
 } from "./harness/index.js";
 
 export type {
@@ -257,22 +259,17 @@ export type {
   CheckpointResult,
   CheckpointFn,
   Checkpoint,
-  HumanGateTrigger,
-  HumanGate,
-  HumanDecision,
   HarnessContext,
   HarnessPhase,
   HarnessConfig,
   HarnessRunResult,
-  HarnessCheckpoint,
-  CheckpointStore,
-  LocalCheckpointStoreConfig,
-  SSEWriteFn,
-  HumanGateSSEData,
 } from "./harness/index.js";
 
-// ─── Knowledge 层（RAG + GraphRAG）───────────────────────────────────────────
+// ─── Knowledge 层（RAG + GraphRAG + Embedding）──────────────────────────────
 export {
+  // 公共 Embedding 服务（本地 ONNX 推理，384 维）
+  EmbeddingService,
+  EMBEDDING_DIMENSIONS,
   // 生产推荐：向量 + BM25 混合检索，本地持久化
   LanceDBKnowledgeStore,
   // 测试/小数据量：关键词匹配
@@ -288,6 +285,7 @@ export {
 } from "./knowledge/index.js";
 
 export type {
+  EmbeddingServiceConfig,
   KnowledgeChunk,
   KnowledgeStore,
   KnowledgeQueryOptions,
@@ -346,23 +344,10 @@ export type {
   DefaultMemoryManagerConfig,
 } from "./memory/index.js";
 
-// ─── 编排层（并行 SubAgent 架构）──────────────────────────────────────────────
-export {
-  OrchestratorAgent,
-  LayoutPlanner,
-  SubAgentRunner,
-  Assembler,
-  AssemblyError,
-  AuditorAgent,
-  DEFAULT_ORCHESTRATION_CONFIG,
-} from "./orchestration/index.js";
+// ─── 编排层（类型定义）────────────────────────────────────────────────
+export { DEFAULT_ORCHESTRATION_CONFIG } from "./orchestration/index.js";
 
 export type {
-  // 布局规划
-  LayoutPlannerInput,
-  LayoutPlannerResult,
-  ProgressCallback,
-  AssemblyDiagnostic,
   // Port 系统
   PortDirection,
   PortDataType,

@@ -5,9 +5,9 @@
  * 实现与 DeepSeekClient 完全相同的 LLMClient 接口，内部同样基于 openai SDK。
  *
  * 支持的模型：
- *   - moonshot-v1-8k   — 8k 上下文，适合短对话
- *   - moonshot-v1-32k  — 32k 上下文，适合中等长度任务（推荐）
- *   - moonshot-v1-128k — 128k 上下文，适合超长文档处理
+ *   - kimi-k2.6        — 256k 上下文，Kimi 迨今最智能模型，强 Agent/代码能力（推荐）
+ *   - kimi-k2.5        — 256k 上下文，多模态 + Agent + 代码
+ *   - moonshot-v1-128k — 128k 上下文，旧版模型（仅向后兼容）
  *
  * 使用示例：
  * ```ts
@@ -15,17 +15,16 @@
  *
  * const client = new KimiClient({
  *   apiKey: "sk-xxx",
- *   model: "moonshot-v1-32k",
+ *   model: "kimi-k2.6",
  * });
  *
- * // 直接用于 AgentLoop
- * const loop = new AgentLoop(config);
- * const result = await loop.run(client, "创建一个登录页");
+ * // 作为 LLMClient 传入 MasterGraph
+ * const response = await client.createMessage(messages, tools);
  * ```
  */
 
 import OpenAI from "openai";
-import type { LLMClient, LLMResponse } from "../core/AgentLoop.js";
+import type { LLMClient, LLMResponse } from "../core/llmTypes.js";
 import type { Message } from "../core/types.js";
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
@@ -33,7 +32,7 @@ import type { Message } from "../core/types.js";
 export interface KimiConfig {
   /** API Key（从 https://platform.moonshot.cn 获取） */
   apiKey: string;
-  /** 模型名称，默认 "moonshot-v1-32k" */
+  /** 模型名称，默认 "kimi-k2.6" */
   model?: string;
   /** API 基础 URL，默认 "https://api.moonshot.ai/v1" */
   baseUrl?: string;
@@ -54,7 +53,7 @@ export class KimiClient implements LLMClient {
   private readonly defaultModel: string;
 
   constructor(config: KimiConfig) {
-    this.defaultModel = config.model ?? "moonshot-v1-32k";
+    this.defaultModel = config.model ?? "kimi-k2.6";
     this.openai = new OpenAI({
       apiKey: config.apiKey,
       baseURL: config.baseUrl ?? "https://api.moonshot.ai/v1",
@@ -104,7 +103,7 @@ function buildOpenAIMessages(
 
   for (const msg of messages) {
     if (msg.role === "user") {
-      // AgentLoop 以 Anthropic 风格将 ToolResultContent[] 作为 role:"user" 推入上下文。
+      // MasterGraph 以 Anthropic 风格将 ToolResultContent[] 作为 role:"user" 推入上下文。
       // OpenAI 协议要求这些作为独立的 role:"tool" 消息紧跟在含 tool_calls 的 assistant 消息之后。
       if (isToolResultArray(msg.content)) {
         const toolResults = msg.content as ToolResultContentLike[];
@@ -148,7 +147,7 @@ interface ToolResultContentLike {
 
 /**
  * 判断 message.content 是否为 ToolResultContent[]
- * AgentLoop 第 274 行推入时的实际形态：数组且每个元素 type === "tool_result"
+ * MasterGraph 推入时的实际形态：数组且每个元素 type === "tool_result"
  */
 function isToolResultArray(content: Message["content"]): boolean {
   if (!Array.isArray(content)) return false;
