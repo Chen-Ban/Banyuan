@@ -1,0 +1,34 @@
+{
+  "name": "knowledge-server",
+  "version": "0.0.1",
+  "description": "BanvasGL 知识服务 — 独立微服务，负责知识的生成、持久化与语义检索",
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/server.js",
+    "seed": "tsx scripts/seed-knowledge.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@10.10.0",
+  "dependencies": {
+    "@banyuan/banvasgl": "workspace:*",
+    "@huggingface/transformers": "^4.2.0",
+    "@koa/cors": "^5.0.0",
+    "@koa/router": "^13.1.0",
+    "@lancedb/lancedb": "^0.27.2",
+    "koa": "^2.15.3",
+    "koa-body": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.15.0",
+    "@types/koa__cors": "^5.0.0",
+    "@types/koa__router": "^12.0.4",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "~5.7.3"
+  }
+}
