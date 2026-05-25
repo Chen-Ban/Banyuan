@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams, useNavigate, useBlocker } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { Button, Spin, message, Empty, Modal } from 'antd'
 import { TableOutlined } from '@ant-design/icons'
 import { schemaApi } from '@/api'
@@ -24,35 +24,6 @@ const DatabasePage: React.FC = () => {
 
   // 稳定回调引用，避免 FieldEditor 无限渲染
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), [])
-
-  // ── 路由离开拦截 ─────────────────────────────────────────────────────────
-
-  const blocker = useBlocker(dirty)
-
-  useEffect(() => {
-    if (blocker.state === 'blocked') {
-      Modal.confirm({
-        title: '有未保存的更改',
-        content: '当前字段修改尚未保存，确定要离开吗？未保存的更改将丢失。',
-        okText: '离开',
-        cancelText: '留在此页',
-        okButtonProps: { danger: true },
-        onOk: () => blocker.proceed(),
-        onCancel: () => blocker.reset(),
-      })
-    }
-  }, [blocker])
-
-  // ── 浏览器关闭/刷新拦截 ──────────────────────────────────────────────────
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (dirty) {
-        e.preventDefault()
-      }
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [dirty])
 
   // ── 加载 Schema ──────────────────────────────────────────────────────────
 
@@ -219,8 +190,8 @@ const DatabasePage: React.FC = () => {
             {/* AI 对话栏 */}
             <AiBar
               appId={id!}
-              mode="database"
               getPages={() => []}
+              getSchema={() => collections}
               onPagesUpdate={() => {}}
             />
           </div>

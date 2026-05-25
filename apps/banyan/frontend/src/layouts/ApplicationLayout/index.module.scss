@@ -16,10 +16,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px 0 8px;
+  padding: 0 0 0 8px;
   background: #fff;
   border-bottom: 1px solid #e9ecef;
   z-index: 2;
+  overflow: hidden;
 }
 
 .backBtn {
@@ -111,20 +112,25 @@
   }
 }
 
-// ── 顶部 Tab 导航栏 ─────────────────────────────────────────────────────────
+// ── 竖线分割符 ───────────────────────────────────────────────────────────────
 
-.tabBar {
+.divider {
   flex-shrink: 0;
-  background: #fff;
-  border-bottom: 1px solid #e9ecef;
-  padding: 0 20px;
-  // 用负 margin 抵消 antd Tabs 自带的底部 border 线，避免双线
-  margin-bottom: -1px;
-  z-index: 1;
+  width: 1px;
+  height: 20px;
+  background: #e9ecef;
+  margin: 0 4px;
 }
 
-.tabs {
+// ── Header 内联 Tab ──────────────────────────────────────────────────────────
+
+.headerTabs {
+  // 高度撑满 header，让活色指示线贴底
+  height: 48px;
+  flex-shrink: 0;
+
   :global(.ant-tabs-nav) {
+    height: 48px;
     margin: 0;
 
     &::before {
@@ -132,9 +138,15 @@
     }
   }
 
+  :global(.ant-tabs-nav-wrap) {
+    padding: 0;
+  }
+
   :global(.ant-tabs-tab) {
-    padding: 10px 4px;
+    padding: 0 12px;
     font-size: 13px;
+    height: 48px;
+    margin: 0 !important;
   }
 
   :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {

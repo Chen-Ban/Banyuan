@@ -17,7 +17,7 @@
  */
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import {
   useDesignBanvas,
   DesignContextMenu,
@@ -26,7 +26,7 @@ import {
 import { message } from "antd";
 import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
-import AiBar from "@/components/AiBar";
+import AiBar, { type AiBarHandle } from "@/components/AiBar";
 import { useAppLayoutCtx } from "@/layouts/ApplicationLayout/AppLayoutCtx";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyDrawer from "./components/PropertyDrawer";
@@ -38,7 +38,14 @@ const DEFAULT_PANEL_WIDTH = 200;
 
 const UIPage = () => {
   const { id: application_id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { registerGetPages, unregisterGetPages } = useAppLayoutCtx();
+
+  // 首页跳转时携带的初始 prompt，画布加载完成后自动发送
+  const initialPromptRef = useRef<string | null>(
+    (location.state as { initialPrompt?: string } | null)?.initialPrompt ?? null,
+  );
+  const aiBarRef = useRef<AiBarHandle>(null);
 
   const [initialPages, setInitialPages] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -155,6 +162,19 @@ const UIPage = () => {
     prevSelectedViewIdRef.current = selectedViewId;
   }, [selectedViewId]);
 
+  // ── 首页跳转后自动发送 initialPrompt ─────────────────────────────────────
+  useEffect(() => {
+    if (!loaded) return;
+    const prompt = initialPromptRef.current;
+    if (!prompt) return;
+    initialPromptRef.current = null; // 只触发一次
+    // 等一帧，确保 AiBar 已挂载并完成 useImperativeHandle 绑定
+    const raf = requestAnimationFrame(() => {
+      aiBarRef.current?.sendPrompt(prompt);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [loaded]);
+
   // ── 自动生成缩略图 ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!loaded || !application_id || !needsThumbnailRef.current) return;
@@ -206,8 +226,8 @@ const UIPage = () => {
           <div className={styles.canvasArea}>
             {Banvas}
             <AiBar
+              ref={aiBarRef}
               appId={application_id!}
-              mode="canvas"
               getPages={() => actions.getSerializedPages()}
               onPagesUpdate={(aiPages) => setInitialPages(aiPages)}
               onPagesSnapshot={(aiPages) => setInitialPages(aiPages)}
