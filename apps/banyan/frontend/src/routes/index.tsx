@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouteObject } from 'react-router-dom'
-import ApplicationList from '@/pages/ApplicationList'
+import HomePage from '@/pages/HomePage'
+import ApplicationListPage from '@/pages/ApplicationListPage'
 import ApplicationLayout from '@/layouts/ApplicationLayout'
 import UIPage from '@/pages/UIPage'
 import DatabasePage from '@/pages/DatabasePage'
@@ -8,7 +9,11 @@ import FunctionsPage from '@/pages/FunctionsPage'
 const routes: RouteObject[] = [
   {
     path: '/',
-    element: <ApplicationList />,
+    element: <HomePage />,
+  },
+  {
+    path: '/applications',
+    element: <ApplicationListPage />,
   },
   // 应用详情：三个子页面共用 ApplicationLayout
   {
