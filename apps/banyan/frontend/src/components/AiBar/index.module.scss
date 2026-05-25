@@ -1,137 +1,14 @@
+// AiBar — 输入框区域样式
+// 进度面板样式已迁移至 ConversationPanel/index.module.scss
+
+// ─── 外层容器 ─────────────────────────────────────────────────────────────────
+
 .aiBar {
   display: flex;
   flex-direction: column;
   background: transparent;
   padding: 0 12px 12px;
   flex-shrink: 0;
-}
-
-// ─── 进度区 ───────────────────────────────────────────────────────────────────
-
-.progressPanel {
-  display: flex;
-  flex-direction: column;
-  max-height: 220px;
-  width: calc(100% - 28px);
-  align-self: center;
-  background: #fff;
-  border: 1px solid #e2e2e2;
-  border-radius: 12px 12px 0 0;
-  border-bottom: none;
-  overflow: hidden;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.07);
-}
-
-.progressHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
-  flex-shrink: 0;
-}
-
-.progressTitle {
-  font-size: 12px;
-  color: #666;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-
-  :global(.anticon) {
-    color: #1677ff;
-  }
-}
-
-.closeBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: #bbb;
-  border-radius: 4px;
-  padding: 0;
-  font-size: 11px;
-  transition: color 0.15s, background 0.15s;
-
-  &:hover {
-    color: #666;
-    background: #f0f0f0;
-  }
-}
-
-.progressBody {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #d9d9d9;
-    border-radius: 2px;
-  }
-}
-
-.streamingText {
-  font-size: 13px;
-  color: #333;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-  padding: 2px 0;
-}
-
-.loadingPlaceholder {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #999;
-  padding: 4px 0;
-}
-
-.progressItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 12px;
-  color: #555;
-  padding: 2px 0;
-  line-height: 1.5;
-}
-
-.progressItemTool {
-  color: #1677ff;
-}
-
-.progressItemDone {
-  color: #333;
-  font-size: 13px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.progressItemError {
-  color: #ff4d4f;
-}
-
-.toolSpinner {
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
-.progressContent {
-  flex: 1;
 }
 
 // ─── 输入框容器 ───────────────────────────────────────────────────────────────
@@ -211,10 +88,9 @@
 // ─── 文本域 ───────────────────────────────────────────────────────────────────
 
 .textarea {
-  // content-box: min-height/max-height 只约束内容区，不含 padding
   box-sizing: content-box;
-  width: calc(100% - 28px); // 扣除左右 padding (14 + 14)
-  min-height: calc(1em * 1.6); // 一行行高
+  width: calc(100% - 28px);
+  min-height: calc(1em * 1.6);
   max-height: 160px;
   padding: 12px 14px 4px;
   border: none;
@@ -259,19 +135,6 @@
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.modeTag {
-  font-size: 11px;
-  padding: 0 6px;
-  line-height: 20px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  cursor: default;
-  user-select: none;
-  flex-shrink: 0;
 }
 
 .modelSelect {
@@ -347,4 +210,3 @@
     background: #333;
   }
 }
-
