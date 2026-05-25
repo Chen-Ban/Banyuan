@@ -6,7 +6,7 @@
  *
  * 布局：
  *   ┌─────────────────────────────────────────────┐
- *   │  对话区（历史消息 + 进度消息 + 流式文字）       │
+ *   │  ConversationPanel（可折叠/展开/关闭）         │
  *   ├─────────────────────────────────────────────┤
  *   │  ┌───────────────────────────────────────┐  │
  *   │  │  图片预览区（有图片时显示）              │  │
@@ -20,17 +20,14 @@
 import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Spin, Image, Select } from "antd";
 import {
-  RobotOutlined,
   CloseOutlined,
   SendOutlined,
   StopOutlined,
-  UserOutlined,
 } from "@ant-design/icons";
 import { useXiangDi } from "@/hooks/useXiangDi";
-import type { ProgressMessage } from "@/hooks/useXiangDi";
 import { aiApi } from "@/api";
-import type { ConversationMessage, DisambiguationOptions, ProviderInfo, SchemaCollectionDef } from "@/api";
-import DisambiguationPanel from "./DisambiguationPanel";
+import type { DisambiguationOptions, ProviderInfo, SchemaCollectionDef } from "@/api";
+import ConversationPanel from "./ConversationPanel";
 import styles from "./index.module.scss";
 
 // ─── Imperative handle ────────────────────────────────────────────────────────
@@ -84,11 +81,10 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
 }, ref) {
   const [inputValue, setInputValue] = useState("");
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
-  const [progressVisible, setProgressVisible] = useState(false);
+  const [panelVisible, setPanelVisible] = useState(false);
   const [disambiguationState, setDisambiguationState] =
     useState<DisambiguationOptions | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const progressEndRef = useRef<HTMLDivElement>(null);
 
   // ─── 模型选择 ──────────────────────────────────────────────────────────────
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -101,16 +97,12 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
         setProviders(data?.providers ?? []);
         setActiveProvider(data?.activeProvider ?? "");
       })
-      .catch(() => {
-        /* 静默失败，不影响主流程 */
-      });
+      .catch(() => { /* 静默失败 */ });
   }, []);
 
   const handleModelChange = useCallback((provider: string) => {
     setActiveProvider(provider);
-    aiApi.switchModel(provider).catch(() => {
-      /* 静默失败 */
-    });
+    aiApi.switchModel(provider).catch(() => { /* 静默失败 */ });
   }, []);
 
   const {
@@ -136,6 +128,13 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   // 暴露 sendPrompt 给父组件（首页跳转后自动触发）
   useImperativeHandle(ref, () => ({ sendPrompt }), [sendPrompt]);
 
+  // 有历史消息或正在对话时自动显示面板
+  useEffect(() => {
+    if (history.length > 0 || messages.length > 0 || loading) {
+      setPanelVisible(true);
+    }
+  }, [history.length, messages.length, loading]);
+
   const handleDisambiguationSelect = useCallback(
     async (choiceId: string) => {
       await respondToDisambiguation(choiceId);
@@ -144,16 +143,12 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     [respondToDisambiguation],
   );
 
-  // 有历史消息或正在对话时自动展开面板
-  useEffect(() => {
-    if (history.length > 0 || messages.length > 0 || loading) {
-      setProgressVisible(true);
-    }
-  }, [history.length, messages.length, loading]);
+  const handlePanelClose = useCallback(() => {
+    setPanelVisible(false);
+    clearMessages();
+  }, [clearMessages]);
 
-  useEffect(() => {
-    progressEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [history, messages, currentText]);
+  // ─── 输入框逻辑 ────────────────────────────────────────────────────────────
 
   const autoResize = useCallback(() => {
     const el = textareaRef.current;
@@ -216,77 +211,23 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     [handleSend],
   );
 
-  const handleClose = useCallback(() => {
-    setProgressVisible(false);
-    clearMessages();
-  }, [clearMessages]);
-
   const canSend =
     (inputValue.trim().length > 0 || pastedImages.length > 0) && !loading;
 
   return (
     <div className={styles.aiBar}>
-      {/* 对话区 */}
-      {progressVisible && (
-        <div className={styles.progressPanel}>
-          <div className={styles.progressHeader}>
-            <span className={styles.progressTitle}>
-              <RobotOutlined /> AI 助手
-            </span>
-            <button
-              className={styles.closeBtn}
-              onClick={handleClose}
-              aria-label="关闭"
-            >
-              <CloseOutlined />
-            </button>
-          </div>
-          <div className={styles.progressBody}>
-            {/* 加载历史中 */}
-            {historyLoading && (
-              <div className={styles.loadingPlaceholder}>
-                <Spin size="small" />
-                <span>加载对话历史...</span>
-              </div>
-            )}
-
-            {/* 历史消息 */}
-            {history.map((msg, idx) => (
-              <HistoryItem key={`history_${idx}`} message={msg} />
-            ))}
-
-            {/* 当前轮次：流式文字 */}
-            {loading && currentText && (
-              <div className={styles.streamingText}>{currentText}</div>
-            )}
-
-            {/* 当前轮次：进度消息 */}
-            {messages.map((msg) => (
-              <ProgressItem key={msg.id} message={msg} />
-            ))}
-
-            {/* 消歧面板 */}
-            {disambiguationState && (
-              <DisambiguationPanel
-                options={disambiguationState}
-                onSelect={handleDisambiguationSelect}
-              />
-            )}
-
-            {/* 等待 AI 响应 */}
-            {loading &&
-              messages.length === 0 &&
-              !currentText &&
-              !disambiguationState && (
-                <div className={styles.loadingPlaceholder}>
-                  <Spin size="small" />
-                  <span>AI 正在思考...</span>
-                </div>
-              )}
-            <div ref={progressEndRef} />
-          </div>
-        </div>
-      )}
+      {/* 对话面板（可折叠） */}
+      <ConversationPanel
+        visible={panelVisible}
+        historyLoading={historyLoading}
+        history={history}
+        messages={messages}
+        currentText={currentText}
+        loading={loading}
+        disambiguationState={disambiguationState}
+        onDisambiguationSelect={handleDisambiguationSelect}
+        onClose={handlePanelClose}
+      />
 
       {/* 输入框容器 */}
       <div className={styles.inputWrapper}>
@@ -374,44 +315,5 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   );
 });
 
-// ─── HistoryItem（历史消息展示）──────────────────────────────────────────────
-
-const HistoryItem: React.FC<{ message: ConversationMessage }> = ({ message }) => {
-  const isUser = message.role === 'user';
-  const text = typeof message.content === 'string'
-    ? message.content
-    : JSON.stringify(message.content);
-
-  return (
-    <div className={`${styles.historyItem} ${isUser ? styles.historyItemUser : styles.historyItemAssistant}`}>
-      <span className={styles.historyRole}>
-        {isUser ? <UserOutlined /> : <RobotOutlined />}
-      </span>
-      <span className={styles.historyContent}>{text}</span>
-    </div>
-  );
-};
-
-// ─── ProgressItem ─────────────────────────────────────────────────────────────
-
-const ProgressItem: React.FC<{ message: ProgressMessage }> = ({ message }) => {
-  const isToolRunning = message.type === "tool_call" && !message.completed;
-
-  const cls = [
-    styles.progressItem,
-    message.type === "error" || message.isError ? styles.progressItemError : "",
-    message.type === "done" ? styles.progressItemDone : "",
-    message.type === "tool_call" ? styles.progressItemTool : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  return (
-    <div className={cls}>
-      {isToolRunning && <Spin size="small" className={styles.toolSpinner} />}
-      <span className={styles.progressContent}>{message.content}</span>
-    </div>
-  );
-};
-
+export type { AiBarHandle };
 export default AiBar;
