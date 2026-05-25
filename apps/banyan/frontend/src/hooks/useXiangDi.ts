@@ -3,15 +3,22 @@
  *
  * 封装与后端 XiangDi AI 服务的 SSE 通信逻辑。
  * 提供：
+ * - 加载历史消息（loadHistory）
  * - 发送指令（sendPrompt）
  * - 实时进度消息列表（messages）
+ * - 对话历史（history）
  * - 加载状态（loading）
  * - 中止请求（abort）
+ * - 清空对话（clearConversation）
+ *
+ * 会话模型：1 App = 1 Conversation，以 appId 为唯一标识，
+ * 前端无需管理 conversationId。
  */
 
-import { useState, useCallback, useRef } from 'react'
-import { aiApi } from '@/api'
-import type { AiStreamEvent, DisambiguationOptions } from '@/api'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { aiApi, conversationApi } from '@/api'
+import type { AiStreamEvent, DisambiguationOptions, SchemaCollectionDef } from '@/api'
+import type { ConversationMessage } from '@/api'
 
 // ─── 进度消息类型 ─────────────────────────────────────────────────────────────
 
@@ -43,6 +50,16 @@ export interface UseXiangDiOptions {
    * 确保 AI 操作的是前端内存中的最新状态而非 DB 快照。
    */
   getPages: () => string[]
+  /** 获取当前 Schema 的回调（可选，由 DatabasePage 提供） */
+  getSchema?: () => SchemaCollectionDef[]
+  /** 获取当前云函数列表的回调（可选，由 FunctionsPage 提供） */
+  getCloudFunctions?: () => Array<{
+    functionId: string
+    name: string
+    displayName?: string
+    description?: string
+    flowSchema?: Record<string, unknown>
+  }>
   /** AI 完成后回调，携带最终 pages JSON */
   onDone?: (pages: string[]) => void
   /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
@@ -56,7 +73,11 @@ export interface UseXiangDiOptions {
 export interface UseXiangDiReturn {
   /** 是否正在运行 */
   loading: boolean
-  /** 进度消息列表（按时间顺序） */
+  /** 历史消息是否正在加载 */
+  historyLoading: boolean
+  /** 对话历史消息（user + assistant 交替） */
+  history: ConversationMessage[]
+  /** 当前轮次的进度消息列表（按时间顺序） */
   messages: ProgressMessage[]
   /** 当前累积的 LLM 文字输出 */
   currentText: string
@@ -64,7 +85,7 @@ export interface UseXiangDiReturn {
   sendPrompt: (prompt: string) => Promise<void>
   /** 中止当前请求 */
   abort: () => void
-  /** 清空消息列表 */
+  /** 清空进度消息列表（不清空历史） */
   clearMessages: () => void
   /** 响应消歧选择，通知后端恢复 AgentLoop */
   respondToDisambiguation: (choiceId: string) => Promise<void>
@@ -76,15 +97,41 @@ function nextMsgId(): string {
 }
 
 export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
-  const { appId, getPages, onDone, onPagesSnapshot, onError, onDisambiguation } = options
+  const { appId, getPages, getSchema, getCloudFunctions, onDone, onPagesSnapshot, onError, onDisambiguation } = options
 
   const [loading, setLoading] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [history, setHistory] = useState<ConversationMessage[]>([])
   const [messages, setMessages] = useState<ProgressMessage[]>([])
   const [currentText, setCurrentText] = useState('')
 
   const abortControllerRef = useRef<AbortController | null>(null)
   // 用于在 SSE 回调中累积文字（避免闭包陷阱）
   const currentTextRef = useRef('')
+
+  // ─── 加载历史消息 ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!appId) return
+
+    let cancelled = false
+    setHistoryLoading(true)
+
+    conversationApi.getMessages(appId).then((msgs) => {
+      if (!cancelled) {
+        setHistory(msgs)
+        setHistoryLoading(false)
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setHistoryLoading(false)
+      }
+    })
+
+    return () => { cancelled = true }
+  }, [appId])
+
+  // ─── 消息操作 ──────────────────────────────────────────────────────────────
 
   const addMessage = useCallback((msg: Omit<ProgressMessage, 'id' | 'timestamp'>) => {
     setMessages((prev) => [
@@ -96,7 +143,10 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   const sendPrompt = useCallback(async (prompt: string) => {
     if (loading) return
 
-    // 重置状态
+    // 乐观追加 user 消息到历史
+    setHistory((prev) => [...prev, { role: 'user', content: prompt }])
+
+    // 重置当前轮次状态
     setLoading(true)
     setMessages([])
     setCurrentText('')
@@ -114,7 +164,6 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
           break
         }
         case 'tool_call': {
-          // 工具名做友好化处理
           const friendlyName = formatToolName(event.name)
           addMessage({
             type: 'tool_call',
@@ -125,7 +174,6 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
           break
         }
         case 'tool_result': {
-          // 将对应的 tool_call 消息标记为已完成，停止 Spin
           setMessages((prev) =>
             prev.map((m) =>
               m.type === 'tool_call' && m.toolCallId === event.id
@@ -151,11 +199,13 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
           break
         }
         case 'done': {
-          // 将最终文字输出作为一条消息
-          if (currentTextRef.current.trim()) {
+          // 将 assistant 回复追加到历史
+          const assistantText = currentTextRef.current.trim()
+          if (assistantText) {
+            setHistory((prev) => [...prev, { role: 'assistant', content: assistantText }])
             addMessage({
               type: 'done',
-              content: currentTextRef.current.trim(),
+              content: assistantText,
             })
           }
           break
@@ -176,6 +226,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
         appId,
         prompt,
         pages: getPages(),
+        schema: getSchema?.(),
+        cloudFunctions: getCloudFunctions?.(),
         onEvent: handleEvent,
         signal: controller.signal,
       })
@@ -189,7 +241,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       setLoading(false)
       abortControllerRef.current = null
     }
-  }, [loading, appId, getPages, addMessage, onDone, onError])
+  }, [loading, appId, getPages, getSchema, getCloudFunctions, addMessage, onDone, onError, onPagesSnapshot, onDisambiguation])
 
   const respondToDisambiguationFn = useCallback(async (choiceId: string) => {
     await aiApi.respondToDisambiguation(choiceId)
@@ -206,7 +258,17 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     currentTextRef.current = ''
   }, [])
 
-  return { loading, messages, currentText, sendPrompt, abort, clearMessages, respondToDisambiguation: respondToDisambiguationFn }
+  return {
+    loading,
+    historyLoading,
+    history,
+    messages,
+    currentText,
+    sendPrompt,
+    abort,
+    clearMessages,
+    respondToDisambiguation: respondToDisambiguationFn,
+  }
 }
 
 // ─── 工具名友好化 ─────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useParams, useNavigate, useBlocker } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { Button, Spin, Empty, Modal, message } from "antd";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
@@ -26,32 +26,6 @@ const FunctionsPage: React.FC = () => {
   const [adding, setAdding] = useState(false);
 
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), []);
-
-  // ── 路由离开拦截 ─────────────────────────────────────────────────────────
-
-  const blocker = useBlocker(dirty);
-
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      Modal.confirm({
-        title: "有未保存的更改",
-        content: "当前云函数修改尚未保存，确定要离开吗？未保存的更改将丢失。",
-        okText: "离开",
-        cancelText: "留在此页",
-        okButtonProps: { danger: true },
-        onOk: () => blocker.proceed(),
-        onCancel: () => blocker.reset(),
-      });
-    }
-  }, [blocker]);
-
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (dirty) e.preventDefault();
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [dirty]);
 
   // ── 加载云函数列表 ───────────────────────────────────────────────────────
 
@@ -214,8 +188,14 @@ const FunctionsPage: React.FC = () => {
             {/* AI 对话栏 */}
             <AiBar
               appId={id!}
-              mode="functions"
               getPages={() => []}
+              getCloudFunctions={() => functions.map((f) => ({
+                functionId: f.functionId,
+                name: f.name,
+                displayName: f.displayName,
+                description: f.description,
+                flowSchema: f.schema as Record<string, unknown> | undefined,
+              }))}
               onPagesUpdate={() => {}}
             />
           </div>

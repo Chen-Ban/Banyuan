@@ -142,7 +142,16 @@ export interface AiChatOptions {
   prompt: string
   /** 当前内存中的 pages（从前端传入，AI 操作最新状态，而非 DB 快照） */
   pages: string[]
-  conversationId?: string
+  /** 当前 Schema（从 DatabasePage 收集，可选） */
+  schema?: SchemaCollectionDef[]
+  /** 当前云函数列表（从 FunctionsPage 收集，可选） */
+  cloudFunctions?: Array<{
+    functionId: string
+    name: string
+    displayName?: string
+    description?: string
+    flowSchema?: Record<string, unknown>
+  }>
   onEvent: (event: AiStreamEvent) => void
   signal?: AbortSignal
 }
@@ -167,12 +176,17 @@ export async function respondToDisambiguation(choiceId: string): Promise<void> {
  * 返回 Promise，在 done 或 error 事件后 resolve/reject
  */
 export async function aiChat(options: AiChatOptions): Promise<string[]> {
-  const { appId, prompt, pages, conversationId, onEvent, signal } = options
+  const { appId, prompt, pages, schema, cloudFunctions, onEvent, signal } = options
+
+  // 构建请求体：pages 必传，schema/cloudFunctions 有值才传
+  const requestBody: Record<string, unknown> = { prompt, pages }
+  if (schema && schema.length > 0) requestBody.schema = schema
+  if (cloudFunctions && cloudFunctions.length > 0) requestBody.cloudFunctions = cloudFunctions
 
   const response = await fetch(`${BASE_URL}/ai/${appId}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, pages, conversationId }),
+    body: JSON.stringify(requestBody),
     signal,
   })
 

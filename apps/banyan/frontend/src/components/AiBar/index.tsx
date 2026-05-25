@@ -6,78 +6,59 @@
  *
  * 布局：
  *   ┌─────────────────────────────────────────────┐
- *   │  进度区（消息列表 + 流式文字，可折叠）          │
+ *   │  对话区（历史消息 + 进度消息 + 流式文字）       │
  *   ├─────────────────────────────────────────────┤
  *   │  ┌───────────────────────────────────────┐  │
  *   │  │  图片预览区（有图片时显示）              │  │
  *   │  │  文本域（多行，自动增高）                │  │
  *   │  ├───────────────────────────────────────┤  │
- *   │  │  模式标签  模型选择    [发送 / 停止 按钮]│  │
+ *   │  │  模型选择           [发送 / 停止 按钮]  │  │
  *   │  └───────────────────────────────────────┘  │
  *   └─────────────────────────────────────────────┘
  */
 
-import { useRef, useEffect, useState, useCallback } from "react";
-import { Spin, Image, Select, Tag } from "antd";
+import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
+import { Spin, Image, Select } from "antd";
 import {
   RobotOutlined,
   CloseOutlined,
   SendOutlined,
   StopOutlined,
-  AppstoreOutlined,
-  DatabaseOutlined,
-  FunctionOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { useXiangDi } from "@/hooks/useXiangDi";
 import type { ProgressMessage } from "@/hooks/useXiangDi";
 import { aiApi } from "@/api";
-import type { DisambiguationOptions, ProviderInfo } from "@/api";
+import type { ConversationMessage, DisambiguationOptions, ProviderInfo, SchemaCollectionDef } from "@/api";
 import DisambiguationPanel from "./DisambiguationPanel";
 import styles from "./index.module.scss";
 
-// ─── 模式定义 ─────────────────────────────────────────────────────────────────
+// ─── Imperative handle ────────────────────────────────────────────────────────
 
-export type AiBarMode = "canvas" | "database" | "functions";
-
-interface ModeConfig {
-  label: string;
-  placeholder: string;
-  color: string;
-  icon: React.ReactNode;
+export interface AiBarHandle {
+  /** 外部触发发送，供首页跳转后自动起始对话使用 */
+  sendPrompt: (prompt: string) => void;
 }
-
-const MODE_CONFIG: Record<AiBarMode, ModeConfig> = {
-  canvas: {
-    label: "画布",
-    placeholder: "描述你想要的界面，可粘贴图片...",
-    color: "#1677ff",
-    icon: <AppstoreOutlined />,
-  },
-  database: {
-    label: "数据库",
-    placeholder: "描述你需要的数据结构，AI 将生成 Schema...",
-    color: "#52c41a",
-    icon: <DatabaseOutlined />,
-  },
-  functions: {
-    label: "云函数",
-    placeholder: "描述云函数的功能，AI 将生成函数 Flow...",
-    color: "#722ed1",
-    icon: <FunctionOutlined />,
-  },
-};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface AiBarProps {
   appId: string;
-  /** 当前所在页面模式，决定 AI 的操作上下文 */
-  mode?: AiBarMode;
   /**
    * 获取当前最新 pages 的回调。
    * AiBar 在发送请求时调用，将当前内存状态随流一并发送给 AI。
    */
   getPages: () => string[];
+  /** 获取当前 Schema（可选，由 DatabasePage 提供） */
+  getSchema?: () => SchemaCollectionDef[];
+  /** 获取当前云函数列表（可选，由 FunctionsPage 提供） */
+  getCloudFunctions?: () => Array<{
+    functionId: string;
+    name: string;
+    displayName?: string;
+    description?: string;
+    flowSchema?: Record<string, unknown>;
+  }>;
   onPagesUpdate: (pages: string[]) => void;
   /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
   onPagesSnapshot?: (pages: string[]) => void;
@@ -93,15 +74,14 @@ interface PastedImage {
 
 // ─── AiBar ────────────────────────────────────────────────────────────────────
 
-const AiBar: React.FC<AiBarProps> = ({
+const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   appId,
-  mode = "canvas",
   getPages,
+  getSchema,
+  getCloudFunctions,
   onPagesUpdate,
   onPagesSnapshot,
-}) => {
-  const modeConfig = MODE_CONFIG[mode];
-
+}, ref) {
   const [inputValue, setInputValue] = useState("");
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
   const [progressVisible, setProgressVisible] = useState(false);
@@ -135,6 +115,8 @@ const AiBar: React.FC<AiBarProps> = ({
 
   const {
     loading,
+    historyLoading,
+    history,
     messages,
     currentText,
     sendPrompt,
@@ -144,10 +126,15 @@ const AiBar: React.FC<AiBarProps> = ({
   } = useXiangDi({
     appId,
     getPages,
+    getSchema,
+    getCloudFunctions,
     onDone: (pages) => onPagesUpdate(pages),
     onPagesSnapshot,
     onDisambiguation: (options) => setDisambiguationState(options),
   });
+
+  // 暴露 sendPrompt 给父组件（首页跳转后自动触发）
+  useImperativeHandle(ref, () => ({ sendPrompt }), [sendPrompt]);
 
   const handleDisambiguationSelect = useCallback(
     async (choiceId: string) => {
@@ -157,13 +144,16 @@ const AiBar: React.FC<AiBarProps> = ({
     [respondToDisambiguation],
   );
 
+  // 有历史消息或正在对话时自动展开面板
   useEffect(() => {
-    if (messages.length > 0 || loading) setProgressVisible(true);
-  }, [messages.length, loading]);
+    if (history.length > 0 || messages.length > 0 || loading) {
+      setProgressVisible(true);
+    }
+  }, [history.length, messages.length, loading]);
 
   useEffect(() => {
     progressEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, currentText]);
+  }, [history, messages, currentText]);
 
   const autoResize = useCallback(() => {
     const el = textareaRef.current;
@@ -236,7 +226,7 @@ const AiBar: React.FC<AiBarProps> = ({
 
   return (
     <div className={styles.aiBar}>
-      {/* 进度区 */}
+      {/* 对话区 */}
       {progressVisible && (
         <div className={styles.progressPanel}>
           <div className={styles.progressHeader}>
@@ -252,18 +242,38 @@ const AiBar: React.FC<AiBarProps> = ({
             </button>
           </div>
           <div className={styles.progressBody}>
+            {/* 加载历史中 */}
+            {historyLoading && (
+              <div className={styles.loadingPlaceholder}>
+                <Spin size="small" />
+                <span>加载对话历史...</span>
+              </div>
+            )}
+
+            {/* 历史消息 */}
+            {history.map((msg, idx) => (
+              <HistoryItem key={`history_${idx}`} message={msg} />
+            ))}
+
+            {/* 当前轮次：流式文字 */}
             {loading && currentText && (
               <div className={styles.streamingText}>{currentText}</div>
             )}
+
+            {/* 当前轮次：进度消息 */}
             {messages.map((msg) => (
               <ProgressItem key={msg.id} message={msg} />
             ))}
+
+            {/* 消歧面板 */}
             {disambiguationState && (
               <DisambiguationPanel
                 options={disambiguationState}
                 onSelect={handleDisambiguationSelect}
               />
             )}
+
+            {/* 等待 AI 响应 */}
             {loading &&
               messages.length === 0 &&
               !currentText &&
@@ -317,21 +327,12 @@ const AiBar: React.FC<AiBarProps> = ({
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          placeholder={modeConfig.placeholder}
+          placeholder="描述你想要的效果，AI 将自动理解意图..."
           disabled={loading}
         />
 
         <div className={styles.toolbar}>
           <div className={styles.toolbarLeft}>
-            {/* 当前模式标签 */}
-            <Tag
-              icon={modeConfig.icon}
-              color={modeConfig.color}
-              className={styles.modeTag}
-            >
-              {modeConfig.label}
-            </Tag>
-
             {providers.length > 0 && (
               <Select
                 size="small"
@@ -369,6 +370,24 @@ const AiBar: React.FC<AiBarProps> = ({
           </div>
         </div>
       </div>
+    </div>
+  );
+});
+
+// ─── HistoryItem（历史消息展示）──────────────────────────────────────────────
+
+const HistoryItem: React.FC<{ message: ConversationMessage }> = ({ message }) => {
+  const isUser = message.role === 'user';
+  const text = typeof message.content === 'string'
+    ? message.content
+    : JSON.stringify(message.content);
+
+  return (
+    <div className={`${styles.historyItem} ${isUser ? styles.historyItemUser : styles.historyItemAssistant}`}>
+      <span className={styles.historyRole}>
+        {isUser ? <UserOutlined /> : <RobotOutlined />}
+      </span>
+      <span className={styles.historyContent}>{text}</span>
     </div>
   );
 };
