@@ -4,6 +4,7 @@
 // ─── 外层容器 ─────────────────────────────────────────────────────────────────
 
 .aiBar {
+  position: relative; // ConversationPanel 绝对定位的基准
   display: flex;
   flex-direction: column;
   background: transparent;

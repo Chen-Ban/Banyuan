@@ -1,18 +1,60 @@
-// ConversationPanel — 可折叠 AI 对话面板
+// ConversationPanel — 绝对定位可折叠 AI 对话面板（微信聊天框风格）
 
-// ─── 面板容器 ─────────────────────────────────────────────────────────────────
+// ─── 面板容器（绝对定位，bottom 锚定在 AiBar 输入框上方） ─────────────────────
 
 .panel {
+  position: absolute;
+  // bottom 与 AiBar padding-bottom(12px) + inputWrapper 高度对齐
+  // 用 bottom: 100% 让面板紧贴 inputWrapper 上方（由 AiBar 的 position:relative 提供基准）
+  bottom: 100%;
+  left: 14px;   // 与 AiBar padding(12px) + 1px border 对齐
+  right: 14px;
+  // 高度由 JS 控制（style.height），折叠时由 panelCollapsed 覆盖
   display: flex;
   flex-direction: column;
-  width: calc(100% - 28px);
-  align-self: center;
-  background: #fff;
+  background: #f5f5f5;
   border: 1px solid #e2e2e2;
   border-radius: 12px 12px 0 0;
   border-bottom: none;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.07);
-  overflow: hidden;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  // 防止拖拽时文字被选中
+  user-select: none;
+  // z-index 确保浮在画布上方
+  z-index: 10;
+}
+
+// 折叠态：高度收为 auto（只有 header），覆盖 JS 设置的 height
+.panelCollapsed {
+  height: auto !important;
+}
+
+// ─── 拖拽手柄 ─────────────────────────────────────────────────────────────────
+
+.resizeHandle {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  // 视觉指示条（居中细线）
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+
+  &::after {
+    content: '';
+    width: 32px;
+    height: 3px;
+    border-radius: 2px;
+    background: #d0d0d0;
+    transition: background 0.15s;
+  }
+
+  &:hover::after {
+    background: #999;
+  }
 }
 
 // ─── Header ───────────────────────────────────────────────────────────────────
@@ -22,14 +64,14 @@
   align-items: center;
   justify-content: space-between;
   padding: 7px 10px 7px 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #e8e8e8;
   flex-shrink: 0;
-  cursor: default;
-  user-select: none;
+  background: #fff;
+  border-radius: 12px 12px 0 0;
 
-  // 折叠时 header 底边框消失（因为 body 高度为 0）
   .panelCollapsed & {
     border-bottom-color: transparent;
+    border-radius: 12px 12px 0 0;
   }
 }
 
@@ -66,6 +108,8 @@
   padding: 0;
   font-size: 10px;
   transition: color 0.15s, background 0.15s;
+  // 防止手柄的 user-select:none 影响按钮点击
+  user-select: auto;
 
   &:hover {
     color: #555;
@@ -73,27 +117,17 @@
   }
 }
 
-// ─── Body 折叠动画 ────────────────────────────────────────────────────────────
-
-.bodyWrap {
-  // 展开：max-height 足够大，内容自然撑开
-  max-height: 220px;
-  overflow: hidden;
-  transition: max-height 0.25s ease;
-
-  .panelCollapsed & {
-    max-height: 0;
-  }
-}
+// ─── Body（聊天流容器） ────────────────────────────────────────────────────────
 
 .body {
+  flex: 1;
   overflow-y: auto;
-  padding: 8px 12px;
+  padding: 10px 10px 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  // 最大高度由 bodyWrap 控制，这里不限制
-  max-height: 220px;
+  gap: 6px;
+  // 折叠时 body 被 panelCollapsed 的 height:auto 压缩为 0（flex:1 无空间）
+  min-height: 0;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -105,15 +139,126 @@
   }
 }
 
-// ─── 消息内容 ─────────────────────────────────────────────────────────────────
+// ─── 气泡行（控制左右对齐） ───────────────────────────────────────────────────
 
-.streamingText {
+.bubbleRow {
+  display: flex;
+  // 默认靠左（assistant）
+  justify-content: flex-start;
+  // 限制气泡最大宽度，避免撑满
+  max-width: 100%;
+}
+
+.bubbleRowUser {
+  justify-content: flex-end;
+}
+
+.bubbleRowAssistant {
+  justify-content: flex-start;
+}
+
+// ─── 气泡本体 ─────────────────────────────────────────────────────────────────
+
+.bubble {
+  max-width: 78%;
+  padding: 7px 10px;
+  border-radius: 10px;
   font-size: 13px;
-  color: #333;
   line-height: 1.6;
-  white-space: pre-wrap;
   word-break: break-word;
-  padding: 2px 0;
+  white-space: pre-wrap;
+}
+
+// 用户气泡：蓝色背景，白色文字，右下角直角
+.bubbleUser {
+  background: #1677ff;
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+
+// AI 气泡：白色背景，深色文字，左下角直角
+.bubbleAssistant {
+  background: #fff;
+  color: #333;
+  border-bottom-left-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.bubbleText {
+  display: block;
+}
+
+// 流式输出光标
+.cursor {
+  display: inline-block;
+  color: #1677ff;
+  animation: blink 0.8s step-end infinite;
+  margin-left: 1px;
+  font-size: 12px;
+  vertical-align: middle;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+// ─── 工具调用进度行 ───────────────────────────────────────────────────────────
+
+.toolRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  font-size: 11px;
+  color: #888;
+  line-height: 1.5;
+}
+
+.toolIcon {
+  color: #1677ff;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.toolIconDone {
+  color: #52c41a;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.toolText {
+  flex: 1;
+  word-break: break-word;
+}
+
+// ─── 状态行（加载中 / 完成 / 错误） ──────────────────────────────────────────
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #999;
+  padding: 2px 4px;
+}
+
+.statusRowError {
+  color: #ff4d4f;
+}
+
+.doneIcon {
+  color: #52c41a;
+  font-size: 12px;
+}
+
+.doneText {
+  color: #52c41a;
+}
+
+.thinkingIcon {
+  color: #1677ff;
+  font-size: 12px;
 }
 
 .placeholder {
@@ -123,74 +268,4 @@
   font-size: 13px;
   color: #999;
   padding: 4px 0;
-}
-
-.progressItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 12px;
-  color: #555;
-  padding: 2px 0;
-  line-height: 1.5;
-}
-
-.progressItemTool {
-  color: #1677ff;
-}
-
-.progressItemDone {
-  color: #333;
-  font-size: 13px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.progressItemError {
-  color: #ff4d4f;
-}
-
-.toolSpinner {
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
-.progressContent {
-  flex: 1;
-}
-
-// ─── 历史消息 ─────────────────────────────────────────────────────────────────
-
-.historyItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 12px;
-  padding: 3px 0;
-  line-height: 1.5;
-}
-
-.historyItemUser {
-  color: #333;
-}
-
-.historyItemAssistant {
-  color: #555;
-}
-
-.historyRole {
-  flex-shrink: 0;
-  margin-top: 1px;
-  font-size: 12px;
-  color: #aaa;
-
-  .historyItemUser & {
-    color: #1677ff;
-  }
-}
-
-.historyContent {
-  flex: 1;
-  white-space: pre-wrap;
-  word-break: break-word;
 }

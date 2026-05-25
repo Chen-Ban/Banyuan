@@ -1,31 +1,45 @@
 /**
- * ConversationPanel — AI 对话进度面板
+ * ConversationPanel — AI 对话进度面板（微信聊天框风格）
  *
- * 可折叠/展开/关闭的浮层面板，展示历史消息、工具调用进度、流式文字。
+ * 绝对定位浮层，bottom 锚定在 AiBar 输入框上方，不占文档流。
+ * 顶部有拖拽手柄，可拖拽改变面板高度。
+ *
+ * 消息渲染规则：
+ *   - history user      → 靠右蓝色气泡
+ *   - history assistant → 靠左灰色气泡
+ *   - currentText       → 靠左灰色气泡（流式，末尾光标）
+ *   - tool_call         → 靠左无气泡进度行（蓝色小字）
+ *   - done              → 靠左无气泡完成提示行
+ *   - error             → 靠左无气泡错误行
+ *   - disambiguation    → 靠左无气泡卡片
  *
  * 状态机：
- *   hidden   → 无消息时不渲染
- *   expanded → 完整展开（默认）
- *   collapsed → 只显示 header 条，内容区高度收起
- *
- * 关闭（×）= 清空消息 + 回到 hidden
- * 折叠（^）= 收起内容区，header 保留
- * 展开（v）= 恢复内容区
+ *   hidden    → visible=false，不渲染
+ *   expanded  → 完整展开，高度由 panelHeight 控制（默认 220px，可拖拽）
+ *   collapsed → 只显示 header 条（body 被 flex 压缩为 0）
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Spin } from "antd";
 import {
   RobotOutlined,
   CloseOutlined,
   UpOutlined,
   DownOutlined,
-  UserOutlined,
+  CheckCircleOutlined,
+  LoadingOutlined,
+  WarningOutlined,
 } from "@ant-design/icons";
 import type { ProgressMessage } from "@/hooks/useXiangDi";
 import type { ConversationMessage, DisambiguationOptions } from "@/api";
 import DisambiguationPanel from "../DisambiguationPanel";
 import styles from "./index.module.scss";
+
+// ─── 常量 ─────────────────────────────────────────────────────────────────────
+
+const DEFAULT_HEIGHT = 320;
+const MIN_HEIGHT = 80;
+const MAX_HEIGHT = 600;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -55,7 +69,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   onClose,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
-  const bodyRef = useRef<HTMLDivElement>(null);
+  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
   const endRef = useRef<HTMLDivElement>(null);
 
   // 有新内容时自动展开
@@ -72,10 +86,66 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
     }
   }, [history, messages, currentText, collapsed]);
 
+  // ─── 拖拽逻辑 ──────────────────────────────────────────────────────────────
+  const dragStartY = useRef(0);
+  const dragStartHeight = useRef(0);
+  const isDragging = useRef(false);
+
+  const handleDragStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      isDragging.current = true;
+      dragStartY.current = e.clientY;
+      dragStartHeight.current = panelHeight;
+
+      const handleMove = (ev: MouseEvent) => {
+        if (!isDragging.current) return;
+        // 向上拖（clientY 减小）→ 面板变高
+        const delta = dragStartY.current - ev.clientY;
+        const next = Math.max(
+          MIN_HEIGHT,
+          Math.min(MAX_HEIGHT, dragStartHeight.current + delta)
+        );
+        setPanelHeight(next);
+      };
+
+      const handleUp = () => {
+        isDragging.current = false;
+        document.removeEventListener("mousemove", handleMove);
+        document.removeEventListener("mouseup", handleUp);
+      };
+
+      document.addEventListener("mousemove", handleMove);
+      document.addEventListener("mouseup", handleUp);
+    },
+    [panelHeight]
+  );
+
   if (!visible) return null;
 
+  const panelStyle = collapsed ? undefined : { height: panelHeight };
+
+  // 当前轮次是否有工具调用进度（非 done/error）
+  const toolMessages = messages.filter(
+    (m) => m.type === "tool_call" || m.type === "tool_result"
+  );
+  const doneMessage = messages.find((m) => m.type === "done");
+  const errorMessage = messages.find((m) => m.type === "error" || m.isError);
+
   return (
-    <div className={`${styles.panel} ${collapsed ? styles.panelCollapsed : ""}`}>
+    <div
+      className={`${styles.panel} ${collapsed ? styles.panelCollapsed : ""}`}
+      style={panelStyle}
+    >
+      {/* ── 拖拽手柄（顶部，仅展开时可用） ── */}
+      {!collapsed && (
+        <div
+          className={styles.resizeHandle}
+          onMouseDown={handleDragStart}
+          aria-label="拖拽调整高度"
+        />
+      )}
+
       {/* ── Header ── */}
       <div className={styles.header}>
         <span className={styles.title}>
@@ -83,7 +153,6 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
           AI 助手
         </span>
         <div className={styles.actions}>
-          {/* 折叠 / 展开 */}
           <button
             className={styles.iconBtn}
             onClick={() => setCollapsed((v) => !v)}
@@ -91,7 +160,6 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
           >
             {collapsed ? <DownOutlined /> : <UpOutlined />}
           </button>
-          {/* 关闭 */}
           <button
             className={styles.iconBtn}
             onClick={onClose}
@@ -102,58 +170,84 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         </div>
       </div>
 
-      {/* ── Body（折叠时高度动画收起） ── */}
-      <div className={styles.bodyWrap} ref={bodyRef}>
-        <div className={styles.body}>
-          {/* 加载历史 */}
-          {historyLoading && (
-            <div className={styles.placeholder}>
-              <Spin size="small" />
-              <span>加载对话历史...</span>
+      {/* ── Body（聊天流） ── */}
+      <div className={styles.body}>
+        {/* 历史加载中 */}
+        {historyLoading && (
+          <div className={styles.statusRow}>
+            <Spin size="small" />
+            <span>加载对话历史...</span>
+          </div>
+        )}
+
+        {/* ── 历史消息气泡 ── */}
+        {history.map((msg, idx) => (
+          <HistoryBubble key={`h_${idx}`} message={msg} />
+        ))}
+
+        {/* ── 当前轮次：工具调用进度行（在流式气泡之前） ── */}
+        {toolMessages.map((msg) => (
+          <ToolRow key={msg.id} message={msg} />
+        ))}
+
+        {/* ── 当前轮次：流式输出气泡（assistant 靠左） ── */}
+        {loading && currentText && (
+          <div className={styles.bubbleRow}>
+            <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
+              <span className={styles.bubbleText}>
+                {currentText}
+                <span className={styles.cursor}>▋</span>
+              </span>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* 历史消息 */}
-          {history.map((msg, idx) => (
-            <HistoryItem key={`h_${idx}`} message={msg} />
-          ))}
+        {/* ── 当前轮次：完成提示行 ── */}
+        {doneMessage && !loading && (
+          <div className={styles.statusRow}>
+            <CheckCircleOutlined className={styles.doneIcon} />
+            <span className={styles.doneText}>完成</span>
+          </div>
+        )}
 
-          {/* 流式文字 */}
-          {loading && currentText && (
-            <div className={styles.streamingText}>{currentText}</div>
-          )}
+        {/* ── 当前轮次：错误行 ── */}
+        {errorMessage && (
+          <div className={`${styles.statusRow} ${styles.statusRowError}`}>
+            <WarningOutlined />
+            <span>{errorMessage.content}</span>
+          </div>
+        )}
 
-          {/* 进度消息 */}
-          {messages.map((msg) => (
-            <ProgressItem key={msg.id} message={msg} />
-          ))}
+        {/* ── 消歧面板（靠左，无气泡） ── */}
+        {disambiguationState && (
+          <DisambiguationPanel
+            options={disambiguationState}
+            onSelect={onDisambiguationSelect}
+          />
+        )}
 
-          {/* 消歧面板 */}
-          {disambiguationState && (
-            <DisambiguationPanel
-              options={disambiguationState}
-              onSelect={onDisambiguationSelect}
-            />
-          )}
-
-          {/* 等待响应 */}
-          {loading && messages.length === 0 && !currentText && !disambiguationState && (
-            <div className={styles.placeholder}>
-              <Spin size="small" />
+        {/* ── 初始思考中（无任何内容时） ── */}
+        {loading &&
+          messages.length === 0 &&
+          !currentText &&
+          !disambiguationState && (
+            <div className={styles.statusRow}>
+              <LoadingOutlined className={styles.thinkingIcon} />
               <span>AI 正在思考...</span>
             </div>
           )}
 
-          <div ref={endRef} />
-        </div>
+        <div ref={endRef} />
       </div>
     </div>
   );
 };
 
-// ─── HistoryItem ──────────────────────────────────────────────────────────────
+// ─── HistoryBubble ────────────────────────────────────────────────────────────
 
-const HistoryItem: React.FC<{ message: ConversationMessage }> = ({ message }) => {
+const HistoryBubble: React.FC<{ message: ConversationMessage }> = ({
+  message,
+}) => {
   const isUser = message.role === "user";
   const text =
     typeof message.content === "string"
@@ -162,34 +256,30 @@ const HistoryItem: React.FC<{ message: ConversationMessage }> = ({ message }) =>
 
   return (
     <div
-      className={`${styles.historyItem} ${isUser ? styles.historyItemUser : styles.historyItemAssistant}`}
+      className={`${styles.bubbleRow} ${isUser ? styles.bubbleRowUser : styles.bubbleRowAssistant}`}
     >
-      <span className={styles.historyRole}>
-        {isUser ? <UserOutlined /> : <RobotOutlined />}
-      </span>
-      <span className={styles.historyContent}>{text}</span>
+      <div
+        className={`${styles.bubble} ${isUser ? styles.bubbleUser : styles.bubbleAssistant}`}
+      >
+        <span className={styles.bubbleText}>{text}</span>
+      </div>
     </div>
   );
 };
 
-// ─── ProgressItem ─────────────────────────────────────────────────────────────
+// ─── ToolRow ──────────────────────────────────────────────────────────────────
 
-const ProgressItem: React.FC<{ message: ProgressMessage }> = ({ message }) => {
-  const isToolRunning = message.type === "tool_call" && !message.completed;
-
-  const cls = [
-    styles.progressItem,
-    message.type === "error" || message.isError ? styles.progressItemError : "",
-    message.type === "done" ? styles.progressItemDone : "",
-    message.type === "tool_call" ? styles.progressItemTool : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+const ToolRow: React.FC<{ message: ProgressMessage }> = ({ message }) => {
+  const isRunning = message.type === "tool_call" && !message.completed;
 
   return (
-    <div className={cls}>
-      {isToolRunning && <Spin size="small" className={styles.toolSpinner} />}
-      <span className={styles.progressContent}>{message.content}</span>
+    <div className={styles.toolRow}>
+      {isRunning ? (
+        <LoadingOutlined className={styles.toolIcon} />
+      ) : (
+        <CheckCircleOutlined className={styles.toolIconDone} />
+      )}
+      <span className={styles.toolText}>{message.content}</span>
     </div>
   );
 };
