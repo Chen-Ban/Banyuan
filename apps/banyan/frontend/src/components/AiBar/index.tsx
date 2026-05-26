@@ -17,7 +17,7 @@
  *   └─────────────────────────────────────────────┘
  */
 
-import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle, useMemo } from "react";
 import { Spin, Image, Select } from "antd";
 import {
   CloseOutlined,
@@ -81,10 +81,31 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
 }, ref) {
   const [inputValue, setInputValue] = useState("");
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
-  const [panelVisible, setPanelVisible] = useState(false);
   const [disambiguationState, setDisambiguationState] =
     useState<DisambiguationOptions | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // ─── 动态计算面板最大高度 ──────────────────────────────────────────────────
+  // maxPanelHeight = 页面高度 - appHeader(48px) - 顶部间距(12px) - aiBar自身高度 - aiBar底部边距(12px)
+  const aiBarRef = useRef<HTMLDivElement>(null);
+  const [aiBarHeight, setAiBarHeight] = useState(0);
+
+  useEffect(() => {
+    const el = aiBarRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const h = entries[0]?.contentRect.height ?? el.offsetHeight;
+      setAiBarHeight(h);
+    });
+    ro.observe(el);
+    setAiBarHeight(el.offsetHeight);
+    return () => ro.disconnect();
+  }, []);
+
+  const maxPanelHeight = useMemo(() => {
+    const pageH = window.innerHeight;
+    return Math.max(80, pageH - 48 - 12 - aiBarHeight - 12);
+  }, [aiBarHeight]);
 
   // ─── 模型选择 ──────────────────────────────────────────────────────────────
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -113,7 +134,6 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     currentText,
     sendPrompt,
     abort,
-    clearMessages,
     respondToDisambiguation,
   } = useXiangDi({
     appId,
@@ -128,12 +148,6 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   // 暴露 sendPrompt 给父组件（首页跳转后自动触发）
   useImperativeHandle(ref, () => ({ sendPrompt }), [sendPrompt]);
 
-  // 有历史消息或正在对话时自动显示面板
-  useEffect(() => {
-    if (history.length > 0 || messages.length > 0 || loading) {
-      setPanelVisible(true);
-    }
-  }, [history.length, messages.length, loading]);
 
   const handleDisambiguationSelect = useCallback(
     async (choiceId: string) => {
@@ -143,10 +157,6 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     [respondToDisambiguation],
   );
 
-  const handlePanelClose = useCallback(() => {
-    setPanelVisible(false);
-    clearMessages();
-  }, [clearMessages]);
 
   // ─── 输入框逻辑 ────────────────────────────────────────────────────────────
 
@@ -215,10 +225,9 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     (inputValue.trim().length > 0 || pastedImages.length > 0) && !loading;
 
   return (
-    <div className={styles.aiBar}>
-      {/* 对话面板（可折叠） */}
+    <div className={styles.aiBar} ref={aiBarRef}>
+      {/* 对话面板（始终渲染，折叠/展开） */}
       <ConversationPanel
-        visible={panelVisible}
         historyLoading={historyLoading}
         history={history}
         messages={messages}
@@ -226,8 +235,11 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
         loading={loading}
         disambiguationState={disambiguationState}
         onDisambiguationSelect={handleDisambiguationSelect}
-        onClose={handlePanelClose}
+        maxPanelHeight={maxPanelHeight}
       />
+
+      {/* 占位容器：高度与 ConversationPanel header 对齐，视觉上让 panel 衔接 inputWrapper */}
+      <div className={styles.panelHeaderPlaceholder} />
 
       {/* 输入框容器 */}
       <div className={styles.inputWrapper}>

@@ -14,16 +14,13 @@
  *   - disambiguation    → 靠左无气泡卡片
  *
  * 状态机：
- *   hidden    → visible=false，不渲染
- *   expanded  → 完整展开，高度由 panelHeight 控制（默认 220px，可拖拽）
+ *   expanded  → 完整展开，高度自适应内容（最大 MAX_HEIGHT），可拖拽
  *   collapsed → 只显示 header 条（body 被 flex 压缩为 0）
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Spin } from "antd";
 import {
-  RobotOutlined,
-  CloseOutlined,
   UpOutlined,
   DownOutlined,
   CheckCircleOutlined,
@@ -39,12 +36,15 @@ import styles from "./index.module.scss";
 
 const DEFAULT_HEIGHT = 320;
 const MIN_HEIGHT = 80;
-const MAX_HEIGHT = 600;
+
+// assistant 气泡折叠时最多显示的行数
+const BUBBLE_COLLAPSE_LINES = 4;
+// 每行大约 13px * 1.6 行高 ≈ 21px，4 行约 84px
+const BUBBLE_COLLAPSE_MAX_HEIGHT = BUBBLE_COLLAPSE_LINES * 21;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface ConversationPanelProps {
-  visible: boolean;
   historyLoading: boolean;
   history: ConversationMessage[];
   messages: ProgressMessage[];
@@ -52,13 +52,13 @@ export interface ConversationPanelProps {
   loading: boolean;
   disambiguationState: DisambiguationOptions | null;
   onDisambiguationSelect: (choiceId: string) => void;
-  onClose: () => void;
+  /** 面板可拖拽的最大高度（动态计算，由 AiBar 传入） */
+  maxPanelHeight: number;
 }
 
 // ─── ConversationPanel ────────────────────────────────────────────────────────
 
 const ConversationPanel: React.FC<ConversationPanelProps> = ({
-  visible,
   historyLoading,
   history,
   messages,
@@ -66,9 +66,9 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   loading,
   disambiguationState,
   onDisambiguationSelect,
-  onClose,
+  maxPanelHeight,
 }) => {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -104,7 +104,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         const delta = dragStartY.current - ev.clientY;
         const next = Math.max(
           MIN_HEIGHT,
-          Math.min(MAX_HEIGHT, dragStartHeight.current + delta)
+          Math.min(maxPanelHeight, dragStartHeight.current + delta),
         );
         setPanelHeight(next);
       };
@@ -118,16 +118,19 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
       document.addEventListener("mousemove", handleMove);
       document.addEventListener("mouseup", handleUp);
     },
-    [panelHeight]
+    [panelHeight, maxPanelHeight],
   );
 
-  if (!visible) return null;
-
-  const panelStyle = collapsed ? undefined : { height: panelHeight };
+  // 展开时：高度取 panelHeight，但不超过动态上限
+  // 折叠时显式设置 height:'auto' 覆盖 JS 残留的 height 值
+  const clampedHeight = Math.min(panelHeight, maxPanelHeight);
+  const panelStyle = collapsed
+    ? { height: "auto" as const }
+    : { height: clampedHeight };
 
   // 当前轮次是否有工具调用进度（非 done/error）
   const toolMessages = messages.filter(
-    (m) => m.type === "tool_call" || m.type === "tool_result"
+    (m) => m.type === "tool_call" || m.type === "tool_result",
   );
   const doneMessage = messages.find((m) => m.type === "done");
   const errorMessage = messages.find((m) => m.type === "error" || m.isError);
@@ -148,24 +151,14 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
 
       {/* ── Header ── */}
       <div className={styles.header}>
-        <span className={styles.title}>
-          <RobotOutlined />
-          AI 助手
-        </span>
+        <span className={styles.title}>banyan</span>
         <div className={styles.actions}>
           <button
             className={styles.iconBtn}
             onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? "展开" : "折叠"}
           >
-            {collapsed ? <DownOutlined /> : <UpOutlined />}
-          </button>
-          <button
-            className={styles.iconBtn}
-            onClick={onClose}
-            aria-label="关闭"
-          >
-            <CloseOutlined />
+            {collapsed ? <UpOutlined /> : <DownOutlined />}
           </button>
         </div>
       </div>
@@ -233,7 +226,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
           !disambiguationState && (
             <div className={styles.statusRow}>
               <LoadingOutlined className={styles.thinkingIcon} />
-              <span>AI 正在思考...</span>
+              <span>banyan 正在思考...</span>
             </div>
           )}
 
@@ -254,6 +247,18 @@ const HistoryBubble: React.FC<{ message: ConversationMessage }> = ({
       ? message.content
       : JSON.stringify(message.content);
 
+  // assistant 气泡：默认折叠，超过阈值时显示展开按钮
+  const [expanded, setExpanded] = useState(false);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [overflows, setOverflows] = useState(false);
+
+  useEffect(() => {
+    const el = textRef.current;
+    if (!el || isUser) return;
+    // scrollHeight > BUBBLE_COLLAPSE_MAX_HEIGHT 说明内容超出折叠高度
+    setOverflows(el.scrollHeight > BUBBLE_COLLAPSE_MAX_HEIGHT + 4);
+  }, [text, isUser]);
+
   return (
     <div
       className={`${styles.bubbleRow} ${isUser ? styles.bubbleRowUser : styles.bubbleRowAssistant}`}
@@ -261,7 +266,29 @@ const HistoryBubble: React.FC<{ message: ConversationMessage }> = ({
       <div
         className={`${styles.bubble} ${isUser ? styles.bubbleUser : styles.bubbleAssistant}`}
       >
-        <span className={styles.bubbleText}>{text}</span>
+        <span
+          ref={textRef}
+          className={styles.bubbleText}
+          style={
+            !isUser && !expanded && overflows
+              ? {
+                  maxHeight: BUBBLE_COLLAPSE_MAX_HEIGHT,
+                  overflow: "hidden",
+                  display: "block",
+                }
+              : undefined
+          }
+        >
+          {text}
+        </span>
+        {!isUser && overflows && (
+          <button
+            className={styles.bubbleToggleBtn}
+            onClick={() => setExpanded((v) => !v)}
+          >
+            {expanded ? "收起 ▲" : "展开 ▼"}
+          </button>
+        )}
       </div>
     </div>
   );
