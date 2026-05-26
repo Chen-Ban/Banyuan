@@ -6,6 +6,7 @@ export interface IApplicationQuery {
   application_id?: string;
   tags?: string;
   createdBy?: string;
+  tenantId?: string;
 }
 
 export interface IApplicationListResult {
@@ -44,7 +45,15 @@ class ApplicationService {
     if (query.tags) {
       filter.tags = { $in: [query.tags] };
     }
-    if (query.createdBy) {
+    if (query.tenantId && query.createdBy) {
+      // 成员视角：同一租户下仅看自己的应用
+      filter.tenantId = query.tenantId;
+      filter.createdBy = query.createdBy;
+    } else if (query.tenantId) {
+      // 管理员视角：看租户内所有应用
+      filter.tenantId = query.tenantId;
+    } else if (query.createdBy) {
+      // 兼容旧逻辑：无租户时按 createdBy 过滤
       filter.createdBy = query.createdBy;
     }
 
@@ -85,7 +94,10 @@ class ApplicationService {
    *
    * 服务端自动生成 application_id，默认 name 为「未命名应用」，默认 pages 为空数组。
    */
-  async createApplication(): Promise<IApplication> {
+  async createApplication(
+    userId?: string,
+    tenantId?: string,
+  ): Promise<IApplication> {
     const application_id = `app_${crypto.randomUUID()}`;
     const application = new Application({
       application_id,
@@ -94,7 +106,8 @@ class ApplicationService {
       pages: [],
       tags: [],
       version: 1,
-      createdBy: "",
+      tenantId: tenantId ?? "",
+      createdBy: userId ?? "",
       updatedBy: "",
     });
     await application.save();

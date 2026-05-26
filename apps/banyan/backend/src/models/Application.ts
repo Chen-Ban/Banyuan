@@ -20,6 +20,8 @@ export interface IApplication extends Document {
   tags: string[]
   /** 版本号（每次保存自增） */
   version: number
+  /** 租户 ID */
+  tenantId: string
   /** 创建者 */
   createdBy: string
   /** 最后修改者 */
@@ -71,6 +73,11 @@ const ApplicationSchema = new Schema<IApplication>(
       default: 1,
       min: 1,
     },
+    tenantId: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     createdBy: {
       type: String,
       default: '',
@@ -93,6 +100,7 @@ ApplicationSchema.index({ name: 1 })
 ApplicationSchema.index({ tags: 1 })
 ApplicationSchema.index({ createdBy: 1 })
 ApplicationSchema.index({ createdAt: -1 })
+ApplicationSchema.index({ tenantId: 1, createdBy: 1 })
 
 const Application = mongoose.model<IApplication>('Application', ApplicationSchema)
 

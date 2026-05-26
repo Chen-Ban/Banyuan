@@ -4,6 +4,7 @@ import json from 'koa-json'
 import logger from 'koa-logger'
 import cors from '@koa/cors'
 import router from './routes'
+import authRouter from './routes/auth.js'
 
 const app = new Koa()
 
@@ -37,6 +38,8 @@ app.use(async (ctx, next) => {
 })
 
 // 路由
+app.use(authRouter.routes())
+app.use(authRouter.allowedMethods())
 app.use(router.routes())
 app.use(router.allowedMethods())
 
