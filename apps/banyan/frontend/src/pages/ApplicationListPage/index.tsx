@@ -12,7 +12,6 @@ import { useNavigate } from 'react-router-dom'
 import { message, Spin } from 'antd'
 import {
   AppstoreOutlined,
-  PlusOutlined,
   DeleteOutlined,
 } from '@ant-design/icons'
 import { applicationApi } from '@/api'
@@ -51,16 +50,9 @@ const ApplicationListPage = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── 顶栏（精简版） ── */}
+      {/* ── 顶栏 ── */}
       <div className={styles.header}>
         <h2 className={styles.pageTitle}>我的应用</h2>
-        <button
-          className={styles.newBtn}
-          onClick={() => navigate('/')}
-        >
-          <PlusOutlined />
-          <span>新建应用</span>
-        </button>
       </div>
 
       {/* ── 列表区 ── */}

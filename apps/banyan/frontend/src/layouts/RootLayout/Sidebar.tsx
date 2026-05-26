@@ -19,6 +19,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   DownOutlined,
+  GithubOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppLayoutCtx } from '@/layouts/ApplicationLayout/AppLayoutCtx'
@@ -137,6 +138,17 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
       <div className={mode === 'app' ? styles.appContent : styles.navContent}>
         {renderContent()}
       </div>
+      <div className={styles.bottomSection}>
+        <a
+          className={styles.githubLink}
+          href="https://github.com/Chen-Ban/Banyuan"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="GitHub"
+        >
+          <GithubOutlined />
+        </a>
+      </div>
     </div>
   )
 }
@@ -172,13 +184,12 @@ const NavMenu: React.FC = () => {
   )
 }
 
-// ─── 子组件：设置项列表 ──────────────────────────────────────────────────────────
+// ─── 子组件：设置项列表（复用 navItem 样式，保持一致） ──────────────────────────────
 
 const SettingsNav: React.FC = () => {
   const settingsItems = [
-    { key: 'general', label: '通用设置' },
-    { key: 'account', label: '账户设置' },
-    { key: 'theme', label: '主题设置' },
+    { key: 'general', label: '通用设置', icon: <SettingOutlined /> },
+    { key: 'account', label: '账户设置', icon: <UserOutlined /> },
   ]
 
   return (
@@ -186,8 +197,9 @@ const SettingsNav: React.FC = () => {
       {settingsItems.map((item) => (
         <button
           key={item.key}
-          className={styles.settingsItem}
+          className={styles.navItem}
         >
+          <span className={styles.navIcon}>{item.icon}</span>
           <span>{item.label}</span>
         </button>
       ))}
