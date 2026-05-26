@@ -10,11 +10,13 @@
  *   - xiangdi-server 作为无状态 AI 服务，通过本客户端"消费"知识
  *   - 知识通过 knowledge_search 工具以 Tool 模式按需检索
  *   - 检索结果进入对话流（tool_result），相当于 L1 的动态扩展
+ *   - 错误处理：知识服务不可用时降级返回空结果（非致命），但通过结构化日志记录
  */
 
 import http from 'http'
 import https from 'https'
 import type { KnowledgeStore, KnowledgeChunk, KnowledgeQueryOptions } from '@banyuan/xiangdi-agent'
+import { logger } from '../logger.js'
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
 
@@ -71,22 +73,38 @@ export class RemoteKnowledgeStore implements KnowledgeStore {
                     try {
                         const parsed = JSON.parse(data) as { chunks?: KnowledgeChunk[] }
                         resolve(parsed.chunks ?? [])
-                    } catch {
-                        console.error('[RemoteKnowledgeStore] 解析响应失败')
+                    } catch (parseErr) {
+                        logger.warn('[RemoteKnowledgeStore] Failed to parse response, degrading to empty results', {
+                            error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+                            query: query.slice(0, 100),
+                        })
                         resolve([])
                     }
                 })
-                res.on('error', () => resolve([]))
+                res.on('error', (err) => {
+                    logger.warn('[RemoteKnowledgeStore] Response stream error, degrading to empty results', {
+                        error: err.message,
+                        query: query.slice(0, 100),
+                    })
+                    resolve([])
+                })
             })
 
             req.on('error', (err) => {
-                console.error('[RemoteKnowledgeStore] 请求失败:', err.message)
+                logger.warn('[RemoteKnowledgeStore] Request failed, degrading to empty results', {
+                    error: err.message,
+                    baseUrl: this.baseUrl,
+                    query: query.slice(0, 100),
+                })
                 resolve([])
             })
 
             req.on('timeout', () => {
                 req.destroy()
-                console.error('[RemoteKnowledgeStore] 请求超时')
+                logger.warn('[RemoteKnowledgeStore] Request timeout, degrading to empty results', {
+                    timeout: this.timeout,
+                    query: query.slice(0, 100),
+                })
                 resolve([])
             })
 
