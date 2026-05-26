@@ -8,7 +8,7 @@
  *   - app：AiBar（通过 Portal 注入）
  */
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Avatar, Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
@@ -187,6 +187,8 @@ const NavMenu: React.FC = () => {
 // ─── 子组件：设置项列表（复用 navItem 样式，保持一致） ──────────────────────────────
 
 const SettingsNav: React.FC = () => {
+  const [activeKey, setActiveKey] = useState('general')
+
   const settingsItems = [
     { key: 'general', label: '通用设置', icon: <SettingOutlined /> },
     { key: 'account', label: '账户设置', icon: <UserOutlined /> },
@@ -197,7 +199,8 @@ const SettingsNav: React.FC = () => {
       {settingsItems.map((item) => (
         <button
           key={item.key}
-          className={styles.navItem}
+          className={`${styles.navItem} ${activeKey === item.key ? styles.navItemActive : ''}`}
+          onClick={() => setActiveKey(item.key)}
         >
           <span className={styles.navIcon}>{item.icon}</span>
           <span>{item.label}</span>
