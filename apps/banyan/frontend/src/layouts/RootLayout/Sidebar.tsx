@@ -1,10 +1,11 @@
 /**
  * Sidebar — 左侧导航栏
  *
- * 根据 mode 渲染不同的内容：
- *   - nav：品牌文案 + 用户卡片 + 导航菜单（首页/列表/设置）
- *   - settings：面包屑 + 用户信息 + 设置项列表
- *   - app：面包屑（含应用名下拉） + 用户信息 + AiBar（通过 Portal 注入）
+ * 顶部信息栏为横向面包屑：品牌 / 用户头像 / 页面标题
+ * 下方根据 mode 渲染不同的内容：
+ *   - nav：导航菜单（首页/列表/设置）
+ *   - settings：设置项列表
+ *   - app：AiBar（通过 Portal 注入）
  */
 
 import { useCallback } from 'react'
@@ -41,70 +42,45 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
   const navigate = useNavigate()
-  const location = useLocation()
   const { user, loading: authLoading, logout, openLoginModal } = useAuth()
 
-  // ── 信息栏 ──────────────────────────────────────────────────────────────────
+  // ── 横向面包屑信息栏 ────────────────────────────────────────────────────────
 
   const renderInfoBar = () => {
-    if (mode === 'nav') {
-      // 首页/列表页：品牌文案 + 用户信息
-      return (
-        <div className={styles.infoBar}>
-          <div className={styles.brand}>
-            <span className={styles.brandLogo}>班园</span>
-          </div>
-          {renderUserRow()}
-        </div>
-      )
-    }
-
-    // 非首页/列表页：可点击品牌文案 + 面包屑 + 用户信息
     return (
       <div className={styles.infoBar}>
-        <div className={styles.brand}>
-          <button className={styles.brandLink} onClick={() => navigate('/')}>
-            <span className={styles.brandLogo}>班园</span>
-          </button>
-        </div>
-        {renderBreadcrumb()}
-        {renderUserRow()}
+        {/* 品牌 Logo */}
+        <button className={styles.brandLink} onClick={() => navigate('/')}>
+          <span className={styles.brandLogo}>班</span>
+        </button>
+
+        {/* 分隔符 */}
+        <span className={styles.breadcrumbSep}>/</span>
+
+        {/* 用户头像 */}
+        {renderUserAvatar()}
+
+        {/* 分隔符 + 页面标题（非首页时显示） */}
+        {mode !== 'nav' && (
+          <>
+            <span className={styles.breadcrumbSep}>/</span>
+            {renderPageTitle()}
+          </>
+        )}
       </div>
     )
   }
 
-  // ── 面包屑 ──────────────────────────────────────────────────────────────────
+  // ── 用户头像（面包屑中的一环） ──────────────────────────────────────────────
 
-  const renderBreadcrumb = () => {
-    if (mode === 'settings') {
-      return (
-        <div className={styles.breadcrumb}>
-          <span className={styles.breadcrumbSep}>›</span>
-          <span className={styles.breadcrumbCurrent}>设置</span>
-        </div>
-      )
-    }
-
-    if (mode === 'app') {
-      return <AppBreadcrumb />
-    }
-
-    return null
-  }
-
-  // ── 用户信息行 ──────────────────────────────────────────────────────────────
-
-  const renderUserRow = () => {
+  const renderUserAvatar = () => {
     if (authLoading) return null
 
     if (!user) {
       return (
-        <div className={styles.userRow}>
-          <button className={styles.loginBtn} onClick={openLoginModal}>
-            <UserOutlined />
-            <span>登录</span>
-          </button>
-        </div>
+        <button className={styles.avatarBtn} onClick={openLoginModal}>
+          <Avatar size={22} icon={<UserOutlined />} className={styles.userAvatar} />
+        </button>
       )
     }
 
@@ -120,14 +96,25 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
 
     return (
       <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomLeft">
-        <div className={styles.userRow} style={{ cursor: 'pointer' }}>
-          <Avatar size={24} className={styles.userAvatar}>
+        <button className={styles.avatarBtn}>
+          <Avatar size={22} className={styles.userAvatar}>
             {getInitial(user.username)}
           </Avatar>
-          <span className={styles.userName}>{user.username}</span>
-        </div>
+        </button>
       </Dropdown>
     )
+  }
+
+  // ── 页面标题（面包屑最后一段） ──────────────────────────────────────────────
+
+  const renderPageTitle = () => {
+    if (mode === 'settings') {
+      return <span className={styles.pageTitle}>设置</span>
+    }
+    if (mode === 'app') {
+      return <AppBreadcrumb />
+    }
+    return null
   }
 
   // ── 内容区 ──────────────────────────────────────────────────────────────────
@@ -235,15 +222,12 @@ const AppBreadcrumb: React.FC = () => {
   ]
 
   return (
-    <div className={styles.breadcrumb}>
-      <span className={styles.breadcrumbSep}>›</span>
-      <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-        <button className={styles.appNameBtn}>
-          <span className={styles.appNameText}>{appName}</span>
-          <DownOutlined style={{ fontSize: 10 }} />
-        </button>
-      </Dropdown>
-    </div>
+    <Dropdown menu={{ items: menuItems }} trigger={['click']}>
+      <button className={styles.appNameBtn}>
+        <span className={styles.appNameText}>{appName}</span>
+        <DownOutlined style={{ fontSize: 10 }} />
+      </button>
+    </Dropdown>
   )
 }
 

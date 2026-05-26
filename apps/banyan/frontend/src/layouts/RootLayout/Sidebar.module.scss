@@ -9,30 +9,27 @@
   overflow: hidden;
 }
 
-// ── 信息栏（上部） ──────────────────────────────────────────────────────────────
+// ── 信息栏（横向面包屑） ──────────────────────────────────────────────────────────
 
 .infoBar {
   flex-shrink: 0;
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 0;
+  gap: 0;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .brandLink {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
   text-decoration: none;
+  flex-shrink: 0;
 }
 
 .brandLogo {
@@ -42,32 +39,55 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  line-height: 1.2;
+  line-height: 1;
 }
 
-// ── 面包屑（非首页/列表页时显示） ────────────────────────────────────────────────
-
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
-}
+// ── 面包屑分隔符 ──────────────────────────────────────────────────────────────────
 
 .breadcrumbSep {
   color: rgba(255, 255, 255, 0.2);
-  font-size: 11px;
+  font-size: 14px;
+  margin: 0 10px;
+  flex-shrink: 0;
+  user-select: none;
 }
 
-.breadcrumbCurrent {
-  color: rgba(255, 255, 255, 0.7);
-  max-width: 140px;
+// ── 用户头像按钮 ──────────────────────────────────────────────────────────────────
+
+.avatarBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: 50%;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.userAvatar {
+  flex-shrink: 0;
+}
+
+// ── 页面标题（面包屑最后一段） ────────────────────────────────────────────────────
+
+.pageTitle {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
+
+// ── 应用名按钮（带下拉） ──────────────────────────────────────────────────────────
 
 .appNameBtn {
   display: flex;
@@ -78,8 +98,9 @@
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 14px;
+  font-weight: 500;
   max-width: 150px;
   transition: background 0.15s;
 
@@ -92,55 +113,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-// ── 用户信息行 ──────────────────────────────────────────────────────────────────
-
-.userRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  transition: background 0.15s;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.04);
-  }
-}
-
-.userAvatar {
-  flex-shrink: 0;
-}
-
-.userName {
-  flex: 1;
-  min-width: 0;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.65);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.loginBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  cursor: pointer;
-  padding: 5px 12px;
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 12px;
-  transition: border-color 0.15s, color 0.15s;
-
-  &:hover {
-    border-color: rgba(139, 92, 246, 0.5);
-    color: rgba(255, 255, 255, 0.8);
-  }
 }
 
 // ── 内容区（下部） ──────────────────────────────────────────────────────────────
