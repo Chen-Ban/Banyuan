@@ -19,19 +19,27 @@ import { errorHandler } from './middleware/errorHandler'
 import { logger } from './middleware/logger'
 import { internalAuth } from './middleware/auth'
 import { healthRouter, aiRouter } from './routes'
+import { logger as structuredLogger } from './logger.js'
 
 const app = new Koa()
 
 // 全局错误处理
 app.on('error', (err, ctx) => {
-    console.error('[XiangDi Server Error]', err, ctx)
+    structuredLogger.error('[XiangDi Server] Unhandled error', err, {
+        url: ctx?.url,
+        method: ctx?.method,
+    })
 })
 
 // 中间件
 app.use(errorHandler)
 app.use(logger)
 app.use(cors())
-app.use(koaBody())
+app.use(koaBody({
+    jsonLimit: '20mb',   // pages JSON 可能较大
+    formLimit: '1mb',
+    textLimit: '1mb',
+}))
 app.use(internalAuth)
 
 // 路由

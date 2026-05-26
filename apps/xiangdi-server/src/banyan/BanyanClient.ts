@@ -12,11 +12,13 @@
  * 设计决策：
  *   - 替代原先"请求体传入 pages/appSchema"的 push 模式
  *   - XiangDi 服务按需获取数据，减小请求体体积，支持更灵活的工具组合
- *   - 容错：请求失败时返回空值而非抛异常，不阻塞 Agent 主流程
+ *   - 错误处理：请求失败时抛出 ServiceUnavailableError，由调用方决定是否降级
  */
 
 import http from 'http'
 import https from 'https'
+import { ServiceUnavailableError } from '../errors.js'
+import { logger } from '../logger.js'
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
 
@@ -71,40 +73,44 @@ export class BanyanClient {
 
     /**
      * 获取应用的 pages（JSON 字符串数组）
+     * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
     async getPages(appId: string): Promise<string[]> {
         const data = await this.get<{ pages: string[] }>(`/internal/apps/${appId}/pages`)
-        return data?.pages ?? []
+        return data.pages ?? []
     }
 
     /**
      * 获取应用的 Schema（集合定义列表）
+     * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
     async getSchema(appId: string): Promise<SchemaCollectionInfo[]> {
         const data = await this.get<{ collections: SchemaCollectionInfo[] }>(`/internal/apps/${appId}/schema`)
-        return data?.collections ?? []
+        return data.collections ?? []
     }
 
     /**
      * 获取应用的所有云函数列表
+     * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
     async getCloudFunctions(appId: string): Promise<CloudFunctionInfo[]> {
         const data = await this.get<{ functions: CloudFunctionInfo[] }>(`/internal/apps/${appId}/cloud-functions`)
-        return data?.functions ?? []
+        return data.functions ?? []
     }
 
     /**
      * 获取单个云函数详情
+     * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
     async getCloudFunction(appId: string, functionId: string): Promise<CloudFunctionInfo | null> {
         const data = await this.get<{ function: CloudFunctionInfo }>(`/internal/apps/${appId}/cloud-functions/${functionId}`)
-        return data?.function ?? null
+        return data.function ?? null
     }
 
     // ─── HTTP 请求内核 ──────────────────────────────────────────────────────
 
-    private get<T>(path: string): Promise<T | null> {
-        return new Promise((resolve) => {
+    private get<T>(path: string): Promise<T> {
+        return new Promise((resolve, reject) => {
             const url = new URL(path, this.baseUrl)
             const isHttps = url.protocol === 'https:'
             const transport = isHttps ? https : http
@@ -123,8 +129,11 @@ export class BanyanClient {
 
             const req = transport.request(options, (res) => {
                 if (res.statusCode && res.statusCode >= 400) {
-                    console.error(`[BanyanClient] GET ${path} → ${res.statusCode}`)
-                    resolve(null)
+                    const errMsg = `GET ${path} responded with status ${res.statusCode}`
+                    logger.error(`[BanyanClient] ${errMsg}`, undefined, { path, statusCode: res.statusCode })
+                    reject(new ServiceUnavailableError('BanyanBackend', errMsg))
+                    // Drain the response to free up the socket
+                    res.resume()
                     return
                 }
 
@@ -133,23 +142,28 @@ export class BanyanClient {
                 res.on('end', () => {
                     try {
                         resolve(JSON.parse(data) as T)
-                    } catch {
-                        console.error(`[BanyanClient] 解析响应失败: GET ${path}`)
-                        resolve(null)
+                    } catch (parseErr) {
+                        const errMsg = `Failed to parse response for GET ${path}`
+                        logger.error(`[BanyanClient] ${errMsg}`, parseErr)
+                        reject(new ServiceUnavailableError('BanyanBackend', errMsg, parseErr instanceof Error ? parseErr : undefined))
                     }
                 })
-                res.on('error', () => resolve(null))
+                res.on('error', (err) => {
+                    logger.error(`[BanyanClient] Response stream error for GET ${path}`, err)
+                    reject(new ServiceUnavailableError('BanyanBackend', `Response error for GET ${path}: ${err.message}`, err))
+                })
             })
 
             req.on('error', (err) => {
-                console.error(`[BanyanClient] 请求失败 GET ${path}:`, err.message)
-                resolve(null)
+                logger.error(`[BanyanClient] Request failed GET ${path}`, err)
+                reject(new ServiceUnavailableError('BanyanBackend', `Request failed: ${err.message}`, err))
             })
 
             req.on('timeout', () => {
                 req.destroy()
-                console.error(`[BanyanClient] 请求超时 GET ${path}`)
-                resolve(null)
+                const errMsg = `Request timeout for GET ${path} (${this.timeout}ms)`
+                logger.error(`[BanyanClient] ${errMsg}`)
+                reject(new ServiceUnavailableError('BanyanBackend', errMsg))
             })
 
             req.end()

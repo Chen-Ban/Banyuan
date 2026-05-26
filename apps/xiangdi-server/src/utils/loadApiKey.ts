@@ -54,7 +54,13 @@ export async function loadApiKey(provider = 'deepseek', required = true): Promis
         const content = await readFile(filePath, 'utf-8')
         const parsed = JSON.parse(content) as Record<string, string>
         for (const field of config.jsonFields) {
-            if (parsed[field]) return parsed[field]
+            if (parsed[field]) {
+                console.warn(
+                    `[loadApiKey] Using file-based API key for "${provider}" (apiKey.json). ` +
+                    `For production, set the ${config.envVar} environment variable instead.`,
+                )
+                return parsed[field]
+            }
         }
     } catch {
         // 文件不存在或解析失败，继续走后续逻辑

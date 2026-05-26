@@ -52,7 +52,7 @@
  *   error              — 发生错误 { message: string }
  *
  * POST /ai/disambiguation-response
- *   Body: { choiceId: string }
+ *   Body: { threadId: string, choiceId: string }
  *   Response: { success: boolean }
  *
  * 架构说明（LangGraph）：
@@ -76,13 +76,18 @@ import {
 import { RemoteKnowledgeStore } from '../knowledge/RemoteKnowledgeStore.js'
 import { BanyanClient, registerDataFetchTools } from '../banyan/index.js'
 import { getCheckpointer } from '../checkpoint/index.js'
+import { recordThreadActivity } from '../checkpoint/cleanup.js'
 import { HumanMessage } from '@langchain/core/messages'
 import { createLLMClient, getModelsInfo, switchProvider, PROVIDER_CATALOG } from '../llm/createLLMClient.js'
+import { ServiceUnavailableError } from '../errors.js'
+import { createRequestLogger } from '../logger.js'
 import type { BanvasHostAdapter, SchemaCollectionDef, AppSchemaSnapshot, StreamCallback, TypedStreamEvent } from '@banyuan/xiangdi-agent'
 
 const router = new Router({ prefix: '/ai' })
 
 // ─── SSE 工具函数 ─────────────────────────────────────────────────────────────
+
+const SSE_HEARTBEAT_INTERVAL = 15_000 // 15 秒心跳间隔
 
 function sseWrite(res: ServerResponse, event: string, data: unknown): void {
     if (res.writableEnded) return
@@ -92,6 +97,27 @@ function sseWrite(res: ServerResponse, event: string, data: unknown): void {
 
 function sseDone(res: ServerResponse): void {
     if (!res.writableEnded) res.end()
+}
+
+/**
+ * 启动 SSE 心跳，每 15 秒发送 `:ping` 注释帧保持连接活跃。
+ * 返回清理函数，在响应结束时调用。
+ */
+function startSSEHeartbeat(res: ServerResponse): () => void {
+    const timer = setInterval(() => {
+        if (res.writableEnded) {
+            clearInterval(timer)
+            return
+        }
+        res.write(':ping\n\n')
+    }, SSE_HEARTBEAT_INTERVAL)
+    timer.unref()
+
+    // 连接关闭时自动清理
+    const cleanup = () => { clearInterval(timer) }
+    res.on('close', cleanup)
+
+    return cleanup
 }
 
 // ─── 写操作工具集合（执行后需推送 pages_snapshot）────────────────
@@ -123,14 +149,13 @@ function createMemoryAdapter(initialPages: string[]): BanvasHostAdapter & { getP
     }
 }
 
-// ─── Disambiguation Pending 存储（request-scoped，一个 SSE 连接对应一个 pending）─
+// ─── Disambiguation Pending 存储（按 threadId 隔离，支持并发 SSE 连接）────────
 
 /**
- * 存储当前挂起的消歧 pending resolve 函数。
- * Key: 自增 ID（每次 SSE 连接一个），Value: resolve 函数。
- * 因为一个 SSE 连接对应一次 Agent 运行，所以用最近一个 pending 即可。
+ * 存储挂起的消歧 pending resolve 函数，按 threadId 隔离。
+ * 每个 SSE 连接对应一个 threadId，避免并发请求之间覆盖 resolve 导致 Promise 永久挂起。
  */
-let disambiguationPendingResolve: ((choiceId: string) => void) | null = null
+const disambiguationPendingMap = new Map<string, (choiceId: string) => void>()
 
 // ─── 工具函数：根据当前激活 provider 获取模型名 ───────────────────────────────
 
@@ -159,7 +184,8 @@ const banyanClient = new BanyanClient();
  */
 function createSSEStreamCallback(
     res: ServerResponse,
-    adapter: ReturnType<typeof createMemoryAdapter>
+    adapter: ReturnType<typeof createMemoryAdapter>,
+    threadId: string
 ): StreamCallback {
     return (event: TypedStreamEvent) => {
         switch (event.type) {
@@ -192,7 +218,7 @@ function createSSEStreamCallback(
                 sseWrite(res, 'disambiguation', event.data.options)
                 break
             case 'disambiguation_pending':
-                disambiguationPendingResolve = event.data.pending.resolve
+                disambiguationPendingMap.set(threadId, event.data.pending.resolve)
                 break
             case 'round_summary':
                 sseWrite(res, 'round_summary', { summary: event.data.summary })
@@ -261,6 +287,13 @@ router.post('/run', async (ctx) => {
         'X-Accel-Buffering': 'no',
     })
 
+    // 启动 SSE 心跳
+    const stopHeartbeat = startSSEHeartbeat(res)
+
+    // 创建请求级 logger
+    const reqLogger = createRequestLogger(threadId)
+    reqLogger.info('Agent run started', { appId, threadId, hasMemoryHint: !!memoryHint, hasAgentMemory: !!agentMemory })
+
     try {
         // 1. 通过 BanyanClient 按需拉取 pages（Pull-based 架构）
         //    pages 在 banyan 后端已由前端上传并持久化到 DB，此处从 DB 拉取最新快照
@@ -293,7 +326,7 @@ router.post('/run', async (ctx) => {
         const activeModel = getActiveModel(llmRouter)
 
         // 3. 构建 StreamCallback，桥接 Agent 事件 → SSE
-        const streamCallback = createSSEStreamCallback(res, adapter)
+        const streamCallback = createSSEStreamCallback(res, adapter, threadId)
 
         // 4. 构建上下文分层
         //    L1: System Prompt（AISchema + 工具定义 + 通用规则）
@@ -333,6 +366,7 @@ router.post('/run', async (ctx) => {
         initialMessages.push(new HumanMessage(prompt))
 
         // 7. 执行 MasterGraph V2（带 thread_id 用于 checkpoint 持久化）
+        recordThreadActivity(threadId, 'running')
         const result = await masterGraph.invoke({
             messages: initialMessages,
             systemPrompt,
@@ -375,16 +409,27 @@ router.post('/run', async (ctx) => {
                 node: next[0],
                 value: interruptValue,
             })
+            recordThreadActivity(threadId, 'interrupted')
         } else {
             // 图正常完成：发送 done 事件
             sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
             const finalPages = await adapter.getPages()
             sseWrite(res, 'done', { pages: finalPages, threadId })
+            recordThreadActivity(threadId, 'completed')
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        sseWrite(res, 'error', { message })
+        if (err instanceof ServiceUnavailableError) {
+            reqLogger.error('Service unavailable during agent run', err, { service: err.service, appId })
+            sseWrite(res, 'error', { message: `Service unavailable: ${err.message}`, code: 'SERVICE_UNAVAILABLE', service: err.service })
+        } else {
+            const message = err instanceof Error ? err.message : String(err)
+            reqLogger.error('Agent run failed', err)
+            sseWrite(res, 'error', { message })
+        }
     } finally {
+        stopHeartbeat()
+        // 清理该 thread 的 disambiguation pending（防止内存泄漏）
+        disambiguationPendingMap.delete(threadId)
         sseDone(res)
     }
 })
@@ -417,7 +462,7 @@ router.post('/resume', async (ctx) => {
     registerKnowledgeSearchTool(registry, knowledgeStore)
 
     const res = ctx.res as ServerResponse
-    const streamCallback = createSSEStreamCallback(res, adapter)
+    const streamCallback = createSSEStreamCallback(res, adapter, threadId)
     const masterGraph = createMasterGraph({
         llmClient: client,
         toolRegistry: registry,
@@ -442,11 +487,15 @@ router.post('/resume', async (ctx) => {
         'X-Accel-Buffering': 'no',
     })
 
+    // 启动 SSE 心跳
+    const stopHeartbeat = startSSEHeartbeat(res)
+
     try {
         // 发送 resumed 事件
         const fromNode = Array.isArray(state.next) && state.next.length > 0 ? state.next[0] : 'unknown'
         const step = (state.metadata as Record<string, unknown> | undefined)?.step ?? 0
         sseWrite(res, 'resumed', { fromNode, step })
+        recordThreadActivity(threadId, 'running')
 
         // 恢复执行：如果有 resumeValue 则使用 Command({ resume })，否则传 null
         const resumeInput = resumeValue !== undefined
@@ -481,16 +530,28 @@ router.post('/resume', async (ctx) => {
                 node: postNext[0],
                 value: interruptValue,
             })
+            recordThreadActivity(threadId, 'interrupted')
         } else {
             // 正常完成
             sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
             const finalPages = await adapter.getPages()
             sseWrite(res, 'done', { pages: finalPages, threadId })
+            recordThreadActivity(threadId, 'completed')
         }
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        sseWrite(res, 'error', { message })
+        const resumeLogger = createRequestLogger(threadId)
+        if (err instanceof ServiceUnavailableError) {
+            resumeLogger.error('Service unavailable during resume', err, { service: err.service })
+            sseWrite(res, 'error', { message: `Service unavailable: ${err.message}`, code: 'SERVICE_UNAVAILABLE', service: err.service })
+        } else {
+            const message = err instanceof Error ? err.message : String(err)
+            resumeLogger.error('Resume failed', err)
+            sseWrite(res, 'error', { message })
+        }
     } finally {
+        stopHeartbeat()
+        // 清理该 thread 的 disambiguation pending（防止内存泄漏）
+        disambiguationPendingMap.delete(threadId)
         sseDone(res)
     }
 })
@@ -592,11 +653,17 @@ router.delete('/thread/:threadId', async (ctx) => {
 //
 // 前端用户选择消歧方案后调用，resolve 挂起的 Agent 消歧 Promise
 //
-// 请求体：{ choiceId: string }
+// 请求体：{ threadId: string, choiceId: string }
 // 响应：{ success: boolean, error?: string }
 
 router.post('/disambiguation-response', async (ctx) => {
-    const { choiceId } = ctx.request.body as { choiceId?: string }
+    const { threadId, choiceId } = ctx.request.body as { threadId?: string; choiceId?: string }
+
+    if (!threadId || typeof threadId !== 'string') {
+        ctx.status = 400
+        ctx.body = { success: false, error: 'threadId (string) is required' }
+        return
+    }
 
     if (!choiceId || typeof choiceId !== 'string') {
         ctx.status = 400
@@ -604,15 +671,16 @@ router.post('/disambiguation-response', async (ctx) => {
         return
     }
 
-    if (!disambiguationPendingResolve) {
+    const resolve = disambiguationPendingMap.get(threadId)
+    if (!resolve) {
         ctx.status = 404
-        ctx.body = { success: false, error: 'No pending disambiguation to resolve' }
+        ctx.body = { success: false, error: `No pending disambiguation for thread "${threadId}"` }
         return
     }
 
-    // resolve 挂起的 Promise，恢复 Agent 执行
-    disambiguationPendingResolve(choiceId)
-    disambiguationPendingResolve = null
+    // resolve 挂起的 Promise，恢复 Agent 执行，并从 map 中移除
+    resolve(choiceId)
+    disambiguationPendingMap.delete(threadId)
     ctx.body = { success: true }
 })
 
