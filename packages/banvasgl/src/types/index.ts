@@ -170,6 +170,7 @@ export { DiffType, Operation } from './engine/scene'
 export type {
     IPage,
     IAppOptions,
+    IAppLifetimes,
     INavigationOptions,
     IApp,
     IAppStatic,
@@ -207,13 +208,14 @@ export type {
     IPageNode,
     IViewActions,
     IPageActions,
+    IAppActions,
     IHistoryActions,
     IBanvasActions,
     IContextMenuItem,
     IContextMenuState,
     IDragProps,
     IUseBanvasResult,
-} from './view/hook'
+} from './hook/hook'
 
 // ── PropertyAdapter 接口 ──
 export type {
