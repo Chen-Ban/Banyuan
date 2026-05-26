@@ -1,0 +1,101 @@
+// UserWidget 样式 — 暗色主题
+
+.widget {
+  display: flex;
+  align-items: center;
+}
+
+.loginBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: rgba(139, 92, 246, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(139, 92, 246, 0.08);
+  }
+}
+
+.avatarBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 50%;
+  transition: opacity 0.15s, transform 0.1s;
+
+  &:hover {
+    opacity: 0.85;
+    transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.avatar {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  cursor: pointer;
+}
+
+// 下拉菜单样式（通过 :global 覆盖 Ant Design）
+:global(.ant-dropdown .ant-dropdown-menu) {
+  background: #1a1a24 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  min-width: 160px;
+}
+
+:global(.ant-dropdown .ant-dropdown-menu-item) {
+  color: rgba(255, 255, 255, 0.75) !important;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+}
+
+:global(.ant-dropdown .ant-dropdown-menu-item-danger) {
+  color: #f87171 !important;
+
+  &:hover {
+    background: rgba(248, 113, 113, 0.08) !important;
+    color: #f87171 !important;
+  }
+}
+
+:global(.ant-dropdown .ant-dropdown-menu-item-divider) {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+.menuInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+.menuUsername {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.menuPhone {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}

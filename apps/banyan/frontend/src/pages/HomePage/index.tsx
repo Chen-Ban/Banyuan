@@ -19,6 +19,8 @@ import {
 } from '@ant-design/icons'
 import { applicationApi } from '@/api'
 import { getErrorMessage } from '@/utils/error'
+import UserWidget from '@/components/UserWidget'
+import LoginModal from '@/components/LoginModal'
 import styles from './index.module.scss'
 
 // ── 示例提示词 ────────────────────────────────────────────────────────────────
@@ -85,6 +87,14 @@ const HomePage = () => {
     <div className={styles.page}>
       {/* ── 背景装饰 ── */}
       <div className={styles.bgGlow} />
+
+      {/* ── 右上角用户组件 ── */}
+      <div className={styles.topRight}>
+        <UserWidget />
+      </div>
+
+      {/* ── 登录弹窗 ── */}
+      <LoginModal />
 
       {/* ── 主体居中区 ── */}
       <div className={styles.hero}>
