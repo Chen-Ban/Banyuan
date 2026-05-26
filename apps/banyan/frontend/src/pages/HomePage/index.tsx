@@ -7,19 +7,15 @@
  *   2. 跳转到 /application/:id/ui，通过 location.state 携带 initialPrompt
  *   3. UIPage 挂载后自动触发 AiBar.sendPrompt
  *
- * 下方提供「查看已有应用」入口，跳转到 /applications 列表页。
- *
  * 注：用户信息和登录弹窗已移至全局 RootLayout/Sidebar。
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { message, Spin } from 'antd'
-import {
-  SendOutlined,
-  AppstoreOutlined,
-} from '@ant-design/icons'
-import { applicationApi } from '@/api'
+import { message, Spin, Select } from 'antd'
+import { SendOutlined } from '@ant-design/icons'
+import { applicationApi, aiApi } from '@/api'
+import type { ProviderInfo } from '@/api'
 import { getErrorMessage } from '@/utils/error'
 import styles from './index.module.scss'
 
@@ -40,6 +36,25 @@ const HomePage = () => {
 
   const [prompt, setPrompt] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // ── 模型选择 ────────────────────────────────────────────────────────────
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [activeProvider, setActiveProvider] = useState<string>('')
+
+  useEffect(() => {
+    aiApi
+      .getModels()
+      .then((data) => {
+        setProviders(data?.providers ?? [])
+        setActiveProvider(data?.activeProvider ?? '')
+      })
+      .catch(() => { /* 静默失败 */ })
+  }, [])
+
+  const handleModelChange = useCallback((provider: string) => {
+    setActiveProvider(provider)
+    aiApi.switchModel(provider).catch(() => { /* 静默失败 */ })
+  }, [])
 
   // ── 自动撑高 textarea ────────────────────────────────────────────────────
   useEffect(() => {
@@ -108,7 +123,22 @@ const HomePage = () => {
             rows={1}
           />
           <div className={styles.inputFooter}>
-            <span className={styles.hint}>Enter 发送 · Shift+Enter 换行</span>
+            <div className={styles.footerLeft}>
+              {providers.length > 0 && (
+                <Select
+                  size="small"
+                  variant="borderless"
+                  value={activeProvider}
+                  onChange={handleModelChange}
+                  popupMatchSelectWidth={false}
+                  className={styles.modelSelect}
+                  options={providers.map((p) => ({
+                    value: p.provider,
+                    label: p.model,
+                  }))}
+                />
+              )}
+            </div>
             <button
               className={`${styles.sendBtn} ${canSend ? styles.sendBtnActive : ''}`}
               onClick={handleSubmit}
@@ -137,15 +167,6 @@ const HomePage = () => {
             </button>
           ))}
         </div>
-
-        {/* 已有应用入口 */}
-        <button
-          className={styles.listEntryBtn}
-          onClick={() => navigate('/applications')}
-        >
-          <AppstoreOutlined />
-          <span>查看已有应用</span>
-        </button>
       </div>
     </div>
   )
