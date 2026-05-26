@@ -143,16 +143,25 @@ const UnlockIcon = () => (
 
 // ── 类型定义 ──
 
-export interface PageListProps {
+export interface AppTreeProps {
     pages: IPageNode[]
     currentPageId: string | null
     actions: IBanvasActions
+    /** 应用名称（可选）。提供时在树顶层渲染 app 节点，形成 app-page-view 三级结构 */
+    appName?: string
+    /** App 节点被选中时的回调（selected=true 表示选中，false 表示取消选中） */
+    onAppSelect?: (selected: boolean) => void
+    /** App 节点是否当前被选中（受控） */
+    appSelected?: boolean
+    /** App 节点重命名回调（双击 app 节点触发编辑，确认后回调） */
+    onAppRename?: (name: string) => void
 }
 
 interface TreeNode {
     key: string
     title: string
-    isPage: boolean
+    /** 节点类型：app / page / view */
+    nodeType: 'app' | 'page' | 'view'
     visible?: boolean
     locked?: boolean
     children?: TreeNode[]
@@ -163,6 +172,9 @@ interface TreeNode {
 function isPageKey(pages: IPageNode[], key: string): boolean {
     return pages.some((p) => p.id === key)
 }
+
+/** 判断 key 是否为 app 节点 */
+const APP_NODE_KEY = '__app__'
 
 /** 查找 view 所属的页面 ID */
 function findOwnerPageId(pages: IPageNode[], viewId: string): string | null {
@@ -229,10 +241,14 @@ const InlineEdit: React.FC<{
     )
 }
 
-export const PageList: React.FC<PageListProps> = ({
+export const AppTree: React.FC<AppTreeProps> = ({
     pages,
     currentPageId,
     actions,
+    appName,
+    onAppSelect,
+    appSelected,
+    onAppRename,
 }) => {
     const [editingKey, setEditingKey] = useState<string | null>(null)
 
@@ -242,20 +258,30 @@ export const PageList: React.FC<PageListProps> = ({
             return {
                 key: v.id,
                 title: v.name || v.type,
-                isPage: false,
+                nodeType: 'view',
                 visible: v.visible,
                 locked: v.locked,
                 children: v.children?.length ? v.children.map(viewToNode) : undefined,
                 isLeaf: !v.children?.length,
             }
         }
-        return pages.map((page) => ({
+        const pageNodes: TreeNode[] = pages.map((page) => ({
             key: page.id,
             title: page.name,
-            isPage: true,
+            nodeType: 'page',
             children: page.children?.map(viewToNode) || [],
         }))
-    }, [pages])
+        // 有 appName 时，在顶层包一个 app 节点
+        if (appName !== undefined) {
+            return [{
+                key: APP_NODE_KEY,
+                title: appName || '应用',
+                nodeType: 'app',
+                children: pageNodes,
+            }]
+        }
+        return pageNodes
+    }, [pages, appName])
 
     /** 删除节点 */
     const handleDelete = (key: string, e: React.MouseEvent) => {
@@ -270,7 +296,8 @@ export const PageList: React.FC<PageListProps> = ({
 
     /** 是否允许显示删除按钮 */
     const canDelete = (node: TreeNode): boolean => {
-        if (node.isPage && pages.length <= 1) return false
+        if (node.nodeType === 'app') return false
+        if (node.nodeType === 'page' && pages.length <= 1) return false
         return true
     }
 
@@ -281,7 +308,9 @@ export const PageList: React.FC<PageListProps> = ({
                 <InlineEdit
                     defaultValue={node.title}
                     onCommit={(val) => {
-                        if (node.isPage) {
+                        if (node.nodeType === 'app') {
+                            onAppRename?.(val)
+                        } else if (node.nodeType === 'page') {
                             actions.page.rename(node.key, val)
                         } else {
                             actions.view.rename(node.key, val)
@@ -305,7 +334,7 @@ export const PageList: React.FC<PageListProps> = ({
 
                 <span style={nodeBtnsStyle} className="page-list-node-btns">
                     {/* 锁定/解锁（仅 view 节点） */}
-                    {!node.isPage && (
+                    {node.nodeType === 'view' && (
                         <span
                             style={{ ...nodeBtnStyle, color: node.locked ? '#1677ff' : '#bfbfbf' }}
                             title={node.locked ? '解锁' : '锁定'}
@@ -319,7 +348,7 @@ export const PageList: React.FC<PageListProps> = ({
                     )}
 
                     {/* 可见/隐藏（仅 view 节点） */}
-                    {!node.isPage && (
+                    {node.nodeType === 'view' && (
                         <span
                             style={{ ...nodeBtnStyle, color: !node.visible ? '#1677ff' : '#bfbfbf' }}
                             title={node.visible ? '隐藏' : '显示'}
@@ -332,7 +361,7 @@ export const PageList: React.FC<PageListProps> = ({
                         </span>
                     )}
 
-                    {/* 删除 */}
+                    {/* 删除（app 节点不显示） */}
                     {canDelete(node) && (
                         <span
                             style={nodeBtnStyle}
@@ -349,6 +378,8 @@ export const PageList: React.FC<PageListProps> = ({
 
     // 选中高亮
     const selectedKeys = useMemo(() => {
+        // App 节点被选中时，高亮 app 节点
+        if (appSelected) return [APP_NODE_KEY]
         const keys: string[] = []
         function collectActived(nodes: IViewNode[]) {
             for (const node of nodes) {
@@ -363,11 +394,13 @@ export const PageList: React.FC<PageListProps> = ({
             keys.push(currentPageId)
         }
         return keys
-    }, [pages, currentPageId])
+    }, [pages, currentPageId, appSelected])
 
-    // 始终展开所有页面节点，以及所有有子节点的 view 节点
+    // 始终展开所有页面节点、app 节点，以及所有有子节点的 view 节点
     const expandedKeys = useMemo(() => {
         const keys: string[] = pages.map((p) => p.id)
+        // 有 appName 时，app 节点也始终展开
+        if (appName !== undefined) keys.push(APP_NODE_KEY)
         function collectExpandable(nodes: IViewNode[]) {
             for (const node of nodes) {
                 if (node.children && node.children.length > 0) {
@@ -380,7 +413,7 @@ export const PageList: React.FC<PageListProps> = ({
             collectExpandable(page.children || [])
         }
         return keys
-    }, [pages])
+    }, [pages, appName])
 
     const handleSelect = (
         _keys: React.Key[],
@@ -391,6 +424,15 @@ export const PageList: React.FC<PageListProps> = ({
             actions.view.deselect()
             return
         }
+
+        // app 节点点击：通知外部选中并取消 view 选中
+        if (key === APP_NODE_KEY) {
+            actions.view.deselect()
+            onAppSelect?.(true)
+            return
+        }
+        // 点击其他节点时，取消 app 选中
+        if (appSelected) onAppSelect?.(false)
 
         const isMac = /Mac|iPhone|iPad/.test(navigator.platform)
         const isCtrl = isMac ? info.nativeEvent.metaKey : info.nativeEvent.ctrlKey
@@ -445,4 +487,4 @@ export const PageList: React.FC<PageListProps> = ({
     )
 }
 
-export default PageList
+export default AppTree

@@ -6,6 +6,7 @@ import { preprocessForExport } from '@banyuan/banvasgl'
 import type { IBanvasActions, App } from '@banyuan/banvasgl'
 import { createViewActions, getClipboard } from './viewActions.js'
 import { createPageActions } from './pageActions.js'
+import { createAppActions } from './appActions.js'
 import { createHistoryActions } from './historyActions.js'
 
 export { getClipboard }
@@ -16,6 +17,7 @@ export function createBanvasActions(
     return {
         view: createViewActions(getApp),
         page: createPageActions(getApp),
+        app: createAppActions(getApp),
         history: createHistoryActions(getApp),
 
         getSerializedPages(): string[] {

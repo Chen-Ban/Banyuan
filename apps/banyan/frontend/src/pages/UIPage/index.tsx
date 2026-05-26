@@ -21,7 +21,7 @@ import { useParams, useLocation } from "react-router-dom";
 import {
   useDesignBanvas,
   DesignContextMenu,
-  PageList,
+  AppTree,
 } from "@banyuan/banyan-sdk";
 import { message } from "antd";
 import { applicationApi } from "@/api";
@@ -39,7 +39,7 @@ const DEFAULT_PANEL_WIDTH = 200;
 const UIPage = () => {
   const { id: application_id } = useParams<{ id: string }>();
   const location = useLocation();
-  const { registerGetPages, unregisterGetPages } = useAppLayoutCtx();
+  const { registerGetPages, unregisterGetPages, appName, onAppRename } = useAppLayoutCtx();
 
   // 首页跳转时携带的初始 prompt，画布加载完成后自动发送
   const initialPromptRef = useRef<string | null>(
@@ -113,6 +113,7 @@ const UIPage = () => {
 
   const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 800 });
   const [rightOpen, setRightOpen] = useState(true);
+  const [appSelected, setAppSelected] = useState(false);
   const prevSelectedViewIdRef = useRef<string>("");
 
   const handleCanvasSizeChange = useCallback(
@@ -156,6 +157,8 @@ const UIPage = () => {
   useEffect(() => {
     if (selectedViewId !== "") {
       setRightOpen(true);
+      // 选中 view 时自动取消 app 选中
+      setAppSelected(false);
     } else if (prevSelectedViewIdRef.current === "") {
       setRightOpen(false);
     }
@@ -198,14 +201,21 @@ const UIPage = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── 左侧面板：PageList ── */}
+      {/* ── 左侧面板：AppTree ── */}
       <div className={styles.leftPanel} style={{ width: panelWidth }}>
         {/* 页面列表（撑满全部高度） */}
         <div className={styles.pageListSection}>
-          <PageList
+          <AppTree
             pages={pages}
             currentPageId={currentPageId}
             actions={actions}
+            appName={appName}
+            appSelected={appSelected}
+            onAppSelect={(selected) => {
+              setAppSelected(selected);
+              if (selected) setRightOpen(true);
+            }}
+            onAppRename={onAppRename}
           />
         </div>
 
@@ -222,17 +232,17 @@ const UIPage = () => {
           {/* 上段：物料面板 */}
           <ComponentPalette materialContent={<MaterialPalette />} />
 
-          {/* 中段：画布 */}
-          <div className={styles.canvasArea}>
-            {Banvas}
-            <AiBar
-              ref={aiBarRef}
-              appId={application_id!}
-              getPages={() => actions.getSerializedPages()}
-              onPagesUpdate={(aiPages) => setInitialPages(aiPages)}
-              onPagesSnapshot={(aiPages) => setInitialPages(aiPages)}
-            />
-          </div>
+          {/* 中段：画布（Banvas 内部已有 div 包裹） */}
+          {Banvas}
+
+          {/* 底部：AI 输入栏 */}
+          <AiBar
+            ref={aiBarRef}
+            appId={application_id!}
+            getPages={() => actions.getSerializedPages()}
+            onPagesUpdate={(aiPages) => setInitialPages(aiPages)}
+            onPagesSnapshot={(aiPages) => setInitialPages(aiPages)}
+          />
         </div>
 
         <PropertyDrawer
@@ -246,6 +256,7 @@ const UIPage = () => {
           canvasSize={canvasSize}
           onCanvasSizeChange={handleCanvasSizeChange}
           appId={application_id}
+          appSelected={appSelected}
         />
       </div>
 

@@ -75,6 +75,8 @@ export interface PropertyPanelProps {
   /** FlowEditorModal 组件（由外部注入，避免 banvas-design 依赖 flow-design） */
   FlowEditorModal?: React.ComponentType<FlowEditorModalSlotProps>;
   appId?: string;
+  /** 是否选中了 App 节点（优先级最高，显示 App 生命周期配置） */
+  appSelected?: boolean;
 }
 
 const SCREEN_PRESETS = [
@@ -97,6 +99,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   onCanvasSizeChange,
   FlowEditorModal: FlowEditorModalSlot,
   appId,
+  appSelected,
 }) => {
   const view = selectedViewId
     ? actions.view.getViewInstance(selectedViewId)
@@ -105,8 +108,12 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   // 切换选中元素时，重置 tab 到第一个
   const [activeTab, setActiveTab] = useState("properties");
   useEffect(() => {
-    setActiveTab(selectedViewId ? "properties" : "data");
-  }, [selectedViewId]);
+    if (appSelected) {
+      setActiveTab("events");
+    } else {
+      setActiveTab(selectedViewId ? "properties" : "data");
+    }
+  }, [selectedViewId, appSelected]);
 
   const isEditingRef = useRef(false);
 
@@ -123,6 +130,34 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       isEditingRef.current = false;
     }
   }, [actions]);
+
+  // ── App 节点被选中时：只展示事件 tab（App 生命周期） ──
+  if (appSelected) {
+    const appEventsTab = (
+      <EventsTab
+        mode="app"
+        actions={actions}
+        FlowEditorModal={FlowEditorModalSlot}
+        appId={appId}
+      />
+    );
+
+    const appTabItems = [
+      { key: "events", label: "事件", children: appEventsTab },
+    ];
+
+    return (
+      <div style={panelStyle}>
+        <Tabs
+          items={appTabItems}
+          size="small"
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          tabBarStyle={{ paddingLeft: 12, margin: 0 }}
+        />
+      </div>
+    );
+  }
 
   // ── 无选中时：展示当前页面面板（数据 + 事件） ──
   if (!view) {

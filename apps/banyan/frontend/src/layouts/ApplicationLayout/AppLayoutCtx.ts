@@ -17,11 +17,17 @@ export interface AppLayoutCtxValue {
   registerGetPages: (fn: () => string[]) => void
   /** UIPage 卸载时调用，清除注册 */
   unregisterGetPages: () => void
+  /** 当前应用名称（由 ApplicationLayout 管理，UIPage/AppTree 可读取） */
+  appName: string
+  /** 修改应用名称（会触发 auto-save，同时更新顶部 bar） */
+  onAppRename: (name: string) => void
 }
 
 export const AppLayoutCtx = createContext<AppLayoutCtxValue>({
   registerGetPages: () => {},
   unregisterGetPages: () => {},
+  appName: '',
+  onAppRename: () => {},
 })
 
 export const useAppLayoutCtx = () => useContext(AppLayoutCtx)

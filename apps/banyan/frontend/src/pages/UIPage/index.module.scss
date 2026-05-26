@@ -57,23 +57,14 @@
   overflow: hidden;
 }
 
-// canvasSection：纵向三段（物料 / 画布 / 底部预留）
+// canvasSection：纵向（物料 / 画布 / AiBar）
 .canvasSection {
   flex: 1;
   min-width: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  // 不设置 overflow:hidden，ConversationPanel(absolute) 需要向上溢出覆盖物料面板
   background-color: #f8f9fa;
 }
 
-// 画布区域：撑满剩余高度
-.canvasArea {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
