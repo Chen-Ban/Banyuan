@@ -30,8 +30,12 @@ export { EventsTab } from './components/EventsTab.js'
 export type { EventsTabProps, FlowEditorModalSlotProps } from './components/EventsTab.js'
 export { PropertyPanel } from './components/PropertyPanel.js'
 export type { PropertyPanelProps } from './components/PropertyPanel.js'
-export { PageList } from './components/PageList.js'
-export type { PageListProps } from './components/PageList.js'
+export { AppTree } from './components/AppTree.js'
+export type { AppTreeProps } from './components/AppTree.js'
+/** @deprecated 已更名为 AppTree，此别名将在下个大版本移除 */
+export { AppTree as PageList } from './components/AppTree.js'
+/** @deprecated 已更名为 AppTreeProps，此别名将在下个大版本移除 */
+export type { AppTreeProps as PageListProps } from './components/AppTree.js'
 
 // ── Workers ──
 export { WorkerExecutor, getDefaultWorkerExecutor } from './workers/WorkerExecutor.js'

@@ -30,7 +30,6 @@ import type {
   IDragProps,
 } from "@banyuan/banvasgl";
 import { createDesignMaterialPalette } from "./components/DesignMaterialPalette.js";
-import type { DesignMaterialPaletteProps } from "./components/DesignMaterialPalette.js";
 
 export type { SerializedPageJSON, UseCanvasOptions };
 
@@ -47,12 +46,7 @@ export default function useDesignBanvas(
   // ── Canvas 缩放（Cmd/Ctrl + Wheel） ──
   // 只要测量到容器尺寸就启用缩放
   const zoomEnabled = containerSize.width > 0 && containerSize.height > 0;
-  const {
-    scale,
-    styleWidth,
-    styleHeight,
-    zoomContainerRef,
-  } = useCanvasZoom({
+  const { scale, styleWidth, styleHeight, zoomContainerRef } = useCanvasZoom({
     canvasWidth: _options.width,
     canvasHeight: _options.height,
     containerWidth: zoomEnabled ? containerSize.width : _options.width,
@@ -198,7 +192,10 @@ export default function useDesignBanvas(
       // 立即测量一次
       const { width, height } = node.getBoundingClientRect();
       if (width > 0 && height > 0) {
-        setContainerSize({ width: Math.floor(width), height: Math.floor(height) });
+        setContainerSize({
+          width: Math.floor(width),
+          height: Math.floor(height),
+        });
       }
 
       // 持续监听
@@ -206,7 +203,10 @@ export default function useDesignBanvas(
         for (const entry of entries) {
           const rect = entry.contentRect;
           if (rect.width > 0 && rect.height > 0) {
-            setContainerSize({ width: Math.floor(rect.width), height: Math.floor(rect.height) });
+            setContainerSize({
+              width: Math.floor(rect.width),
+              height: Math.floor(rect.height),
+            });
           }
         }
       });

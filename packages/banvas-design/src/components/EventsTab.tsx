@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Button, Select } from 'antd'
-import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, EventHandler, FlowSchema } from '@banyuan/banvasgl'
+import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, IAppLifetimes, EventHandler, FlowSchema } from '@banyuan/banvasgl'
 
 // ── 内联样式 ──
 
@@ -83,7 +83,16 @@ interface PageEventsTabProps {
     appId?: string
 }
 
-export type EventsTabProps = ViewEventsTabProps | PageEventsTabProps
+/** App 模式 Props */
+interface AppEventsTabProps {
+    mode: 'app'
+    actions: IBanvasActions
+    /** FlowEditorModal 组件（由外部注入，避免 banvas-design 依赖 flow-design） */
+    FlowEditorModal?: React.ComponentType<FlowEditorModalSlotProps>
+    appId?: string
+}
+
+export type EventsTabProps = ViewEventsTabProps | PageEventsTabProps | AppEventsTabProps
 
 /** FlowEditorModal 插槽 Props */
 export interface FlowEditorModalSlotProps {
@@ -108,6 +117,12 @@ const PAGE_LIFETIME_ENTRIES: { key: keyof ISceneLifetimes; label: string }[] = [
     { key: 'onUnload', label: 'onUnload' },
     { key: 'onShow', label: 'onShow' },
     { key: 'onHide', label: 'onHide' },
+]
+
+// App 生命周期钩子名称与描述
+const APP_LIFETIME_ENTRIES: { key: keyof IAppLifetimes; label: string }[] = [
+    { key: 'onLaunch', label: 'onLaunch' },
+    { key: 'onUnlaunch', label: 'onUnlaunch' },
 ]
 
 // 所有可用的交互事件
@@ -240,6 +255,44 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
 
     const handleSave = (schema: FlowSchema) => {
         modal.onSave(schema)
+    }
+
+    // ── App 模式：只展示 App 生命周期 ──
+    if (props.mode === 'app') {
+        const lifetimes = actions.app.getAppLifetimes()
+
+        return (
+            <div style={tabContentStyle}>
+                <section style={sectionStyle}>
+                    <div style={sectionHeaderStyle}>生命周期</div>
+                    {APP_LIFETIME_ENTRIES.map(({ key, label }) => (
+                        <LifetimeRowItem
+                            key={key}
+                            label={label}
+                            handler={lifetimes[key] ?? null}
+                            onDelete={() => actions.app.deleteAppLifetime(key)}
+                            onEdit={() =>
+                                openModal(
+                                    label,
+                                    toFlowSchema(lifetimes[key] ?? null),
+                                    (schema) => actions.app.setAppLifetime(key, schema),
+                                )
+                            }
+                        />
+                    ))}
+                </section>
+
+                {FlowEditorModalSlot && (
+                    <FlowEditorModalSlot
+                        open={modal.open}
+                        title={modal.title}
+                        initialSchema={modal.initialSchema}
+                        onSave={handleSave}
+                        onClose={closeModal}
+                    />
+                )}
+            </div>
+        )
     }
 
     // ── Page 模式：只展示 Scene 生命周期 ──
