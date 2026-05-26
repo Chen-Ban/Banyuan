@@ -51,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
       <div className={styles.infoBar}>
         {/* 品牌 Logo */}
         <button className={styles.brandLink} onClick={() => navigate('/')}>
-          <span className={styles.brandLogo}>班</span>
+          <span className={styles.brandLogo}>Banyan</span>
         </button>
 
         {/* 分隔符 */}

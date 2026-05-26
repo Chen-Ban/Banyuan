@@ -91,8 +91,8 @@ const HomePage = () => {
       {/* ── 主体居中区 ── */}
       <div className={styles.hero}>
         <h1 className={styles.title}>
-          <span className={styles.titleGradient}>班园</span>
-          <span className={styles.titleSub}>用自然语言构建可视化应用</span>
+          <span className={styles.titleGradient}>Banyan</span>
+          <span className={styles.titleSub}>以画布为山石，以组件为草木，以数据为活水，以 AI 为匠心，造一方数字园林</span>
         </h1>
 
         {/* 输入框卡片 */}
