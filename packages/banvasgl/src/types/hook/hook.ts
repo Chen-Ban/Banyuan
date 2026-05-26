@@ -10,8 +10,9 @@
 import type { ViewType } from '@/foundation/constants'
 import type { GraphType } from '@/foundation/constants'
 import type View from '@/view/View/View'
-import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from './view'
+import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from '../view/view'
 import type { ISceneLifetimes } from '../engine/scene'
+import type { IAppLifetimes } from '../engine/app'
 
 // ────────────────────────────────────────────
 //  组件物料（Component Definition）
@@ -257,6 +258,16 @@ export interface IPageActions {
     deletePageLifetime(pageId: string, lifetimeName: keyof ISceneLifetimes): void
 }
 
+/** App 级操作 */
+export interface IAppActions {
+    /** 获取 App 生命周期钩子表 */
+    getAppLifetimes(): IAppLifetimes
+    /** 设置 App 的单个生命周期钩子 */
+    setAppLifetime(lifetimeName: keyof IAppLifetimes, handler: EventHandler): void
+    /** 删除（清空）App 的单个生命周期钩子 */
+    deleteAppLifetime(lifetimeName: keyof IAppLifetimes): void
+}
+
 /** 历史操作（撤销/重做） */
 export interface IHistoryActions {
     /** 撤销 */
@@ -278,6 +289,7 @@ export interface IHistoryActions {
 export interface IBanvasActions {
     view: IViewActions
     page: IPageActions
+    app: IAppActions
     history: IHistoryActions
     /** 获取所有页面的序列化 JSON 字符串数组（用于持久化存储） */
     getSerializedPages(): string[]
