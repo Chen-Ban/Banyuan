@@ -5,6 +5,9 @@
 
 const BASE_URL = '/api'
 
+const TOKEN_KEY = 'banyan_access_token'
+const REFRESH_TOKEN_KEY = 'banyan_refresh_token'
+
 /**
  * API 响应格式
  */
@@ -52,6 +55,12 @@ async function request<T>(
     defaultHeaders['Content-Type'] = 'application/json'
   }
 
+  // 从 localStorage 读取 access token，附加到请求头
+  const accessToken = localStorage.getItem(TOKEN_KEY)
+  if (accessToken) {
+    defaultHeaders['Authorization'] = `Bearer ${accessToken}`
+  }
+
   const response = await fetch(fullUrl, {
     ...options,
     headers: {
@@ -59,6 +68,13 @@ async function request<T>(
       ...options.headers,
     },
   })
+
+  // 处理 401：清除本地 token
+  if (response.status === 401) {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
+    throw new ApiError('Unauthorized', 401)
+  }
 
   const data = await response.json()
 
