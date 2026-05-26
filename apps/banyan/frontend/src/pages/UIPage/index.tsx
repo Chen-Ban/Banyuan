@@ -1,18 +1,18 @@
 /**
  * UIPage — 画布子页面
  *
- * 布局：左右结构
- *   ┌─────────────────┬──────────────────────────────┐
- *   │  左侧面板        │  上段：物料面板（ComponentPalette）│
- *   │  ┌───────────┐  ├──────────────────────────────┤
- *   │  │ PageList  │  │  中段：画布（Banvas + AiBar）  │
- *   │  │ (flex:1)  │  ├──────────────────────────────┤
- *   │  └───────────┘  │  （PropertyDrawer 浮层）       │
- *   └─────────────────┴──────────────────────────────┘
+ * 布局：左右结构（左侧面板已移除，直接展示画布区域）
+ *   ┌──────────────────────────────┐
+ *   │  上段：物料面板（ComponentPalette）│
+ *   ├──────────────────────────────┤
+ *   │  中段：画布（Banvas + AiBar）  │
+ *   ├──────────────────────────────┤
+ *   │  （PropertyDrawer 浮层）       │
+ *   └──────────────────────────────┘
  *
  * 职责：
  *   - 加载应用的初始 pages 数据，初始化 useDesignBanvas
- *   - 渲染左侧面板（物料 + PageList）、画布、PropertyDrawer
+ *   - 渲染物料面板、画布、PropertyDrawer
  *   - 通过 AppLayoutCtx.registerGetPages 向 ApplicationLayout 注册序列化函数
  */
 
@@ -21,7 +21,6 @@ import { useParams, useLocation } from "react-router-dom";
 import {
   useDesignBanvas,
   DesignContextMenu,
-  AppTree,
 } from "@banyuan/banyan-sdk";
 import { message } from "antd";
 import { applicationApi } from "@/api";
@@ -32,14 +31,10 @@ import ComponentPalette from "./components/ComponentPalette";
 import PropertyDrawer from "./components/PropertyDrawer";
 import styles from "./index.module.scss";
 
-const MIN_PANEL_WIDTH = 140;
-const MAX_PANEL_WIDTH = 400;
-const DEFAULT_PANEL_WIDTH = 200;
-
 const UIPage = () => {
   const { id: application_id } = useParams<{ id: string }>();
   const location = useLocation();
-  const { registerGetPages, unregisterGetPages, appName, onAppRename } = useAppLayoutCtx();
+  const { registerGetPages, unregisterGetPages } = useAppLayoutCtx();
 
   // 首页跳转时携带的初始 prompt，画布加载完成后自动发送
   const initialPromptRef = useRef<string | null>(
@@ -58,41 +53,6 @@ const UIPage = () => {
   const mainContentRef = useCallback((el: HTMLDivElement | null) => {
     setMainContentEl(el);
   }, []);
-
-  // ── 左侧面板可拖拽宽度 ────────────────────────────────────────────────────
-  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
-  const [isResizing, setIsResizing] = useState(false);
-  const resizeStartX = useRef(0);
-  const resizeStartWidth = useRef(0);
-
-  const handleResizeStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      setIsResizing(true);
-      resizeStartX.current = e.clientX;
-      resizeStartWidth.current = panelWidth;
-    },
-    [panelWidth],
-  );
-
-  useEffect(() => {
-    if (!isResizing) return;
-    const handleMove = (e: MouseEvent) => {
-      const delta = e.clientX - resizeStartX.current;
-      const newWidth = Math.max(
-        MIN_PANEL_WIDTH,
-        Math.min(MAX_PANEL_WIDTH, resizeStartWidth.current + delta),
-      );
-      setPanelWidth(newWidth);
-    };
-    const handleUp = () => setIsResizing(false);
-    document.addEventListener("mousemove", handleMove);
-    document.addEventListener("mouseup", handleUp);
-    return () => {
-      document.removeEventListener("mousemove", handleMove);
-      document.removeEventListener("mouseup", handleUp);
-    };
-  }, [isResizing]);
 
   // ── 加载应用初始 pages ────────────────────────────────────────────────────
   useEffect(() => {
@@ -113,7 +73,6 @@ const UIPage = () => {
 
   const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 800 });
   const [rightOpen, setRightOpen] = useState(true);
-  const [appSelected, setAppSelected] = useState(false);
   const prevSelectedViewIdRef = useRef<string>("");
 
   const handleCanvasSizeChange = useCallback(
@@ -157,8 +116,6 @@ const UIPage = () => {
   useEffect(() => {
     if (selectedViewId !== "") {
       setRightOpen(true);
-      // 选中 view 时自动取消 app 选中
-      setAppSelected(false);
     } else if (prevSelectedViewIdRef.current === "") {
       setRightOpen(false);
     }
@@ -201,32 +158,7 @@ const UIPage = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── 左侧面板：AppTree ── */}
-      <div className={styles.leftPanel} style={{ width: panelWidth }}>
-        {/* 页面列表（撑满全部高度） */}
-        <div className={styles.pageListSection}>
-          <AppTree
-            pages={pages}
-            currentPageId={currentPageId}
-            actions={actions}
-            appName={appName}
-            appSelected={appSelected}
-            onAppSelect={(selected) => {
-              setAppSelected(selected);
-              if (selected) setRightOpen(true);
-            }}
-            onAppRename={onAppRename}
-          />
-        </div>
-
-        {/* 拖拽手柄（贴右边缘） */}
-        <div
-          className={`${styles.resizeHandle} ${isResizing ? styles.resizing : ""}`}
-          onMouseDown={handleResizeStart}
-        />
-      </div>
-
-      {/* ── 右侧：物料 + 画布 + PropertyDrawer ── */}
+      {/* ── 画布区域：物料 + 画布 + PropertyDrawer ── */}
       <div className={styles.mainContent} ref={mainContentRef}>
         <div className={styles.canvasSection}>
           {/* 上段：物料面板 */}
@@ -256,7 +188,6 @@ const UIPage = () => {
           canvasSize={canvasSize}
           onCanvasSizeChange={handleCanvasSizeChange}
           appId={application_id}
-          appSelected={appSelected}
         />
       </div>
 

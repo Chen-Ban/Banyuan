@@ -17,7 +17,6 @@ export interface PropertyDrawerProps {
   canvasSize: { width: number; height: number };
   onCanvasSizeChange: (width: number, height: number) => void;
   appId?: string;
-  appSelected?: boolean;
 }
 
 const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
@@ -30,7 +29,6 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
   canvasSize,
   onCanvasSizeChange,
   appId,
-  appSelected,
 }) => {
   return (
     <div className={styles.drawerWrapper}>
@@ -74,7 +72,6 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
           onCanvasSizeChange={onCanvasSizeChange}
           FlowEditorModal={FlowEditorModal}
           appId={appId}
-          appSelected={appSelected}
         />
       </Drawer>
     </div>

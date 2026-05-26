@@ -91,10 +91,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const openLoginModal = useCallback(() => setLoginModalOpen(true), [])
   const closeLoginModal = useCallback(() => setLoginModalOpen(false), [])
 
+  const contextValue = { user, loading, loginModalOpen, login, logout, openLoginModal, closeLoginModal }
+
   return (
-    <AuthContext.Provider
-      value={{ user, loading, loginModalOpen, login, logout, openLoginModal, closeLoginModal }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )

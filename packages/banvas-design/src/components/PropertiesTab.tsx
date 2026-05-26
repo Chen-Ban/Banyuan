@@ -61,6 +61,28 @@ const infoValueIdStyle: React.CSSProperties = {
     display: 'inline-block',
 }
 
+const toggleRowStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+}
+
+const toggleBtnStyle = (active: boolean, activeColor = '#1677ff'): React.CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '2px 8px',
+    borderRadius: 4,
+    border: `1px solid ${active ? activeColor : '#d9d9d9'}`,
+    background: active ? `${activeColor}15` : 'transparent',
+    color: active ? activeColor : '#8c8c8c',
+    fontSize: 11,
+    cursor: 'pointer',
+    userSelect: 'none',
+    transition: 'all 0.15s',
+})
+
 const nameInputStyle: React.CSSProperties = {
     flex: 1,
     marginLeft: 4,
@@ -117,6 +139,9 @@ export const PropertiesTab: React.FC<PropertiesTabProps> = ({
     const isRoundedRect = content && content.type === GraphType.ROUNDED_RECT
     const radii: [number, number, number, number] = isRoundedRect ? content.radii : [0, 0, 0, 0]
 
+    const isLocked = view.freezed
+    const isVisible = view.visible
+
     return (
         <div style={tabContentStyle}>
             {/* 基础信息 */}
@@ -146,6 +171,23 @@ export const PropertiesTab: React.FC<PropertiesTabProps> = ({
                         value={view.name}
                         onChange={(e) => actions.view.rename(selectedViewId, e.target.value)}
                     />
+                </div>
+                {/* 锁定 / 隐藏 */}
+                <div style={toggleRowStyle}>
+                    <button
+                        style={toggleBtnStyle(isLocked)}
+                        title={isLocked ? '点击解锁' : '点击锁定'}
+                        onClick={() => actions.view.setLocked(selectedViewId, !isLocked)}
+                    >
+                        {isLocked ? '🔒 已锁定' : '🔓 未锁定'}
+                    </button>
+                    <button
+                        style={toggleBtnStyle(!isVisible, '#fa8c16')}
+                        title={isVisible ? '点击隐藏' : '点击显示'}
+                        onClick={() => actions.view.setVisible(selectedViewId, !isVisible)}
+                    >
+                        {isVisible ? '👁 可见' : '🙈 已隐藏'}
+                    </button>
                 </div>
             </section>
 
