@@ -21,7 +21,8 @@ export interface TokenPair {
 export interface AuthUser {
   userId: string
   tenantId: string
-  email: string
+  email?: string
+  phone?: string
   username: string
   role: 'owner' | 'admin' | 'member'
   status: string
@@ -60,4 +61,21 @@ export function logout(refreshToken: string): Promise<ApiResponse<null>> {
  */
 export function me(): Promise<ApiResponse<AuthUser>> {
   return get<ApiResponse<AuthUser>>('/auth/me')
+}
+
+/**
+ * 发送手机验证码
+ */
+export function sendSmsCode(phone: string): Promise<ApiResponse<null>> {
+  return post<ApiResponse<null>>('/auth/sms/send', { phone })
+}
+
+/**
+ * 手机号验证码登录
+ */
+export function loginByPhone(
+  phone: string,
+  code: string
+): Promise<ApiResponse<{ user: AuthUser; tokens: TokenPair; isNewUser: boolean }>> {
+  return post<ApiResponse<{ user: AuthUser; tokens: TokenPair; isNewUser: boolean }>>('/auth/sms/verify', { phone, code })
 }

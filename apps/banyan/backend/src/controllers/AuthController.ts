@@ -73,6 +73,36 @@ export class AuthController {
   }
 
   /**
+   * POST /api/auth/sms/send
+   * Body: { phone }
+   */
+  async sendSmsCode(ctx: Context): Promise<void> {
+    const { phone } = ctx.request.body as Record<string, string>
+    if (!phone) {
+      ctx.status = 400
+      ctx.body = { success: false, message: '缺少手机号' }
+      return
+    }
+    await authService.sendSmsCode(phone)
+    ctx.body = { success: true, message: '验证码已发送' }
+  }
+
+  /**
+   * POST /api/auth/sms/verify
+   * Body: { phone, code }
+   */
+  async loginByPhone(ctx: Context): Promise<void> {
+    const { phone, code } = ctx.request.body as Record<string, string>
+    if (!phone || !code) {
+      ctx.status = 400
+      ctx.body = { success: false, message: '缺少手机号或验证码' }
+      return
+    }
+    const result = await authService.loginByPhone(phone, code)
+    ctx.body = { success: true, data: result }
+  }
+
+  /**
    * GET /api/auth/me
    * 需要 authMiddleware
    */

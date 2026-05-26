@@ -1,0 +1,139 @@
+// LoginModal 样式 — 暗色主题
+
+:global(.ant-modal-content) {
+  background: #13131a !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6) !important;
+}
+
+:global(.ant-modal-close) {
+  color: rgba(255, 255, 255, 0.35) !important;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.7) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+}
+
+.modal {
+  // 覆盖 Ant Design 默认样式
+}
+
+.content {
+  padding: 8px 4px 4px;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.logo {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #a78bfa 0%, #818cf8 50%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.field {
+  width: 100%;
+}
+
+.input {
+  :global(.ant-input-affix-wrapper) {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+    border-radius: 10px !important;
+
+    &:hover {
+      border-color: rgba(139, 92, 246, 0.4) !important;
+    }
+
+    &:focus-within {
+      border-color: rgba(139, 92, 246, 0.6) !important;
+      box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15) !important;
+    }
+  }
+
+  :global(.ant-input) {
+    background: transparent !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.25) !important;
+    }
+  }
+}
+
+.inputIcon {
+  color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.resendBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: #818cf8;
+  padding: 0;
+  white-space: nowrap;
+  transition: color 0.15s;
+
+  &:hover:not(:disabled) {
+    color: #a78bfa;
+  }
+}
+
+.resendBtnDisabled {
+  color: rgba(255, 255, 255, 0.25) !important;
+  cursor: not-allowed;
+}
+
+.submitBtn {
+  height: 44px !important;
+  border-radius: 10px !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4) !important;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s !important;
+
+  &:hover:not(:disabled) {
+    opacity: 0.9 !important;
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.55) !important;
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98) !important;
+  }
+
+  &:disabled {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: rgba(255, 255, 255, 0.25) !important;
+    box-shadow: none !important;
+  }
+}
+
+.tip {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.2);
+  margin: 12px 0 0;
+}

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import { Tenant } from '../models/Tenant.js'
 import { User, IUser, UserRole } from '../models/User.js'
 import { RefreshToken } from '../models/RefreshToken.js'
+import { smsService } from './SmsService.js'
 
 // ─── 环境变量 ─────────────────────────────────────────────────────────────────
 
@@ -115,6 +116,9 @@ export class AuthService {
       throw Object.assign(new Error('账号已被禁用'), { statusCode: 403 })
     }
 
+    if (!user.passwordHash) {
+      throw Object.assign(new Error('该账号未设置密码，请使用手机号登录'), { statusCode: 401 })
+    }
     const valid = await bcrypt.compare(password, user.passwordHash)
     if (!valid) {
       throw Object.assign(new Error('邮箱或密码错误'), { statusCode: 401 })
@@ -157,6 +161,53 @@ export class AuthService {
       { token: rawRefreshToken, revokedAt: { $exists: false } },
       { revokedAt: new Date() }
     )
+  }
+
+  /**
+   * 发送手机验证码
+   */
+  async sendSmsCode(phone: string): Promise<void> {
+    await smsService.sendOtp(phone)
+  }
+
+  /**
+   * 手机号验证码登录/注册
+   * - 手机号已存在 → 直接登录
+   * - 手机号不存在 → 自动注册（创建租户 + owner 用户）
+   */
+  async loginByPhone(
+    phone: string,
+    code: string
+  ): Promise<{ user: Omit<IUser, 'passwordHash'>; tokens: TokenPair; isNewUser: boolean }> {
+    // 验证 OTP（失败会抛出）
+    smsService.verifyOtp(phone, code)
+
+    // 查找已有用户
+    let user = await User.findOne({ phone })
+    let isNewUser = false
+
+    if (!user) {
+      // 自动注册：创建租户 + owner 用户
+      isNewUser = true
+      const tenantId = generateId('tenant')
+      await Tenant.create({ tenantId, name: `用户${phone.slice(-4)}的空间`, plan: 'free' })
+      const userId = generateId('user')
+      user = await User.create({
+        userId,
+        tenantId,
+        phone,
+        username: `用户${phone.slice(-4)}`,
+        role: 'owner',
+        status: 'active',
+      })
+    }
+
+    if (user.status === 'disabled') {
+      throw Object.assign(new Error('账号已被禁用'), { statusCode: 403 })
+    }
+
+    const tokens = await this._issueTokens(user.userId, user.tenantId, user.role)
+    return { user: this._sanitizeUser(user), tokens, isNewUser }
   }
 
   /**
