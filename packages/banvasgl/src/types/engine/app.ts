@@ -7,6 +7,7 @@
 
 import type { IScene } from './scene'
 import type { IRenderer, IRendererOptions } from './renderer'
+import type { EventHandler } from '../view/view'
 
 // ────────────────────────────────────────────
 //  App 相关类型
@@ -15,12 +16,31 @@ import type { IRenderer, IRendererOptions } from './renderer'
 /** 页面类型（等价于 IScene） */
 export type IPage = IScene
 
+/**
+ * App 生命周期钩子
+ *
+ * 与 Scene.lifetimes / View.lifetimes 设计一致，均使用 lifetimes 字段汇聚生命周期回调。
+ *
+ * onLaunch
+ *   触发时机：应用启动时（App.launch 被调用）
+ *   参数：启动时传入的 params 对象
+ *   典型用途：初始化应用级数据、设置全局状态
+ *
+ * onUnlaunch
+ *   触发时机：应用关闭时（App.unlaunch 被调用）
+ *   典型用途：清理应用级资源、取消订阅
+ */
+export interface IAppLifetimes {
+    onLaunch: EventHandler
+    onUnlaunch: EventHandler
+}
+
 /** App 配置选项 */
 export interface IAppOptions {
     enablePageStack?: boolean
     maxPageStackSize?: number
-    onLaunch?: (params: any) => void
-    onUnlaunch?: () => void
+    /** App 生命周期钩子 */
+    lifetimes?: Partial<IAppLifetimes>
 }
 
 /** 导航选项 */
@@ -36,6 +56,8 @@ export interface INavigationOptions {
 
 /** App 的公共契约 */
 export interface IApp {
+    /** App 生命周期钩子 */
+    lifetimes: IAppLifetimes
     scenes: IScene[]
     renderer: IRenderer
     pageStack: IScene[]
@@ -81,16 +103,6 @@ export interface IApp {
         renderLoop: boolean
         targetFPS: number
         frameInterval: number
-    }
-
-    // 用户回调
-    setUserOnLaunch(callback: (params: any) => void): IApp
-    setUserOnUnlaunch(callback: () => void): IApp
-    removeUserOnLaunch(): IApp
-    removeUserOnUnlaunch(): IApp
-    getUserLifecycleStatus(): {
-        hasUserOnLaunch: boolean
-        hasUserOnUnlaunch: boolean
     }
 
     // 序列化
