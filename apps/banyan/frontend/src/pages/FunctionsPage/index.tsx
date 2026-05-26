@@ -10,6 +10,7 @@ import { Button, Spin, Empty, Modal, message } from "antd";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
 import AiBar from "@/components/AiBar";
+import { SidebarSlotContent } from "@/layouts/RootLayout/SidebarSlot";
 import FunctionList from "./components/FunctionList";
 import FlowEditor from "./components/FlowEditor";
 import styles from "./index.module.scss";
@@ -185,7 +186,10 @@ const FunctionsPage: React.FC = () => {
               </div>
             )}
 
-            {/* AI 对话栏 */}
+          </div>
+
+          {/* AiBar 通过 Portal 渲染到左侧 Sidebar */}
+          <SidebarSlotContent>
             <AiBar
               appId={id!}
               getPages={() => []}
@@ -198,7 +202,7 @@ const FunctionsPage: React.FC = () => {
               }))}
               onPagesUpdate={() => {}}
             />
-          </div>
+          </SidebarSlotContent>
         </div>
       )}
     </div>

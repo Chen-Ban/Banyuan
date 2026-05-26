@@ -1,13 +1,15 @@
 /**
  * HomePage — 首页
  *
- * bolt.new 风格：全屏渐变背景，居中大输入框。
+ * bolt.new 风格：渐变背景，居中大输入框。
  * 输入 prompt 发送后：
  *   1. 创建空白应用
  *   2. 跳转到 /application/:id/ui，通过 location.state 携带 initialPrompt
  *   3. UIPage 挂载后自动触发 AiBar.sendPrompt
  *
  * 下方提供「查看已有应用」入口，跳转到 /applications 列表页。
+ *
+ * 注：用户信息和登录弹窗已移至全局 RootLayout/Sidebar。
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -19,8 +21,6 @@ import {
 } from '@ant-design/icons'
 import { applicationApi } from '@/api'
 import { getErrorMessage } from '@/utils/error'
-import UserWidget from '@/components/UserWidget'
-import LoginModal from '@/components/LoginModal'
 import styles from './index.module.scss'
 
 // ── 示例提示词 ────────────────────────────────────────────────────────────────
@@ -87,14 +87,6 @@ const HomePage = () => {
     <div className={styles.page}>
       {/* ── 背景装饰 ── */}
       <div className={styles.bgGlow} />
-
-      {/* ── 右上角用户组件 ── */}
-      <div className={styles.topRight}>
-        <UserWidget />
-      </div>
-
-      {/* ── 登录弹窗 ── */}
-      <LoginModal />
 
       {/* ── 主体居中区 ── */}
       <div className={styles.hero}>

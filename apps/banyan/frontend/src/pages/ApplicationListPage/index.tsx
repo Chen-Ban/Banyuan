@@ -2,7 +2,9 @@
  * ApplicationListPage — 应用列表页 (/applications)
  *
  * 展示所有已创建的应用，支持进入、删除。
- * 顶部提供「新建应用」按钮，跳回首页创建。
+ * 顶部提供「新建应用」按钮。
+ *
+ * 注：返回首页功能已移至全局 Sidebar 导航。
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -12,7 +14,6 @@ import {
   AppstoreOutlined,
   PlusOutlined,
   DeleteOutlined,
-  ArrowLeftOutlined,
 } from '@ant-design/icons'
 import { applicationApi } from '@/api'
 import type { Application } from '@/api'
@@ -50,12 +51,8 @@ const ApplicationListPage = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── 顶栏 ── */}
+      {/* ── 顶栏（精简版） ── */}
       <div className={styles.header}>
-        <button className={styles.backBtn} onClick={() => navigate('/')}>
-          <ArrowLeftOutlined />
-          <span>首页</span>
-        </button>
         <h2 className={styles.pageTitle}>我的应用</h2>
         <button
           className={styles.newBtn}

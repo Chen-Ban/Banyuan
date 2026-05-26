@@ -1,22 +1,23 @@
 // HomePage — 首页样式
 
-// ── 整页容器 ──────────────────────────────────────────────────────────────────
+// ── 整页容器（现在是右侧内容区，不再是全屏独立页） ────────────────────────────────
 
 .page {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   background: #0a0a0f;
   overflow-x: hidden;
+  overflow-y: auto;
 }
 
 // ── 背景光晕 ──────────────────────────────────────────────────────────────────
 
 .bgGlow {
-  position: fixed;
+  position: absolute;
   top: -20%;
   left: 50%;
   transform: translateX(-50%);
@@ -42,7 +43,7 @@
   align-items: center;
   width: 100%;
   max-width: 720px;
-  padding: 120px 24px 80px;
+  padding: 100px 24px 80px;
 }
 
 // ── 标题 ──────────────────────────────────────────────────────────────────────
@@ -227,13 +228,4 @@
     color: rgba(255, 255, 255, 0.65);
     background: rgba(255, 255, 255, 0.05);
   }
-}
-
-// ── 右上角用户组件容器 ────────────────────────────────────────────────────────
-
-.topRight {
-  position: fixed;
-  top: 16px;
-  right: 20px;
-  z-index: 100;
 }

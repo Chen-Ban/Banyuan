@@ -4,23 +4,24 @@
  * 应用级嵌套路由容器，三个子页面（画布 / 数据库 / 云函数）共用此 Layout：
  *
  *   ┌──────────────────────────────────────────────────────────────────┐
- *   │  ← 应用名  描述          💾  🚀  │  [画布]  [数据库]  [云函数]   │
+ *   │  应用名  描述          💾  🚀  │  [画布]  [数据库]  [云函数]      │
  *   ├──────────────────────────────────────────────────────────────────┤
  *   │                                                                  │
  *   │   <Outlet />  （画布 / 数据库 / 云函数 子页面内容）               │
  *   │                                                                  │
  *   └──────────────────────────────────────────────────────────────────┘
  *
- * 应用级操作（返回、命名、保存、生成应用）统一在此层处理，
+ * 应用级操作（命名、保存、生成应用）统一在此层处理，
  * 子页面通过 AppLayoutCtx.registerGetPages 向上注册画布序列化函数，
  * 供 handleSave / handleBuild 调用。
+ *
+ * 注：返回首页功能已移至全局 Sidebar 面包屑。
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Button, Tooltip, message } from 'antd'
 import {
-  ArrowLeftOutlined,
   AppstoreOutlined,
   DatabaseOutlined,
   FunctionOutlined,
@@ -97,9 +98,6 @@ const ApplicationLayout: React.FC = () => {
     if (!application_id) return
     navigate(`/application/${application_id}/${key}`)
   }, [navigate, application_id])
-
-  // ── 返回 ──────────────────────────────────────────────────────────────────
-  const handleBack = useCallback(() => navigate('/'), [navigate])
 
   // ── 自动保存名称/描述（debounce） ─────────────────────────────────────────
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -198,15 +196,8 @@ const ApplicationLayout: React.FC = () => {
     <AppLayoutCtx.Provider value={{ registerGetPages, unregisterGetPages, appName: applicationName, onAppRename: handleNameChange }}>
       <div className={styles.layout}>
 
-        {/* ── AppHeader：应用级操作区 ── */}
+        {/* ── AppHeader：应用级工具栏 ── */}
         <div className={styles.appHeader}>
-          <Button
-            type="text"
-            size="small"
-            icon={<ArrowLeftOutlined />}
-            onClick={handleBack}
-            className={styles.backBtn}
-          />
           <div className={styles.infoFields}>
             <input
               className={styles.nameInput}

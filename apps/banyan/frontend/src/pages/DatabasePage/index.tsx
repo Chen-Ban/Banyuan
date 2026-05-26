@@ -5,6 +5,7 @@ import { TableOutlined } from '@ant-design/icons'
 import { schemaApi } from '@/api'
 import type { CollectionDef } from '@/api'
 import AiBar from '@/components/AiBar'
+import { SidebarSlotContent } from '@/layouts/RootLayout/SidebarSlot'
 import CollectionList from './components/CollectionList'
 import FieldEditor from './components/FieldEditor'
 import styles from './index.module.scss'
@@ -187,14 +188,17 @@ const DatabasePage: React.FC = () => {
               </div>
             )}
 
-            {/* AI 对话栏 */}
+          </div>
+
+          {/* AiBar 通过 Portal 渲染到左侧 Sidebar */}
+          <SidebarSlotContent>
             <AiBar
               appId={id!}
               getPages={() => []}
               getSchema={() => collections}
               onPagesUpdate={() => {}}
             />
-          </div>
+          </SidebarSlotContent>
         </div>
       )}
     </div>

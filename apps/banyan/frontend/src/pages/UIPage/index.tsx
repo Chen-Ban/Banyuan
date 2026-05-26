@@ -27,6 +27,7 @@ import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import AiBar, { type AiBarHandle } from "@/components/AiBar";
 import { useAppLayoutCtx } from "@/layouts/ApplicationLayout/AppLayoutCtx";
+import { SidebarSlotContent } from "@/layouts/RootLayout/SidebarSlot";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyDrawer from "./components/PropertyDrawer";
 import styles from "./index.module.scss";
@@ -166,8 +167,10 @@ const UIPage = () => {
 
           {/* 中段：画布（Banvas 内部已有 div 包裹） */}
           {Banvas}
+        </div>
 
-          {/* 底部：AI 输入栏 */}
+        {/* AiBar 通过 Portal 渲染到左侧 Sidebar */}
+        <SidebarSlotContent>
           <AiBar
             ref={aiBarRef}
             appId={application_id!}
@@ -175,7 +178,7 @@ const UIPage = () => {
             onPagesUpdate={(aiPages) => setInitialPages(aiPages)}
             onPagesSnapshot={(aiPages) => setInitialPages(aiPages)}
           />
-        </div>
+        </SidebarSlotContent>
 
         <PropertyDrawer
           open={rightOpen}

@@ -2,10 +2,11 @@
 
 .page {
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
   background: #0a0a0f;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 // ── 顶栏 ──────────────────────────────────────────────────────────────────────
@@ -16,25 +17,7 @@
   gap: 12px;
   padding: 20px 32px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-}
-
-.backBtn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.35);
-  font-size: 13px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  transition: color 0.15s, background 0.15s;
-
-  &:hover {
-    color: rgba(255, 255, 255, 0.7);
-    background: rgba(255, 255, 255, 0.05);
-  }
+  flex-shrink: 0;
 }
 
 .pageTitle {
@@ -73,6 +56,18 @@
 .content {
   flex: 1;
   padding: 32px;
+  overflow-y: auto;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+  }
 }
 
 .loadingWrap {
