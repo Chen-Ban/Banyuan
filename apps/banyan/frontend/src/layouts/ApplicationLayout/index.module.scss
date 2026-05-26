@@ -122,47 +122,27 @@
   margin: 0 4px;
 }
 
-// ── Header 内联 Tab ──────────────────────────────────────────────────────────
+// ── Tab 导航（图标按钮组） ────────────────────────────────────────────────────
 
-.headerTabs {
-  // 高度撑满 header，让活色指示线贴底
-  height: 48px;
+.tabGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
+}
 
-  :global(.ant-tabs-nav) {
-    height: 48px;
-    margin: 0;
+.tabBtn {
+  color: #555;
 
-    &::before {
-      border-bottom: none !important;
-    }
-  }
-
-  :global(.ant-tabs-nav-wrap) {
-    padding: 0;
-  }
-
-  :global(.ant-tabs-tab) {
-    padding: 0 12px;
-    font-size: 13px;
-    height: 48px;
-    margin: 0 !important;
-  }
-
-  :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
-    font-weight: 600;
-  }
-
-  :global(.ant-tabs-ink-bar) {
-    height: 2px;
+  &:hover {
+    color: #1677ff;
+    background: #f0f5ff;
   }
 }
 
-.tabLabel {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 13px;
+.tabBtnActive {
+  color: #1677ff;
+  background: #f0f5ff;
 }
 
 // ── 内容区 ──────────────────────────────────────────────────────────────────

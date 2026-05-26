@@ -18,7 +18,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
-import { Button, Tabs, Tooltip, message } from 'antd'
+import { Button, Tooltip, message } from 'antd'
 import {
   ArrowLeftOutlined,
   AppstoreOutlined,
@@ -195,7 +195,7 @@ const ApplicationLayout: React.FC = () => {
   }, [applicationName])
 
   return (
-    <AppLayoutCtx.Provider value={{ registerGetPages, unregisterGetPages }}>
+    <AppLayoutCtx.Provider value={{ registerGetPages, unregisterGetPages, appName: applicationName, onAppRename: handleNameChange }}>
       <div className={styles.layout}>
 
         {/* ── AppHeader：应用级操作区 ── */}
@@ -245,22 +245,19 @@ const ApplicationLayout: React.FC = () => {
           {/* 竖线分割 */}
           <div className={styles.divider} />
 
-          {/* Tab 导航（内联在 header 中） */}
-          <Tabs
-            activeKey={activeTabKey}
-            onChange={handleTabChange}
-            size="small"
-            className={styles.headerTabs}
-            items={TABS.map((t) => ({
-              key: t.key,
-              label: (
-                <span className={styles.tabLabel}>
-                  {t.icon}
-                  {t.label}
-                </span>
-              ),
-            }))}
-          />
+          {/* Tab 导航（图标按钮 + Tooltip） */}
+          <div className={styles.tabGroup}>
+            {TABS.map((t) => (
+              <Tooltip key={t.key} title={t.label}>
+                <Button
+                  type="text"
+                  icon={t.icon}
+                  onClick={() => handleTabChange(t.key)}
+                  className={`${styles.tabBtn} ${activeTabKey === t.key ? styles.tabBtnActive : ''}`}
+                />
+              </Tooltip>
+            ))}
+          </div>
         </div>
 
         {/* ── 子页面内容 ── */}
