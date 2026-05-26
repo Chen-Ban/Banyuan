@@ -6,9 +6,10 @@
   position: absolute;
   // bottom 与 AiBar padding-bottom(12px) + inputWrapper 高度对齐
   // 用 bottom: 100% 让面板紧贴 inputWrapper 上方（由 AiBar 的 position:relative 提供基准）
-  bottom: 100%;
-  left: 14px;   // 与 AiBar padding(12px) + 1px border 对齐
-  right: 14px;
+  bottom: calc(100% - 33px);
+  // 面板宽度 = inputWrapper - 24px（两侧各缩进 12px，模拟从聊天框弹出的视觉效果）
+  left: 24px;
+  right: 24px;
   // 高度由 JS 控制（style.height），折叠时由 panelCollapsed 覆盖
   display: flex;
   flex-direction: column;
@@ -26,6 +27,10 @@
 // 折叠态：高度收为 auto（只有 header），覆盖 JS 设置的 height
 .panelCollapsed {
   height: auto !important;
+
+  .body {
+    display: none;
+  }
 }
 
 // ─── 拖拽手柄 ─────────────────────────────────────────────────────────────────
@@ -44,7 +49,7 @@
   z-index: 1;
 
   &::after {
-    content: '';
+    content: "";
     width: 32px;
     height: 3px;
     border-radius: 2px;
@@ -76,16 +81,15 @@
 }
 
 .title {
-  font-size: 12px;
-  color: #666;
+  font-size: 14px;
+  color: #444;
   display: flex;
   align-items: center;
   gap: 5px;
-
-  :global(.anticon) {
-    color: #1677ff;
-    font-size: 12px;
-  }
+  font-family: "Georgia", "Palatino Linotype", "Book Antiqua", serif;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 .actions {
@@ -107,7 +111,9 @@
   border-radius: 4px;
   padding: 0;
   font-size: 10px;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
   // 防止手柄的 user-select:none 影响按钮点击
   user-select: auto;
 
@@ -188,6 +194,24 @@
   display: block;
 }
 
+// 气泡展开/折叠按钮
+.bubbleToggleBtn {
+  display: block;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  color: #1677ff;
+  line-height: 1.4;
+  user-select: none;
+
+  &:hover {
+    opacity: 0.75;
+  }
+}
+
 // 流式输出光标
 .cursor {
   display: inline-block;
@@ -199,8 +223,13 @@
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 // ─── 工具调用进度行 ───────────────────────────────────────────────────────────

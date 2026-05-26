@@ -5,10 +5,18 @@
 
 .aiBar {
   position: relative; // ConversationPanel 绝对定位的基准
+  z-index: 1;         // 创建独立 stacking context，确保 ConversationPanel 浮层覆盖 ComponentPalette
   display: flex;
   flex-direction: column;
   background: transparent;
   padding: 0 12px 12px;
+  flex-shrink: 0;
+}
+
+// ─── 面板 Header 占位容器（高度与 ConversationPanel header 一致） ──────────────
+
+.panelHeaderPlaceholder {
+  height: 33px; // ConversationPanel header: padding 7+7 + font ~14px*1.2 + border 1px ≈ 33px
   flex-shrink: 0;
 }
 
