@@ -1,7 +1,13 @@
 /**
  * Sidebar — 左侧导航栏
  *
- * 顶部信息栏为横向面包屑：品牌 / 用户头像 / 页面标题
+ * 顶部信息栏为左右结构：左侧品牌 Logo，右侧用户信息
+ * 用户信息展示逻辑：
+ *   - 首页/列表页 + 已登录：信息栏不显示用户信息，导航项上方插入用户卡片
+ *   - 首页/列表页 + 未登录：信息栏右侧显示 Sign in / Sign up
+ *   - 其他页面 + 已登录：信息栏右侧显示用户头像（点击下拉切换）
+ *   - 其他页面 + 未登录：信息栏右侧显示 Sign in / Sign up
+ *
  * 下方根据 mode 渲染不同的内容：
  *   - nav：导航菜单（首页/列表/设置）
  *   - settings：设置项列表
@@ -45,45 +51,103 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
   const navigate = useNavigate()
   const { user, loading: authLoading, logout, openLoginModal } = useAuth()
 
-  // ── 横向面包屑信息栏 ────────────────────────────────────────────────────────
+  // 是否为首页/列表页模式
+  const isNavMode = mode === 'nav'
+
+  // ── 信息栏（左右结构：左侧面包屑，右侧用户信息） ────────────────────────────────
 
   const renderInfoBar = () => {
     return (
       <div className={styles.infoBar}>
-        {/* 品牌 Logo */}
-        <button className={styles.brandLink} onClick={() => navigate('/')}>
-          <span className={styles.brandLogo}>Banyan</span>
-        </button>
+        {/* 左侧：Logo / 页面标题 面包屑 */}
+        <div className={styles.infoBarLeft}>
+          <button className={styles.brandLink} onClick={() => navigate('/')}>
+            <span className={styles.brandLogo}>Banyan</span>
+          </button>
 
-        {/* 分隔符 */}
-        <span className={styles.breadcrumbSep}>/</span>
+          {mode !== 'nav' && (
+            <>
+              <span className={styles.breadcrumbSep}>/</span>
+              {renderPageTitle()}
+            </>
+          )}
+        </div>
 
-        {/* 用户头像 */}
-        {renderUserAvatar()}
-
-        {/* 分隔符 + 页面标题（非首页时显示） */}
-        {mode !== 'nav' && (
-          <>
-            <span className={styles.breadcrumbSep}>/</span>
-            {renderPageTitle()}
-          </>
-        )}
+        {/* 右侧：用户信息 */}
+        <div className={styles.infoBarRight}>
+          {renderInfoBarUser()}
+        </div>
       </div>
     )
   }
 
-  // ── 用户头像（面包屑中的一环） ──────────────────────────────────────────────
+  // ── 页面标题（面包屑中的一段） ────────────────────────────────────────────────
 
-  const renderUserAvatar = () => {
+  const renderPageTitle = () => {
+    if (mode === 'settings') {
+      return <span className={styles.pageTitle}>设置</span>
+    }
+    if (mode === 'app') {
+      return <AppBreadcrumb />
+    }
+    return null
+  }
+
+  // ── 信息栏右侧用户信息 ────────────────────────────────────────────────────────
+
+  const renderInfoBarUser = () => {
     if (authLoading) return null
 
+    // 首页/列表页 + 已登录：不在信息栏显示用户信息（用户卡片在导航区上方）
+    if (isNavMode && user) return null
+
+    // 未登录：显示 Sign in / Sign up
     if (!user) {
       return (
-        <button className={styles.avatarBtn} onClick={openLoginModal}>
-          <Avatar size={22} icon={<UserOutlined />} className={styles.userAvatar} />
-        </button>
+        <div className={styles.authActions}>
+          <button className={styles.signInBtn} onClick={openLoginModal}>
+            Sign in
+          </button>
+          <button className={styles.signUpBtn} onClick={openLoginModal}>
+            Sign up
+          </button>
+        </div>
       )
     }
+
+    // 其他页面 + 已登录：显示用户头像 + 下拉菜单
+    const menuItems: MenuProps['items'] = [
+      {
+        key: 'username',
+        label: user.username,
+        disabled: true,
+        style: { color: 'rgba(255,255,255,0.6)', cursor: 'default' },
+      },
+      { type: 'divider' },
+      {
+        key: 'logout',
+        icon: <LogoutOutlined />,
+        label: '退出登录',
+        onClick: () => logout(),
+        danger: true,
+      },
+    ]
+
+    return (
+      <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+        <button className={styles.avatarBtn}>
+          <Avatar size={24} className={styles.userAvatar}>
+            {getInitial(user.username)}
+          </Avatar>
+        </button>
+      </Dropdown>
+    )
+  }
+
+  // ── 用户卡片（仅首页/列表页 + 已登录时显示） ──────────────────────────────────
+
+  const renderUserCard = () => {
+    if (!isNavMode || !user || authLoading) return null
 
     const menuItems: MenuProps['items'] = [
       {
@@ -97,25 +161,17 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
 
     return (
       <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomLeft">
-        <button className={styles.avatarBtn}>
-          <Avatar size={22} className={styles.userAvatar}>
+        <div className={styles.userCard}>
+          <Avatar size={28} className={styles.userCardAvatar}>
             {getInitial(user.username)}
           </Avatar>
-        </button>
+          <div className={styles.userCardInfo}>
+            <span className={styles.userCardName}>{user.username}</span>
+          </div>
+          <DownOutlined className={styles.userCardArrow} />
+        </div>
       </Dropdown>
     )
-  }
-
-  // ── 页面标题（面包屑最后一段） ──────────────────────────────────────────────
-
-  const renderPageTitle = () => {
-    if (mode === 'settings') {
-      return <span className={styles.pageTitle}>设置</span>
-    }
-    if (mode === 'app') {
-      return <AppBreadcrumb />
-    }
-    return null
   }
 
   // ── 内容区 ──────────────────────────────────────────────────────────────────
@@ -136,6 +192,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
     <div className={styles.sidebar}>
       {renderInfoBar()}
       <div className={mode === 'app' ? styles.appContent : styles.navContent}>
+        {renderUserCard()}
         {renderContent()}
       </div>
       <div className={styles.bottomSection}>

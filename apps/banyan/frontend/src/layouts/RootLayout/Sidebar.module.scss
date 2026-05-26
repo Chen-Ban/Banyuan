@@ -9,14 +9,22 @@
   overflow: hidden;
 }
 
-// ── 信息栏（横向面包屑） ──────────────────────────────────────────────────────────
+// ── 信息栏（左右结构） ──────────────────────────────────────────────────────────────
 
 .infoBar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 0;
-  padding: 10px 12px;
+  justify-content: space-between;
+  padding: 12px 12px;
+}
+
+// ── 信息栏左侧（面包屑：Logo / 页面标题） ────────────────────────────────────────────
+
+.infoBarLeft {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .brandLink {
@@ -41,17 +49,65 @@
   line-height: 1;
 }
 
-// ── 面包屑分隔符 ──────────────────────────────────────────────────────────────────
-
 .breadcrumbSep {
   color: rgba(255, 255, 255, 0.2);
   font-size: 14px;
-  margin: 0 10px;
+  margin: 0 8px;
   flex-shrink: 0;
   user-select: none;
 }
 
-// ── 用户头像按钮 ──────────────────────────────────────────────────────────────────
+// ── 信息栏右侧（用户信息） ──────────────────────────────────────────────────────────
+
+.infoBarRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+// ── 登录/注册按钮（bolt.new 风格） ──────────────────────────────────────────────────
+
+.authActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.signInBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.signUpBtn {
+  background: rgba(139, 92, 246, 0.85);
+  border: none;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(139, 92, 246, 1);
+  }
+}
+
+// ── 用户头像按钮（信息栏右侧） ──────────────────────────────────────────────────────
 
 .avatarBtn {
   display: flex;
@@ -71,6 +127,48 @@
 }
 
 .userAvatar {
+  flex-shrink: 0;
+}
+
+// ── 用户卡片（首页/列表页 + 已登录时，导航项上方） ────────────────────────────────────
+
+.userCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 0 0 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.userCardAvatar {
+  flex-shrink: 0;
+}
+
+.userCardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.userCardName {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.userCardArrow {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.3);
   flex-shrink: 0;
 }
 
@@ -172,34 +270,6 @@
   flex-shrink: 0;
   width: 20px;
   text-align: center;
-}
-
-// ── 设置项列表 ──────────────────────────────────────────────────────────────────
-
-.settingsItem {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 9px 12px;
-  border-radius: 8px;
-  border: none;
-  background: none;
-  cursor: pointer;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.55);
-  transition: background 0.15s, color 0.15s;
-  text-align: left;
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: rgba(255, 255, 255, 0.85);
-  }
-}
-
-.settingsItemActive {
-  background: rgba(139, 92, 246, 0.12);
-  color: rgba(139, 92, 246, 0.95);
 }
 
 // ── 应用编辑态 AiBar 区域 ───────────────────────────────────────────────────────
