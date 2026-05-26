@@ -3,9 +3,11 @@ import Serializer from "@/engine/Serializer";
 import Renderer from "@/engine/Renderer";
 import {
   IAppOptions,
+  IAppLifetimes,
   INavigationOptions,
   IRendererOptions,
 } from "@/types";
+import { getSchemaRunner } from "@/engine/SchemaRunner";
 import { AnimationManager } from "@/engine/animation";
 
 export default class App {
@@ -44,22 +46,25 @@ export default class App {
   private _listeners: Set<() => void> = new Set();
   private _version: number = 0;
 
-  // 用户自定义生命周期回调函数
-  private _userOnLaunch?: (params: any) => void;
-  private _userOnUnlaunch?: () => void;
+  /**
+   * App 生命周期钩子
+   *
+   * 与 Scene.lifetimes / View.lifetimes 设计一致。
+   * 可在构造时通过 options.lifetimes 初始化，也可在运行时直接赋值。
+   */
+  public lifetimes: IAppLifetimes = { onLaunch: null, onUnlaunch: null };
 
   constructor(renderer: Renderer, options: IAppOptions = {}) {
     this.renderer = renderer;
     this._enablePageStack = options.enablePageStack !== false;
     this._maxPageStackSize = options.maxPageStackSize || 50;
 
-    // 保存用户自定义的生命周期回调函数
-    if (options.onLaunch) {
-      this._userOnLaunch = options.onLaunch;
-    }
-    if (options.onUnlaunch) {
-      this._userOnUnlaunch = options.onUnlaunch;
-    }
+    // 初始化 lifetimes（FlowSchema）
+    this.lifetimes = {
+      onLaunch: options.lifetimes?.onLaunch ?? null,
+      onUnlaunch: options.lifetimes?.onUnlaunch ?? null,
+    };
+
   }
 
   // 内置生命周期方法
@@ -72,14 +77,24 @@ export default class App {
     this.startRenderLoop();
     console.log("App已启动，自动开始循环渲染");
 
-    // 调用用户自定义的生命周期回调函数
-    if (this._userOnLaunch) {
+    // 调用 lifetimes.onLaunch（FlowSchema）
+    if (this.lifetimes.onLaunch) {
       try {
-        this._userOnLaunch(params);
+        const currentScene = this.getCurrentScene() as Scene | null;
+        if (currentScene) {
+          getSchemaRunner().run(this.lifetimes.onLaunch, {
+            self: currentScene as any,
+            page: currentScene,
+            view: (id) => currentScene.findViewById(id) ?? null,
+            eventArgs: Array.isArray(params) ? params : [params],
+            appId: this.appId,
+          }).catch((err) => console.error('[App] onLaunch schema 执行出错:', err));
+        }
       } catch (error) {
-        console.error("用户onLaunch回调函数执行失败:", error);
+        console.error("lifetimes.onLaunch 执行失败:", error);
       }
     }
+
   }
 
   public onUnlaunch(): void {
@@ -102,14 +117,24 @@ export default class App {
     // 清空页面栈历史记录
     this._pageStackHistory.clear();
 
-    // 调用用户自定义的生命周期回调函数
-    if (this._userOnUnlaunch) {
+    // 调用 lifetimes.onUnlaunch（FlowSchema）
+    if (this.lifetimes.onUnlaunch) {
       try {
-        this._userOnUnlaunch();
+        const currentScene = this.getCurrentScene() as Scene | null;
+        if (currentScene) {
+          getSchemaRunner().run(this.lifetimes.onUnlaunch, {
+            self: currentScene as any,
+            page: currentScene,
+            view: (id) => currentScene.findViewById(id) ?? null,
+            eventArgs: [],
+            appId: this.appId,
+          }).catch((err) => console.error('[App] onUnlaunch schema 执行出错:', err));
+        }
       } catch (error) {
-        console.error("用户onUnlaunch回调函数执行失败:", error);
+        console.error("lifetimes.onUnlaunch 执行失败:", error);
       }
     }
+
   }
 
   // 启动应用
@@ -527,52 +552,6 @@ export default class App {
     this._requestAnimationFrame();
   }
 
-  /**
-   * 设置用户自定义的onLaunch回调函数
-   * @param callback 用户自定义的onLaunch回调函数
-   */
-  public setUserOnLaunch(callback: (params: any) => void): App {
-    this._userOnLaunch = callback;
-    return this;
-  }
-
-  /**
-   * 设置用户自定义的onUnlaunch回调函数
-   * @param callback 用户自定义的onUnlaunch回调函数
-   */
-  public setUserOnUnlaunch(callback: () => void): App {
-    this._userOnUnlaunch = callback;
-    return this;
-  }
-
-  /**
-   * 移除用户自定义的onLaunch回调函数
-   */
-  public removeUserOnLaunch(): App {
-    this._userOnLaunch = undefined;
-    return this;
-  }
-
-  /**
-   * 移除用户自定义的onUnlaunch回调函数
-   */
-  public removeUserOnUnlaunch(): App {
-    this._userOnUnlaunch = undefined;
-    return this;
-  }
-
-  /**
-   * 获取用户自定义的生命周期回调函数状态
-   */
-  public getUserLifecycleStatus(): {
-    hasUserOnLaunch: boolean;
-    hasUserOnUnlaunch: boolean;
-  } {
-    return {
-      hasUserOnLaunch: !!this._userOnLaunch,
-      hasUserOnUnlaunch: !!this._userOnUnlaunch,
-    };
-  }
 
   // 从序列化的 Scene JSON 初始化
   public initFromSerializedScenes(serializedScenes: string[]): App {
