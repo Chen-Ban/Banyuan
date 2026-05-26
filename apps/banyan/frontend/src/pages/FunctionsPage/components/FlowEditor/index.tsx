@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button, Input, message } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import type { FlowSchema } from "@banyuan/banyan-sdk";
@@ -31,7 +37,6 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
   const CANVAS_HEIGHT = 720;
   const [localName, setLocalName] = useState(fn.name);
   const [localDisplayName, setLocalDisplayName] = useState(fn.displayName);
-  const [localDescription, setLocalDescription] = useState(fn.description);
   const [saving, setSaving] = useState(false);
   const [schemaDirty, setSchemaDirty] = useState(false);
 
@@ -83,9 +88,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
 
   // dirty 检测（元信息部分）
   const metaDirty =
-    localName !== fn.name ||
-    localDisplayName !== fn.displayName ||
-    localDescription !== fn.description;
+    localName !== fn.name || localDisplayName !== fn.displayName;
 
   useEffect(() => {
     onDirtyChange(metaDirty || schemaDirty);
@@ -111,7 +114,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
       const res = await cloudFunctionApi.updateFunction(appId, fn.functionId, {
         name: localName.trim(),
         displayName: localDisplayName.trim() || localName.trim(),
-        description: localDescription.trim(),
+        description: fn.description,
         schema: schema as { nodes: unknown[]; edges: unknown[] },
       });
       if (res.data) {
@@ -148,14 +151,6 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
             className={styles.metaDisplayInput}
             addonBefore="显示名"
           />
-          <Input
-            size="small"
-            value={localDescription}
-            onChange={(e) => setLocalDescription(e.target.value)}
-            placeholder="描述（可选）"
-            className={styles.metaDescInput}
-            addonBefore="描述"
-          />
         </div>
         <Button
           type="primary"
@@ -175,9 +170,7 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
       </div>
 
       {/* 流程画布 */}
-      <div className={styles.canvasArea}>
-        {Canvas}
-      </div>
+      <div className={styles.canvasArea}>{Canvas}</div>
 
       {/* 右键菜单 */}
       <FlowContextMenu state={contextMenuState} />
