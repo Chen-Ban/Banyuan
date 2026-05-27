@@ -1,4 +1,6 @@
 // UserWidget 样式 — 暗色主题
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
 
 .widget {
   display: flex;
@@ -10,18 +12,18 @@
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 13px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-hover);
+  color: var(--color-text-tertiary);
+  font-size: $text-base;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  transition: border-color var(--duration-fast), color var(--duration-fast), background var(--duration-fast);
 
   &:hover {
-    border-color: rgba(139, 92, 246, 0.5);
-    color: rgba(255, 255, 255, 0.9);
-    background: rgba(139, 92, 246, 0.08);
+    border-color: var(--color-brand-border);
+    color: var(--color-text-primary);
+    background: var(--color-brand-subtle);
   }
 }
 
@@ -31,7 +33,7 @@
   cursor: pointer;
   padding: 0;
   border-radius: 50%;
-  transition: opacity 0.15s, transform 0.1s;
+  transition: opacity var(--duration-fast), transform 0.1s;
 
   &:hover {
     opacity: 0.85;
@@ -44,42 +46,42 @@
 }
 
 .avatar {
-  background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
+  background: var(--color-brand-gradient) !important;
   color: #fff !important;
-  font-weight: 600 !important;
-  font-size: 14px !important;
+  font-weight: $font-semibold !important;
+  font-size: $text-md !important;
   cursor: pointer;
 }
 
 // 下拉菜单样式（通过 :global 覆盖 Ant Design）
 :global(.ant-dropdown .ant-dropdown-menu) {
-  background: #1a1a24 !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+  background: var(--color-bg-overlay) !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-overlay) !important;
   min-width: 160px;
 }
 
 :global(.ant-dropdown .ant-dropdown-menu-item) {
-  color: rgba(255, 255, 255, 0.75) !important;
+  color: var(--color-text-secondary) !important;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06) !important;
-    color: rgba(255, 255, 255, 0.9) !important;
+    background: var(--color-bg-hover-md) !important;
+    color: var(--color-text-primary) !important;
   }
 }
 
 :global(.ant-dropdown .ant-dropdown-menu-item-danger) {
-  color: #f87171 !important;
+  color: var(--color-error-text) !important;
 
   &:hover {
-    background: rgba(248, 113, 113, 0.08) !important;
-    color: #f87171 !important;
+    background: var(--color-error-subtle) !important;
+    color: var(--color-error-text) !important;
   }
 }
 
 :global(.ant-dropdown .ant-dropdown-menu-item-divider) {
-  background: rgba(255, 255, 255, 0.06) !important;
+  background: var(--color-divider) !important;
 }
 
 .menuInfo {
@@ -90,12 +92,12 @@
 }
 
 .menuUsername {
-  font-size: 13px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: $text-base;
+  font-weight: $font-medium;
+  color: var(--color-text-primary);
 }
 
 .menuPhone {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.35);
+  font-size: $text-xs;
+  color: var(--color-text-disabled);
 }
