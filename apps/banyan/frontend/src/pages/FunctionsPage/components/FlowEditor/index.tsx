@@ -1,12 +1,13 @@
 import React, {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { Button, Input, message } from "antd";
-import { SaveOutlined } from "@ant-design/icons";
+import { Input, message } from "antd";
 import type { FlowSchema } from "@banyuan/banyan-sdk";
 import {
   useFlowBanvas,
@@ -25,13 +26,17 @@ export interface FlowEditorProps {
   onDirtyChange: (dirty: boolean) => void;
 }
 
-const FlowEditor: React.FC<FlowEditorProps> = ({
+export interface FlowEditorHandle {
+  save: () => Promise<void>;
+}
+
+const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
   fn,
   appId,
   onSaved,
   dirty,
   onDirtyChange,
-}) => {
+}, ref) => {
   // 逻辑尺寸固定，容器适配由 hook 内部自测量
   const CANVAS_WIDTH = 1200;
   const CANVAS_HEIGHT = 720;
@@ -130,6 +135,10 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
     }
   };
 
+  // ── 暴露 save 给父组件（供 appEvents.onSaveApp 调用） ──────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useImperativeHandle(ref, () => ({ save: handleSave }));
+
   return (
     <div className={styles.flowEditor}>
       {/* 头部：函数信息 + 保存按钮 */}
@@ -152,16 +161,6 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
             addonBefore="显示名"
           />
         </div>
-        <Button
-          type="primary"
-          size="small"
-          icon={<SaveOutlined />}
-          onClick={handleSave}
-          loading={saving}
-          disabled={!dirty}
-        >
-          保存
-        </Button>
       </div>
 
       {/* 节点物料面板（使用 hook 提供的默认 UI） */}
@@ -186,6 +185,8 @@ const FlowEditor: React.FC<FlowEditorProps> = ({
       )}
     </div>
   );
-};
+});
+
+FlowEditor.displayName = 'FlowEditor';
 
 export default FlowEditor;

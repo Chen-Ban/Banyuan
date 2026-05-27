@@ -4,8 +4,10 @@ import { Button, Spin, message, Empty, Modal } from 'antd'
 import { TableOutlined } from '@ant-design/icons'
 import { schemaApi } from '@/api'
 import type { CollectionDef } from '@/api'
+import { appEvents } from '@/utils/appEvents'
 import CollectionList from './components/CollectionList'
 import FieldEditor from './components/FieldEditor'
+import type { FieldEditorHandle } from './components/FieldEditor'
 import styles from './index.module.scss'
 
 // ── DatabasePage 主组件 ───────────────────────────────────────────────────────
@@ -21,8 +23,19 @@ const DatabasePage: React.FC = () => {
   const [dirty, setDirty] = useState(false)
   const [adding, setAdding] = useState(false)
 
+  const fieldEditorRef = useRef<FieldEditorHandle>(null)
+
   // 稳定回调引用，避免 FieldEditor 无限渲染
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), [])
+
+  // ── 订阅全局保存事件（ApplicationLayout 保存按钮触发） ─────────────────
+  useEffect(() => {
+    return appEvents.onSaveApp(async () => {
+      if (fieldEditorRef.current && dirty) {
+        await fieldEditorRef.current.save()
+      }
+    })
+  }, [dirty])
 
   // ── 加载 Schema ──────────────────────────────────────────────────────────
 
@@ -131,12 +144,6 @@ const DatabasePage: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* dirty 提示条 */}
-      {dirty && (
-        <div className={styles.dirtyBar}>
-          <span className={styles.dirtyBadge}>未保存</span>
-        </div>
-      )}
 
       {/* 主体：左右布局 */}
       {loading ? (
@@ -161,6 +168,7 @@ const DatabasePage: React.FC = () => {
           <div className={styles.fieldEditorWrapper}>
             {selectedCollection ? (
               <FieldEditor
+                ref={fieldEditorRef}
                 key={selectedCollection.name}
                 collection={selectedCollection}
                 appId={id}

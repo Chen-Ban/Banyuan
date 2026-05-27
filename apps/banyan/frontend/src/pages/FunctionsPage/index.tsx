@@ -9,8 +9,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button, Spin, Empty, Modal, message } from "antd";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
+import { appEvents } from "@/utils/appEvents";
 import FunctionList from "./components/FunctionList";
 import FlowEditor from "./components/FlowEditor";
+import type { FlowEditorHandle } from "./components/FlowEditor";
 import styles from "./index.module.scss";
 
 const FunctionsPage: React.FC = () => {
@@ -24,7 +26,18 @@ const FunctionsPage: React.FC = () => {
   const [dirty, setDirty] = useState(false);
   const [adding, setAdding] = useState(false);
 
+  const flowEditorRef = useRef<FlowEditorHandle>(null);
+
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), []);
+
+  // ── 订阅全局保存事件（ApplicationLayout 保存按钮触发） ─────────────────
+  useEffect(() => {
+    return appEvents.onSaveApp(async () => {
+      if (flowEditorRef.current && dirty) {
+        await flowEditorRef.current.save();
+      }
+    });
+  }, [dirty]);
 
   // ── 加载云函数列表 ───────────────────────────────────────────────────────
 
@@ -133,12 +146,6 @@ const FunctionsPage: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* dirty 提示条 */}
-      {dirty && (
-        <div className={styles.dirtyBar}>
-          <span className={styles.dirtyBadge}>未保存</span>
-        </div>
-      )}
 
       {/* 主体 */}
       {loading ? (
@@ -161,6 +168,7 @@ const FunctionsPage: React.FC = () => {
           <div className={styles.flowEditorWrapper}>
             {selectedFunction ? (
               <FlowEditor
+                ref={flowEditorRef}
                 key={selectedFunction.functionId}
                 fn={selectedFunction}
                 appId={id}

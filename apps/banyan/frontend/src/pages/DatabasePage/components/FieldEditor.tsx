@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import {
   Button,
   Input,
@@ -12,7 +12,6 @@ import {
   PlusOutlined,
   DeleteOutlined,
   TableOutlined,
-  SaveOutlined,
 } from '@ant-design/icons'
 import { schemaApi } from '@/api'
 import type { CollectionDef, FieldDef, FieldType } from '@/api'
@@ -52,13 +51,17 @@ export interface FieldEditorProps {
   onDirtyChange: (dirty: boolean) => void
 }
 
-const FieldEditor: React.FC<FieldEditorProps> = ({
+export interface FieldEditorHandle {
+  save: () => Promise<void>
+}
+
+const FieldEditor = forwardRef<FieldEditorHandle, FieldEditorProps>(({
   collection,
   appId,
   onSaved,
   dirty,
   onDirtyChange,
-}) => {
+}, ref) => {
   // 本地字段列表（编辑态）
   const [localFields, setLocalFields] = useState<FieldDef[]>(collection.fields)
   const [saving, setSaving] = useState(false)
@@ -141,6 +144,10 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
     }
   }
 
+  // ── 暴露 save 给父组件（供 appEvents.onSaveApp 调用） ──────────────────────
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useImperativeHandle(ref, () => ({ save: handleSave }))
+
   return (
     <div className={styles.fieldEditor}>
       {/* 表头信息 */}
@@ -157,16 +164,6 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
             onClick={handleAddField}
           >
             添加字段
-          </Button>
-          <Button
-            type="primary"
-            size="small"
-            icon={<SaveOutlined />}
-            onClick={handleSave}
-            loading={saving}
-            disabled={!dirty}
-          >
-            保存
           </Button>
         </div>
       </div>
@@ -271,6 +268,8 @@ const FieldEditor: React.FC<FieldEditorProps> = ({
       </div>
     </div>
   )
-}
+})
+
+FieldEditor.displayName = 'FieldEditor'
 
 export default FieldEditor

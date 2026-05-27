@@ -22,8 +22,8 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
-import { Dropdown, Tooltip, message } from 'antd'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
+import { App, Dropdown, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   AppstoreOutlined,
@@ -43,6 +43,9 @@ import type { Platform } from '@/api'
 import { getErrorMessage } from '@/utils/error'
 import { appEvents } from '@/utils/appEvents'
 import BuildTaskModal from '@/components/BuildTaskModal'
+import UIPage from '@/pages/UIPage'
+import DatabasePage from '@/pages/DatabasePage'
+import FunctionsPage from '@/pages/FunctionsPage'
 import { AppLayoutCtx } from './AppLayoutCtx'
 import { useRootLayoutCtx } from '@/layouts/RootLayout/RootLayoutCtx'
 import styles from './index.module.scss'
@@ -59,6 +62,7 @@ const ApplicationLayout: React.FC = () => {
   const { id: application_id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const location = useLocation()
+  const { message } = App.useApp()
 
   // ── 应用元数据 ────────────────────────────────────────────────────────────
   const [applicationName, setApplicationName] = useState('')
@@ -287,9 +291,15 @@ const ApplicationLayout: React.FC = () => {
           </div>
         </div>
 
-        {/* ── 子页面内容 ── */}
-        <div className={styles.content}>
-          <Outlet />
+        {/* ── 子页面内容（KeepAlive：同时渲染，display 切换） ── */}
+        <div className={styles.content} style={{ display: activeTabKey === 'ui' ? 'flex' : 'none' }}>
+          <UIPage />
+        </div>
+        <div className={styles.content} style={{ display: activeTabKey === 'database' ? 'flex' : 'none' }}>
+          <DatabasePage />
+        </div>
+        <div className={styles.content} style={{ display: activeTabKey === 'functions' ? 'flex' : 'none' }}>
+          <FunctionsPage />
         </div>
 
       </div>
