@@ -1,28 +1,35 @@
 // RootLayout — 全局左右布局（bolt.new 风格）
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
 
 .root {
   width: 100%;
   height: 100vh;
   display: flex;
   overflow: hidden;
-  background: #18181b;
+  background: var(--color-bg-primary);
   padding: 12px;
   gap: 0;
 }
 
-// ── 左侧导航栏（与页面背景融为一体，无边框） ──────────────────────────────────────
+// ── 左侧导航栏 ───────────────────────────────────────────────────────────────
 
 .sidebar {
   flex-shrink: 0;
-  width: 240px;
+  width: 300px;
   height: 100%;
   display: flex;
   flex-direction: column;
   background: transparent;
   overflow: hidden;
+  transition: width var(--duration-slow) var(--easing-default);
 }
 
-// ── 右侧内容区（大卡片风格：圆角 + 淡边框） ──────────────────────────────────────
+.sidebarApp {
+  width: 448px;
+}
+
+// ── 右侧内容区（大卡片风格：圆角 + 淡边框）──────────────────────────────────
 
 .main {
   flex: 1;
@@ -31,7 +38,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #0e0e11;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-content);
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--color-border);
 }

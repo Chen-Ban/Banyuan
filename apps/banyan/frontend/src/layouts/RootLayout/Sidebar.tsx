@@ -11,12 +11,12 @@
  * 下方根据 mode 渲染不同的内容：
  *   - nav：导航菜单（首页/列表/设置）
  *   - settings：设置项列表
- *   - app：AiBar（通过 Portal 注入）
+ *   - app：AiBar 单例（由 AppLayoutCtx.aiBarNode 提供，ApplicationLayout 持有）
  */
 
 import { useCallback, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { Avatar, Dropdown } from 'antd'
+import { useNavigate, useLocation, useParams } from 'react-router-dom'
+import { Avatar, Dropdown, Input, Modal, message } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   HomeOutlined,
@@ -25,12 +25,15 @@ import {
   UserOutlined,
   LogoutOutlined,
   DownOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  SwapOutlined,
   GithubOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '@/hooks/useAuth'
-import { useAppLayoutCtx } from '@/layouts/ApplicationLayout/AppLayoutCtx'
-import { SidebarSlotTarget } from './SidebarSlot'
-import type { SidebarMode } from './RootLayoutCtx'
+import { applicationApi } from '@/api'
+import type { Application } from '@/api'
+import { useRootLayoutCtx, type SidebarMode } from './RootLayoutCtx'
 import styles from './Sidebar.module.scss'
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────────
@@ -101,15 +104,12 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
     // 首页/列表页 + 已登录：不在信息栏显示用户信息（用户卡片在导航区上方）
     if (isNavMode && user) return null
 
-    // 未登录：显示 Sign in / Sign up
+    // 未登录：显示 Sign in 按钮
     if (!user) {
       return (
         <div className={styles.authActions}>
-          <button className={styles.signInBtn} onClick={openLoginModal}>
-            Sign in
-          </button>
           <button className={styles.signUpBtn} onClick={openLoginModal}>
-            Sign up
+            Sign in
           </button>
         </div>
       )
@@ -183,9 +183,8 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
     if (mode === 'settings') {
       return <SettingsNav />
     }
-    // app 模式：通过 SidebarSlotTarget 提供 portal 目标，
-    // 子页面（UIPage/DatabasePage/FunctionsPage）通过 SidebarSlotContent 将 AiBar portal 到此处
-    return <SidebarSlotTarget />
+    // app 模式：直接渲染 ApplicationLayout 持有的 AiBar 单例节点
+    return <AppAiBar />
   }
 
   return (
@@ -195,17 +194,19 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
         {renderUserCard()}
         {renderContent()}
       </div>
-      <div className={styles.bottomSection}>
-        <a
-          className={styles.githubLink}
-          href="https://github.com/Chen-Ban/Banyuan"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="GitHub"
-        >
-          <GithubOutlined />
-        </a>
-      </div>
+      {mode !== 'app' && (
+        <div className={styles.bottomSection}>
+          <a
+            className={styles.githubLink}
+            href="https://github.com/Chen-Ban/Banyuan"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub"
+          >
+            <GithubOutlined />
+          </a>
+        </div>
+      )}
     </div>
   )
 }
@@ -267,40 +268,165 @@ const SettingsNav: React.FC = () => {
   )
 }
 
-// ─── 子组件：应用面包屑（含下拉菜单） ────────────────────────────────────────────
+// ─── 子组件：应用面包屑（含下拉菜单：重命名 / 切换应用 / 删除） ──────────────────
 
 const AppBreadcrumb: React.FC = () => {
   const navigate = useNavigate()
+  const params = useParams<{ id: string }>()
+  const currentAppId = params.id ?? ''
 
-  // 尝试从 AppLayoutCtx 获取应用名
-  let appName = '未命名应用'
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const ctx = useAppLayoutCtx()
-    if (ctx.appName) appName = ctx.appName
-  } catch {
-    // 如果不在 AppLayoutCtx 内，使用默认值
-  }
+  // 从 RootLayoutCtx 读取应用名（ApplicationLayout 写入）
+  const { appName: rootAppName, setAppName } = useRootLayoutCtx()
+  const appName = rootAppName || '未命名应用'
+
+  // ── 重命名弹窗 ──
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
 
   const handleRename = useCallback(() => {
-    // TODO: 唤出重命名弹窗
+    setRenameValue(appName)
+    setRenameOpen(true)
+  }, [appName])
+
+  const handleRenameConfirm = useCallback(async () => {
+    const trimmed = renameValue.trim()
+    if (!trimmed) {
+      message.warning('应用名称不能为空')
+      return
+    }
+    try {
+      await applicationApi.updateApplication(currentAppId, { name: trimmed })
+      setAppName(trimmed)
+      setRenameOpen(false)
+      message.success('已重命名')
+    } catch {
+      message.error('重命名失败')
+    }
+  }, [renameValue, currentAppId, setAppName])
+
+  // ── 删除应用 ──
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteInputValue, setDeleteInputValue] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  const deleteConfirmMatch = deleteInputValue.trim() === appName
+
+  const handleDelete = useCallback(() => {
+    setDeleteInputValue('')
+    setDeleteOpen(true)
   }, [])
 
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteConfirmMatch) return
+    setDeleting(true)
+    try {
+      await applicationApi.deleteApplication(currentAppId)
+      message.success('应用已删除')
+      setDeleteOpen(false)
+      navigate('/')
+    } catch {
+      message.error('删除失败')
+    } finally {
+      setDeleting(false)
+    }
+  }, [deleteConfirmMatch, currentAppId, navigate])
+
+  // ── 切换应用子菜单 ──
+  const [appList, setAppList] = useState<Application[]>([])
+
+  const loadAppList = useCallback(() => {
+    applicationApi.fetchApplications().then((res) => {
+      setAppList(res.data?.applications ?? [])
+    }).catch(() => {})
+  }, [])
+
+  const switchItems: MenuProps['items'] = appList
+    .filter((a) => a.application_id !== currentAppId)
+    .map((a) => ({
+      key: a.application_id,
+      label: a.name || '未命名应用',
+      onClick: () => navigate(`/application/${a.application_id}/ui`),
+    }))
+
   const menuItems: MenuProps['items'] = [
-    { key: 'rename', label: '重命名', onClick: handleRename },
-    { key: 'list', label: '切换应用', onClick: () => navigate('/applications') },
+    { key: 'rename', icon: <EditOutlined />, label: '重命名', onClick: handleRename },
+    {
+      key: 'switch',
+      icon: <SwapOutlined />,
+      label: '切换应用',
+      children: switchItems.length > 0 ? switchItems : [{ key: 'empty', label: '暂无其他应用', disabled: true }],
+    },
     { type: 'divider' },
-    { key: 'home', label: '返回首页', onClick: () => navigate('/') },
+    { key: 'delete', icon: <DeleteOutlined />, label: '删除应用', danger: true, onClick: handleDelete },
   ]
 
   return (
-    <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-      <button className={styles.appNameBtn}>
-        <span className={styles.appNameText}>{appName}</span>
-        <DownOutlined style={{ fontSize: 10 }} />
-      </button>
-    </Dropdown>
+    <>
+      <Dropdown
+        menu={{ items: menuItems }}
+        trigger={['click']}
+        onOpenChange={(open) => { if (open) loadAppList() }}
+      >
+        <button className={styles.appNameBtn}>
+          <span className={styles.appNameText}>{appName}</span>
+          <DownOutlined style={{ fontSize: 10 }} />
+        </button>
+      </Dropdown>
+
+      <Modal
+        title="重命名应用"
+        open={renameOpen}
+        onOk={handleRenameConfirm}
+        onCancel={() => setRenameOpen(false)}
+        okText="确定"
+        cancelText="取消"
+        centered
+        destroyOnClose
+      >
+        <Input
+          value={renameValue}
+          onChange={(e) => setRenameValue(e.target.value)}
+          onPressEnter={handleRenameConfirm}
+          placeholder="输入新的应用名称"
+          autoFocus
+        />
+      </Modal>
+
+      <Modal
+        title="删除应用"
+        open={deleteOpen}
+        onOk={handleDeleteConfirm}
+        onCancel={() => setDeleteOpen(false)}
+        okText="删除此应用"
+        okType="danger"
+        okButtonProps={{ loading: deleting, disabled: !deleteConfirmMatch }}
+        cancelText="取消"
+        centered
+        destroyOnClose
+      >
+        <p style={{ marginBottom: 12 }}>
+          此操作<strong>不可撤销</strong>，将永久删除应用及其所有数据。
+        </p>
+        <p style={{ marginBottom: 8 }}>
+          请输入 <strong>{appName}</strong> 以确认删除：
+        </p>
+        <Input
+          value={deleteInputValue}
+          onChange={(e) => setDeleteInputValue(e.target.value)}
+          onPressEnter={handleDeleteConfirm}
+          placeholder={appName}
+          autoFocus
+        />
+      </Modal>
+    </>
   )
+}
+
+// ─── 子组件：app 模式 AiBar 容器（从 RootLayoutCtx 取单例节点） ──────────────────
+
+const AppAiBar: React.FC = () => {
+  const { aiBarNode } = useRootLayoutCtx()
+  return <>{aiBarNode}</>
 }
 
 export default Sidebar
