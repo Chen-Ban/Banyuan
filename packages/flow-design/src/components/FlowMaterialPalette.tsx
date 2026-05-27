@@ -42,7 +42,8 @@ const groupStyle: React.CSSProperties = {
 const groupHeaderStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 500,
-    color: 'var(--flow-palette-text-secondary, #666)',
+    color: 'var(--flow-palette-text-secondary, currentColor)',
+    opacity: 0.6,
     padding: '2px 0',
 }
 
@@ -56,8 +57,8 @@ const cardStyle: React.CSSProperties = {
     padding: '4px 8px',
     fontSize: 12,
     borderRadius: 4,
-    border: '1px solid var(--flow-palette-border, #e0e0e0)',
-    background: 'var(--flow-palette-card-bg, #fafafa)',
+    border: '1px solid var(--flow-palette-border, rgba(128, 128, 128, 0.3))',
+    background: 'var(--flow-palette-card-bg, rgba(128, 128, 128, 0.12))',
     color: 'var(--flow-palette-text, currentColor)',
     cursor: 'grab',
     userSelect: 'none',
