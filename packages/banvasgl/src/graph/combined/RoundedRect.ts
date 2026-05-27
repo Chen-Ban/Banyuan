@@ -254,6 +254,7 @@ export default class RoundedRect extends CombinedGraph implements IRoundedRect, 
      * ```
      */
     public override syncControlPoints(): void {
+        if (!this.radii) return
         const { x, y, width: w, height: h } = this
         const [rtl, rtr, rbr, rbl] = this.radii
 
