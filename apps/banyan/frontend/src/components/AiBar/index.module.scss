@@ -1,40 +1,94 @@
-// AiBar — 输入框区域样式
-// 进度面板样式已迁移至 ConversationPanel/index.module.scss
+// AiBar — 撑满 Sidebar appContent 区域的 flex 布局（bolt.new 风格输入框）
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
 
-// ─── 外层容器 ─────────────────────────────────────────────────────────────────
+// ─── 外层容器（flex:1，撑满剩余空间） ─────────────────────────────────────────
 
 .aiBar {
-  position: relative; // ConversationPanel 绝对定位的基准
-  z-index: 1;         // 创建独立 stacking context，确保 ConversationPanel 浮层覆盖 ComponentPalette
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: transparent;
-  padding: 0 12px 12px;
-  flex-shrink: 0;
+  padding: 0 12px 0;
+  overflow: hidden;
 }
 
-// ─── 面板 Header 占位容器（高度与 ConversationPanel header 一致） ──────────────
+// ─── 模式切换胶囊（编辑 / 对话） ─────────────────────────────────────────────
 
-.panelHeaderPlaceholder {
-  height: 33px; // ConversationPanel header: padding 7+7 + font ~14px*1.2 + border 1px ≈ 33px
-  flex-shrink: 0;
+.modeCapsule {
+  display: flex;
+  align-items: center;
+  background: var(--color-bg-hover-md);
+  border-radius: var(--radius-lg);
+  padding: 2px;
+  gap: 2px;
 }
 
-// ─── 输入框容器 ───────────────────────────────────────────────────────────────
+.modeBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: $text-sm;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  line-height: 1;
+  transition: color var(--duration-fast), background var(--duration-fast);
+
+  &:hover {
+    color: var(--color-text-secondary);
+  }
+}
+
+.modeBtnActive {
+  background: var(--color-bg-selected);
+  color: var(--color-brand-text);
+}
+
+// ─── 输入框容器（bolt.new 风格深色卡片） ─────────────────────────────────────
 
 .inputWrapper {
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #e2e2e2;
-  border-radius: 14px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  flex-shrink: 0;
+  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
 
   &:focus-within {
-    border-color: #c8c8c8;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    border-color: var(--color-brand-border-focus);
+    box-shadow: var(--shadow-focus-brand);
+  }
+}
+
+// ─── SSE 加载呼吸灯动画 ────────────────────────────────────────────────────────
+
+@keyframes breathing-glow {
+  0%, 100% {
+    box-shadow: none;
+    border-color: var(--color-border);
+  }
+  50% {
+    box-shadow: var(--shadow-focus-brand);
+    border-color: var(--color-brand-border-focus);
+  }
+}
+
+.inputWrapperBreathing {
+  animation: breathing-glow 2s ease-in-out infinite;
+
+  // 呼吸灯期间 focus 仍保持常亮，不闪烁
+  &:focus-within {
+    animation: none;
+    border-color: var(--color-brand-border-focus);
+    box-shadow: var(--shadow-focus-brand);
   }
 }
 
@@ -44,23 +98,22 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 12px 0;
+  padding: 12px 14px 0;
 }
 
 .imageThumb {
   position: relative;
   width: 60px;
   height: 60px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid #e8e8e8;
+  border: 1px solid var(--color-border);
   flex-shrink: 0;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--duration-fast);
 
   &:hover {
-    border-color: #aaa;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border-color: var(--color-border-hover);
   }
 
   img {
@@ -78,7 +131,7 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.6);
   border: none;
   cursor: pointer;
   display: flex;
@@ -87,48 +140,41 @@
   color: #fff;
   font-size: 9px;
   padding: 0;
-  transition: background 0.15s;
+  transition: background var(--duration-fast);
 
   &:hover {
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.85);
   }
 }
 
 // ─── 文本域 ───────────────────────────────────────────────────────────────────
 
 .textarea {
-  box-sizing: content-box;
-  width: calc(100% - 28px);
-  min-height: calc(1em * 1.6);
-  max-height: 160px;
-  padding: 12px 14px 4px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 72px;
+  max-height: 200px;
+  padding: 14px 16px 6px;
   border: none;
   outline: none;
   resize: none;
-  font-size: 13px;
-  line-height: 1.6;
-  color: #1a1a1a;
+  font-size: $text-base;
+  line-height: 1.65;
+  color: var(--color-text-primary);
   background: transparent;
   font-family: inherit;
   overflow-y: auto;
 
   &::placeholder {
-    color: #b0b0b0;
+    color: var(--color-text-placeholder);
   }
 
   &:disabled {
-    color: #999;
+    color: var(--color-text-disabled);
     cursor: not-allowed;
   }
 
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #d9d9d9;
-    border-radius: 2px;
-  }
+  @include scrollbar-dark;
 }
 
 // ─── 底部工具栏 ───────────────────────────────────────────────────────────────
@@ -137,32 +183,65 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 8px 8px;
+  padding: 6px 10px 10px;
+  gap: 6px;
 }
 
 .toolbarLeft {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+}
+
+// + 按钮（附件/上传占位）
+.addBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-bg-hover-md);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: $text-md;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background var(--duration-fast), color var(--duration-fast);
+
+  &:hover {
+    background: var(--color-bg-active);
+    color: var(--color-text-secondary);
+  }
 }
 
 .modelSelect {
-  font-size: 12px;
+  font-size: $text-sm;
 
   :global(.ant-select-selector) {
-    padding: 0 4px !important;
-    height: 24px !important;
+    padding: 0 6px 0 4px !important;
+    height: 26px !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
   }
 
   :global(.ant-select-selection-item) {
-    font-size: 12px;
-    color: #888;
-    line-height: 24px !important;
+    font-size: $text-sm;
+    color: var(--color-text-tertiary);
+    line-height: 26px !important;
+    padding-right: 16px !important;
   }
 
   :global(.ant-select-arrow) {
     font-size: 10px;
-    color: #bbb;
+    color: var(--color-text-disabled);
+    right: 4px;
+  }
+
+  &:hover :global(.ant-select-selection-item) {
+    color: var(--color-text-secondary);
   }
 }
 
@@ -182,40 +261,44 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: $text-lg;
   padding: 0;
-  transition: background 0.15s, transform 0.1s, opacity 0.15s;
+  transition: background var(--duration-fast), transform 0.1s, opacity var(--duration-fast);
   flex-shrink: 0;
 
   &:active {
-    transform: scale(0.92);
+    transform: scale(0.9);
   }
 }
 
+// 未激活：灰色圆形
 .sendBtn {
-  background: #d0d0d0;
-  color: #fff;
+  background: var(--color-bg-hover-md);
+  color: var(--color-text-disabled);
 
   &:disabled {
     cursor: not-allowed;
-    opacity: 1;
   }
 }
 
+// 激活：蓝色圆形（bolt.new 风格）
 .sendBtnActive {
-  background: #1a1a1a;
+  background: var(--color-brand-primary);
   color: #fff;
 
   &:hover {
-    background: #333;
+    background: var(--color-brand-hover);
   }
 }
 
+// 停止：白色方块图标，深色背景
 .stopBtn {
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--color-bg-hover-md);
+  color: var(--color-text-secondary);
+  font-size: $text-sm;
 
   &:hover {
-    background: #333;
+    background: var(--color-bg-active);
+    color: var(--color-text-primary);
   }
 }

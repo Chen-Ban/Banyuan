@@ -140,20 +140,73 @@ export type AiStreamEvent =
 export interface AiChatOptions {
   appId: string
   prompt: string
-  /** 当前内存中的 pages（从前端传入，AI 操作最新状态，而非 DB 快照） */
-  pages: string[]
-  /** 当前 Schema（从 DatabasePage 收集，可选） */
-  schema?: SchemaCollectionDef[]
-  /** 当前云函数列表（从 FunctionsPage 收集，可选） */
-  cloudFunctions?: Array<{
-    functionId: string
-    name: string
-    displayName?: string
-    description?: string
-    flowSchema?: Record<string, unknown>
-  }>
+  /** 对话类型：chat=纯聊天，task=做任务（默认 task） */
+  type?: 'chat' | 'task'
+  /** 用户上传的图片列表 */
+  images?: Array<{ url: string; alt?: string }>
   onEvent: (event: AiStreamEvent) => void
   signal?: AbortSignal
+}
+
+// ─── 图片上传（OSS 预签名直传）────────────────────────────────────────────────
+
+export interface PresignResponse {
+  signedUrl: string
+  publicUrl: string
+  contentType: string
+}
+
+/**
+ * 获取 OSS 预签名 PUT URL（前端直传图片到 OSS）
+ *
+ * @param appId    应用 ID
+ * @param filename 文件名（含扩展名，如 screenshot.png）
+ * @returns { signedUrl, publicUrl, contentType }
+ */
+export async function getPresignUrl(appId: string, filename: string): Promise<PresignResponse> {
+  const response = await fetch(`${BASE_URL}/applications/${appId}/upload/presign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename }),
+  })
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new Error(`获取上传签名失败 (${response.status}): ${text}`)
+  }
+  const result = await response.json()
+  return result.data as PresignResponse
+}
+
+/**
+ * 上传文件到 OSS（使用预签名 URL 直传）
+ *
+ * @param signedUrl  预签名 PUT URL
+ * @param file       要上传的文件（Blob/File）
+ * @returns void（上传成功无返回值，失败抛异常）
+ */
+export async function uploadToOSS(signedUrl: string, file: Blob): Promise<void> {
+  const response = await fetch(signedUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  })
+  if (!response.ok) {
+    throw new Error(`OSS 上传失败 (${response.status})`)
+  }
+}
+
+/**
+ * 完整的图片上传流程：获取预签名 → 上传到 OSS → 返回公开 URL
+ *
+ * @param appId 应用 ID
+ * @param file  要上传的图片文件
+ * @returns 图片的公开访问 URL
+ */
+export async function uploadImage(appId: string, file: File | Blob): Promise<string> {
+  const filename = file instanceof File ? file.name : `paste_${Date.now()}.png`
+  const { signedUrl, publicUrl } = await getPresignUrl(appId, filename)
+  await uploadToOSS(signedUrl, file)
+  return publicUrl
 }
 
 /**
@@ -176,17 +229,12 @@ export async function respondToDisambiguation(choiceId: string): Promise<void> {
  * 返回 Promise，在 done 或 error 事件后 resolve/reject
  */
 export async function aiChat(options: AiChatOptions): Promise<string[]> {
-  const { appId, prompt, pages, schema, cloudFunctions, onEvent, signal } = options
-
-  // 构建请求体：pages 必传，schema/cloudFunctions 有值才传
-  const requestBody: Record<string, unknown> = { prompt, pages }
-  if (schema && schema.length > 0) requestBody.schema = schema
-  if (cloudFunctions && cloudFunctions.length > 0) requestBody.cloudFunctions = cloudFunctions
+  const { appId, prompt, type = 'task', images = [], onEvent, signal } = options
 
   const response = await fetch(`${BASE_URL}/ai/${appId}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify({ prompt, type, images }),
     signal,
   })
 

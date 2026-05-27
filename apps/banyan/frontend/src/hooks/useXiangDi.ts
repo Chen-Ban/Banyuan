@@ -1,15 +1,20 @@
 /**
- * useXiangDi Hook
+ * useXiangDi Hook（V2）
  *
  * 封装与后端 XiangDi AI 服务的 SSE 通信逻辑。
  * 提供：
- * - 加载历史消息（loadHistory）
- * - 发送指令（sendPrompt）
+ * - 加载对话历史（Dialogue 列表）
+ * - 发送指令（sendPrompt），支持 type 参数（chat/task）
  * - 实时进度消息列表（messages）
- * - 对话历史（history）
+ * - 对话历史（dialogues / history 兼容层）
  * - 加载状态（loading）
  * - 中止请求（abort）
- * - 清空对话（clearConversation）
+ *
+ * V2 变更：
+ *   - 历史数据从 ConversationMessage[] 改为 Dialogue[]
+ *   - sendPrompt 新增 type 参数（默认 task）
+ *   - 保留 history（ConversationMessage[]）兼容层，通过 dialoguesToFlatMessages 转换
+ *   - 新增 dialogues 状态，暴露完整的 Dialogue 结构
  *
  * 会话模型：1 App = 1 Conversation，以 appId 为唯一标识，
  * 前端无需管理 conversationId。
@@ -17,8 +22,9 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { aiApi, conversationApi } from '@/api'
-import type { AiStreamEvent, DisambiguationOptions, SchemaCollectionDef } from '@/api'
-import type { ConversationMessage } from '@/api'
+import type { AiStreamEvent, DisambiguationOptions } from '@/api'
+import type { ConversationMessage, Dialogue, DialogueType } from '@/api'
+import { dialoguesToFlatMessages } from '@/api/conversations'
 
 // ─── 进度消息类型 ─────────────────────────────────────────────────────────────
 
@@ -45,21 +51,11 @@ export interface ProgressMessage {
 export interface UseXiangDiOptions {
   appId: string
   /**
-   * 获取当前最新 pages 的回调。
-   * sendPrompt 时会调用此函数，将返回的 pages 一同发送给 AI，
-   * 确保 AI 操作的是前端内存中的最新状态而非 DB 快照。
+   * 发送前保存当前应用状态的回调（可选）。
+   * sendPrompt 时会先 await 此函数，确保 DB 是最新快照，
+   * 后端 XiangDi 通过内部 API 按需拉取，无需随请求体传入。
    */
-  getPages: () => string[]
-  /** 获取当前 Schema 的回调（可选，由 DatabasePage 提供） */
-  getSchema?: () => SchemaCollectionDef[]
-  /** 获取当前云函数列表的回调（可选，由 FunctionsPage 提供） */
-  getCloudFunctions?: () => Array<{
-    functionId: string
-    name: string
-    displayName?: string
-    description?: string
-    flowSchema?: Record<string, unknown>
-  }>
+  onBeforeSend?: () => Promise<void>
   /** AI 完成后回调，携带最终 pages JSON */
   onDone?: (pages: string[]) => void
   /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
@@ -75,18 +71,22 @@ export interface UseXiangDiReturn {
   loading: boolean
   /** 历史消息是否正在加载 */
   historyLoading: boolean
-  /** 对话历史消息（user + assistant 交替） */
+  /** 对话列表（V2 完整结构） */
+  dialogues: Dialogue[]
+  /** 对话历史消息（兼容层：user + assistant 交替的扁平列表） */
   history: ConversationMessage[]
   /** 当前轮次的进度消息列表（按时间顺序） */
   messages: ProgressMessage[]
   /** 当前累积的 LLM 文字输出 */
   currentText: string
-  /** 发送指令 */
-  sendPrompt: (prompt: string) => Promise<void>
+  /** 发送指令（type 默认 task） */
+  sendPrompt: (prompt: string, type?: DialogueType, images?: Array<{ url: string; alt?: string }>) => Promise<void>
   /** 中止当前请求 */
   abort: () => void
   /** 清空进度消息列表（不清空历史） */
   clearMessages: () => void
+  /** 新建对话（清空所有历史和进度消息） */
+  newConversation: () => void
   /** 响应消歧选择，通知后端恢复 AgentLoop */
   respondToDisambiguation: (choiceId: string) => Promise<void>
 }
@@ -97,11 +97,11 @@ function nextMsgId(): string {
 }
 
 export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
-  const { appId, getPages, getSchema, getCloudFunctions, onDone, onPagesSnapshot, onError, onDisambiguation } = options
+  const { appId, onBeforeSend, onDone, onPagesSnapshot, onError, onDisambiguation } = options
 
   const [loading, setLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
-  const [history, setHistory] = useState<ConversationMessage[]>([])
+  const [dialogues, setDialogues] = useState<Dialogue[]>([])
   const [messages, setMessages] = useState<ProgressMessage[]>([])
   const [currentText, setCurrentText] = useState('')
 
@@ -109,7 +109,11 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   // 用于在 SSE 回调中累积文字（避免闭包陷阱）
   const currentTextRef = useRef('')
 
-  // ─── 加载历史消息 ──────────────────────────────────────────────────────────
+  // ─── 兼容层：从 dialogues 派生扁平 history ──────────────────────────────────
+
+  const history = dialoguesToFlatMessages(dialogues)
+
+  // ─── 加载对话历史 ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!appId) return
@@ -117,9 +121,9 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     let cancelled = false
     setHistoryLoading(true)
 
-    conversationApi.getMessages(appId).then((msgs) => {
+    conversationApi.getDialogues(appId).then((result) => {
       if (!cancelled) {
-        setHistory(msgs)
+        setDialogues(result)
         setHistoryLoading(false)
       }
     }).catch(() => {
@@ -140,11 +144,22 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     ])
   }, [])
 
-  const sendPrompt = useCallback(async (prompt: string) => {
+  const sendPrompt = useCallback(async (prompt: string, type: DialogueType = 'task', images: Array<{ url: string; alt?: string }> = []) => {
     if (loading) return
 
-    // 乐观追加 user 消息到历史
-    setHistory((prev) => [...prev, { role: 'user', content: prompt }])
+    // 乐观追加 user 消息到 dialogues（创建一个临时 Dialogue）
+    const tempDialogue: Dialogue = {
+      _id: `temp_${Date.now()}`,
+      type,
+      messages: [{
+        role: 'user',
+        userContent: { prompt, images: images.map((img) => img.url) },
+        createdAt: new Date().toISOString(),
+      }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    setDialogues((prev) => [...prev, tempDialogue])
 
     // 重置当前轮次状态
     setLoading(true)
@@ -155,6 +170,15 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     // 创建新的 AbortController
     const controller = new AbortController()
     abortControllerRef.current = controller
+
+    // 发送前先保存当前应用状态，确保 DB 是最新快照
+    if (onBeforeSend) {
+      try {
+        await onBeforeSend()
+      } catch {
+        // 保存失败不阻断 AI 请求（DB 中已有上次保存的状态）
+      }
+    }
 
     const handleEvent = (event: AiStreamEvent) => {
       switch (event.type) {
@@ -199,10 +223,24 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
           break
         }
         case 'done': {
-          // 将 assistant 回复追加到历史
+          // 将 assistant 回复追加到临时 Dialogue 中
           const assistantText = currentTextRef.current.trim()
           if (assistantText) {
-            setHistory((prev) => [...prev, { role: 'assistant', content: assistantText }])
+            setDialogues((prev) => {
+              const updated = [...prev]
+              const lastDialogue = updated[updated.length - 1]
+              if (lastDialogue) {
+                lastDialogue.messages = [
+                  ...lastDialogue.messages,
+                  {
+                    role: 'assistant',
+                    assistantContent: [{ type: 'text', text: assistantText }],
+                    createdAt: new Date().toISOString(),
+                  },
+                ]
+              }
+              return updated
+            })
             addMessage({
               type: 'done',
               content: assistantText,
@@ -225,9 +263,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       const finalPages = await aiApi.aiChat({
         appId,
         prompt,
-        pages: getPages(),
-        schema: getSchema?.(),
-        cloudFunctions: getCloudFunctions?.(),
+        type,
+        images,
         onEvent: handleEvent,
         signal: controller.signal,
       })
@@ -241,7 +278,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       setLoading(false)
       abortControllerRef.current = null
     }
-  }, [loading, appId, getPages, getSchema, getCloudFunctions, addMessage, onDone, onError, onPagesSnapshot, onDisambiguation])
+  }, [loading, appId, onBeforeSend, addMessage, onDone, onError, onPagesSnapshot, onDisambiguation])
 
   const respondToDisambiguationFn = useCallback(async (choiceId: string) => {
     await aiApi.respondToDisambiguation(choiceId)
@@ -258,15 +295,24 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     currentTextRef.current = ''
   }, [])
 
+  const newConversation = useCallback(() => {
+    setDialogues([])
+    setMessages([])
+    setCurrentText('')
+    currentTextRef.current = ''
+  }, [])
+
   return {
     loading,
     historyLoading,
+    dialogues,
     history,
     messages,
     currentText,
     sendPrompt,
     abort,
     clearMessages,
+    newConversation,
     respondToDisambiguation: respondToDisambiguationFn,
   }
 }

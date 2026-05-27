@@ -1,37 +1,135 @@
 /**
- * 对话会话 API
+ * 对话会话 API（V2）
  *
  * 基于"1 App = 1 Conversation"模型，以 appId 为唯一标识。
- * 前端无需管理 conversationId。
+ * V2 变更：返回 Dialogue[] 而非扁平 Message[]。
+ *
+ * 核心概念：
+ *   - Dialogue（对话）：一次完整的用户-AI 交互单元
+ *   - DialogueType：chat（纯聊天）| task（做任务，会修改应用状态）
+ *   - AssistantContent：助手消息的内容块，与 SSE 事件类型一一对应
  */
+
+import type { SchemaCollectionDef, DisambiguationOptions } from './ai'
 
 const BASE_URL = '/api'
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
 
+/** 对话类型 */
+export type DialogueType = 'chat' | 'task'
+
+/** 线程状态 */
+export type ThreadStatus = 'running' | 'completed' | 'failed' | 'interrupted'
+
+/** 图片项 */
+export interface ImageItem {
+  url: string
+  alt?: string
+}
+
+/** 用户消息内容（结构化） */
+export interface UserContent {
+  prompt: string
+  images: ImageItem[]
+}
+
+/** 助手消息内容块（discriminated union，与 SSE 事件类型对应） */
+export type AssistantContent =
+  | { type: 'text'; text: string }
+  | { type: 'tool_call'; id: string; name: string; input: unknown }
+  | { type: 'tool_result'; id: string; result: unknown; isError: boolean }
+  | { type: 'pages_snapshot'; pages: string[] }
+  | { type: 'schema_update'; collections: SchemaCollectionDef[] }
+  | { type: 'disambiguation'; options: DisambiguationOptions }
+  | { type: 'done'; pages: string[] }
+  | { type: 'error'; message: string }
+
+/** 消息 */
+export interface Message {
+  _id?: string
+  role: 'user' | 'assistant'
+  /** 用户消息内容（仅 role=user 时有值） */
+  userContent?: UserContent
+  /** 助手消息内容块列表（仅 role=assistant 时有值） */
+  assistantContent?: AssistantContent[]
+  createdAt: string
+}
+
+/** 对话（Dialogue）— 核心聚合单元 */
+export interface Dialogue {
+  _id: string
+  type: DialogueType
+  messages: Message[]
+  /** 线程 ID（用于 checkpoint 恢复） */
+  threadId?: string
+  /** 线程状态 */
+  threadStatus?: ThreadStatus
+  /** 对话摘要（由 AI 生成） */
+  summary?: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** 兼容旧接口的扁平消息格式（用于渐进迁移） */
 export interface ConversationMessage {
   role: 'user' | 'assistant'
   content: string | unknown[]
 }
 
-export interface GetMessagesResponse {
+// ─── 响应类型 ─────────────────────────────────────────────────────────────────
+
+export interface GetDialoguesResponse {
   success: boolean
   data: {
-    messages: ConversationMessage[]
+    dialogues: Dialogue[]
   }
 }
 
 // ─── API 方法 ─────────────────────────────────────────────────────────────────
 
 /**
- * 获取应用的对话历史消息
+ * 获取应用的对话历史（Dialogue 列表）
  */
-export async function getMessages(appId: string, limit = 50): Promise<ConversationMessage[]> {
-  const response = await fetch(`${BASE_URL}/applications/${appId}/conversation/messages?limit=${limit}`)
+export async function getDialogues(appId: string, limit = 50): Promise<Dialogue[]> {
+  const response = await fetch(`${BASE_URL}/applications/${appId}/conversation/dialogues?limit=${limit}`)
   if (!response.ok) {
     throw new Error(`获取对话历史失败 (${response.status})`)
   }
-  const json: GetMessagesResponse = await response.json()
-  return json.data?.messages ?? []
+  const json: GetDialoguesResponse = await response.json()
+  return json.data?.dialogues ?? []
 }
 
+/**
+ * 兼容旧接口：将 Dialogue[] 转换为扁平 ConversationMessage[]
+ *
+ * 用于渐进迁移期间，让旧组件仍能正常工作。
+ */
+export function dialoguesToFlatMessages(dialogues: Dialogue[]): ConversationMessage[] {
+  const messages: ConversationMessage[] = []
+
+  for (const dialogue of dialogues) {
+    for (const msg of dialogue.messages) {
+      if (msg.role === 'user' && msg.userContent) {
+        messages.push({
+          role: 'user',
+          content: msg.userContent.prompt,
+        })
+      } else if (msg.role === 'assistant' && msg.assistantContent) {
+        // 提取文本内容
+        const textBlocks = msg.assistantContent.filter(
+          (block): block is Extract<AssistantContent, { type: 'text' }> => block.type === 'text'
+        )
+        const text = textBlocks.map(b => b.text).join('')
+        if (text) {
+          messages.push({
+            role: 'assistant',
+            content: text,
+          })
+        }
+      }
+    }
+  }
+
+  return messages
+}

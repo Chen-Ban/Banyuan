@@ -1,11 +1,15 @@
+// CloudFunctionMode — 云函数模式面板（深色主题）
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
+
 .container {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 12px 16px;
-  background: #f8f9ff;
-  border: 1px solid #d6e4ff;
-  border-radius: 10px;
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-brand-border);
+  border-radius: var(--radius-xl);
   margin-bottom: 8px;
 }
 
@@ -22,14 +26,14 @@
 }
 
 .modeIcon {
-  color: #722ed1;
-  font-size: 14px;
+  color: var(--color-brand-primary);
+  font-size: $text-md;
 }
 
 .modeLabel {
-  font-size: 12px;
-  font-weight: 500;
-  color: #722ed1;
+  font-size: $text-sm;
+  font-weight: $font-medium;
+  color: var(--color-brand-primary);
 }
 
 .closeBtn {
@@ -40,14 +44,14 @@
   height: 20px;
   border: none;
   background: transparent;
-  color: #8c8c8c;
+  color: var(--color-text-tertiary);
   cursor: pointer;
-  border-radius: 4px;
-  font-size: 11px;
+  border-radius: var(--radius-sm);
+  font-size: $text-xs;
 
   &:hover {
-    background: #f0f0f0;
-    color: #595959;
+    background: var(--color-bg-hover-md);
+    color: var(--color-text-secondary);
   }
 }
 
@@ -55,36 +59,37 @@
   max-height: 150px;
   overflow-y: auto;
   padding: 8px;
-  background: #fff;
-  border-radius: 6px;
-  border: 1px solid #f0f0f0;
+  background: var(--color-bg-input);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  @include scrollbar-dark;
 }
 
 .loadingHint {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #8c8c8c;
+  font-size: $text-sm;
+  color: var(--color-text-tertiary);
 }
 
 .streamingText {
-  font-size: 12px;
+  font-size: $text-sm;
   line-height: 1.6;
-  color: #434343;
+  color: var(--color-text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+  @include text-mono;
 }
 
 .errorHint {
-  font-size: 12px;
-  color: #ff4d4f;
+  font-size: $text-sm;
+  color: var(--color-error-text);
   padding: 4px 8px;
-  background: #fff2f0;
-  border-radius: 4px;
-  border: 1px solid #ffccc7;
+  background: var(--color-error-subtle);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-error-border);
 }
 
 .inputArea {
@@ -96,29 +101,31 @@
 .textarea {
   flex: 1;
   resize: none;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   padding: 6px 10px;
-  font-size: 13px;
+  font-size: $text-base;
   line-height: 1.5;
   outline: none;
-  transition: border-color 0.2s;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  transition: border-color var(--duration-normal);
   min-height: 32px;
   max-height: 120px;
   font-family: inherit;
 
   &:focus {
-    border-color: #722ed1;
-    box-shadow: 0 0 0 2px rgba(114, 46, 209, 0.1);
+    border-color: var(--color-brand-border-focus);
+    box-shadow: var(--shadow-focus-brand);
   }
 
   &:disabled {
-    background: #f5f5f5;
+    background: var(--color-bg-hover);
     cursor: not-allowed;
   }
 
   &::placeholder {
-    color: #bfbfbf;
+    color: var(--color-text-placeholder);
   }
 }
 

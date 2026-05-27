@@ -1,12 +1,11 @@
 /**
  * AiBar 组件
  *
- * 应用级 AI 对话栏，每个子页面（画布 / 数据库 / 云函数）各自渲染实例，
- * 通过 appId 共享会话。普通流式布局，放在页面内容区底部。
+ * 应用级 AI 对话栏，撑满 Sidebar appContent 区域（flex: 1）。
  *
  * 布局：
  *   ┌─────────────────────────────────────────────┐
- *   │  ConversationPanel（可折叠/展开/关闭）         │
+ *   │  ConversationPanel（flex: 1，可滚动）          │
  *   ├─────────────────────────────────────────────┤
  *   │  ┌───────────────────────────────────────┐  │
  *   │  │  图片预览区（有图片时显示）              │  │
@@ -17,16 +16,19 @@
  *   └─────────────────────────────────────────────┘
  */
 
-import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle, useMemo } from "react";
-import { Spin, Image, Select } from "antd";
+import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
+import { Image, Select, Tooltip } from "antd";
 import {
   CloseOutlined,
+  CommentOutlined,
+  EditOutlined,
+  PlusOutlined,
   SendOutlined,
   StopOutlined,
 } from "@ant-design/icons";
 import { useXiangDi } from "@/hooks/useXiangDi";
 import { aiApi } from "@/api";
-import type { DisambiguationOptions, ProviderInfo, SchemaCollectionDef } from "@/api";
+import type { DisambiguationOptions, ProviderInfo } from "@/api";
 import ConversationPanel from "./ConversationPanel";
 import styles from "./index.module.scss";
 
@@ -42,23 +44,15 @@ export interface AiBarHandle {
 export interface AiBarProps {
   appId: string;
   /**
-   * 获取当前最新 pages 的回调。
-   * AiBar 在发送请求时调用，将当前内存状态随流一并发送给 AI。
+   * 发送前保存当前应用状态的回调（可选）。
+   * AiBar 在发送请求前先 await 此函数，确保 DB 是最新快照，
+   * 后端 XiangDi 通过内部 API 按需拉取，无需随请求体传入。
    */
-  getPages: () => string[];
-  /** 获取当前 Schema（可选，由 DatabasePage 提供） */
-  getSchema?: () => SchemaCollectionDef[];
-  /** 获取当前云函数列表（可选，由 FunctionsPage 提供） */
-  getCloudFunctions?: () => Array<{
-    functionId: string;
-    name: string;
-    displayName?: string;
-    description?: string;
-    flowSchema?: Record<string, unknown>;
-  }>;
-  onPagesUpdate: (pages: string[]) => void;
+  onBeforeSend?: () => Promise<void>;
   /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
   onPagesSnapshot?: (pages: string[]) => void;
+  /** AI 完成后回调，携带最终 pages JSON */
+  onDone?: (pages: string[]) => void;
 }
 
 // ─── 粘贴图片类型 ─────────────────────────────────────────────────────────────
@@ -73,39 +67,15 @@ interface PastedImage {
 
 const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   appId,
-  getPages,
-  getSchema,
-  getCloudFunctions,
-  onPagesUpdate,
+  onBeforeSend,
   onPagesSnapshot,
+  onDone,
 }, ref) {
   const [inputValue, setInputValue] = useState("");
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
   const [disambiguationState, setDisambiguationState] =
     useState<DisambiguationOptions | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // ─── 动态计算面板最大高度 ──────────────────────────────────────────────────
-  // maxPanelHeight = 页面高度 - appHeader(48px) - 顶部间距(12px) - aiBar自身高度 - aiBar底部边距(12px)
-  const aiBarRef = useRef<HTMLDivElement>(null);
-  const [aiBarHeight, setAiBarHeight] = useState(0);
-
-  useEffect(() => {
-    const el = aiBarRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const h = entries[0]?.contentRect.height ?? el.offsetHeight;
-      setAiBarHeight(h);
-    });
-    ro.observe(el);
-    setAiBarHeight(el.offsetHeight);
-    return () => ro.disconnect();
-  }, []);
-
-  const maxPanelHeight = useMemo(() => {
-    const pageH = window.innerHeight;
-    return Math.max(80, pageH - 48 - 12 - aiBarHeight - 12);
-  }, [aiBarHeight]);
 
   // ─── 模型选择 ──────────────────────────────────────────────────────────────
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -126,6 +96,9 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     aiApi.switchModel(provider).catch(() => { /* 静默失败 */ });
   }, []);
 
+  // ─── 对话模式切换（编辑 = task / 对话 = chat） ────────────────────────────
+  const [dialogueMode, setDialogueMode] = useState<'task' | 'chat'>('task');
+
   const {
     loading,
     historyLoading,
@@ -137,17 +110,14 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     respondToDisambiguation,
   } = useXiangDi({
     appId,
-    getPages,
-    getSchema,
-    getCloudFunctions,
-    onDone: (pages) => onPagesUpdate(pages),
+    onBeforeSend,
+    onDone,
     onPagesSnapshot,
     onDisambiguation: (options) => setDisambiguationState(options),
   });
 
   // 暴露 sendPrompt 给父组件（首页跳转后自动触发）
   useImperativeHandle(ref, () => ({ sendPrompt }), [sendPrompt]);
-
 
   const handleDisambiguationSelect = useCallback(
     async (choiceId: string) => {
@@ -156,7 +126,6 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     },
     [respondToDisambiguation],
   );
-
 
   // ─── 输入框逻辑 ────────────────────────────────────────────────────────────
 
@@ -203,13 +172,44 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     setPastedImages((prev) => prev.filter((img) => img.id !== id));
   }, []);
 
-  const handleSend = useCallback(() => {
+  const [uploading, setUploading] = useState(false);
+
+  const handleSend = useCallback(async () => {
     const prompt = inputValue.trim();
-    if ((!prompt && pastedImages.length === 0) || loading) return;
+    if ((!prompt && pastedImages.length === 0) || loading || uploading) return;
+
+    // 先捕获当前图片并清空 UI
+    const imagesToUpload = [...pastedImages];
     setInputValue("");
     setPastedImages([]);
-    sendPrompt(prompt);
-  }, [inputValue, pastedImages, loading, sendPrompt]);
+
+    // 上传图片到 OSS
+    let imageUrls: Array<{ url: string; alt?: string }> = [];
+    if (imagesToUpload.length > 0) {
+      setUploading(true);
+      try {
+        const urls = await Promise.all(
+          imagesToUpload.map(async (img) => {
+            // dataUrl 转 Blob
+            const res = await fetch(img.dataUrl);
+            const blob = await res.blob();
+            const file = new File([blob], img.name || `paste_${Date.now()}.png`, {
+              type: blob.type || "image/png",
+            });
+            const publicUrl = await aiApi.uploadImage(appId, file);
+            return { url: publicUrl, alt: img.name };
+          }),
+        );
+        imageUrls = urls;
+      } catch {
+        // 上传失败时仍然发送文本（图片丢弃）
+      } finally {
+        setUploading(false);
+      }
+    }
+
+    sendPrompt(prompt, dialogueMode, imageUrls);
+  }, [inputValue, pastedImages, loading, uploading, sendPrompt, appId, dialogueMode]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -222,11 +222,11 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   );
 
   const canSend =
-    (inputValue.trim().length > 0 || pastedImages.length > 0) && !loading;
+    (inputValue.trim().length > 0 || pastedImages.length > 0) && !loading && !uploading;
 
   return (
-    <div className={styles.aiBar} ref={aiBarRef}>
-      {/* 对话面板（始终渲染，折叠/展开） */}
+    <div className={styles.aiBar}>
+      {/* 对话面板（撑满剩余空间，可滚动） */}
       <ConversationPanel
         historyLoading={historyLoading}
         history={history}
@@ -235,14 +235,10 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
         loading={loading}
         disambiguationState={disambiguationState}
         onDisambiguationSelect={handleDisambiguationSelect}
-        maxPanelHeight={maxPanelHeight}
       />
 
-      {/* 占位容器：高度与 ConversationPanel header 对齐，视觉上让 panel 衔接 inputWrapper */}
-      <div className={styles.panelHeaderPlaceholder} />
-
-      {/* 输入框容器 */}
-      <div className={styles.inputWrapper}>
+      {/* 输入框容器（底部固定高度） */}
+      <div className={`${styles.inputWrapper} ${loading ? styles.inputWrapperBreathing : ''}`}>
         {pastedImages.length > 0 && (
           <div className={styles.imagePreviewRow}>
             <Image.PreviewGroup>
@@ -286,6 +282,38 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
 
         <div className={styles.toolbar}>
           <div className={styles.toolbarLeft}>
+            {/* + 按钮（占位，后续可扩展附件上传） */}
+            <button
+              className={styles.addBtn}
+              aria-label="添加附件"
+              disabled={loading}
+              onClick={() => { /* TODO: 附件上传 */ }}
+            >
+              <PlusOutlined />
+            </button>
+
+            {/* 模式切换胶囊：编辑 / 对话 */}
+            <div className={styles.modeCapsule}>
+              <Tooltip title="编辑项目">
+                <button
+                  className={`${styles.modeBtn} ${dialogueMode === 'task' ? styles.modeBtnActive : ''}`}
+                  onClick={() => setDialogueMode('task')}
+                >
+                  <EditOutlined />
+                  <span>编辑</span>
+                </button>
+              </Tooltip>
+              <Tooltip title="仅对话，不对项目做修改">
+                <button
+                  className={`${styles.modeBtn} ${dialogueMode === 'chat' ? styles.modeBtnActive : ''}`}
+                  onClick={() => setDialogueMode('chat')}
+                >
+                  <CommentOutlined />
+                  <span>对话</span>
+                </button>
+              </Tooltip>
+            </div>
+
             {providers.length > 0 && (
               <Select
                 size="small"

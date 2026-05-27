@@ -1,8 +1,8 @@
 /**
- * ConversationPanel — AI 对话进度面板（微信聊天框风格）
+ * ConversationPanel — AI 对话面板（微信聊天框风格）
  *
- * 绝对定位浮层，bottom 锚定在 AiBar 输入框上方，不占文档流。
- * 顶部有拖拽手柄，可拖拽改变面板高度。
+ * 撑满 AiBar 的剩余空间（flex: 1），内部可滚动。
+ * 不再使用绝对定位浮层，不再有拖拽手柄，不再有折叠/展开状态机。
  *
  * 消息渲染规则：
  *   - history user      → 靠右蓝色气泡
@@ -12,17 +12,11 @@
  *   - done              → 靠左无气泡完成提示行
  *   - error             → 靠左无气泡错误行
  *   - disambiguation    → 靠左无气泡卡片
- *
- * 状态机：
- *   expanded  → 完整展开，高度自适应内容（最大 MAX_HEIGHT），可拖拽
- *   collapsed → 只显示 header 条（body 被 flex 压缩为 0）
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Spin } from "antd";
 import {
-  UpOutlined,
-  DownOutlined,
   CheckCircleOutlined,
   LoadingOutlined,
   WarningOutlined,
@@ -31,11 +25,6 @@ import type { ProgressMessage } from "@/hooks/useXiangDi";
 import type { ConversationMessage, DisambiguationOptions } from "@/api";
 import DisambiguationPanel from "../DisambiguationPanel";
 import styles from "./index.module.scss";
-
-// ─── 常量 ─────────────────────────────────────────────────────────────────────
-
-const DEFAULT_HEIGHT = 320;
-const MIN_HEIGHT = 80;
 
 // assistant 气泡折叠时最多显示的行数
 const BUBBLE_COLLAPSE_LINES = 4;
@@ -52,8 +41,6 @@ export interface ConversationPanelProps {
   loading: boolean;
   disambiguationState: DisambiguationOptions | null;
   onDisambiguationSelect: (choiceId: string) => void;
-  /** 面板可拖拽的最大高度（动态计算，由 AiBar 传入） */
-  maxPanelHeight: number;
 }
 
 // ─── ConversationPanel ────────────────────────────────────────────────────────
@@ -66,67 +53,13 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   loading,
   disambiguationState,
   onDisambiguationSelect,
-  maxPanelHeight,
 }) => {
-  const [collapsed, setCollapsed] = useState(true);
-  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
   const endRef = useRef<HTMLDivElement>(null);
-
-  // 有新内容时自动展开
-  useEffect(() => {
-    if (loading || messages.length > 0) {
-      setCollapsed(false);
-    }
-  }, [loading, messages.length]);
 
   // 滚动到底部
   useEffect(() => {
-    if (!collapsed) {
-      endRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [history, messages, currentText, collapsed]);
-
-  // ─── 拖拽逻辑 ──────────────────────────────────────────────────────────────
-  const dragStartY = useRef(0);
-  const dragStartHeight = useRef(0);
-  const isDragging = useRef(false);
-
-  const handleDragStart = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      isDragging.current = true;
-      dragStartY.current = e.clientY;
-      dragStartHeight.current = panelHeight;
-
-      const handleMove = (ev: MouseEvent) => {
-        if (!isDragging.current) return;
-        // 向上拖（clientY 减小）→ 面板变高
-        const delta = dragStartY.current - ev.clientY;
-        const next = Math.max(
-          MIN_HEIGHT,
-          Math.min(maxPanelHeight, dragStartHeight.current + delta),
-        );
-        setPanelHeight(next);
-      };
-
-      const handleUp = () => {
-        isDragging.current = false;
-        document.removeEventListener("mousemove", handleMove);
-        document.removeEventListener("mouseup", handleUp);
-      };
-
-      document.addEventListener("mousemove", handleMove);
-      document.addEventListener("mouseup", handleUp);
-    },
-    [panelHeight, maxPanelHeight],
-  );
-
-  // 展开时：高度取 panelHeight，但不超过动态上限
-  // 折叠时显式设置 height:'auto' 覆盖 JS 残留的 height 值
-  const clampedHeight = Math.min(panelHeight, maxPanelHeight);
-  const panelStyle = collapsed
-    ? { height: "auto" as const }
-    : { height: clampedHeight };
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [history, messages, currentText]);
 
   // 当前轮次是否有工具调用进度（非 done/error）
   const toolMessages = messages.filter(
@@ -135,103 +68,95 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   const doneMessage = messages.find((m) => m.type === "done");
   const errorMessage = messages.find((m) => m.type === "error" || m.isError);
 
+  const isEmpty =
+    !historyLoading &&
+    history.length === 0 &&
+    messages.length === 0 &&
+    !currentText &&
+    !loading;
+
   return (
-    <div
-      className={`${styles.panel} ${collapsed ? styles.panelCollapsed : ""}`}
-      style={panelStyle}
-    >
-      {/* ── 拖拽手柄（顶部，仅展开时可用） ── */}
-      {!collapsed && (
-        <div
-          className={styles.resizeHandle}
-          onMouseDown={handleDragStart}
-          aria-label="拖拽调整高度"
+    <div className={styles.panel}>
+      {/* 历史加载中 */}
+      {historyLoading && (
+        <div className={styles.statusRow}>
+          <Spin size="small" />
+          <span>加载对话历史...</span>
+        </div>
+      )}
+
+      {/* 空状态：assistant 欢迎消息 */}
+      {isEmpty && (
+        <div className={styles.welcomeWrap}>
+          <div className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.welcomeBubble}`}>
+            <span className={styles.bubbleText}>
+              👋 你好！我是你的 AI 设计助手。
+            </span>
+            <span className={styles.bubbleText}>
+              告诉我你想要什么样的页面或效果，我来帮你实现。
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── 历史消息气泡 ── */}
+      {history.map((msg, idx) => (
+        <HistoryBubble key={`h_${idx}`} message={msg} />
+      ))}
+
+      {/* ── 当前轮次：工具调用进度行（在流式气泡之前） ── */}
+      {toolMessages.map((msg) => (
+        <ToolRow key={msg.id} message={msg} />
+      ))}
+
+      {/* ── 当前轮次：流式输出气泡（assistant 靠左） ── */}
+      {loading && currentText && (
+        <div className={styles.bubbleRow}>
+          <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
+            <span className={styles.bubbleText}>
+              {currentText}
+              <span className={styles.cursor}>▋</span>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── 当前轮次：完成提示行 ── */}
+      {doneMessage && !loading && (
+        <div className={styles.statusRow}>
+          <CheckCircleOutlined className={styles.doneIcon} />
+          <span className={styles.doneText}>完成</span>
+        </div>
+      )}
+
+      {/* ── 当前轮次：错误行 ── */}
+      {errorMessage && (
+        <div className={`${styles.statusRow} ${styles.statusRowError}`}>
+          <WarningOutlined />
+          <span>{errorMessage.content}</span>
+        </div>
+      )}
+
+      {/* ── 消歧面板（靠左，无气泡） ── */}
+      {disambiguationState && (
+        <DisambiguationPanel
+          options={disambiguationState}
+          onSelect={onDisambiguationSelect}
         />
       )}
 
-      {/* ── Header ── */}
-      <div className={styles.header}>
-        <span className={styles.title}>banyan</span>
-        <div className={styles.actions}>
-          <button
-            className={styles.iconBtn}
-            onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? "展开" : "折叠"}
-          >
-            {collapsed ? <UpOutlined /> : <DownOutlined />}
-          </button>
-        </div>
-      </div>
-
-      {/* ── Body（聊天流） ── */}
-      <div className={styles.body}>
-        {/* 历史加载中 */}
-        {historyLoading && (
+      {/* ── 初始思考中（无任何内容时） ── */}
+      {loading &&
+        messages.length === 0 &&
+        !currentText &&
+        !disambiguationState && (
           <div className={styles.statusRow}>
-            <Spin size="small" />
-            <span>加载对话历史...</span>
+            <LoadingOutlined className={styles.thinkingIcon} />
+            <span>banyan 正在思考...</span>
           </div>
         )}
 
-        {/* ── 历史消息气泡 ── */}
-        {history.map((msg, idx) => (
-          <HistoryBubble key={`h_${idx}`} message={msg} />
-        ))}
-
-        {/* ── 当前轮次：工具调用进度行（在流式气泡之前） ── */}
-        {toolMessages.map((msg) => (
-          <ToolRow key={msg.id} message={msg} />
-        ))}
-
-        {/* ── 当前轮次：流式输出气泡（assistant 靠左） ── */}
-        {loading && currentText && (
-          <div className={styles.bubbleRow}>
-            <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
-              <span className={styles.bubbleText}>
-                {currentText}
-                <span className={styles.cursor}>▋</span>
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* ── 当前轮次：完成提示行 ── */}
-        {doneMessage && !loading && (
-          <div className={styles.statusRow}>
-            <CheckCircleOutlined className={styles.doneIcon} />
-            <span className={styles.doneText}>完成</span>
-          </div>
-        )}
-
-        {/* ── 当前轮次：错误行 ── */}
-        {errorMessage && (
-          <div className={`${styles.statusRow} ${styles.statusRowError}`}>
-            <WarningOutlined />
-            <span>{errorMessage.content}</span>
-          </div>
-        )}
-
-        {/* ── 消歧面板（靠左，无气泡） ── */}
-        {disambiguationState && (
-          <DisambiguationPanel
-            options={disambiguationState}
-            onSelect={onDisambiguationSelect}
-          />
-        )}
-
-        {/* ── 初始思考中（无任何内容时） ── */}
-        {loading &&
-          messages.length === 0 &&
-          !currentText &&
-          !disambiguationState && (
-            <div className={styles.statusRow}>
-              <LoadingOutlined className={styles.thinkingIcon} />
-              <span>banyan 正在思考...</span>
-            </div>
-          )}
-
-        <div ref={endRef} />
-      </div>
+      <div ref={endRef} />
     </div>
   );
 };
@@ -255,7 +180,6 @@ const HistoryBubble: React.FC<{ message: ConversationMessage }> = ({
   useEffect(() => {
     const el = textRef.current;
     if (!el || isUser) return;
-    // scrollHeight > BUBBLE_COLLAPSE_MAX_HEIGHT 说明内容超出折叠高度
     setOverflows(el.scrollHeight > BUBBLE_COLLAPSE_MAX_HEIGHT + 4);
   }, [text, isUser]);
 
