@@ -2,15 +2,12 @@
  * Page（Scene）级别操作
  */
 
-import { BaseCamera, Scene } from '@banyuan/banvasgl'
-import type {
-    IPageActions,
-    IFieldSchema,
-    IFieldSchemaMap,
-    EventHandler,
-    ISceneLifetimes,
-    App,
-} from '@banyuan/banvasgl'
+import { BaseCamera } from '@/engine/camera'
+import Scene from '@/engine/Scene'
+import type { IPageActions } from '@/types/hook/hook'
+import type { IFieldSchema, IFieldSchemaMap, EventHandler } from '@/types/view/view'
+import type { ISceneLifetimes } from '@/types/engine/scene'
+import type App from '@/engine/App'
 
 export function createPageActions(
     getApp: () => App | null,

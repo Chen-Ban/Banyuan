@@ -2,12 +2,10 @@
  * App 级别操作
  */
 
-import type {
-    IAppActions,
-    IAppLifetimes,
-    EventHandler,
-    App,
-} from '@banyuan/banvasgl'
+import type { IAppActions } from '@/types/hook/hook'
+import type { IAppLifetimes } from '@/types/engine/app'
+import type { EventHandler } from '@/types/view/view'
+import type App from '@/engine/App'
 
 export function createAppActions(
     getApp: () => App | null,

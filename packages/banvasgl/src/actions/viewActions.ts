@@ -1,24 +1,19 @@
 /**
  * View 级别操作
+ *
+ * viewCreatorStrategies 通过参数注入，核心包不硬编码具体创建策略，
+ * 由上层（banvas-design）传入完整的策略表。
  */
 
-import {
-  View,
-  clearAllStates,
-  flattenViewTree,
-  adapterRegistry,
-} from '@banyuan/banvasgl'
-import type {
-  IViewActions,
-  IComponentTemplate,
-  IFieldSchema,
-  IFieldSchemaMap,
-  EventHandler,
-  IViewEvents,
-  IViewLifetimes,
-  App,
-} from '@banyuan/banvasgl'
-import { viewCreatorStrategies } from './viewCreateStrategies.js'
+import View from '@/view/View/View'
+import { clearAllStates, flattenViewTree } from '@/engine/operations/ViewTree'
+import { adapterRegistry } from '@/engine/property'
+import type { IViewActions, IComponentTemplate } from '@/types/hook/hook'
+import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from '@/types/view/view'
+import type App from '@/engine/App'
+
+/** View 创建策略函数签名 */
+export type ViewCreatorStrategy = (defaultProps: Record<string, any>, x: number, y: number) => View
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null
@@ -28,9 +23,16 @@ export function getClipboard(): View | null {
     return clipboard
 }
 
+export interface CreateViewActionsOptions {
+    /** View 创建策略表，key 为 ViewType 字符串 */
+    viewCreatorStrategies?: Map<string, ViewCreatorStrategy>
+}
+
 export function createViewActions(
     getApp: () => App | null,
+    options: CreateViewActionsOptions = {},
 ): IViewActions {
+    const { viewCreatorStrategies } = options
     const getScene = () => getApp()?.getCurrentScene() ?? null
     const notify = () => getApp()?.notify()
 
@@ -98,12 +100,17 @@ export function createViewActions(
             const scene = getScene()
             if (!scene || !app) return null
 
+            if (!viewCreatorStrategies) {
+                console.warn('[BanvasGL] actions.view.create: viewCreatorStrategies 未注入，无法创建视图')
+                return null
+            }
+
             const { viewType, graphType, defaultProps = {} } = template
             const { x, y } = position
 
             const viewStrategy = viewCreatorStrategies.get(viewType)
             if (!viewStrategy) {
-                console.warn(`[BanvasDesign] actions.view.create: 未知 viewType "${viewType}"，已跳过`)
+                console.warn(`[BanvasGL] actions.view.create: 未知 viewType "${viewType}"，已跳过`)
                 return null
             }
 

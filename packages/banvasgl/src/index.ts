@@ -19,4 +19,5 @@ export * from "./foundation";
 export * from "./graph";
 export * from "./view";
 export * from "./engine";
+export * from "./actions";
 export { version } from "./version";

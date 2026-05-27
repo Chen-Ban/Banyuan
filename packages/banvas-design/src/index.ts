@@ -43,10 +43,9 @@ export { WorkerManager, getGlobalWorkerManager } from './workers/WorkerManager.j
 export type { WorkerHandler, WorkerHandlerResult } from './workers/types.js'
 
 // ── Actions（供业务层扩展或直接使用） ──
-export { createBanvasActions, getClipboard } from './actions/index.js'
-export { createViewActions } from './actions/viewActions.js'
-export { createPageActions } from './actions/pageActions.js'
-export { createHistoryActions } from './actions/historyActions.js'
+// createBanvasActions / getClipboard / createViewActions 等已迁移至 @banyuan/banvasgl 核心包
+// banvas-design 内部通过 ./actions/index.js 封装注入 viewCreatorStrategies
+// 以下为 banvas-design 特有的创建策略表（具体 View 子类的实例化逻辑）
 export { viewCreatorStrategies, graphCreatorStrategies } from './actions/viewCreateStrategies.js'
 
 // ── Data ──
