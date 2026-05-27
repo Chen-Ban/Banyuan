@@ -1,0 +1,191 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// global.scss — 全局样式入口
+// 替代原有 index.css + App.css
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 1. 注入 CSS Custom Properties（:root）
+@use 'tokens/semantic';
+
+// ── 全局重置 ────────────────────────────────────────────────────────────────
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    height: 100%;
+    font-size: 16px;
+    line-height: 1.5;
+    // 禁止用户缩放（工具类应用）
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'PingFang SC',
+                 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: var(--color-bg-base);
+    color: var(--color-text-primary);
+    overflow: hidden;
+}
+
+#root {
+    height: 100vh;
+    overflow: hidden;
+}
+
+// ── 基础元素重置 ────────────────────────────────────────────────────────────
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+button {
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+input,
+textarea,
+select {
+    font-family: inherit;
+    font-size: inherit;
+    border: none;
+    outline: none;
+}
+
+// ── 全局滚动条（深色主题）───────────────────────────────────────────────────
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.10);
+    border-radius: 3px;
+
+    &:hover {
+        background: rgba(255, 255, 255, 0.18);
+    }
+}
+
+// ── 全局 Ant Design 深色覆盖 ────────────────────────────────────────────────
+// 补充 ConfigProvider 无法覆盖的全局弹出层样式
+
+// Dropdown 菜单
+.ant-dropdown .ant-dropdown-menu {
+    background: var(--color-bg-menu) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-xl) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.ant-dropdown .ant-dropdown-menu-item {
+    color: var(--color-text-secondary) !important;
+
+    &:hover {
+        background: var(--color-bg-hover-md) !important;
+        color: var(--color-text-primary) !important;
+    }
+}
+
+.ant-dropdown .ant-dropdown-menu-item-danger {
+    color: var(--color-error-text) !important;
+
+    &:hover {
+        background: var(--color-error-subtle) !important;
+        color: var(--color-error-text) !important;
+    }
+}
+
+.ant-dropdown .ant-dropdown-menu-item-divider {
+    background: var(--color-divider) !important;
+}
+
+// Modal 弹窗
+.ant-modal-content {
+    background: var(--color-bg-content) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-3xl) !important;
+    box-shadow: var(--shadow-xl) !important;
+}
+
+.ant-modal-header {
+    background: transparent !important;
+}
+
+.ant-modal-footer {
+    background: transparent !important;
+}
+
+.ant-modal-close {
+    color: var(--color-text-tertiary) !important;
+
+    &:hover {
+        color: var(--color-text-secondary) !important;
+        background: var(--color-bg-hover-md) !important;
+    }
+}
+
+// Select 下拉
+.ant-select-dropdown {
+    background: var(--color-bg-elevated) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.ant-select-item {
+    color: var(--color-text-secondary) !important;
+
+    &:hover,
+    &.ant-select-item-option-active {
+        background: var(--color-bg-hover-md) !important;
+        color: var(--color-text-primary) !important;
+    }
+
+    &.ant-select-item-option-selected {
+        background: var(--color-brand-subtle) !important;
+        color: var(--color-brand-text) !important;
+        font-weight: 500;
+    }
+}
+
+// Tooltip
+.ant-tooltip .ant-tooltip-inner {
+    background: var(--color-bg-overlay) !important;
+    color: var(--color-text-primary) !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 12px;
+}
+
+.ant-tooltip .ant-tooltip-arrow::before {
+    background: var(--color-bg-overlay) !important;
+}
+
+// Message 全局提示
+.ant-message-notice-content {
+    background: var(--color-bg-elevated) !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius-lg) !important;
+    color: var(--color-text-primary) !important;
+    box-shadow: var(--shadow-md) !important;
+}

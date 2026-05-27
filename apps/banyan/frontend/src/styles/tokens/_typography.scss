@@ -1,0 +1,41 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Typography Tokens — 字体规范
+// SCSS 变量（编译时确定，不需要运行时切换）
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── 字体栈 ──────────────────────────────────────────────────────────────────
+$font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'PingFang SC',
+            'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+$font-mono: 'SF Mono', 'Menlo', 'JetBrains Mono', 'Fira Code',
+            'Cascadia Code', 'Courier New', monospace;
+
+// ── 字号（以 13px 为 base，对齐 VSCode / Figma 工具类 UI 密度）─────────────
+$text-2xs:  10px;   // 角标、类型标签
+$text-xs:   11px;   // 属性面板标签、辅助说明、section header
+$text-sm:   12px;   // 次级文字、表格内容、空状态
+$text-base: 13px;   // 正文（UI 默认）、导航项、按钮
+$text-md:   14px;   // 正文（内容区）、面包屑
+$text-lg:   16px;   // 小标题（列表页 header）
+$text-xl:   18px;   // 标题（字段编辑器 title）
+$text-2xl:  20px;   // 页面标题（SettingsPage）
+$text-3xl:  28px;   // 大标题
+$text-hero: 52px;   // 展示标题（HomePage hero）
+
+// ── 行高 ────────────────────────────────────────────────────────────────────
+$leading-tight:   1.25;
+$leading-snug:    1.375;
+$leading-normal:  1.5;
+$leading-relaxed: 1.6;
+$leading-loose:   1.65;
+
+// ── 字重 ────────────────────────────────────────────────────────────────────
+$font-normal:   400;
+$font-medium:   500;
+$font-semibold: 600;
+$font-bold:     700;
+
+// ── 字母间距 ────────────────────────────────────────────────────────────────
+$tracking-tight:  -0.01em;
+$tracking-normal:  0;
+$tracking-wide:    0.02em;
+$tracking-wider:   0.05em;   // section header 全大写标签

@@ -1,0 +1,131 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Semantic Tokens — 语义层 CSS Custom Properties
+// 通过 :root 注入，支持运行时主题切换
+// 命名规范：--color-{category}-{role}[-{modifier}]
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'primitives' as *;
+
+:root {
+    // ── 背景色（5层深度）────────────────────────────────────────────────────
+    // depth-1: 最底层，body 背景
+    // depth-2: 主背景，侧边栏、面板
+    // depth-3: 内容区背景，DatabasePage / FunctionsPage
+    // depth-4: 次级背景，卡片、输入框容器
+    // depth-5: 浮层，弹窗、下拉菜单
+    --color-bg-base:        #{$zinc-950};   // #09090b
+    --color-bg-primary:     #{$zinc-900};   // #18181b  侧边栏/主背景
+    --color-bg-content:     #{$zinc-880};   // #13131a  内容区（DB/Functions）
+    --color-bg-canvas:      #{$zinc-860};   // #1a1a1f  画布区
+    --color-bg-canvas-glass: rgba(20, 21, 35, 0.82); // 画布浮层按钮（毛玻璃）
+    --color-bg-secondary:   #{$zinc-850};   // #1e1e23  次级背景
+    --color-bg-input:       #{$zinc-820};   // #1e2030  输入框背景
+    --color-bg-elevated:    #{$zinc-800};   // #27272a  浮层（弹窗）
+    --color-bg-overlay:     #{$zinc-750};   // #2e2e33  最高层浮层（tooltip）
+    --color-bg-menu:        #{$zinc-830};   // #1a1a24  下拉菜单
+
+    // 交互状态背景（透明叠加，适配任意底色）
+    --color-bg-hover:       rgba(255, 255, 255, 0.05);
+    --color-bg-hover-md:    rgba(255, 255, 255, 0.06);
+    --color-bg-active:      rgba(255, 255, 255, 0.08);
+    --color-bg-selected:    rgba(255, 255, 255, 0.10);
+
+    // ── 文字色（4级透明度，参考 Figma + Ant Design Dark）────────────────────
+    --color-text-primary:     rgba(255, 255, 255, 0.88);  // 主文字
+    --color-text-secondary:   rgba(255, 255, 255, 0.65);  // 次级文字（说明、标签）
+    --color-text-tertiary:    rgba(255, 255, 255, 0.38);  // 三级文字（占位、提示）
+    --color-text-disabled:    rgba(255, 255, 255, 0.22);  // 禁用文字
+    --color-text-placeholder: rgba(255, 255, 255, 0.28);  // 输入框占位文字
+    --color-text-inverse:     #{$zinc-950};               // 反色（亮色背景上）
+
+    // ── 品牌色（Violet）────────────────────────────────────────────────────
+    --color-brand:          #{$violet-500};              // #8b5cf6  主品牌色
+    --color-brand-primary:  #{$violet-500};              // 别名，与 --color-brand 等价
+    --color-brand-secondary:#{$indigo-400};              // 辅助品牌色（链接/次级按钮）
+    --color-brand-hover:    #{$violet-400};              // #a78bfa  hover
+    --color-brand-active:   #{$violet-600};              // #7c3aed  active/pressed
+    --color-brand-subtle:   rgba(139, 92, 246, 0.12);   // 品牌色淡背景
+    --color-brand-subtle-hover: rgba(139, 92, 246, 0.16);
+    --color-brand-text:       #{$violet-400};              // 品牌色文字（深色背景上）
+    --color-brand-text-dim:   rgba(139, 92, 246, 0.95);  // 导航激活文字
+    --color-brand-text-dim-50: rgba(167, 139, 250, 0.5); // 激活项次级文字（半透明）
+    --color-brand-border:   rgba(139, 92, 246, 0.40);   // 品牌色边框（hover）
+    --color-brand-border-focus: rgba(139, 92, 246, 0.60); // 品牌色边框（focus）
+
+    // 品牌渐变（Logo / 按钮 / 标题）
+    --gradient-brand: linear-gradient(135deg, #{$violet-400} 0%, #{$indigo-400} 50%, #{$sky-400} 100%);
+    --gradient-brand-btn: linear-gradient(135deg, #{$violet-600}, #{$indigo-500});
+    --color-brand-gradient: linear-gradient(135deg, #{$violet-600}, #{$indigo-500}); // 别名，用于 avatar/submitBtn
+
+    // ── 蓝色（辅助/信息/AiBar 激活）────────────────────────────────────────
+    --color-info:           #{$blue-500};               // #3b82f6
+    --color-info-hover:     #{$blue-600};               // #2563eb
+    --color-info-text:      #{$blue-400};               // #60a5fa
+    --color-info-subtle:    rgba(59, 130, 246, 0.12);
+    --color-info-subtle-hover: rgba(59, 130, 246, 0.18);
+    --color-info-border:    rgba(59, 130, 246, 0.40);   // 蓝色边框（hover/active）
+
+    // 数据库页激活色（蓝色系）
+    --color-db-active-text:     #69b1ff;
+    --color-db-active-text-dim: rgba(105, 177, 255, 0.6);  // 激活项次级文字（半透明）
+    --color-db-active-bg:       rgba(22, 119, 255, 0.12);
+
+    // ── 边框 / 分隔线 ────────────────────────────────────────────────────────
+    --color-border:         rgba(255, 255, 255, 0.08);  // 默认边框
+    --color-border-hover:   rgba(255, 255, 255, 0.18);  // hover 边框
+    --color-border-md:      rgba(255, 255, 255, 0.10);  // 中等边框
+    --color-border-strong:  rgba(255, 255, 255, 0.14);  // 强调边框
+    --color-border-focus:   #{$violet-500};              // 聚焦边框（品牌色）
+    --color-border-focus-info: #{$blue-500};             // 聚焦边框（蓝色，AiBar）
+    --color-divider:        rgba(255, 255, 255, 0.05);  // 分隔线（更淡）
+    --color-divider-dashed: rgba(255, 255, 255, 0.10);  // 虚线分隔
+
+    // ── 语义色 ──────────────────────────────────────────────────────────────
+    --color-success:        #{$green-500};              // #22c55e
+    --color-success-text:   #{$green-400};              // #4ade80
+    --color-success-subtle: rgba(34, 197, 94, 0.12);
+
+    --color-warning:        #{$amber-500};              // #f59e0b
+    --color-warning-text:   #{$amber-400};              // #fbbf24
+    --color-warning-subtle: rgba(250, 173, 20, 0.08);
+    --color-warning-border: rgba(250, 173, 20, 0.20);
+    --color-warning-badge:  #fa8c16;                    // 橙色 badge 文字
+
+    --color-error:          #{$red-500};                // #ef4444
+    --color-error-text:     #{$red-400};                // #f87171
+    --color-error-subtle:   rgba(248, 113, 113, 0.08);
+    --color-error-border:   rgba(248, 113, 113, 0.12);
+
+    // ── 阴影 ────────────────────────────────────────────────────────────────
+    --shadow-sm:  0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.6);
+    --shadow-xl:  0 24px 64px rgba(0, 0, 0, 0.6);
+    --shadow-overlay: 0 8px 32px rgba(0, 0, 0, 0.5);  // 下拉菜单/弹窗阴影
+    --shadow-brand: 0 4px 16px rgba(124, 58, 237, 0.4);
+    --shadow-brand-hover: 0 6px 20px rgba(124, 58, 237, 0.55);
+    --shadow-focus-brand: 0 0 0 3px rgba(139, 92, 246, 0.15); // 品牌色 focus ring
+    --shadow-info: 0 0 0 3px rgba(59, 130, 246, 0.10);
+    --shadow-brand-ring: 0 0 0 3px rgba(139, 92, 246, 0.12);
+
+    // ── 圆角 ────────────────────────────────────────────────────────────────
+    --radius-xs:  2px;
+    --radius-sm:  4px;
+    --radius-md:  6px;
+    --radius-lg:  8px;
+    --radius-xl:  10px;
+    --radius-2xl: 12px;
+    --radius-3xl: 16px;
+    --radius-full: 9999px;
+
+    // ── 动效时长 ────────────────────────────────────────────────────────────
+    --duration-fast:   0.10s;
+    --duration-normal: 0.15s;
+    --duration-slow:   0.20s;
+    --duration-drawer: 0.30s;
+    --easing-default:  ease;
+
+    // ── 对话气泡 ─────────────────────────────────────────────────────────────
+    --color-bubble-user-bg:     #2a3a5c;                    // 用户气泡背景（深蓝）
+    --color-bubble-user-border: rgba(59, 130, 246, 0.25);   // 用户气泡边框
+}

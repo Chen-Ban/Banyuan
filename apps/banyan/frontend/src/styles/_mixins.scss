@@ -1,0 +1,163 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Mixins — 常用样式组合
+// ─────────────────────────────────────────────────────────────────────────────
+
+@use 'tokens/typography' as *;
+
+// ── 布局 ────────────────────────────────────────────────────────────────────
+
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+@mixin flex-col {
+    display: flex;
+    flex-direction: column;
+}
+
+@mixin fill-parent {
+    width: 100%;
+    height: 100%;
+}
+
+// ── 文字截断 ────────────────────────────────────────────────────────────────
+
+@mixin truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@mixin line-clamp($n) {
+    display: -webkit-box;
+    -webkit-line-clamp: $n;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+// ── 滚动条（深色主题）───────────────────────────────────────────────────────
+
+@mixin scrollbar-dark($width: 4px) {
+    &::-webkit-scrollbar {
+        width: $width;
+        height: $width;
+    }
+    &::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.10);
+        border-radius: calc($width / 2);
+        &:hover {
+            background: rgba(255, 255, 255, 0.18);
+        }
+    }
+}
+
+@mixin scrollbar-dark-md {
+    @include scrollbar-dark(6px);
+}
+
+// ── 交互状态（通用可点击项）────────────────────────────────────────────────
+
+@mixin interactive-item($radius: 6px) {
+    cursor: pointer;
+    border-radius: $radius;
+    transition: background var(--duration-normal) var(--easing-default),
+                color var(--duration-normal) var(--easing-default);
+    &:hover  { background: var(--color-bg-hover-md); }
+    &:active { background: var(--color-bg-active); }
+}
+
+// ── 文字样式组合 ────────────────────────────────────────────────────────────
+
+// Section header（全大写标签，属性面板 / 列表侧边栏）
+@mixin label-section {
+    font-size: $text-xs;
+    font-weight: $font-semibold;
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: $tracking-wider;
+}
+
+// 主文字
+@mixin text-primary {
+    font-size: $text-base;
+    color: var(--color-text-primary);
+}
+
+// 次级文字
+@mixin text-secondary {
+    font-size: $text-sm;
+    color: var(--color-text-secondary);
+}
+
+// 等宽代码文字
+@mixin text-mono {
+    font-family: $font-mono;
+}
+
+// ── 玻璃拟态（浮层、弹窗）──────────────────────────────────────────────────
+
+@mixin glass-surface {
+    background: var(--color-bg-elevated);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-lg);
+}
+
+// ── 品牌渐变按钮 ────────────────────────────────────────────────────────────
+
+@mixin btn-brand {
+    background: var(--gradient-brand-btn);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    transition: opacity var(--duration-normal), transform var(--duration-fast),
+                box-shadow var(--duration-normal);
+    box-shadow: var(--shadow-brand);
+
+    &:hover:not(:disabled) {
+        opacity: 0.9;
+        box-shadow: var(--shadow-brand-hover);
+    }
+    &:active:not(:disabled) {
+        transform: scale(0.98);
+    }
+    &:disabled {
+        background: var(--color-bg-active);
+        color: var(--color-text-disabled);
+        box-shadow: none;
+        cursor: not-allowed;
+    }
+}
+
+// ── 胶囊容器（ApplicationLayout header）────────────────────────────────────
+
+@mixin capsule-container {
+    display: flex;
+    align-items: center;
+    background: var(--color-bg-hover);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: 3px;
+    gap: 1px;
+    flex-shrink: 0;
+}
+
+// ── 卡片 ────────────────────────────────────────────────────────────────────
+
+@mixin card-dark($radius: 12px) {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--color-border);
+    border-radius: $radius;
+    transition: border-color var(--duration-normal), background var(--duration-normal);
+}
