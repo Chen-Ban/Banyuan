@@ -1,34 +1,40 @@
 /**
- * 对话会话服务
+ * 对话会话服务（V2）
  *
  * 基于"1 App = 1 Conversation"模型，所有操作以 appId 为键。
- * 不再有多会话概念，appId 即可唯一定位会话。
+ *
+ * 核心变更（相对 V1）：
+ *   - 操作单元从 message 变为 dialogue（对话）
+ *   - 创建对话时指定类型（chat/task）和 threadId
+ *   - 消息追加到当前活跃的 dialogue 内
+ *   - threadId/threadStatus 挂载到 dialogue 级别
+ *   - summary/embedding 是对整个对话的总结
  *
  * 核心职责：
  *   - 获取或创建会话（按 appId 自动创建）
- *   - 追加消息（用户消息 + AI 消息分两次写入）
- *   - 读取历史消息（注入 XiangDi LangGraph state）
- *   - 清空消息（用户点"新对话"时重置）
- *   - 删除会话（随应用一起删除）
- *
- * 消息写入策略：
- *   - 用户发送 prompt 时，立即追加 user 消息
- *   - AI 执行完成（done 事件）后，追加 assistant 消息（LLM 最终输出文本）
- *   - tool_call / tool_result 不写入 Conversation（仅用于实时 SSE 展示）
- *   - 若 AI 执行失败，不写入 assistant 消息（保持历史干净）
+ *   - 创建新对话（Dialogue）
+ *   - 在对话内追加消息（用户消息 + AI 消息）
+ *   - 更新对话状态（threadStatus）
+ *   - 读取对话历史（用于前端展示和上下文构建）
+ *   - 持久化对话摘要（summary + embedding）
  */
 
 import { Types } from 'mongoose'
-import Conversation, { IConversation, IMessage, IRound } from '../models/Conversation.js'
+import Conversation, {
+  type IConversation,
+  type IDialogue,
+  type IMessage,
+  type IUserContent,
+  type IAssistantContent,
+  type DialogueType,
+  type ThreadStatus,
+} from '../models/Conversation.js'
 
 // ─── ConversationService ──────────────────────────────────────────────────────
 
 class ConversationService {
   /**
    * 获取或创建会话（按 appId，唯一）
-   *
-   * 由于 appId 是 unique 索引，直接 upsert 即可。
-   * 不存在时自动创建空会话文档。
    */
   async getOrCreate(appId: string): Promise<IConversation> {
     const existing = await Conversation.findOne({ appId })
@@ -36,208 +42,313 @@ class ConversationService {
 
     const conv = new Conversation({
       appId,
-      messages: [],
-      messageCount: 0,
+      dialogues: [],
     })
     await conv.save()
     return conv
   }
 
   /**
-   * 按 appId 获取会话（含完整消息历史）
+   * 按 appId 获取会话
    */
   async getByApp(appId: string): Promise<IConversation | null> {
     return Conversation.findOne({ appId })
   }
 
+  // ─── 对话（Dialogue）操作 ──────────────────────────────────────────────────
+
   /**
-   * 追加用户消息（在 AI 执行前调用）
+   * 创建新对话并追加第一条用户消息
    *
-   * 返回包含 _id 的消息对象，用于构造 threadId。
-   *
-   * @param appId    应用 ID
-   * @param userText 用户输入的文本
-   * @returns 插入的消息对象（含自动生成的 _id）
+   * @param appId       应用 ID
+   * @param type        对话类型（chat/task）
+   * @param userContent 用户消息内容
+   * @returns 新创建的 dialogue（含 _id）和 user message（含 _id）
    */
-  async appendUserMessage(appId: string, userText: string): Promise<{ _id: Types.ObjectId }> {
-    const userMsg: IMessage = {
+  async createDialogue(
+    appId: string,
+    type: DialogueType,
+    userContent: IUserContent
+  ): Promise<{ dialogueId: Types.ObjectId; messageId: Types.ObjectId }> {
+    const now = new Date()
+
+    const userMessage: IMessage = {
       role: 'user',
-      content: userText,
-      createdAt: new Date(),
+      userContent,
+      createdAt: now,
+    }
+
+    const dialogue: IDialogue = {
+      type,
+      messages: [userMessage],
+      createdAt: now,
+      updatedAt: now,
     }
 
     const result = await Conversation.findOneAndUpdate(
       { appId },
-      {
-        $push: { messages: userMsg },
-        $inc: { messageCount: 1 },
-      },
-      { new: true, projection: { messages: { $slice: -1 } } }
+      { $push: { dialogues: dialogue } },
+      { new: true, projection: { dialogues: { $slice: -1 } } }
     )
 
-    // 防御性检查：Conversation 文档可能在 getOrCreate 之后被并发删除
-    if (!result || result.messages.length === 0) {
-      throw new Error(`Conversation for app ${appId} not found or message insertion failed`)
+    if (!result || result.dialogues.length === 0) {
+      throw new Error(`Conversation for app ${appId} not found or dialogue creation failed`)
     }
 
-    // 返回刚插入的消息（含 mongoose 自动生成的 _id）
-    const insertedMsg = result.messages[0]
-    return { _id: insertedMsg._id! }
+    const createdDialogue = result.dialogues[0]
+    const createdMessage = createdDialogue.messages[0]
+
+    return {
+      dialogueId: createdDialogue._id!,
+      messageId: createdMessage._id!,
+    }
   }
 
   /**
-   * 追加 AI 助手消息（在 done 事件后调用）
+   * 在现有对话内追加用户消息（用于 interrupted 后用户回复）
    *
-   * @param appId          应用 ID
-   * @param assistantText  AI 最终输出文本
+   * @param appId       应用 ID
+   * @param dialogueId  对话 ID
+   * @param userContent 用户消息内容
+   * @returns 新消息的 _id
    */
-  async appendAssistantMessage(appId: string, assistantText: string): Promise<void> {
-    if (!assistantText) return
+  async appendUserMessage(
+    appId: string,
+    dialogueId: Types.ObjectId,
+    userContent: IUserContent
+  ): Promise<Types.ObjectId> {
+    const now = new Date()
 
-    const assistantMsg: IMessage = {
+    const userMessage: IMessage = {
+      role: 'user',
+      userContent,
+      createdAt: now,
+    }
+
+    const result = await Conversation.findOneAndUpdate(
+      { appId, 'dialogues._id': dialogueId },
+      {
+        $push: { 'dialogues.$.messages': userMessage },
+        $set: { 'dialogues.$.updatedAt': now },
+      },
+      { new: true, projection: { 'dialogues.$': 1 } }
+    )
+
+    if (!result || result.dialogues.length === 0) {
+      throw new Error(`Dialogue ${dialogueId} not found in app ${appId}`)
+    }
+
+    const messages = result.dialogues[0].messages
+    const lastMessage = messages[messages.length - 1]
+    return lastMessage._id!
+  }
+
+  /**
+   * 在现有对话内追加助手消息
+   *
+   * @param appId            应用 ID
+   * @param dialogueId       对话 ID
+   * @param assistantContent 助手消息内容块列表
+   */
+  async appendAssistantMessage(
+    appId: string,
+    dialogueId: Types.ObjectId,
+    assistantContent: IAssistantContent[]
+  ): Promise<void> {
+    if (!assistantContent || assistantContent.length === 0) return
+
+    const now = new Date()
+
+    const assistantMessage: IMessage = {
       role: 'assistant',
-      content: assistantText,
-      createdAt: new Date(),
+      assistantContent,
+      createdAt: now,
     }
 
     await Conversation.updateOne(
-      { appId },
+      { appId, 'dialogues._id': dialogueId },
       {
-        $push: { messages: assistantMsg },
-        $inc: { messageCount: 1 },
+        $push: { 'dialogues.$.messages': assistantMessage },
+        $set: { 'dialogues.$.updatedAt': now },
+      }
+    )
+  }
+
+  // ─── 对话状态管理 ──────────────────────────────────────────────────────────
+
+  /**
+   * 设置对话的 threadId 和执行状态
+   */
+  async setThreadInfo(
+    appId: string,
+    dialogueId: Types.ObjectId,
+    threadId: string,
+    status: ThreadStatus
+  ): Promise<void> {
+    await Conversation.updateOne(
+      { appId, 'dialogues._id': dialogueId },
+      {
+        $set: {
+          'dialogues.$.threadId': threadId,
+          'dialogues.$.threadStatus': status,
+        },
       }
     )
   }
 
   /**
-   * 获取会话的历史消息（用于注入 XiangDi LangGraph state）
-   *
-   * 返回格式与 XiangDi Message 类型兼容：
-   *   { role: 'user' | 'assistant', content: string | ContentBlock[] }
-   *
-   * @param appId       应用 ID
-   * @param maxMessages 最多返回的消息条数（从最新开始截取），默认 50
-   */
-  async getMessages(
-    appId: string,
-    maxMessages = 50
-  ): Promise<Array<{ role: 'user' | 'assistant'; content: IMessage['content'] }>> {
-    const conv = await Conversation.findOne({ appId }).select('messages')
-    if (!conv || conv.messages.length === 0) return []
-
-    // 取最新的 maxMessages 条
-    const msgs = conv.messages.slice(-maxMessages)
-    return msgs.map((m) => ({ role: m.role, content: m.content }))
-  }
-
-  /**
-   * 追加本轮对话记录（Round）到 rounds 数组。
-   *
-   * 在 done 事件 + round_summary 事件均到达后调用。
-   * 一轮 = user 消息（startIndex） + assistant 消息（endIndex - 1）
-   *
-   * @param appId        应用 ID
-   * @param userPrompt   用户本轮输入（前 200 字符）
-   * @param roundSummary XiangDi summarize 节点产出的整轮摘要
-   * @param embedding    roundSummary 的向量嵌入（384 维），后续语义检索用
-   */
-  async appendRound(
-    appId: string,
-    userPrompt: string,
-    roundSummary: string,
-    embedding: number[] | null
-  ): Promise<void> {
-    // 读取当前 messageCount 确定索引范围
-    const conv = await Conversation.findOne({ appId }).select('messageCount rounds')
-    if (!conv) return
-
-    const endIndex = conv.messageCount
-    // startIndex = 本轮 user 消息的位置（至少是上一个 round 的 endIndex，或两条之前）
-    const lastRound = conv.rounds.length > 0 ? conv.rounds[conv.rounds.length - 1] : null
-    const startIndex = lastRound ? lastRound.endIndex : Math.max(0, endIndex - 2)
-
-    const round: IRound = {
-      startIndex,
-      endIndex,
-      userPrompt: userPrompt.slice(0, 200),
-      roundSummary,
-      embedding,
-      createdAt: new Date(),
-    }
-
-    await Conversation.updateOne(
-      { appId },
-      { $push: { rounds: round } }
-    )
-  }
-
-  /**
-   * 获取所有 rounds（含 embedding），用于 ContextBuilder 按需检索
-   */
-  async getRounds(appId: string): Promise<IRound[]> {
-    const conv = await Conversation.findOne({ appId }).select('rounds')
-    if (!conv) return []
-    return conv.rounds
-  }
-
-  /**
-   * 根据 round 的 startIndex/endIndex 从 messages 中取出对应的完整消息
-   */
-  async getMessagesByRange(
-    appId: string,
-    startIndex: number,
-    endIndex: number
-  ): Promise<Array<{ role: 'user' | 'assistant'; content: IMessage['content'] }>> {
-    const conv = await Conversation.findOne({ appId }).select('messages')
-    if (!conv) return []
-    const slice = conv.messages.slice(startIndex, endIndex)
-    return slice.map((m) => ({ role: m.role, content: m.content }))
-  }
-
-  /**
-   * 更新指定 message 的 threadId 和执行状态
-   * @param appId    应用 ID
-   * @param threadId 线程 ID（格式: appId:messageId）
-   * @param status   执行状态
+   * 更新对话的执行状态
    */
   async updateThreadStatus(
     appId: string,
-    threadId: string,
-    status: 'running' | 'completed' | 'interrupted' | 'failed'
+    dialogueId: Types.ObjectId,
+    status: ThreadStatus
   ): Promise<void> {
-    // threadId 格式为 "appId:messageId"，使用 lastIndexOf 防止 appId 含冒号时误截
-    const colonIndex = threadId.lastIndexOf(':')
-    const messageId = threadId.slice(colonIndex + 1)
     await Conversation.updateOne(
-      { appId, 'messages._id': new Types.ObjectId(messageId) },
-      { $set: { 'messages.$.threadId': threadId, 'messages.$.threadStatus': status } }
+      { appId, 'dialogues._id': dialogueId },
+      { $set: { 'dialogues.$.threadStatus': status } }
     )
   }
 
   /**
-   * 查找最近一个未完成的 thread（running 或 interrupted 状态）
-   * @param appId 应用 ID
-   * @returns 未完成的 threadId 和状态，若无则返回 null
+   * 查找最近一个未完成的对话（running 或 interrupted 状态）
    */
-  async getLastPendingThread(
+  async getLastPendingDialogue(
     appId: string
-  ): Promise<{ threadId: string; status: string } | null> {
-    const conv = await Conversation.findOne(
-      { appId },
-      { messages: { $slice: -20 } }
-    )
-    if (!conv) return null
+  ): Promise<{ dialogueId: Types.ObjectId; threadId: string; status: ThreadStatus } | null> {
+    const conv = await Conversation.findOne({ appId }).select('dialogues')
+    if (!conv || conv.dialogues.length === 0) return null
 
-    for (let i = conv.messages.length - 1; i >= 0; i--) {
-      const msg = conv.messages[i]
-      if (msg.role === 'user' && msg.threadId &&
-          (msg.threadStatus === 'running' || msg.threadStatus === 'interrupted')) {
-        return { threadId: msg.threadId, status: msg.threadStatus }
+    // 从最新的对话往前找
+    for (let i = conv.dialogues.length - 1; i >= 0; i--) {
+      const dialogue = conv.dialogues[i]
+      if (
+        dialogue.threadId &&
+        (dialogue.threadStatus === 'running' || dialogue.threadStatus === 'interrupted')
+      ) {
+        return {
+          dialogueId: dialogue._id!,
+          threadId: dialogue.threadId,
+          status: dialogue.threadStatus,
+        }
       }
     }
     return null
   }
 
+  // ─── 对话摘要 ──────────────────────────────────────────────────────────────
+
+  /**
+   * 持久化对话摘要和向量嵌入
+   */
+  async setSummary(
+    appId: string,
+    dialogueId: Types.ObjectId,
+    summary: string,
+    embedding: number[] | null
+  ): Promise<void> {
+    await Conversation.updateOne(
+      { appId, 'dialogues._id': dialogueId },
+      {
+        $set: {
+          'dialogues.$.summary': summary,
+          'dialogues.$.embedding': embedding,
+        },
+      }
+    )
+  }
+
+  // ─── 读取接口 ──────────────────────────────────────────────────────────────
+
+  /**
+   * 获取应用的对话列表（用于前端展示）
+   *
+   * @param appId 应用 ID
+   * @param limit 最多返回的对话数（从最新开始截取），默认 50
+   */
+  async getDialogues(appId: string, limit = 50): Promise<Omit<IDialogue, 'embedding'>[]> {
+    const conv = await Conversation.findOne({ appId }).select('dialogues')
+    if (!conv || conv.dialogues.length === 0) return []
+
+    // 取最新的 limit 个对话，过滤掉 embedding 字段（高维向量不传给前端）
+    const dialogues = conv.dialogues.slice(-limit)
+    return dialogues.map(d => {
+      // Mongoose subdocument → plain object（兼容 lean 查询和普通查询）
+      const obj = (typeof (d as unknown as { toObject?: () => unknown }).toObject === 'function'
+        ? (d as unknown as { toObject: () => Record<string, unknown> }).toObject()
+        : d) as Record<string, unknown>
+      const { embedding: _embedding, ...rest } = obj
+      return rest as Omit<IDialogue, 'embedding'>
+    })
+  }
+
+  /**
+   * 获取所有对话的摘要和向量（用于 ContextBuilder 语义检索）
+   */
+  async getDialogueSummaries(
+    appId: string
+  ): Promise<Array<{ dialogueId: Types.ObjectId; summary: string; embedding: number[] | null; type: DialogueType; createdAt: Date }>> {
+    const conv = await Conversation.findOne({ appId }).select('dialogues')
+    if (!conv) return []
+
+    return conv.dialogues
+      .filter((d) => d.summary)
+      .map((d) => ({
+        dialogueId: d._id!,
+        summary: d.summary!,
+        embedding: d.embedding ?? null,
+        type: d.type,
+        createdAt: d.createdAt,
+      }))
+  }
+
+  /**
+   * 获取指定对话的完整消息（用于 ContextBuilder 命中后回溯）
+   */
+  async getDialogueMessages(
+    appId: string,
+    dialogueId: Types.ObjectId
+  ): Promise<IMessage[]> {
+    const conv = await Conversation.findOne(
+      { appId, 'dialogues._id': dialogueId },
+      { 'dialogues.$': 1 }
+    )
+    if (!conv || conv.dialogues.length === 0) return []
+    return conv.dialogues[0].messages
+  }
+
+  /**
+   * 获取最近 N 条对话中的消息（用于构建 recentMessages 上下文）
+   * 返回扁平化的消息列表，按时间顺序
+   */
+  async getRecentMessages(
+    appId: string,
+    maxDialogues = 5
+  ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
+    const conv = await Conversation.findOne({ appId }).select('dialogues')
+    if (!conv || conv.dialogues.length === 0) return []
+
+    const recentDialogues = conv.dialogues.slice(-maxDialogues)
+    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = []
+
+    for (const dialogue of recentDialogues) {
+      for (const msg of dialogue.messages) {
+        if (msg.role === 'user' && msg.userContent) {
+          messages.push({ role: 'user', content: msg.userContent.prompt })
+        } else if (msg.role === 'assistant' && msg.assistantContent) {
+          // 提取 assistant 消息中的文本内容
+          const textParts = msg.assistantContent
+            .filter((c): c is { type: 'text'; text: string } & typeof c => c.type === 'text')
+            .map((c) => (c as { type: 'text'; text: string }).text)
+          if (textParts.length > 0) {
+            messages.push({ role: 'assistant', content: textParts.join('') })
+          }
+        }
+      }
+    }
+
+    return messages
+  }
 }
 
 export default new ConversationService()

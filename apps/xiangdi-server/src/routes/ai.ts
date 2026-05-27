@@ -69,6 +69,7 @@ import {
     buildSystemPrompt,
     generateAISchemaDoc,
     createMasterGraph,
+    createChatGraph,
     LLMRouter,
     registerKnowledgeSearchTool,
     registerSchemaTools,
@@ -236,7 +237,7 @@ function createSSEStreamCallback(
 // ─── POST /ai/run ─────────────────────────────────────────────────────────────
 
 router.post('/run', async (ctx) => {
-    const { appId, prompt, threadId: clientThreadId, previousMessages, memoryHint, agentMemory, requireApproval } = ctx.request.body as {
+    const { appId, prompt, threadId: clientThreadId, previousMessages, memoryHint, agentMemory, requireApproval, mode, images } = ctx.request.body as {
         appId?: string
         prompt?: string
         threadId?: string
@@ -246,6 +247,10 @@ router.post('/run', async (ctx) => {
         agentMemory?: string
         /** 是否需要人工审批（默认 false 即 autoRun 模式） */
         requireApproval?: boolean
+        /** 对话模式：chat（轻量聊天）| task（完整任务管线），默认 task */
+        mode?: 'chat' | 'task'
+        /** 用户上传的图片 URL 列表（已上传至 OSS） */
+        images?: string[]
     }
 
     if (!appId || typeof appId !== 'string') {
@@ -295,57 +300,11 @@ router.post('/run', async (ctx) => {
     reqLogger.info('Agent run started', { appId, threadId, hasMemoryHint: !!memoryHint, hasAgentMemory: !!agentMemory })
 
     try {
-        // 1. 通过 BanyanClient 按需拉取 pages（Pull-based 架构）
-        //    pages 在 banyan 后端已由前端上传并持久化到 DB，此处从 DB 拉取最新快照
-        const pages = await banyanClient.getPages(appId)
-        const adapter = createMemoryAdapter(pages)
-        const registry = createBanvasToolRegistry(adapter)
-        registerKnowledgeSearchTool(registry, knowledgeStore)
-
-        // 1b. 注册数据拉取工具（AI 可按需获取 pages/schema/cloudFunctions）
-        registerDataFetchTools(registry, banyanClient, appId)
-
-        // 1c. 注册 Schema 工具（读取通过 BanyanClient 拉取，写入通过 SSE 推送）
-        //     首次 schema 通过 BanyanClient 获取，后续 session 内的修改在内存中更新
-        const initialSchema = await banyanClient.getSchema(appId)
-        const currentSchema: AppSchemaSnapshot = {
-            collections: initialSchema as unknown as SchemaCollectionDef[],
-        }
-        registerSchemaTools(registry, {
-            schemaReader: () => currentSchema,
-            schemaWriter: (collections: SchemaCollectionDef[]) => {
-                // 同步更新内存快照，避免同一 session 中后续 schema_get 读到旧数据
-                currentSchema.collections = collections
-                sseWrite(res, 'schema_update', { collections })
-            },
-        })
-
-        // 2. 初始化 LLM 客户端
+        // 初始化 LLM 客户端（chat 和 task 共用）
         const client = await createLLMClient()
         const llmRouter = client as LLMRouter
-        const activeModel = getActiveModel(llmRouter)
 
-        // 3. 构建 StreamCallback，桥接 Agent 事件 → SSE
-        const streamCallback = createSSEStreamCallback(res, adapter, threadId)
-
-        // 4. 构建上下文分层
-        //    L1: System Prompt（AISchema + 工具定义 + 通用规则）
-        //    L2: AgentMemory（Agent 经验 + 事实，含用户偏好）
-        //    L3: ContextSummary（历史摘要，动态拼接传入）
-        const systemPrompt = buildSystemPrompt({ aiSchemaDoc })
-
-        // 5. 创建 MasterGraph V2 统一管线（带 checkpointer 持久化）
-        const checkpointer = getCheckpointer()
-        const masterGraph = createMasterGraph({
-            llmClient: client,
-            toolRegistry: registry,
-            streamCallback,
-            autoRun: !requireApproval,
-            checkpointer,
-        })
-
-        // 6. 构建初始 messages（历史对话 + 当前 prompt）
-        //    L2(agentMemory) 和 L3(contextSummary) 作为独立字段传入 state，由 Plan 节点使用
+        // 构建初始 messages（历史对话 + 当前 prompt）
         const initialMessages: import('@langchain/core/messages').BaseMessage[] = []
 
         // 注入历史消息
@@ -362,60 +321,135 @@ router.post('/run', async (ctx) => {
             }
         }
 
-        // 添加当前用户 prompt
-        initialMessages.push(new HumanMessage(prompt))
-
-        // 7. 执行 MasterGraph V2（带 thread_id 用于 checkpoint 持久化）
-        recordThreadActivity(threadId, 'running')
-        const result = await masterGraph.invoke({
-            messages: initialMessages,
-            systemPrompt,
-            agentMemory: agentMemory ?? '',
-            contextSummary: memoryHint ?? '',
-            maxIterations: 30,
-            finalText: '',
-            projectSpec: null,
-            conflictPending: null,
-            planOutput: null,
-            planIterations: 0,
-            humanApproved: true,
-            subResults: [],
-            assemblyPlan: null,
-            auditResult: null,
-            auditRetries: 0,
-            auditErrorSummary: '',
-            planPhaseSummary: '',
-            executePhaseSummary: '',
-            roundSummary: '',
-        }, {
-            recursionLimit: 100,
-            configurable: { thread_id: threadId },
-        })
-
-        // 8. 检查执行是否因 interrupt() 暂停（humanGate 等节点）
-        const graphState = await masterGraph.getState({ configurable: { thread_id: threadId } })
-        const next = graphState?.next ?? []
-        const tasks = (graphState as { tasks?: Array<{ interrupts?: Array<{ value?: unknown }> }> })?.tasks ?? []
-        const interruptedTask = tasks.find((t) =>
-            Array.isArray(t.interrupts) && t.interrupts.length > 0
-        )
-
-        if (interruptedTask && next.length > 0) {
-            // 图被中断：发送 interrupt 事件，通知客户端需要人工介入
-            const interruptValue = interruptedTask.interrupts![0]?.value ?? null
-            sseWrite(res, 'checkpoint', { threadId, node: next[0], step: 'interrupted' })
-            sseWrite(res, 'interrupt', {
-                threadId,
-                node: next[0],
-                value: interruptValue,
-            })
-            recordThreadActivity(threadId, 'interrupted')
+        // 添加当前用户 prompt（如果有图片，构建多模态消息）
+        if (Array.isArray(images) && images.length > 0) {
+            // 多模态消息：文本 + 图片 URL
+            const multimodalContent: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = [
+                { type: 'text', text: prompt },
+                ...images.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
+            ]
+            initialMessages.push(new HumanMessage({ content: multimodalContent }))
         } else {
-            // 图正常完成：发送 done 事件
-            sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
-            const finalPages = await adapter.getPages()
-            sseWrite(res, 'done', { pages: finalPages, threadId })
+            initialMessages.push(new HumanMessage(prompt))
+        }
+
+        // ─── 根据 mode 路由到不同的 Graph ─────────────────────────────────────
+        if (mode === 'chat') {
+            // ═══ Chat 模式：轻量聊天管线（无工具、无知识检索）═══
+            const adapter = createMemoryAdapter([])
+            const streamCallback = createSSEStreamCallback(res, adapter, threadId)
+
+            const chatGraph = createChatGraph({
+                llmClient: client,
+                streamCallback,
+                chatModel: getActiveModel(llmRouter),
+            })
+
+            recordThreadActivity(threadId, 'running')
+            const result = await chatGraph.invoke({
+                messages: initialMessages,
+                agentMemory: agentMemory ?? '',
+                contextSummary: memoryHint ?? '',
+                finalText: '',
+                roundSummary: '',
+            })
+
+            // Chat 模式不支持 interrupt，直接发送 done
+            sseWrite(res, 'done', { pages: [], threadId, roundSummary: result.roundSummary ?? '' })
             recordThreadActivity(threadId, 'completed')
+        } else {
+            // ═══ Task 模式：完整 MasterGraph V2 管线 ═══
+
+            // 1. 通过 BanyanClient 按需拉取 pages（Pull-based 架构）
+            const pages = await banyanClient.getPages(appId)
+            const adapter = createMemoryAdapter(pages)
+            const registry = createBanvasToolRegistry(adapter)
+            registerKnowledgeSearchTool(registry, knowledgeStore)
+
+            // 1b. 注册数据拉取工具（AI 可按需获取 pages/schema/cloudFunctions）
+            registerDataFetchTools(registry, banyanClient, appId)
+
+            // 1c. 注册 Schema 工具（读取通过 BanyanClient 拉取，写入通过 SSE 推送）
+            const initialSchema = await banyanClient.getSchema(appId)
+            const currentSchema: AppSchemaSnapshot = {
+                collections: initialSchema as unknown as SchemaCollectionDef[],
+            }
+            registerSchemaTools(registry, {
+                schemaReader: () => currentSchema,
+                schemaWriter: (collections: SchemaCollectionDef[]) => {
+                    currentSchema.collections = collections
+                    sseWrite(res, 'schema_update', { collections })
+                },
+            })
+
+            // 2. 构建 StreamCallback，桥接 Agent 事件 → SSE
+            const streamCallback = createSSEStreamCallback(res, adapter, threadId)
+
+            // 3. 构建上下文分层
+            const systemPrompt = buildSystemPrompt({ aiSchemaDoc })
+
+            // 4. 创建 MasterGraph V2 统一管线（带 checkpointer 持久化）
+            const checkpointer = getCheckpointer()
+            const masterGraph = createMasterGraph({
+                llmClient: client,
+                toolRegistry: registry,
+                streamCallback,
+                autoRun: !requireApproval,
+                checkpointer,
+            })
+
+            // 5. 执行 MasterGraph V2（带 thread_id 用于 checkpoint 持久化）
+            recordThreadActivity(threadId, 'running')
+            const result = await masterGraph.invoke({
+                messages: initialMessages,
+                systemPrompt,
+                agentMemory: agentMemory ?? '',
+                contextSummary: memoryHint ?? '',
+                maxIterations: 30,
+                finalText: '',
+                projectSpec: null,
+                conflictPending: null,
+                planOutput: null,
+                planIterations: 0,
+                humanApproved: true,
+                subResults: [],
+                assemblyPlan: null,
+                auditResult: null,
+                auditRetries: 0,
+                auditErrorSummary: '',
+                planPhaseSummary: '',
+                executePhaseSummary: '',
+                roundSummary: '',
+            }, {
+                recursionLimit: 100,
+                configurable: { thread_id: threadId },
+            })
+
+            // 6. 检查执行是否因 interrupt() 暂停（humanGate 等节点）
+            const graphState = await masterGraph.getState({ configurable: { thread_id: threadId } })
+            const next = graphState?.next ?? []
+            const tasks = (graphState as { tasks?: Array<{ interrupts?: Array<{ value?: unknown }> }> })?.tasks ?? []
+            const interruptedTask = tasks.find((t) =>
+                Array.isArray(t.interrupts) && t.interrupts.length > 0
+            )
+
+            if (interruptedTask && next.length > 0) {
+                // 图被中断：发送 interrupt 事件，通知客户端需要人工介入
+                const interruptValue = interruptedTask.interrupts![0]?.value ?? null
+                sseWrite(res, 'checkpoint', { threadId, node: next[0], step: 'interrupted' })
+                sseWrite(res, 'interrupt', {
+                    threadId,
+                    node: next[0],
+                    value: interruptValue,
+                })
+                recordThreadActivity(threadId, 'interrupted')
+            } else {
+                // 图正常完成：发送 done 事件
+                sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
+                const finalPages = await adapter.getPages()
+                sseWrite(res, 'done', { pages: finalPages, threadId })
+                recordThreadActivity(threadId, 'completed')
+            }
         }
     } catch (err) {
         if (err instanceof ServiceUnavailableError) {

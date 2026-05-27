@@ -1,10 +1,10 @@
 /**
- * 对话会话路由
+ * 对话会话路由（V2）
  *
  * 基于"1 App = 1 Conversation"模型，路由挂载在 /api/applications/:appId 下。
- * 会话只增不删，仅提供消息读取接口。
+ * V2 变更：返回 Dialogue[] 而非扁平 messages[]。
  *
- * GET /api/applications/:appId/conversation/messages — 获取对话历史消息
+ * GET /api/applications/:appId/conversation/dialogues — 获取对话列表（分页）
  */
 
 import Router from '@koa/router'
@@ -12,10 +12,10 @@ import conversationController from '../controllers/ConversationController.js'
 
 const router = new Router({ prefix: '/api/applications' })
 
-// 获取对话历史消息
+// 获取对话列表（Dialogue[]，含 messages）
 router.get(
-  '/:appId/conversation/messages',
-  conversationController.getMessages.bind(conversationController)
+  '/:appId/conversation/dialogues',
+  conversationController.getDialogues.bind(conversationController)
 )
 
 export default router

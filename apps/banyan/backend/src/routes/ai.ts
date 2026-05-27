@@ -1,5 +1,5 @@
 import Router from '@koa/router'
-import aiController from '../controllers/AiController'
+import aiController from '../controllers/AiController.js'
 
 const router = new Router({ prefix: '/api/ai' })
 

@@ -1,5 +1,6 @@
 export { default as Application, IApplication } from './Application.js'
-export { default as Conversation, IConversation, IMessage, IMessageContent, IRound } from './Conversation.js'
+export { default as Conversation, IConversation, IMessage, IUserContent, IAssistantContent, IDialogue, DialogueType, ThreadStatus } from './Conversation.js'
+export { default as Snapshot, ISnapshot } from './Snapshot.js'
 export { default as PackageTaskModel, IPackageTask } from './PackageTask.js'
 export { default as CollectionSchemaModel, ICollectionSchema, ICollectionDef, IFieldDef, FieldType } from './CollectionSchema.js'
 export { default as CloudFunction, ICloudFunction } from './CloudFunction.js'
