@@ -67,6 +67,32 @@ class OssService {
   }
 
   /**
+   * 生成预签名 PUT URL（前端直传 OSS）
+   *
+   * @param objectKey  OSS 上的存储路径，如 `chat-images/app_xxx_1234.png`
+   * @param expires    签名有效期（秒），默认 300（5 分钟）
+   * @returns { signedUrl: string, publicUrl: string }
+   *   - signedUrl: 带签名的 PUT URL，前端用此 URL 直接 PUT 上传
+   *   - publicUrl: 上传成功后的公开访问 URL
+   */
+  async signPutUrl(objectKey: string, expires = 300): Promise<{ signedUrl: string; publicUrl: string }> {
+    const client = this.getClient()
+    const signedUrl = client.signatureUrl(objectKey, {
+      method: 'PUT',
+      expires,
+      'Content-Type': 'application/octet-stream',
+    })
+
+    // 公开访问 URL = bucket endpoint + objectKey
+    const bucket = process.env.OSS_BUCKET!
+    const region = process.env.OSS_REGION!
+    const endpoint = process.env.OSS_ENDPOINT || `https://${bucket}.${region}.aliyuncs.com`
+    const publicUrl = `${endpoint}/${objectKey}`
+
+    return { signedUrl, publicUrl }
+  }
+
+  /**
    * 删除 OSS 上的文件
    */
   async delete(objectKey: string): Promise<void> {

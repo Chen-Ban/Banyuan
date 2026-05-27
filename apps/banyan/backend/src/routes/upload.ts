@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import Router from '@koa/router'
 import sharp from 'sharp'
 import applicationService from '../services/ApplicationService.js'
@@ -59,6 +60,58 @@ router.post('/:id/thumbnail', async (ctx) => {
     success: true,
     data: { thumbnail: thumbnailUrl },
     message: 'Thumbnail uploaded successfully',
+  }
+})
+
+/**
+ * POST /api/applications/:id/upload/presign
+ *
+ * 获取 OSS 预签名 PUT URL，前端直传图片到 OSS。
+ *
+ * 请求体：{ filename: string, contentType?: string }
+ * 响应：{ signedUrl: string, publicUrl: string }
+ *
+ * 前端流程：
+ *   1. 调用此接口获取 signedUrl + publicUrl
+ *   2. 用 signedUrl 直接 PUT 上传文件到 OSS
+ *   3. 上传成功后，将 publicUrl 作为图片 URL 传给 AI 接口
+ */
+router.post('/:id/upload/presign', async (ctx) => {
+  const { id } = ctx.params
+  const { filename, contentType } = ctx.request.body as {
+    filename?: string
+    contentType?: string
+  }
+
+  if (!filename || typeof filename !== 'string') {
+    ctx.status = 400
+    ctx.body = { success: false, message: 'filename is required' }
+    return
+  }
+
+  // 检查应用是否存在
+  const application = await applicationService.getApplicationById(id)
+  if (!application) {
+    ctx.status = 404
+    ctx.body = { success: false, message: 'Application not found' }
+    return
+  }
+
+  // 生成唯一的 objectKey：chat-images/{appId}/{uuid}.{ext}
+  const ext = filename.split('.').pop() ?? 'png'
+  const uniqueId = crypto.randomUUID()
+  const objectKey = `chat-images/${id}/${uniqueId}.${ext}`
+
+  try {
+    const { signedUrl, publicUrl } = await ossService.signPutUrl(objectKey)
+    ctx.body = {
+      success: true,
+      data: { signedUrl, publicUrl, contentType: contentType ?? 'image/png' },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    ctx.status = 500
+    ctx.body = { success: false, message: `OSS presign failed: ${message}` }
   }
 })
 
