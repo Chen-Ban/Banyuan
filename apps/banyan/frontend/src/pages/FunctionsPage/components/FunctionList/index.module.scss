@@ -1,9 +1,13 @@
+// FunctionList 样式
+@use '../../../../styles/tokens/typography' as *;
+@use '../../../../styles/mixins' as *;
+
 .functionList {
   width: 220px;
   flex-shrink: 0;
   height: 100%;
-  background: #fff;
-  border-right: 1px solid #e9ecef;
+  background: var(--color-bg-hover);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -18,22 +22,19 @@
 }
 
 .functionListTitle {
-  font-size: 12px;
-  font-weight: 600;
-  color: #8c8c8c;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  @include label-section;
 }
 
 .addBtn {
-  color: #8c8c8c;
-  &:hover { color: #722ed1; }
+  color: var(--color-text-tertiary);
+  &:hover { color: var(--color-brand-primary); }
 }
 
 .functionItems {
   flex: 1;
   overflow-y: auto;
   padding: 4px 8px;
+  @include scrollbar-dark;
 }
 
 .functionItem {
@@ -41,31 +42,29 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--duration-normal);
   position: relative;
 
   &:hover {
-    background: #f5f6f8;
+    background: var(--color-bg-hover-md);
 
-    .functionDeleteBtn {
-      opacity: 1;
-    }
+    .functionDeleteBtn { opacity: 1; }
   }
 
   &.functionItemActive {
-    background: #f9f0ff;
+    background: var(--color-brand-subtle);
 
-    .functionItemDisplay { color: #722ed1; }
-    .functionItemName { color: #b37feb; }
-    .functionItemIcon { color: #722ed1; }
+    .functionItemDisplay { color: var(--color-brand-primary); }
+    .functionItemName    { color: var(--color-brand-text-dim-50); }
+    .functionItemIcon    { color: var(--color-brand-primary); }
   }
 }
 
 .functionItemIcon {
-  font-size: 14px;
-  color: #8c8c8c;
+  font-size: $text-md;
+  color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
 
@@ -78,53 +77,49 @@
 }
 
 .functionItemDisplay {
-  font-size: 13px;
-  font-weight: 500;
-  color: #262626;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: $text-base;
+  font-weight: $font-medium;
+  color: var(--color-text-secondary);
+  @include truncate;
 }
 
 .functionItemName {
-  font-size: 11px;
-  color: #8c8c8c;
-  font-family: 'SF Mono', 'Menlo', monospace;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: $text-xs;
+  color: var(--color-text-tertiary);
+  @include text-mono;
+  @include truncate;
 }
 
 .functionDeleteBtn {
   opacity: 0;
-  font-size: 12px;
-  color: #bfbfbf;
+  font-size: $text-sm;
+  color: var(--color-text-disabled);
   flex-shrink: 0;
-  transition: opacity 0.15s, color 0.15s;
+  transition: opacity var(--duration-normal), color var(--duration-normal);
   padding: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 
   &:hover {
-    color: #ff4d4f;
-    background: #fff1f0;
+    color: var(--color-error-text);
+    background: var(--color-error-subtle);
   }
 }
 
 .functionEmpty {
   padding: 24px 12px;
   text-align: center;
-  font-size: 12px;
-  color: #bfbfbf;
+  font-size: $text-sm;
+  color: var(--color-text-disabled);
 }
 
 .addFunctionForm {
   padding: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   gap: 6px;
   flex-shrink: 0;
-  background: #f9fbff;
+  background: var(--color-bg-hover);
 }
 
 .addFunctionActions {

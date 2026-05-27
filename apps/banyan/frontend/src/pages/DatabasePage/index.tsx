@@ -4,8 +4,6 @@ import { Button, Spin, message, Empty, Modal } from 'antd'
 import { TableOutlined } from '@ant-design/icons'
 import { schemaApi } from '@/api'
 import type { CollectionDef } from '@/api'
-import AiBar from '@/components/AiBar'
-import { SidebarSlotContent } from '@/layouts/RootLayout/SidebarSlot'
 import CollectionList from './components/CollectionList'
 import FieldEditor from './components/FieldEditor'
 import styles from './index.module.scss'
@@ -159,7 +157,7 @@ const DatabasePage: React.FC = () => {
             onDelete={handleDeleteCollection}
           />
 
-          {/* 右侧：字段编辑器 + AiBar 竖直排列 */}
+          {/* 右侧：字段编辑器 */}
           <div className={styles.fieldEditorWrapper}>
             {selectedCollection ? (
               <FieldEditor
@@ -187,18 +185,7 @@ const DatabasePage: React.FC = () => {
                 <Empty description="请在左侧选择或新建一张数据表" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               </div>
             )}
-
           </div>
-
-          {/* AiBar 通过 Portal 渲染到左侧 Sidebar */}
-          <SidebarSlotContent>
-            <AiBar
-              appId={id!}
-              getPages={() => []}
-              getSchema={() => collections}
-              onPagesUpdate={() => {}}
-            />
-          </SidebarSlotContent>
         </div>
       )}
     </div>

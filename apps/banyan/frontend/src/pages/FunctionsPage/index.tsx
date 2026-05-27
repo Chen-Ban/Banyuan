@@ -9,8 +9,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button, Spin, Empty, Modal, message } from "antd";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
-import AiBar from "@/components/AiBar";
-import { SidebarSlotContent } from "@/layouts/RootLayout/SidebarSlot";
 import FunctionList from "./components/FunctionList";
 import FlowEditor from "./components/FlowEditor";
 import styles from "./index.module.scss";
@@ -185,24 +183,7 @@ const FunctionsPage: React.FC = () => {
                 />
               </div>
             )}
-
           </div>
-
-          {/* AiBar 通过 Portal 渲染到左侧 Sidebar */}
-          <SidebarSlotContent>
-            <AiBar
-              appId={id!}
-              getPages={() => []}
-              getCloudFunctions={() => functions.map((f) => ({
-                functionId: f.functionId,
-                name: f.name,
-                displayName: f.displayName,
-                description: f.description,
-                flowSchema: f.schema as Record<string, unknown> | undefined,
-              }))}
-              onPagesUpdate={() => {}}
-            />
-          </SidebarSlotContent>
         </div>
       )}
     </div>

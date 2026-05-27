@@ -11,7 +11,7 @@ const tabContentStyle: React.CSSProperties = { padding: 12 }
 const sectionStyle: React.CSSProperties = {
     marginBottom: 16,
     paddingBottom: 12,
-    borderBottom: '1px solid #ecf0f1',
+    borderBottom: '1px solid rgba(255,255,255,0.07)',
 }
 
 const sectionLastStyle: React.CSSProperties = {
@@ -22,7 +22,7 @@ const sectionLastStyle: React.CSSProperties = {
 const sectionHeaderStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 600,
-    color: '#7f8c8d',
+    color: 'rgba(255,255,255,0.35)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -37,20 +37,20 @@ const infoRowStyle: React.CSSProperties = {
 }
 
 const infoLabelStyle: React.CSSProperties = {
-    color: '#7f8c8d',
+    color: 'rgba(255,255,255,0.38)',
     fontSize: 11,
     flexShrink: 0,
     width: 40,
 }
 
 const infoValueStyle: React.CSSProperties = {
-    color: '#34495e',
+    color: 'rgba(255,255,255,0.75)',
     fontSize: 11,
     fontFamily: "'SF Mono', 'Menlo', monospace",
 }
 
 const infoValueIdStyle: React.CSSProperties = {
-    color: '#95a5a6',
+    color: 'rgba(255,255,255,0.28)',
     fontSize: 9,
     fontFamily: "'SF Mono', 'Menlo', monospace",
     cursor: 'pointer',
@@ -68,15 +68,15 @@ const toggleRowStyle: React.CSSProperties = {
     marginBottom: 6,
 }
 
-const toggleBtnStyle = (active: boolean, activeColor = '#1677ff'): React.CSSProperties => ({
+const toggleBtnStyle = (active: boolean, activeColor = '#3b82f6'): React.CSSProperties => ({
     display: 'inline-flex',
     alignItems: 'center',
     gap: 4,
     padding: '2px 8px',
     borderRadius: 4,
-    border: `1px solid ${active ? activeColor : '#d9d9d9'}`,
-    background: active ? `${activeColor}15` : 'transparent',
-    color: active ? activeColor : '#8c8c8c',
+    border: `1px solid ${active ? activeColor : 'rgba(255,255,255,0.12)'}`,
+    background: active ? `${activeColor}22` : 'rgba(255,255,255,0.04)',
+    color: active ? activeColor : 'rgba(255,255,255,0.4)',
     fontSize: 11,
     cursor: 'pointer',
     userSelect: 'none',
@@ -103,7 +103,7 @@ const radiiControlsStyle: React.CSSProperties = {
 const radiiUniformStyle: React.CSSProperties = {
     marginBottom: 4,
     paddingBottom: 8,
-    borderBottom: '1px dashed #ecf0f1',
+    borderBottom: '1px dashed rgba(255,255,255,0.08)',
 }
 
 // ── 辅助函数 ──

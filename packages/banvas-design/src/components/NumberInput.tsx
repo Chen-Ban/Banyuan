@@ -11,7 +11,7 @@ const wrapperStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
     fontSize: 10,
-    color: '#95a5a6',
+    color: 'rgba(255,255,255,0.35)',
     fontWeight: 500,
 }
 

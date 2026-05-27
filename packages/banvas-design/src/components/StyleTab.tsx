@@ -9,13 +9,13 @@ const tabContentStyle: React.CSSProperties = { padding: 12 }
 const sectionStyle: React.CSSProperties = {
     marginBottom: 16,
     paddingBottom: 12,
-    borderBottom: '1px solid #ecf0f1',
+    borderBottom: '1px solid rgba(255,255,255,0.07)',
 }
 
 const sectionHeaderStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 600,
-    color: '#7f8c8d',
+    color: 'rgba(255,255,255,0.35)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -30,7 +30,7 @@ const infoRowStyle: React.CSSProperties = {
 }
 
 const infoLabelStyle: React.CSSProperties = {
-    color: '#7f8c8d',
+    color: 'rgba(255,255,255,0.38)',
     fontSize: 11,
     flexShrink: 0,
     width: 40,

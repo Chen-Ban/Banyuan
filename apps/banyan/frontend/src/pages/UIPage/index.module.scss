@@ -1,4 +1,5 @@
-// UIPage — 全屏画布布局（左侧面板已移除）
+// UIPage — 全屏画布布局
+@use '../../styles/tokens/typography' as *;
 
 .page {
   width: 100%;
@@ -16,17 +17,55 @@
   height: 100%;
   display: flex;
   flex-direction: row;
-  position: relative;   // antd Drawer rootStyle position:absolute 的定位基准
+  position: relative;
   overflow: hidden;
 }
 
-// canvasSection：纵向（物料 / 画布 / AiBar）
 .canvasSection {
   flex: 1;
   min-width: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
-  // 不设置 overflow:hidden，ConversationPanel(absolute) 需要向上溢出覆盖物料面板
-  background-color: #f8f9fa;
+  background-color: var(--color-bg-canvas);
+  position: relative;
+}
+
+// ── 物料面板触发按钮 ──────────────────────────────────────────────────────────
+
+.paletteToggleBtn {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 1001;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg-canvas-glass);
+  backdrop-filter: blur(8px);
+  color: var(--color-text-tertiary);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: left var(--duration-drawer) var(--easing-default),
+              background var(--duration-normal),
+              border-color var(--duration-normal),
+              color var(--duration-normal),
+              transform var(--duration-fast);
+
+  &:hover {
+    background: var(--color-info-subtle-hover);
+    border-color: var(--color-info-border);
+    color: var(--color-info-text);
+  }
+
+  &:active { transform: scale(0.92); }
+}
+
+.paletteToggleBtnOpen {
+  left: 282px;
 }

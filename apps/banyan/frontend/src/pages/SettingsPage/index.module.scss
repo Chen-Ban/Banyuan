@@ -1,4 +1,5 @@
 // SettingsPage 样式
+@use '../../styles/tokens/typography' as *;
 
 .page {
   width: 100%;
@@ -14,13 +15,13 @@
 }
 
 .title {
-  font-size: 20px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: $text-2xl;
+  font-weight: $font-semibold;
+  color: var(--color-text-primary);
   margin: 0 0 16px;
 }
 
 .placeholder {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.35);
+  font-size: $text-md;
+  color: var(--color-text-tertiary);
 }

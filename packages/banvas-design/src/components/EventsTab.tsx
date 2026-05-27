@@ -9,13 +9,13 @@ const tabContentStyle: React.CSSProperties = { padding: 12 }
 const sectionStyle: React.CSSProperties = {
     marginBottom: 16,
     paddingBottom: 12,
-    borderBottom: '1px solid #ecf0f1',
+    borderBottom: '1px solid rgba(255,255,255,0.07)',
 }
 
 const sectionHeaderStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 600,
-    color: '#7f8c8d',
+    color: 'rgba(255,255,255,0.35)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -32,7 +32,7 @@ const eventRowStyle: React.CSSProperties = {
 const eventNameStyle: React.CSSProperties = {
     fontSize: 11,
     fontFamily: "'SF Mono', 'Menlo', monospace",
-    color: '#2c3e50',
+    color: 'rgba(255,255,255,0.88)',
     flexShrink: 0,
     minWidth: 90,
 }
@@ -40,7 +40,7 @@ const eventNameStyle: React.CSSProperties = {
 const eventPreviewStyle: React.CSSProperties = {
     flex: 1,
     fontSize: 10,
-    color: '#95a5a6',
+    color: 'rgba(255,255,255,0.45)',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
@@ -48,7 +48,7 @@ const eventPreviewStyle: React.CSSProperties = {
 
 const emptyFieldsStyle: React.CSSProperties = {
     fontSize: 11,
-    color: '#bdc3c7',
+    color: 'rgba(255,255,255,0.22)',
     padding: '4px 0 8px',
 }
 
@@ -58,7 +58,7 @@ const addEventRowStyle: React.CSSProperties = {
     alignItems: 'center',
     marginTop: 6,
     paddingTop: 6,
-    borderTop: '1px dashed #ecf0f1',
+    borderTop: '1px dashed rgba(255,255,255,0.08)',
 }
 
 // ── Props ──
@@ -189,7 +189,7 @@ const EventRowItem: React.FC<EventRowItemProps> = ({ label, handler, onDelete, o
                 type="text"
                 onClick={onEdit}
                 title="编辑流程"
-                style={{ padding: '0 4px', minWidth: 20, fontSize: 12 }}
+                style={{ padding: '0 4px', minWidth: 20, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}
             >✎</Button>
             <Button
                 size="small"
@@ -197,7 +197,7 @@ const EventRowItem: React.FC<EventRowItemProps> = ({ label, handler, onDelete, o
                 danger
                 onClick={onDelete}
                 title="删除"
-                style={{ padding: '0 4px', minWidth: 20 }}
+                style={{ padding: '0 4px', minWidth: 20, color: 'rgba(255,100,100,0.75)' }}
             >×</Button>
         </div>
     )
@@ -224,7 +224,7 @@ const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDel
                 type="text"
                 onClick={onEdit}
                 title="编辑流程"
-                style={{ padding: '0 4px', minWidth: 20, fontSize: 12 }}
+                style={{ padding: '0 4px', minWidth: 20, fontSize: 12, color: 'rgba(255,255,255,0.6)' }}
             >✎</Button>
             {hasBound && onDelete && (
                 <Button
@@ -233,7 +233,7 @@ const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDel
                     danger
                     onClick={onDelete}
                     title="清除"
-                    style={{ padding: '0 4px', minWidth: 20 }}
+                    style={{ padding: '0 4px', minWidth: 20, color: 'rgba(255,100,100,0.75)' }}
                 >×</Button>
             )}
         </div>

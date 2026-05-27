@@ -14,10 +14,10 @@ const panelStyle: React.CSSProperties = {
   width: "100%",
   height: "100%",
   overflowY: "auto",
-  borderLeft: "1px solid #e9ecef",
-  background: "#fafbfc",
+  borderLeft: "none",
+  background: "#16161e",
   fontSize: 12,
-  color: "#2c3e50",
+  color: "rgba(255,255,255,0.82)",
   display: "flex",
   flexDirection: "column",
 };
@@ -27,13 +27,13 @@ const tabContentStyle: React.CSSProperties = { padding: 12 };
 const sectionStyle: React.CSSProperties = {
   marginBottom: 16,
   paddingBottom: 12,
-  borderBottom: "1px solid #ecf0f1",
+  borderBottom: "1px solid rgba(255,255,255,0.07)",
 };
 
 const sectionHeaderStyle: React.CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
-  color: "#7f8c8d",
+  color: "rgba(255,255,255,0.35)",
   textTransform: "uppercase",
   letterSpacing: 0.5,
   marginBottom: 8,
@@ -53,7 +53,7 @@ const numberInputWrapperStyle: React.CSSProperties = {
 
 const inputLabelStyle: React.CSSProperties = {
   fontSize: 10,
-  color: "#95a5a6",
+  color: "rgba(255,255,255,0.35)",
   fontWeight: 500,
 };
 
@@ -256,7 +256,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           size="small"
           activeKey={activeTab}
           onChange={setActiveTab}
-          tabBarStyle={{ paddingLeft: 12, margin: 0 }}
+          tabBarStyle={{ paddingLeft: 12, margin: 0, borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#16161e' }}
         />
       </div>
     );

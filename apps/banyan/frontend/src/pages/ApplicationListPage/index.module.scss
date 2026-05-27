@@ -1,4 +1,6 @@
 // ApplicationListPage — 应用列表页样式
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
 
 .page {
   width: 100%;
@@ -16,16 +18,16 @@
   align-items: center;
   gap: 12px;
   padding: 20px 32px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
 .pageTitle {
   flex: 1;
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
+  font-size: $text-lg;
+  font-weight: $font-semibold;
+  color: var(--color-text-primary);
 }
 
 .newBtn {
@@ -33,22 +35,9 @@
   align-items: center;
   gap: 6px;
   padding: 7px 16px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  background: linear-gradient(135deg, #7c3aed, #4f46e5);
-  color: #fff;
-  transition: opacity 0.15s, transform 0.1s;
-
-  &:hover {
-    opacity: 0.9;
-    transform: scale(1.02);
-  }
-
-  &:active {
-    transform: scale(0.98);
-  }
+  border-radius: var(--radius-lg);
+  font-size: $text-base;
+  @include btn-brand;
 }
 
 // ── 内容区 ────────────────────────────────────────────────────────────────────
@@ -57,17 +46,7 @@
   flex: 1;
   padding: 32px;
   overflow-y: auto;
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 3px;
-  }
+  @include scrollbar-dark-md;
 }
 
 .loadingWrap {
@@ -84,7 +63,7 @@
   align-items: center;
   gap: 12px;
   padding: 80px 0;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--color-text-tertiary);
 }
 
 .emptyIcon {
@@ -95,17 +74,17 @@
 .emptyBtn {
   margin-top: 8px;
   padding: 8px 24px;
-  border-radius: 8px;
-  border: 1px solid rgba(139, 92, 246, 0.4);
-  background: rgba(139, 92, 246, 0.08);
-  color: rgba(139, 92, 246, 0.9);
-  font-size: 13px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-brand-border);
+  background: var(--color-brand-subtle);
+  color: var(--color-brand-text);
+  font-size: $text-base;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--duration-normal), border-color var(--duration-normal);
 
   &:hover {
-    background: rgba(139, 92, 246, 0.15);
-    border-color: rgba(139, 92, 246, 0.6);
+    background: var(--color-brand-subtle-hover);
+    border-color: var(--color-brand-border-focus);
   }
 }
 
@@ -122,27 +101,22 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  background: rgba(255, 255, 255, 0.03);
+  @include card-dark;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
   position: relative;
 
   &:hover {
-    border-color: rgba(139, 92, 246, 0.35);
-    background: rgba(139, 92, 246, 0.06);
+    border-color: var(--color-brand-border);
+    background: var(--color-brand-subtle);
 
-    .deleteBtn {
-      opacity: 1;
-    }
+    .deleteBtn { opacity: 1; }
   }
 }
 
 .thumb {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -150,12 +124,12 @@
 .thumbPlaceholder {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-hover-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--color-text-disabled);
   font-size: 18px;
   flex-shrink: 0;
 }
@@ -169,36 +143,34 @@
 }
 
 .cardName {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: $text-base;
+  color: var(--color-text-secondary);
+  @include truncate;
 }
 
 .cardDate {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.25);
+  font-size: $text-xs;
+  color: var(--color-text-disabled);
 }
 
 .deleteBtn {
   flex-shrink: 0;
   width: 26px;
   height: 26px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--color-text-disabled);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: $text-base;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  transition: opacity var(--duration-normal), color var(--duration-normal), background var(--duration-normal);
 
   &:hover {
-    color: #f87171;
-    background: rgba(248, 113, 113, 0.12);
+    color: var(--color-error-text);
+    background: var(--color-error-subtle);
   }
 }

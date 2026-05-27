@@ -7,13 +7,13 @@ import type { IFieldSchema, IFieldSchemaMap } from '@banyuan/banvasgl'
 const sectionStyle: React.CSSProperties = {
     marginBottom: 16,
     paddingBottom: 12,
-    borderBottom: '1px solid #ecf0f1',
+    borderBottom: '1px solid rgba(255,255,255,0.07)',
 }
 
 const sectionHeaderStyle: React.CSSProperties = {
     fontSize: 11,
     fontWeight: 600,
-    color: '#7f8c8d',
+    color: 'rgba(255,255,255,0.35)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -21,7 +21,7 @@ const sectionHeaderStyle: React.CSSProperties = {
 
 const emptyFieldsStyle: React.CSSProperties = {
     fontSize: 11,
-    color: '#bdc3c7',
+    color: 'rgba(255,255,255,0.22)',
     padding: '4px 0 8px',
 }
 
@@ -49,7 +49,7 @@ const fieldKeyErrorStyle: React.CSSProperties = {
 
 const objectPlaceholderStyle: React.CSSProperties = {
     fontSize: 10,
-    color: '#bdc3c7',
+    color: 'rgba(255,255,255,0.25)',
     display: 'flex',
     alignItems: 'center',
     height: 24,
@@ -62,7 +62,7 @@ const deleteBtnStyle: React.CSSProperties = {
     padding: 0,
     border: 'none',
     background: 'transparent',
-    color: '#bdc3c7',
+    color: 'rgba(255,255,255,0.25)',
     fontSize: 14,
     lineHeight: 1,
     cursor: 'pointer',
@@ -77,8 +77,8 @@ const nestedFieldsStyle: React.CSSProperties = {
     marginTop: 4,
     marginBottom: 4,
     padding: '6px 8px',
-    background: '#f4f6f8',
-    borderLeft: '2px solid #dde1e7',
+    background: 'rgba(255,255,255,0.03)',
+    borderLeft: '2px solid rgba(255,255,255,0.1)',
     borderRadius: '0 4px 4px 0',
 }
 
@@ -89,10 +89,10 @@ const addFieldBtnStyle: React.CSSProperties = {
     marginTop: 6,
     padding: '4px 0',
     width: '100%',
-    border: '1px dashed #d0d7de',
+    border: '1px dashed rgba(255,255,255,0.12)',
     borderRadius: 4,
     background: 'transparent',
-    color: '#adb5bd',
+    color: 'rgba(255,255,255,0.3)',
     fontSize: 14,
     lineHeight: 1,
     cursor: 'pointer',

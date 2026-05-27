@@ -1,40 +1,39 @@
-.drawerWrapper {
-  position: relative;
-  flex-shrink: 0;
-  height: 100%;
-}
+// PropertyDrawer — 右侧属性面板触发按钮（深色主题）
+@use '../../../../styles/tokens/typography' as *;
 
 .toggleBtn {
   position: absolute;
-  top: 50%;
-  left: -18px;
-  transform: translateY(-50%);
-  z-index: 11;
-  width: 18px;
-  height: 64px;
-  padding: 0;
-  border: 1px solid #e9ecef;
-  border-right: none;
-  border-radius: 4px 0 0 4px;
-  background: #fafbfc;
+  right: 10px;
+  top: 10px;
+  z-index: 1001;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg-canvas-glass);
+  backdrop-filter: blur(8px);
+  color: var(--color-text-tertiary);
+  font-size: 15px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, color 0.15s;
+  padding: 0;
+  transition: right var(--duration-drawer) var(--easing-default),
+              background var(--duration-normal),
+              border-color var(--duration-normal),
+              color var(--duration-normal),
+              transform var(--duration-fast);
 
   &:hover {
-    background: #f0f4ff;
-    color: #1677ff;
-    border-color: #91caff;
+    background: var(--color-info-subtle-hover);
+    border-color: var(--color-info-border);
+    color: var(--color-info-text);
   }
+
+  &:active { transform: scale(0.92); }
 }
 
-.toggleBtnLabel {
-  writing-mode: vertical-rl;
-  font-size: 11px;
-  letter-spacing: 1px;
-  font-weight: 500;
-  white-space: nowrap;
-  color: #8c8c8c;
+.toggleBtnOpen {
+  right: 322px;
 }

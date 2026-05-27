@@ -1,3 +1,7 @@
+// DatabasePage 样式
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
+
 // ── 页面骨架 ──────────────────────────────────────────────────────────────────
 
 .page {
@@ -5,27 +9,27 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f5f6f8;
+  background: var(--color-bg-content);
   overflow: hidden;
 }
 
-// dirty 提示条（无 header 时用细条替代）
+// dirty 提示条
 .dirtyBar {
   display: flex;
   align-items: center;
   padding: 4px 20px;
-  background: #fffbe6;
-  border-bottom: 1px solid #ffe58f;
+  background: var(--color-warning-subtle);
+  border-bottom: 1px solid var(--color-warning-border);
   flex-shrink: 0;
 }
 
 .dirtyBadge {
-  font-size: 11px;
-  color: #fa8c16;
-  background: #fff7e6;
-  border: 1px solid #ffd591;
+  font-size: $text-xs;
+  color: var(--color-warning-badge);
+  background: var(--color-warning-subtle);
+  border: 1px solid var(--color-warning-border);
   padding: 1px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-left: 4px;
 }
 
@@ -49,7 +53,7 @@
   justify-content: center;
   height: 100%;
   gap: 12px;
-  color: #8c8c8c;
+  color: var(--color-text-tertiary);
 }
 
 // ── 左侧：表列表 ──────────────────────────────────────────────────────────────
@@ -58,8 +62,8 @@
   width: 220px;
   flex-shrink: 0;
   height: 100%;
-  background: #fff;
-  border-right: 1px solid #e9ecef;
+  background: var(--color-bg-hover);
+  border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -74,22 +78,19 @@
 }
 
 .collectionListTitle {
-  font-size: 12px;
-  font-weight: 600;
-  color: #8c8c8c;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  @include label-section;
 }
 
 .addBtn {
-  color: #8c8c8c;
-  &:hover { color: #1677ff; }
+  color: var(--color-text-tertiary);
+  &:hover { color: var(--color-text-secondary); }
 }
 
 .collectionItems {
   flex: 1;
   overflow-y: auto;
   padding: 4px 8px;
+  @include scrollbar-dark;
 }
 
 .collectionItem {
@@ -97,31 +98,29 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--duration-normal);
   position: relative;
 
   &:hover {
-    background: #f5f6f8;
+    background: var(--color-bg-hover-md);
 
-    .collectionDeleteBtn {
-      opacity: 1;
-    }
+    .collectionDeleteBtn { opacity: 1; }
   }
 
   &.collectionItemActive {
-    background: #e6f4ff;
+    background: var(--color-db-active-bg);
 
-    .collectionItemDisplay { color: #1677ff; }
-    .collectionItemName { color: #69b1ff; }
-    .collectionItemIcon { color: #1677ff; }
+    .collectionItemDisplay { color: var(--color-db-active-text); }
+    .collectionItemName    { color: var(--color-db-active-text-dim); }
+    .collectionItemIcon    { color: var(--color-db-active-text); }
   }
 }
 
 .collectionItemIcon {
-  font-size: 14px;
-  color: #8c8c8c;
+  font-size: $text-md;
+  color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
 
@@ -134,54 +133,49 @@
 }
 
 .collectionItemDisplay {
-  font-size: 13px;
-  font-weight: 500;
-  color: #262626;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: $text-base;
+  font-weight: $font-medium;
+  color: var(--color-text-secondary);
+  @include truncate;
 }
 
 .collectionItemName {
-  font-size: 11px;
-  color: #8c8c8c;
-  font-family: 'SF Mono', 'Menlo', monospace;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: $text-xs;
+  color: var(--color-text-tertiary);
+  @include text-mono;
+  @include truncate;
 }
 
 .collectionDeleteBtn {
   opacity: 0;
-  font-size: 12px;
-  color: #bfbfbf;
+  font-size: $text-sm;
+  color: var(--color-text-disabled);
   flex-shrink: 0;
-  transition: opacity 0.15s, color 0.15s;
+  transition: opacity var(--duration-normal), color var(--duration-normal);
   padding: 2px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 
   &:hover {
-    color: #ff4d4f;
-    background: #fff1f0;
+    color: var(--color-error-text);
+    background: var(--color-error-subtle);
   }
 }
 
 .collectionEmpty {
   padding: 24px 12px;
   text-align: center;
-  font-size: 12px;
-  color: #bfbfbf;
+  font-size: $text-sm;
+  color: var(--color-text-disabled);
 }
 
-// 新建表表单（顶部）
 .addCollectionForm {
   padding: 8px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   gap: 6px;
   flex-shrink: 0;
-  background: #f9fbff;
+  background: var(--color-bg-hover);
 }
 
 .newCollectionHint {
@@ -242,23 +236,23 @@
 }
 
 .fieldEditorTitleIcon {
-  font-size: 18px;
-  color: #1677ff;
+  font-size: $text-xl;
+  color: var(--color-db-active-text);
 }
 
 .fieldEditorTitleDisplay {
-  font-size: 18px;
-  font-weight: 600;
-  color: #262626;
+  font-size: $text-xl;
+  font-weight: $font-semibold;
+  color: var(--color-text-primary);
 }
 
 .fieldEditorTitleName {
-  font-size: 13px;
-  color: #8c8c8c;
-  font-family: 'SF Mono', 'Menlo', monospace;
-  background: #f5f6f8;
+  font-size: $text-base;
+  color: var(--color-text-tertiary);
+  @include text-mono;
+  background: var(--color-bg-hover-md);
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 // ── 字段表格 ──────────────────────────────────────────────────────────────────
@@ -266,13 +260,13 @@
 .fieldTable {
   flex: 1;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
+  background: var(--color-bg-hover);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   overflow: hidden;
+  @include scrollbar-dark;
 }
 
-// 列宽定义（共享给 head / row / addRow）
 $col-field-name:    180px;
 $col-display-name:  180px;
 $col-type:          120px;
@@ -285,11 +279,11 @@ $col-actions:       1fr;
   padding: 0 16px;
   height: 38px;
   align-items: center;
-  background: #fafafa;
-  border-bottom: 1px solid #e9ecef;
-  font-size: 12px;
-  font-weight: 600;
-  color: #8c8c8c;
+  background: var(--color-bg-active);
+  border-bottom: 1px solid var(--color-border);
+  font-size: $text-sm;
+  font-weight: $font-semibold;
+  color: var(--color-text-tertiary);
   gap: 12px;
 }
 
@@ -299,17 +293,16 @@ $col-actions:       1fr;
   padding: 0 16px;
   min-height: 44px;
   align-items: center;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--color-divider);
   gap: 12px;
-  transition: background 0.1s;
+  transition: background var(--duration-fast);
 
   &:last-child { border-bottom: none; }
-
-  &:hover { background: #fafafa; }
+  &:hover { background: var(--color-bg-hover); }
 
   &.fieldRowBuiltin {
-    background: #fafafa;
-    opacity: 0.7;
+    background: var(--color-bg-hover);
+    opacity: 0.6;
   }
 }
 
@@ -318,12 +311,11 @@ $col-actions:       1fr;
   grid-template-columns: $col-field-name $col-display-name $col-type $col-required $col-actions;
   padding: 8px 16px;
   align-items: center;
-  border-top: 1px dashed #e9ecef;
+  border-top: 1px dashed var(--color-divider-dashed);
   gap: 12px;
-  background: #f9fbff;
+  background: var(--color-bg-hover);
 }
 
-// 列单元格
 .colFieldName   { min-width: 0; }
 .colDisplayName { min-width: 0; }
 .colType        { min-width: 0; }
@@ -331,49 +323,42 @@ $col-actions:       1fr;
 .colActions     { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
 
 .fieldNameText {
-  font-size: 13px;
-  font-family: 'SF Mono', 'Menlo', monospace;
-  color: #262626;
-  font-weight: 500;
+  font-size: $text-base;
+  @include text-mono;
+  color: var(--color-text-secondary);
+  font-weight: $font-medium;
 }
 
 .fieldDisplayText {
-  font-size: 13px;
-  color: #595959;
+  font-size: $text-base;
+  color: var(--color-text-tertiary);
 }
 
 .typeTag {
   display: inline-block;
   padding: 1px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  font-family: 'SF Mono', 'Menlo', monospace;
+  border-radius: var(--radius-sm);
+  font-size: $text-xs;
+  font-weight: $font-semibold;
+  @include text-mono;
 }
 
-.typeSelect {
-  width: 100%;
-}
+.typeSelect { width: 100%; }
 
 .builtinBadge {
-  font-size: 10px;
-  color: #8c8c8c;
-  background: #f0f0f0;
+  font-size: $text-2xs;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-hover-md);
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }
 
 .deleteFieldBtn {
-  opacity: 0.4;
-  transition: opacity 0.15s;
-
+  opacity: 0.3;
+  transition: opacity var(--duration-normal);
   &:hover { opacity: 1; }
 }
 
-.fieldInput {
-  width: 100%;
-}
+.fieldInput { width: 100%; }
 
-.fieldEmpty {
-  padding: 40px 0;
-}
+.fieldEmpty { padding: 40px 0; }
