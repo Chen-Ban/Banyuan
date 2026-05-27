@@ -1,4 +1,6 @@
 // ApplicationLayout 样式
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
 
 .layout {
   width: 100%;
@@ -12,130 +14,154 @@
 
 .appHeader {
   flex-shrink: 0;
-  height: 48px;
+  height: 52px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  background: rgba(255, 255, 255, 0.02);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 10px;
+  padding: 0 16px;
+  background: transparent;
+  border-bottom: 1px solid var(--color-divider);
   z-index: 2;
-  overflow: hidden;
 }
 
-.infoFields {
-  flex-shrink: 0;
-  width: 200px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
-}
+// ── 返回首页按钮 ──────────────────────────────────────────────────────────────
 
-.nameInput {
-  width: 100%;
-  max-width: 200px;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  line-height: 1.4;
-  padding: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.25);
-    font-weight: 400;
-  }
-
-  &:hover,
-  &:focus {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    padding: 0 4px;
-  }
-}
-
-.descInput {
-  width: 100%;
-  max-width: 200px;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
-  line-height: 1.4;
-  padding: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  &::placeholder {
-    color: rgba(255, 255, 255, 0.2);
-  }
-
-  &:hover,
-  &:focus {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    padding: 0 4px;
-  }
-}
-
-.headerActions {
-  flex-shrink: 0;
+.backBtn {
   display: flex;
   align-items: center;
-  gap: 4px;
-}
-
-.actionBtn {
-  color: rgba(255, 255, 255, 0.5);
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  font-size: $text-md;
+  flex-shrink: 0;
+  transition: color var(--duration-normal), background var(--duration-normal);
 
   &:hover {
-    color: rgba(139, 92, 246, 0.9);
-    background: rgba(139, 92, 246, 0.1);
+    color: var(--color-text-secondary);
+    background: var(--color-bg-hover-md);
   }
 }
 
-// ── 竖线分割符 ───────────────────────────────────────────────────────────────
-
-.divider {
-  flex-shrink: 0;
-  width: 1px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.1);
-  margin: 0 4px;
+.headerSpacer {
+  flex: 1;
 }
 
-// ── Tab 导航（图标按钮组） ────────────────────────────────────────────────────
+// ── 胶囊基础样式（共用）──────────────────────────────────────────────────────
 
-.tabGroup {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
+%capsule-base {
+  @include capsule-container;
+}
+
+// ── 胶囊一：Tab 导航 ──────────────────────────────────────────────────────────
+
+.tabCapsule {
+  @extend %capsule-base;
 }
 
 .tabBtn {
-  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: $text-base;
+  color: var(--color-text-tertiary);
+  transition: color var(--duration-normal), background var(--duration-normal);
+  white-space: nowrap;
+  line-height: 1;
 
   &:hover {
-    color: rgba(139, 92, 246, 0.9);
-    background: rgba(139, 92, 246, 0.1);
+    color: var(--color-text-secondary);
+    background: var(--color-bg-hover-md);
   }
 }
 
 .tabBtnActive {
-  color: rgba(139, 92, 246, 0.95);
-  background: rgba(139, 92, 246, 0.12);
+  color: var(--color-text-primary) !important;
+  background: var(--color-bg-selected) !important;
 }
 
-// ── 内容区 ──────────────────────────────────────────────────────────────────
+.tabIcon {
+  font-size: $text-base;
+  display: flex;
+  align-items: center;
+}
+
+// ── 胶囊二：操作按钮 ──────────────────────────────────────────────────────────
+
+.actionCapsule {
+  @extend %capsule-base;
+}
+
+.capsuleDivider {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-md);
+  flex-shrink: 0;
+  margin: 0 1px;
+}
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-lg);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: $text-base;
+  color: var(--color-text-tertiary);
+  transition: color var(--duration-normal), background var(--duration-normal);
+  white-space: nowrap;
+  line-height: 1;
+
+  &:hover:not(:disabled) {
+    color: var(--color-text-primary);
+    background: var(--color-bg-hover-md);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+// 生成应用按钮：品牌色高亮
+.actionBtnPrimary {
+  color: var(--color-brand-text);
+
+  &:hover:not(:disabled) {
+    color: var(--color-brand-hover);
+    background: var(--color-brand-subtle);
+  }
+}
+
+// 加载中旋转指示器
+.actionSpinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--color-border-strong);
+  border-top-color: var(--color-text-secondary);
+  border-radius: var(--radius-full);
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+// ── 内容区 ────────────────────────────────────────────────────────────────────
 
 .content {
   flex: 1;

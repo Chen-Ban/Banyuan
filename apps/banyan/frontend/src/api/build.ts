@@ -4,7 +4,7 @@
 
 import { post, get } from './client'
 
-export type Platform = 'mac' | 'win' | 'linux'
+export type Platform = 'mac' | 'win' | 'linux' | 'web' | 'ios' | 'android'
 export type BuildStatus = 'pending' | 'running' | 'success' | 'failed'
 
 export interface SubmitBuildParams {

@@ -11,29 +11,40 @@
  *   │                                                                  │
  *   └──────────────────────────────────────────────────────────────────┘
  *
- * 应用级操作（命名、保存、生成应用）统一在此层处理，
- * 子页面通过 AppLayoutCtx.registerGetPages 向上注册画布序列化函数，
- * 供 handleSave / handleBuild 调用。
+ * 职责：
+ *   - 加载并管理应用元数据（名称、描述），写入 AppLayoutCtx 供 Sidebar 面包屑读取
+ *   - 提供保存（handleSave）和生成应用（handleBuild）操作
+ *   - handleSave：发布 appEvents.saveApp 事件，UIPage 订阅后负责序列化 pages 并写 DB；
+ *     ApplicationLayout 自身只负责保存 name / description
+ *   - 通过 AppLayoutCtx.registerGetPages 接收 UIPage 注册的序列化函数（供 handleBuild 使用）
  *
- * 注：返回首页功能已移至全局 Sidebar 面包屑。
+ * 注：AiBar 单例已提升到 RootLayout 层，本组件不再持有任何 AiBar 相关逻辑。
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Outlet, useNavigate, useParams, useLocation } from 'react-router-dom'
-import { Button, Tooltip, message } from 'antd'
+import { Dropdown, Tooltip, message } from 'antd'
+import type { MenuProps } from 'antd'
 import {
   AppstoreOutlined,
   DatabaseOutlined,
   FunctionOutlined,
   SaveOutlined,
   RocketOutlined,
+  ArrowLeftOutlined,
+  GlobalOutlined,
+  DesktopOutlined,
+  AppleOutlined,
+  AndroidOutlined,
 } from '@ant-design/icons'
 import { version as canvasVersion } from '@banyuan/banyan-sdk'
 import { applicationApi, buildApi } from '@/api'
 import type { Platform } from '@/api'
 import { getErrorMessage } from '@/utils/error'
+import { appEvents } from '@/utils/appEvents'
 import BuildTaskModal from '@/components/BuildTaskModal'
 import { AppLayoutCtx } from './AppLayoutCtx'
+import { useRootLayoutCtx } from '@/layouts/RootLayout/RootLayoutCtx'
 import styles from './index.module.scss'
 
 const TABS = [
@@ -66,7 +77,7 @@ const ApplicationLayout: React.FC = () => {
   // ── 画布尺寸（由 UIPage 通过 ctx 同步，供 handleBuild 使用） ──────────────
   const canvasSizeRef = useRef({ width: 1280, height: 800 })
 
-  // ── getPages 回调注册（由 UIPage 注册，非画布页时为 null） ─────────────────
+  // ── getPages 回调注册（由 UIPage 注册，供 handleBuild 序列化） ─────────────
   const getPagesRef = useRef<(() => string[]) | null>(null)
 
   const registerGetPages = useCallback((fn: () => string[]) => {
@@ -77,6 +88,9 @@ const ApplicationLayout: React.FC = () => {
     getPagesRef.current = null
   }, [])
 
+  // ── 同步应用名称到 RootLayoutCtx（供 Sidebar 面包屑读取） ──────────────────
+  const { setAppName: setRootAppName } = useRootLayoutCtx()
+
   // ── 加载应用元数据 ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!application_id) return
@@ -84,8 +98,9 @@ const ApplicationLayout: React.FC = () => {
       const app = res.data!
       setApplicationName(app.name)
       setApplicationDescription(app.description || '')
+      setRootAppName(app.name)
     }).catch(() => {})
-  }, [application_id])
+  }, [application_id, setRootAppName])
 
   // ── Tab 导航 ──────────────────────────────────────────────────────────────
   const activeTabKey = (() => {
@@ -123,15 +138,20 @@ const ApplicationLayout: React.FC = () => {
 
   const handleNameChange = useCallback((value: string) => {
     setApplicationName(value)
+    setRootAppName(value)
     triggerAutoSaveMeta()
-  }, [triggerAutoSaveMeta])
+  }, [triggerAutoSaveMeta, setRootAppName])
 
+  // handleDescChange 保留供后续扩展（描述编辑入口）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDescChange = useCallback((value: string) => {
     setApplicationDescription(value)
     triggerAutoSaveMeta()
   }, [triggerAutoSaveMeta])
 
   // ── 保存应用 ──────────────────────────────────────────────────────────────
+  // 发布 saveApp 事件 → UIPage 订阅后序列化 pages 并写 DB
+  // ApplicationLayout 自身只负责保存 name / description（元数据）
   const handleSave = useCallback(async () => {
     if (!applicationName.trim()) {
       message.warning('请输入应用名称')
@@ -140,12 +160,15 @@ const ApplicationLayout: React.FC = () => {
     if (!application_id) return
     setSaving(true)
     try {
-      const pages = getPagesRef.current?.() ?? []
-      await applicationApi.updateApplication(application_id, {
-        name: nameRef.current,
-        description: descRef.current,
-        ...(pages.length > 0 ? { pages } : {}),
-      })
+      await Promise.all([
+        // 1. 通知各子页面保存自身数据（UIPage 序列化 pages 写 DB）
+        appEvents.emitSaveApp(),
+        // 2. 保存元数据（name / description）
+        applicationApi.updateApplication(application_id, {
+          name: nameRef.current,
+          description: descRef.current,
+        }),
+      ])
       message.success('应用已保存')
     } catch (error: unknown) {
       message.error(getErrorMessage(error))
@@ -155,7 +178,7 @@ const ApplicationLayout: React.FC = () => {
   }, [applicationName, application_id])
 
   // ── 生成应用 ──────────────────────────────────────────────────────────────
-  const handleBuild = useCallback(async () => {
+  const handleBuild = useCallback(async (platform: Platform) => {
     if (!applicationName.trim()) {
       message.warning('请先输入应用名称')
       return
@@ -168,11 +191,6 @@ const ApplicationLayout: React.FC = () => {
     try {
       const serializedPages = getPagesRef.current()
       const appJson = JSON.stringify(serializedPages)
-      const platform: Platform = navigator.platform.toLowerCase().includes('mac')
-        ? 'mac'
-        : navigator.platform.toLowerCase().includes('linux')
-          ? 'linux'
-          : 'win'
       const { width, height } = canvasSizeRef.current
       const res = await buildApi.submitBuild({
         appJson,
@@ -192,62 +210,80 @@ const ApplicationLayout: React.FC = () => {
     }
   }, [applicationName])
 
+  // ── 生成应用下拉菜单 ────────────────────────────────────────────────────────
+  const buildMenuItems: MenuProps['items'] = [
+    { key: 'web', icon: <GlobalOutlined />, label: '网页', onClick: () => handleBuild('web' as Platform) },
+    { key: 'desktop', icon: <DesktopOutlined />, label: '桌面客户端', onClick: () => handleBuild(navigator.platform.toLowerCase().includes('mac') ? 'mac' : navigator.platform.toLowerCase().includes('linux') ? 'linux' : 'win') },
+    { key: 'ios', icon: <AppleOutlined />, label: 'iOS', onClick: () => handleBuild('ios' as Platform) },
+    { key: 'android', icon: <AndroidOutlined />, label: 'Android', onClick: () => handleBuild('android' as Platform) },
+  ]
+
   return (
-    <AppLayoutCtx.Provider value={{ registerGetPages, unregisterGetPages, appName: applicationName, onAppRename: handleNameChange }}>
+    <AppLayoutCtx.Provider value={{
+      registerGetPages,
+      unregisterGetPages,
+      appName: applicationName,
+      onAppRename: handleNameChange,
+    }}>
       <div className={styles.layout}>
 
         {/* ── AppHeader：应用级工具栏 ── */}
         <div className={styles.appHeader}>
-          <div className={styles.infoFields}>
-            <input
-              className={styles.nameInput}
-              placeholder="未命名应用"
-              value={applicationName}
-              onChange={(e) => handleNameChange(e.target.value)}
-            />
-            <input
-              className={styles.descInput}
-              placeholder="添加描述..."
-              value={applicationDescription}
-              onChange={(e) => handleDescChange(e.target.value)}
-            />
-          </div>
-          <div className={styles.headerActions}>
-            <Tooltip title="保存应用">
-              <Button
-                type="text"
-                icon={<SaveOutlined />}
-                loading={saving}
-                onClick={handleSave}
-                className={styles.actionBtn}
-              />
-            </Tooltip>
-            <Tooltip title="生成应用">
-              <Button
-                type="text"
-                icon={<RocketOutlined />}
-                loading={buildSubmitting}
-                onClick={handleBuild}
-                className={styles.actionBtn}
-              />
-            </Tooltip>
-          </div>
+          {/* 左侧：返回首页按钮 */}
+          <Tooltip title="返回首页">
+            <button
+              className={styles.backBtn}
+              onClick={() => navigate('/')}
+              aria-label="返回首页"
+            >
+              <ArrowLeftOutlined />
+            </button>
+          </Tooltip>
 
-          {/* 竖线分割 */}
-          <div className={styles.divider} />
+          {/* 左侧弹性占位 */}
+          <div className={styles.headerSpacer} />
 
-          {/* Tab 导航（图标按钮 + Tooltip） */}
-          <div className={styles.tabGroup}>
+          {/* 胶囊一：Tab 导航（画布 / 数据库 / 云函数） */}
+          <div className={styles.tabCapsule}>
             {TABS.map((t) => (
               <Tooltip key={t.key} title={t.label}>
-                <Button
-                  type="text"
-                  icon={t.icon}
-                  onClick={() => handleTabChange(t.key)}
+                <button
                   className={`${styles.tabBtn} ${activeTabKey === t.key ? styles.tabBtnActive : ''}`}
-                />
+                  onClick={() => handleTabChange(t.key)}
+                >
+                  <span className={styles.tabIcon}>{t.icon}</span>
+                </button>
               </Tooltip>
             ))}
+          </div>
+
+          {/* 右侧弹性占位 */}
+          <div className={styles.headerSpacer} />
+
+          {/* 胶囊二：操作（保存 / 生成应用） */}
+          <div className={styles.actionCapsule}>
+            <Tooltip title="保存应用">
+              <button
+                className={styles.actionBtn}
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? <span className={styles.actionSpinner} /> : <SaveOutlined />}
+              </button>
+            </Tooltip>
+            <div className={styles.capsuleDivider} />
+            <Dropdown
+              menu={{ items: buildMenuItems }}
+              trigger={['hover']}
+              placement="bottomRight"
+            >
+              <button
+                className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+                disabled={buildSubmitting}
+              >
+                {buildSubmitting ? <span className={styles.actionSpinner} /> : <RocketOutlined />}
+              </button>
+            </Dropdown>
           </div>
         </div>
 
