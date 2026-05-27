@@ -381,7 +381,7 @@ const AppBreadcrumb: React.FC = () => {
         okText="确定"
         cancelText="取消"
         centered
-        destroyOnClose
+        destroyOnHidden
       >
         <Input
           value={renameValue}
@@ -402,7 +402,7 @@ const AppBreadcrumb: React.FC = () => {
         okButtonProps={{ loading: deleting, disabled: !deleteConfirmMatch }}
         cancelText="取消"
         centered
-        destroyOnClose
+        destroyOnHidden
       >
         <p style={{ marginBottom: 12 }}>
           此操作<strong>不可撤销</strong>，将永久删除应用及其所有数据。

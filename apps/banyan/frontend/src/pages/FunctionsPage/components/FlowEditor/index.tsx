@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Input, message } from "antd";
+import { Input, Space, message } from "antd";
 import type { FlowSchema } from "@banyuan/banyan-sdk";
 import {
   useFlowBanvas,
@@ -144,22 +144,22 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
       {/* 头部：函数信息 + 保存按钮 */}
       <div className={styles.flowEditorHeader}>
         <div className={styles.flowEditorMeta}>
-          <Input
-            size="small"
-            value={localName}
-            onChange={(e) => setLocalName(e.target.value)}
-            placeholder="函数名（英文）"
-            className={styles.metaNameInput}
-            addonBefore="name"
-          />
-          <Input
-            size="small"
-            value={localDisplayName}
-            onChange={(e) => setLocalDisplayName(e.target.value)}
-            placeholder="显示名"
-            className={styles.metaDisplayInput}
-            addonBefore="显示名"
-          />
+          <Space.Compact size="small" className={styles.metaNameInput}>
+            <Input style={{ width: 60, flexShrink: 0 }} defaultValue="name" readOnly />
+            <Input
+              value={localName}
+              onChange={(e) => setLocalName(e.target.value)}
+              placeholder="函数名（英文）"
+            />
+          </Space.Compact>
+          <Space.Compact size="small" className={styles.metaDisplayInput}>
+            <Input style={{ width: 60, flexShrink: 0 }} defaultValue="显示名" readOnly />
+            <Input
+              value={localDisplayName}
+              onChange={(e) => setLocalDisplayName(e.target.value)}
+              placeholder="显示名"
+            />
+          </Space.Compact>
         </div>
       </div>
 
