@@ -4,9 +4,6 @@ import HomePage from '@/pages/HomePage'
 import ApplicationListPage from '@/pages/ApplicationListPage'
 import SettingsPage from '@/pages/SettingsPage'
 import ApplicationLayout from '@/layouts/ApplicationLayout'
-import UIPage from '@/pages/UIPage'
-import DatabasePage from '@/pages/DatabasePage'
-import FunctionsPage from '@/pages/FunctionsPage'
 
 const routes: RouteObject[] = [
   {
@@ -16,15 +13,10 @@ const routes: RouteObject[] = [
       { index: true, element: <HomePage /> },
       { path: 'applications', element: <ApplicationListPage /> },
       { path: 'settings', element: <SettingsPage /> },
-      // 应用详情：三个子页面共用 ApplicationLayout
+      // 应用详情：KeepAlive 模式，ApplicationLayout 内部直接渲染三个子页面
       {
-        path: 'application/:id',
+        path: 'application/:id/*',
         element: <ApplicationLayout />,
-        children: [
-          { path: 'ui', element: <UIPage /> },
-          { path: 'database', element: <DatabasePage /> },
-          { path: 'functions', element: <FunctionsPage /> },
-        ],
       },
     ],
   },
