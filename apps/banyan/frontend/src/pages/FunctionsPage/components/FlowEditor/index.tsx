@@ -1,4 +1,4 @@
-import React, {
+import {
   forwardRef,
   useCallback,
   useEffect,
@@ -8,12 +8,10 @@ import React, {
   useState,
 } from "react";
 import { Input, Space, message } from "antd";
-import type { FlowSchema } from "@banyuan/banyan-sdk";
-import {
-  useFlowBanvas,
-  FlowContextMenu,
-  NodeSchemaPopover,
-} from "@banyuan/banyan-sdk";
+import type { FlowSchema } from "@banyuan/flow";
+import useFlowBanvas from "@/hooks/flow/useFlowBanvas";
+import { FlowContextMenu } from "@/components/FlowEditor/FlowContextMenu";
+import { NodeSchemaPopover } from "@/components/FlowEditor/NodeSchemaPopover";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
 import styles from "./index.module.scss";
@@ -34,7 +32,7 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
   fn,
   appId,
   onSaved,
-  dirty,
+  dirty: _dirty,
   onDirtyChange,
 }, ref) => {
   // 逻辑尺寸固定，容器适配由 hook 内部自测量
@@ -42,7 +40,7 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
   const CANVAS_HEIGHT = 720;
   const [localName, setLocalName] = useState(fn.name);
   const [localDisplayName, setLocalDisplayName] = useState(fn.displayName);
-  const [saving, setSaving] = useState(false);
+  const [_saving, setSaving] = useState(false);
   const [schemaDirty, setSchemaDirty] = useState(false);
 
   const initialSchema = useMemo<FlowSchema>(

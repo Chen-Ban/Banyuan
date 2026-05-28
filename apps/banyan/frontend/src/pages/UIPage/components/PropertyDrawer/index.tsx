@@ -1,8 +1,9 @@
 import React from "react";
 import { Drawer, Tooltip } from "antd";
-import { PropertyPanel, FlowEditorModal } from "@banyuan/banyan-sdk";
+import { PropertyPanel } from "@/components/DesignEditor/PropertyPanel";
+import { FlowEditorModal } from "@/components/FlowEditor/FlowEditorModal";
 import { SettingOutlined } from "@ant-design/icons";
-import type { useDesignBanvas } from "@banyuan/banyan-sdk";
+import type useDesignBanvas from "@/hooks/design/useDesignBanvas";
 import styles from "./index.module.scss";
 
 type DesignBanvasReturn = ReturnType<typeof useDesignBanvas>;
@@ -13,7 +14,6 @@ export interface PropertyDrawerProps {
   container: HTMLDivElement | null;
   selectedViewId: string;
   actions: DesignBanvasReturn["actions"];
-  pages: DesignBanvasReturn["pages"];
   currentPageId: string;
   canvasSize: { width: number; height: number };
   onCanvasSizeChange: (width: number, height: number) => void;
@@ -26,7 +26,6 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
   container,
   selectedViewId,
   actions,
-  pages,
   currentPageId,
   canvasSize,
   onCanvasSizeChange,
@@ -80,7 +79,6 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
         <PropertyPanel
           selectedViewId={selectedViewId}
           actions={actions}
-          pages={pages}
           currentPageId={currentPageId}
           canvasSize={canvasSize}
           onCanvasSizeChange={onCanvasSizeChange}

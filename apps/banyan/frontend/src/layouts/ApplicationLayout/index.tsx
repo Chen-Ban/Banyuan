@@ -37,7 +37,7 @@ import {
   AppleOutlined,
   AndroidOutlined,
 } from '@ant-design/icons'
-import { version as canvasVersion } from '@banyuan/banyan-sdk'
+import { version as canvasVersion } from '@banyuan/banvasgl'
 import { applicationApi, buildApi } from '@/api'
 import type { Platform } from '@/api'
 import { getErrorMessage } from '@/utils/error'
@@ -145,13 +145,6 @@ const ApplicationLayout: React.FC = () => {
     setRootAppName(value)
     triggerAutoSaveMeta()
   }, [triggerAutoSaveMeta, setRootAppName])
-
-  // handleDescChange 保留供后续扩展（描述编辑入口）
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleDescChange = useCallback((value: string) => {
-    setApplicationDescription(value)
-    triggerAutoSaveMeta()
-  }, [triggerAutoSaveMeta])
 
   // ── 保存应用 ──────────────────────────────────────────────────────────────
   // 发布 saveApp 事件 → UIPage 订阅后序列化 pages 并写 DB
