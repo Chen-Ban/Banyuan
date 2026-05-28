@@ -28,7 +28,7 @@ import {
 } from "@ant-design/icons";
 import { useXiangDi } from "@/hooks/useXiangDi";
 import { aiApi } from "@/api";
-import type { DisambiguationOptions, ProviderInfo } from "@/api";
+import type { DisambiguationOptions, ProviderInfo, ImageItem } from "@/api";
 import ConversationPanel from "./ConversationPanel";
 import styles from "./index.module.scss";
 
@@ -184,7 +184,7 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     setPastedImages([]);
 
     // 上传图片到 OSS
-    let imageUrls: Array<{ url: string; alt?: string }> = [];
+    let imageUrls: ImageItem[] = [];
     if (imagesToUpload.length > 0) {
       setUploading(true);
       try {
@@ -355,5 +355,4 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   );
 });
 
-export type { AiBarHandle };
 export default AiBar;

@@ -1,0 +1,38 @@
+.palette {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.groupHeader {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+  padding: 2px 0;
+}
+
+.cardRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.card {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+  cursor: grab;
+  user-select: none;
+  white-space: nowrap;
+}

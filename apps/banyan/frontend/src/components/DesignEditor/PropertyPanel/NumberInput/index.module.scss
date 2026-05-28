@@ -1,0 +1,13 @@
+@use '../../../../styles/tokens/typography' as *;
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.label {
+  font-size: $text-2xs;
+  color: var(--color-text-tertiary);
+  font-weight: $font-medium;
+}

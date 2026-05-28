@@ -15,6 +15,26 @@ export function createPageActions(
     const notify = () => getApp()?.notify()
 
     return {
+        getPageIds(): string[] {
+            const app = getApp()
+            if (!app) return []
+            return app.scenes.map((s) => s.id)
+        },
+
+        getPageViewIds(pageId: string): string[] {
+            const app = getApp()
+            if (!app) return []
+            const scene = app.getScene(pageId)
+            if (!scene) return []
+            return (scene as Scene).children.map((child) => child.id)
+        },
+
+        getPageCount(): number {
+            const app = getApp()
+            if (!app) return 0
+            return app.scenes.length
+        },
+
         navigateTo(pageId: string): void {
             const app = getApp()
             if (!app) return

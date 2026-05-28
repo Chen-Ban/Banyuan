@@ -21,10 +21,8 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import {
-  useDesignBanvas,
-  DesignContextMenu,
-} from "@banyuan/banyan-sdk";
+import useDesignBanvas from "@/hooks/design/useDesignBanvas";
+import { DesignContextMenu } from "@/components/DesignEditor/DesignContextMenu";
 import { message, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
 import { applicationApi } from "@/api";
@@ -103,7 +101,6 @@ const UIPage = () => {
 
   const {
     Banvas,
-    pages,
     currentPageId,
     selectedViewId,
     actions,
@@ -214,7 +211,6 @@ const UIPage = () => {
             container={canvasSectionEl}
             selectedViewId={selectedViewId}
             actions={actions}
-            pages={pages}
             currentPageId={currentPageId || ""}
             canvasSize={canvasSize}
             onCanvasSizeChange={handleCanvasSizeChange}

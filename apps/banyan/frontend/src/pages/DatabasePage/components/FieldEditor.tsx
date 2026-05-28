@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import {
   Button,
   Input,
@@ -59,12 +59,12 @@ const FieldEditor = forwardRef<FieldEditorHandle, FieldEditorProps>(({
   collection,
   appId,
   onSaved,
-  dirty,
+  dirty: _dirty,
   onDirtyChange,
 }, ref) => {
   // 本地字段列表（编辑态）
   const [localFields, setLocalFields] = useState<FieldDef[]>(collection.fields)
-  const [saving, setSaving] = useState(false)
+  const [_saving, setSaving] = useState(false)
 
   // 当外部 collection 变化时同步（例如切换表）
   useEffect(() => {

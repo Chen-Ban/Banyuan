@@ -2,7 +2,7 @@
  * Actions 入口 — BanvasGL 核心操作 API
  *
  * 提供 createBanvasActions 工厂函数，返回命名空间化的操作对象。
- * viewCreatorStrategies 通过可选参数注入，核心包不硬编码具体视图创建逻辑。
+ * 内置默认 viewCreatorStrategies，也可通过可选参数覆盖。
  */
 
 import { preprocessForExport } from '@/engine/PreviewPreprocessor'
@@ -14,6 +14,7 @@ import { createViewActions as _createViewActions } from './viewActions.js'
 import { createPageActions as _createPageActions } from './pageActions.js'
 import { createAppActions as _createAppActions } from './appActions.js'
 import { createHistoryActions as _createHistoryActions } from './historyActions.js'
+import { defaultViewCreatorStrategies, graphCreatorStrategies } from './viewCreateStrategies.js'
 
 // ── Re-exports（供外部消费） ──
 export { createViewActions, getClipboard } from './viewActions.js'
@@ -21,6 +22,7 @@ export type { ViewCreatorStrategy, CreateViewActionsOptions } from './viewAction
 export { createPageActions } from './pageActions.js'
 export { createAppActions } from './appActions.js'
 export { createHistoryActions } from './historyActions.js'
+export { defaultViewCreatorStrategies, graphCreatorStrategies } from './viewCreateStrategies.js'
 
 // ── Factory Options ──
 
@@ -35,7 +37,7 @@ export function createBanvasActions(
     getApp: () => App | null,
     options: CreateBanvasActionsOptions = {},
 ): IBanvasActions {
-    const { viewCreatorStrategies } = options
+    const { viewCreatorStrategies = defaultViewCreatorStrategies } = options
 
     return {
         view: _createViewActions(getApp, { viewCreatorStrategies }),

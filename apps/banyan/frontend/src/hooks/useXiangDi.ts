@@ -23,7 +23,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { aiApi, conversationApi } from '@/api'
 import type { AiStreamEvent, DisambiguationOptions } from '@/api'
-import type { ConversationMessage, Dialogue, DialogueType } from '@/api'
+import type { ConversationMessage, Dialogue, DialogueType, ImageItem } from '@/api'
 import { dialoguesToFlatMessages } from '@/api/conversations'
 
 // ─── 进度消息类型 ─────────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     ])
   }, [])
 
-  const sendPrompt = useCallback(async (prompt: string, type: DialogueType = 'task', images: Array<{ url: string; alt?: string }> = []) => {
+  const sendPrompt = useCallback(async (prompt: string, type: DialogueType = 'task', images: ImageItem[] = []) => {
     if (loading) return
 
     // 乐观追加 user 消息到 dialogues（创建一个临时 Dialogue）
@@ -153,7 +153,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       type,
       messages: [{
         role: 'user',
-        userContent: { prompt, images: images.map((img) => img.url) },
+        userContent: { prompt, images },
         createdAt: new Date().toISOString(),
       }],
       createdAt: new Date().toISOString(),

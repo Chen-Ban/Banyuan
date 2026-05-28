@@ -44,24 +44,25 @@ export enum GraphType {
 }
 
 /**
- * 视图类型标识
- *
- * 使用 string 而非 enum，允许业务层通过 ViewRegistry 动态注册自定义视图类型。
- * 内置类型定义在 ViewType 常量对象中，自定义类型可为任意字符串。
- *
- * @example
- * ```ts
- * const myType: ViewType = 'MY_CUSTOM_VIEW'
- * ViewRegistry.register(myType, MyCustomView)
- * ```
- */
+* 视图类型标识
+*
+* 使用 string 类型，内置类型定义在 ViewType 常量对象中。
+*
+* @example
+* ```ts
+* import { ViewType } from '@banyuan/banvasgl'
+*
+* if (view.type === ViewType.NODEVIEW) {
+*   // 处理流程图节点
+* }
+* ```
+*/
 export type ViewType = string
 
 /**
- * 内置视图类型常量
- *
- * 定义 BanvasGL 引擎内置的所有视图类型标识符。
- * 业务层可通过 ViewRegistry.register 注册额外的视图类型。
+* 内置视图类型常量
+*
+* 定义 BanvasGL 引擎内置的所有视图类型标识符。
  *
  * @example
  * ```ts
@@ -83,6 +84,9 @@ export const ViewType = {
     SELECTBOXVIEW: 'SELECTBOXVIEW',
     INPUT: 'INPUT',
     EDITABLETEXT: 'EDITABLETEXT',
+    NODEVIEW: 'NODEVIEW',
+    EDGEVIEW: 'EDGEVIEW',
+    PORTVIEW: 'PORTVIEW',
 } as const
 
 /**

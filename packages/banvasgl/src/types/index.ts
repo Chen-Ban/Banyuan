@@ -204,8 +204,6 @@ export type {
     ComponentIcon,
     ComponentSource,
     IComponentDefinition,
-    IViewNode,
-    IPageNode,
     IViewActions,
     IPageActions,
     IAppActions,

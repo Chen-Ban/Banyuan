@@ -7,7 +7,7 @@
 
 import React from 'react'
 import { Drawer, Tooltip } from 'antd'
-import type { DesignMaterialPaletteProps } from '@banyuan/banyan-sdk'
+import type { DesignMaterialPaletteProps } from '@/components/DesignEditor/DesignMaterialPalette'
 import type { IComponentDefinition, IDragProps } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
 
