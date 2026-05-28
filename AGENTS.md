@@ -14,14 +14,9 @@ Banyuan（班园）是一个 pnpm monorepo，包含自研 2D 画布引擎、AI A
 ```
 Banyuan/
 ├── packages/
-│   ├── banvasgl/            # 核心 2D 图形引擎 (npm: @banyuan/banvasgl)
-│   ├── banvas-design/       # 设计态 React 绑定 (npm: @banyuan/banvas-design)
-│   ├── banvas-runtime/      # 运行态统一接口层，平台无关契约 (npm: @banyuan/banvas-runtime)
-│   ├── banvas-runtime-web/  # 运行态 Web 平台适配 (npm: @banyuan/banvas-runtime-web)
+│   ├── banvasgl/            # 核心 2D 图形引擎 + 流程控制宿主 (npm: @banyuan/banvasgl)
 │   ├── flow/                # 流程控制引擎，声明式 FlowSchema 执行器 (npm: @banyuan/flow)
-│   ├── flow-design/         # 流程图编辑器 (npm: @banyuan/flow-design)
-│   ├── xiangdi-agent/       # AI Agent 引擎 (npm: @banyuan/xiangdi-agent)
-│   └── banyan-sdk/          # 伞包 SDK，聚合所有子包 (npm: @banyuan/banyan-sdk)
+│   └── xiangdi-agent/       # AI Agent 引擎 (npm: @banyuan/xiangdi-agent)
 ├── apps/
 │   ├── banyan/              # 低代码平台应用
 │   │   ├── frontend/        #   React 19 + Vite + Ant Design 6 (:5174)
@@ -37,32 +32,40 @@ Banyuan/
 └── docs/
     ├── business.md          # 业务上下文
     ├── pitfalls.md          # 踩坑记录
-    └── adr/                 # 架构决策记录（共 22 条，ADR-001 ~ ADR-022）
+    └── adr/                 # 架构决策记录（共 26 条，ADR-001 ~ ADR-026）
 ```
 
 ## 包间依赖方向
 
 ```
-apps/banyan/frontend ──▶ @banyuan/banyan-sdk (workspace:*)
-                              ├──▶ @banyuan/banvasgl
-                              ├──▶ @banyuan/banvas-runtime
-                              ├──▶ @banyuan/banvas-runtime-web
-                              ├──▶ @banyuan/banvas-design
-                              ├──▶ @banyuan/flow
-                              └──▶ @banyuan/flow-design
+@banyuan/banvasgl ──dep──▶ @banyuan/flow (workspace:*)
+    │
+    │  View.events / View.lifetimes / Scene.lifetimes 的类型都是 FlowSchema | null
+    │  View 是带有流程控制语义的对象，banvasgl 依赖 flow 是合理的设计决策
+    │
+
+apps/banyan/frontend ──▶ @banyuan/banvasgl (workspace:*)
+                     ──▶ @banyuan/flow (workspace:*)
 
 apps/banyan/backend ──▶ @banyuan/flow (workspace:*)
+
 apps/xiangdi-server ──▶ @banyuan/xiangdi-agent (workspace:*)
                     ──▶ @banyuan/banvasgl (workspace:*)
+
 apps/knowledge-server ──▶ @banyuan/banvasgl (workspace:*)  # 仅读取 version 做表名隔离
 
 @banyuan/xiangdi-agent ──optional peerDep──▶ @banyuan/banvasgl
-@banyuan/banvas-design ──peerDep──▶ @banyuan/banvasgl, @banyuan/banvas-runtime-web
-@banyuan/banvas-runtime-web ──peerDep──▶ @banyuan/banvasgl, @banyuan/banvas-runtime
-@banyuan/flow-design ──peerDep──▶ @banyuan/banvasgl, @banyuan/banvas-runtime-web, @banyuan/flow
 ```
 
-依赖方向是单向的：应用层 → SDK 伞包 → 能力层 → 引擎核心层。禁止循环依赖。
+依赖方向是单向的：应用层 → 能力层 → 引擎核心层。禁止循环依赖。
+
+### 关键设计决策：banvasgl 依赖 flow
+
+View 是带有流程控制语义的对象——每个 View 通过 `events`（onClick 等 12 个事件）和 `lifetimes`（onCreated/onAttach/onDestroy）字段绑定 FlowSchema。Scene 同样有生命周期（onLoad/onUnload/onShow/onHide）绑定 FlowSchema。这使得渲染层和流程控制自然耦合。
+
+flow 包独立的原因是：前端流程（animate/navigate/setData/setVisible）和云函数流程（dbQuery/dbInsert/httpRequest/script/transform）共享同一套 FlowSchema 执行器，后端直接 `import @banyuan/flow/server` 使用，无需依赖整个 banvasgl。
+
+耦合方式是单向且轻量的：banvasgl 只在 `types/view/view.ts` 中 `import type { FlowSchema } from '@banyuan/flow'`，运行时通过 `SchemaRunner` 依赖注入解耦，核心层不直接 import FlowRunner。
 
 ## 运行时服务架构
 
@@ -111,22 +114,25 @@ apps/knowledge-server ──▶ @banyuan/banvasgl (workspace:*)  # 仅读取 ver
 
 ### BanvasGL（@banyuan/banvasgl）
 
-- 五层架构：`engine`（App/Scene/Renderer/Camera/TransactionManager 等）/ `view`（View 基类及子类）/ `graph`（图形基元）/ `foundation`（数学/样式基础）/ `types`（纯接口契约）
-- 单一入口：`index.ts` 统一导出所有公共 API；编辑态能力已迁移至 `@banyuan/banvas-design`，运行态能力已迁移至 `@banyuan/banvas-runtime` + `@banyuan/banvas-runtime-web`
-- 重计算走 Web Worker（图形求交、快照 diff、文本排版、轨迹计算），Worker 代码在 `@banyuan/banvas-design` 中
+- 七层架构：`engine`（App/Scene/Renderer/Camera/TransactionManager 等）/ `view`（View 基类及子类）/ `graph`（图形基元）/ `foundation`（数学/样式基础）/ `types`（纯接口契约）/ `actions`（封装的操作函数，含默认视图创建策略）/ `data`（内置物料、数据构建器、右键菜单）
+- 单一入口：`index.ts` 统一导出所有公共 API
 - 渲染走 Canvas 2D 双缓冲，所有坐标系以左上角为原点
 - 图形基元继承自 `Graph` 基类，组合图形继承自 `CombinedGraph`
 - 视图类继承自 `View`，容器视图继承自 `ContainerView`（`CombinedView` 和 `FlexView` 的共同基类）
-- addon 通过 mixin 模式附加能力（`BoundingBoxAddon`、`BoxDecorationAddon`、`VertexAddon`）
+- 流程图视图（NodeView/EdgeView/PortView）定义在 `view/FlowViews/` 目录：NodeView 继承 ContainerView，EdgeView 和 PortView 继承 View
+- View 是带有流程控制语义的对象：`events`（12 个事件处理器）+ `lifetimes`（3 个生命周期钩子），类型均为 `FlowSchema | null`
+- addon 通过 mixin 模式附加能力（`BoundingBoxAddon`、`BoxDecorationAddon`、`VertexAddon`、`AnimationAddon`、`TextSelectionAddon`）
 - 场景操作走 `TransactionManager`，支持事务化撤销/重做
-- `SchemaRunner` 通过依赖注入解耦核心层与 FlowRunner，避免循环依赖
-- `ViewRegistry` 工厂注册表支持外部包动态注册视图类型
+- `SchemaRunner` 通过依赖注入解耦核心层与 FlowRunner：核心层定义 `ISchemaRunner` 接口，应用层通过 `setSchemaRunner()` 注入真正的 FlowRunner
 
 ### @banyuan/flow
 
 - 声明式 FlowSchema 执行器，节点图（nodes + edges）驱动
-- 前后端执行器分离：`@banyuan/flow/client`（animate/navigate/setData/setVisible）和 `@banyuan/flow/server`（dbQuery/dbInsert/httpRequest/script/transform）
+- 纯独立包，无任何 runtime dependencies
+- 前后端执行器分离：`@banyuan/flow/client`（animate/navigate/setData/setVisible）和 `@banyuan/flow/server`（dbQuery/dbInsert/dbUpdate/dbDelete/httpRequest/script/transform）
+- 共享执行器：`condition/delay/setVariable/callFlow/subFlow`
 - 后端使用 `createServerFlowRunner()`，通过 `ServerFlowContext` 注入 db 和 httpClient 能力
+- 子路径导出：`.`（核心）、`./client`（前端预设）、`./server`（后端预设）、`./types`（纯类型）
 
 ### XiangDi（@banyuan/xiangdi-agent）
 
@@ -139,13 +145,21 @@ apps/knowledge-server ──▶ @banyuan/banvasgl (workspace:*)  # 仅读取 ver
 - 记忆层：`LocalEpisodicMemory`（中期经验）+ `LocalSemanticMemory`（长期事实）；`extractPreferences` 节点在 graph 末端提取用户偏好写入记忆
 - Harness 层：`HarnessRunner` 按 ChangeSpec 分发任务 → `checkpoint.ts` 做阶段性验证
 
-### Banyan
+### Banyan 前端
 
-- 前端 React 19 + react-router-dom，布局组件放 `layouts/`，页面组件放 `pages/`，复用组件放 `components/`
-- 后端 Koa + MVC 结构：`models/` → `services/` → `controllers/` → `routes/`
+- React 19 + react-router-dom，布局组件放 `layouts/`，页面组件放 `pages/`，复用组件放 `components/`
+- 核心模块划分：`editor/`（UI 可视化设计编辑器）、`flow/`（流程图编辑器）、`canvas/`（画布底层交互）
+- `editor/` 模块：`useDesignBanvas` hook + 属性面板 + 物料面板，负责 UI 设计态交互
+- `flow/` 模块：流程图编辑 hooks + React 组件（上下文菜单/物料面板/属性弹窗）；视图类（NodeView/EdgeView/PortView）已迁移到 `@banyuan/banvasgl` 核心层
+- `canvas/` 模块：画布初始化、缩放、事件系统等底层交互
 - 样式用 SCSS Modules（`*.module.scss`）
 - API 客户端封装在 `frontend/src/api/`，使用 axios
+
+### Banyan 后端
+
+- Koa + MVC 结构：`models/` → `services/` → `controllers/` → `routes/`
 - 动态 ORM：`SchemaService` + `OrmService`，集合名规则 `app_{appId}_{collectionName}`
+- 流程执行：`FlowRunnerService` 使用 `@banyuan/flow/server` 的 `createServerFlowRunner()`
 - AI 代理：`AiService` 10 步 SSE 代理，`frontendPages` 优先策略避免竞态
 
 ## 关键入口文件
@@ -153,13 +167,17 @@ apps/knowledge-server ──▶ @banyuan/banvasgl (workspace:*)  # 仅读取 ver
 | 用途 | 文件路径 |
 |------|----------|
 | BanvasGL 核心引擎入口 | `packages/banvasgl/src/index.ts` |
-| BanvasGL 核心模块总览 | `packages/banvasgl/src/core/index.ts` |
-| BanvasGL 设计态入口 | `packages/banvas-design/src/index.ts` |
-| BanvasGL 运行态接口层入口 | `packages/banvas-runtime/src/index.ts` |
-| BanvasGL 运行态 Web 适配入口 | `packages/banvas-runtime-web/src/index.ts` |
+| BanvasGL View 基类 | `packages/banvasgl/src/view/View/View.ts` |
+| BanvasGL FlowViews（NodeView/EdgeView/PortView） | `packages/banvasgl/src/view/FlowViews/` |
+| BanvasGL SchemaRunner（依赖注入） | `packages/banvasgl/src/engine/SchemaRunner.ts` |
+| BanvasGL 类型契约（含 Flow 类型重导出） | `packages/banvasgl/src/types/view/view.ts` |
+| BanvasGL Actions（createBanvasActions） | `packages/banvasgl/src/actions/index.ts` |
+| BanvasGL 视图创建策略（默认策略） | `packages/banvasgl/src/actions/viewCreateStrategies.ts` |
+| BanvasGL 数据层（物料/构建器/菜单） | `packages/banvasgl/src/data/` |
 | Flow 引擎入口 | `packages/flow/src/index.ts` |
-| Flow 图编辑器入口 | `packages/flow-design/src/index.ts` |
-| Banyan SDK 伞包入口 | `packages/banyan-sdk/src/index.ts` |
+| Flow 客户端预设 | `packages/flow/src/presets/client.ts` |
+| Flow 服务端预设 | `packages/flow/src/presets/server.ts` |
+| Flow 类型定义 | `packages/flow/src/types/schema.ts` |
 | XiangDi 公共 API | `packages/xiangdi-agent/src/index.ts` |
 | XiangDi Graph 核心 | `packages/xiangdi-agent/src/graph/masterGraph.ts` |
 | XiangDi Spec 体系 | `packages/xiangdi-agent/src/spec/types.ts` |
@@ -174,8 +192,10 @@ apps/knowledge-server ──▶ @banyuan/banvasgl (workspace:*)  # 仅读取 ver
 | RerankerService（精排） | `apps/knowledge-server/src/services/RerankerService.ts` |
 | Banyan 前端路由 | `apps/banyan/frontend/src/routes/index.tsx` |
 | Banyan 前端应用级布局 | `apps/banyan/frontend/src/layouts/ApplicationLayout/index.tsx` |
+| Banyan 前端流程图编辑器 | `apps/banyan/frontend/src/flow/index.ts` |
 | Banyan 后端入口 | `apps/banyan/backend/src/app.ts` |
 | Banyan 后端 AI 代理 | `apps/banyan/backend/src/services/AiService.ts` |
+| Banyan 后端流程执行 | `apps/banyan/backend/src/services/FlowRunnerService.ts` |
 | Banyan 后端构建服务 | `apps/banyan/backend/src/services/build/index.ts` |
 | Banyan 后端预览服务 | `apps/banyan/backend/src/services/preview/index.ts` |
 | XiangDi HTTP 服务入口 | `apps/xiangdi-server/src/app.ts` |
@@ -183,7 +203,6 @@ apps/knowledge-server ──▶ @banyuan/banvasgl (workspace:*)  # 仅读取 ver
 
 ## 禁止事项
 
-- **禁止**在 `@banyuan/banvasgl` 核心包中引入编辑态模块（`useDesignBanvas`、Worker 等），这些已迁移至 `@banyuan/banvas-design`
 - **禁止**直接修改 BanvasGL Scene 内部状态，必须通过 `TransactionManager` 或 XiangDi 工具协议
 - **禁止**在 XiangDi Graph 节点中硬编码特定 LLM provider，必须通过 `LLMClient` 接口
 - **禁止**在 `apps/banyan/backend` 中直接 `import @banyuan/xiangdi-agent`，必须通过 HTTP 调用 XiangDi 服务（:3002）
@@ -197,13 +216,14 @@ apps/knowledge-server ──▶ @banyuan/banvasgl (workspace:*)  # 仅读取 ver
 
 ## Agent 行为指引
 
-- 修改 `@banyuan/banvasgl` 时，注意检查 `@banyuan/banvas-design`、`@banyuan/banvas-runtime-web` 等依赖包的导出是否需要同步更新
+- 修改 `@banyuan/banvasgl` 的接口类型时，注意检查 `@banyuan/xiangdi-agent` 中 AISchema 转换器是否需要同步更新
 - 修改 XiangDi 时，新增工具需同时更新 `tools/index.ts` 和 `packages/xiangdi-agent/src/index.ts` 的导出
 - 添加新依赖时，区分 `dependencies`（运行时需要）vs `devDependencies`（构建/测试时需要）vs `peerDependencies`（由宿主提供）
 - 创建新文件时，记得在对应的 barrel 文件中添加导出
 - 涉及 Schema 变更时，确保 `AISchema ↔ BanvasGL` 双向转换器同步更新
 - 构建验证：`pnpm build:all` 应零错误通过（已知的 AISchema.ts Zod 类型推断问题除外）
 - 前端新增页面时，布局组件放 `layouts/`，页面组件放 `pages/`，跨页面复用组件放 `components/`
+- 流程图视图（NodeView/EdgeView/PortView）已内置于 `@banyuan/banvasgl` 核心层 `view/FlowViews/` 目录，前端直接 import 使用，无需动态注册
 
 ## 相关文档
 

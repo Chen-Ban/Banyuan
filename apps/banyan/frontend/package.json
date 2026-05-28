@@ -12,11 +12,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "@banyuan/banvasgl": "workspace:*",
-    "@banyuan/banvas-design": "workspace:*",
-    "@banyuan/banvas-runtime": "workspace:*",
-    "@banyuan/banvas-runtime-web": "workspace:*",
-    "@banyuan/flow-design": "workspace:*",
-    "@banyuan/banyan-sdk": "workspace:*",
+    "@banyuan/flow": "workspace:*",
     "antd": "^6.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
