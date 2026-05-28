@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { InputNumber, Radio, Tabs } from 'antd'
-import type { IBanvasActions, IPageNode } from '@banyuan/banvasgl'
+import type { IBanvasActions } from '@banyuan/banvasgl'
 import { ViewType } from '@banyuan/banvasgl'
 import PropertiesTab from './PropertiesTab'
 import StyleTab from './StyleTab'
@@ -10,7 +10,6 @@ import styles from './index.module.scss'
 interface PropertyPanelProps {
     selectedViewId: string
     actions: IBanvasActions
-    pages: IPageNode[]
     currentPageId: string | null
     canvasSize: { width: number; height: number }
     onCanvasSizeChange: (width: number, height: number) => void
@@ -25,7 +24,6 @@ interface PropertyPanelProps {
 const PropertyPanel: React.FC<PropertyPanelProps> = ({
     selectedViewId,
     actions,
-    pages: _pages,
     currentPageId: _currentPageId,
     canvasSize,
     onCanvasSizeChange,

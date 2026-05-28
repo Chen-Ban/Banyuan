@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Modal, Button, Descriptions, Tag, message, Spin } from 'antd'
 import { PrinterOutlined, ReloadOutlined } from '@ant-design/icons'
-import type { IBanvasActions, IPageNode } from '@banyuan/banvasgl'
+import type { IBanvasActions } from '@banyuan/banvasgl'
 import { ViewType } from '@banyuan/banvasgl'
 import { fieldsApi, templateApi } from '@/api'
 import type { FieldGroup, FieldDefinition, IPrintField } from '@/api'
@@ -13,8 +13,6 @@ interface PrintPreviewProps {
   onClose: () => void
   /** BanvasGL actions */
   actions: IBanvasActions
-  /** 当前页面列表 */
-  pages: IPageNode[]
   /** 画布尺寸 */
   canvasSize: { width: number; height: number }
   /** 模板名称 */
@@ -38,7 +36,6 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
   visible,
   onClose,
   actions,
-  pages,
   canvasSize,
   templateName,
 }) => {
@@ -87,39 +84,41 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
 
     // 提取动态字段列表
     const fields: Array<{ field: IPrintField; exampleValue: string }> = []
-    for (const page of pages) {
-      const collectFields = (nodes: typeof page.children) => {
-        for (const node of nodes) {
-          if (node.type === ViewType.TEXTVIEW) {
-            const viewInstance = actions.view.getViewInstance(node.id)
-            if (viewInstance) {
-              const fieldKeySchema = viewInstance.data?.fieldKey
-              const fieldKey = fieldKeySchema?.value as string | undefined
-              if (fieldKey) {
-                const fieldDef = fieldMap.get(fieldKey)
-                fields.push({
-                  field: {
-                    key: fieldKey,
-                    label: fieldDef?.label ?? fieldKey,
-                    type: (fieldDef?.type ?? 'text') as 'text' | 'barcode' | 'qrcode',
-                    bounds: {
-                      x: viewInstance.viewport.x,
-                      y: viewInstance.viewport.y,
-                      width: viewInstance.viewport.width,
-                      height: viewInstance.viewport.height,
-                    },
+    const pageIds = actions.page.getPageIds()
+    for (const pageId of pageIds) {
+      const viewIds = actions.page.getPageViewIds(pageId)
+      const collectFields = (ids: string[]) => {
+        for (const viewId of ids) {
+          const viewInstance = actions.view.getViewInstance(viewId)
+          if (!viewInstance) continue
+          if (viewInstance.type === ViewType.TEXTVIEW) {
+            const fieldKeySchema = viewInstance.data?.fieldKey
+            const fieldKey = fieldKeySchema?.value as string | undefined
+            if (fieldKey) {
+              const fieldDef = fieldMap.get(fieldKey)
+              fields.push({
+                field: {
+                  key: fieldKey,
+                  label: fieldDef?.label ?? fieldKey,
+                  type: (fieldDef?.type ?? 'text') as 'text' | 'barcode' | 'qrcode',
+                  bounds: {
+                    x: viewInstance.viewport.x,
+                    y: viewInstance.viewport.y,
+                    width: viewInstance.viewport.width,
+                    height: viewInstance.viewport.height,
                   },
-                  exampleValue: fieldDef?.example ?? `{{${fieldKey}}}`,
-                })
-              }
+                },
+                exampleValue: fieldDef?.example ?? `{{${fieldKey}}}`,
+              })
             }
           }
-          if (node.children?.length) {
-            collectFields(node.children)
+          // 递归子 view
+          if (viewInstance.children?.length) {
+            collectFields(viewInstance.children.map((c: any) => c.id))
           }
         }
       }
-      collectFields(page.children)
+      collectFields(viewIds)
     }
     setDynamicFields(fields)
 
@@ -192,7 +191,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
       setLoading(false)
     }
     img.src = backgroundDataUrl
-  }, [visible, actions, pages, canvasSize, fieldGroups])
+  }, [visible, actions, canvasSize, fieldGroups])
 
   // 打开时自动合成
   useEffect(() => {

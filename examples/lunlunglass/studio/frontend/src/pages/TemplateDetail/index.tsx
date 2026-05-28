@@ -15,7 +15,6 @@ import { getErrorMessage } from "@/utils/error";
 import styles from "./index.module.scss";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyPanel from "./components/PropertyPanel";
-import PageList from "./components/PageList";
 import ContextMenu from "./components/ContextMenu";
 import PrintPreview from "@/components/PrintPreview";
 
@@ -101,7 +100,6 @@ const TemplateDetail = () => {
 
   const {
     Banvas,
-    pages,
     currentPageId,
     selectedViewId,
     actions,
@@ -229,35 +227,37 @@ const printComponents = useMemo(
 
       // 3. 提取动态字段列表（遍历所有页面的所有 View，找绑定了 fieldKey 的 TextView）
       const dynamicFields: IPrintField[] = [];
-      for (const page of pages) {
-        const collectFields = (nodes: typeof page.children) => {
-          for (const node of nodes) {
-            if (node.type === ViewType.TEXTVIEW) {
-              const viewInstance = actions.view.getViewInstance(node.id);
-              if (viewInstance) {
-                const fieldKeySchema = viewInstance.data?.fieldKey;
-                const fieldKey = fieldKeySchema?.value as string | undefined;
-                if (fieldKey) {
-                  dynamicFields.push({
-                    key: fieldKey,
-                    label: node.name || fieldKey,
-                    type: 'text',
-                    bounds: {
-                      x: viewInstance.viewport.x,
-                      y: viewInstance.viewport.y,
-                      width: viewInstance.viewport.width,
-                      height: viewInstance.viewport.height,
-                    },
-                  });
-                }
+      const pageIds = actions.page.getPageIds();
+      for (const pageId of pageIds) {
+        const viewIds = actions.page.getPageViewIds(pageId);
+        const collectFields = (ids: string[]) => {
+          for (const viewId of ids) {
+            const viewInstance = actions.view.getViewInstance(viewId);
+            if (!viewInstance) continue;
+            if (viewInstance.type === ViewType.TEXTVIEW) {
+              const fieldKeySchema = viewInstance.data?.fieldKey;
+              const fieldKey = fieldKeySchema?.value as string | undefined;
+              if (fieldKey) {
+                dynamicFields.push({
+                  key: fieldKey,
+                  label: viewInstance.name || fieldKey,
+                  type: 'text',
+                  bounds: {
+                    x: viewInstance.viewport.x,
+                    y: viewInstance.viewport.y,
+                    width: viewInstance.viewport.width,
+                    height: viewInstance.viewport.height,
+                  },
+                });
               }
             }
-            if (node.children?.length) {
-              collectFields(node.children);
+            // 递归子 view
+            if (viewInstance.children?.length) {
+              collectFields(viewInstance.children.map((c: any) => c.id));
             }
           }
         };
-        collectFields(page.children);
+        collectFields(viewIds);
       }
 
       // 4. 发布
@@ -274,7 +274,7 @@ const printComponents = useMemo(
     } finally {
       setPublishing(false);
     }
-  }, [isNew, id, templateName, templateDescription, actions, pages, canvasSize]);
+  }, [isNew, id, templateName, templateDescription, actions, canvasSize]);
 
   const handleBack = () => {
     navigate("/template");
@@ -333,18 +333,12 @@ const printComponents = useMemo(
         onPublish={handlePublish}
       />
       <div className={styles.mainContent}>
-        <PageList
-          pages={pages}
-          currentPageId={currentPageId}
-          actions={actions}
-        />
         <div className={styles.canvasSection}>
           {Banvas}
         </div>
         <PropertyPanel
           selectedViewId={selectedViewId}
           actions={actions}
-          pages={pages}
           currentPageId={currentPageId}
           canvasSize={canvasSize}
           onCanvasSizeChange={handleCanvasSizeChange}
@@ -398,7 +392,7 @@ const printComponents = useMemo(
             </div>
             <div className={styles.previewInfoRow}>
               <span className={styles.previewInfoLabel}>页面数</span>
-              <span className={styles.previewInfoValue}>{pages.length} 页</span>
+              <span className={styles.previewInfoValue}>{actions.page.getPageCount()} 页</span>
             </div>
             {/* 发布按钮（预览弹窗内也可发布） */}
             {!isNew && (
@@ -431,7 +425,6 @@ const printComponents = useMemo(
         visible={printPreviewVisible}
         onClose={() => setPrintPreviewVisible(false)}
         actions={actions}
-        pages={pages}
         canvasSize={canvasSize}
         templateName={templateName}
       />
