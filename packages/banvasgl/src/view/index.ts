@@ -8,13 +8,5 @@ export { default as TextView } from './TextView'
 export { default as CombinedView } from './CombinedViews'
 export { default as FlexView } from './FlexView'
 export { default as Input } from './Forms/Input'
-export {
-    registerViewFactory,
-    registerViewFactories,
-    createView,
-    hasViewFactory,
-    getViewFactory,
-    unregisterViewFactory,
-    getRegisteredViewTypes,
-} from './ViewRegistry'
-export type { IViewFactory } from './ViewRegistry'
+export { NodeView, PortView, EdgeView } from './FlowViews'
+export type { NodeViewOptions, PortDefinition, PortViewOptions, EdgeViewOptions } from './FlowViews'

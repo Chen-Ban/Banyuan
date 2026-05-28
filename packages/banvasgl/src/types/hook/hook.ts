@@ -76,60 +76,6 @@ export interface IComponentDefinition {
 }
 
 // ────────────────────────────────────────────
-//  页面 & 容器树（Layers Panel 数据）
-// ────────────────────────────────────────────
-
-/**
- * 视图节点（树形结构）
- *
- * 用于 Layers 面板渲染，支持双向联动：
- * - 点击树节点 → actions.view.select(id)
- * - 画布选中元素 → selected/actived 更新 → React 重渲染面板
- */
-export interface IViewNode {
-    /** 视图唯一标识 */
-    id: string
-    /** 视图类型 */
-    type: ViewType
-    /** 图形类型（仅 GraphView） */
-    graphType?: GraphType
-    /** 显示名称 */
-    name: string
-    /** 是否可见 */
-    visible: boolean
-    /** 是否锁定（锁定后不可选中/编辑） */
-    locked: boolean
-    /** 是否处于选中状态 */
-    selected: boolean
-    /** 是否处于激活状态（双击进入编辑） */
-    actived: boolean
-    /** 嵌套深度（从 0 开始，根容器 = 0） */
-    depth: number
-    /** 子节点列表 */
-    children: IViewNode[]
-}
-
-/**
- * 页面节点
- *
- * 对应 App 下的一个 Scene，包含其容器树。
- */
-export interface IPageNode {
-    /** 场景唯一标识 */
-    id: string
-    /** 页面名称 */
-    name: string
-    /** 是否为当前活跃页面 */
-    isCurrent: boolean
-    /** 在页面栈中的索引 */
-    index: number
-    /** 页面级数据（字段定义表） */
-    data: IFieldSchemaMap
-    /** 该页面下的视图容器树 */
-    children: IViewNode[]
-}
-
-// ────────────────────────────────────────────
 //  Actions 操作接口（替代直接暴露 App）
 // ────────────────────────────────────────────
 
@@ -229,6 +175,12 @@ select(viewId: string, multiple?: boolean): void
 
 /** 页面操作 */
 export interface IPageActions {
+    /** 获取所有页面 ID 列表（按顺序） */
+    getPageIds(): string[]
+    /** 获取指定页面的所有顶层子 View ID 列表 */
+    getPageViewIds(pageId: string): string[]
+    /** 获取页面数量 */
+    getPageCount(): number
     /** 导航到指定页面 */
     navigateTo(pageId: string): void
     /** 新增页面 */
@@ -366,8 +318,6 @@ export interface IDragProps {
 export interface IUseBanvasResult<TElement = unknown> {
     /** Canvas 渲染元素（React.ReactElement 或其他 UI 框架元素） */
     Banvas: TElement
-    /** 页面列表（含容器树），响应式更新 */
-    pages: IPageNode[]
     /** 当前活跃页面 ID */
     currentPageId: string | null
     /** 当前选中视图 ID（空字符串表示未选中） */
