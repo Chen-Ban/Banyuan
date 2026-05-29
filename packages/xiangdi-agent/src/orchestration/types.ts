@@ -13,7 +13,7 @@
  * - AuditResult：审计 Agent 的验证结论
  */
 
-import type { AINode, AIPage } from "../schema/AISchema.js";
+import type { AIProjectionNode, AIProjectionScene } from "../schema/projection.types.js";
 
 // ─── Port 系统（强类型 + 事件描述混合）───────────────────────────────────────
 
@@ -139,7 +139,7 @@ export interface SubAgentConstraints {
   /** 最大节点层级深度 */
   maxDepth?: number;
   /** 允许使用的节点类型 */
-  allowedNodeTypes?: AINode["type"][];
+  allowedNodeTypes?: AIProjectionNode["type"][];
   /** 配色方案约束 */
   colorPalette?: string[];
   /** 字体大小范围 */
@@ -192,7 +192,7 @@ export interface SubAgentResult {
   /** 生成状态 */
   status: "success" | "partial" | "failed";
   /** 生成的节点列表（本地坐标系，左上角为 0,0） */
-  nodes: AINode[];
+  nodes: AIProjectionNode[];
   /** 对外暴露的端口 */
   ports: ContainerPorts;
   /** 内部流程片段 */
@@ -331,7 +331,7 @@ export interface AuditIssue {
  */
 export interface AuditRequest {
   /** 组装后的完整页面 */
-  assembledPage: AIPage;
+  assembledPage: AIProjectionScene;
   /** 组装计划（用于验证绑定） */
   assemblyPlan: AssemblyPlan;
   /** SubAgent 原始结果（用于验证端口一致性） */
@@ -347,7 +347,7 @@ export interface AuditResult {
   /** 发现的问题列表 */
   issues: AuditIssue[];
   /** 修复后的页面（如果审计 Agent 自动修复了问题） */
-  fixedPage?: AIPage;
+  fixedPage?: AIProjectionScene;
   /** 修复说明 */
   fixSummary?: string;
 }
@@ -430,7 +430,7 @@ export interface OrchestrationResult {
   /** 是否成功 */
   success: boolean;
   /** 生成的页面 */
-  page?: AIPage;
+  page?: AIProjectionScene;
   /** 组装计划 */
   assemblyPlan?: AssemblyPlan;
   /** 审计结果 */

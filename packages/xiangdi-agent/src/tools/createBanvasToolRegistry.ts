@@ -7,14 +7,12 @@
  * 设计原则：
  * - Handler 只做数据变换，不持有状态
  * - 所有操作通过 adapter 读写，便于测试和替换
- * - APPLY_PATCH 实现事务性批量操作（顺序执行，任一失败则整体回滚）
- * - ToolExecutionContext 在批量操作中共享内存 AIApp，消除 N+1 序列化
+ * - 基于 AI Projection 格式（ADR-027），无损双向转换
  */
 
 import { ToolRegistry } from "../core/ToolRegistry.js";
-import { banvasToAIApp, aiAppToBanvas } from "../schema/converters.js";
-import { AINodeSchema } from "../schema/AISchema.js";
-import type { AIApp, AIPage, AINode } from "../schema/AISchema.js";
+import { pagesToProjection, projectionToPages } from "../schema/projection.js";
+import type { AIProjectionScene } from "../schema/projection.types.js";
 import {
   BANVAS_TOOLS,
   BANVAS_TOOL_DEFINITIONS,
@@ -44,45 +42,308 @@ export interface BanvasHostAdapter {
   getAppMeta(): Promise<{ id: string; name: string; version: string }>;
 }
 
-// ─── ToolExecutionContext ─────────────────────────────────────────────────────
+// ─── AI Projection 读写 ──────────────────────────────────────────────────────
+
+/**
+ * 从 adapter 读取并转换为 AI Projection 格式。
+ * 直接操作 Serializer 原生 JSON，无损双向转换。
+ *
+ * 当 pages 为空时返回空数组（支持新应用创建首页等场景）。
+ *
+ * @throws Error 当 JSON 解析/转换失败时抛出有意义的错误信息
+ */
+export async function readProjection(adapter: BanvasHostAdapter): Promise<AIProjectionScene[]> {
+  const pages = await adapter.getPages();
+  if (!pages || pages.length === 0) {
+    return [];
+  }
+  try {
+    return pagesToProjection(pages);
+  } catch (err) {
+    throw new Error(
+      `[AI Projection] 页面数据转换失败: ${err instanceof Error ? err.message : String(err)}`
+    )
+  }
+}
+
+/**
+ * 将 AI Projection 写回 adapter。
+ * @param version - BanvasGL 版本号，用于 SerializedData.version 字段
+ */
+export async function writeProjection(
+  adapter: BanvasHostAdapter,
+  scenes: AIProjectionScene[],
+  version: string,
+): Promise<void> {
+  const pages = projectionToPages(scenes, version);
+  await adapter.setPages(pages);
+}
+
+// ─── 工具执行上下文 ───────────────────────────────────────────────────────────
 
 /**
  * 工具执行上下文
  *
- * 在 APPLY_PATCH 批量操作中，所有子工具共享同一个内存 AIApp 状态，
- * 避免每个工具独立 readAIApp/writeAIApp 产生的 N+1 序列化开销。
- *
- * 生命周期：
- *   1. APPLY_PATCH 开始前：readAIApp() 一次，缓存到 ctx.app
- *   2. 每个子工具：直接操作 ctx.app（内存）
- *   3. APPLY_PATCH 结束后：writeAIApp() 一次
- *
- * 单工具调用（非批量）时不使用 context，直接走 adapter 读写。
+ * 在 APPLY_PATCH 批量操作中，所有子工具共享同一个内存 Projection 状态，
+ * 避免每个工具独立 readProjection/writeProjection 产生的 N+1 序列化开销。
  */
 interface ToolExecutionContext {
-  app: AIApp;
+  scenes: AIProjectionScene[];
+  version: string;
   dirty: boolean;
 }
 
-// ─── 内部工具函数 ─────────────────────────────────────────────────────────────
+// ─── Handler 实现 ─────────────────────────────────────────────────────────────
 
-/** 从 adapter 读取并转换为 AIApp */
-async function readAIApp(adapter: BanvasHostAdapter): Promise<AIApp> {
-  const [pages, meta] = await Promise.all([adapter.getPages(), adapter.getAppMeta()]);
-  const rawApp = {
-    id: meta.id,
-    name: meta.name,
-    version: meta.version,
-    pages: pages.map((p) => JSON.parse(p)),
-  };
-  return banvasToAIApp(rawApp);
+async function handleGetAppState(
+  adapter: BanvasHostAdapter,
+  input: GetAppStateInput,
+  ctx?: ToolExecutionContext
+): Promise<unknown> {
+  const scenes = ctx ? ctx.scenes : await readProjection(adapter);
+  if (input.pageId) {
+    const scene = scenes.find((s) => s.id === input.pageId);
+    if (!scene) return { error: `页面 ${input.pageId} 不存在` };
+    return scene;
+  }
+  return scenes;
 }
 
-/** 将 AIApp 写回 adapter */
-async function writeAIApp(adapter: BanvasHostAdapter, app: AIApp): Promise<void> {
-  const banvasApp = aiAppToBanvas(app) as { pages: unknown[] };
-  const pages = banvasApp.pages.map((p) => JSON.stringify(p));
-  await adapter.setPages(pages);
+async function handleCreatePage(
+  adapter: BanvasHostAdapter,
+  input: CreatePageInput,
+  ctx?: ToolExecutionContext
+): Promise<unknown> {
+  const scenes = ctx ? ctx.scenes : await readProjection(adapter);
+  const meta = await adapter.getAppMeta();
+  const newScene: AIProjectionScene = {
+    id: `page_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: input.name,
+    size: { width: input.width ?? 375, height: input.height ?? 812 },
+    backgroundColor: input.backgroundColor ?? '#ffffff',
+    children: [],
+  };
+  scenes.push(newScene);
+  if (ctx) {
+    ctx.dirty = true;
+  } else {
+    await writeProjection(adapter, scenes, meta.version);
+  }
+  return { pageId: newScene.id, message: `页面 "${input.name}" 已创建` };
+}
+
+async function handleAddNode(
+  adapter: BanvasHostAdapter,
+  input: AddNodeInput,
+  ctx?: ToolExecutionContext
+): Promise<unknown> {
+  const scenes = ctx ? ctx.scenes : await readProjection(adapter);
+  const meta = await adapter.getAppMeta();
+  const scene = scenes.find((s) => s.id === input.pageId);
+  if (!scene) return { error: `页面 ${input.pageId} 不存在` };
+
+  const nodeId = (input.node["id"] as string | undefined) ?? `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const node = normalizeToProjectionNode({ ...input.node, id: nodeId });
+  scene.children.push(node);
+
+  if (ctx) {
+    ctx.dirty = true;
+  } else {
+    await writeProjection(adapter, scenes, meta.version);
+  }
+  return { nodeId, message: "节点已添加" };
+}
+
+async function handleUpdateNode(
+  adapter: BanvasHostAdapter,
+  input: UpdateNodeInput,
+  ctx?: ToolExecutionContext
+): Promise<unknown> {
+  const scenes = ctx ? ctx.scenes : await readProjection(adapter);
+  const meta = await adapter.getAppMeta();
+  const scene = scenes.find((s) => s.id === input.pageId);
+  if (!scene) return { error: `页面 ${input.pageId} 不存在` };
+
+  const found = updateNodeInChildren(scene.children, input.nodeId, input.patch);
+  if (!found) return { error: `节点 ${input.nodeId} 不存在` };
+
+  if (ctx) {
+    ctx.dirty = true;
+  } else {
+    await writeProjection(adapter, scenes, meta.version);
+  }
+  return { message: "节点已更新" };
+}
+
+async function handleDeleteNode(
+  adapter: BanvasHostAdapter,
+  input: DeleteNodeInput,
+  ctx?: ToolExecutionContext
+): Promise<unknown> {
+  const scenes = ctx ? ctx.scenes : await readProjection(adapter);
+  const meta = await adapter.getAppMeta();
+  const scene = scenes.find((s) => s.id === input.pageId);
+  if (!scene) return { error: `页面 ${input.pageId} 不存在` };
+
+  const found = deleteNodeInChildren(scene.children, input.nodeId);
+  if (!found) return { error: `节点 ${input.nodeId} 不存在` };
+
+  if (ctx) {
+    ctx.dirty = true;
+  } else {
+    await writeProjection(adapter, scenes, meta.version);
+  }
+  return { message: "节点已删除" };
+}
+
+async function handleMoveNode(
+  adapter: BanvasHostAdapter,
+  input: MoveNodeInput,
+  ctx?: ToolExecutionContext
+): Promise<unknown> {
+  return handleUpdateNode(
+    adapter,
+    {
+      pageId: input.pageId,
+      nodeId: input.nodeId,
+      patch: { transform: { x: input.x, y: input.y } },
+    },
+    ctx
+  );
+}
+
+async function handleResizeNode(
+  adapter: BanvasHostAdapter,
+  input: ResizeNodeInput,
+  ctx?: ToolExecutionContext
+): Promise<unknown> {
+  return handleUpdateNode(
+    adapter,
+    {
+      pageId: input.pageId,
+      nodeId: input.nodeId,
+      patch: { size: { width: input.width, height: input.height } },
+    },
+    ctx
+  );
+}
+
+async function handleApplyPatch(adapter: BanvasHostAdapter, input: ApplyPatchInput): Promise<unknown> {
+  const snapshot = await adapter.getPages();
+  const scenes = await readProjection(adapter);
+  const meta = await adapter.getAppMeta();
+  const ctx: ToolExecutionContext = { scenes, version: meta.version, dirty: false };
+  const results: unknown[] = [];
+
+  try {
+    for (const op of input.operations) {
+      const result = await dispatchHandler(adapter, op.tool as BanvasToolName, op.input, ctx);
+      results.push(result);
+    }
+
+    if (ctx.dirty) {
+      await writeProjection(adapter, ctx.scenes, ctx.version);
+    }
+
+    return { message: `批量操作完成，共执行 ${input.operations.length} 步`, results };
+  } catch (err) {
+    await adapter.setPages(snapshot);
+    throw new Error(`批量操作失败，已回滚：${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+// ─── 工具分发 ─────────────────────────────────────────────────────────────────
+
+async function dispatchHandler(
+  adapter: BanvasHostAdapter,
+  tool: BanvasToolName,
+  input: Record<string, unknown>,
+  ctx?: ToolExecutionContext
+): Promise<unknown> {
+  switch (tool) {
+    case BANVAS_TOOLS.GET_APP_STATE:
+      return handleGetAppState(adapter, input as unknown as GetAppStateInput, ctx);
+    case BANVAS_TOOLS.CREATE_PAGE:
+      return handleCreatePage(adapter, input as unknown as CreatePageInput, ctx);
+    case BANVAS_TOOLS.ADD_NODE:
+      return handleAddNode(adapter, input as unknown as AddNodeInput, ctx);
+    case BANVAS_TOOLS.UPDATE_NODE:
+      return handleUpdateNode(adapter, input as unknown as UpdateNodeInput, ctx);
+    case BANVAS_TOOLS.DELETE_NODE:
+      return handleDeleteNode(adapter, input as unknown as DeleteNodeInput, ctx);
+    case BANVAS_TOOLS.MOVE_NODE:
+      return handleMoveNode(adapter, input as unknown as MoveNodeInput, ctx);
+    case BANVAS_TOOLS.RESIZE_NODE:
+      return handleResizeNode(adapter, input as unknown as ResizeNodeInput, ctx);
+    case BANVAS_TOOLS.APPLY_PATCH:
+      return handleApplyPatch(adapter, input as unknown as ApplyPatchInput);
+    default:
+      return { error: `未知工具：${tool}` };
+  }
+}
+
+// ─── 辅助函数 ─────────────────────────────────────────────────────────────────
+
+import type { AIProjectionNode } from "../schema/projection.types.js";
+
+/**
+ * 将 LLM 传入的节点数据宽容转换为 AIProjectionNode。
+ * LLM 可能传入旧格式（x/y/width/height 扁平）或新格式（transform/size）。
+ */
+function normalizeToProjectionNode(raw: Record<string, unknown>): AIProjectionNode {
+  const id = (raw.id as string) ?? `node_${Date.now()}`;
+  const type = (raw.type as string) ?? 'GRAPHVIEW';
+
+  // 解析 transform
+  let x = 0, y = 0, rotation: number | undefined, scaleX: number | undefined, scaleY: number | undefined;
+  if (raw.transform && typeof raw.transform === 'object') {
+    const t = raw.transform as Record<string, unknown>;
+    // 新格式：{ x, y, rotation?, scaleX?, scaleY? }
+    if ('x' in t) {
+      x = Number(t.x ?? 0);
+      y = Number(t.y ?? 0);
+      rotation = t.rotation != null ? Number(t.rotation) : undefined;
+      scaleX = t.scaleX != null ? Number(t.scaleX) : undefined;
+      scaleY = t.scaleY != null ? Number(t.scaleY) : undefined;
+    }
+    // 旧格式：{ position: { x, y }, size: { width, height } }
+    else if ('position' in t) {
+      const pos = t.position as Record<string, unknown>;
+      x = Number(pos?.x ?? 0);
+      y = Number(pos?.y ?? 0);
+      rotation = t.rotation != null ? Number(t.rotation) : undefined;
+    }
+  } else {
+    // 扁平格式：{ x, y, ... }
+    x = Number(raw.x ?? 0);
+    y = Number(raw.y ?? 0);
+    rotation = raw.rotation != null ? Number(raw.rotation) : undefined;
+  }
+
+  // 解析 size
+  let width = 100, height = 100;
+  if (raw.size && typeof raw.size === 'object') {
+    const s = raw.size as Record<string, unknown>;
+    width = Number(s.width ?? 100);
+    height = Number(s.height ?? 100);
+  } else if (raw.transform && typeof raw.transform === 'object') {
+    const t = raw.transform as Record<string, unknown>;
+    if ('size' in t && typeof t.size === 'object') {
+      const s = t.size as Record<string, unknown>;
+      width = Number(s.width ?? 100);
+      height = Number(s.height ?? 100);
+    }
+  } else {
+    width = Number(raw.width ?? 100);
+    height = Number(raw.height ?? 100);
+  }
+
+  const transform = { x, y, ...(rotation != null ? { rotation } : {}), ...(scaleX != null ? { scaleX } : {}), ...(scaleY != null ? { scaleY } : {}) };
+  const size = { width, height };
+
+  // 构建基础节点，其余字段透传
+  const { id: _id, type: _type, x: _x, y: _y, width: _w, height: _h, rotation: _r, transform: _t, size: _s, ...rest } = raw;
+  return { type, id, transform, size, ...rest } as unknown as AIProjectionNode;
 }
 
 /** 深度合并两个对象（patch 覆盖 target） */
@@ -107,272 +368,36 @@ function deepMerge<T extends Record<string, unknown>>(target: T, patch: Record<s
   return result as T;
 }
 
-/** 在页面的 nodes 中递归查找并更新节点 */
-function updateNodeInList(nodes: AINode[], nodeId: string, patch: Record<string, unknown>): { nodes: AINode[]; found: boolean } {
-  let found = false;
-  const updated = nodes.map((n) => {
-    if (n.id === nodeId) {
-      found = true;
-      return deepMerge(n as unknown as Record<string, unknown>, patch) as unknown as AINode;
+/** 在 children 中递归查找并更新节点 */
+function updateNodeInChildren(children: AIProjectionNode[], nodeId: string, patch: Record<string, unknown>): boolean {
+  for (let i = 0; i < children.length; i++) {
+    if (children[i].id === nodeId) {
+      children[i] = deepMerge(children[i] as unknown as Record<string, unknown>, patch) as unknown as AIProjectionNode;
+      return true;
     }
-    if (n.type === "group") {
-      const result = updateNodeInList(n.children, nodeId, patch);
-      if (result.found) {
-        found = true;
-        return { ...n, children: result.nodes };
-      }
+    // 递归搜索容器子节点
+    const node = children[i] as unknown as Record<string, unknown>;
+    if (node.children && Array.isArray(node.children)) {
+      if (updateNodeInChildren(node.children as AIProjectionNode[], nodeId, patch)) return true;
     }
-    return n;
-  });
-  return { nodes: updated, found };
+  }
+  return false;
 }
 
-/** 在页面的 nodes 中递归查找并删除节点 */
-function deleteNodeInList(nodes: AINode[], nodeId: string): { nodes: AINode[]; found: boolean } {
-  let found = false;
-  const filtered = nodes.filter((n) => {
-    if (n.id === nodeId) { found = true; return false; }
+/** 在 children 中递归查找并删除节点 */
+function deleteNodeInChildren(children: AIProjectionNode[], nodeId: string): boolean {
+  const idx = children.findIndex((n) => n.id === nodeId);
+  if (idx !== -1) {
+    children.splice(idx, 1);
     return true;
-  });
-  if (found) return { nodes: filtered, found };
-  const updated = filtered.map((n) => {
-    if (n.type === "group") {
-      const result = deleteNodeInList(n.children, nodeId);
-      if (result.found) { found = true; return { ...n, children: result.nodes }; }
+  }
+  for (const child of children) {
+    const node = child as unknown as Record<string, unknown>;
+    if (node.children && Array.isArray(node.children)) {
+      if (deleteNodeInChildren(node.children as AIProjectionNode[], nodeId)) return true;
     }
-    return n;
-  });
-  return { nodes: updated, found };
-}
-
-// ─── Handler 实现（接受可选 context，有 context 时操作内存，无 context 时走 adapter）─
-
-async function handleGetAppState(
-  adapter: BanvasHostAdapter,
-  input: GetAppStateInput,
-  ctx?: ToolExecutionContext
-): Promise<unknown> {
-  const app = ctx ? ctx.app : await readAIApp(adapter);
-  if (input.pageId) {
-    const page = app.pages.find((p) => p.id === input.pageId);
-    if (!page) return { error: `页面 ${input.pageId} 不存在` };
-    return { ...app, pages: [page] };
   }
-  return app;
-}
-
-async function handleCreatePage(
-  adapter: BanvasHostAdapter,
-  input: CreatePageInput,
-  ctx?: ToolExecutionContext
-): Promise<unknown> {
-  const app = ctx ? ctx.app : await readAIApp(adapter);
-  const newPage: AIPage = {
-    id: `page_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-    name: input.name,
-    width: input.width ?? 375,
-    height: input.height ?? 812,
-    backgroundColor: input.backgroundColor ?? "#ffffff",
-    nodes: [],
-  };
-  app.pages.push(newPage);
-  if (ctx) {
-    ctx.dirty = true;
-  } else {
-    await writeAIApp(adapter, app);
-  }
-  return { pageId: newPage.id, message: `页面 "${input.name}" 已创建` };
-}
-
-/**
- * 宽容解析 LLM 传入的节点数据。
- * LLM 经常传扁平格式 { x, y, width, height } 而非 AISchema 要求的
- * { transform: { position: { x, y }, size: { width, height } } }。
- * 本函数检测并自动修正这种常见错误。
- */
-function normalizeNodeInput(raw: Record<string, unknown>): Record<string, unknown> {
-  // 如果已有 transform 字段，直接返回
-  if (raw["transform"] != null) return raw;
-
-  // 检测扁平格式：有 x/y 或 width/height 但无 transform
-  const hasFlat =
-    raw["x"] != null || raw["y"] != null ||
-    raw["width"] != null || raw["height"] != null;
-
-  if (!hasFlat) return raw;
-
-  // 从扁平字段构造 transform 结构
-  const { x, y, width, height, rotation, opacity, ...rest } = raw as Record<string, unknown>;
-  return {
-    ...rest,
-    transform: {
-      position: { x: Number(x ?? 0), y: Number(y ?? 0) },
-      size: { width: Number(width ?? 100), height: Number(height ?? 100) },
-      rotation: Number(rotation ?? 0),
-      opacity: Number(opacity ?? 1),
-    },
-  };
-}
-
-async function handleAddNode(
-  adapter: BanvasHostAdapter,
-  input: AddNodeInput,
-  ctx?: ToolExecutionContext
-): Promise<unknown> {
-  const app = ctx ? ctx.app : await readAIApp(adapter);
-  const pageIdx = app.pages.findIndex((p) => p.id === input.pageId);
-  if (pageIdx === -1) return { error: `页面 ${input.pageId} 不存在` };
-
-  const nodeId = (input.node["id"] as string | undefined) ?? `node_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-
-  // 宽容解析 + Zod 校验
-  const normalized = normalizeNodeInput({ ...input.node, id: nodeId });
-  const parsed = AINodeSchema.safeParse(normalized);
-  if (!parsed.success) {
-    return {
-      error: "节点格式不合法，请使用 AISchema 结构",
-      details: parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`),
-      hint: "节点必须包含 transform: { position: { x, y }, size: { width, height } }，以及 type 字段。示例：{ type: \"rect\", transform: { position: { x: 0, y: 0 }, size: { width: 100, height: 50 } } }",
-    };
-  }
-
-  app.pages[pageIdx].nodes.push(parsed.data);
-  if (ctx) {
-    ctx.dirty = true;
-  } else {
-    await writeAIApp(adapter, app);
-  }
-  return { nodeId, message: "节点已添加" };
-}
-
-async function handleUpdateNode(
-  adapter: BanvasHostAdapter,
-  input: UpdateNodeInput,
-  ctx?: ToolExecutionContext
-): Promise<unknown> {
-  const app = ctx ? ctx.app : await readAIApp(adapter);
-  const pageIdx = app.pages.findIndex((p) => p.id === input.pageId);
-  if (pageIdx === -1) return { error: `页面 ${input.pageId} 不存在` };
-
-  const { nodes, found } = updateNodeInList(app.pages[pageIdx].nodes, input.nodeId, input.patch);
-  if (!found) return { error: `节点 ${input.nodeId} 不存在` };
-  app.pages[pageIdx].nodes = nodes;
-  if (ctx) {
-    ctx.dirty = true;
-  } else {
-    await writeAIApp(adapter, app);
-  }
-  return { message: "节点已更新" };
-}
-
-async function handleDeleteNode(
-  adapter: BanvasHostAdapter,
-  input: DeleteNodeInput,
-  ctx?: ToolExecutionContext
-): Promise<unknown> {
-  const app = ctx ? ctx.app : await readAIApp(adapter);
-  const pageIdx = app.pages.findIndex((p) => p.id === input.pageId);
-  if (pageIdx === -1) return { error: `页面 ${input.pageId} 不存在` };
-
-  const { nodes, found } = deleteNodeInList(app.pages[pageIdx].nodes, input.nodeId);
-  if (!found) return { error: `节点 ${input.nodeId} 不存在` };
-  app.pages[pageIdx].nodes = nodes;
-  if (ctx) {
-    ctx.dirty = true;
-  } else {
-    await writeAIApp(adapter, app);
-  }
-  return { message: "节点已删除" };
-}
-
-async function handleMoveNode(
-  adapter: BanvasHostAdapter,
-  input: MoveNodeInput,
-  ctx?: ToolExecutionContext
-): Promise<unknown> {
-  return handleUpdateNode(
-    adapter,
-    {
-      pageId: input.pageId,
-      nodeId: input.nodeId,
-      patch: { transform: { position: { x: input.x, y: input.y } } },
-    },
-    ctx
-  );
-}
-
-async function handleResizeNode(
-  adapter: BanvasHostAdapter,
-  input: ResizeNodeInput,
-  ctx?: ToolExecutionContext
-): Promise<unknown> {
-  return handleUpdateNode(
-    adapter,
-    {
-      pageId: input.pageId,
-      nodeId: input.nodeId,
-      patch: { transform: { size: { width: input.width, height: input.height } } },
-    },
-    ctx
-  );
-}
-
-async function handleApplyPatch(adapter: BanvasHostAdapter, input: ApplyPatchInput): Promise<unknown> {
-  // 1. 读取一次快照，同时用于回滚和共享上下文
-  const snapshot = await adapter.getPages();
-  const app = await readAIApp(adapter);
-
-  // 2. 创建共享执行上下文，所有子工具操作同一个内存 AIApp
-  const ctx: ToolExecutionContext = { app, dirty: false };
-  const results: unknown[] = [];
-
-  try {
-    for (const op of input.operations) {
-      const result = await dispatchHandler(adapter, op.tool as BanvasToolName, op.input, ctx);
-      results.push(result);
-    }
-
-    // 3. 批次结束后统一写回一次（N 次 I/O → 1 次）
-    if (ctx.dirty) {
-      await writeAIApp(adapter, ctx.app);
-    }
-
-    return { message: `批量操作完成，共执行 ${input.operations.length} 步`, results };
-  } catch (err) {
-    // 回滚到快照
-    await adapter.setPages(snapshot);
-    throw new Error(`批量操作失败，已回滚：${err instanceof Error ? err.message : String(err)}`);
-  }
-}
-
-/** 工具名 → Handler 分发（可选 context，用于 APPLY_PATCH 批量共享状态） */
-async function dispatchHandler(
-  adapter: BanvasHostAdapter,
-  tool: BanvasToolName,
-  input: Record<string, unknown>,
-  ctx?: ToolExecutionContext
-): Promise<unknown> {
-  switch (tool) {
-    case BANVAS_TOOLS.GET_APP_STATE:
-      return handleGetAppState(adapter, input as unknown as GetAppStateInput, ctx);
-    case BANVAS_TOOLS.CREATE_PAGE:
-      return handleCreatePage(adapter, input as unknown as CreatePageInput, ctx);
-    case BANVAS_TOOLS.ADD_NODE:
-      return handleAddNode(adapter, input as unknown as AddNodeInput, ctx);
-    case BANVAS_TOOLS.UPDATE_NODE:
-      return handleUpdateNode(adapter, input as unknown as UpdateNodeInput, ctx);
-    case BANVAS_TOOLS.DELETE_NODE:
-      return handleDeleteNode(adapter, input as unknown as DeleteNodeInput, ctx);
-    case BANVAS_TOOLS.MOVE_NODE:
-      return handleMoveNode(adapter, input as unknown as MoveNodeInput, ctx);
-    case BANVAS_TOOLS.RESIZE_NODE:
-      return handleResizeNode(adapter, input as unknown as ResizeNodeInput, ctx);
-    case BANVAS_TOOLS.APPLY_PATCH:
-      // APPLY_PATCH 不支持嵌套，忽略外层 ctx
-      return handleApplyPatch(adapter, input as unknown as ApplyPatchInput);
-    default:
-      return { error: `未知工具：${tool}` };
-  }
+  return false;
 }
 
 // ─── 工厂函数 ─────────────────────────────────────────────────────────────────

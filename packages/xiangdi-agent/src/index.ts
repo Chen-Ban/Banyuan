@@ -88,32 +88,38 @@ export type {
   MemoryNodeState,
 } from "./graph/index.js";
 
-// ─── Schema 层 ────────────────────────────────────────────────────────────────
+// ─── Schema 层（AI Projection，ADR-027）─────────────────────────────────────
 export {
-  // Zod Schema
-  AIAppSchema,
-  AIPageSchema,
-  AINodeSchema,
-  AIRectNodeSchema,
-  AITextNodeSchema,
-  AIImageNodeSchema,
-  AIGroupNodeSchema,
-  AIFlexNodeSchema,
-  AIFlexStyleSchema,
-  AIFlexLayoutParamsSchema,
-  AITransformSchema,
-  AIFillSchema,
-  AIStrokeSchema,
-  AITextStyleSchema,
-  AIColorSchema,
-  AIPositionSchema,
-  AISizeSchema,
-  // 转换器
-  aiAppToBanvas,
-  banvasToAIApp,
+  toAIProjection,
+  fromAIProjection,
+  pagesToProjection,
+  projectionToPages,
 } from "./schema/index.js";
 
-export type { AIApp, AIPage, AINode, AIFlexNode, AIGroupNode } from "./schema/index.js";
+export type {
+  AIProjectionScene,
+  AIProjectionNode,
+  AIProjectionNodeBase,
+  AITransform,
+  AISize,
+  AIDecoration,
+  AIEvents,
+  AILifetimes,
+  AIDataModel,
+  AILayoutMode,
+  AIFlexLayout,
+  AIListLayout,
+  AIGridLayout,
+  AIGraphViewNode,
+  AITextViewNode,
+  AIImageViewNode,
+  AIVideoViewNode,
+  AICombinedViewNode,
+  AINodeViewNode,
+  AIEdgeViewNode,
+  AIPortViewNode,
+  AIGenericViewNode,
+} from "./schema/index.js";
 
 // ─── 工具协议 ─────────────────────────────────────────────────────────────────
 export {
@@ -122,6 +128,9 @@ export {
   BANVAS_TOOL_DEFINITIONS,
   // Banvas 工具 Handler 工厂
   createBanvasToolRegistry,
+  // AI Projection 读写（ADR-027）
+  readProjection,
+  writeProjection,
   // Web Search 内置工具
   WEB_SEARCH_TOOL_NAME,
   WEB_SEARCH_TOOL_DEFINITION,
