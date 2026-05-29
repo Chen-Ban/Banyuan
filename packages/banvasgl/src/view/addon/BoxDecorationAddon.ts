@@ -2,15 +2,18 @@
  * BoxDecorationAddon —— 样式层核心插件
  *
  * 职责一（视觉装饰）：背景填充、边框、圆角、裁剪。
- * 职责二（样式管线）：持有 rawStyle → computedStyle 的单向管线，
- *   所有渲染和业务逻辑只读 computedStyle，原始值在 compute() 中消费。
+ * 职责二（样式管线）：持有 rawStyle → computedStyle 的两阶段管线，
+ *   所有渲染和业务逻辑只读 computedStyle，原始值在 resolveVisual/resolveLayout 中消费。
  * 职责三（滚动行为）：overflow=scroll 时维护 scrollOffset 状态及滚动条图形渲染。
  *
- * 对标浏览器 CSSOM：
- *   IViewStyle（用户样式表）→ compute() → IComputedStyle（计算样式）→ 渲染引擎
+ * 对标浏览器 CSSOM（两阶段分离，类似 repaint / reflow 解耦）：
+ *   IViewStyle → resolveVisual()（阶段 A，布局前）→ 容器装饰域 + 图形绘制域
+ *   IViewStyle → resolveLayout()（阶段 B，布局后）→ overflow + scrollOffset + 滚动条
  *
  * 设计要点：
- * - compute() 在每次 layout() 末尾由 View 调用一次，保持 computedStyle 最新
+ * - resolveVisual() 在布局前由 View.resolveVisualStyle() 调用
+ * - resolveLayout() 在布局后由 View.resolveLayoutStyle() 调用
+ * - compute() 保留为兼容入口，内部依次调用两阶段方法
  * - scrollOffset 是 overflow=scroll 的派生状态，归属计算样式层而非独立 addon
  * - renderBackground() 在 clip 之前调用（第〇阶段，背景层）
  * - renderScrollBars() 在 renderPlugins 管线中调用（第二阶段，覆盖层）
@@ -103,42 +106,16 @@ export default class BoxDecorationAddon implements IBoxDecorationAddon {
     }
 
     // ────────────────────────────────────────
-    //  compute() —— rawStyle → computedStyle
+    //  两阶段样式计算
     // ────────────────────────────────────────
 
     /**
-     * 将 rawStyle 计算为 computedStyle，同时更新 scrollOffset 和图形绘制域实例。
-     * 在每次 layout() 末尾由 View 调用。
-     *
-     * 三域计算规则：
-     *
-     * 「域一：布局域」
-     *   - overflow：直通
-     *   - scrollOffset：仅 overflow=scroll 时按 clamp 公式计算
-     *
-     * 「域二：容器装饰域」
-     *   - 从 rawStyle 直通视图容器的语义字段并 normalize borderRadius
-     *   - 注：这些字段已从 IBoxDecorationOptions 迁移至 IViewStyle，
-     *          decoration 字段保留以兼容序列化（copy/toJSON 的来源）。
-     *
-     * 「域三：图形绘制域」
-     *   - 将 rawStyle.fill / .stroke / .shadow 实例化为对应 class
-     *   - 未设置时写入 null，Graph.render() 看到 null 则使用自身内置默认样式
+     * 阶段 A：解析与布局无关的视觉样式。
+     * 包含「容器装饰域」和「图形绘制域」—— 仅依赖 rawStyle 声明值，不需要几何信息。
+     * 由 View.resolveVisualStyle() 在布局前调用。
      */
-    public compute(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void {
-        // —— 域一：布局域 ——
-        const overflow = rawStyle.overflow ?? 'visible'
-        this._computedStyle.overflow = overflow
-
-        if (overflow === 'scroll') {
-            this._computeScroll(rawStyle, viewport, layoutArea)
-        } else {
-            this._computedStyle.scrollOffset = { x: 0, y: 0 }
-            this._scrollBarH = null
-            this._scrollBarV = null
-        }
-
-        // —— 域二：容器装饰域 ——
+    public resolveVisual(rawStyle: IViewStyle): void {
+        // —— 容器装饰域 ——
         // rawStyle 中的容器装饰字段优先，回退到 decoration（兼容旧序列化路径）
         const cs = this._computedStyle
         cs.backgroundColor = rawStyle.backgroundColor ?? this.decoration.backgroundColor ?? 'transparent'
@@ -150,10 +127,37 @@ export default class BoxDecorationAddon implements IBoxDecorationAddon {
         cs.clipContent     = rawStyle.clipContent     ?? this.decoration.clipContent     ?? false
         cs.opacity         = rawStyle.opacity         ?? this.decoration.opacity         ?? 1
 
-        // —— 域三：图形绘制域 ——
+        // —— 图形绘制域 ——
         cs.fill   = rawStyle.fill   ? this._buildFillStyle(rawStyle.fill)     : null
         cs.stroke = rawStyle.stroke ? this._buildStrokeStyle(rawStyle.stroke) : null
         cs.shadow = rawStyle.shadow ? this._buildShadowStyle(rawStyle.shadow) : null
+    }
+
+    /**
+     * 阶段 B：解析依赖布局结果的样式（overflow、scrollOffset、滚动条）。
+     * 需要布局后的 viewport 和 layoutArea 几何信息。
+     * 由 View.resolveLayoutStyle() 在布局后调用。
+     */
+    public resolveLayout(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void {
+        const overflow = rawStyle.overflow ?? 'visible'
+        this._computedStyle.overflow = overflow
+
+        if (overflow === 'scroll') {
+            this._computeScroll(rawStyle, viewport, layoutArea)
+        } else {
+            this._computedStyle.scrollOffset = { x: 0, y: 0 }
+            this._scrollBarH = null
+            this._scrollBarV = null
+        }
+    }
+
+    /**
+     * 兼容入口：依次调用 resolveVisual + resolveLayout。
+     * @deprecated 新代码应直接调用 resolveVisual / resolveLayout
+     */
+    public compute(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void {
+        this.resolveVisual(rawStyle)
+        this.resolveLayout(rawStyle, viewport, layoutArea)
     }
 
     // ────────────────────────────────────────
@@ -362,8 +366,8 @@ export default class BoxDecorationAddon implements IBoxDecorationAddon {
 
     /** 计算 scrollOffset 和滚动条图形（仅 overflow=scroll 时调用） */
     private _computeScroll(rawStyle: IViewStyle, vp: Bounds, layoutArea: Bounds): void {
-        const scrollX = rawStyle.scrollX ?? 0
-        const scrollY = rawStyle.scrollY ?? 0
+        const scrollX = rawStyle.scrollLayout?.scrollX ?? 0
+        const scrollY = rawStyle.scrollLayout?.scrollY ?? 0
 
         const maxScrollX = Math.abs(layoutArea.width) - Math.abs(vp.width)
         const maxScrollY = Math.abs(layoutArea.height) - Math.abs(vp.height)

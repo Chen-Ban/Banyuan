@@ -1,8 +1,10 @@
 # ADR-016: BanvasGL 分层拆包——核心层与领域层分离
 
-> 状态：已接受
-> 日期：2025-07-18
+> 状态：~~已接受~~ **已废弃（2026-05-28）**  
+> 日期：2025-07-18  
 > 决策者：chenxin176
+>
+> **废弃原因**：实践中 BanvasGL 作为单一引擎包的内聚性优于物理拆包。FlowViews（NodeView/EdgeView/PortView）与核心 View 体系共享大量基础设施（addon 管线、事件系统、渲染管线、TransactionManager），拆出后会导致频繁的跨包 breaking change 和版本同步负担。当前通过目录隔离（`src/view/FlowViews/`）已足够清晰，无需物理拆包。Flow 执行器（`@banyuan/flow`）的独立拆分是合理的（已完成），但视图层保持在 banvasgl 内。
 
 ## 背景
 

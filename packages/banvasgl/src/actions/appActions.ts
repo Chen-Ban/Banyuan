@@ -32,5 +32,17 @@ export function createAppActions(
             app.lifetimes = { ...app.lifetimes, [lifetimeName]: null }
             notify()
         },
+
+        getSerializedPages(): string[] {
+            const app = getApp()
+            if (!app) return []
+            return app.getSerializedScenes()
+        },
+
+        exportImage(type?: string, quality?: number): string | null {
+            const app = getApp()
+            if (!app) return null
+            return app.toDataURL(type, quality)
+        },
     }
 }

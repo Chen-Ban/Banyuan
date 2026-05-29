@@ -6,7 +6,7 @@ import React, {
   useState,
 } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button, Spin, Empty, Modal, message } from "antd";
+import { App, Button, Spin, Empty, Modal } from "antd";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
 import { appEvents } from "@/utils/appEvents";
@@ -16,6 +16,7 @@ import type { FlowEditorHandle } from "./components/FlowEditor";
 import styles from "./index.module.scss";
 
 const FunctionsPage: React.FC = () => {
+  const { message } = App.useApp();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   void navigate; // layout 负责导航

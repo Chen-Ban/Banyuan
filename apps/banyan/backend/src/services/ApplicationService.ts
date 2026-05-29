@@ -95,8 +95,8 @@ class ApplicationService {
    * 服务端自动生成 application_id，默认 name 为「未命名应用」，默认 pages 为空数组。
    */
   async createApplication(
-    userId?: string,
-    tenantId?: string,
+    userId: string,
+    tenantId: string,
   ): Promise<IApplication> {
     const application_id = `app_${crypto.randomUUID()}`;
     const application = new Application({
@@ -106,8 +106,8 @@ class ApplicationService {
       pages: [],
       tags: [],
       version: 1,
-      tenantId: tenantId ?? "",
-      createdBy: userId ?? "",
+      tenantId,
+      createdBy: userId,
       updatedBy: "",
     });
     await application.save();

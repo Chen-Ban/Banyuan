@@ -7,7 +7,7 @@
 
 import View from '@/view/View/View'
 import { clearAllStates, flattenViewTree } from '@/engine/operations/ViewTree'
-import { adapterRegistry } from '@/engine/property'
+import { adapterRegistry } from '@/view/property'
 import type { IViewActions, IComponentTemplate } from '@/types/hook/hook'
 import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from '@/types/view/view'
 import type App from '@/engine/App'
@@ -85,7 +85,9 @@ export function createViewActions(
             if (!view || !view.parent) return
 
             const parent = view.parent
-            const siblings = parent.children as View[]
+            if (!parent || !('children' in parent) || !Array.isArray((parent as any).children)) return
+            // parent 可能是 ISceneNode（Scene）或 ContainerView，两者的 children 运行时均为 View[]
+            const siblings = (parent as unknown as { children: View[] }).children
             const currentIndex = siblings.indexOf(view)
             if (currentIndex === -1 || currentIndex === newIndex) return
 

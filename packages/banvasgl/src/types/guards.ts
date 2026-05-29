@@ -104,14 +104,13 @@ export function isCombinedView(view: IView | null | undefined): view is ViewType
     return !!view && view.type === ViewType.COMBINEDVIEW
 }
 
-/** 快捷判断：是否为 ContainerView（拥有子节点管理能力） */
+/** 快捷判断：是否为 ContainerView（拥有子节点管理能力）
+ *
+ * 基于结构判断：凡是拥有 `children` 数组属性的 View 即为 ContainerView。
+ * 这样无需枚举 ViewType，未来新增的容器类型自动被覆盖。
+ */
 export function isContainerView(view: IView | null | undefined): view is IContainerView {
-    return !!view && (view.type === ViewType.COMBINEDVIEW || view.type === ViewType.FLEXVIEW)
-}
-
-/** 快捷判断：是否为 FlexView */
-export function isFlexView(view: IView | null | undefined): view is ViewTypeMap[typeof ViewType.FLEXVIEW] {
-    return !!view && view.type === ViewType.FLEXVIEW
+    return !!view && 'children' in view && Array.isArray((view as any).children)
 }
 
 // ────────────────────────────────────────────

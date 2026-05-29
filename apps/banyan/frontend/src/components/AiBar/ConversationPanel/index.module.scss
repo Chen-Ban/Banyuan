@@ -57,11 +57,11 @@
   font-size: $text-base;
   line-height: 1.6;
   word-break: break-word;
-  white-space: pre-wrap;
 }
 
-// 用户气泡：深蓝色背景，白色文字，右下角直角
+// 用户气泡：深蓝色背景，白色文字，右下角直角，保留 pre-wrap（纯文本）
 .bubbleUser {
+  white-space: pre-wrap;
   background: var(--color-bubble-user-bg);
   color: var(--color-text-primary);
   border-bottom-right-radius: 3px;
@@ -76,7 +76,31 @@
   border: 1px solid var(--color-border);
 }
 
-.bubbleText { display: block; }
+.bubbleText {
+  display: block;
+
+  // Markdown 渲染内容样式
+  :global {
+    p { margin: 0 0 0.4em; &:last-child { margin-bottom: 0; } }
+    strong { font-weight: 600; color: var(--color-text-primary); }
+    ul, ol { margin: 0.3em 0; padding-left: 1.4em; }
+    li { margin: 0.15em 0; }
+    code {
+      background: var(--color-bg-hover-md);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    pre {
+      background: var(--color-bg-hover-md);
+      padding: 6px 8px;
+      border-radius: 4px;
+      overflow-x: auto;
+      margin: 0.4em 0;
+      code { background: none; padding: 0; }
+    }
+  }
+}
 
 // 气泡展开/折叠按钮
 .bubbleToggleBtn {

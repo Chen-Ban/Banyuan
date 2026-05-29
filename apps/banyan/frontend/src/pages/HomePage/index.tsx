@@ -12,7 +12,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { message, Spin, Select } from 'antd'
+import { App, Spin, Select } from 'antd'
 import { SendOutlined } from '@ant-design/icons'
 import { applicationApi, aiApi } from '@/api'
 import type { ProviderInfo } from '@/api'
@@ -31,6 +31,7 @@ const SUGGESTIONS = [
 // ── 组件 ──────────────────────────────────────────────────────────────────────
 
 const HomePage = () => {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 

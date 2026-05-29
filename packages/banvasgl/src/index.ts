@@ -1,21 +1,370 @@
 /**
- * @banyuan/banvasgl — 核心 2D 图形引擎
+ * @banyuan/banvasgl — 核心 2D 图形引擎 · 公共 API
  *
- * 六层架构：
- *   types      — 接口契约（纯类型，零实现）
- *   foundation — 零依赖原子模块（math / style / constants / utils）
- *   graph      — 图形体系（几何图形数据结构）
- *   view       — 视图体系（图形 + 交互 + 渲染指令）
- *   engine     — 引擎运转（Scene / Camera / Renderer / App / Animation / Operations）
- *   actions    — 操作 API（view/page/app/history 命名空间 + 内置策略）
- *   data       — 预设数据（内置物料、页面树构建、右键菜单）
+ * 本文件是唯一对外出口，显式列举所有公共符号。
+ * 内部实现（CanvasContext、OperationStack、DiffApplier 等）不在此暴露。
+ * 包内模块间仍可通过 @/ 别名自由引用。
  */
 
-export * from "./types";
-export * from "./foundation";
-export * from "./graph";
-export * from "./view";
-export * from "./engine";
-export * from "./actions";
-export * from "./data";
-export { version } from "./version";
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  types — 接口契约（纯类型，零实现）                               ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// ── Graph 接口 ──
+export type {
+    IGraph,
+    IAnalyticGraph,
+    ILine,
+    IArc,
+    ICircle,
+    IBezier,
+    IQuadraticBezier,
+    ICubicBezier,
+    ICombinedGraph,
+    IPolygon,
+    ITriangle,
+    IQuadrilateral,
+    IRectangle,
+    IRegularPolygon,
+    IRoundedRect,
+    IDenseTrajectory,
+    IMediaElement,
+    IImageElement,
+    IVideoElement,
+    ITextElement,
+    IPrintableTextElement,
+    INonPrintableTextElement,
+    ITextParagraphContent,
+    ITextParagraph,
+    ITextFields,
+    GraphTypeMap,
+    TextIndex,
+} from './types'
+
+// ── View 接口 ──
+export type {
+    FieldType,
+    IFieldSchema,
+    IFieldSchemaMap,
+    // Flow 类型（从 @banyuan/flow 统一透传）
+    FlowValue,
+    FlowCondition,
+    FlowLiteralValue,
+    FlowDataRefValue,
+    FlowPageDataRefValue,
+    FlowEventArgValue,
+    FlowNodeRefValue,
+    FlowConditionNode,
+    FlowDelayNode,
+    FlowSetVariableNode,
+    FlowCallFlowNode,
+    FlowSetDataNode,
+    FlowNavigateNode,
+    FlowAnimateNode,
+    FlowSetVisibleNode,
+    FlowVarNode,
+    FlowPageVarNode,
+    FlowEventParamNode,
+    FlowNode,
+    FlowEdge,
+    FlowSchema,
+    EventHandler,
+    IViewEvents,
+    IViewLifetimes,
+    IAddonBase,
+    IBoundingBoxAddon,
+    IVertexAddon,
+    IBoxDecorationOptions,
+    IBoxDecorationAddon,
+    ITextSelectionAddon,
+    IComputedStyle,
+    IFillStyleOptions,
+    IStrokeStyleOptions,
+    IShadowStyleOptions,
+    IViewAddon,
+    ExtraData,
+    MoveData,
+    ResizeData,
+    RotateData,
+    EditPointData,
+    EditViewportData,
+    SelectData,
+    TextSelectionData,
+    ConnectData,
+    NoneData,
+    IInteractResult,
+    IViewOptions,
+    IContainerViewOptions,
+    IGraphViewOptions,
+    ISelectBoxViewOptions,
+    IImageViewOptions,
+    IVideoViewOptions,
+    ITextViewOptions,
+    IViewStyle,
+    IFlexLayout,
+    IListLayout,
+    IGridLayout,
+    IScrollLayout,
+    LayoutMode,
+    TransformOriginKeyword,
+    TransformOrigin,
+    IView,
+    ISceneNode,
+    IGraphView,
+    ISelectBoxView,
+    IImageView,
+    IVideoView,
+    ITextView,
+    IContainerView,
+    ICombinedView,
+    ITextSelection,
+    ViewTypeMap,
+    // 流程编辑器视图接口（Phase 1.4 将移至 banvas-flow-editor）
+    PortDirection,
+    IPortView,
+    INodeView,
+    IEdgeView,
+} from './types'
+
+export { AddonCapability, Cursor, Action } from './types'
+
+// ── Camera 接口 ──
+export type {
+    ICamera,
+    IOrthographicCamera,
+    IPerspectiveCamera,
+} from './types'
+
+// ── Renderer 接口 ──
+export type {
+    ICanvasContextOptions,
+    ICanvasContext,
+    IRendererOptions,
+    IRenderer,
+} from './types'
+
+// ── Scene 接口 ──
+export type {
+    ISceneLifetimes,
+    IOperationStack,
+    IScene,
+    SceneAccessor,
+    Diff,
+    ModifyDiff,
+    AddDiff,
+    RemoveDiff,
+    ReorderDiff,
+    PropChange,
+    ApplyDirection,
+} from './types'
+
+export { DiffType, Operation } from './types'
+
+// ── App 接口 ──
+export type {
+    IPage,
+    IAppOptions,
+    IAppLifetimes,
+    INavigationOptions,
+    IApp,
+    IAppStatic,
+} from './types'
+
+// ── Animation 接口 ──
+export type {
+    EasingFunction,
+    FillMode,
+    PlaybackDirection,
+    AnimationState,
+    AnimatableValue,
+    KeyframeProps,
+    KeyframeDefinition,
+    AnimationOptions,
+    Interpolator,
+    IAnimationDescriptor,
+    IAnimationAddon,
+    Keyframe,
+} from './types'
+
+// ── Hook 公共接口 ──
+export type {
+    IComponentTemplate,
+    ComponentIcon,
+    ComponentSource,
+    IComponentDefinition,
+    IViewActions,
+    IPageActions,
+    IAppActions,
+    IHistoryActions,
+    IBanvasActions,
+    IContextMenuItem,
+    IContextMenuState,
+    IDragProps,
+    IUseBanvasResult,
+} from './types'
+
+// ── PropertyAdapter 接口 ──
+export type {
+    PropertyCategory,
+    PropertyAdapter,
+    PropertyDescriptor,
+    ConflictGroup,
+} from './types'
+
+// ── 类型守卫 ──
+export {
+    isGraphType,
+    isViewType,
+    isCombinedGraph,
+    isAnalyticGraph,
+    isMediaElement,
+    isTextView,
+    isSelectBoxView,
+    isCombinedView,
+    isContainerView,
+    isBoundingBoxAddon,
+    isVertexAddon,
+    isBoxDecorationAddon,
+    // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
+    isPortView,
+    isNodeView,
+    isEdgeView,
+} from './types'
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  foundation — 零依赖原子模块                                      ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+// ── 常量/枚举 ──
+export {
+    GraphType,
+    ViewType,
+    CameraType,
+    AddonType,
+    VerticalAlign,
+    HorizontalAlign,
+    FontStyle,
+    FontWeight,
+} from './foundation'
+
+// ── 数学 ──
+export { Point3, Vector3, Matrix4, MathUtils, GeometryUtils } from './foundation'
+
+// ── 样式 ──
+export {
+    FillStyle,
+    StrokeStyle,
+    ShadowStyle,
+    Gradient,
+    LinearGradient,
+    RadialGradient,
+    ConicGradient,
+    Image,
+    Video,
+    Style,
+    Color,
+} from './foundation'
+export type { GradientStop } from './foundation'
+
+// ── 动画（公共部分） ──
+export { Easings } from './foundation'
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  graph — 图形体系                                                 ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+export { Graph, Bounds } from './graph'
+export {
+    AnalyticGraph,
+    Arc,
+    Circle,
+    Bezier,
+    QuadraticBezier,
+    CubicBezier,
+    Line,
+} from './graph'
+export {
+    CombinedGraph,
+    Polygon,
+    Triangle,
+    Quadrilateral,
+    Rectangle,
+    RegularPolygon,
+    RoundedRect,
+} from './graph'
+export { DenseTrajectory } from './graph'
+export {
+    TextParagraph,
+    TextElement,
+    PrintableTextElement,
+    NonPrintableTextElement,
+    TextFields,
+} from './graph'
+export type { TextParagraphContent } from './graph'
+export { MediaElement, ImageElement, VideoElement } from './graph'
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  view — 视图体系                                                  ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+export { View, ContainerView, GraphView, SelectBoxView } from './view'
+export { ImageView, VideoView, TextView, CombinedView } from './view'
+// 流程编辑器视图（Phase 1.4 将移至 banvas-flow-editor）
+export { NodeView, PortView, EdgeView } from './view'
+export type { NodeViewOptions, PortDefinition, PortViewOptions, EdgeViewOptions } from './view'
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  engine — 引擎运转                                                ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+export { App } from './engine'
+export { Scene } from './engine'
+export type { SceneOptions } from './engine'
+
+// ── Camera ──
+export { BaseCamera, PerspectiveCamera, OrthographicCamera } from './engine'
+export type { BaseCameraOptions, PerspectiveCameraOptions, OrthographicCameraOptions } from './engine'
+
+// ── Renderer ──
+export { Renderer } from './engine'
+
+// ── Serializer（高级 API：自定义序列化场景） ──
+export { Serializer } from './engine'
+export type { SerializerOptions, SerializedData } from './engine'
+
+// ── Migrations（高级 API：数据版本迁移） ──
+export { MigrationRegistry, migrationRegistry } from './engine'
+export type { Migration } from './engine'
+
+// ── Operations（公共部分） ──
+export { TransactionManager } from './engine'
+export { SnapAlignManager } from './engine'
+export type { SnapResult } from './engine'
+export { groupViews, ungroupView, flattenViewTree } from './engine'
+export type { GroupResult, UngroupResult } from './engine'
+export { clearAllStates } from './engine'
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  actions — 操作 API                                               ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+export { createBanvasActions } from './actions'
+export type { CreateBanvasActionsOptions } from './actions'
+export { defaultViewCreatorStrategies } from './actions'
+export type { ViewCreatorStrategy } from './actions'
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  data — 预设数据                                                  ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+export { DESIGN_MATERIALS } from './data'
+export { createViewContextMenuItems, createCanvasContextMenuItems } from './data'
+// 流程图节点物料（Phase 1.4 将移至 banvas-flow-editor）
+export { CLIENT_FLOW_NODE_MATERIALS, SERVER_FLOW_NODE_MATERIALS } from './data'
+export type { FlowNodeMaterial } from './data'
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  version                                                          ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+export { version } from './version'

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Input, Space, message } from "antd";
+import { App, Input, Space } from "antd";
 import type { FlowSchema } from "@banyuan/flow";
 import useFlowBanvas from "@/hooks/flow/useFlowBanvas";
 import { FlowContextMenu } from "@/components/FlowEditor/FlowContextMenu";
@@ -35,6 +35,7 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
   dirty: _dirty,
   onDirtyChange,
 }, ref) => {
+  const { message } = App.useApp();
   // 逻辑尺寸固定，容器适配由 hook 内部自测量
   const CANVAS_WIDTH = 1200;
   const CANVAS_HEIGHT = 720;

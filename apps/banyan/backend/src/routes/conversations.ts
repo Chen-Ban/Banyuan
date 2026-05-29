@@ -9,12 +9,14 @@
 
 import Router from '@koa/router'
 import conversationController from '../controllers/ConversationController.js'
+import { appOwnership } from '../middleware/appOwnership.js'
 
 const router = new Router({ prefix: '/api/applications' })
 
 // 获取对话列表（Dialogue[]，含 messages）
 router.get(
   '/:appId/conversation/dialogues',
+  appOwnership,
   conversationController.getDialogues.bind(conversationController)
 )
 

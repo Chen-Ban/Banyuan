@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { message, Spin } from 'antd'
+import { App, Spin } from 'antd'
 import {
   AppstoreOutlined,
   DeleteOutlined,
@@ -20,6 +20,7 @@ import { getErrorMessage } from '@/utils/error'
 import styles from './index.module.scss'
 
 const ApplicationListPage = () => {
+  const { message } = App.useApp()
   const navigate = useNavigate()
 
   const [applications, setApplications] = useState<Application[]>([])

@@ -7,8 +7,11 @@ import {
   INavigationOptions,
   IRendererOptions,
 } from "@/types";
-import { getSchemaRunner } from "@/engine/SchemaRunner";
-import { AnimationManager } from "@/engine/animation";
+import { createClientFlowRunner } from "@banyuan/flow/client";
+import type { FlowRunner, FlowContext } from "@banyuan/flow";
+import { AnimationManager } from "@/foundation/animation";
+import { flattenViewTree } from "@/engine/operations/ViewTree";
+import type View from "@/view/View/View";
 
 export default class App {
   // 基本属性
@@ -18,11 +21,15 @@ export default class App {
   public readonly animationManager: AnimationManager =
     AnimationManager.getInstance();
 
+  /** 流程执行器（前端预设，包含 client + shared 节点） */
+  public readonly flowRunner: FlowRunner = createClientFlowRunner();
+
   /**
    * 应用 ID（可选）
    *
    * 由消费方（如 banyan 前端）设置，用于 FlowRunner 中 callFlow 节点
-   * 调用后端 API 时标识应用。通过 Scene.triggerSchema 注入到 SchemaRunInput。n   */
+   * 调用后端 API 时标识应用。通过 Scene.triggerSchema 注入到 FlowContext.env。
+   */
   public appId: string | undefined = undefined;
 
   // 私有属性
@@ -80,16 +87,11 @@ export default class App {
     // 调用 lifetimes.onLaunch（FlowSchema）
     if (this.lifetimes.onLaunch) {
       try {
-        const currentScene = this.getCurrentScene() as Scene | null;
-        if (currentScene) {
-          getSchemaRunner().run(this.lifetimes.onLaunch, {
-            self: currentScene as any,
-            page: currentScene,
-            view: (id) => currentScene.findViewById(id) ?? null,
-            eventArgs: Array.isArray(params) ? params : [params],
-            appId: this.appId,
-          }).catch((err) => console.error('[App] onLaunch schema 执行出错:', err));
-        }
+        const ctx = this._buildAppFlowContext(
+          Array.isArray(params) ? params : [params],
+        );
+        this.flowRunner.run(this.lifetimes.onLaunch, ctx)
+          .catch((err: unknown) => console.error('[App] onLaunch schema 执行出错:', err));
       } catch (error) {
         console.error("lifetimes.onLaunch 执行失败:", error);
       }
@@ -120,16 +122,9 @@ export default class App {
     // 调用 lifetimes.onUnlaunch（FlowSchema）
     if (this.lifetimes.onUnlaunch) {
       try {
-        const currentScene = this.getCurrentScene() as Scene | null;
-        if (currentScene) {
-          getSchemaRunner().run(this.lifetimes.onUnlaunch, {
-            self: currentScene as any,
-            page: currentScene,
-            view: (id) => currentScene.findViewById(id) ?? null,
-            eventArgs: [],
-            appId: this.appId,
-          }).catch((err) => console.error('[App] onUnlaunch schema 执行出错:', err));
-        }
+        const ctx = this._buildAppFlowContext([]);
+        this.flowRunner.run(this.lifetimes.onUnlaunch, ctx)
+          .catch((err: unknown) => console.error('[App] onUnlaunch schema 执行出错:', err));
       } catch (error) {
         console.error("lifetimes.onUnlaunch 执行失败:", error);
       }
@@ -663,6 +658,54 @@ export default class App {
     return this;
   }
 
+  // ──── 导出当前页面图像 ────
+
+  /**
+   * 导出当前页面为 DataURL
+   *
+   * 采用“快照-清理-渲染-恢复”模式，确保预处理不影响用户的编辑状态：
+   * 1. 快照：记录当前所有 View 的交互状态（selected/actived）
+   * 2. 清理：清除选中/激活状态，消除 BoundingBox 等插件渲染
+   * 3. 执行：渲染并导出 canvas DataURL
+   * 4. 恢复：还原快照状态并重新渲染
+   *
+   * @param type    图片 MIME 类型（默认 'image/png'）
+   * @param quality 压缩质量 0~1（仅对 jpeg/webp 有效）
+   * @returns       DataURL 字符串，无当前页面时返回 null
+   */
+  public toDataURL(type?: string, quality?: number): string | null {
+    const scene = this.getCurrentScene();
+    if (!scene) return null;
+
+    // 1. 快照
+    const allViews = flattenViewTree(scene);
+    const snapshots: { view: View; actived: boolean; selected: boolean }[] = [];
+    for (const v of allViews) {
+      if (v.actived || v.selected) {
+        snapshots.push({ view: v, actived: v.actived, selected: v.selected });
+      }
+    }
+
+    // 2. 清理
+    for (const { view } of snapshots) {
+      if (view.actived) view.setActived(false);
+      if (view.selected) view.setSelected(false);
+    }
+
+    // 3. 执行
+    this.render();
+    const dataUrl = this.renderer.toDataURL(type, quality);
+
+    // 4. 恢复
+    for (const { view, actived, selected } of snapshots) {
+      if (actived) view.setActived(true);
+      if (selected) view.setSelected(true);
+    }
+    this.render();
+
+    return dataUrl;
+  }
+
   /**
    * 获取所有 Scene 的序列化 JSON 字符串数组
    * 每个元素是一个 Scene 的完整序列化 JSON，可直接存入后端
@@ -705,6 +748,78 @@ export default class App {
   public getVersion = (): number => {
     return this._version;
   };
+
+  // ──── App 级别 FlowContext 构造 ────
+
+  /**
+   * 构造 App 生命周期专用的 FlowContext
+   *
+   * 与 Scene.triggerSchema 不同，这里的 scope 解析基于当前页面（如果存在）。
+   */
+  private _buildAppFlowContext(eventArgs: unknown[]): FlowContext {
+    const app = this;
+    const scene = this.getCurrentScene();
+    return {
+      getVariable(scope: string, key: string): unknown {
+        if (!scene) return undefined;
+        if (scope === 'page') {
+          const field = (scene.data as Record<string, any>)?.[key];
+          return field?.value ?? undefined;
+        }
+        const view = scene.findViewById(scope);
+        if (view) {
+          const field = (view.data as Record<string, any>)[key];
+          return field?.value ?? undefined;
+        }
+        return undefined;
+      },
+      setVariable(scope: string, key: string, value: unknown): void {
+        if (!scene) return;
+        if (scope === 'page') {
+          if (scene.data && typeof scene.data === 'object') {
+            const pageData = scene.data as Record<string, any>;
+            if (key in pageData) {
+              pageData[key] = { ...pageData[key], value };
+            }
+          }
+          return;
+        }
+        const view = scene.findViewById(scope);
+        if (view) {
+          view.setData({ [key]: value as string | number | boolean | object });
+          scene.markDirty(view);
+        }
+      },
+      eventArgs,
+      env: {
+        appId: app.appId,
+        navigateTo(pageId: string): void {
+          const targetScene = app.getScene(pageId);
+          if (targetScene) app.navigateTo(targetScene);
+        },
+        playAnimation(viewId: string, animationId: string): void {
+          scene?.playAnimation(viewId, animationId);
+        },
+        setViewData(viewId: string, key: string, val: unknown): void {
+          if (!scene) return;
+          const v = scene.findViewById(viewId);
+          if (v) {
+            v.setData({ [key]: val as string | number | boolean | object });
+            scene.markDirty(v);
+          }
+        },
+        setViewVisible(viewId: string, visible: boolean): void {
+          if (!scene) return;
+          const v = scene.findViewById(viewId);
+          if (v) {
+            v.visible = visible;
+            scene.markDirty(v);
+          }
+        },
+        callFlow: undefined,
+      },
+    };
+  }
 
   // 静态方法：创建应用
   public static create(

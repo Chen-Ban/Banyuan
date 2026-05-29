@@ -270,7 +270,7 @@ function generateMinimalExample(nodeType: string): Record<string, unknown> {
             },
             fill: { type: "solid", color: "#f0f0f0" },
             cornerRadius: 8,
-            layoutParams: { flex: 0 },
+            flexLayout: { flex: 0 },
           },
           {
             id: "child-rect-002",
@@ -283,7 +283,7 @@ function generateMinimalExample(nodeType: string): Record<string, unknown> {
             },
             fill: { type: "solid", color: "#e0e0ff" },
             cornerRadius: 8,
-            layoutParams: { flex: 1 },
+            flexLayout: { flex: 1 },
           },
         ],
       };
@@ -379,7 +379,7 @@ const NODE_TYPES: NodeTypeConfig[] = [
     typeLiteral: "flex",
     schema: AIFlexNodeSchema,
     description:
-      "Flex 布局容器节点。子元素位置由 flexStyle 自动计算（方向、间距、对齐），无需手动指定坐标。适用于列表、卡片网格、导航栏等需要自动排列的场景。子节点可通过 layoutParams.flex 指定弹性权重。",
+      "Flex 布局容器节点。子元素位置由 flexStyle 自动计算（方向、间距、对齐），无需手动指定坐标。适用于列表、卡片网格、导航栏等需要自动排列的场景。子节点可通过 flexLayout.flex 指定弹性权重。",
   },
   {
     schemaName: "AIPageSchema",

@@ -1,9 +1,17 @@
 import View from "@/view/View/View";
 import CombinedView from "@/view/CombinedViews";
-import { isTextView, isCombinedView, type ISceneNode, type IView } from "@/types";
+import { isTextView, isCombinedView, isContainerView, type ISceneNode, type IView, type IContainerView } from "@/types";
 
-/** 视图树节点：可以是 Scene、View 或任何实现了 IView 的对象 */
-type TreeNode = ISceneNode | IView | View;
+/**
+ * 视图树节点：可以是 Scene（ISceneNode）或容器视图（IContainerView）或普通 View。
+ * 注意：叶子 View 不再具备 children 属性，遍历时需要类型守卫。
+ */
+type TreeNode = ISceneNode | IContainerView | View;
+
+/** 判断节点是否拥有 children （Scene 或 ContainerView） */
+function hasChildren(node: TreeNode): node is ISceneNode | IContainerView {
+    return 'children' in node && Array.isArray((node as any).children)
+}
 
 /**
  * 将树状结构的容器变成列表结构
@@ -15,10 +23,10 @@ export function flattenViewTree(root: TreeNode): View[] {
   const views: View[] = [];
 
   const traverse = (node: TreeNode) => {
-    if (node.children) {
+    if (hasChildren(node)) {
       for (const child of node.children) {
         views.push(child as View);
-        traverse(child);
+        traverse(child as TreeNode);
       }
     }
   };
@@ -37,10 +45,10 @@ export function findViewPath(root: TreeNode, targetView: View): View[] | null {
   const path: View[] = [];
 
   const findPath = (node: TreeNode, target: View): boolean => {
-    if (node.children) {
+    if (hasChildren(node)) {
       for (const child of node.children) {
         path.push(child as View);
-        if (child === target || findPath(child, target)) {
+        if (child === target || findPath(child as TreeNode, target)) {
           return true;
         }
         path.pop();
@@ -71,10 +79,10 @@ export function getViewDepths(root: TreeNode): Map<View, number> {
   const depths = new Map<View, number>();
 
   const calculateDepth = (node: TreeNode, depth: number = 0) => {
-    if (node.children) {
+    if (hasChildren(node)) {
       for (const child of node.children) {
         depths.set(child as View, depth);
-        calculateDepth(child, depth + 1);
+        calculateDepth(child as TreeNode, depth + 1);
       }
     }
   };
@@ -169,7 +177,10 @@ export function groupViews(
   const parent = views[0].parent;
   if (!parent || !views.every((v) => v.parent === parent)) return null;
 
-  const children = parent.children as View[];
+  // parent 可能是 Scene（ISceneNode）或 ContainerView（IView）
+  const parentHasChildren = 'children' in parent && Array.isArray((parent as any).children)
+  if (!parentHasChildren) return null
+  const children = (parent as unknown as { children: View[] }).children;
 
   // 过滤出确实在当前 children 中的 view
   const validViews = views.filter((v) => children.includes(v));
@@ -240,7 +251,10 @@ export function ungroupView(
   const parent = view.parent;
   if (!parent) return null;
 
-  const parentChildren = parent.children as View[];
+  // parent 可能是 Scene（ISceneNode）或 ContainerView（IView）
+  const parentHasChildren = 'children' in parent && Array.isArray((parent as any).children)
+  if (!parentHasChildren) return null
+  const parentChildren = (parent as unknown as { children: View[] }).children;
   if (!parentChildren.includes(view)) return null;
 
   const index = parentChildren.indexOf(view);

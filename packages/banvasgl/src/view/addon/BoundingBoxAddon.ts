@@ -144,6 +144,16 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
   }
 
   /**
+   * 更新内部 viewport 引用并重建所有几何图形。
+   * 用于 viewport 对象整体替换的场景（如 needStructViewport 扩展视口后），
+   * 避免重新创建 BoundingBoxAddon 实例。
+   */
+  public updateViewport(viewport: Bounds): BoundingBoxAddon {
+    this.viewport = viewport;
+    return this.updateSize();
+  }
+
+  /**
    * 获取边界框
    */
   getBounds(): Bounds {

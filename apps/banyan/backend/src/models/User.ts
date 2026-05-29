@@ -20,8 +20,8 @@ const UserSchema = new Schema<IUser>(
   {
     userId: { type: String, required: true, unique: true, index: true },
     tenantId: { type: String, required: true, index: true },
-    email: { type: String, sparse: true, unique: true, lowercase: true, trim: true },
-    phone: { type: String, sparse: true, unique: true, trim: true },
+    email: { type: String, lowercase: true, trim: true },
+    phone: { type: String, trim: true },
     username: { type: String, required: true, trim: true },
     passwordHash: { type: String, select: false },
     role: { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
@@ -30,7 +30,8 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true, collection: 'users' }
 )
 
-// 手机号稀疏唯一索引（允许多个 null）
+// 稀疏唯一索引（允许多个文档的该字段为 null/不存在）
+UserSchema.index({ email: 1 }, { unique: true, sparse: true })
 UserSchema.index({ phone: 1 }, { unique: true, sparse: true })
 
 export const User = mongoose.model<IUser>('User', UserSchema)

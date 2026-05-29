@@ -205,6 +205,27 @@ export default class EdgeView extends View implements IEdgeView {
         return new Point3(x, y, 0)
     }
 
+    // ── 序列化 ──
+
+    public override toJSON(): any {
+        const base = super.toJSON()
+        return {
+            ...base,
+            fromPortId: this.fromPortId,
+            toPortId: this.toPortId,
+        }
+    }
+
+    public static fromJSON(data: any): EdgeView {
+        const edge = new EdgeView({
+            id: data.id,
+            fromPortId: data.fromPortId ?? null,
+            toPortId: data.toPortId ?? null,
+        })
+        edge.restoreCommonFields(data)
+        return edge
+    }
+
     // ── 其他 ──
 
     public copy(): EdgeView {

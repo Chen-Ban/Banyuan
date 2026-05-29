@@ -27,7 +27,7 @@ app.use(async (ctx, next) => {
   try {
     await next()
   } catch (err: any) {
-    ctx.status = err.status || 500
+    ctx.status = err.statusCode || err.status || 500
     ctx.body = {
       success: false,
       message: err.message || 'Internal Server Error',

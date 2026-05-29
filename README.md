@@ -62,7 +62,7 @@ Banyuan 是一个 pnpm monorepo，由引擎层、SDK 层和应用层组成。依
 
 零外部依赖的 Canvas 2D 渲染引擎，是整个平台的图形基础。五层内部架构：engine（App/Scene/Renderer/Camera/TransactionManager）、view（View 基类 + 容器视图 + FlexView 弹性布局）、graph（图形基元）、foundation（数学/样式基础）、types（纯接口契约）。
 
-核心能力包括：完整的场景图体系（嵌套视图、分组、层级管理）、ViewRegistry 可扩展视图注册、关键帧动画系统、可注入的 SchemaRunner 抽象（用于流程逻辑执行）、事务化撤销/重做（TransactionManager + OperationStack）、FlexView 弹性布局容器、Addon 能力管线（BoundingBox/BoxDecoration/Vertex/Animation/TextSelection）、以及完整的序列化/反序列化。
+核心能力包括：完整的场景图体系（嵌套视图、分组、层级管理）、ViewRegistry 可扩展视图注册、关键帧动画系统、内置 FlowRunner 流程执行（App 持有实例，Scene 直接调用）、事务化撤销/重做（TransactionManager + OperationStack）、FlexView 弹性布局容器、Addon 能力管线（BoundingBox/BoxDecoration/Vertex/Animation/TextSelection）、以及完整的序列化/反序列化。
 
 引擎采用单入口设计（`src/index.ts`），仅导出核心图形能力。编辑态、运行态、流程图编辑器已拆分为独立包。
 
@@ -295,7 +295,7 @@ Banyan 前端基于 React 19 + react-router-dom，采用 Layout + Page 分层：
 - [x] BanvasGL 引擎核心：场景图、渲染、动画、序列化
 - [x] BanvasGL FlexView 弹性布局容器
 - [x] BanvasGL 分层拆包：核心/编辑态/运行态/流程图物理隔离
-- [x] BanvasGL ViewRegistry + SchemaRunner + Addon 管线
+- [x] BanvasGL ViewRegistry + FlowRunner + Addon 管线
 - [x] Flow 引擎：声明式节点图执行器（前后端分离）
 - [x] XiangDi AI Agent 引擎：MasterGraph V2 + Spec 体系 + Harness
 - [x] XiangDi 多 LLM 支持：DeepSeek + Kimi + LLMRouter

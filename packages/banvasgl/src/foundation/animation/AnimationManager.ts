@@ -1,6 +1,6 @@
-import AnimationExecutor from './AnimationExecutor'
+import AnimationExecutor, { type InterpolationHints } from './AnimationExecutor'
 import type AnimationDescriptor from './AnimationDescriptor'
-import type { IAnimatable } from '@/types'
+import type { KeyframeProps } from '@/types'
 
 let _instance: AnimationManager | null = null
 
@@ -8,10 +8,13 @@ let _instance: AnimationManager | null = null
  * AnimationManager —— 全局动画管理器（单例）
  *
  * 职责：
- * 1. 接收 (descriptor, target) 对，为每个 descriptor 创建 AnimationExecutor
+ * 1. 接收 (descriptor, initialValues) 对，为每个 descriptor 创建 AnimationExecutor
  * 2. 每帧驱动所有活跃 executor 的 tick
  * 3. 感知 descriptor 状态变化（cancel / finish），触发对应的 executor 处理
- * 4. 提供查询/批量操作接口
+ *
+ * 设计原则：
+ * - 不持有任何 View / Addon 引用
+ * - Executor 是纯计算器，Manager 只负责生命周期管理和帧驱动
  *
  * 由 App 持有，在 _renderFrame 中 render() 之前调用 tick()
  */
@@ -31,19 +34,19 @@ export default class AnimationManager {
     /**
      * 注册一个动画描述对象并立即开始执行
      *
-     * @param descriptor 动画描述对象（state 应为 'running'）
-     * @param target     动画目标 View
+     * @param descriptor  动画描述对象（state 应为 'running'）
+     * @param initialValues  各属性的初始快照值（由 AnimationAddon 采集并传入）
+     * @param hints  属性插值策略提示（如 rotation 使用角度插值）
      */
-    add(descriptor: AnimationDescriptor, target: IAnimatable): void {
+    add(descriptor: AnimationDescriptor, initialValues: KeyframeProps, hints?: InterpolationHints): void {
         if (this._executors.has(descriptor.id)) return
 
-        const executor = new AnimationExecutor(descriptor)
+        const executor = new AnimationExecutor(descriptor, initialValues, hints)
         this._executors.set(descriptor.id, executor)
-        executor.bindAndPlay(target)
     }
 
     /**
-     * 从管理器中移除动画（通常由 Executor 在完成/取消时自动触发，外部也可调用）
+     * 从管理器中移除动画（通常由完成/取消时自动触发，外部也可调用）
      */
     remove(descriptor: AnimationDescriptor): void {
         this._executors.delete(descriptor.id)

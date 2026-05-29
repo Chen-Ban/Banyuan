@@ -41,8 +41,9 @@ export class SmsService {
   /**
    * 发送验证码
    * 60 秒冷却期内重复调用会抛出 429 错误
+   * Mock 模式下返回验证码字符串，生产模式返回 undefined
    */
-  async sendOtp(phone: string): Promise<void> {
+  async sendOtp(phone: string): Promise<string | undefined> {
     if (!isValidPhone(phone)) {
       throw Object.assign(new Error('手机号格式不正确'), { statusCode: 400 })
     }
@@ -70,11 +71,12 @@ export class SmsService {
 
     if (this.isMock) {
       console.log(`[SmsService Mock] 手机号 ${phone} 的验证码：${code}（5 分钟内有效）`)
-      return
+      return code
     }
 
     // 生产模式：调用阿里云短信
     await this._sendAliyunSms(phone, code)
+    return undefined
   }
 
   /**

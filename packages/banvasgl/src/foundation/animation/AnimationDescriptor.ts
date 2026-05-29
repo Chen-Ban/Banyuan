@@ -1,5 +1,4 @@
 import { generateId } from '@/foundation/utils'
-import { animationAdapterRegistry } from './adapters'
 import type {
     AnimationOptions,
     AnimationState,
@@ -8,14 +7,31 @@ import type {
     PlaybackDirection,
     EasingFunction,
 } from '@/types'
-import type { Keyframe } from './types'
-import { Easings } from './easings'
+import type { Keyframe } from '@/types'
+import { MathUtils } from '@/foundation/math'
 
 /**
- * AnimationDescriptor —— 动画描述对象（纯数据，无执行逻辑）
+ * 属性分类信息（由外部在创建时传入）
+ */
+export interface PropertyClassification {
+    /** 动画涉及的所有属性名 */
+    properties: string[]
+    /** 空间属性（x/y/rotation → matrix） */
+    spatialProps: string[]
+    /** 尺寸属性（width/height/scaleX/scaleY → viewport） */
+    sizeProps: string[]
+    /** 直通属性（直接读写 View 同名属性） */
+    directProps: string[]
+}
+
+/**
+ * AnimationDescriptor —— 动画描述对象（纯数据模型，无业务逻辑）
  *
- * View 持有此对象，描述"要播放什么动画"以及当前播放状态。
- * 具体如何执行由 AnimationManager 侧的 AnimationExecutor 负责。
+ * 纯数学模型，描述"要播放什么动画"以及当前播放状态。
+ * 不依赖任何 View / Addon / 属性注册表。
+ *
+ * 冲突检测和属性分类由创建方（AnimationAddon）在构造之前完成，
+ * 结果通过 PropertyClassification 传入。
  *
  * 控制方法（play/pause/resume/cancel/finish）只修改状态字段，
  * AnimationManager 在下一帧感知状态变化并响应。
@@ -73,7 +89,7 @@ export default class AnimationDescriptor {
      */
     public lastTimestamp: number = -1
 
-    // ── 属性分类（构造时计算，供 Executor 使用） ────────────────────────────
+    // ── 属性分类（由外部传入） ────────────────────────────────────────────
 
     /** 动画涉及的所有属性名 */
     public properties: string[]
@@ -105,7 +121,11 @@ export default class AnimationDescriptor {
 
     public readonly keyframes: Keyframe[]
 
-    constructor(definition: KeyframeDefinition, options: AnimationOptions) {
+    constructor(
+        definition: KeyframeDefinition,
+        options: AnimationOptions,
+        classification?: PropertyClassification,
+    ) {
         this.id = generateId()
         this.definition = definition
 
@@ -114,7 +134,7 @@ export default class AnimationDescriptor {
         this.fillMode = options.fillMode ?? 'none'
         this.direction = options.direction ?? 'normal'
         this.iterations = options.iterations ?? 1
-        this.easing = options.easing ?? Easings.linear
+        this.easing = options.easing ?? MathUtils.Easings.linear
         this.referenceFrame = options.referenceFrame ?? undefined
 
         this.onStart = options.onStart ?? null
@@ -126,32 +146,25 @@ export default class AnimationDescriptor {
         // 解析关键帧
         this.keyframes = this._parseDefinition(definition)
 
-        // 收集属性名
-        const propSet = new Set<string>()
-        for (const kf of this.keyframes) {
-            for (const key of Object.keys(kf)) {
-                if (key !== 'offset' && key !== 'easing') propSet.add(key)
+        // 使用外部传入的属性分类（未传入时自动从 keyframes 提取属性名，分类留空）
+        if (classification) {
+            this.properties = classification.properties
+            this.spatialProps = classification.spatialProps
+            this.sizeProps = classification.sizeProps
+            this.directProps = classification.directProps
+        } else {
+            // 模板模式：仅提取属性名，不做分类（由 AnimationAddon.animate() 负责）
+            const propSet = new Set<string>()
+            for (const kf of this.keyframes) {
+                for (const key of Object.keys(kf)) {
+                    if (key !== 'offset' && key !== 'easing') propSet.add(key)
+                }
             }
+            this.properties = Array.from(propSet)
+            this.spatialProps = []
+            this.sizeProps = []
+            this.directProps = []
         }
-        this.properties = Array.from(propSet)
-
-        // 冲突检测（在描述对象创建时就报错，而不是等到 play）
-        const conflict = animationAdapterRegistry.detectConflict(this.properties)
-        if (conflict) throw new Error(conflict)
-
-        // 属性分类
-        const spatialProps: string[] = []
-        const sizeProps: string[] = []
-        const directProps: string[] = []
-        for (const prop of this.properties) {
-            const cat = animationAdapterRegistry.getCategory(prop)
-            if (cat === 'spatial') spatialProps.push(prop)
-            else if (cat === 'size') sizeProps.push(prop)
-            else directProps.push(prop)
-        }
-        this.spatialProps = spatialProps
-        this.sizeProps = sizeProps
-        this.directProps = directProps
 
         // Promise
         this.finished = new Promise<void>((resolve, reject) => {
@@ -207,7 +220,7 @@ export default class AnimationDescriptor {
         return this
     }
 
-    // ── 内部方法（供 Executor 调用） ─────────────────────────────────────────
+    // ── 内部方法（供 AnimationAddon 调用） ─────────────────────────────────
 
     /**
      * 移除动画对某个属性的控制（被更高优先级动画打断时调用）

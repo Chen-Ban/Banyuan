@@ -50,7 +50,7 @@ export default class GraphView
    * 追加 VertexAddon 到 addon 管线。
    * 管线自动按 priority 排序并根据 capabilities 调度 render/interact。
    */
-  protected override get activeAddons(): IAddonBase[] {
+  public override get activeAddons(): IAddonBase[] {
     const addons = super.activeAddons;
     if (this.controlPoints) addons.push(this.controlPoints);
     return addons;

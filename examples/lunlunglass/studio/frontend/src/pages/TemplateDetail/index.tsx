@@ -164,7 +164,7 @@ const printComponents = useMemo(
 
     setSaving(true);
     try {
-      const serializedPages = actions.getSerializedPages();
+      const serializedPages = actions.app.getSerializedPages();
 
       if (isNew) {
         const newId = `template_${Date.now()}`;
@@ -211,7 +211,7 @@ const printComponents = useMemo(
     setPublishing(true);
     try {
       // 1. 先保存最新数据
-      const serializedPages = actions.getSerializedPages();
+      const serializedPages = actions.app.getSerializedPages();
       await templateApi.updateTemplate(id, {
         name: templateName,
         description: templateDescription,
@@ -219,7 +219,7 @@ const printComponents = useMemo(
       });
 
       // 2. 导出静态背景图
-      const backgroundImage = actions.exportImage();
+      const backgroundImage = actions.app.exportImage();
       if (!backgroundImage) {
         message.error("导出背景图失败");
         return;
@@ -281,7 +281,7 @@ const printComponents = useMemo(
   };
 
   const handlePreview = useCallback(() => {
-    const dataUrl = actions.exportImage();
+    const dataUrl = actions.app.exportImage();
     if (!dataUrl) return;
 
     // 热敏打印机为黑白，对预览图做灰度 + 二值化处理

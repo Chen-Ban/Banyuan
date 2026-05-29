@@ -13,33 +13,23 @@ interface UpdateApplicationRequest {
 class ApplicationController {
   async getApplicationList(ctx: Context) {
     try {
-      const { name, application_id, tags, createdBy, page = '1', pageSize = '12' } = ctx.query
-      const user = ctx.state.user as { userId?: string; tenantId?: string; role?: string } | undefined
+      const { name, application_id, tags, page = '1', pageSize = '12' } = ctx.query
+      const user = ctx.state.user!
+
+      const baseQuery = {
+        name: name as string | undefined,
+        application_id: application_id as string | undefined,
+        tags: tags as string | undefined,
+      }
 
       let query: import('../services/ApplicationService').IApplicationQuery
 
-      if (user) {
-        // 有用户上下文：根据角色决定过滤范围
-        const baseQuery = {
-          name: name as string | undefined,
-          application_id: application_id as string | undefined,
-          tags: tags as string | undefined,
-        }
-        if (user.role === 'member') {
-          // 成员：仅看同租户下自己的应用
-          query = { ...baseQuery, tenantId: user.tenantId, createdBy: user.userId }
-        } else {
-          // admin / owner：看租户内所有应用
-          query = { ...baseQuery, tenantId: user.tenantId }
-        }
+      if (user.role === 'member') {
+        // 成员：仅看同租户下自己的应用
+        query = { ...baseQuery, tenantId: user.tenantId, createdBy: user.userId }
       } else {
-        // 无用户上下文（入游安全网入口、将来删去）：兼容旧逻辑
-        query = {
-          name: name as string | undefined,
-          application_id: application_id as string | undefined,
-          tags: tags as string | undefined,
-          createdBy: createdBy as string | undefined,
-        }
+        // admin / owner：看租户内所有应用
+        query = { ...baseQuery, tenantId: user.tenantId }
       }
 
       // 去除 undefined 键
@@ -64,11 +54,19 @@ class ApplicationController {
   async getApplicationById(ctx: Context) {
     try {
       const { id } = ctx.params
+      const user = ctx.state.user!
       const application = await applicationService.getApplicationById(id)
 
       if (!application) {
         ctx.status = 404
         ctx.body = { success: false, message: 'Application not found' }
+        return
+      }
+
+      // 租户归属校验
+      if (application.tenantId !== user.tenantId) {
+        ctx.status = 403
+        ctx.body = { success: false, message: '无权访问该应用' }
         return
       }
 
@@ -82,11 +80,8 @@ class ApplicationController {
 
   async createApplication(ctx: Context) {
     try {
-      const user = ctx.state.user as { userId?: string; tenantId?: string } | undefined
-      const userId = user?.userId
-      const tenantId = user?.tenantId
-
-      const application = await applicationService.createApplication(userId, tenantId)
+      const user = ctx.state.user!
+      const application = await applicationService.createApplication(user.userId, user.tenantId)
 
       ctx.status = 201
       ctx.body = { success: true, data: application, message: 'Application created successfully' }
@@ -99,6 +94,7 @@ class ApplicationController {
   async updateApplication(ctx: Context) {
     try {
       const { id } = ctx.params
+      const user = ctx.state.user!
       const updateData = ctx.request.body as UpdateApplicationRequest
 
       if ((updateData as any).application_id) {
@@ -107,13 +103,20 @@ class ApplicationController {
         return
       }
 
-      const application = await applicationService.updateApplication(id, updateData)
-
-      if (!application) {
+      // 租户归属校验
+      const existing = await applicationService.getApplicationById(id)
+      if (!existing) {
         ctx.status = 404
         ctx.body = { success: false, message: 'Application not found' }
         return
       }
+      if (existing.tenantId !== user.tenantId) {
+        ctx.status = 403
+        ctx.body = { success: false, message: '无权修改该应用' }
+        return
+      }
+
+      const application = await applicationService.updateApplication(id, updateData)
 
       ctx.status = 200
       ctx.body = { success: true, data: application, message: 'Application updated successfully' }
@@ -126,13 +129,22 @@ class ApplicationController {
   async deleteApplication(ctx: Context) {
     try {
       const { id } = ctx.params
-      const deleted = await applicationService.deleteApplication(id)
+      const user = ctx.state.user!
 
-      if (!deleted) {
+      // 租户归属校验
+      const existing = await applicationService.getApplicationById(id)
+      if (!existing) {
         ctx.status = 404
         ctx.body = { success: false, message: 'Application not found' }
         return
       }
+      if (existing.tenantId !== user.tenantId) {
+        ctx.status = 403
+        ctx.body = { success: false, message: '无权删除该应用' }
+        return
+      }
+
+      await applicationService.deleteApplication(id)
 
       ctx.status = 200
       ctx.body = { success: true, message: 'Application deleted successfully' }

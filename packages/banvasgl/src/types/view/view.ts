@@ -20,7 +20,11 @@ import type Image from '@/foundation/style/Image'
 // IViewStyle、IComputedStyle 及辅助类型（IFillStyleOptions 等）已迁移到 ./style.ts。
 // 此处 import 供文件内部使用，同时 re-export 维持 types/index.ts 导出链。
 import type { IComputedStyle, IViewStyle } from '../foundation/style'
-export type { IComputedStyle, IViewStyle, IFillStyleOptions, IStrokeStyleOptions, IShadowStyleOptions, TransformOriginKeyword, TransformOrigin } from '../foundation/style'
+export type { IComputedStyle, IViewStyle, IFlexLayout, IListLayout, IGridLayout, IScrollLayout, LayoutMode, IFillStyleOptions, IStrokeStyleOptions, IShadowStyleOptions, TransformOriginKeyword, TransformOrigin } from '../foundation/style'
+
+// IAnimationAddon 接口（动画插件，不走管线，由 AnimationManager 驱动）
+import type { IAnimationAddon } from '../engine/animation'
+export type { IAnimationAddon } from '../engine/animation'
 
 // ────────────────────────────────────────────
 //  IFieldSchema —— data 的字段定义
@@ -183,7 +187,6 @@ export interface IView {
     id: string
     readonly type: ViewType
     parent: ISceneNode | IView | null
-    readonly children: IView[]
     matrix: Matrix4
     content: IGraph | null
     viewport: Bounds
@@ -191,8 +194,8 @@ export interface IView {
     boundingBox: IBoundingBoxAddon | null
     /** 视觉装饰插件（背景、边框、圆角、裁剪），按需挂载 */
     decoration: IBoxDecorationAddon | null
-    /** 布局参数（作为子元素参与父容器的布局时使用） */
-    layoutParams?: IFlexLayoutParams
+    /** 动画插件（关键帧动画驱动），按需挂载，不参与渲染/交互管线 */
+    animation: IAnimationAddon | null
 
     // 状态
     selected: boolean
@@ -205,7 +208,6 @@ export interface IView {
 
     // 布局与渲染
     layoutContent(ctx?: CanvasRenderingContext2D): Bounds
-    measureChildren(): Bounds
     renderContent(ctx: CanvasRenderingContext2D): void
     layout(ctx?: CanvasRenderingContext2D): Bounds
     render(): void
@@ -450,7 +452,6 @@ export interface IViewOptions<D extends IFieldSchemaMap = any> {
     lifetimes?: Partial<IViewLifetimes>
     events?: Partial<IViewEvents>
     decoration?: IBoxDecorationOptions
-    layoutParams?: IFlexLayoutParams
 }
 
 /** ContainerView 构造选项 */
@@ -474,14 +475,6 @@ export interface IVideoViewOptions extends Omit<IViewOptions, 'content'> {}
 export interface ITextViewOptions extends Omit<IViewOptions, 'content'> {
     editable?: boolean
     verticalAlign?: string
-}
-
-/** Input 构造选项 */
-export interface IInputOptions extends ITextViewOptions {}
-
-/** FlexView 构造选项 */
-export interface IFlexViewOptions extends IContainerViewOptions {
-    flexStyle?: Partial<IFlexStyle>
 }
 
 // TransformOriginKeyword、TransformOrigin、IFillStyleOptions、IStrokeStyleOptions、
@@ -544,42 +537,12 @@ export interface IContainerView extends IView {
     clear(): void
 }
 
-/** CombinedView 接口 */
-export interface ICombinedView extends IContainerView {}
-
-// ────────────────────────────────────────────
-//  FlexView 布局相关接口
-// ────────────────────────────────────────────
-
-/** 子元素参与 Flex 布局的参数（挂载在 View.layoutParams 上） */
-export interface IFlexLayoutParams {
-    /** flex 权重（0 或缺省 = 固定尺寸，> 0 = 弹性分配剩余空间） */
-    flex?: number
-    /** 覆盖容器的 crossAxisAlignment */
-    alignSelf?: 'start' | 'center' | 'end' | 'stretch'
+/** CombinedView 接口 —— 统一容器，通过 style.layoutMode 切换布局模式 */
+export interface ICombinedView extends IContainerView {
+    /** 是否为布局托管容器（layoutMode 为 flex/list/grid 时为 true） */
+    readonly isLayoutManaged: boolean
 }
 
-/** FlexView 布局配置 */
-export interface IFlexStyle {
-    /** 主轴方向 */
-    direction: 'row' | 'column'
-    /** 子元素间距 */
-    gap: number
-    /** 主轴对齐方式 */
-    mainAxisAlignment: 'start' | 'center' | 'end' | 'spaceBetween' | 'spaceAround'
-    /** 交叉轴对齐方式 */
-    crossAxisAlignment: 'start' | 'center' | 'end' | 'stretch'
-    /** 内边距（布局区域缩进） */
-    padding: number | [number, number, number, number]
-}
-
-/** FlexView 接口 */
-export interface IFlexView extends IContainerView {
-    flexStyle: IFlexStyle
-}
-
-/** Input 接口（继承 TextView） */
-export interface IInput extends ITextView {}
 
 // ────────────────────────────────────────────
 //  流程编辑器 View 接口（Phase 1.4 将移至 banvas-flow-editor）
@@ -627,11 +590,7 @@ export interface ViewTypeMap {
     [ViewType.COMBINEDVIEW]: ICombinedView & {
         readonly type: typeof ViewType.COMBINEDVIEW
     }
-    [ViewType.INPUT]: IInput & { readonly type: typeof ViewType.INPUT }
     [ViewType.EDITABLETEXT]: ITextView & {
         readonly type: typeof ViewType.EDITABLETEXT
-    }
-    [ViewType.FLEXVIEW]: IFlexView & {
-        readonly type: typeof ViewType.FLEXVIEW
     }
 }

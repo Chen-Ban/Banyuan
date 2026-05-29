@@ -1,4 +1,6 @@
 import mongoose from 'mongoose'
+import { User } from '../models/User.js'
+import Conversation from '../models/Conversation.js'
 
 const MONGODB_HOST = process.env.MONGODB_HOST || 'localhost'
 const MONGODB_PORT = process.env.MONGODB_PORT || '27017'
@@ -13,6 +15,11 @@ export async function connectDatabase() {
   try {
     await mongoose.connect(MONGODB_URI)
     console.log(`📦 MongoDB connected: ${MONGODB_URI}`)
+
+    // 同步索引：自动 drop 旧的非稀疏索引，重建为 Schema 中声明的索引
+    await User.syncIndexes()
+    // 清除 V1 遗留的 id_1 唯一索引（当前 schema 已无 id 字段）
+    await Conversation.syncIndexes()
   } catch (error) {
     console.error('❌ MongoDB connection error:', error)
     throw error

@@ -28,8 +28,7 @@ import GraphView from '@/view/GraphViews'
 import TextView from '@/view/TextView'
 import ImageView from '@/view/MediaViews/ImageView'
 import VideoView from '@/view/MediaViews/VideoView'
-import Input from '@/view/Forms/Input'
-import FlexView from '@/view/FlexView'
+import CombinedView from '@/view/CombinedViews'
 import type { IComponentTemplate } from '@/types/hook/hook'
 
 type DefaultProps = NonNullable<IComponentTemplate['defaultProps']>
@@ -184,23 +183,17 @@ export const defaultViewCreatorStrategies = new Map<string, ViewCreatorStrategy>
         },
     ],
     [
-        ViewType.INPUT,
-        (props, x, y) => {
-            const text = (props.text as string | undefined) ?? ''
-            const textParagraph = TextParagraph.simple(text)
-            const textFields = new TextFields([textParagraph])
-            return new Input(textFields, {
-                style: { width: 200, height: 36 },
-            }).translate(x, y, 0)
-        },
-    ],
-    [
-        ViewType.FLEXVIEW,
+        ViewType.COMBINEDVIEW,
         (props, x, y) => {
             const width  = (props.width  as number | undefined) ?? 300
-            const height = (props.height as number | undefined) ?? 100
-            return new FlexView({
-                style: { width, height },
+            const height = (props.height as number | undefined) ?? 200
+            const layoutMode = (props._layoutMode as string | undefined)
+            const style: Record<string, unknown> = { width, height }
+            if (layoutMode === 'flex') {
+                style.layoutMode = 'flex'
+            }
+            return new CombinedView({
+                style: style as any,
             }).translate(x, y, 0)
         },
     ],

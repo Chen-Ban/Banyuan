@@ -105,9 +105,12 @@ export type {
     IImageViewOptions,
     IVideoViewOptions,
     ITextViewOptions,
-    IInputOptions,
-    IFlexViewOptions,
     IViewStyle,
+    IFlexLayout,
+    IListLayout,
+    IGridLayout,
+    IScrollLayout,
+    LayoutMode,
     TransformOriginKeyword,
     TransformOrigin,
     IView,
@@ -119,11 +122,7 @@ export type {
     ITextView,
     IContainerView,
     ICombinedView,
-    IFlexLayoutParams,
-    IFlexStyle,
-    IFlexView,
     ITextSelection,
-    IInput,
     ViewTypeMap,
     // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
     PortDirection,
@@ -189,7 +188,7 @@ export type {
     Interpolator,
     IAnimationDescriptor,
     IAnimationAddon,
-    IAnimatable,
+    Keyframe,
 } from './engine/animation'
 
 // ── 序列化接口 ──
@@ -223,10 +222,6 @@ export type {
     ConflictGroup,
 } from './view/property'
 
-// ── Runtime 接口 ──
-export type { ISchemaRunner, SchemaRunInput } from '@/engine/SchemaRunner'
-export { setSchemaRunner, getSchemaRunner } from '@/engine/SchemaRunner'
-
 // ── 统一类型守卫 ──
 export {
     isGraphType,
@@ -238,7 +233,6 @@ export {
     isSelectBoxView,
     isCombinedView,
     isContainerView,
-    isFlexView,
     isBoundingBoxAddon,
     isVertexAddon,
     isBoxDecorationAddon,

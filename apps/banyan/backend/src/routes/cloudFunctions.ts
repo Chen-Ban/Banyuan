@@ -7,8 +7,12 @@
 
 import Router from '@koa/router'
 import cloudFunctionController from '../controllers/CloudFunctionController.js'
+import { appOwnership } from '../middleware/appOwnership.js'
 
 const router = new Router({ prefix: '/api/apps/:appId/cloud-functions' })
+
+// 所有云函数路由需要校验 appId 归属
+router.use(appOwnership)
 
 router.get('/', cloudFunctionController.list.bind(cloudFunctionController))
 router.get('/:functionId', cloudFunctionController.getOne.bind(cloudFunctionController))

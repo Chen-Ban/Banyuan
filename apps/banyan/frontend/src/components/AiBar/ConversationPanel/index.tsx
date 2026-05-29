@@ -7,20 +7,24 @@
  * 消息渲染规则：
  *   - history user      → 靠右蓝色气泡
  *   - history assistant → 靠左灰色气泡
- *   - currentText       → 靠左灰色气泡（流式，末尾光标）
- *   - tool_call         → 靠左无气泡进度行（蓝色小字）
- *   - done              → 靠左无气泡完成提示行
- *   - error             → 靠左无气泡错误行
+ *   - messages（按时间顺序混排）：
+ *     - type='text'       → 靠左灰色气泡（已冻结的文字段落）
+ *     - type='tool_call'  → 靠左无气泡进度行
+ *     - type='tool_result'(error) → 靠左错误行
+ *     - type='done'       → 靠左完成提示行
+ *     - type='error'      → 靠左错误行
+ *   - currentText       → 靠左灰色气泡（正在流入的文字，末尾光标）
  *   - disambiguation    → 靠左无气泡卡片
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import { Spin } from "antd";
 import {
   CheckCircleOutlined,
   LoadingOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
+import Markdown from "react-markdown";
 import type { ProgressMessage } from "@/hooks/useXiangDi";
 import type { ConversationMessage, DisambiguationOptions } from "@/api";
 import DisambiguationPanel from "../DisambiguationPanel";
@@ -54,19 +58,36 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   disambiguationState,
   onDisambiguationSelect,
 }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
-  // 滚动到底部
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [history, messages, currentText]);
+  // ─── 智能滚动：仅在用户已在底部时自动滚动到最新内容 ──────────────────────────
+  // 阈值：距离底部 60px 以内视为"在底部"
+  const SCROLL_THRESHOLD = 60;
+  const isAtBottomRef = useRef(true);
 
-  // 当前轮次是否有工具调用进度（非 done/error）
-  const toolMessages = messages.filter(
-    (m) => m.type === "tool_call" || m.type === "tool_result",
-  );
-  const doneMessage = messages.find((m) => m.type === "done");
-  const errorMessage = messages.find((m) => m.type === "error" || m.isError);
+  // 监听滚动事件，记录用户是否在底部
+  const handleScroll = useCallback(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isAtBottomRef.current = distanceToBottom <= SCROLL_THRESHOLD;
+  }, []);
+
+  // 注册滚动监听
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, [handleScroll]);
+
+  // 当内容更新时，仅在用户已在底部时才滚动
+  useLayoutEffect(() => {
+    if (isAtBottomRef.current) {
+      endRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [history, messages, currentText]);
 
   const isEmpty =
     !historyLoading &&
@@ -76,7 +97,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
     !loading;
 
   return (
-    <div className={styles.panel}>
+    <div ref={panelRef} className={styles.panel}>
       {/* 历史加载中 */}
       {historyLoading && (
         <div className={styles.statusRow}>
@@ -104,36 +125,49 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         <HistoryBubble key={`h_${idx}`} message={msg} />
       ))}
 
-      {/* ── 当前轮次：工具调用进度行（在流式气泡之前） ── */}
-      {toolMessages.map((msg) => (
-        <ToolRow key={msg.id} message={msg} />
-      ))}
+      {/* ── 当前轮次：按时间顺序混排渲染 messages ── */}
+      {messages.map((msg) => {
+        switch (msg.type) {
+          case 'text':
+            return <TextBubble key={msg.id} content={msg.content} />;
+          case 'tool_call':
+            return <ToolRow key={msg.id} message={msg} />;
+          case 'tool_result':
+            // 只有错误的 tool_result 才会被加入 messages
+            return (
+              <div key={msg.id} className={`${styles.statusRow} ${styles.statusRowError}`}>
+                <WarningOutlined />
+                <span>{msg.content}</span>
+              </div>
+            );
+          case 'done':
+            return (
+              <div key={msg.id} className={styles.statusRow}>
+                <CheckCircleOutlined className={styles.doneIcon} />
+                <span className={styles.doneText}>完成</span>
+              </div>
+            );
+          case 'error':
+            return (
+              <div key={msg.id} className={`${styles.statusRow} ${styles.statusRowError}`}>
+                <WarningOutlined />
+                <span>{msg.content}</span>
+              </div>
+            );
+          default:
+            return null;
+        }
+      })}
 
-      {/* ── 当前轮次：流式输出气泡（assistant 靠左） ── */}
+      {/* ── 当前轮次：正在流入的文字（尚未冻结，末尾光标） ── */}
       {loading && currentText && (
         <div className={styles.bubbleRow}>
           <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
             <span className={styles.bubbleText}>
-              {currentText}
+              <Markdown>{currentText}</Markdown>
               <span className={styles.cursor}>▋</span>
             </span>
           </div>
-        </div>
-      )}
-
-      {/* ── 当前轮次：完成提示行 ── */}
-      {doneMessage && !loading && (
-        <div className={styles.statusRow}>
-          <CheckCircleOutlined className={styles.doneIcon} />
-          <span className={styles.doneText}>完成</span>
-        </div>
-      )}
-
-      {/* ── 当前轮次：错误行 ── */}
-      {errorMessage && (
-        <div className={`${styles.statusRow} ${styles.statusRowError}`}>
-          <WarningOutlined />
-          <span>{errorMessage.content}</span>
         </div>
       )}
 
@@ -157,6 +191,20 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         )}
 
       <div ref={endRef} />
+    </div>
+  );
+};
+
+// ─── TextBubble（已冻结的文字段落，assistant 靠左气泡） ───────────────────────
+
+const TextBubble: React.FC<{ content: string }> = ({ content }) => {
+  return (
+    <div className={styles.bubbleRow}>
+      <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
+        <span className={styles.bubbleText}>
+          <Markdown>{content}</Markdown>
+        </span>
+      </div>
     </div>
   );
 };
@@ -203,7 +251,7 @@ const HistoryBubble: React.FC<{ message: ConversationMessage }> = ({
               : undefined
           }
         >
-          {text}
+          {isUser ? text : <Markdown>{text}</Markdown>}
         </span>
         {!isUser && overflows && (
           <button

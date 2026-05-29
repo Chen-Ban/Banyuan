@@ -11,8 +11,7 @@
  */
 
 import type { SchemaCollectionDef, DisambiguationOptions } from './ai'
-
-const BASE_URL = '/api'
+import { get } from './client'
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
 
@@ -92,12 +91,11 @@ export interface GetDialoguesResponse {
  * 获取应用的对话历史（Dialogue 列表）
  */
 export async function getDialogues(appId: string, limit = 50): Promise<Dialogue[]> {
-  const response = await fetch(`${BASE_URL}/applications/${appId}/conversation/dialogues?limit=${limit}`)
-  if (!response.ok) {
-    throw new Error(`获取对话历史失败 (${response.status})`)
-  }
-  const json: GetDialoguesResponse = await response.json()
-  return json.data?.dialogues ?? []
+  const res = await get<GetDialoguesResponse>(
+    `/applications/${appId}/conversation/dialogues`,
+    { limit }
+  )
+  return res.data?.dialogues ?? []
 }
 
 /**

@@ -66,6 +66,8 @@ class AiController {
 
     // 直接操作底层 ServerResponse 进行 SSE 写入
     const res = ctx.res
+    // 禁用 Nagle 算法，让每次 write() 立即发送独立 TCP 包，实现逐字流式输出
+    res.socket?.setNoDelay(true)
     res.flushHeaders?.()
 
     try {
@@ -112,6 +114,8 @@ class AiController {
     ctx.respond = false
 
     const res = ctx.res
+    // 禁用 Nagle 算法，让每次 write() 立即发送独立 TCP 包，实现逐字流式输出
+    res.socket?.setNoDelay(true)
     res.flushHeaders?.()
 
     try {
@@ -182,7 +186,7 @@ class AiController {
   async getModels(ctx: Context): Promise<void> {
     try {
       const result = await aiService.getModels()
-      ctx.body = result
+      ctx.body = { success: true, data: result }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       ctx.status = 500

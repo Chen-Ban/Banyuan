@@ -123,18 +123,20 @@ export default class TextSelectionAddon implements ITextSelectionAddon {
 
     this.selection.setSelectionBoxs(boxs)
 
-    // 光标状态时启动/重置闪烁动画；范围选中或清空时停止动画
+    // 光标状态时启动闪烁动画（仅当动画尚未运行时）；范围选中或清空时停止动画
     if (TextSelection.isCursor(fixedIndex, dynamicIndex)) {
-      this.stopCursorAnimation()
-      this.cursorOpacity = 1
-      // 确保宿主 View 的 animation addon 已挂载
-      if (!this._view.animation) {
-        this._view.animation = new AnimationAddon(this._view)
+      if (!this._cursorAnimation || !this._cursorAnimation.isActive) {
+        this.stopCursorAnimation()
+        this.cursorOpacity = 1
+        // 确保宿主 View 的 animation addon 已挂载
+        if (!this._view.animation) {
+          this._view.animation = new AnimationAddon(this._view)
+        }
+        this._cursorAnimation = this._view.animation.animate(
+          { to: { cursorOpacity: 0 } },
+          { duration: 530, iterations: Infinity, direction: 'alternate' },
+        )
       }
-      this._cursorAnimation = this._view.animation.animate(
-        { to: { cursorOpacity: 0 } },
-        { duration: 530, iterations: Infinity, direction: 'alternate' },
-      )
     } else {
       this.stopCursorAnimation()
     }

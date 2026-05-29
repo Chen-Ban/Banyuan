@@ -11,8 +11,12 @@
 import Router from '@koa/router'
 import type { Context } from 'koa'
 import { FlowRunnerService } from '../services/FlowRunnerService.js'
+import { appOwnership } from '../middleware/appOwnership.js'
 
 const router = new Router({ prefix: '/api/apps/:appId/flows' })
+
+// 所有 Flow 路由需要校验 appId 归属
+router.use(appOwnership)
 
 /**
  * POST /api/apps/:appId/flows/run
