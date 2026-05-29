@@ -6,6 +6,15 @@ import type { SharedFlowNode } from './nodes/shared.js'
 import type { ClientFlowNode } from './nodes/client.js'
 import type { ServerFlowNode } from './nodes/server.js'
 
+/**
+ * FlowSchema 格式版本号
+ *
+ * 当 FlowSchema 的结构发生 breaking change 时递增此版本。
+ * BanvasGL 的全局 Migration 函数通过此常量判断是否需要对
+ * View.events/lifetimes 中嵌套的 FlowSchema 执行格式变换。
+ */
+export const FLOW_SCHEMA_VERSION = '1.0.0'
+
 /** 值节点（不参与控制流，仅产出值供参数引用） */
 export interface FlowVarNode {
   kind: 'variable'
