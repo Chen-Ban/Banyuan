@@ -1,6 +1,6 @@
 # ADR-011: 后端能力体系 —— Schema Builder + 自动 ORM + 云函数 + AI 集成
 
-**状态**: 已采纳  
+**状态**: 已采纳（2026-05-28 修订：决策 4 与 ADR-028 统一）  
 **日期**: 2026-05-17  
 **决策者**: 陈班
 
@@ -135,28 +135,66 @@ interface IAppFunction {
 
 ---
 
-### 决策 4：构建时服务器壳子
+### 决策 4：构建时生成应用服务器壳子，由 ADR-028 容器承载（2026-05-28 修订）
 
-构建时，除了现有的前端 bundle，额外生成一个轻量 HTTP 服务（基于 **Koa**），将该应用的所有云函数暴露为 REST 端点。
+> **原方案核心思路保留**：构建时生成轻量 HTTP 服务壳子（Koa），将云函数暴露为 REST 端点。  
+> **修订内容**：不再需要用户自己管理服务器进程，改由 ADR-028 的 deploy-agent 自动化部署到 Docker 容器中。每个应用一个容器，前端静态文件 + 后端云函数运行时一体打包。
+
+**架构（与 ADR-028 统一）**：
+
+```
+租户 ECS
+├── Nginx 网关 (:80/:443)
+│     ├── app1.tenant.banyuan.app → Container: app1 (:3001)
+│     └── app2.tenant.banyuan.app → Container: app2 (:3002)
+│
+├── Container: app1 (node:20-alpine)
+│     ├── Koa 服务壳子
+│     │     ├── 静态文件托管 (dist/)
+│     │     ├── 数据 API (GET/POST /api/data/{collectionName})
+│     │     └── 云函数路由 (POST /api/functions/{functionName})
+│     ├── OrmService：根据 schema.json 动态生成 Mongoose Model
+│     ├── FlowRunnerService：@banyuan/flow/server 执行云函数（FlowSchema JSON）
+│     └── MongoDB 连接（集合前缀 app_{appId}_）
+│
+├── Container: app2 (node:20-alpine)
+│     └── ...同上结构
+│
+└── deploy-agent（管理容器生命周期）
+```
+
+**每个应用 = 一个自包含的容器**，内部包含前端 + 后端一体：
+- 前端 SPA 通过 Koa 静态中间件直接托管
+- 后端根据用户在设计器中配置的数据表（AppSchema）自动提供 CRUD API
+- 云函数以 FlowSchema JSON 形式存储，由 `createServerFlowRunner()` 解释执行
+- 对于 `script` 类型节点（用户自定义代码），通过 `vm.runInNewContext()` 隔离执行
 
 **构建产物结构**：
 
 ```
-dist/
-├── frontend/          # 现有前端 bundle（不变）
+{appId}-{version}.tar.gz
+├── dist/                  # 前端 SPA
 │   ├── index.html
-│   └── assets/
-└── server/            # 新增：服务器壳子
-    ├── index.js       # Koa 入口，自动注册所有云函数路由
-    ├── functions/     # 编译后的云函数
-    │   ├── getUserList.js
-    │   └── createOrder.js
-    └── package.json   # 仅包含 koa + @koa/router + koa-body + mongoose 的最小依赖
+│   ├── assets/
+│   └── pages.json
+├── server/                # 后端服务壳子
+│   ├── index.js           # Koa 入口（自动注册数据路由 + 云函数路由 + 静态托管）
+│   ├── schema.json        # 数据表定义（AppSchema，用于动态生成 ORM）
+│   ├── functions.json     # 云函数定义（FlowSchema JSON 数组）
+│   └── package.json       # 最小依赖：koa + mongoose + @banyuan/flow
+└── Dockerfile             # 基于 node:20-alpine 的标准镜像定义
 ```
 
-**路由规则**：每个云函数自动映射为 `POST /functions/{functionName}`，统一 POST + JSON body，简单可预期。
+**路由规则**：
+- 页面访问：`GET https://{appSlug}.{tenantId}.banyuan.app/*` → 静态文件（SPA fallback）
+- 数据操作：`POST https://{appSlug}.{tenantId}.banyuan.app/api/data/{collection}`
+- 云函数调用：`POST https://{appSlug}.{tenantId}.banyuan.app/api/functions/{functionName}`
 
-**选择 Koa 的理由**：与 banyan 后端技术栈完全一致，团队已熟悉，中间件生态（koa-body、@koa/cors、@koa/router）直接复用，降低维护成本。
+**与 ADR-028 的关系**：
+- deploy-agent 负责：从 OSS 拉取产物 → docker build → docker run → 更新 Nginx 路由
+- 端口分配由 deploy-agent 自动管理（每个容器分配一个内部端口，Nginx 反向代理）
+- 纯静态应用（无云函数/无数据表）可降级为 `nginx:alpine` 容器，节省资源
+- 版本回滚 = 停止当前容器 → 启动旧版本容器
 
 ---
 
