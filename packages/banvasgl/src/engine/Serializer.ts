@@ -1,4 +1,6 @@
 import Scene from '@/engine/Scene'
+import { version as BANVASGL_VERSION } from '@/version.js'
+import { migrationRegistry } from '@/engine/migrations/index.js'
 import Matrix4 from '@/foundation/math/Matrix4'
 import { Point3, Vector3 } from '@/foundation/math'
 import Style from '@/foundation/style/Style'
@@ -39,11 +41,13 @@ import DenseTrajectory from '@/graph/trajectory/DenseTrajectory'
 
 // 容器类型
 import CombinedView from '@/view/CombinedViews'
-import FlexView from '@/view/FlexView'
 import GraphView from '@/view/GraphViews'
 import TextView from '@/view/TextView'
 import ImageView from '@/view/MediaViews/ImageView'
 import VideoView from '@/view/MediaViews/VideoView'
+
+// 流程图视图类型
+import { NodeView, EdgeView, PortView } from '@/view/FlowViews/index.js'
 
 // 相机类型
 import BaseCamera from '@/engine/camera/BaseCamera'
@@ -220,11 +224,14 @@ export default class Serializer {
         this.registerSerializable(GraphType.DENSETRAJECTORY, DenseTrajectory as any)
         // 容器
         this.registerSerializable(ViewType.COMBINEDVIEW, CombinedView as any)
-        this.registerSerializable(ViewType.FLEXVIEW, FlexView as any)
         this.registerSerializable(ViewType.GRAPHVIEW, GraphView as any)
         this.registerSerializable(ViewType.TEXTVIEW, TextView as any)
         this.registerSerializable(ViewType.IMAGEVIEW, ImageView as any)
         this.registerSerializable(ViewType.VIDEOVIEW, VideoView as any)
+        // 流程图视图
+        this.registerSerializable(ViewType.NODEVIEW, NodeView as any)
+        this.registerSerializable(ViewType.EDGEVIEW, EdgeView as any)
+        this.registerSerializable(ViewType.PORTVIEW, PortView as any)
         // 场景
         this.registerSerializable(SceneType.SCENE, Scene as any)
         // 相机
@@ -249,7 +256,7 @@ export default class Serializer {
 
         const serializedData: SerializedData = {
             type: this.getObjectType(obj),
-            version: '1.0.0',
+            version: BANVASGL_VERSION,
             data: this.serializeValue(obj, opts, 0),
             metadata: {
                 timestamp: Date.now(),
@@ -262,17 +269,22 @@ export default class Serializer {
 
     /**
      * 反序列化JSON字符串为对象
+     *
+     * 调用链：JSON.parse → MigrationRegistry.migrate → deserializeValue
      */
     public deserialize<T = any>(
         json: string,
         options: Partial<SerializerOptions> = {}
     ): T {
         const opts = { ...this.defaultOptions, ...options }
-        const serializedData: SerializedData = JSON.parse(json)
+        let serializedData: SerializedData = JSON.parse(json)
 
         if (!serializedData.type || !serializedData.data) {
             throw new Error('Invalid serialized data format')
         }
+
+        // 数据格式迁移：将旧版本数据升级到当前引擎版本
+        serializedData = migrationRegistry.migrate(serializedData)
 
         return this.deserializeValue(serializedData.data, opts) as T
     }
@@ -282,9 +294,26 @@ export default class Serializer {
      *
      * 支持 { $type, $value } 包装格式和普通值。
      * 用于操作栈的 applyDiff 等场景，无需经过 JSON.stringify/parse。
+     *
+     * @param data - 纯数据对象（可能是旧版本格式）
+     * @param fromVersion - 可选，数据的来源版本号。若提供且低于当前版本，
+     *                      会将 data 包装为 SerializedData 经过迁移管线处理。
      */
-    public revive<T = any>(data: any): T {
-        return this.deserializeValue(data, this.defaultOptions) as T
+    public revive<T = any>(data: any, fromVersion?: string): T {
+        let resolvedData = data
+
+        // 如果指定了来源版本且需要迁移，包装为 SerializedData 走迁移管线
+        if (fromVersion) {
+            const wrapped: SerializedData = {
+                type: data?.$type ?? 'unknown',
+                version: fromVersion,
+                data,
+            }
+            const migrated = migrationRegistry.migrate(wrapped)
+            resolvedData = migrated.data
+        }
+
+        return this.deserializeValue(resolvedData, this.defaultOptions) as T
     }
 
     /**

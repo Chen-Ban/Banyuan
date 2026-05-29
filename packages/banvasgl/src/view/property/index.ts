@@ -1,13 +1,13 @@
 /**
  * 属性系统（Property）
  *
- * 提供用户语义属性（x/y/rotation/width/height 等）与引擎内部数据结构
+ * 提供用户语义属性（x/y/rotation/width/height 等）与 View 内部数据结构
  * （matrix / viewport）之间的双向映射。
  *
  * 类型接口定义位于 @/types/property。
  *
  * 消费方：
- * - 动画系统（animation）：使用 get + interpolate 策略
+ * - 动画系统（AnimationAddon）：使用 get 采集初始值 + 分类判断
  * - 属性面板（ComponentPanel）：使用 get + set
  */
 
@@ -22,7 +22,7 @@ import { sizeAdapters } from './sizeAdapters'
 /**
  * 属性适配器注册表
  *
- * 统一管理语义属性（x/y/rotation/width/height 等）与引擎内部数据结构之间的
+ * 统一管理语义属性（x/y/rotation/width/height 等）与 View 内部数据结构之间的
  * 双向映射适配器，提供注册、查询、读写、冲突检测等能力。
  */
 export class PropertyAdapterRegistry {

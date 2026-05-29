@@ -10,9 +10,9 @@ import {
   groupViews,
   ungroupView,
 } from "./operations";
-import { ISerializable, isCombinedView, type ISceneLifetimes, type IView, type FlowSchema } from "@/types";
-import { getSchemaRunner } from "@/engine/SchemaRunner";
-import { AnimationDescriptor, AnimationManager } from "@/engine/animation";
+import { ISerializable, isCombinedView, isContainerView, type ISceneLifetimes, type IView, type FlowSchema } from "@/types";
+import type { FlowContext } from "@banyuan/flow";
+import { AnimationDescriptor, AnimationManager } from "@/foundation/animation";
 import AnimationAddon from "@/view/addon/AnimationAddon";
 import { SceneType } from "@/foundation/constants";
 import { SnapAlignManager } from "./operations/snap";
@@ -230,8 +230,21 @@ export default class Scene implements ISerializable {
     if (anim.isActive) {
       anim.cancel();
     }
-    anim.play();
-    AnimationManager.getInstance().add(anim, view.animation);
+    // 通过 AnimationAddon 播放（采集 initialValues + 挂载 + 注册到 Manager）
+    view.animation.animate(anim.definition, {
+      duration: anim.duration,
+      delay: anim.delay,
+      fillMode: anim.fillMode,
+      direction: anim.direction,
+      iterations: anim.iterations,
+      easing: anim.easing,
+      referenceFrame: anim.referenceFrame,
+      onStart: anim.onStart ?? undefined,
+      onUpdate: anim.onUpdate ?? undefined,
+      onFinish: anim.onFinish ?? undefined,
+      onCancel: anim.onCancel ?? undefined,
+      onIteration: anim.onIteration ?? undefined,
+    });
     return true;
   }
 
@@ -264,13 +277,76 @@ export default class Scene implements ISerializable {
     eventArgs: unknown[] = [],
   ): void {
     if (!schema) return
-    getSchemaRunner().run(schema, {
-      self: view,
-      page: this,
-      view: (id) => this.findViewById(id) ?? null,
+    const runner = this._app?.flowRunner
+    if (!runner) {
+      console.warn('[Scene] triggerSchema: App 未绑定或 flowRunner 不可用')
+      return
+    }
+
+    const scene = this
+    const ctx: FlowContext = {
+      getVariable(scope: string, key: string): unknown {
+        // scope = viewId → 从该 view.data 中读取
+        const targetView = scene.findViewById(scope)
+        if (targetView) {
+          const field = (targetView.data as Record<string, any>)[key]
+          return field?.value ?? undefined
+        }
+        // scope = 'page' → 从 scene.data 中读取
+        if (scope === 'page') {
+          const field = (scene.data as Record<string, any>)?.[key]
+          return field?.value ?? undefined
+        }
+        return undefined
+      },
+      setVariable(scope: string, key: string, value: unknown): void {
+        const targetView = scene.findViewById(scope)
+        if (targetView) {
+          targetView.setData({ [key]: value as string | number | boolean | object })
+          scene.markDirty(targetView)
+          return
+        }
+        if (scope === 'page') {
+          if (scene.data && typeof scene.data === 'object') {
+            const pageData = scene.data as Record<string, any>
+            if (key in pageData) {
+              pageData[key] = { ...pageData[key], value }
+            }
+          }
+        }
+      },
       eventArgs,
-      appId: this._app?.appId,
-    }).catch((err) => {
+      env: {
+        appId: scene._app?.appId,
+        setViewData(viewId: string, key: string, val: unknown): void {
+          const v = scene.findViewById(viewId)
+          if (v) {
+            v.setData({ [key]: val as string | number | boolean | object })
+            scene.markDirty(v)
+          }
+        },
+        setViewVisible(viewId: string, visible: boolean): void {
+          const v = scene.findViewById(viewId)
+          if (v) {
+            v.visible = visible
+            scene.markDirty(v)
+          }
+        },
+        navigateTo(pageId: string): void {
+          if (!scene._app) return
+          const targetScene = scene._app.getScene(pageId)
+          if (targetScene) {
+            scene._app.navigateTo(targetScene)
+          }
+        },
+        playAnimation(viewId: string, animationId: string): void {
+          scene.playAnimation(viewId, animationId)
+        },
+        callFlow: undefined, // 由宿主（banyan 前端）按需覆盖
+      },
+    }
+
+    runner.run(schema, ctx).catch((err: unknown) => {
       console.error('[Scene] schema 执行出错:', err)
     })
   }
@@ -423,7 +499,7 @@ export default class Scene implements ISerializable {
       for (const child of node.children) {
         if (child === target) return true;
         index++;
-        if (child.children.length > 0 && dfs(child)) return true;
+        if (isContainerView(child) && child.children.length > 0 && dfs(child as unknown as { children: View[] })) return true;
       }
       return false;
     }
@@ -513,9 +589,9 @@ export default class Scene implements ISerializable {
    */
   private findContainerById(id: string): { children: View[] } | undefined {
     if (id === this.id) return this;
-    // 在整棵树中查找
+    // 在整棵树中查找，只有 ContainerView 才有 children
     const view = this.findViewById(id);
-    if (view && Array.isArray(view.children)) return view;
+    if (view && isContainerView(view)) return view as unknown as { children: View[] };
     return undefined;
   }
 

@@ -453,6 +453,32 @@ export default class NodeView extends ContainerView implements INodeView {
         ctx.restore()
     }
 
+    // ── 序列化 ──
+
+    public override toJSON(): any {
+        const base = super.toJSON()
+        return {
+            ...base,
+            schema: this.schema,
+            nodeTitle: this.nodeTitle,
+        }
+    }
+
+    public static fromJSON(data: any): NodeView {
+        // 使用空 ports 构造，避免自动创建端口（children 由 Serializer 递归恢复）
+        const node = new NodeView({
+            schema: data.schema,
+            nodeTitle: data.nodeTitle,
+            ports: [],  // 跳过自动端口创建
+        })
+        // restoreCommonFields 会恢复 children（已由 Serializer 构建的 PortView 实例）
+        node.restoreCommonFields(data)
+        node.markLayoutDirty()
+        return node
+    }
+
+    // ── 其他 ──
+
     public copy(): NodeView {
         return new NodeView({
             schema: { ...this.schema },

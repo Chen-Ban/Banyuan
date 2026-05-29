@@ -1,5 +1,6 @@
 import type View from '@/view/View/View'
 import type { ReorderChange } from './OperationStack'
+import { isContainerView } from '@/types'
 
 /**
  * 层级管理器（基于数组位置）
@@ -195,8 +196,8 @@ export default class LayerManager {
   ): { children: View[]; id: string } | null {
     if (root.children.includes(target)) return root
     for (const child of root.children) {
-      if (child.children && child.children.length > 0) {
-        const found = this.findParentInTree(child, target)
+      if (isContainerView(child) && child.children.length > 0) {
+        const found = this.findParentInTree(child as unknown as { children: View[]; id: string }, target)
         if (found) return found
       }
     }

@@ -98,7 +98,7 @@ export const SCROLLBAR_THICKNESS = 4
  * 创建 View 基础默认样式（每次返回新对象，避免实例间共享污染）
  *
  * 包含所有 IViewStyle 字段的合理默认值：
- * - 布局域：overflow=visible，needStructViewport=false，scrollX/Y=0，
+ * - 布局域：overflow=visible，needStructViewport=false，scrollLayout 不设置，
  *           transformOrigin=center，width/height 不设置（由子类或用户决定）
  * - 容器装饰域：backgroundColor=transparent，borderWidth=0，
  *               borderColor=transparent，borderRadius=0，clipContent=false，opacity=1
@@ -111,9 +111,8 @@ export function createDefaultViewStyle(): IViewStyle {
     // ── 域一：布局域 ──
     overflow: 'visible',
     needStructViewport: false,
-    scrollX: 0,
-    scrollY: 0,
     transformOrigin: 'center',
+    // scrollLayout 不设默认值，未设置时等价于 { scrollX: 0, scrollY: 0 }
     // width / height 不设默认值，由子类或用户显式传入
 
     // ── 域二：容器装饰域 ──

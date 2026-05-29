@@ -104,6 +104,8 @@ export interface IBoundingBoxAddon extends IAddonBase {
     rotate: [Line, Circle]
     getBounds(): Bounds
     updateSize(): IBoundingBoxAddon
+    /** 更新 viewport 引用并重建几何，用于 viewport 对象整体替换场景 */
+    updateViewport(viewport: Bounds): IBoundingBoxAddon
     copy(): IBoundingBoxAddon
 }
 
@@ -143,19 +145,16 @@ export interface IBoxDecorationOptions {
  * 1. 视觉装饰渲染（背景/边框/圆角/裁剪）—— 容器装饰域
  * 2. 滚动条渲染（overflow=scroll 时）—— 布局域派生
  * 3. 维护 computedStyle，包括 scrollOffset 运行时状态和图形绘制域实例
- * 4. 提供 compute() 方法，在每次 layout 末尾将 rawStyle → computedStyle
  *
- * compute() 的三域处理：
- * - 布局域：解析 overflow，计算 scrollOffset（clamp）
- * - 容器装饰域：直通 decoration 字段（归一化 borderRadius）
- * - 图形绘制域：将 IFillStyleOptions / IStrokeStyleOptions / IShadowStyleOptions
- *   实例化为 FillStyle / StrokeStyle / ShadowStyle；未设置时写入 null，
- *   Graph.render() 看到 null 则使用自身内置默认样式。
+ * 两阶段样式计算：
+ * - resolveVisual(rawStyle)：阶段 A，布局前执行。计算与几何无关的视觉属性
+ *   （容器装饰域 + 图形绘制域实例化）
+ * - resolveLayout(rawStyle, viewport, layoutArea)：阶段 B，布局后执行。
+ *   计算依赖几何信息的布局属性（overflow、scrollOffset、滚动条）
+ * - compute()：兼容入口，内部依次调用 resolveVisual + resolveLayout
  */
-export interface IBoxDecorationAddon {
+export interface IBoxDecorationAddon extends IAddonBase {
     readonly type: AddonType.BOX_DECORATION
-    readonly capabilities: readonly AddonCapability[]
-    readonly priority: number
     /** 装饰原始配置（用户传入值，序列化来源） */
     decoration: IBoxDecorationOptions
     /** 计算样式（渲染和逻辑的唯一数据源） */
@@ -169,12 +168,20 @@ export interface IBoxDecorationAddon {
     /** 装饰层是否有视觉效果（false 时 renderBackground 零开销跳过） */
     hasDecoration(): boolean
     /**
-     * 将 rawStyle 计算为 computedStyle，同时更新 scrollOffset 和图形绘制域实例。
-     * 在每次 layout() 末尾由 View 调用。
-     *
-     * @param rawStyle   用户原始样式（IViewStyle，三域合一）
-     * @param viewport   View 当前视口
-     * @param layoutArea View 当前布局区域
+     * 阶段 A：解析与布局无关的视觉样式（容器装饰域 + 图形绘制域）。
+     * 仅依赖 rawStyle 声明值，不需要几何信息。
+     * 由 View.resolveVisualStyle() 在布局前调用。
+     */
+    resolveVisual(rawStyle: IViewStyle): void
+    /**
+     * 阶段 B：解析依赖布局结果的样式（overflow、scrollOffset、滚动条）。
+     * 需要布局后的 viewport 和 layoutArea 几何信息。
+     * 由 View.resolveLayoutStyle() 在布局后调用。
+     */
+    resolveLayout(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void
+    /**
+     * 兼容入口：依次调用 resolveVisual + resolveLayout。
+     * @deprecated 新代码应直接调用 resolveVisual / resolveLayout
      */
     compute(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void
     copy(): IBoxDecorationAddon

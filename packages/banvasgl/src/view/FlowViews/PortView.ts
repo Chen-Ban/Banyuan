@@ -110,6 +110,29 @@ export default class PortView extends View implements IPortView {
         ctx.restore()
     }
 
+    // ── 序列化 ──
+
+    public override toJSON(): any {
+        const base = super.toJSON()
+        return {
+            ...base,
+            portDirection: this.portDirection,
+            maxConnections: this.maxConnections,
+        }
+    }
+
+    public static fromJSON(data: any): PortView {
+        const port = new PortView({
+            id: data.id,
+            portDirection: data.portDirection,
+            maxConnections: data.maxConnections ?? 1,
+        })
+        port.restoreCommonFields(data)
+        return port
+    }
+
+    // ── 其他 ──
+
     public copy(): PortView {
         return new PortView({
             id: this.id,

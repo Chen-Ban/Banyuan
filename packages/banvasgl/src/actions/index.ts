@@ -5,7 +5,6 @@
  * 内置默认 viewCreatorStrategies，也可通过可选参数覆盖。
  */
 
-import { preprocessForExport } from '@/engine/PreviewPreprocessor'
 import type { IBanvasActions } from '@/types/hook/hook'
 import type App from '@/engine/App'
 
@@ -16,13 +15,9 @@ import { createAppActions as _createAppActions } from './appActions.js'
 import { createHistoryActions as _createHistoryActions } from './historyActions.js'
 import { defaultViewCreatorStrategies, graphCreatorStrategies } from './viewCreateStrategies.js'
 
-// ── Re-exports（供外部消费） ──
-export { createViewActions, getClipboard } from './viewActions.js'
-export type { ViewCreatorStrategy, CreateViewActionsOptions } from './viewActions.js'
-export { createPageActions } from './pageActions.js'
-export { createAppActions } from './appActions.js'
-export { createHistoryActions } from './historyActions.js'
-export { defaultViewCreatorStrategies, graphCreatorStrategies } from './viewCreateStrategies.js'
+// ── Re-exports（公共 API） ──
+export type { ViewCreatorStrategy } from './viewActions.js'
+export { defaultViewCreatorStrategies } from './viewCreateStrategies.js'
 
 // ── Factory Options ──
 
@@ -44,20 +39,5 @@ export function createBanvasActions(
         page: _createPageActions(getApp),
         app: _createAppActions(getApp),
         history: _createHistoryActions(getApp),
-
-        getSerializedPages(): string[] {
-            const app = getApp()
-            if (!app) return []
-            return app.getSerializedScenes()
-        },
-
-        exportImage(type?: string, quality?: number): string | null {
-            const app = getApp()
-            if (!app) return null
-            const restore = preprocessForExport(app)
-            const dataUrl = app.getRenderer().toDataURL(type, quality)
-            restore()
-            return dataUrl
-        },
     }
 }

@@ -1,3 +1,4 @@
+export * from './animation'
 export * from './constants'
 export * from './math'
 export * from './style'

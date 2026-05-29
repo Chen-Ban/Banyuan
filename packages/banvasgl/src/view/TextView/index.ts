@@ -47,8 +47,9 @@ export default class TextView extends View implements ITextView, ISerializable {
      * 将 TextSelectionAddon 加入 activeAddons 管线。
      * selectionAddon 声明了 RENDER + LOGIC capability，
      * 由 renderPlugins 负责调用 render()（光标/选区高亮渲染）。
+     * 同时供动画系统属性查找链使用（cursorOpacity 属性在 selectionAddon 上）。
      */
-    protected override get activeAddons() {
+    public override get activeAddons() {
         return [...super.activeAddons, this.selectionAddon].filter(Boolean) as import('@/types').IAddonBase[]
     }
 

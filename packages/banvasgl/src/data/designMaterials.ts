@@ -197,26 +197,8 @@ export const DESIGN_MATERIALS: IComponentDefinition[] = [
 </svg>`,
     },
     template: {
-      viewType: ViewType.FLEXVIEW,
-      defaultProps: { width: 300, height: 100 },
-    },
-  },
-  {
-    id: 'builtin.input',
-    label: '输入框',
-    description: '可编辑输入框',
-    source: 'builtin',
-    icon: {
-      type: 'svg',
-      content: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="2" y="7" width="20" height="10" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
-  <line x1="6" y1="12" x2="6" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-  <line x1="7" y1="9.5" x2="7" y2="14.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-</svg>`,
-    },
-    template: {
-      viewType: ViewType.INPUT,
-      defaultProps: { text: '' },
+      viewType: ViewType.COMBINEDVIEW,
+      defaultProps: { width: 300, height: 100, _layoutMode: 'flex' },
     },
   },
   {

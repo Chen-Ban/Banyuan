@@ -1,7 +1,5 @@
 // ── App ──
 export { default as App } from './App'
-export { preprocessForExport } from './PreviewPreprocessor'
-export type { PreprocessOptions } from './PreviewPreprocessor'
 
 // ── Scene ──
 export { default as Scene } from './Scene'
@@ -12,31 +10,25 @@ export * from './camera'
 
 // ── Renderer ──
 export { default as Renderer } from './Renderer'
-export { default as CanvasContext } from './CanvasContext'
 
 // ── Serializer ──
 export { default as Serializer } from './Serializer'
 export type { SerializerOptions, SerializedData } from './Serializer'
 
-// ── SchemaRunner (Runtime) ──
-export { setSchemaRunner, getSchemaRunner } from './SchemaRunner'
-export type { ISchemaRunner, SchemaRunInput } from './SchemaRunner'
+// ── Migrations ──
+export { MigrationRegistry, migrationRegistry } from './migrations/index.js'
+export type { Migration } from './migrations/index.js'
 
-// ── Animation ──
-export * from './animation'
+// ── Animation（实际定义于 foundation/animation，此处重导出保持公共 API 兼容） ──
+export * from '@/foundation/animation'
 
-// ── Operations ──
+// ── Operations（公共 API 部分） ──
 export {
-    OperationStack,
     DiffType,
     Operation,
     TransactionManager,
-    DiffApplier,
-    LayerManager,
     SnapAlignManager,
     flattenViewTree,
-    isViewInTree,
-    clearSelectedStates,
     clearAllStates,
     groupViews,
     ungroupView,
@@ -47,16 +39,14 @@ export type {
     AddDiff,
     RemoveDiff,
     ReorderDiff,
-    ReorderChange,
     PropChange,
     ApplyDirection,
-    OperationApplier,
     GroupResult,
     UngroupResult,
     SnapResult,
 } from './operations'
 
-// ── Property ──
+// ── Property（实际定义于 view/property，此处重导出保持公共 API 兼容） ──
 export {
     PropertyAdapterRegistry,
     adapterRegistry,
@@ -64,4 +54,4 @@ export {
     SizeProperties,
     radiansToDegrees,
     degreesToRadians,
-} from './property'
+} from '@/view/property'
