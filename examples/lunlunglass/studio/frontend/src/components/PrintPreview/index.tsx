@@ -28,7 +28,7 @@ interface PrintPreviewProps {
  * 3. 提供"打印样张"按钮，将合成图发送到后端打印
  *
  * 实现方式：
- * - 背景图：通过 actions.exportImage() 获取（不含动态字段文本）
+ * - 背景图：通过 actions.app.exportImage() 获取（不含动态字段文本）
  * - 动态字段：遍历所有 TextView，找到绑定了 fieldKey 的，用 example 值在对应位置绘制文本
  * - 合成：在浏览器端 Canvas 2D 上完成（不依赖 node-canvas）
  */
@@ -71,7 +71,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
     setLoading(true)
 
     // 获取背景图
-    const backgroundDataUrl = actions.exportImage()
+    const backgroundDataUrl = actions.app.exportImage()
     if (!backgroundDataUrl) {
       message.warning('无法导出背景图')
       setLoading(false)
