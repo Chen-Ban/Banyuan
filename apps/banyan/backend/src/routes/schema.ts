@@ -1,7 +1,11 @@
 import Router from '@koa/router'
 import { SchemaController } from '../controllers/SchemaController.js'
+import { appOwnership } from '../middleware/appOwnership.js'
 
 const router = new Router({ prefix: '/api/apps/:appId/schema' })
+
+// 所有 Schema 路由需要校验 appId 归属
+router.use(appOwnership)
 
 // ── Schema 整体 ───────────────────────────────────────────────────────────────
 // GET  /api/apps/:appId/schema

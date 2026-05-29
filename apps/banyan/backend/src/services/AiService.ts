@@ -130,6 +130,8 @@ class AiService {
         'X-Accel-Buffering': 'no',
       })
     }
+    // 禁用 Nagle 算法，确保每次 write() 立即发送，实现逐字流式输出
+    res.socket?.setNoDelay(true)
 
     try {
       // 1. 校验应用存在
@@ -255,6 +257,8 @@ class AiService {
         'X-Accel-Buffering': 'no',
       })
     }
+    // 禁用 Nagle 算法，确保每次 write() 立即发送，实现逐字流式输出
+    res.socket?.setNoDelay(true)
 
     try {
       // 1. 确定要恢复的对话

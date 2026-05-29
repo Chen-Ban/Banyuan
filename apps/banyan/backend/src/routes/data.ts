@@ -1,7 +1,11 @@
 import Router from '@koa/router'
 import { DataController } from '../controllers/DataController.js'
+import { appOwnership } from '../middleware/appOwnership.js'
 
 const router = new Router({ prefix: '/api/apps/:appId/data' })
+
+// 所有数据路由需要校验 appId 归属
+router.use(appOwnership)
 
 // GET    /api/apps/:appId/data/:collectionName          列表查询
 router.get('/:collectionName', DataController.list)

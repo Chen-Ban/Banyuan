@@ -11,10 +11,11 @@ import cloudFunctionsRouter from './cloudFunctions.js'
 import { uploadRouter } from './upload.js'
 import knowledgeRouter from './knowledge.js'
 import internalRouter from './internal.js'
+import { authMiddleware } from '../middleware/auth.js'
 
 const router = new Router()
 
-// 健康检查
+// 健康检查（无需认证）
 router.get('/health', async (ctx) => {
   ctx.body = {
     success: true,
@@ -23,12 +24,20 @@ router.get('/health', async (ctx) => {
   }
 })
 
+// 预览 GET（无需认证，供 iframe / 浏览器直接访问）
+router.use(previewRouter.routes(), previewRouter.allowedMethods())
+
+// 内部 API（供 XiangDi 服务回调，使用 X-Internal-Token 鉴权，不走 JWT）
+router.use(internalRouter.routes(), internalRouter.allowedMethods())
+
+// ─── 以下路由全部需要 JWT 认证 ─────────────────────────────────────────────────
+router.use(authMiddleware)
+
 // API 路由
 router.use(applicationRoutes.routes())
 router.use(aiRoutes.routes())
 router.use(conversationRoutes.routes(), conversationRoutes.allowedMethods())
 router.use(buildRouter.routes(), buildRouter.allowedMethods())
-router.use(previewRouter.routes(), previewRouter.allowedMethods())
 
 // Phase 1：后端能力体系
 router.use(schemaRouter.routes(), schemaRouter.allowedMethods())
@@ -45,8 +54,5 @@ router.use(uploadRouter.routes(), uploadRouter.allowedMethods())
 
 // 知识库（向量检索 + 持久化）
 router.use(knowledgeRouter.routes(), knowledgeRouter.allowedMethods())
-
-// 内部 API（供 XiangDi 服务回调读取应用状态）
-router.use(internalRouter.routes(), internalRouter.allowedMethods())
 
 export default router

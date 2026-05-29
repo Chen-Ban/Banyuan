@@ -1,5 +1,4 @@
 import crypto from 'crypto'
-import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { Tenant } from '../models/Tenant.js'
 import { User, IUser, UserRole } from '../models/User.js'
@@ -23,18 +22,6 @@ export interface AuthPayload {
   userId: string
   tenantId: string
   role: UserRole
-}
-
-export interface RegisterInput {
-  tenantName: string
-  email: string
-  username: string
-  password: string
-}
-
-export interface LoginInput {
-  email: string
-  password: string
 }
 
 // ─── 工具函数 ─────────────────────────────────────────────────────────────────
@@ -67,67 +54,6 @@ async function generateRefreshToken(userId: string, tenantId: string): Promise<s
 // ─── AuthService ──────────────────────────────────────────────────────────────
 
 export class AuthService {
-  /**
-   * 注册：创建租户 + owner 用户
-   */
-  async register(input: RegisterInput): Promise<{ user: Omit<IUser, 'passwordHash'>; tokens: TokenPair }> {
-    const { tenantName, email, username, password } = input
-
-    // 检查邮箱是否已注册
-    const existing = await User.findOne({ email: email.toLowerCase().trim() })
-    if (existing) {
-      throw Object.assign(new Error('该邮箱已被注册'), { statusCode: 409 })
-    }
-
-    // 创建租户
-    const tenantId = generateId('tenant')
-    await Tenant.create({ tenantId, name: tenantName, plan: 'free' })
-
-    // 创建 owner 用户
-    const userId = generateId('user')
-    const passwordHash = await bcrypt.hash(password, 12)
-    const user = await User.create({
-      userId,
-      tenantId,
-      email: email.toLowerCase().trim(),
-      username,
-      passwordHash,
-      role: 'owner',
-      status: 'active',
-    })
-
-    const tokens = await this._issueTokens(userId, tenantId, 'owner')
-    return { user: this._sanitizeUser(user), tokens }
-  }
-
-  /**
-   * 登录
-   */
-  async login(input: LoginInput): Promise<{ user: Omit<IUser, 'passwordHash'>; tokens: TokenPair }> {
-    const { email, password } = input
-
-    // 显式 select passwordHash（schema 中 select: false）
-    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+passwordHash')
-    if (!user) {
-      throw Object.assign(new Error('邮箱或密码错误'), { statusCode: 401 })
-    }
-
-    if (user.status === 'disabled') {
-      throw Object.assign(new Error('账号已被禁用'), { statusCode: 403 })
-    }
-
-    if (!user.passwordHash) {
-      throw Object.assign(new Error('该账号未设置密码，请使用手机号登录'), { statusCode: 401 })
-    }
-    const valid = await bcrypt.compare(password, user.passwordHash)
-    if (!valid) {
-      throw Object.assign(new Error('邮箱或密码错误'), { statusCode: 401 })
-    }
-
-    const tokens = await this._issueTokens(user.userId, user.tenantId, user.role)
-    return { user: this._sanitizeUser(user), tokens }
-  }
-
   /**
    * 刷新 Access Token
    */
@@ -165,9 +91,10 @@ export class AuthService {
 
   /**
    * 发送手机验证码
+   * Mock 模式下返回验证码字符串，生产模式返回 undefined
    */
-  async sendSmsCode(phone: string): Promise<void> {
-    await smsService.sendOtp(phone)
+  async sendSmsCode(phone: string): Promise<string | undefined> {
+    return smsService.sendOtp(phone)
   }
 
   /**

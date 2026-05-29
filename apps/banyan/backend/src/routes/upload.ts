@@ -3,6 +3,7 @@ import Router from '@koa/router'
 import sharp from 'sharp'
 import applicationService from '../services/ApplicationService.js'
 import ossService from '../services/OssService.js'
+import { appOwnership } from '../middleware/appOwnership.js'
 
 const router = new Router({ prefix: '/api/applications' })
 
@@ -17,7 +18,7 @@ const THUMBNAIL_QUALITY = 75
  * 上传应用缩略图（multipart/form-data，字段名 file）。
  * 压缩为 WebP 格式（最大 480px，质量 75），上传到 OSS，更新数据库。
  */
-router.post('/:id/thumbnail', async (ctx) => {
+router.post('/:id/thumbnail', appOwnership, async (ctx) => {
   const { id } = ctx.params
 
   // 检查应用是否存在
@@ -76,7 +77,7 @@ router.post('/:id/thumbnail', async (ctx) => {
  *   2. 用 signedUrl 直接 PUT 上传文件到 OSS
  *   3. 上传成功后，将 publicUrl 作为图片 URL 传给 AI 接口
  */
-router.post('/:id/upload/presign', async (ctx) => {
+router.post('/:id/upload/presign', appOwnership, async (ctx) => {
   const { id } = ctx.params
   const { filename, contentType } = ctx.request.body as {
     filename?: string
