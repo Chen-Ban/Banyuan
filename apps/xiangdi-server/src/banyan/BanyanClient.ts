@@ -67,7 +67,7 @@ export class BanyanClient {
 
     constructor(config: BanyanClientConfig = {}) {
         this.baseUrl = config.baseUrl ?? (process.env.BANYAN_URL ?? 'http://localhost:3001')
-        this.internalToken = config.internalToken ?? process.env.INTERNAL_API_TOKEN
+        this.internalToken = config.internalToken ?? process.env.INTERNAL_API_TOKEN ?? '__dev_internal_token__'
         this.timeout = config.timeout ?? 10000
     }
 
@@ -76,8 +76,8 @@ export class BanyanClient {
      * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
     async getPages(appId: string): Promise<string[]> {
-        const data = await this.get<{ pages: string[] }>(`/internal/apps/${appId}/pages`)
-        return data.pages ?? []
+        const resp = await this.get<{ success: boolean; data: { pages: string[] } }>(`/internal/apps/${appId}/pages`)
+        return resp.data?.pages ?? []
     }
 
     /**
@@ -85,8 +85,8 @@ export class BanyanClient {
      * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
     async getSchema(appId: string): Promise<SchemaCollectionInfo[]> {
-        const data = await this.get<{ collections: SchemaCollectionInfo[] }>(`/internal/apps/${appId}/schema`)
-        return data.collections ?? []
+        const resp = await this.get<{ success: boolean; data: { collections: SchemaCollectionInfo[] } }>(`/internal/apps/${appId}/schema`)
+        return resp.data?.collections ?? []
     }
 
     /**
@@ -94,8 +94,8 @@ export class BanyanClient {
      * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
     async getCloudFunctions(appId: string): Promise<CloudFunctionInfo[]> {
-        const data = await this.get<{ functions: CloudFunctionInfo[] }>(`/internal/apps/${appId}/cloud-functions`)
-        return data.functions ?? []
+        const resp = await this.get<{ success: boolean; data: { functions: CloudFunctionInfo[] } }>(`/internal/apps/${appId}/cloud-functions`)
+        return resp.data?.functions ?? []
     }
 
     /**
@@ -103,8 +103,8 @@ export class BanyanClient {
      * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
     async getCloudFunction(appId: string, functionId: string): Promise<CloudFunctionInfo | null> {
-        const data = await this.get<{ function: CloudFunctionInfo }>(`/internal/apps/${appId}/cloud-functions/${functionId}`)
-        return data.function ?? null
+        const resp = await this.get<{ success: boolean; data: { function: CloudFunctionInfo } }>(`/internal/apps/${appId}/cloud-functions/${functionId}`)
+        return resp.data?.function ?? null
     }
 
     // ─── HTTP 请求内核 ──────────────────────────────────────────────────────

@@ -291,6 +291,8 @@ router.post('/run', async (ctx) => {
         'Connection': 'keep-alive',
         'X-Accel-Buffering': 'no',
     })
+    // 禁用 Nagle 算法，让每次 write() 立即发送独立 TCP 包，实现逐字流式输出
+    res.socket?.setNoDelay(true)
 
     // 启动 SSE 心跳
     const stopHeartbeat = startSSEHeartbeat(res)
@@ -520,6 +522,8 @@ router.post('/resume', async (ctx) => {
         'Connection': 'keep-alive',
         'X-Accel-Buffering': 'no',
     })
+    // 禁用 Nagle 算法，让每次 write() 立即发送独立 TCP 包，实现逐字流式输出
+    res.socket?.setNoDelay(true)
 
     // 启动 SSE 心跳
     const stopHeartbeat = startSSEHeartbeat(res)
