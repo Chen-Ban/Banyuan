@@ -42,7 +42,7 @@ export class ApiError extends Error {
 }
 
 /**
- * 统一请求方法
+ * 统一请求方法（JSON 请求/响应）
  */
 async function request<T>(
   url: string,
@@ -129,4 +129,50 @@ export function put<T>(url: string, body?: unknown): Promise<T> {
  */
 export function del<T>(url: string): Promise<T> {
   return request<T>(url, { method: 'DELETE' })
+}
+
+/**
+ * 流式请求（SSE 等场景）
+ *
+ * 与 request() 相同的认证和 401 处理，但不解析 JSON，
+ * 直接返回原始 Response 供调用方读取 ReadableStream。
+ */
+export async function stream(
+  url: string,
+  options: RequestInit = {}
+): Promise<Response> {
+  const fullUrl = `${BASE_URL}${url}`
+
+  const defaultHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  const accessToken = localStorage.getItem(TOKEN_KEY)
+  if (accessToken) {
+    defaultHeaders['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  const response = await fetch(fullUrl, {
+    ...options,
+    headers: {
+      ...defaultHeaders,
+      ...options.headers,
+    },
+  })
+
+  if (response.status === 401) {
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_TOKEN_KEY)
+    throw new ApiError('Unauthorized', 401)
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '')
+    throw new ApiError(
+      text || `Request failed with status ${response.status}`,
+      response.status
+    )
+  }
+
+  return response
 }

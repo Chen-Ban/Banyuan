@@ -1,11 +1,11 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import {
+  App,
   Button,
   Input,
   Select,
   Checkbox,
   Popconfirm,
-  message,
   Empty,
 } from 'antd'
 import {
@@ -62,6 +62,7 @@ const FieldEditor = forwardRef<FieldEditorHandle, FieldEditorProps>(({
   dirty: _dirty,
   onDirtyChange,
 }, ref) => {
+  const { message } = App.useApp()
   // 本地字段列表（编辑态）
   const [localFields, setLocalFields] = useState<FieldDef[]>(collection.fields)
   const [_saving, setSaving] = useState(false)

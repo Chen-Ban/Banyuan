@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Input, Popconfirm, message, Tooltip, Empty } from "antd";
+import { App, Button, Input, Popconfirm, Tooltip, Empty } from "antd";
 import {
   PlusOutlined,
   DeleteOutlined,
@@ -29,6 +29,7 @@ const FunctionList: React.FC<FunctionListProps> = ({
   onSelect,
   onDelete,
 }) => {
+  const { message } = App.useApp();
   const [newName, setNewName] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [saving, setSaving] = useState(false);

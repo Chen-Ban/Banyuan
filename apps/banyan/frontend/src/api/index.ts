@@ -6,7 +6,7 @@ export { ApiError } from './client'
 export type { ApiResponse, PaginatedResponse } from './client'
 
 export * as authApi from './auth'
-export type { RegisterInput, LoginInput, TokenPair, AuthUser } from './auth'
+export type { TokenPair, AuthUser } from './auth'
 export * as applicationApi from './applications'
 export * as buildApi from './build'
 export * as aiApi from './ai'

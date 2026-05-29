@@ -16,7 +16,7 @@
 
 import { useCallback, useState } from 'react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
-import { Avatar, Dropdown, Input, Modal, message } from 'antd'
+import { App, Avatar, Dropdown, Input, Modal } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   HomeOutlined,
@@ -51,6 +51,7 @@ interface SidebarProps {
 // ─── 组件 ────────────────────────────────────────────────────────────────────────
 
 const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const { user, loading: authLoading, logout, openLoginModal } = useAuth()
 

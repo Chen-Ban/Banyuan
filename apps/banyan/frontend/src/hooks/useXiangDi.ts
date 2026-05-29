@@ -16,6 +16,13 @@
  *   - 保留 history（ConversationMessage[]）兼容层，通过 dialoguesToFlatMessages 转换
  *   - 新增 dialogues 状态，暴露完整的 Dialogue 结构
  *
+ * V3 变更（消息混排）：
+ *   - text_delta 不再仅累积到独立的 currentText 状态
+ *   - 当遇到 tool_call 时，将之前累积的文字"冻结"为 type='text' 的 ProgressMessage
+ *   - messages 数组按时间顺序混排 text 段落和 tool_call/tool_result
+ *   - currentText 仅表示"当前正在流入、尚未冻结"的文字片段（用于光标渲染）
+ *   - 这确保了 UI 能按真实执行顺序展示：文字1 → 工具1 → 文字2 → 工具2 → ...
+ *
  * 会话模型：1 App = 1 Conversation，以 appId 为唯一标识，
  * 前端无需管理 conversationId。
  */
@@ -75,9 +82,9 @@ export interface UseXiangDiReturn {
   dialogues: Dialogue[]
   /** 对话历史消息（兼容层：user + assistant 交替的扁平列表） */
   history: ConversationMessage[]
-  /** 当前轮次的进度消息列表（按时间顺序） */
+  /** 当前轮次的进度消息列表（按时间顺序，混排文字段落和工具调用） */
   messages: ProgressMessage[]
-  /** 当前累积的 LLM 文字输出 */
+  /** 当前正在流入的 LLM 文字（尚未冻结的最新文字片段，用于光标渲染） */
   currentText: string
   /** 发送指令（type 默认 task） */
   sendPrompt: (prompt: string, type?: DialogueType, images?: Array<{ url: string; alt?: string }>) => Promise<void>
@@ -108,6 +115,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   const abortControllerRef = useRef<AbortController | null>(null)
   // 用于在 SSE 回调中累积文字（避免闭包陷阱）
   const currentTextRef = useRef('')
+  // 累积所有文字（包括已冻结 + 当前流入的），用于 done 时构建 assistant 消息
+  const allTextRef = useRef('')
 
   // ─── 兼容层：从 dialogues 派生扁平 history ──────────────────────────────────
 
@@ -144,6 +153,20 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     ])
   }, [])
 
+  /**
+   * 冻结当前累积的文字为一个 text 类型的 ProgressMessage。
+   * 在遇到 tool_call 时调用，确保文字段落和工具调用按真实顺序混排。
+   */
+  const freezeCurrentText = useCallback(() => {
+    const text = currentTextRef.current
+    if (text.trim()) {
+      addMessage({ type: 'text', content: text })
+    }
+    // 重置当前文字（但 allTextRef 保持累积）
+    currentTextRef.current = ''
+    setCurrentText('')
+  }, [addMessage])
+
   const sendPrompt = useCallback(async (prompt: string, type: DialogueType = 'task', images: ImageItem[] = []) => {
     if (loading) return
 
@@ -166,6 +189,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setMessages([])
     setCurrentText('')
     currentTextRef.current = ''
+    allTextRef.current = ''
 
     // 创建新的 AbortController
     const controller = new AbortController()
@@ -184,10 +208,13 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       switch (event.type) {
         case 'text_delta': {
           currentTextRef.current += event.text
+          allTextRef.current += event.text
           setCurrentText(currentTextRef.current)
           break
         }
         case 'tool_call': {
+          // 冻结之前的文字段落，再追加 tool_call
+          freezeCurrentText()
           const friendlyName = formatToolName(event.name)
           addMessage({
             type: 'tool_call',
@@ -223,8 +250,11 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
           break
         }
         case 'done': {
+          // 冻结最后剩余的文字
+          freezeCurrentText()
+
           // 将 assistant 回复追加到临时 Dialogue 中
-          const assistantText = currentTextRef.current.trim()
+          const assistantText = allTextRef.current.trim()
           if (assistantText) {
             setDialogues((prev) => {
               const updated = [...prev]
@@ -241,14 +271,16 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
               }
               return updated
             })
-            addMessage({
-              type: 'done',
-              content: assistantText,
-            })
           }
+          addMessage({
+            type: 'done',
+            content: '完成',
+          })
           break
         }
         case 'error': {
+          // 冻结之前的文字
+          freezeCurrentText()
           addMessage({
             type: 'error',
             content: event.message,
@@ -278,7 +310,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       setLoading(false)
       abortControllerRef.current = null
     }
-  }, [loading, appId, onBeforeSend, addMessage, onDone, onError, onPagesSnapshot, onDisambiguation])
+  }, [loading, appId, onBeforeSend, addMessage, freezeCurrentText, onDone, onError, onPagesSnapshot, onDisambiguation])
 
   const respondToDisambiguationFn = useCallback(async (choiceId: string) => {
     await aiApi.respondToDisambiguation(choiceId)
@@ -293,6 +325,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setMessages([])
     setCurrentText('')
     currentTextRef.current = ''
+    allTextRef.current = ''
   }, [])
 
   const newConversation = useCallback(() => {
@@ -300,6 +333,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setMessages([])
     setCurrentText('')
     currentTextRef.current = ''
+    allTextRef.current = ''
   }, [])
 
   return {
@@ -328,6 +362,7 @@ const TOOL_NAME_MAP: Record<string, string> = {
   banvas_move_node: '移动元素',
   banvas_resize_node: '调整尺寸',
   banvas_apply_patch: '批量操作',
+  app_get_pages: '获取页面数据',
 }
 
 function formatToolName(name: string): string {

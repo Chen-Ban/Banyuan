@@ -1,18 +1,6 @@
 import { get, post } from './client'
 import type { ApiResponse } from './client'
 
-export interface RegisterInput {
-  tenantName: string
-  email: string
-  username: string
-  password: string
-}
-
-export interface LoginInput {
-  email: string
-  password: string
-}
-
 export interface TokenPair {
   accessToken: string
   refreshToken: string
@@ -26,20 +14,6 @@ export interface AuthUser {
   username: string
   role: 'owner' | 'admin' | 'member'
   status: string
-}
-
-/**
- * 注册（创建租户 + 首个 owner 账号）
- */
-export function register(data: RegisterInput): Promise<ApiResponse<{ user: AuthUser; tokens: TokenPair }>> {
-  return post<ApiResponse<{ user: AuthUser; tokens: TokenPair }>>('/auth/register', data)
-}
-
-/**
- * 登录
- */
-export function login(data: LoginInput): Promise<ApiResponse<{ user: AuthUser; tokens: TokenPair }>> {
-  return post<ApiResponse<{ user: AuthUser; tokens: TokenPair }>>('/auth/login', data)
 }
 
 /**
@@ -65,9 +39,10 @@ export function me(): Promise<ApiResponse<AuthUser>> {
 
 /**
  * 发送手机验证码
+ * 开发环境下响应中会包含 code 字段
  */
-export function sendSmsCode(phone: string): Promise<ApiResponse<null>> {
-  return post<ApiResponse<null>>('/auth/sms/send', { phone })
+export function sendSmsCode(phone: string): Promise<ApiResponse<{ code?: string } | null>> {
+  return post<ApiResponse<{ code?: string } | null>>('/auth/sms/send', { phone })
 }
 
 /**

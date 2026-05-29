@@ -6,7 +6,8 @@
  * 因此改用 fetch + ReadableStream 手动解析 SSE。
  */
 
-const BASE_URL = '/api'
+import { get, post, stream } from './client'
+import type { ApiResponse } from './client'
 
 // ─── 模型管理类型 ──────────────────────────────────────────────────────────────
 
@@ -26,27 +27,15 @@ export interface ModelsResponse {
  * 获取所有可用 LLM provider 及当前激活状态
  */
 export async function getModels(): Promise<ModelsResponse> {
-  const response = await fetch(`${BASE_URL}/ai/models`)
-  if (!response.ok) {
-    throw new Error(`获取模型列表失败 (${response.status})`)
-  }
-  return response.json()
+  const res = await get<ApiResponse<ModelsResponse>>('/ai/models')
+  return res.data!
 }
 
 /**
  * 切换激活的 LLM provider
  */
 export async function switchModel(provider: string): Promise<{ success: boolean; activeProvider?: string; error?: string }> {
-  const response = await fetch(`${BASE_URL}/ai/models/switch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ provider }),
-  })
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`切换模型失败 (${response.status}): ${text}`)
-  }
-  return response.json()
+  return post<{ success: boolean; activeProvider?: string; error?: string }>('/ai/models/switch', { provider })
 }
 
 // ─── SSE 事件类型 ─────────────────────────────────────────────────────────────
@@ -164,21 +153,15 @@ export interface PresignResponse {
  * @returns { signedUrl, publicUrl, contentType }
  */
 export async function getPresignUrl(appId: string, filename: string): Promise<PresignResponse> {
-  const response = await fetch(`${BASE_URL}/applications/${appId}/upload/presign`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ filename }),
-  })
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`获取上传签名失败 (${response.status}): ${text}`)
-  }
-  const result = await response.json()
-  return result.data as PresignResponse
+  const res = await post<ApiResponse<PresignResponse>>(`/applications/${appId}/upload/presign`, { filename })
+  return res.data!
 }
 
 /**
  * 上传文件到 OSS（使用预签名 URL 直传）
+ *
+ * 注意：此请求发往外部 OSS 签名地址，不经过我们的后端，
+ * 因此使用原生 fetch 而非 client 封装。
  *
  * @param signedUrl  预签名 PUT URL
  * @param file       要上传的文件（Blob/File）
@@ -213,15 +196,7 @@ export async function uploadImage(appId: string, file: File | Blob): Promise<str
  * 响应消歧选择，resolve 后端挂起的 AgentLoop
  */
 export async function respondToDisambiguation(choiceId: string): Promise<void> {
-  const response = await fetch(`${BASE_URL}/ai/disambiguation-response`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ choiceId }),
-  })
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`消歧响应失败 (${response.status}): ${text}`)
-  }
+  await post<ApiResponse>('/ai/disambiguation-response', { choiceId })
 }
 
 /**
@@ -231,17 +206,11 @@ export async function respondToDisambiguation(choiceId: string): Promise<void> {
 export async function aiChat(options: AiChatOptions): Promise<string[]> {
   const { appId, prompt, type = 'task', images = [], onEvent, signal } = options
 
-  const response = await fetch(`${BASE_URL}/ai/${appId}/chat`, {
+  const response = await stream(`/ai/${appId}/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt, type, images }),
     signal,
   })
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '')
-    throw new Error(`AI 请求失败 (${response.status}): ${text}`)
-  }
 
   if (!response.body) {
     throw new Error('响应体为空，无法读取 SSE 流')

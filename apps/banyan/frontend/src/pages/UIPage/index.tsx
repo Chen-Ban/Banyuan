@@ -23,7 +23,7 @@ import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import useDesignBanvas from "@/hooks/design/useDesignBanvas";
 import { DesignContextMenu } from "@/components/DesignEditor/DesignContextMenu";
-import { message, Tooltip } from "antd";
+import { App, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
 import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
@@ -35,6 +35,7 @@ import PropertyDrawer from "./components/PropertyDrawer";
 import styles from "./index.module.scss";
 
 const UIPage = () => {
+  const { message } = App.useApp();
   const { id: application_id } = useParams<{ id: string }>();
   const location = useLocation();
   const { registerGetPages, unregisterGetPages } = useAppLayoutCtx();
@@ -110,7 +111,7 @@ const UIPage = () => {
 
   // ── 向 ApplicationLayout 注册 getPages（供 handleBuild 序列化） ───────────
   useEffect(() => {
-    registerGetPages(() => actions.getSerializedPages());
+    registerGetPages(() => actions.app.getSerializedPages());
     return () => unregisterGetPages();
   }, [registerGetPages, unregisterGetPages, actions]);
 
@@ -119,7 +120,7 @@ const UIPage = () => {
   useEffect(() => {
     if (!application_id) return;
     const unsubscribe = appEvents.onSaveApp(async () => {
-      const pages = actions.getSerializedPages();
+      const pages = actions.app.getSerializedPages();
       await applicationApi.updateApplication(application_id, { pages });
     });
     return unsubscribe;
@@ -163,7 +164,7 @@ const UIPage = () => {
     const timer = setTimeout(() => {
       if (!needsThumbnailRef.current) return;
       needsThumbnailRef.current = false;
-      const dataUrl = actions.exportImage("image/png");
+      const dataUrl = actions.app.exportImage("image/png");
       if (!dataUrl) return;
       fetch(dataUrl)
         .then((res) => res.blob())

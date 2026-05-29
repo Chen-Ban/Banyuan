@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Button, Spin, message, Empty, Modal } from 'antd'
+import { App, Button, Spin, Empty, Modal } from 'antd'
 import { TableOutlined } from '@ant-design/icons'
 import { schemaApi } from '@/api'
 import type { CollectionDef } from '@/api'
@@ -13,6 +13,7 @@ import styles from './index.module.scss'
 // ── DatabasePage 主组件 ───────────────────────────────────────────────────────
 
 const DatabasePage: React.FC = () => {
+  const { message } = App.useApp()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   void navigate // layout 负责导航，此处保留以备不时之需

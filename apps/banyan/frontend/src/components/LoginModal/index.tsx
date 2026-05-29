@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react'
-import { Modal, Input, Button, message } from 'antd'
+import { App, Modal, Input, Button } from 'antd'
 import { MobileOutlined, SafetyOutlined } from '@ant-design/icons'
 import { authApi } from '@/api'
 import { useAuth } from '@/hooks/useAuth'
@@ -25,6 +25,7 @@ function isValidPhone(phone: string): boolean {
 // ─── 组件 ─────────────────────────────────────────────────────────────────────
 
 const LoginModal = () => {
+  const { message } = App.useApp()
   const { loginModalOpen, closeLoginModal, login } = useAuth()
 
   const [phone, setPhone] = useState('')
@@ -69,16 +70,39 @@ const LoginModal = () => {
     }
     setSendingCode(true)
     try {
-      await authApi.sendSmsCode(phone)
-      message.success('验证码已发送，请注意查收')
-      setStep('code')
-      startCountdown(60)
+      const res = await authApi.sendSmsCode(phone)
+      const devCode = res.data?.code
+      if (devCode) {
+        // 开发模式：自动填入验证码并登录
+        setCode(devCode)
+        setStep('code')
+        startCountdown(60)
+        message.success('开发模式：验证码已自动填入，正在登录...')
+        // 自动登录
+        setLoggingIn(true)
+        try {
+          const loginRes = await authApi.loginByPhone(phone, devCode)
+          if (loginRes.data) {
+            const { user, tokens, isNewUser } = loginRes.data
+            login(user, tokens)
+            message.success(isNewUser ? '注册成功，欢迎使用Banyan！' : '登录成功，欢迎回来！')
+          }
+        } catch (loginErr) {
+          message.error(getErrorMessage(loginErr))
+        } finally {
+          setLoggingIn(false)
+        }
+      } else {
+        message.success('验证码已发送，请注意查收')
+        setStep('code')
+        startCountdown(60)
+      }
     } catch (err) {
       message.error(getErrorMessage(err))
     } finally {
       setSendingCode(false)
     }
-  }, [phone, startCountdown])
+  }, [phone, startCountdown, login])
 
   // 重新发送
   const handleResend = useCallback(async () => {
@@ -107,7 +131,7 @@ const LoginModal = () => {
       if (res.data) {
         const { user, tokens, isNewUser } = res.data
         login(user, tokens)
-        message.success(isNewUser ? '注册成功，欢迎使用班园！' : '登录成功，欢迎回来！')
+        message.success(isNewUser ? '注册成功，欢迎使用Banyan！' : '登录成功，欢迎回来！')
       }
     } catch (err) {
       message.error(getErrorMessage(err))
@@ -128,7 +152,7 @@ const LoginModal = () => {
     >
       <div className={styles.content}>
         <div className={styles.header}>
-          <div className={styles.logo}>班园</div>
+          <div className={styles.logo}>Banyan</div>
           <p className={styles.subtitle}>手机号登录 · 未注册自动创建账号</p>
         </div>
 
