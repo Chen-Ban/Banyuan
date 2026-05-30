@@ -76,8 +76,7 @@ buildSystemPrompt,
 } from '@banyuan/xiangdi-agent'
 import { RemoteKnowledgeStore } from '../knowledge/RemoteKnowledgeStore.js'
 import { BanyanClient, registerDataFetchTools, RemoteMaterialStore } from '../banyan/index.js'
-import { getCheckpointer } from '../checkpoint/index.js'
-import { recordThreadActivity } from '../checkpoint/cleanup.js'
+import { getStore } from '../checkpoint/index.js'
 import { HumanMessage } from '@langchain/core/messages'
 import { createLLMClient, getModelsInfo, switchProvider, PROVIDER_CATALOG } from '../llm/createLLMClient.js'
 import { ServiceUnavailableError } from '../errors.js'
@@ -280,7 +279,7 @@ router.post('/run', async (ctx) => {
     // 409 冲突检测：若客户端提供了 threadId 且该 thread 已有 checkpoint，拒绝重复执行
     if (clientThreadId) {
         try {
-            const checkpointer = getCheckpointer()
+            const checkpointer = getStore().getCheckpointer()
             const existing = await checkpointer.getTuple({ configurable: { thread_id: clientThreadId } })
             if (existing) {
                 ctx.status = 409
@@ -362,7 +361,7 @@ router.post('/run', async (ctx) => {
                 chatModel: getActiveModel(llmRouter),
             })
 
-            recordThreadActivity(threadId, 'running')
+            getStore().recordActivity(threadId, 'running')
             const result = await chatGraph.invoke({
                 messages: initialMessages,
                 agentMemory: agentMemory ?? '',
@@ -375,7 +374,7 @@ router.post('/run', async (ctx) => {
 
             // Chat 模式不支持 interrupt，直接发送 done
             sseWrite(res, 'done', { appJSON: '', threadId, roundSummary: result.roundSummary ?? '' })
-            recordThreadActivity(threadId, 'completed')
+            getStore().recordActivity(threadId, 'completed')
         } else {
             // ═══ Task 模式：完整 MasterGraph V2 管线 ═══
 
@@ -412,7 +411,7 @@ router.post('/run', async (ctx) => {
             const systemPrompt = buildSystemPrompt()
 
             // 4. 创建 MasterGraph V2 统一管线（带 checkpointer 持久化）
-            const checkpointer = getCheckpointer()
+            const checkpointer = getStore().getCheckpointer()
             const masterGraph = createMasterGraph({
                 llmClient: client,
                 toolRegistry: registry,
@@ -422,7 +421,7 @@ router.post('/run', async (ctx) => {
             })
 
             // 5. 执行 MasterGraph V2（带 thread_id 用于 checkpoint 持久化，传入 AbortSignal）
-            recordThreadActivity(threadId, 'running')
+            getStore().recordActivity(threadId, 'running')
             const result = await masterGraph.invoke({
                 messages: initialMessages,
                 systemPrompt,
@@ -466,19 +465,19 @@ router.post('/run', async (ctx) => {
                     node: next[0],
                     value: interruptValue,
                 })
-                recordThreadActivity(threadId, 'interrupted')
+                getStore().recordActivity(threadId, 'interrupted')
             } else {
                 // 图正常完成：发送 done 事件
                 sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
                 const finalAppJSON = await adapter.getAppJSON()
                 sseWrite(res, 'done', { appJSON: finalAppJSON, threadId })
-                recordThreadActivity(threadId, 'completed')
+                getStore().recordActivity(threadId, 'completed')
             }
         }
     } catch (err) {
         if (abortController.signal.aborted) {
             // 客户端主动断开，静默处理（不报错，不发 error 事件）
-            recordThreadActivity(threadId, 'interrupted')
+            getStore().recordActivity(threadId, 'interrupted')
         } else if (err instanceof ServiceUnavailableError) {
             reqLogger.error('Service unavailable during agent run', err, { service: err.service, appId })
             sseWrite(res, 'error', { message: `Service unavailable: ${err.message}`, code: 'SERVICE_UNAVAILABLE', service: err.service })
@@ -514,7 +513,7 @@ router.post('/resume', async (ctx) => {
     }
 
     // 获取 checkpointer 并验证 thread 存在
-    const checkpointer = getCheckpointer()
+    const checkpointer = getStore().getCheckpointer()
 
     // 构建 graph 来获取状态和恢复执行
     // appJSON 由 banyan 后端从 MongoDB 读取后传入，确保 adapter 以最新状态恢复
@@ -565,7 +564,7 @@ router.post('/resume', async (ctx) => {
         const fromNode = Array.isArray(state.next) && state.next.length > 0 ? state.next[0] : 'unknown'
         const step = (state.metadata as Record<string, unknown> | undefined)?.step ?? 0
         sseWrite(res, 'resumed', { fromNode, step })
-        recordThreadActivity(threadId, 'running')
+        getStore().recordActivity(threadId, 'running')
 
         // 恢复执行：如果有 resumeValue 则使用 Command({ resume })，否则传 null
         const resumeInput = resumeValue !== undefined
@@ -601,19 +600,19 @@ router.post('/resume', async (ctx) => {
                 node: postNext[0],
                 value: interruptValue,
             })
-            recordThreadActivity(threadId, 'interrupted')
+            getStore().recordActivity(threadId, 'interrupted')
         } else {
             // 正常完成
             sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
             const finalAppJSON = await adapter.getAppJSON()
             sseWrite(res, 'done', { appJSON: finalAppJSON, threadId })
-            recordThreadActivity(threadId, 'completed')
+            getStore().recordActivity(threadId, 'completed')
         }
     } catch (err) {
         const resumeLogger = createRequestLogger(threadId)
         if (resumeAbortController.signal.aborted) {
             // 客户端主动断开，静默处理
-            recordThreadActivity(threadId, 'interrupted')
+            getStore().recordActivity(threadId, 'interrupted')
         } else if (err instanceof ServiceUnavailableError) {
             resumeLogger.error('Service unavailable during resume', err, { service: err.service })
             sseWrite(res, 'error', { message: `Service unavailable: ${err.message}`, code: 'SERVICE_UNAVAILABLE', service: err.service })
@@ -639,7 +638,7 @@ router.get('/thread/:threadId/status', async (ctx) => {
     const { threadId } = ctx.params
 
     try {
-        const checkpointer = getCheckpointer()
+        const checkpointer = getStore().getCheckpointer()
         const client = await createLLMClient()
         const adapter = createMemoryAdapter('')
         const registry = createBanvasToolRegistry(adapter)
