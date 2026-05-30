@@ -17,7 +17,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Image, Select, Tooltip } from "antd";
+import { Image, Select, Tooltip, message as antdMessage } from "antd";
 import {
   CloseOutlined,
   CommentOutlined,
@@ -49,10 +49,10 @@ export interface AiBarProps {
    * 后端 XiangDi 通过内部 API 按需拉取，无需随请求体传入。
    */
   onBeforeSend?: () => Promise<void>;
-  /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
-  onPagesSnapshot?: (pages: string[]) => void;
-  /** AI 完成后回调，携带最终 pages JSON */
-  onDone?: (pages: string[]) => void;
+  /** 写操作工具执行完毕后实时推送当前 appJSON，用于画布实时更新 */
+  onAppSnapshot?: (appJSON: string) => void;
+  /** AI 完成后回调，携带最终 appJSON */
+  onDone?: (appJSON: string) => void;
 }
 
 // ─── 粘贴图片类型 ─────────────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ interface PastedImage {
 const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   appId,
   onBeforeSend,
-  onPagesSnapshot,
+  onAppSnapshot,
   onDone,
 }, ref) {
   const [inputValue, setInputValue] = useState("");
@@ -105,14 +105,16 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     history,
     messages,
     currentText,
+    planningSteps,
+    planApproval,
     sendPrompt,
     abort,
-    respondToDisambiguation,
+    resumeApproval,
   } = useXiangDi({
     appId,
     onBeforeSend,
     onDone,
-    onPagesSnapshot,
+    onAppSnapshot,
     onDisambiguation: (options) => setDisambiguationState(options),
   });
 
@@ -120,12 +122,20 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   useImperativeHandle(ref, () => ({ sendPrompt }), [sendPrompt]);
 
   const handleDisambiguationSelect = useCallback(
-    async (choiceId: string) => {
-      await respondToDisambiguation(choiceId);
+    (feedback: string) => {
       setDisambiguationState(null);
+      resumeApproval(false, feedback);
     },
-    [respondToDisambiguation],
+    [resumeApproval],
   );
+
+  const handlePlanApprove = useCallback(() => {
+    resumeApproval(true);
+  }, [resumeApproval]);
+
+  const handlePlanReject = useCallback((feedback: string) => {
+    resumeApproval(false, feedback);
+  }, [resumeApproval]);
 
   // ─── 输入框逻辑 ────────────────────────────────────────────────────────────
 
@@ -201,8 +211,15 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
           }),
         );
         imageUrls = urls;
-      } catch {
-        // 上传失败时仍然发送文本（图片丢弃）
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : '未知错误'
+        console.warn('[AiBar] 图片上传失败:', errMsg)
+        antdMessage.warning('图片上传失败，将仅发送文字内容')
+        // 如果 prompt 也为空，放弃本次发送
+        if (!prompt) {
+          setUploading(false)
+          return
+        }
       } finally {
         setUploading(false);
       }
@@ -233,8 +250,12 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
         messages={messages}
         currentText={currentText}
         loading={loading}
+        planningSteps={planningSteps}
         disambiguationState={disambiguationState}
         onDisambiguationSelect={handleDisambiguationSelect}
+        planApproval={planApproval}
+        onPlanApprove={handlePlanApprove}
+        onPlanReject={handlePlanReject}
       />
 
       {/* 输入框容器（底部固定高度） */}

@@ -1,0 +1,111 @@
+// PlanApprovalCard — 方案确认卡片样式
+@use '../../../styles/tokens/typography' as *;
+@use '../../../styles/mixins' as *;
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: var(--color-brand-subtle);
+  border: 1px solid var(--color-brand-border);
+  border-radius: var(--radius-xl);
+  margin: 8px 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.headerIcon {
+  color: var(--color-brand-primary);
+  font-size: $text-md;
+}
+
+.headerText {
+  font-size: $text-base;
+  color: var(--color-text-secondary);
+}
+
+.description {
+  font-size: $text-sm;
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  margin-bottom: 0 !important;
+}
+
+.taskList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.taskItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.taskIndex {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  color: #fff;
+  font-size: $text-xs;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.taskDesc {
+  font-size: $text-sm;
+  color: var(--color-text-primary);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.approveBtn {
+  flex: 1;
+}
+
+.feedbackArea {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.feedbackHint {
+  font-size: $text-xs;
+}
+
+.feedbackInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.feedbackInput {
+  flex: 1;
+  border-radius: var(--radius-lg);
+}
+
+.feedbackSendBtn {
+  flex-shrink: 0;
+  height: 32px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

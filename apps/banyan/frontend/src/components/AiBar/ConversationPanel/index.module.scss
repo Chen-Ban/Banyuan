@@ -173,7 +173,8 @@
   padding: 2px 4px;
 }
 
-.statusRowError { color: var(--color-error-text); }
+.statusRowError   { color: var(--color-error-text); }
+.statusRowAborted { color: var(--color-text-secondary); }
 
 .doneIcon  { color: var(--color-success-text); font-size: $text-sm; }
 .doneText  { color: var(--color-success-text); }
