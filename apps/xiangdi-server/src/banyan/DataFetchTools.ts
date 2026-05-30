@@ -2,7 +2,7 @@
  * 数据拉取工具集 — 注册到 ToolRegistry，供 AI Agent 按需获取应用数据
  *
  * 工具列表：
- *   - app_get_pages：获取应用当前所有页面（JSON 字符串数组）
+ *   - app_get_app_json：获取应用当前的 appJSON（App 级别序列化字符串）
  *   - app_get_schema：获取应用数据库表结构定义
  *   - app_get_cloud_functions：获取应用所有云函数列表（摘要信息）
  *   - app_get_cloud_function_detail：获取单个云函数的完整 FlowSchema
@@ -21,9 +21,9 @@ import type { BanyanClient } from './BanyanClient.js'
 
 // ─── 工具定义 ─────────────────────────────────────────────────────────────────
 
-const GET_PAGES_DEFINITION: ToolDefinition = {
-    name: 'app_get_pages',
-    description: '获取当前应用的所有页面数据（JSON 字符串数组）。每个元素是一个页面的完整 JSON 序列化。在需要查看或修改页面内容前调用此工具。',
+const GET_APP_JSON_DEFINITION: ToolDefinition = {
+    name: 'app_get_app_json',
+    description: '获取当前应用的完整序列化数据（appJSON 字符串）。包含应用生命周期和所有页面场景。在需要查看或修改应用内容前调用此工具。',
     input_schema: {
         type: 'object',
         properties: {},
@@ -80,10 +80,10 @@ export function registerDataFetchTools(
     banyanClient: BanyanClient,
     appId: string
 ): void {
-    // app_get_pages
-    registry.register(GET_PAGES_DEFINITION, async () => {
-        const pages = await banyanClient.getPages(appId)
-        return { pages, count: pages.length }
+    // app_get_app_json
+    registry.register(GET_APP_JSON_DEFINITION, async () => {
+        const appJSON = await banyanClient.getAppJSON(appId)
+        return { appJSON, hasData: !!appJSON }
     })
 
     // app_get_schema
