@@ -106,7 +106,9 @@ export interface IApp {
     }
 
     // 序列化
-    initFromSerializedScenes(serializedScenes: string[]): IApp
+    serialize(): string
+    initFromSerialized(json: string): IApp
+    toJSON(): any
     toString(): string
 
     // 状态查询

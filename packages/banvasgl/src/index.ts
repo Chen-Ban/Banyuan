@@ -203,6 +203,21 @@ export type {
     IUseBanvasResult,
 } from './types'
 
+// ── 物料系统接口 ──
+export type {
+    MaterialSource,
+    IMaterialMeta,
+    MaterialParameterType,
+    IMaterialParameter,
+    IMaterialAsset,
+    IMaterialTemplate,
+    IInternalIdRef,
+    IMaterial,
+    IMaterialActions,
+    IMaterialSerializeConfig,
+    IMaterialParameterBinding,
+} from './types'
+
 // ── PropertyAdapter 接口 ──
 export type {
     PropertyCategory,
@@ -237,6 +252,7 @@ export {
 
 // ── 常量/枚举 ──
 export {
+    AppType,
     GraphType,
     ViewType,
     CameraType,
@@ -348,7 +364,7 @@ export { clearAllStates } from './engine'
 // ║  actions — 操作 API                                               ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-export { createBanvasActions } from './actions'
+export { createBanvasActions, createMaterialActions } from './actions'
 export type { CreateBanvasActionsOptions } from './actions'
 export { defaultViewCreatorStrategies } from './actions'
 export type { ViewCreatorStrategy } from './actions'

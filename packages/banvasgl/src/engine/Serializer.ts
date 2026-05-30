@@ -1,4 +1,5 @@
 import Scene from '@/engine/Scene'
+import App from '@/engine/App'
 import { version as BANVASGL_VERSION } from '@/version.js'
 import { migrationRegistry } from '@/engine/migrations/index.js'
 import Matrix4 from '@/foundation/math/Matrix4'
@@ -56,7 +57,7 @@ import PerspectiveCamera from '@/engine/camera/PerspectiveCamera'
 
 // ISerializable
 import type { ISerializable, ISerializableClass } from '@/types'
-import { MathType, StyleType, GraphType, ViewType, SceneType, CameraType } from '@/foundation/constants'
+import { AppType, MathType, StyleType, GraphType, ViewType, SceneType, CameraType } from '@/foundation/constants'
 
 /**
  * 序列化配置选项
@@ -232,6 +233,11 @@ export default class Serializer {
         this.registerSerializable(ViewType.NODEVIEW, NodeView as any)
         this.registerSerializable(ViewType.EDGEVIEW, EdgeView as any)
         this.registerSerializable(ViewType.PORTVIEW, PortView as any)
+        // 应用
+        this.registerType(AppType.APP, App, {
+            serialize: (app: App) => app.toJSON(),
+            deserialize: (data: any) => App.fromJSON(data),
+        })
         // 场景
         this.registerSerializable(SceneType.SCENE, Scene as any)
         // 相机

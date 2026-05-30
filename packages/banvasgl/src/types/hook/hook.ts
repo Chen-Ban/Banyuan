@@ -13,6 +13,7 @@ import type View from '@/view/View/View'
 import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from '../view/view'
 import type { ISceneLifetimes } from '../engine/scene'
 import type { IAppLifetimes } from '../engine/app'
+import type { IMaterialActions } from '../material/material.js'
 
 // ────────────────────────────────────────────
 //  组件物料（Component Definition）
@@ -165,6 +166,11 @@ select(viewId: string, multiple?: boolean): void
      * @param args - 传给方法的参数
      */
     setContentMethod(method: string, args: any[]): void
+    /**
+     * 修改 View.style 上的属性（如 overflow, layoutMode 等）
+     * 直接设置值并触发 notify，确保 React 状态同步更新。
+     */
+    setViewStyle(viewId: string, prop: string, value: unknown): void
     /** 开始属性编辑事务（输入框聚焦时调用） */
     beginPropertyEdit(): void
     /** 提交属性编辑事务（输入框失焦/回车时调用） */
@@ -218,8 +224,8 @@ export interface IAppActions {
     setAppLifetime(lifetimeName: keyof IAppLifetimes, handler: EventHandler): void
     /** 删除（清空）App 的单个生命周期钩子 */
     deleteAppLifetime(lifetimeName: keyof IAppLifetimes): void
-    /** 获取所有页面的序列化 JSON 字符串数组（用于持久化存储） */
-    getSerializedPages(): string[]
+    /** 序列化完整 App 为 JSON 字符串（包含 lifetimes + scenes） */
+    getSerializedApp(): string
     /**
      * 将当前画布内容导出为图片 DataURL
      *
@@ -253,6 +259,7 @@ export interface IBanvasActions {
     page: IPageActions
     app: IAppActions
     history: IHistoryActions
+    material: IMaterialActions
 }
 
 // ────────────────────────────────────────────

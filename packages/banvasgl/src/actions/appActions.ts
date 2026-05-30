@@ -33,10 +33,10 @@ export function createAppActions(
             notify()
         },
 
-        getSerializedPages(): string[] {
+        getSerializedApp(): string {
             const app = getApp()
-            if (!app) return []
-            return app.getSerializedScenes()
+            if (!app) return ''
+            return app.serialize()
         },
 
         exportImage(type?: string, quality?: number): string | null {

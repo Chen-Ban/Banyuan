@@ -1,533 +1,851 @@
 /**
  * generate-knowledge.ts
  *
- * 从 AISchema 的 Zod 定义自动生成知识种子 JSON 文件。
+ * 基于 AI Projection 类型体系自动生成 schema 层知识种子 JSON 文件。
  * 输出到 packages/xiangdi-agent/src/knowledge/seeds/schema/ 目录。
  *
  * 运行方式：npx tsx packages/banvasgl/scripts/generate-knowledge.ts
  *
  * 此脚本是 BanvasGL 的 postbuild 钩子，每次构建后自动运行，
- * 确保知识种子与 AISchema 定义保持同步。
+ * 确保知识种子与 AI Projection 类型定义保持同步。
+ *
+ * 版本策略：
+ *   - 种子 metadata.version 取自 banvasgl package.json 的 version 字段
+ *   - knowledge-server 按版本隔离向量表（knowledge_v{version}）
+ *   - 基础库升级时 postbuild 重新生成，写入新版本表
  */
 
-import { z } from "zod";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  AIRectNodeSchema,
-  AITextNodeSchema,
-  AIImageNodeSchema,
-  AICubicBezierNodeSchema,
-  AIQuadraticBezierNodeSchema,
-  AIGroupNodeSchema,
-  AIFlexNodeSchema,
-  AIPageSchema,
-  AIAppSchema,
-} from "../../../packages/xiangdi-agent/src/schema/AISchema.js";
 
-import type { SeedFile } from "../../../packages/xiangdi-agent/src/knowledge/seeds/index.js";
+// ─── 路径解析 ─────────────────────────────────────────────────────────────────
 
-// ─── 输出目录 ────────────────────────────────────────────────────────────────
-
-// 兼容 ESM 和 tsx CJS 模式的目录解析
 const __scriptDir = typeof __dirname !== "undefined"
   ? __dirname
   : path.dirname(fileURLToPath(import.meta.url));
+
+const BANVASGL_PKG = JSON.parse(
+  fs.readFileSync(path.resolve(__scriptDir, "../package.json"), "utf-8")
+);
+const VERSION: string = BANVASGL_PKG.version;
 
 const OUTPUT_DIR = path.resolve(
   __scriptDir,
   "../../../packages/xiangdi-agent/src/knowledge/seeds/schema"
 );
 
-// ─── Zod Schema 描述提取工具 ─────────────────────────────────────────────────
+// ─── 种子类型定义 ─────────────────────────────────────────────────────────────
 
-interface PropertyInfo {
-  name: string;
-  type: string;
-  required: boolean;
-  defaultValue?: unknown;
-  description?: string;
-}
-
-/**
- * 从 Zod schema 中提取属性信息
- */
-function extractProperties(schema: z.ZodTypeAny): PropertyInfo[] {
-  const properties: PropertyInfo[] = [];
-  const shape = getShape(schema);
-
-  if (!shape) return properties;
-
-  for (const [key, fieldSchema] of Object.entries(shape)) {
-    const info = analyzeField(key, fieldSchema as z.ZodTypeAny);
-    properties.push(info);
-  }
-
-  return properties;
-}
-
-/**
- * 获取 ZodObject 的 shape（处理 extend 等情况）
- */
-function getShape(schema: z.ZodTypeAny): Record<string, z.ZodTypeAny> | null {
-  if (schema instanceof z.ZodObject) {
-    return schema.shape as Record<string, z.ZodTypeAny>;
-  }
-  // 处理 ZodType<T>（如 AIGroupNodeSchema）—— 尝试访问内部 shape
-  const def = (schema as unknown as { _def: { shape?: () => Record<string, z.ZodTypeAny>; typeName?: string } })._def;
-  if (def && typeof def.shape === "function") {
-    return def.shape();
-  }
-  return null;
-}
-
-/**
- * 分析单个字段的类型信息
- */
-function analyzeField(name: string, schema: z.ZodTypeAny): PropertyInfo {
-  let required = true;
-  let defaultValue: unknown = undefined;
-  let description: string | undefined = undefined;
-  let currentSchema = schema;
-
-  // 逐层解包 ZodOptional / ZodDefault / ZodEffects
-  while (true) {
-    if (currentSchema instanceof z.ZodOptional) {
-      required = false;
-      currentSchema = currentSchema.unwrap();
-    } else if (currentSchema instanceof z.ZodDefault) {
-      defaultValue = currentSchema._def.defaultValue();
-      currentSchema = currentSchema._def.innerType;
-    } else if (currentSchema instanceof z.ZodEffects) {
-      currentSchema = currentSchema._def.schema;
-    } else {
-      break;
-    }
-  }
-
-  description = currentSchema._def.description ?? schema._def.description;
-
-  const type = describeType(currentSchema);
-
-  return { name, type, required, defaultValue, description };
-}
-
-/**
- * 将 Zod 类型转换为人类可读的类型描述
- */
-function describeType(schema: z.ZodTypeAny): string {
-  if (schema instanceof z.ZodString) return "string";
-  if (schema instanceof z.ZodNumber) return "number";
-  if (schema instanceof z.ZodBoolean) return "boolean";
-  if (schema instanceof z.ZodLiteral) return `"${schema._def.value}"`;
-  if (schema instanceof z.ZodEnum) {
-    return schema._def.values.map((v: string) => `"${v}"`).join(" | ");
-  }
-  if (schema instanceof z.ZodUnion) {
-    const options = schema._def.options as z.ZodTypeAny[];
-    return options.map((o) => describeType(o)).join(" | ");
-  }
-  if (schema instanceof z.ZodDiscriminatedUnion) {
-    const options = [...schema._def.options.values()] as z.ZodTypeAny[];
-    return options.map((o) => describeType(o)).join(" | ");
-  }
-  if (schema instanceof z.ZodArray) {
-    return `Array<${describeType(schema._def.type)}>`;
-  }
-  if (schema instanceof z.ZodTuple) {
-    const items = schema._def.items as z.ZodTypeAny[];
-    return `[${items.map((i) => describeType(i)).join(", ")}]`;
-  }
-  if (schema instanceof z.ZodObject) {
-    const shape = schema.shape as Record<string, z.ZodTypeAny>;
-    const fields = Object.entries(shape)
-      .map(([k, v]) => `${k}: ${describeType(v as z.ZodTypeAny)}`)
-      .join("; ");
-    return `{ ${fields} }`;
-  }
-  if (schema instanceof z.ZodLazy) {
-    return "AINode (recursive)";
-  }
-  if (schema instanceof z.ZodDefault) {
-    return describeType(schema._def.innerType);
-  }
-  if (schema instanceof z.ZodOptional) {
-    return describeType(schema.unwrap());
-  }
-
-  return "unknown";
-}
-
-// ─── 最小示例生成 ────────────────────────────────────────────────────────────
-
-/**
- * 为每个节点类型生成最小可用示例
- */
-function generateMinimalExample(nodeType: string): Record<string, unknown> {
-  const baseTransform = {
-    position: { x: 0, y: 0 },
-    size: { width: 100, height: 50 },
-    rotation: 0,
-    opacity: 1,
+interface SeedFile {
+  id: string;
+  content: string;
+  source: string;
+  metadata: {
+    category: "schema";
+    nodeType: string;
+    version: string;
+    [key: string]: unknown;
   };
-
-  switch (nodeType) {
-    case "rect":
-      return {
-        id: "rect-001",
-        type: "rect",
-        transform: baseTransform,
-        fill: { type: "solid", color: "#ffffff" },
-        cornerRadius: 0,
-      };
-    case "text":
-      return {
-        id: "text-001",
-        type: "text",
-        transform: baseTransform,
-        content: "Hello World",
-        style: {
-          fontSize: 14,
-          fontWeight: "normal",
-          color: "#000000",
-          align: "left",
-          lineHeight: 1.5,
-        },
-      };
-    case "image":
-      return {
-        id: "image-001",
-        type: "image",
-        transform: { ...baseTransform, size: { width: 200, height: 150 } },
-        src: "https://example.com/image.png",
-        objectFit: "cover",
-      };
-    case "cubic_bezier":
-      return {
-        id: "cubic-bezier-001",
-        type: "cubic_bezier",
-        transform: { ...baseTransform, size: { width: 200, height: 100 } },
-        controlPoints: [
-          { x: 0, y: 0 },
-          { x: 50, y: -30 },
-          { x: 150, y: -30 },
-          { x: 200, y: 0 },
-        ],
-      };
-    case "quadratic_bezier":
-      return {
-        id: "quadratic-bezier-001",
-        type: "quadratic_bezier",
-        transform: { ...baseTransform, size: { width: 200, height: 100 } },
-        controlPoints: [
-          { x: 0, y: 0 },
-          { x: 100, y: -50 },
-          { x: 200, y: 0 },
-        ],
-      };
-    case "group":
-      return {
-        id: "group-001",
-        type: "group",
-        transform: baseTransform,
-        children: [
-          {
-            id: "child-rect-001",
-            type: "rect",
-            transform: {
-              position: { x: 0, y: 0 },
-              size: { width: 80, height: 40 },
-              rotation: 0,
-              opacity: 1,
-            },
-            fill: { type: "solid", color: "#e0e0e0" },
-            cornerRadius: 4,
-          },
-        ],
-      };
-    case "flex":
-      return {
-        id: "flex-001",
-        type: "flex",
-        transform: { ...baseTransform, size: { width: 375, height: 400 } },
-        flexStyle: {
-          direction: "column",
-          gap: 12,
-          mainAxisAlignment: "start",
-          crossAxisAlignment: "stretch",
-          padding: 16,
-        },
-        children: [
-          {
-            id: "child-rect-001",
-            type: "rect",
-            transform: {
-              position: { x: 0, y: 0 },
-              size: { width: 343, height: 60 },
-              rotation: 0,
-              opacity: 1,
-            },
-            fill: { type: "solid", color: "#f0f0f0" },
-            cornerRadius: 8,
-            flexLayout: { flex: 0 },
-          },
-          {
-            id: "child-rect-002",
-            type: "rect",
-            transform: {
-              position: { x: 0, y: 0 },
-              size: { width: 343, height: 100 },
-              rotation: 0,
-              opacity: 1,
-            },
-            fill: { type: "solid", color: "#e0e0ff" },
-            cornerRadius: 8,
-            flexLayout: { flex: 1 },
-          },
-        ],
-      };
-    case "page":
-      return {
-        id: "page-001",
-        name: "首页",
-        width: 375,
-        height: 812,
-        backgroundColor: "#ffffff",
-        nodes: [],
-      };
-    case "app":
-      return {
-        id: "app-001",
-        name: "我的应用",
-        pages: [
-          {
-            id: "page-001",
-            name: "首页",
-            width: 375,
-            height: 812,
-            backgroundColor: "#ffffff",
-            nodes: [],
-          },
-        ],
-        version: "1.0.0",
-      };
-    default:
-      return {};
-  }
 }
 
-// ─── 内容生成 ────────────────────────────────────────────────────────────────
+// ─── 种子内容定义 ─────────────────────────────────────────────────────────────
 
-interface NodeTypeConfig {
-  schemaName: string;
+interface SeedConfig {
+  id: string;
+  fileName: string;
   nodeType: string;
-  typeLiteral: string;
-  schema: z.ZodTypeAny;
-  description: string;
+  content: string;
 }
 
-const NODE_TYPES: NodeTypeConfig[] = [
-  {
-    schemaName: "AIRectNodeSchema",
-    nodeType: "AIRectNode",
-    typeLiteral: "rect",
-    schema: AIRectNodeSchema,
-    description: "矩形节点，最基础的图形容器。可用于背景色块、按钮底板、卡片容器等。",
-  },
-  {
-    schemaName: "AITextNodeSchema",
-    nodeType: "AITextNode",
-    typeLiteral: "text",
-    schema: AITextNodeSchema,
-    description: "文本节点，用于显示文字内容。支持字号、字重、颜色、对齐方式等样式。",
-  },
-  {
-    schemaName: "AIImageNodeSchema",
-    nodeType: "AIImageNode",
-    typeLiteral: "image",
-    schema: AIImageNodeSchema,
-    description: "图片节点，通过 URL 引用外部图片资源。支持 fill/contain/cover 三种适配模式。",
-  },
-  {
-    schemaName: "AICubicBezierNodeSchema",
-    nodeType: "AICubicBezierNode",
-    typeLiteral: "cubic_bezier",
-    schema: AICubicBezierNodeSchema,
-    description:
-      "三次贝塞尔曲线节点，由 4 个控制点定义（起点、控制点1、控制点2、终点）。用于绘制平滑曲线、装饰线条等。",
-  },
-  {
-    schemaName: "AIQuadraticBezierNodeSchema",
-    nodeType: "AIQuadraticBezierNode",
-    typeLiteral: "quadratic_bezier",
-    schema: AIQuadraticBezierNodeSchema,
-    description:
-      "二次贝塞尔曲线节点，由 3 个控制点定义（起点、控制点、终点）。比三次贝塞尔更简单，适合简单弧线。",
-  },
-  {
-    schemaName: "AIGroupNodeSchema",
-    nodeType: "AIGroupNode",
-    typeLiteral: "group",
-    schema: AIGroupNodeSchema,
-    description:
-      "分组节点，可包含多个子节点（children）。用于将相关节点组合为一个整体，便于统一移动、缩放。children 支持递归嵌套。",
-  },
-  {
-    schemaName: "AIFlexNodeSchema",
-    nodeType: "AIFlexNode",
-    typeLiteral: "flex",
-    schema: AIFlexNodeSchema,
-    description:
-      "Flex 布局容器节点。子元素位置由 flexStyle 自动计算（方向、间距、对齐），无需手动指定坐标。适用于列表、卡片网格、导航栏等需要自动排列的场景。子节点可通过 flexLayout.flex 指定弹性权重。",
-  },
-  {
-    schemaName: "AIPageSchema",
-    nodeType: "AIPage",
-    typeLiteral: "page",
-    schema: AIPageSchema,
-    description:
-      "页面，是节点的顶层容器。每个页面有独立的尺寸和背景色，包含一组节点（nodes）。一个应用由多个页面组成。",
-  },
-  {
-    schemaName: "AIAppSchema",
-    nodeType: "AIApp",
-    typeLiteral: "app",
-    schema: AIAppSchema,
-    description:
-      "应用，是最顶层的结构。包含一个或多个页面（pages），以及应用名称和版本号。",
-  },
-];
+function buildSeeds(): SeedConfig[] {
+  return [
+    buildCommonSeed(),
+    buildSceneSeed(),
+    buildGraphViewSeed(),
+    buildTextViewSeed(),
+    buildImageViewSeed(),
+    buildVideoViewSeed(),
+    buildCombinedViewSeed(),
+    buildNodeViewSeed(),
+    buildEdgeViewSeed(),
+    buildPortViewSeed(),
+  ];
+}
 
-/**
- * 生成 LLM 友好的属性描述文本
- */
-function generateContent(config: NodeTypeConfig): string {
-  const lines: string[] = [];
+// ─── schema-common ────────────────────────────────────────────────────────────
 
-  lines.push(`# ${config.nodeType}`);
-  lines.push("");
-  lines.push(`类型标识: type = "${config.typeLiteral}"`);
-  lines.push("");
-  lines.push(`## 描述`);
-  lines.push("");
-  lines.push(config.description);
-  lines.push("");
-  lines.push(`## 属性列表`);
-  lines.push("");
+function buildCommonSeed(): SeedConfig {
+  const content = `# 公共字段与样式类型
 
-  const properties = extractProperties(config.schema);
+## 描述
 
-  for (const prop of properties) {
-    let line = `- **${prop.name}**`;
-    line += ` (${prop.type})`;
-    line += prop.required ? " [必填]" : " [可选]";
-    if (prop.defaultValue !== undefined) {
-      line += ` 默认值: ${JSON.stringify(prop.defaultValue)}`;
-    }
-    if (prop.description) {
-      line += ` — ${prop.description}`;
-    }
-    lines.push(line);
+所有 AI Projection 节点共享的基础字段和样式类型定义。创建或修改任何节点时都需要遵循这些规范。
+
+## 公共基础字段（AIProjectionNodeBase）
+
+所有节点都包含以下字段：
+
+- **type** (string) [必填] — 视图类型标识，如 "GRAPHVIEW"、"TEXTVIEW" 等
+- **id** (string) [必填] — 唯一标识符
+- **transform** (AITransform) [必填] — 语义化坐标：{ x: number, y: number, rotation?: number(默认0), scaleX?: number(默认1), scaleY?: number(默认1) }
+- **size** (AISize) [必填] — 尺寸：{ width: number, height: number }，单位 px
+- **visible** (boolean) [可选] — 可见性，省略表示 true
+- **freezed** (boolean) [可选] — 冻结状态（不可编辑），省略表示 false
+- **decoration** (AIDecoration) [可选] — 装饰样式，省略表示无装饰
+- **events** (AIEvents) [可选] — 事件处理器，省略表示无事件
+- **lifetimes** (AILifetimes) [可选] — 生命周期钩子，省略表示无钩子
+- **data** (AIDataModel) [可选] — 数据模型，省略表示无数据绑定
+- **flexLayout** (AIFlexLayout) [可选] — 子元素级 flex 参数（仅含 flex/alignSelf），当父容器为 flex 模式时生效
+
+## 坐标系
+
+- 原点在页面左上角，X 轴向右，Y 轴向下
+- 所有尺寸单位为逻辑像素（px）
+- 移动端默认页面尺寸：375 × 812 px
+
+## 装饰类型（AIDecoration）
+
+\`\`\`json
+{
+  "fill": { "color": "#ffffff", "opacity": 1 },
+  "stroke": { "color": "#000000", "width": 1, "style": "solid", "opacity": 1 },
+  "shadow": { "color": "#00000033", "blur": 4, "offsetX": 0, "offsetY": 2 },
+  "cornerRadius": 8,
+  "overflow": "hidden"
+}
+\`\`\`
+
+各字段说明：
+- **fill.color** — 颜色值：hex 字符串（如 "#FF5733"）或渐变对象 { type: "linear"|"radial"|"conic", stops: [{ offset: 0-1, color: "#hex" }], params?: {} }
+- **fill.opacity** — 填充透明度 0-1
+- **stroke.style** — "solid" | "dashed" | "dotted"
+- **cornerRadius** — 圆角半径，number 或 [左上, 右上, 右下, 左下] 四值元组
+- **overflow** — "visible" | "hidden" | "scroll"
+
+## 事件处理器（AIEvents）
+
+支持 12 种事件，值为 FlowSchema（流程图声明式定义）或 null：
+onClick, onDoubleClick, onLongPress, onMouseEnter, onMouseLeave, onMouseDown, onMouseUp, onMouseMove, onFocus, onBlur, onChange, onScroll
+
+## 生命周期钩子（AILifetimes）
+
+- **onCreated** — 视图创建时
+- **onAttach** — 视图挂载到场景时
+- **onDestroy** — 视图销毁时
+
+## 数据模型（AIDataModel）
+
+键值对格式，每个字段：{ type: string, defaultValue?: unknown, label?: string }
+
+\`\`\`json
+{
+  "title": { "type": "string", "defaultValue": "标题", "label": "标题" },
+  "count": { "type": "number", "defaultValue": 0 }
+}
+\`\`\``;
+
+  return { id: "schema-common", fileName: "common.json", nodeType: "Common", content };
+}
+
+// ─── schema-scene ─────────────────────────────────────────────────────────────
+
+function buildSceneSeed(): SeedConfig {
+  const content = `# Scene（页面/场景）
+
+## 描述
+
+Scene 是应用的页面级容器，对应 AI Projection 中的 AIProjectionScene。每个应用包含一个或多个 Scene，每个 Scene 拥有独立的尺寸、背景色和子节点列表。
+
+## 属性结构
+
+- **id** (string) [必填] — 页面唯一标识
+- **name** (string) [可选] — 页面名称，默认 "页面"
+- **size** ({ width: number, height: number }) [必填] — 页面尺寸，移动端默认 375×812
+- **backgroundColor** (string) [可选] — 背景色，hex 格式，默认 "#ffffff"
+- **cameraType** (string) [可选] — 相机类型，省略表示 "ORTHOGRAPHIC"
+- **lifetimes** (object) [可选] — 场景生命周期：{ onLoad?, onUnload?, onShow?, onHide? }，值为 FlowSchema
+- **children** (AIProjectionNode[]) [必填] — 顶层视图列表
+
+## 最小示例
+
+\`\`\`json
+{
+  "id": "scene-001",
+  "name": "首页",
+  "size": { "width": 375, "height": 812 },
+  "backgroundColor": "#ffffff",
+  "children": []
+}
+\`\`\`
+
+## 使用场景
+
+- 使用 banvas_create_page 工具创建新页面时，生成的就是 Scene 结构
+- 一个应用通常包含多个 Scene（如首页、详情页、设置页）
+- Scene.lifetimes.onLoad 常用于页面加载时的数据初始化`;
+
+  return { id: "schema-scene", fileName: "scene.json", nodeType: "Scene", content };
+}
+
+// ─── schema-graphview ─────────────────────────────────────────────────────────
+
+function buildGraphViewSeed(): SeedConfig {
+  const content = `# GRAPHVIEW（图形视图）
+
+## 描述
+
+GraphView 是最基础的叶子节点，用于渲染单个图形基元。通过 content.graphType 区分不同图形类型（矩形、圆形、线段、贝塞尔曲线等）。常用于背景色块、按钮底板、装饰图形、分割线等。
+
+## 特有属性
+
+继承 AIProjectionNodeBase 全部公共字段，额外有：
+
+- **type** — 固定为 "GRAPHVIEW"
+- **content** (object | null) [必填] — 图形内容
+  - **content.graphType** (string) — 图形类型标识
+  - **content.data** (object) — 图形特有数据
+
+## 常用 graphType 及其 data 结构
+
+### RECTANGLE（矩形）
+最常用的图形，用于色块、背景、按钮底板。
+\`\`\`json
+{ "graphType": "RECTANGLE", "data": {} }
+\`\`\`
+矩形的填充色和圆角通过外层 decoration 控制，而非 data 内部。
+
+### ROUNDED_RECT（圆角矩形）
+带独立圆角控制的矩形，圆角同样走 decoration.cornerRadius。
+\`\`\`json
+{ "graphType": "ROUNDED_RECT", "data": {} }
+\`\`\`
+
+### CIRCLE（圆形）
+\`\`\`json
+{ "graphType": "CIRCLE", "data": {} }
+\`\`\`
+
+### LINE（线段）
+\`\`\`json
+{ "graphType": "LINE", "data": { "x1": 0, "y1": 0, "x2": 100, "y2": 0 } }
+\`\`\`
+
+### CUBIC_BEZIER（三次贝塞尔曲线）
+4 个控制点定义：起点、控制点1、控制点2、终点。
+\`\`\`json
+{
+  "graphType": "CUBIC_BEZIER",
+  "data": {
+    "points": [
+      { "x": 0, "y": 0 },
+      { "x": 50, "y": -30 },
+      { "x": 150, "y": -30 },
+      { "x": 200, "y": 0 }
+    ]
   }
+}
+\`\`\`
 
-  // 补充子类型说明
-  if (config.typeLiteral === "rect") {
-    lines.push("");
-    lines.push("## 补充说明");
-    lines.push("");
-    lines.push("### fill 属性详解");
-    lines.push(
-      '- solid 填充: { type: "solid", color: "#hex" }'
-    );
-    lines.push(
-      '- 渐变填充: { type: "gradient", direction: "horizontal"|"vertical"|"diagonal", stops: [{ offset: 0-1, color: "#hex" }] }'
-    );
-    lines.push('- 无填充: { type: "none" }');
-    lines.push("");
-    lines.push("### stroke 属性详解");
-    lines.push(
-      '- { color: "#hex", width: number, style: "solid"|"dashed"|"dotted" }'
-    );
+### QUADRATIC_BEZIER（二次贝塞尔曲线）
+3 个控制点：起点、控制点、终点。
+\`\`\`json
+{
+  "graphType": "QUADRATIC_BEZIER",
+  "data": {
+    "points": [
+      { "x": 0, "y": 0 },
+      { "x": 100, "y": -50 },
+      { "x": 200, "y": 0 }
+    ]
   }
+}
+\`\`\`
 
-  if (config.typeLiteral === "text") {
-    lines.push("");
-    lines.push("## 补充说明");
-    lines.push("");
-    lines.push("### style 属性详解");
-    lines.push("- fontSize: 字号（正数），默认 14");
-    lines.push('- fontWeight: "normal" | "bold"，默认 "normal"');
-    lines.push('- color: 文字颜色（hex），默认 "#000000"');
-    lines.push('- align: "left" | "center" | "right"，默认 "left"');
-    lines.push("- lineHeight: 行高倍数（正数），默认 1.5");
+### POLYGON（多边形）
+\`\`\`json
+{ "graphType": "POLYGON", "data": { "vertices": [{ "x": 0, "y": 0 }, { "x": 50, "y": -30 }, { "x": 100, "y": 0 }] } }
+\`\`\`
+
+### TRIANGLE（三角形）
+\`\`\`json
+{ "graphType": "TRIANGLE", "data": {} }
+\`\`\`
+
+### REGULAR_POLYGON（正多边形）
+\`\`\`json
+{ "graphType": "REGULAR_POLYGON", "data": { "sides": 6 } }
+\`\`\`
+
+## 最小示例（矩形色块）
+
+\`\`\`json
+{
+  "type": "GRAPHVIEW",
+  "id": "rect-001",
+  "transform": { "x": 16, "y": 100 },
+  "size": { "width": 343, "height": 60 },
+  "decoration": {
+    "fill": { "color": "#f5f5f5" },
+    "cornerRadius": 8
+  },
+  "content": { "graphType": "RECTANGLE", "data": {} }
+}
+\`\`\`
+
+## 使用场景
+
+- 纯色矩形背景/卡片底板 → RECTANGLE + decoration.fill
+- 分割线 → LINE + decoration.stroke
+- 装饰曲线 → CUBIC_BEZIER / QUADRATIC_BEZIER
+- 图标底板（圆形） → CIRCLE + decoration.fill
+- 复杂形状 → POLYGON + vertices`;
+
+  return { id: "schema-graphview", fileName: "graphview.json", nodeType: "GRAPHVIEW", content };
+}
+
+// ─── schema-textview ──────────────────────────────────────────────────────────
+
+function buildTextViewSeed(): SeedConfig {
+  const content = `# TEXTVIEW（文本视图）
+
+## 描述
+
+TextView 用于显示富文本内容。支持多段落、段内多样式片段（字号、颜色、粗体、斜体、下划线）、段落对齐和行高控制。适用于标题、正文、标签、按钮文字等。
+
+## 特有属性
+
+继承 AIProjectionNodeBase 全部公共字段，额外有：
+
+- **type** — 固定为 "TEXTVIEW"
+- **content** (object | null) [必填] — 文本内容
+  - **content.paragraphs** (array) — 段落数组，每段包含：
+    - **elements** (array) — 文本片段数组
+      - **text** (string) — 文本内容
+      - **style** (object) [可选] — 片段样式 { fontSize?: number, fontWeight?: string, color?: string, italic?: boolean, underline?: boolean }
+    - **align** ("left" | "center" | "right") [可选] — 段落对齐，默认 "left"
+    - **lineHeight** (number) [可选] — 行高倍数
+
+## 最小示例
+
+\`\`\`json
+{
+  "type": "TEXTVIEW",
+  "id": "text-001",
+  "transform": { "x": 16, "y": 20 },
+  "size": { "width": 200, "height": 30 },
+  "content": {
+    "paragraphs": [
+      {
+        "elements": [{ "text": "Hello World" }],
+        "align": "left"
+      }
+    ]
   }
+}
+\`\`\`
 
-  lines.push("");
-  lines.push("## 最小可用示例");
-  lines.push("");
-  lines.push("```json");
-  lines.push(JSON.stringify(generateMinimalExample(config.typeLiteral), null, 2));
-  lines.push("```");
+## 富文本示例（多样式）
 
-  // 通用 transform 说明（节点类型才有）
-  if (
-    ["rect", "text", "image", "cubic_bezier", "quadratic_bezier", "group", "flex"].includes(
-      config.typeLiteral
-    )
-  ) {
-    lines.push("");
-    lines.push("## transform 属性详解");
-    lines.push("");
-    lines.push("所有节点共享的空间变换属性：");
-    lines.push("- position: { x: number, y: number } — 左上角为原点的像素坐标");
-    lines.push("- size: { width: number(>0), height: number(>0) } — 宽高（像素）");
-    lines.push("- rotation: number — 旋转角度（度），默认 0");
-    lines.push("- opacity: number(0-1) — 透明度，默认 1");
+\`\`\`json
+{
+  "type": "TEXTVIEW",
+  "id": "text-rich",
+  "transform": { "x": 16, "y": 60 },
+  "size": { "width": 343, "height": 80 },
+  "content": {
+    "paragraphs": [
+      {
+        "elements": [
+          { "text": "重要提示：", "style": { "fontWeight": "bold", "color": "#FF0000" } },
+          { "text": "请在 24 小时内完成操作", "style": { "fontSize": 14, "color": "#333333" } }
+        ],
+        "lineHeight": 1.6
+      }
+    ]
   }
+}
+\`\`\`
 
-  return lines.join("\n");
+## 使用场景
+
+- 页面标题 → 单段落、大字号、bold
+- 正文内容 → 多段落、常规样式
+- 按钮文字 → 单段落、center 对齐、配合 GRAPHVIEW 矩形底板
+- 价格标签 → 多片段（¥ 小字 + 金额大字 + 原价删除线）
+- 链接文字 → underline + 蓝色`;
+
+  return { id: "schema-textview", fileName: "textview.json", nodeType: "TEXTVIEW", content };
+}
+
+// ─── schema-imageview ─────────────────────────────────────────────────────────
+
+function buildImageViewSeed(): SeedConfig {
+  const content = `# IMAGEVIEW（图片视图）
+
+## 描述
+
+ImageView 用于显示图片资源。通过 URL 引用外部图片，支持三种填充适配模式。适用于头像、封面图、商品图、背景图等。
+
+## 特有属性
+
+继承 AIProjectionNodeBase 全部公共字段，额外有：
+
+- **type** — 固定为 "IMAGEVIEW"
+- **src** (string | null) [必填] — 图片 URL，null 表示空占位
+- **objectFit** ("fill" | "contain" | "cover") [可选] — 填充模式，默认 "cover"
+  - fill: 拉伸填满，可能变形
+  - contain: 等比缩放完整显示，可能留白
+  - cover: 等比缩放裁剪填满，可能裁切
+
+## 最小示例
+
+\`\`\`json
+{
+  "type": "IMAGEVIEW",
+  "id": "img-001",
+  "transform": { "x": 16, "y": 100 },
+  "size": { "width": 343, "height": 200 },
+  "src": "https://example.com/banner.png",
+  "objectFit": "cover"
+}
+\`\`\`
+
+## 圆形头像示例
+
+\`\`\`json
+{
+  "type": "IMAGEVIEW",
+  "id": "avatar-001",
+  "transform": { "x": 16, "y": 16 },
+  "size": { "width": 48, "height": 48 },
+  "decoration": { "cornerRadius": 24, "overflow": "hidden" },
+  "src": "https://example.com/avatar.png",
+  "objectFit": "cover"
+}
+\`\`\`
+
+## 使用场景
+
+- 横幅/Banner → 宽图、cover 模式
+- 商品封面 → 固定宽高比、cover 模式
+- 圆形头像 → cornerRadius 为宽高一半 + overflow: hidden
+- 图标 → 小尺寸、contain 模式
+- 占位图 → src 为 null，配合 decoration.fill 灰色背景`;
+
+  return { id: "schema-imageview", fileName: "imageview.json", nodeType: "IMAGEVIEW", content };
+}
+
+// ─── schema-videoview ─────────────────────────────────────────────────────────
+
+function buildVideoViewSeed(): SeedConfig {
+  const content = `# VIDEOVIEW（视频视图）
+
+## 描述
+
+VideoView 用于嵌入视频播放器。通过 URL 引用视频资源。
+
+## 特有属性
+
+继承 AIProjectionNodeBase 全部公共字段，额外有：
+
+- **type** — 固定为 "VIDEOVIEW"
+- **src** (string | null) [必填] — 视频 URL，null 表示空占位
+
+## 最小示例
+
+\`\`\`json
+{
+  "type": "VIDEOVIEW",
+  "id": "video-001",
+  "transform": { "x": 0, "y": 0 },
+  "size": { "width": 375, "height": 211 },
+  "src": "https://example.com/intro.mp4"
+}
+\`\`\`
+
+## 使用场景
+
+- 产品介绍视频
+- 教程/引导视频
+- 背景视频（配合固定尺寸）`;
+
+  return { id: "schema-videoview", fileName: "videoview.json", nodeType: "VIDEOVIEW", content };
+}
+
+// ─── schema-combinedview ──────────────────────────────────────────────────────
+
+function buildCombinedViewSeed(): SeedConfig {
+  const content = `# COMBINEDVIEW（容器视图）
+
+## 描述
+
+CombinedView 是统一的容器节点，通过 layoutMode 切换不同布局策略。可包含任意子节点，支持 free（自由定位）、flex（弹性布局）、list（列表）、grid（网格）、scroll（滚动）五种模式。是构建复杂 UI 布局的核心组件。
+
+## 特有属性
+
+继承 AIProjectionNodeBase 全部公共字段，额外有：
+
+- **type** — 固定为 "COMBINEDVIEW"
+- **layoutMode** ("free" | "flex" | "list" | "grid" | "scroll") [可选] — 布局模式，省略表示 "free"
+- **flexLayout** (AIFlexLayout) [可选] — Flex 布局配置（layoutMode="flex" 时）
+- **listLayout** (AIListLayout) [可选] — List 布局配置（layoutMode="list" 时）
+- **gridLayout** (AIGridLayout) [可选] — Grid 布局配置（layoutMode="grid" 时）
+- **children** (AIProjectionNode[]) [必填] — 子节点数组
+
+## layoutMode = "free"（自由定位）
+
+子节点通过各自的 transform.x/y 绝对定位。适合自由画布场景。
+
+\`\`\`json
+{
+  "type": "COMBINEDVIEW",
+  "id": "free-container",
+  "transform": { "x": 0, "y": 0 },
+  "size": { "width": 375, "height": 400 },
+  "layoutMode": "free",
+  "children": [
+    { "type": "GRAPHVIEW", "id": "bg", "transform": { "x": 0, "y": 0 }, "size": { "width": 375, "height": 400 }, "content": { "graphType": "RECTANGLE", "data": {} }, "decoration": { "fill": { "color": "#f0f0f0" } } }
+  ]
+}
+\`\`\`
+
+## layoutMode = "flex"（弹性布局）
+
+子节点位置由 flexLayout 自动计算。最常用的布局模式。
+
+### AIFlexLayout 完整配置
+
+容器级：
+- **direction** — "row" | "column"，默认 "column"
+- **wrap** — boolean，是否换行，默认 false
+- **gap** — number，子元素间距（px）
+- **mainAxisAlignment** — "start" | "center" | "end" | "space-between" | "space-around"
+- **crossAxisAlignment** — "start" | "center" | "end" | "stretch"
+- **padding** — number 或 [上, 右, 下, 左] 四值元组
+
+子元素级（写在子节点的 flexLayout 字段中）：
+- **flex** — number，弹性权重（0=固定尺寸，>0=弹性）
+- **alignSelf** — "start" | "center" | "end" | "stretch"，覆盖容器的 crossAxisAlignment
+
+\`\`\`json
+{
+  "type": "COMBINEDVIEW",
+  "id": "flex-col",
+  "transform": { "x": 0, "y": 0 },
+  "size": { "width": 375, "height": 600 },
+  "layoutMode": "flex",
+  "flexLayout": {
+    "direction": "column",
+    "gap": 12,
+    "padding": 16,
+    "crossAxisAlignment": "stretch"
+  },
+  "children": [
+    { "type": "TEXTVIEW", "id": "title", "transform": { "x": 0, "y": 0 }, "size": { "width": 343, "height": 30 }, "content": { "paragraphs": [{ "elements": [{ "text": "标题", "style": { "fontSize": 20, "fontWeight": "bold" } }] }] } },
+    { "type": "GRAPHVIEW", "id": "card", "transform": { "x": 0, "y": 0 }, "size": { "width": 343, "height": 200 }, "content": { "graphType": "RECTANGLE", "data": {} }, "decoration": { "fill": { "color": "#ffffff" }, "cornerRadius": 12 }, "flexLayout": { "flex": 1 } }
+  ]
+}
+\`\`\`
+
+## layoutMode = "list"（列表布局）
+
+简化的列表布局，子元素按方向依次排列。
+
+### AIListLayout 配置
+- **direction** — "vertical" | "horizontal"，默认 "vertical"
+- **gap** — number，元素间距
+- **padding** — number 或 [上, 右, 下, 左]
+
+## layoutMode = "grid"（网格布局）
+
+网格布局，子元素自动填充到列中。
+
+### AIGridLayout 配置
+- **columns** — number，列数
+- **rowGap** — number，行间距
+- **columnGap** — number，列间距
+- **padding** — number 或 [上, 右, 下, 左]
+
+\`\`\`json
+{
+  "type": "COMBINEDVIEW",
+  "id": "grid-container",
+  "transform": { "x": 0, "y": 0 },
+  "size": { "width": 375, "height": 400 },
+  "layoutMode": "grid",
+  "gridLayout": { "columns": 2, "rowGap": 12, "columnGap": 12, "padding": 16 },
+  "children": []
+}
+\`\`\`
+
+## layoutMode = "scroll"（滚动容器）
+
+内容可滚动的容器，子节点超出可视区域时自动产生滚动行为。
+
+## 使用场景
+
+- 页面主体布局 → flex + direction: column
+- 导航栏/工具栏 → flex + direction: row + mainAxisAlignment: space-between
+- 商品列表 → list + direction: vertical
+- 商品网格/相册 → grid + columns: 2
+- 长内容页 → scroll（外层滚动容器）
+- 卡片容器 → free 或 flex（含 decoration.cornerRadius + shadow）`;
+
+  return { id: "schema-combinedview", fileName: "combinedview.json", nodeType: "COMBINEDVIEW", content };
+}
+
+// ─── schema-nodeview ──────────────────────────────────────────────────────────
+
+function buildNodeViewSeed(): SeedConfig {
+  const content = `# NODEVIEW（流程图节点）
+
+## 描述
+
+NodeView 是流程图编辑器中的节点视图，继承 ContainerView 能力，可包含子节点（通常是 PortView 作为连接端口）。用于可视化流程设计场景。
+
+## 特有属性
+
+继承 AIProjectionNodeBase 全部公共字段，额外有：
+
+- **type** — 固定为 "NODEVIEW"
+- **schema** (object) [必填] — 节点的业务 Schema（自定义键值对，描述节点的业务逻辑配置）
+- **nodeTitle** (string) [必填] — 节点显示标题
+- **children** (AIProjectionNode[]) [必填] — 子节点（通常为 PortView）
+
+## 最小示例
+
+\`\`\`json
+{
+  "type": "NODEVIEW",
+  "id": "node-001",
+  "transform": { "x": 200, "y": 100 },
+  "size": { "width": 180, "height": 80 },
+  "schema": { "action": "httpRequest", "url": "" },
+  "nodeTitle": "HTTP 请求",
+  "children": [
+    { "type": "PORTVIEW", "id": "port-in", "transform": { "x": 0, "y": 40 }, "size": { "width": 12, "height": 12 }, "portDirection": "input" },
+    { "type": "PORTVIEW", "id": "port-out", "transform": { "x": 168, "y": 40 }, "size": { "width": 12, "height": 12 }, "portDirection": "output" }
+  ]
+}
+\`\`\`
+
+## 使用场景
+
+- 流程编辑器中的逻辑节点
+- 每个 NodeView 通常包含至少一个 input PortView 和一个 output PortView
+- 节点之间通过 EdgeView 连接 PortView`;
+
+  return { id: "schema-nodeview", fileName: "nodeview.json", nodeType: "NODEVIEW", content };
+}
+
+// ─── schema-edgeview ──────────────────────────────────────────────────────────
+
+function buildEdgeViewSeed(): SeedConfig {
+  const content = `# EDGEVIEW（流程图连线）
+
+## 描述
+
+EdgeView 表示流程图中两个 Port 之间的连线。通过 fromPortId 和 toPortId 关联起始和目标端口。
+
+## 特有属性
+
+继承 AIProjectionNodeBase 全部公共字段，额外有：
+
+- **type** — 固定为 "EDGEVIEW"
+- **fromPortId** (string | null) [必填] — 起始端口 ID
+- **toPortId** (string | null) [必填] — 目标端口 ID
+
+## 最小示例
+
+\`\`\`json
+{
+  "type": "EDGEVIEW",
+  "id": "edge-001",
+  "transform": { "x": 0, "y": 0 },
+  "size": { "width": 0, "height": 0 },
+  "fromPortId": "port-out-1",
+  "toPortId": "port-in-2"
+}
+\`\`\`
+
+## 使用场景
+
+- 连接两个 NodeView 的 PortView，表示数据流或控制流方向
+- fromPortId 通常指向上游节点的 output port
+- toPortId 通常指向下游节点的 input port`;
+
+  return { id: "schema-edgeview", fileName: "edgeview.json", nodeType: "EDGEVIEW", content };
+}
+
+// ─── schema-portview ──────────────────────────────────────────────────────────
+
+function buildPortViewSeed(): SeedConfig {
+  const content = `# PORTVIEW（流程图端口）
+
+## 描述
+
+PortView 是 NodeView 上的连接端口，EdgeView 通过关联 PortView 的 ID 来建立节点间连线。端口有方向性（输入/输出/双向）和最大连线数限制。
+
+## 特有属性
+
+继承 AIProjectionNodeBase 全部公共字段，额外有：
+
+- **type** — 固定为 "PORTVIEW"
+- **portDirection** ("input" | "output" | "bidirectional") [必填] — 端口方向
+- **maxConnections** (number) [可选] — 最大连线数，省略表示无限制
+
+## 最小示例
+
+\`\`\`json
+{
+  "type": "PORTVIEW",
+  "id": "port-001",
+  "transform": { "x": 0, "y": 34 },
+  "size": { "width": 12, "height": 12 },
+  "portDirection": "input",
+  "maxConnections": 1
+}
+\`\`\`
+
+## 使用场景
+
+- 作为 NodeView 的子节点存在
+- input port 通常放在节点左侧
+- output port 通常放在节点右侧
+- bidirectional 用于特殊场景（双向数据流）`;
+
+  return { id: "schema-portview", fileName: "portview.json", nodeType: "PORTVIEW", content };
 }
 
 // ─── 主流程 ──────────────────────────────────────────────────────────────────
 
-function main(): void {
-  console.log("🌱 generate-knowledge: 开始生成 Schema 层知识种子...");
+async function main(): Promise<void> {
+  console.log(`🌱 generate-knowledge: 开始生成 Schema 层知识种子 (v${VERSION})...`);
+  console.log(`   基于 AI Projection 类型体系`);
+  console.log("");
 
   // 确保输出目录存在
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
+  const seeds = buildSeeds();
   const generatedFiles: string[] = [];
 
-  for (const config of NODE_TYPES) {
-    const content = generateContent(config);
-    const id = `schema-${config.typeLiteral.replace(/_/g, "-")}`;
-    const fileName = `${config.typeLiteral.replace(/_/g, "-")}.json`;
-
+  for (const seed of seeds) {
     const seedFile: SeedFile = {
-      id,
-      content,
-      source: "auto-generated",
+      id: seed.id,
+      content: seed.content,
+      source: "auto-generated:banvasgl-postbuild",
       metadata: {
         category: "schema",
-        nodeType: config.nodeType,
-        typeLiteral: config.typeLiteral,
-        schemaName: config.schemaName,
-        version: "0.1.0",
+        nodeType: seed.nodeType,
+        version: VERSION,
       },
     };
 
-    const outputPath = path.join(OUTPUT_DIR, fileName);
+    const outputPath = path.join(OUTPUT_DIR, seed.fileName);
     fs.writeFileSync(outputPath, JSON.stringify(seedFile, null, 2) + "\n", "utf-8");
-    generatedFiles.push(fileName);
-    console.log(`  ✅ ${fileName} (${config.nodeType})`);
+    generatedFiles.push(seed.fileName);
+    console.log(`  ✅ ${seed.fileName} (${seed.nodeType})`);
   }
 
   console.log("");
-  console.log(
-    `🎉 generate-knowledge: 完成！共生成 ${generatedFiles.length} 个种子文件到:`
-  );
-  console.log(`   ${OUTPUT_DIR}/`);
+  console.log(`🎉 generate-knowledge: 完成！共生成 ${generatedFiles.length} 个种子文件`);
+  console.log(`   版本: ${VERSION}`);
+  console.log(`   输出: ${OUTPUT_DIR}/`);
+
+  // ─── 自动 upsert 到 knowledge-server ────────────────────────────────────────
+  await upsertToKnowledgeServer(seeds);
+}
+
+// ─── Knowledge Server Upsert ─────────────────────────────────────────────────
+
+const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || "http://localhost:3003";
+const KNOWLEDGE_TOKEN = process.env.KNOWLEDGE_INTERNAL_TOKEN || "";
+
+interface UpsertEntry {
+  id: string;
+  content: string;
+  source: string;
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * 将生成的种子写入 knowledge-server 向量库。
+ *
+ * 策略：
+ *   - 先探测 /health 确认服务可达
+ *   - 可达时批量 POST /knowledge/upsert
+ *   - 不可达时优雅降级（仅打印警告，不阻断构建）
+ */
+async function upsertToKnowledgeServer(seeds: SeedConfig[]): Promise<void> {
+  console.log("");
+  console.log(`📡 尝试写入 knowledge-server (${KNOWLEDGE_URL})...`);
+
+  // 1. 健康检查
+  const reachable = await checkHealth();
+  if (!reachable) {
+    console.log(`   ⚠️  knowledge-server 不可达，跳过写入。种子文件已生成到本地，可后续手动写入。`);
+    return;
+  }
+
+  // 2. 构造 entries
+  const entries: UpsertEntry[] = seeds.map((seed) => ({
+    id: seed.id,
+    content: seed.content,
+    source: "auto-generated:banvasgl-postbuild",
+    metadata: {
+      category: "schema",
+      nodeType: seed.nodeType,
+      version: VERSION,
+    },
+  }));
+
+  // 3. 调用 upsert API
+  try {
+    const response = await fetch(`${KNOWLEDGE_URL}/knowledge/upsert`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(KNOWLEDGE_TOKEN ? { "X-Internal-Token": KNOWLEDGE_TOKEN } : {}),
+      },
+      body: JSON.stringify({ entries }),
+      signal: AbortSignal.timeout(30_000),
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      console.log(`   ⚠️  upsert 失败 (HTTP ${response.status}): ${body}`);
+      console.log(`   种子文件已生成到本地，可后续手动写入。`);
+      return;
+    }
+
+    const result = await response.json() as { success: boolean; count?: number };
+    if (result.success) {
+      console.log(`   ✅ 成功写入 ${result.count ?? entries.length} 条知识到 knowledge_v${VERSION} 表`);
+    } else {
+      console.log(`   ⚠️  upsert 返回 success=false，种子文件已生成到本地。`);
+    }
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(`   ⚠️  upsert 请求异常: ${message}`);
+    console.log(`   种子文件已生成到本地，可后续手动写入。`);
+  }
+}
+
+/**
+ * 探测 knowledge-server 健康状态
+ */
+async function checkHealth(): Promise<boolean> {
+  try {
+    const response = await fetch(`${KNOWLEDGE_URL}/health`, {
+      method: "GET",
+      signal: AbortSignal.timeout(3_000),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }
 
 main();

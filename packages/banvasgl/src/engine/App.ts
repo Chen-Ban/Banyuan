@@ -6,14 +6,19 @@ import {
   IAppLifetimes,
   INavigationOptions,
   IRendererOptions,
+  ISerializable,
 } from "@/types";
+import { AppType } from "@/foundation/constants";
 import { createClientFlowRunner } from "@banyuan/flow/client";
 import type { FlowRunner, FlowContext } from "@banyuan/flow";
 import { AnimationManager } from "@/foundation/animation";
 import { flattenViewTree } from "@/engine/operations/ViewTree";
 import type View from "@/view/View/View";
 
-export default class App {
+export default class App implements ISerializable {
+  // 类型标识（用于 Serializer 注册）
+  public readonly type: AppType = AppType.APP;
+
   // 基本属性
   public scenes: Scene[] = [];
   public renderer: Renderer;
@@ -548,24 +553,6 @@ export default class App {
   }
 
 
-  // 从序列化的 Scene JSON 初始化
-  public initFromSerializedScenes(serializedScenes: string[]): App {
-    // 清理已有场景，避免重复追加
-    this.getScenes().forEach((scene) => this.removeScene(scene));
-
-    try {
-      const scenes = (serializedScenes || []).map((json) =>
-        Serializer.getInstance().deserialize(json),
-      );
-      scenes.forEach((scene) => this.addScene(scene));
-      if (scenes.length > 0) {
-        this.setCurrentScene(scenes[0]);
-      }
-    } catch (e) {
-      console.warn("Failed to init scenes from serialized JSON:", e);
-    }
-    return this;
-  }
 
   // 状态查询
   public isLaunched(): boolean {
@@ -706,18 +693,89 @@ export default class App {
     return dataUrl;
   }
 
+  // ──── 序列化 / 反序列化 ────
+
   /**
-   * 获取所有 Scene 的序列化 JSON 字符串数组
-   * 每个元素是一个 Scene 的完整序列化 JSON，可直接存入后端
+   * 序列化整个 App 为 JSON 字符串（通过 Serializer）
+   *
+   * 输出格式：{ type: "APP", version, data: app.toJSON(), metadata }
+   * 一个应用对应一个完整 JSON 字符串。
    */
-  public getSerializedScenes(): string[] {
-    return this.scenes.map((scene) =>
-      Serializer.getInstance().serialize(scene),
-    );
+  public serialize(): string {
+    return Serializer.getInstance().serialize(this);
   }
 
-  public toString() {
-    return Serializer.getInstance().serialize(this);
+  /**
+   * 从序列化 JSON 字符串恢复 App 状态
+   *
+   * Serializer.deserialize 会递归还原内部的 Scene/Camera/View 实例。
+   * 返回的是 { lifetimes, scenes: Scene[] } 纯数据，赋值给当前实例。
+   */
+  public initFromSerialized(json: string): App {
+    const serializer = Serializer.getInstance();
+    const appData = serializer.deserialize<{ lifetimes: IAppLifetimes; scenes: Scene[] }>(json);
+
+    // 恢复 lifetimes
+    this.lifetimes = {
+      onLaunch: appData.lifetimes?.onLaunch ?? null,
+      onUnlaunch: appData.lifetimes?.onUnlaunch ?? null,
+    };
+
+    // 恢复 scenes
+    this.getScenes().forEach((scene) => this.removeScene(scene));
+    if (Array.isArray(appData.scenes)) {
+      appData.scenes.forEach((scene) => this.addScene(scene));
+      if (appData.scenes.length > 0) {
+        this.setCurrentScene(appData.scenes[0]);
+      }
+    }
+
+    return this;
+  }
+
+  /**
+   * ISerializable 实现：将 App 转为可序列化的纯数据对象
+   *
+   * 序列化范围：
+   *   - lifetimes: App 级生命周期 FlowSchema
+   *   - scenes: 所有页面（带 $type/$value 包装，走 Serializer 递归）
+   *
+   * 不序列化（运行时对象）：
+   *   - renderer / animationManager / flowRunner
+   *   - pageStack / _currentScene / _isLaunched
+   *   - appId（由消费方注入）
+   */
+  public toJSON(): any {
+    return {
+      lifetimes: this.lifetimes,
+      scenes: this.scenes.map((scene) => ({
+        $type: scene.type,
+        $value: scene.toJSON(),
+      })),
+    };
+  }
+
+  /**
+   * 从 toJSON() 产出的纯数据恢复 App 状态（静态工厂）
+   *
+   * 注意：data.scenes 在到达此方法前已被 Serializer 的 deserializeValue
+   * 递归处理——$type/$value 包装已还原为 Scene 实例。
+   *
+   * 此方法返回的是一个部分初始化的结构对象（不含 renderer），
+   * Serializer 内部使用。消费方应使用 app.initFromSerialized(json)。
+   */
+  static fromJSON(data: any): { lifetimes: IAppLifetimes; scenes: Scene[] } {
+    return {
+      lifetimes: {
+        onLaunch: data.lifetimes?.onLaunch ?? null,
+        onUnlaunch: data.lifetimes?.onUnlaunch ?? null,
+      },
+      scenes: Array.isArray(data.scenes) ? data.scenes : [],
+    };
+  }
+
+  public toString(): string {
+    return this.serialize();
   }
 
   // ──── 外部订阅（useSyncExternalStore）────
