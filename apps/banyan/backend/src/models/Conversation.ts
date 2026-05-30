@@ -32,7 +32,7 @@ export type AssistantContentType =
   | 'text'
   | 'tool_call'
   | 'tool_result'
-  | 'pages_snapshot'
+  | 'app_snapshot'
   | 'schema_update'
   | 'disambiguation'
   | 'done'
@@ -85,10 +85,10 @@ export interface IToolResultContent extends IAssistantContentBase {
   isError: boolean
 }
 
-/** 画布快照 */
-export interface IPagesSnapshotContent extends IAssistantContentBase {
-  type: 'pages_snapshot'
-  pages: string[]
+/** 应用快照 */
+export interface IAppSnapshotContent extends IAssistantContentBase {
+  type: 'app_snapshot'
+  appJSON: string
 }
 
 /** Schema 更新 */
@@ -108,7 +108,7 @@ export interface IDisambiguationContent extends IAssistantContentBase {
 /** 完成标记 */
 export interface IDoneContent extends IAssistantContentBase {
   type: 'done'
-  pages: string[]
+  appJSON: string
 }
 
 /** 错误信息 */
@@ -122,7 +122,7 @@ export type IAssistantContent =
   | ITextContent
   | IToolCallContent
   | IToolResultContent
-  | IPagesSnapshotContent
+  | IAppSnapshotContent
   | ISchemaUpdateContent
   | IDisambiguationContent
   | IDoneContent
@@ -167,6 +167,8 @@ export interface IDialogue {
   threadStatus?: ThreadStatus
   /** 该对话内的所有消息（按时间顺序） */
   messages: IMessage[]
+  /** 关联的规划产物 ID（仅 type='task' 时存在） */
+  planningArtifactId?: Types.ObjectId
   /** 对话完成后的 LLM 摘要（整个对话的总结） */
   summary?: string
   /** summary 的向量嵌入（384 维，multilingual-e5-small） */
@@ -216,13 +218,13 @@ const AssistantContentSchema = new Schema(
   {
     type: {
       type: String,
-      enum: ['text', 'tool_call', 'tool_result', 'pages_snapshot', 'schema_update', 'disambiguation', 'done', 'error'],
+      enum: ['text', 'tool_call', 'tool_result', 'app_snapshot', 'schema_update', 'disambiguation', 'done', 'error'],
       required: true,
     },
   },
   {
     _id: false,
-    strict: false, // 允许存储 type 之外的动态字段（text, id, name, input, result, pages 等）
+    strict: false, // 允许存储 type 之外的动态字段（text, id, name, input, result, appJSON 等）
   }
 )
 
@@ -268,6 +270,10 @@ const DialogueSchema = new Schema<IDialogue>(
     messages: {
       type: [MessageSchema],
       default: [],
+    },
+    planningArtifactId: {
+      type: Schema.Types.ObjectId,
+      default: undefined,
     },
     summary: {
       type: String,

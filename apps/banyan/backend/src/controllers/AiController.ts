@@ -22,11 +22,11 @@ class AiController {
    *   event: text_delta        data: { text: string }
    *   event: tool_call         data: { id: string, name: string, input: unknown }
    *   event: tool_result       data: { id: string, result: unknown, isError: boolean }
-   *   event: pages_snapshot    data: { pages: string[] }
-   *   event: schema_update     data: { collections: [...] }
-   *   event: disambiguation    data: { conflictContext, options }
-   *   event: checkpoint        data: { threadId: string, node: string, step: number }
-   *   event: done              data: { pages: string[] }
+*   event: app_snapshot      data: { appJSON: string }
+*   event: schema_update     data: { collections: [...] }
+*   event: disambiguation    data: { conflictContext, options }
+*   event: checkpoint        data: { threadId: string, node: string, step: number }
+*   event: done              data: { appJSON: string }
    *   event: error             data: { message: string }
    */
   async chat(ctx: Context): Promise<void> {

@@ -4,7 +4,7 @@ import applicationService from '../services/ApplicationService'
 interface UpdateApplicationRequest {
   name?: string
   description?: string
-  pages?: string[]
+  appJSON?: string
   thumbnail?: string
   tags?: string[]
   updatedBy?: string

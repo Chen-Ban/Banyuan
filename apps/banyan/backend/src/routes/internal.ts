@@ -29,12 +29,12 @@ router.use(async (ctx, next) => {
   await next()
 })
 
-// ─── GET /internal/apps/:appId/pages ─────────────────────────────────────────
-// 返回应用的 pages（BanvasGL 序列化 JSON 字符串数组）
+// ─── GET /internal/apps/:appId/appJSON ───────────────────────────────────────
+// 返回应用的 appJSON（App 级别序列化字符串）
 
-router.get('/:appId/pages', async (ctx) => {
+router.get('/:appId/appJSON', async (ctx) => {
   const { appId } = ctx.params
-  const app = await Application.findOne({ application_id: appId }).select('pages')
+  const app = await Application.findOne({ application_id: appId }).select('appJSON')
 
   if (!app) {
     ctx.status = 404
@@ -42,7 +42,7 @@ router.get('/:appId/pages', async (ctx) => {
     return
   }
 
-  ctx.body = { success: true, data: { pages: app.pages ?? [] } }
+  ctx.body = { success: true, data: { appJSON: app.appJSON ?? '' } }
 })
 
 // ─── GET /internal/apps/:appId/schema ────────────────────────────────────────

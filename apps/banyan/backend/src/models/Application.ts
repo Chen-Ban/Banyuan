@@ -14,8 +14,8 @@ export interface IApplication extends Document {
   description: string
   /** 缩略图 URL */
   thumbnail: string
-  /** 多页面 JSON 字符串数组（BanvasGL Serializer 输出） */
-  pages: string[]
+  /** 完整 App 序列化 JSON（BanvasGL Serializer 输出，包含 lifetimes + scenes） */
+  appJSON: string
   /** 标签 */
   tags: string[]
   /** 版本号（每次保存自增） */
@@ -59,10 +59,10 @@ const ApplicationSchema = new Schema<IApplication>(
       default: '',
       trim: true,
     },
-    pages: {
-      type: [String],
+    appJSON: {
+      type: String,
       required: true,
-      default: [],
+      default: '',
     },
     tags: {
       type: [String],

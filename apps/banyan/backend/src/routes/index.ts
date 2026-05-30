@@ -10,6 +10,8 @@ import flowsRouter from './flows.js'
 import cloudFunctionsRouter from './cloudFunctions.js'
 import { uploadRouter } from './upload.js'
 import knowledgeRouter from './knowledge.js'
+import materialRouter from './materials.js'
+import planningRouter from './planning.js'
 import internalRouter from './internal.js'
 import { authMiddleware } from '../middleware/auth.js'
 
@@ -54,5 +56,11 @@ router.use(uploadRouter.routes(), uploadRouter.allowedMethods())
 
 // 知识库（向量检索 + 持久化）
 router.use(knowledgeRouter.routes(), knowledgeRouter.allowedMethods())
+
+// 物料 CRUD（ADR-027 Step 5）
+router.use(materialRouter.routes(), materialRouter.allowedMethods())
+
+// Multi-Agent 规划产物 + Agent Prompt 配置（ADR-032/033/034）
+router.use(planningRouter.routes(), planningRouter.allowedMethods())
 
 export default router

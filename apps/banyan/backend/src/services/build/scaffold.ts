@@ -11,12 +11,12 @@
  *   └── src/
  *       ├── main.tsx          ← ReactDOM.createRoot + <App />
  *       ├── App.tsx           ← useRuntimeBanvas(appJson) + 渲染 <Banvas>
- *       └── pages.json        ← 应用数据（从 App.tsx 中分离，避免 bundle 体积膨胀）
+ *       └── app.json          ← 应用数据（从 App.tsx 中分离，避免 bundle 体积膨胀）
  *
- * pages.json 分离策略：
- *   APP_PAGES 数据从内联 JS 中分离为独立的 public/pages.json，
- *   运行时通过 fetch('/pages.json') 异步加载。
- *   对于复杂应用，pages.json 可达数 MB，分离后可利用浏览器缓存，
+ * app.json 分离策略：
+ *   APP_DATA 数据从内联 JS 中分离为独立的 public/app.json，
+ *   运行时通过 fetch('/app.json') 异步加载。
+ *   对于复杂应用，app.json 可达数 MB，分离后可利用浏览器缓存，
  *   并由 Vite/Nginx 的 gzip 压缩降低传输体积 60-80%。
  */
 
@@ -24,7 +24,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 export interface ScaffoldOptions {
-  appJson: string      // 序列化的 App JSON（多页面数组，JSON.stringify 后的字符串）
+  appJson: string      // App 级别序列化 JSON（SerializedData 格式，包含 lifetimes + scenes）
   appName: string      // 应用名称，用于 package.json name 和 HTML title
   outputDir: string    // 生成项目的目标目录（绝对路径）
   width: number        // 画布宽度（px）
@@ -162,31 +162,31 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 `
   fs.writeFileSync(path.join(outputDir, 'src', 'main.tsx'), mainTsx, 'utf-8')
 
-  // 8. public/pages.json — 应用数据从 App.tsx 中分离
-  //    Vite 会将 public/ 目录原样复制到 dist/，运行时通过 fetch('/pages.json') 加载
+  // 8. public/app.json — 应用数据从 App.tsx 中分离
+  //    Vite 会将 public/ 目录原样复制到 dist/，运行时通过 fetch('/app.json') 加载
   //    分离后可利用浏览器缓存，并由静态服务器的 gzip 压缩降低传输体积
-  const pagesJson = JSON.stringify(JSON.parse(appJson))
-  fs.writeFileSync(path.join(outputDir, 'public', 'pages.json'), pagesJson, 'utf-8')
+  const appDataJson = JSON.stringify(JSON.parse(appJson))
+  fs.writeFileSync(path.join(outputDir, 'public', 'app.json'), appDataJson, 'utf-8')
 
-  // 9. src/App.tsx — 异步加载 pages.json，不再内联大体积 JSON
+  // 9. src/App.tsx — 异步加载 app.json，不再内联大体积 JSON
   const appTsx = `import { useState, useEffect } from 'react'
 import { useRuntimeBanvas } from '@banyuan/banvas-runtime-web'
 
 export default function App() {
-  const [pages, setPages] = useState<string[] | null>(null)
+  const [appData, setAppData] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/pages.json')
+    fetch('/app.json')
       .then((res) => {
-        if (!res.ok) throw new Error(\`Failed to load pages.json: \${res.status}\`)
-        return res.json() as Promise<string[]>
+        if (!res.ok) throw new Error(\`Failed to load app.json: \${res.status}\`)
+        return res.json() as Promise<Record<string, unknown>>
       })
-      .then(setPages)
+      .then(setAppData)
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
 
-  const { Banvas } = useRuntimeBanvas(pages ?? [], {
+  const { Banvas } = useRuntimeBanvas(appData, {
     width: ${width},
     height: ${height},
   })
@@ -199,7 +199,7 @@ export default function App() {
     )
   }
 
-  if (!pages) {
+  if (!appData) {
     return null // 加载中，静默等待
   }
 

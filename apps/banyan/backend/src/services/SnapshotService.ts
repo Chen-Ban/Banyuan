@@ -7,7 +7,7 @@
  *   - 恢复快照（将应用状态回退到指定对话时的状态）
  *
  * 快照内容：
- *   - pages: BanvasGL 页面 JSON 数组
+ *   - appJSON: App 级别序列化字符串
  *   - cloudFunctions: 云函数列表快照
  *   - collections: 数据库表定义快照
  */
@@ -22,7 +22,7 @@ class SnapshotService {
   /**
    * 为指定对话创建快照（在 task 对话 completed 时调用）
    *
-   * 读取当前 Application.pages + CloudFunction[] + CollectionSchema.collections，
+   * 读取当前 Application.appJSON + CloudFunction[] + CollectionSchema.collections，
    * 打成一份快照存入独立集合。
    *
    * @param appId      应用 ID
@@ -39,7 +39,7 @@ class SnapshotService {
     const snapshot = new Snapshot({
       appId,
       dialogueId,
-      pages: app?.pages ?? [],
+      appJSON: app?.appJSON ?? '',
       cloudFunctions: (cloudFunctions ?? []).map((cf) => ({
         functionId: cf.functionId,
         name: cf.name,
@@ -84,7 +84,7 @@ class SnapshotService {
   /**
    * 恢复快照（将应用状态回退到指定快照）
    *
-   * 将 snapshot 中的 pages/cloudFunctions/collections 写回对应的模型。
+   * 将 snapshot 中的 appJSON/cloudFunctions/collections 写回对应的模型。
    *
    * @param snapshotId 要恢复的快照 ID
    */
@@ -94,12 +94,12 @@ class SnapshotService {
       throw new Error(`Snapshot ${snapshotId} not found`)
     }
 
-    const { appId, pages, cloudFunctions, collections } = snapshot
+    const { appId, appJSON, cloudFunctions, collections } = snapshot
 
     // 并行恢复三个数据源
     await Promise.all([
-      // 恢复 pages
-      applicationService.updateApplication(appId, { pages }),
+      // 恢复 appJSON
+      applicationService.updateApplication(appId, { appJSON }),
 
       // 恢复云函数（覆盖式同步）
       cloudFunctionService.bulkSync(appId, cloudFunctions.map((cf) => ({
