@@ -7,7 +7,7 @@
  * ┌─────────────────────────────────────────────────────────────────────────┐
  * │                        五层上下文模型                                     │
  * ├─────────────────────────────────────────────────────────────────────────┤
- * │ L1: SystemPrompt   — 系统能力描述（AISchema + 工具定义 + 通用规则）       │
+ * │ L1: SystemPrompt   — 系统能力描述（角色定义 + 工具定义 + 通用规则）         │
  * │ L2: AgentMemory    — Agent 经验 + 事实（含用户偏好，从历史任务中积累） │
  * │ L3: ContextSummary — 历史对话摘要（未命中 round 的 roundSummary 拼接，动态生成）│
  * │ L4: RecentMessages — 对话历史（最近几轮的完整消息交互）                   │
@@ -37,6 +37,7 @@ import type {
   AssemblyPlan,
   AuditResult,
 } from "../orchestration/types.js";
+import type { PlanningSnapshot, ResumeClassification } from "./resume/types.js";
 
 // Messages reducer that appends messages
 function messagesReducer(curr: BaseMessage[], update: BaseMessage[]): BaseMessage[] {
@@ -106,7 +107,7 @@ export const MasterStateAnnotation = Annotation.Root({
     reducer: messagesReducer,
     default: () => [],
   }),
-  /** L1: 系统提示词（AISchema + 工具定义 + 通用规则） */
+  /** L1: 系统提示词（角色定义 + 工具定义 + 通用规则，节点 Schema 由 knowledge_search 工具按需提供） */
   systemPrompt: Annotation<string>({
     reducer: (_, update) => update,
     default: () => "",
@@ -230,6 +231,18 @@ export const MasterStateAnnotation = Annotation.Root({
   // ─── Conflict Detection（保留，用于未来消歧）────────────────────────────────
   /** 挂起的冲突报告 + 消歧选项 */
   conflictPending: Annotation<{ report: ConflictReport; options: DisambiguationOptions } | null>({
+    reducer: (_, update) => update,
+    default: () => null,
+  }),
+
+  // ─── Multi-Agent Planning（ADR-032/034）──────────────────────────────────
+  /** 中断时的状态快照（断点恢复用） */
+  planningSnapshot: Annotation<PlanningSnapshot | null>({
+    reducer: (_, update) => update,
+    default: () => null,
+  }),
+  /** ResumeClassifier 的分类结果（恢复路由用） */
+  resumeIntent: Annotation<ResumeClassification | null>({
     reducer: (_, update) => update,
     default: () => null,
   }),

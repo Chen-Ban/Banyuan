@@ -1,0 +1,10 @@
+{
+  "id": "schema-portview",
+  "content": "# PORTVIEW（流程图端口）\n\n## 描述\n\nPortView 是 NodeView 上的连接端口，EdgeView 通过关联 PortView 的 ID 来建立节点间连线。端口有方向性（输入/输出/双向）和最大连线数限制。\n\n## 特有属性\n\n继承 AIProjectionNodeBase 全部公共字段，额外有：\n\n- **type** — 固定为 \"PORTVIEW\"\n- **portDirection** (\"input\" | \"output\" | \"bidirectional\") [必填] — 端口方向\n- **maxConnections** (number) [可选] — 最大连线数，省略表示无限制\n\n## 最小示例\n\n```json\n{\n  \"type\": \"PORTVIEW\",\n  \"id\": \"port-001\",\n  \"transform\": { \"x\": 0, \"y\": 34 },\n  \"size\": { \"width\": 12, \"height\": 12 },\n  \"portDirection\": \"input\",\n  \"maxConnections\": 1\n}\n```\n\n## 使用场景\n\n- 作为 NodeView 的子节点存在\n- input port 通常放在节点左侧\n- output port 通常放在节点右侧\n- bidirectional 用于特殊场景（双向数据流）",
+  "source": "auto-generated:banvasgl-postbuild",
+  "metadata": {
+    "category": "schema",
+    "nodeType": "PORTVIEW",
+    "version": "0.1.0"
+  }
+}

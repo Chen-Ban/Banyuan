@@ -36,3 +36,34 @@ export { ChangeSpecBuilder } from "./ChangeSpecBuilder.js";
 export { MemoryChangeSpecStore } from "./MemoryChangeSpecStore.js";
 export { SpecPlanner } from "./SpecPlanner.js";
 export type { SpecPlannerConfig, PlanResult } from "./SpecPlanner.js";
+
+// ─── Multi-Agent Planning Types (ADR-032) ──────────────────────────────────
+export {
+  AgentRoleSchema,
+  FeatureListSchema,
+  FeatureSchema,
+  FeatureDependencySchema,
+  TechPlanSchema,
+  ViewChangeSchema,
+  SchemaChangeSchema,
+  VisualSpecSchema,
+  PageVisualSpecSchema,
+  DesignTokensSchema,
+  ComponentChoiceSchema,
+  PlanningProgressEventSchema,
+} from "./planningTypes.js";
+
+export type {
+  AgentRole,
+  FeatureList,
+  Feature,
+  FeatureDependency,
+  TechPlan,
+  ViewChange,
+  SchemaChange,
+  VisualSpec,
+  PageVisualSpec,
+  DesignTokens,
+  ComponentChoice,
+  PlanningProgressEvent,
+} from "./planningTypes.js";

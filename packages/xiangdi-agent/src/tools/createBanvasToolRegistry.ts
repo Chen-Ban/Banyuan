@@ -11,7 +11,7 @@
  */
 
 import { ToolRegistry } from "../core/ToolRegistry.js";
-import { pagesToProjection, projectionToPages } from "../schema/projection.js";
+import { appJSONToProjection, projectionToAppJSON } from "../schema/projection.js";
 import type { AIProjectionScene } from "../schema/projection.types.js";
 import {
   BANVAS_TOOLS,
@@ -31,13 +31,13 @@ import {
 
 /**
  * 画布宿主适配器接口
- * 后端实现：读写 MongoDB 中存储的 pages JSON 字符串数组
+ * 后端实现：读写 MongoDB 中存储的 appJSON 字符串（App 级别序列化）
  */
 export interface BanvasHostAdapter {
-  /** 读取当前应用的完整 pages JSON（BanvasGL 原生格式） */
-  getPages(): Promise<string[]>;
-  /** 将修改后的 pages JSON 写回存储 */
-  setPages(pages: string[]): Promise<void>;
+  /** 读取当前应用的完整 appJSON（App.serialize() 输出） */
+  getAppJSON(): Promise<string>;
+  /** 将修改后的 appJSON 写回存储 */
+  setAppJSON(appJSON: string): Promise<void>;
   /** 应用的元信息（id、name），用于构造 AIApp */
   getAppMeta(): Promise<{ id: string; name: string; version: string }>;
 }
@@ -46,22 +46,22 @@ export interface BanvasHostAdapter {
 
 /**
  * 从 adapter 读取并转换为 AI Projection 格式。
- * 直接操作 Serializer 原生 JSON，无损双向转换。
+ * 直接操作 App 级别 SerializedData JSON，无损双向转换。
  *
- * 当 pages 为空时返回空数组（支持新应用创建首页等场景）。
+ * 当 appJSON 为空时返回空数组（支持新应用创建首页等场景）。
  *
  * @throws Error 当 JSON 解析/转换失败时抛出有意义的错误信息
  */
 export async function readProjection(adapter: BanvasHostAdapter): Promise<AIProjectionScene[]> {
-  const pages = await adapter.getPages();
-  if (!pages || pages.length === 0) {
+  const appJSON = await adapter.getAppJSON();
+  if (!appJSON) {
     return [];
   }
   try {
-    return pagesToProjection(pages);
+    return appJSONToProjection(appJSON);
   } catch (err) {
     throw new Error(
-      `[AI Projection] 页面数据转换失败: ${err instanceof Error ? err.message : String(err)}`
+      `[AI Projection] 应用数据转换失败: ${err instanceof Error ? err.message : String(err)}`
     )
   }
 }
@@ -75,8 +75,8 @@ export async function writeProjection(
   scenes: AIProjectionScene[],
   version: string,
 ): Promise<void> {
-  const pages = projectionToPages(scenes, version);
-  await adapter.setPages(pages);
+  const appJSON = projectionToAppJSON(scenes, version);
+  await adapter.setAppJSON(appJSON);
 }
 
 // ─── 工具执行上下文 ───────────────────────────────────────────────────────────
@@ -229,7 +229,7 @@ async function handleResizeNode(
 }
 
 async function handleApplyPatch(adapter: BanvasHostAdapter, input: ApplyPatchInput): Promise<unknown> {
-  const snapshot = await adapter.getPages();
+  const snapshot = await adapter.getAppJSON();
   const scenes = await readProjection(adapter);
   const meta = await adapter.getAppMeta();
   const ctx: ToolExecutionContext = { scenes, version: meta.version, dirty: false };
@@ -247,7 +247,7 @@ async function handleApplyPatch(adapter: BanvasHostAdapter, input: ApplyPatchInp
 
     return { message: `批量操作完成，共执行 ${input.operations.length} 步`, results };
   } catch (err) {
-    await adapter.setPages(snapshot);
+    await adapter.setAppJSON(snapshot);
     throw new Error(`批量操作失败，已回滚：${err instanceof Error ? err.message : String(err)}`);
   }
 }

@@ -1,6 +1,10 @@
 /**
  * 相地 · 默认记忆管理器（DefaultMemoryManager）
  *
+ * @deprecated 请使用 {@link NamespacedMemoryManager}（ADR-033）。
+ * DefaultMemoryManager 作为 MasterGraph execute 阶段的兼容层保留，
+ * 新代码应使用 `createMemoryManager(namespace, storagePath)` 创建命名空间实例。
+ *
  * 统一管理中期记忆和长期记忆的生命周期：
  *
  *   ┌──────────────────────────────────────────────────────┐

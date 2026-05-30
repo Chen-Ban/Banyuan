@@ -19,6 +19,7 @@ import type { StreamCallback } from "../../core/types.js";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { AuditResult } from "../../orchestration/types.js";
 import type { PlanOutput } from "../state.js";
+import type { MemoryNamespace } from "../../memory/types.js";
 
 /**
  * 记忆提取节点所需的最小状态接口
@@ -44,6 +45,8 @@ export interface ExtractMemoryConfig {
   model?: string;
   /** 工具调用次数阈值（低于此值跳过提取，默认 2） */
   minToolCalls?: number;
+  /** 命名空间（ADR-033），附带在 memory_update 事件中供下游存储按命名空间分区 */
+  namespace?: MemoryNamespace;
 }
 
 // ─── 记忆提取 Prompt ──────────────────────────────────────────────────────────
@@ -288,6 +291,7 @@ export function createExtractMemoryNode(config: ExtractMemoryConfig) {
         data: {
           episode: parsed.episode,
           facts: parsed.facts ?? [],
+          ...(config.namespace ? { namespace: config.namespace } : {}),
         },
       });
     } catch {

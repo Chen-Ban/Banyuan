@@ -36,7 +36,7 @@ export const FEWSHOT_CREATE_LOGIN_PAGE: Message[] = [
       {
         type: "tool_result",
         tool_use_id: "tool_1",
-        content: JSON.stringify({ pages: [] }),
+        content: JSON.stringify([]),
       },
     ],
   },

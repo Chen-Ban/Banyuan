@@ -39,6 +39,10 @@ import type { ToolRegistry } from "../core/ToolRegistry.js";
 import type { StreamCallback, Message, MessageContent } from "../core/types.js";
 import type { AuditResult } from "../orchestration/types.js";
 import { createExtractMemoryNode } from "./nodes/extractMemoryNode.js";
+import { PlanningOrchestrator, type PlanningResult } from "./planningAgents/PlanningOrchestrator.js";
+import { classifyResumeIntent } from "./resume/ResumeClassifier.js";
+import { handleContinue, handleRefine, handleRestart } from "./resume/strategies.js";
+import type { PlanningSnapshot } from "./resume/types.js";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -61,6 +65,15 @@ export interface MasterGraphConfig {
   maxPlanIterations?: number;
   /** Optional checkpointer for graph state persistence */
   checkpointer?: BaseCheckpointSaver;
+  /**
+   * 启用多智能体规划管线（ADR-032）。
+   * true: START → planning（PlanningOrchestrator 四 Agent）→ humanGate → execute → ...
+   * false: START → plan（单次 LLM 规划）→ humanGate → execute → ...
+   * 默认 false（渐进式迁移）
+   */
+  enableMultiAgentPlanning?: boolean;
+  /** 记忆存储根路径（多 Agent 模式时需要） */
+  memoryStoragePath?: string;
 }
 
 // ─── Prompts ─────────────────────────────────────────────────────────────────
@@ -158,6 +171,8 @@ export function createMasterGraph(config: MasterGraphConfig) {
     maxAuditRetries = 2,
     autoRun = true,
     maxPlanIterations = 3,
+    enableMultiAgentPlanning = false,
+    memoryStoragePath = '.xiangdi/memory',
   } = config;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -217,6 +232,107 @@ export function createMasterGraph(config: MasterGraphConfig) {
     return {
       planOutput,
       planIterations: state.planIterations + 1,
+    };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── Planning Node（Multi-Agent，ADR-032）─────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  /**
+   * 多智能体规划节点。
+   *
+   * 内部调度 PlanningOrchestrator（PM → Arch → Visual → Task）。
+   * 支持中断恢复：若存在 planningSnapshot，先分类意图再按策略恢复。
+   * 输出转换为 PlanOutput 格式，保持下游 humanGate/execute 兼容。
+   */
+  async function planningNode(state: MasterState): Promise<Partial<MasterState>> {
+    streamCallback?.({ type: "text_delta", data: { text: "" } });
+
+    const orchestrator = new PlanningOrchestrator({
+      llmClient,
+      toolRegistry,
+      memoryStoragePath,
+      streamCallback,
+      defaultModel: "deepseek-chat",
+      enableDegradation: true,
+    });
+
+    // 提取用户消息
+    const lastUserMsg = [...state.messages].reverse().find((m) => m._getType() === "human");
+    const userMessage = lastUserMsg
+      ? (typeof lastUserMsg.content === "string" ? lastUserMsg.content : JSON.stringify(lastUserMsg.content))
+      : "";
+
+    const conversationContext = formatMessagesForPlan(state.messages);
+
+    let result: PlanningResult;
+
+    // 中断恢复场景
+    if (state.planningSnapshot) {
+      const snapshot: PlanningSnapshot = state.planningSnapshot;
+
+      // 分类用户意图
+      const classification = await classifyResumeIntent(
+        { llmClient, streamCallback },
+        { userMessage, snapshot },
+      );
+
+      if (classification.intent === 'clarify') {
+        // 置信度低，返回 clarify 状态等待确认（不执行规划）
+        return {
+          resumeIntent: classification,
+          planOutput: state.planOutput,
+          planIterations: state.planIterations + 1,
+        };
+      }
+
+      // 按策略恢复
+      switch (classification.intent) {
+        case 'continue':
+          result = await handleContinue(orchestrator, snapshot, { signal: undefined, conversationContext });
+          break;
+        case 'refine':
+          result = await handleRefine(
+            orchestrator,
+            snapshot,
+            classification.affectedAgent ?? 'pm',
+            userMessage,
+            { signal: undefined, conversationContext },
+          );
+          break;
+        case 'restart':
+          result = await handleRestart(orchestrator, userMessage, { signal: undefined, conversationContext });
+          break;
+        default:
+          result = await orchestrator.run(userMessage, { conversationContext });
+      }
+    } else {
+      // 正常规划：从头执行四 Agent 管线
+      result = await orchestrator.run(userMessage, { conversationContext });
+    }
+
+    // 将 PlanningResult 转换为 PlanOutput（保持下游兼容）
+    const planOutput = planningResultToPlanOutput(result);
+
+    // 保存快照（供后续中断恢复）
+    const snapshot = orchestrator.createSnapshot(
+      'execute',
+      result.artifacts,
+      `planning-${Date.now()}`,
+      planOutput.planDescription,
+    );
+
+    // SSE 推送方案
+    streamCallback?.({
+      type: "text_delta",
+      data: { text: `\n📋 **执行方案**\n${planOutput.planDescription}\n` },
+    });
+
+    return {
+      planOutput,
+      planIterations: state.planIterations + 1,
+      planningSnapshot: snapshot,
+      resumeIntent: null,
     };
   }
 
@@ -351,28 +467,49 @@ export function createMasterGraph(config: MasterGraphConfig) {
     while (iteration < maxIter) {
       iteration++;
 
-      // Think: Call LLM
+      // Think: Call LLM（流式，逐 token 推送 text_delta）
       const xiangdiMessages = langchainToXiangdi(currentMessages);
-      const response = await llmClient.createMessage({
-        model: "deepseek-v4-pro",
-        max_tokens: 8192,
-        system: execSystemPrompt,
-        messages: xiangdiMessages,
-        tools: toolRegistry.isEmpty ? undefined : toolRegistry.getDefinitions(),
-        temperature: 0.7,
-      });
+      let streamedText = "";
+      const response = await llmClient.createMessageStream(
+        {
+          model: "deepseek-v4-pro",
+          max_tokens: 8192,
+          system: execSystemPrompt,
+          messages: xiangdiMessages,
+          tools: toolRegistry.isEmpty ? undefined : toolRegistry.getDefinitions(),
+          temperature: 0.7,
+        },
+        (token) => {
+          streamedText += token;
+          streamCallback?.({ type: "text_delta", data: { text: token } });
+        }
+      );
 
       const toolCalls: Array<{ id: string; name: string; args: Record<string, unknown>; type: "tool_call" }> = [];
       const textParts: string[] = [];
 
+      // 工具调用路径（降级为非流式）从 response.content 解析
+      // 纯文本路径 streamedText 已由 onToken 拼完，直接用
       for (const block of response.content) {
         if (block.type === "text" && block.text) {
-          textParts.push(block.text);
-          finalText = block.text;
-          streamCallback?.({ type: "text_delta", data: { text: block.text } });
+          // 有工具调用时（降级非流式），text 可能未经 onToken 推送，补推一次
+          if (!streamedText && block.text) {
+            textParts.push(block.text);
+            finalText = block.text;
+            streamCallback?.({ type: "text_delta", data: { text: block.text } });
+          } else {
+            textParts.push(streamedText || block.text);
+            finalText = streamedText || block.text;
+          }
         } else if (block.type === "tool_use") {
           toolCalls.push({ id: block.id, name: block.name, args: block.input, type: "tool_call" });
         }
+      }
+
+      // 纯文本流式路径：response.content 只有空 text 块，用 streamedText
+      if (textParts.length === 0 && streamedText) {
+        textParts.push(streamedText);
+        finalText = streamedText;
       }
 
       const aiMessage = new AIMessage({
@@ -570,8 +707,12 @@ export function createMasterGraph(config: MasterGraphConfig) {
   // ─── Build the Graph ───────────────────────────────────────────────────────
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // 根据配置选择规划节点
+  const planNodeName = "plan";
+  const planNodeFn = enableMultiAgentPlanning ? planningNode : planNode;
+
   const graph = new StateGraph(MasterStateAnnotation)
-    .addNode("plan", planNode)
+    .addNode(planNodeName, planNodeFn)
     .addNode("humanGate", humanGateNode)
     .addNode("execute", executeNode)
     .addNode("assemble", assembleNode)
@@ -579,11 +720,11 @@ export function createMasterGraph(config: MasterGraphConfig) {
     .addNode("summarize", summarizeNode)
     .addNode("extractMemory", extractMemoryWrapper)
     // Edges
-    .addEdge(START, "plan")
-    .addEdge("plan", "humanGate")
+    .addEdge(START, planNodeName)
+    .addEdge(planNodeName, "humanGate")
     .addConditionalEdges("humanGate", routeAfterHumanGate, {
       execute: "execute",
-      plan: "plan",
+      plan: planNodeName,
       __end__: END,
     })
     .addEdge("execute", "assemble")
@@ -848,4 +989,43 @@ function parseAuditResponse(text: string): AuditResult {
   } catch {
     return { passed: true, issues: [] };
   }
+}
+
+/**
+ * 将 PlanningOrchestrator 的 PlanningResult 转换为 PlanOutput（保持下游兼容）
+ */
+function planningResultToPlanOutput(result: PlanningResult): PlanOutput {
+  const { featureList, techPlan, visualSpec, changeSpec } = result;
+
+  // 生成方案描述
+  const planDescription = [
+    `## 功能需求（${featureList.features.length} 项）`,
+    ...featureList.features.map((f, i) => `${i + 1}. **${f.title}**：${f.description}`),
+    '',
+    `## 技术方案`,
+    `视图变更 ${techPlan.viewChanges.length} 项，Schema 变更 ${techPlan.schemaChanges.length} 项`,
+    ...techPlan.viewChanges.map(v => `- [${v.action}] ${v.viewType}: ${v.description}`),
+    '',
+    `## 视觉规格`,
+    `${visualSpec.pages.length} 个页面布局`,
+    '',
+    `## 执行任务（${changeSpec.tasks.length} 项）`,
+    ...changeSpec.tasks.map((t, i) => `${i + 1}. ${t.description}`),
+  ].join('\n');
+
+  // 将 ChangeSpec.tasks 转为 PlanTask[]
+  const tasks: PlanTask[] = changeSpec.tasks.map((task, index) => ({
+    taskId: task.id,
+    description: task.description,
+    dependsOn: task.dependsOn ?? [],
+    priority: index,
+    category: 'modify' as const,
+  }));
+
+  return {
+    intentSummary: featureList.features.map(f => f.title).join('、'),
+    planDescription,
+    impactScope: `${techPlan.viewChanges.length} 个视图变更，${techPlan.schemaChanges.length} 个 Schema 变更，${visualSpec.pages.length} 个页面`,
+    tasks,
+  };
 }

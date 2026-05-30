@@ -28,6 +28,10 @@ export type {
   SemanticRecallOptions,
   // 记忆管理器
   MemoryManager,
+  // 命名空间
+  MemoryNamespace,
+  NamespacedMemoryManager as INamespacedMemoryManager,
+  SharedMemoryWriter as ISharedMemoryWriter,
 } from "./types.js";
 
 // ─── 实现 ──────────────────────────────────────────────────────────────────────
@@ -39,3 +43,9 @@ export type { LocalSemanticMemoryConfig } from "./LocalSemanticMemory.js";
 
 export { DefaultMemoryManager } from "./DefaultMemoryManager.js";
 export type { DefaultMemoryManagerConfig } from "./DefaultMemoryManager.js";
+
+export { SharedMemoryWriter } from "./SharedMemoryWriter.js";
+export type { SharedMemoryWriterConfig } from "./SharedMemoryWriter.js";
+
+export { NamespacedMemoryManager, createMemoryManager } from "./NamespacedMemoryManager.js";
+export type { NamespacedMemoryManagerConfig } from "./NamespacedMemoryManager.js";
