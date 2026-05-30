@@ -16,7 +16,7 @@
  *   - RootLayout 在 sidebarMode === 'app' 时渲染唯一的 <AiBar>
  *   - appId 直接从路由参数 :id 取，无需子组件传递
  *   - AiBar 发送前通过 appEvents.emitSaveApp() 触发保存，UIPage 订阅后执行序列化
- *   - UIPage 通过 registerAiCallbacks 注册 onDone / onPagesSnapshot，
+ *   - UIPage 通过 registerAiCallbacks 注册 onDone / onAppSnapshot，
  *     RootLayout 用稳定包装函数转发，避免 AiBar 实例重建
  *   - 切换 Tab 时 AiBar 实例不销毁，对话历史得以保留
  */
@@ -59,12 +59,12 @@ const RootLayout: React.FC = () => {
     aiCallbacksRef.current = {}
   }, [])
 
-  const stableOnPagesSnapshot = useCallback((pages: string[]) => {
-    aiCallbacksRef.current.onPagesSnapshot?.(pages)
+  const stableOnAppSnapshot = useCallback((appJSON: string) => {
+    aiCallbacksRef.current.onAppSnapshot?.(appJSON)
   }, [])
 
-  const stableOnDone = useCallback((pages: string[]) => {
-    aiCallbacksRef.current.onDone?.(pages)
+  const stableOnDone = useCallback((appJSON: string) => {
+    aiCallbacksRef.current.onDone?.(appJSON)
   }, [])
 
   // ── AiBar handle（forwardRef 暴露，UIPage 用于 sendPrompt） ───────────────
@@ -86,12 +86,12 @@ const RootLayout: React.FC = () => {
         ref={handleAiBarRef}
         appId={appId}
         onBeforeSend={appEvents.emitSaveApp}
-        onPagesSnapshot={stableOnPagesSnapshot}
+        onAppSnapshot={stableOnAppSnapshot}
         onDone={stableOnDone}
       />
     )
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [appId, handleAiBarRef, stableOnPagesSnapshot, stableOnDone])
+  }, [appId, handleAiBarRef, stableOnAppSnapshot, stableOnDone])
 
   return (
     <RootLayoutCtx.Provider value={{

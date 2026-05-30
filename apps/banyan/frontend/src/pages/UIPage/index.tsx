@@ -11,11 +11,11 @@
  *   └──────────────────────────────┘
  *
  * 职责：
- *   - 加载应用的初始 pages 数据，初始化 useDesignBanvas
+ *   - 加载应用的初始 appJSON 数据，初始化 useDesignBanvas
  *   - 渲染物料面板、画布、PropertyDrawer
- *   - 通过 AppLayoutCtx.registerGetPages 向 ApplicationLayout 注册序列化函数（供 handleBuild 使用）
- *   - 订阅 appEvents.saveApp 事件：序列化当前 pages 并调用 API 保存
- *   - 通过 RootLayoutCtx.registerAiCallbacks 向 AiBar 注册 onDone / onPagesSnapshot
+ *   - 通过 AppLayoutCtx.registerGetApp 向 ApplicationLayout 注册序列化函数（供 handleBuild 使用）
+ *   - 订阅 appEvents.saveApp 事件：序列化当前 appJSON 并调用 API 保存
+ *   - 通过 RootLayoutCtx.registerAiCallbacks 向 AiBar 注册 onDone / onAppSnapshot
  *   - 通过 RootLayoutCtx.aiBarHandle 触发 sendPrompt（首页跳转后自动起始对话）
  */
 
@@ -32,13 +32,15 @@ import { useAppLayoutCtx } from "@/layouts/ApplicationLayout/AppLayoutCtx";
 import { useRootLayoutCtx } from "@/layouts/RootLayout/RootLayoutCtx";
 import ComponentPalette from "./components/ComponentPalette";
 import PropertyDrawer from "./components/PropertyDrawer";
+import SaveMaterialModal from "@/components/SaveMaterialModal";
+import MaterialPanel from "@/components/MaterialPanel";
 import styles from "./index.module.scss";
 
 const UIPage = () => {
   const { message } = App.useApp();
   const { id: application_id } = useParams<{ id: string }>();
   const location = useLocation();
-  const { registerGetPages, unregisterGetPages } = useAppLayoutCtx();
+  const { registerGetApp, unregisterGetApp } = useAppLayoutCtx();
   const { registerAiCallbacks, unregisterAiCallbacks, aiBarHandle } = useRootLayoutCtx();
 
   // 首页跳转时携带的初始 prompt，画布加载完成后自动发送
@@ -46,7 +48,7 @@ const UIPage = () => {
     (location.state as { initialPrompt?: string } | null)?.initialPrompt ?? null,
   );
 
-  const [initialPages, setInitialPages] = useState<string[]>([]);
+  const [appJSON, setAppJSON] = useState<string>('');
   const [loaded, setLoaded] = useState(false);
   const needsThumbnailRef = useRef(false);
 
@@ -56,14 +58,14 @@ const UIPage = () => {
     setCanvasSectionEl(el);
   }, []);
 
-  // ── 加载应用初始 pages ────────────────────────────────────────────────────
+  // ── 加载应用初始 appJSON ────────────────────────────────────────────────────
   useEffect(() => {
     if (!application_id) return;
     applicationApi
       .fetchApplication(application_id)
       .then((res) => {
         const application = res.data!;
-        setInitialPages(application.pages || []);
+        setAppJSON(application.appJSON || '');
         needsThumbnailRef.current = !application.thumbnail;
         setLoaded(true);
       })
@@ -77,6 +79,10 @@ const UIPage = () => {
   const [rightOpen, setRightOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const prevSelectedViewIdRef = useRef<string>("");
+
+  // ── 保存为物料弹窗状态 ─────────────────────────────────────────────────────
+  const [saveMaterialOpen, setSaveMaterialOpen] = useState(false);
+  const [saveMaterialViewId, setSaveMaterialViewId] = useState("");
 
   const handleCanvasSizeChange = useCallback(
     (width: number, height: number) => {
@@ -105,32 +111,55 @@ const UIPage = () => {
     currentPageId,
     selectedViewId,
     actions,
-    contextMenu,
+    contextMenu: rawContextMenu,
     MaterialPalette,
-  } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
+  } = useDesignBanvas(loaded ? appJSON : '', banvasOptions);
 
-  // ── 向 ApplicationLayout 注册 getPages（供 handleBuild 序列化） ───────────
+  // ── 扩展右键菜单：为视图添加"保存为物料"选项 ─────────────────────────────────
+  const contextMenu = useMemo(() => {
+    if (!rawContextMenu.visible || rawContextMenu.target !== 'view' || !rawContextMenu.viewId) {
+      return rawContextMenu
+    }
+    const viewId = rawContextMenu.viewId
+    return {
+      ...rawContextMenu,
+      items: [
+        ...rawContextMenu.items,
+        {
+          key: 'saveMaterial',
+          label: '保存为物料',
+          divider: true,
+          handler: () => {
+            setSaveMaterialViewId(viewId)
+            setSaveMaterialOpen(true)
+          },
+        },
+      ],
+    }
+  }, [rawContextMenu]);
+
+  // ── 向 ApplicationLayout 注册 getApp（供 handleBuild 序列化） ───────────
   useEffect(() => {
-    registerGetPages(() => actions.app.getSerializedPages());
-    return () => unregisterGetPages();
-  }, [registerGetPages, unregisterGetPages, actions]);
+    registerGetApp(() => actions.app.getSerializedApp());
+    return () => unregisterGetApp();
+  }, [registerGetApp, unregisterGetApp, actions]);
 
-  // ── 订阅 saveApp 事件：序列化 pages 并调用 API 保存 ───────────────────────
+  // ── 订阅 saveApp 事件：序列化 appJSON 并调用 API 保存 ───────────────────────
   // 发布方：ApplicationLayout 保存按钮 / AiBar onBeforeSend
   useEffect(() => {
     if (!application_id) return;
     const unsubscribe = appEvents.onSaveApp(async () => {
-      const pages = actions.app.getSerializedPages();
-      await applicationApi.updateApplication(application_id, { pages });
+      const serialized = actions.app.getSerializedApp();
+      await applicationApi.updateApplication(application_id, { appJSON: serialized });
     });
     return unsubscribe;
   }, [application_id, actions]);
 
-  // ── 向 AiBar 注册画布回调（onDone / onPagesSnapshot） ────────────────────
+  // ── 向 AiBar 注册画布回调（onDone / onAppSnapshot） ────────────────────
   useEffect(() => {
     registerAiCallbacks({
-      onDone: (aiPages) => setInitialPages(aiPages),
-      onPagesSnapshot: (aiPages) => setInitialPages(aiPages),
+      onDone: (json) => setAppJSON(json),
+      onAppSnapshot: (json) => setAppJSON(json),
     });
     return () => unregisterAiCallbacks();
   }, [registerAiCallbacks, unregisterAiCallbacks]);
@@ -160,7 +189,7 @@ const UIPage = () => {
   // ── 自动生成缩略图 ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!loaded || !application_id || !needsThumbnailRef.current) return;
-    if (initialPages.length === 0) return;
+    if (!appJSON) return;
     const timer = setTimeout(() => {
       if (!needsThumbnailRef.current) return;
       needsThumbnailRef.current = false;
@@ -172,7 +201,7 @@ const UIPage = () => {
         .catch(() => {});
     }, 500);
     return () => clearTimeout(timer);
-  }, [loaded, application_id, actions, initialPages.length]);
+  }, [loaded, application_id, actions, appJSON]);
 
   if (!loaded) {
     return <div style={{ padding: 40, textAlign: "center" }}>加载中...</div>;
@@ -221,6 +250,14 @@ const UIPage = () => {
       </div>
 
       <DesignContextMenu state={contextMenu} />
+
+      {/* ── 保存为物料弹窗 ── */}
+      <SaveMaterialModal
+        open={saveMaterialOpen}
+        onClose={() => setSaveMaterialOpen(false)}
+        viewId={saveMaterialViewId}
+        actions={actions}
+      />
     </div>
   );
 };

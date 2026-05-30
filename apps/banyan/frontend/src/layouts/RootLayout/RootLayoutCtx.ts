@@ -18,10 +18,10 @@ import type { AiBarHandle } from '@/components/AiBar'
 export type SidebarMode = 'nav' | 'app' | 'settings'
 
 export interface AiCallbacks {
-  /** 写操作工具执行完毕后实时推送当前 pages，用于画布实时更新 */
-  onPagesSnapshot?: (pages: string[]) => void
-  /** AI 完成后回调，携带最终 pages JSON */
-  onDone?: (pages: string[]) => void
+  /** 写操作工具执行完毕后实时推送当前 appJSON，用于画布实时更新 */
+  onAppSnapshot?: (appJSON: string) => void
+  /** AI 完成后回调，携带最终 appJSON */
+  onDone?: (appJSON: string) => void
 }
 
 export interface RootLayoutCtxValue {
@@ -36,7 +36,7 @@ export interface RootLayoutCtxValue {
 
   // ── AiBar 画布回调（由 UIPage 注册） ────────────────────────────────────
   /**
-   * UIPage 挂载时注册 onPagesSnapshot / onDone，
+   * UIPage 挂载时注册 onAppSnapshot / onDone，
    * RootLayout 通过稳定包装函数将其转发给 AiBar props。
    */
   registerAiCallbacks: (cbs: AiCallbacks) => void

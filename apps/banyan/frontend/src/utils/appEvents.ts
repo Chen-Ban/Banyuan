@@ -6,7 +6,7 @@
  * 当前事件：
  *   saveApp  — 触发应用保存。
  *              发布方：ApplicationLayout 保存按钮、AiBar onBeforeSend。
- *              订阅方：UIPage（序列化画布 pages 后调用 API 保存）。
+ *              订阅方：UIPage（序列化画布 appJSON 后调用 API 保存）。
  *              返回值：Promise<void>，发布方 await 所有订阅者完成后继续。
  */
 
