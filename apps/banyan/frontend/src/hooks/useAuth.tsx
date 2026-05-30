@@ -48,19 +48,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loginModalOpen, setLoginModalOpen] = useState(false)
 
   // 初始化：从 localStorage 恢复登录态
+  // 如果 access token 过期，先尝试 refresh token 刷新，刷新成功后重试
   useEffect(() => {
     const token = localStorage.getItem(TOKEN_KEY)
     if (!token) {
-      setLoading(false)
+      // 没有 access token，但可能有 refresh token 可以恢复
+      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+      if (!refreshToken) {
+        setLoading(false)
+        return
+      }
+      // 尝试用 refresh token 恢复登录态
+      authApi.refresh(refreshToken)
+        .then((res) => {
+          if (res.data) {
+            localStorage.setItem(TOKEN_KEY, res.data.accessToken)
+            localStorage.setItem(REFRESH_TOKEN_KEY, res.data.refreshToken)
+            return authApi.me()
+          }
+          return null
+        })
+        .then((res) => {
+          if (res?.data) setUser(res.data)
+        })
+        .catch(() => {
+          localStorage.removeItem(TOKEN_KEY)
+          localStorage.removeItem(REFRESH_TOKEN_KEY)
+        })
+        .finally(() => setLoading(false))
       return
     }
+    // 有 access token，尝试验证
     authApi
       .me()
       .then((res) => {
         if (res.data) setUser(res.data)
       })
       .catch(() => {
-        // token 失效，清除
+        // access token 失效 — client.ts 的 401 拦截器会自动尝试 refresh
+        // 如果 refresh 也失败了（抛出 401 ApiError），则清除登录态
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(REFRESH_TOKEN_KEY)
       })
