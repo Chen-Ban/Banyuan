@@ -48,6 +48,8 @@ export interface PlanningOrchestratorConfig {
   enableDegradation?: boolean;
   /** 快照持久化回调（中断时调用） */
   onSnapshotPersist?: (snapshot: PlanningSnapshot) => Promise<void>;
+  /** SubAgent 最大重试次数（默认 2，不含首次执行） */
+  maxSubAgentRetries?: number;
 }
 
 // ─── Orchestrator Output ─────────────────────────────────────────────────────
@@ -87,6 +89,7 @@ export class PlanningOrchestrator {
   private readonly defaultModel: string;
   private readonly enableDegradation: boolean;
   private readonly onSnapshotPersist?: (snapshot: PlanningSnapshot) => Promise<void>;
+  private readonly maxSubAgentRetries: number;
 
   /** 共享命名空间写入器 */
   private readonly sharedWriter: SharedMemoryWriter;
@@ -101,6 +104,7 @@ export class PlanningOrchestrator {
     this.defaultModel = config.defaultModel ?? 'deepseek-chat';
     this.enableDegradation = config.enableDegradation ?? true;
     this.onSnapshotPersist = config.onSnapshotPersist;
+    this.maxSubAgentRetries = config.maxSubAgentRetries ?? 2;
     this.sharedWriter = new SharedMemoryWriter({ storagePath: config.memoryStoragePath });
   }
 
@@ -133,12 +137,12 @@ export class PlanningOrchestrator {
       conversationContext: pmCtx.conversationContext,
     };
 
-    const pmResult = await runPMAgent(
+    const pmResult = await this.withRetry('pm', () => runPMAgent(
       { llmClient: this.llmClient, model: this.defaultModel, streamCallback: this.streamCallback },
       pmInput,
       pmCtx.agentMemory,
       signal,
-    );
+    ));
 
     const featureList = pmResult.output;
     artifacts.pm = {
@@ -172,12 +176,12 @@ export class PlanningOrchestrator {
 
     const archInput: ArchAgentInput = { featureList };
 
-    const archResult = await runArchAgent(
+    const archResult = await this.withRetry('arch', () => runArchAgent(
       { llmClient: this.llmClient, toolRegistry: archToolRegistry, model: this.defaultModel, streamCallback: this.streamCallback },
       archInput,
       archCtx.agentMemory,
       signal,
-    );
+    ));
 
     const techPlan = archResult.output;
     artifacts.arch = {
@@ -207,12 +211,12 @@ export class PlanningOrchestrator {
 
       const visualInput: VisualAgentInput = { featureList, techPlan };
 
-      const visualResult = await runVisualAgent(
+      const visualResult = await this.withRetry('visual', () => runVisualAgent(
         { llmClient: this.llmClient, toolRegistry: visualToolRegistry, model: this.defaultModel, streamCallback: this.streamCallback },
         visualInput,
         visualCtx.agentMemory,
         signal,
-      );
+      ));
 
       visualSpec = visualResult.output;
       artifacts.visual = {
@@ -256,12 +260,12 @@ export class PlanningOrchestrator {
 
       const taskInput: TaskPlannerInput = { featureList, techPlan, visualSpec };
 
-      const taskResult = await runTaskPlannerAgent(
+      const taskResult = await this.withRetry('task', () => runTaskPlannerAgent(
         { llmClient: this.llmClient, toolRegistry: taskToolRegistry, model: this.defaultModel, streamCallback: this.streamCallback },
         taskInput,
         taskCtx.agentMemory,
         signal,
-      );
+      ));
 
       changeSpec = taskResult.output;
 
@@ -568,6 +572,83 @@ export class PlanningOrchestrator {
 
     signal.addEventListener('abort', handler, { once: true });
     return () => signal.removeEventListener('abort', handler);
+  }
+
+  /**
+   * 带重试的 SubAgent 执行包装器
+   *
+   * 对子代理执行进行自动重试（含指数退避），
+   * 仅对瞬时错误（网络/超时/LLM 服务暂时不可用）重试，
+   * 逻辑错误（如输出格式多次验证失败）不重试。
+   */
+  private async withRetry<T>(
+    agentName: AgentRole,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    let lastError: unknown = null;
+    const maxAttempts = this.maxSubAgentRetries + 1; // 首次执行 + N 次重试
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (err) {
+        lastError = err;
+
+        // 已达最大重试次数
+        if (attempt >= maxAttempts) break;
+
+        // 判断是否可重试
+        const isRetryable = this.isRetryableError(err);
+        if (!isRetryable) break;
+
+        // 指数退避
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+        this.emitProgress({
+          agent: agentName,
+          status: 'started',
+          summary: `重试中（第 ${attempt} 次失败: ${err instanceof Error ? err.message : String(err)}），${delay}ms 后重试...`,
+        });
+
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * 判断错误是否可重试
+   * - 网络/超时/连接类错误 → 可重试
+   * - LLM 服务 429/5xx → 可重试
+   * - 输出格式验证失败（已内建重试）→ 不重试
+   * - 其他逻辑错误 → 不重试
+   */
+  private isRetryableError(err: unknown): boolean {
+    if (!(err instanceof Error)) return false;
+    const msg = err.message.toLowerCase();
+
+    // SubAgent 自身的格式验证失败（已有内建重试，不再外层重试）
+    if (msg.includes('output validation failed') || msg.includes('no json output found') || msg.includes('json parse failed')) {
+      return false;
+    }
+    // max iterations exceeded（逻辑问题，不重试）
+    if (msg.includes('max iterations') && msg.includes('exceeded')) {
+      return false;
+    }
+    // aborted（用户主动中断，不重试）
+    if (msg.includes('aborted')) {
+      return false;
+    }
+
+    // 网络/超时/服务暂时不可用 → 可重试
+    const retryablePatterns = [
+      'econnreset', 'econnrefused', 'etimedout', 'enotfound',
+      'socket hang up', 'network', 'timeout',
+      'rate limit', 'ratelimit', 'too many requests',
+      'service unavailable', 'temporarily unavailable',
+      '429', '500', '502', '503', '504',
+    ];
+    return retryablePatterns.some(p => msg.includes(p));
   }
 
   /**

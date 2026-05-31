@@ -157,14 +157,80 @@ function countToolCalls(messages: BaseMessage[]): number {
   return count;
 }
 
+// ─── ADR-035: 代码推导 Episode 元数据 ──────────────────────────────────────────
+
+interface DerivedEpisodeMetadata {
+  title: string;
+  outcome: "success" | "failure" | "partial";
+  tags: string[];
+  importance: number;
+  involvedEntities: string[];
+}
+
+/**
+ * 从 state 中代码推导 Episode 的结构化元数据，无需 LLM。
+ * 只有 lessons（经验教训归纳）保留给 LLM。
+ */
+function deriveEpisodeMetadata(
+  state: MemoryNodeState,
+  outcome: "success" | "failure" | "partial",
+  toolCallCount: number
+): DerivedEpisodeMetadata {
+  // title: 从 planOutput.intentSummary 或 roundSummary 的第一行截取
+  const title = state.planOutput?.intentSummary
+    || (state.roundSummary ? state.roundSummary.split("\n")[0].slice(0, 50) : "未知任务");
+
+  // tags: 从 planOutput.tasks 中提取 taskType/agent 信息
+  const tags: string[] = [];
+  if (state.planOutput?.tasks) {
+    for (const task of state.planOutput.tasks) {
+      if ("type" in task && typeof task.type === "string" && !tags.includes(task.type)) {
+        tags.push(task.type);
+      }
+      if ("agent" in task && typeof task.agent === "string" && !tags.includes(task.agent)) {
+        tags.push(task.agent);
+      }
+    }
+  }
+  // 从 outcome 添加结果 tag
+  if (outcome === "failure") tags.push("failed");
+  if (state.auditRetries > 0) tags.push("retried");
+
+  // importance: 基于工具调用次数 + 是否重试 + 任务数量的启发式评分
+  const taskCount = state.planOutput?.tasks?.length ?? 0;
+  let importance = 0.3; // 基线
+  if (toolCallCount >= 5) importance += 0.2;
+  if (toolCallCount >= 10) importance += 0.1;
+  if (taskCount >= 3) importance += 0.1;
+  if (state.auditRetries > 0) importance += 0.1;
+  if (outcome === "failure") importance += 0.1;
+  importance = Math.min(importance, 1.0);
+
+  // involvedEntities: 从 planOutput.tasks 中收集涉及的实体名
+  const involvedEntities: string[] = [];
+  if (state.planOutput?.tasks) {
+    for (const task of state.planOutput.tasks) {
+      if ("target" in task && typeof task.target === "string" && !involvedEntities.includes(task.target)) {
+        involvedEntities.push(task.target);
+      }
+      if ("viewId" in task && typeof task.viewId === "string" && !involvedEntities.includes(task.viewId)) {
+        involvedEntities.push(task.viewId);
+      }
+    }
+  }
+
+  return { title, outcome, tags, importance, involvedEntities };
+}
+
 /**
  * 创建记忆提取节点函数
  *
  * 节点行为：
  * 1. 前置条件检查（roundSummary 存在、工具调用次数达标）
- * 2. 调用 LLM 提取结构化记忆
- * 3. 通过 streamCallback 发出 memory_update 事件
- * 4. 节点不修改 AgentState，只产生副作用（SSE 事件）
+ * 2. 代码推导 Episode 元数据（ADR-035）
+ * 3. 调用 LLM 仅提取 lessons 和 facts
+ * 4. 合并代码推导结果与 LLM 归纳，通过 streamCallback 发出 memory_update 事件
+ * 5. 节点不修改 AgentState，只产生副作用（SSE 事件）
  */
 export function createExtractMemoryNode(config: ExtractMemoryConfig) {
   const {
@@ -196,12 +262,16 @@ export function createExtractMemoryNode(config: ExtractMemoryConfig) {
     }
 
     try {
-      // 构建提取上下文
-      const outcomeHint = state.auditResult?.passed
+      // ─── ADR-035: 混合提取 ─────────────────────────────────────────────
+      // Episode 元数据尽量用代码推导，仅 lessons 需要 LLM 归纳
+      const outcomeHint: "success" | "failure" | "partial" = state.auditResult?.passed
         ? "success"
         : state.auditResult
           ? "failure"
           : "partial";
+
+      // 代码推导 Episode 元数据
+      const codeDerivedEpisode = deriveEpisodeMetadata(state, outcomeHint, toolCallCount);
 
       // 如果没有 roundSummary 但有偏好信号，从对话中构建上下文
       let contextText: string;
@@ -218,6 +288,11 @@ export function createExtractMemoryNode(config: ExtractMemoryConfig) {
           `## 执行信息`,
           `- 检测到用户偏好表达信号`,
           `- 本轮无复杂操作，重点提取 user_preference Fact`,
+          ``,
+          `## 已推导的 Episode 元数据（仅需补充 lessons）`,
+          `- title: ${codeDerivedEpisode.title}`,
+          `- outcome: ${codeDerivedEpisode.outcome}`,
+          `- importance: ${codeDerivedEpisode.importance}`,
         ].join("\n");
       } else {
         contextText = [
@@ -234,6 +309,15 @@ export function createExtractMemoryNode(config: ExtractMemoryConfig) {
           state.planOutput?.tasks
             ? `- 任务数量: ${state.planOutput.tasks.length}`
             : null,
+          ``,
+          `## 已推导的 Episode 元数据（仅需补充 lessons 和 facts）`,
+          `- title: ${codeDerivedEpisode.title}`,
+          `- outcome: ${codeDerivedEpisode.outcome}`,
+          `- tags: ${codeDerivedEpisode.tags.join(", ")}`,
+          `- importance: ${codeDerivedEpisode.importance}`,
+          `- involvedEntities: ${codeDerivedEpisode.involvedEntities.join(", ")}`,
+          ``,
+          `请基于以上已推导信息，只补充 lessons 和 facts。episode 其他字段已确定无需重复。`,
         ].filter(Boolean).join("\n");
       }
 
@@ -285,11 +369,29 @@ export function createExtractMemoryNode(config: ExtractMemoryConfig) {
         return {};
       }
 
+      // ADR-035: 合并代码推导的元数据与 LLM 归纳的 lessons
+      const finalEpisode = parsed.episode
+        ? {
+            ...parsed.episode,
+            title: codeDerivedEpisode.title || parsed.episode.title,
+            outcome: codeDerivedEpisode.outcome,
+            tags: codeDerivedEpisode.tags.length > 0 ? codeDerivedEpisode.tags : parsed.episode.tags,
+            importance: codeDerivedEpisode.importance,
+            involvedEntities: codeDerivedEpisode.involvedEntities.length > 0
+              ? codeDerivedEpisode.involvedEntities
+              : parsed.episode.involvedEntities,
+            // lessons 保留 LLM 归纳结果
+            lessons: parsed.episode.lessons,
+          }
+        : toolCallCount >= minToolCalls
+          ? { ...codeDerivedEpisode, content: state.roundSummary || codeDerivedEpisode.title, lessons: [] }
+          : null;
+
       // 发出 memory_update 事件
       streamCallback({
         type: "memory_update",
         data: {
-          episode: parsed.episode,
+          episode: finalEpisode,
           facts: parsed.facts ?? [],
           ...(config.namespace ? { namespace: config.namespace } : {}),
         },
