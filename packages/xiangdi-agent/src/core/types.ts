@@ -100,6 +100,8 @@ export interface AgentConfig {
 import type { ConflictReport } from "./ConflictDetector.js";
 import type { DisambiguationOptions } from "./DisambiguationHandler.js";
 import type { DisambiguationPending } from "./llmTypes.js";
+import type { PlanningProgressEvent } from "../spec/planningTypes.js";
+import type { ResumeClassification } from "../graph/resume/types.js";
 
 export type StreamEventType =
   | "text_delta"
@@ -110,7 +112,9 @@ export type StreamEventType =
   | "disambiguation"
   | "disambiguation_pending"
   | "round_summary"
-  | "memory_update";
+  | "memory_update"
+  | "planning_progress"
+  | "resume_clarification";
 
 export interface StreamEvent {
   type: StreamEventType;
@@ -181,6 +185,25 @@ export interface MemoryUpdateEvent extends StreamEvent {
   };
 }
 
+/** 规划进度事件（PlanningOrchestrator 调度每个 Subagent 时发出） */
+export interface PlanningProgressStreamEvent extends StreamEvent {
+  type: "planning_progress";
+  data: PlanningProgressEvent;
+}
+
+/** 续接确认事件（ResumeClassifier 置信度低时发出，请求用户确认意图） */
+export interface ResumeClarificationStreamEvent extends StreamEvent {
+  type: "resume_clarification";
+  data: {
+    classification: ResumeClassification;
+    options: Array<{
+      intent: ResumeClassification["intent"];
+      label: string;
+      description: string;
+    }>;
+  };
+}
+
 export type TypedStreamEvent =
   | TextDeltaEvent
   | ToolCallEvent
@@ -190,6 +213,8 @@ export type TypedStreamEvent =
   | DisambiguationEvent
   | DisambiguationPendingEvent
   | RoundSummaryEvent
-  | MemoryUpdateEvent;
+  | MemoryUpdateEvent
+  | PlanningProgressStreamEvent
+  | ResumeClarificationStreamEvent;
 
 export type StreamCallback = (event: TypedStreamEvent) => void;

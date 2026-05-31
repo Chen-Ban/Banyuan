@@ -1,6 +1,12 @@
 /**
  * HTTP 客户端封装
  * 基于原生 fetch，统一处理错误和响应格式
+ *
+ * Token 刷新策略：
+ * - 请求收到 401 时，自动使用 refresh token 获取新的 access token
+ * - 刷新成功后重试原请求（对调用方透明）
+ * - 刷新失败（refresh token 也过期）时才清除登录态
+ * - 并发请求共享同一个刷新 Promise，避免重复刷新
  */
 
 const BASE_URL = '/api'
@@ -41,8 +47,77 @@ export class ApiError extends Error {
   }
 }
 
+// ─── Token 刷新基础设施 ────────────────────────────────────────────────────────
+
+/** 正在进行中的刷新 Promise（用于并发请求去重） */
+let refreshingPromise: Promise<boolean> | null = null
+
+/**
+ * 尝试用 refresh token 获取新的 token 对。
+ * 返回 true 表示刷新成功（localStorage 已更新），false 表示刷新失败。
+ * 并发调用会共享同一个 Promise。
+ */
+function tryRefreshToken(): Promise<boolean> {
+  if (refreshingPromise) return refreshingPromise
+
+  refreshingPromise = (async () => {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+    if (!refreshToken) return false
+
+    try {
+      const response = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+
+      if (!response.ok) return false
+
+      const result = await response.json()
+      if (!result.success || !result.data) return false
+
+      // 写入新 token 对
+      localStorage.setItem(TOKEN_KEY, result.data.accessToken)
+      localStorage.setItem(REFRESH_TOKEN_KEY, result.data.refreshToken)
+      return true
+    } catch {
+      return false
+    }
+  })().finally(() => {
+    refreshingPromise = null
+  })
+
+  return refreshingPromise
+}
+
+/**
+ * 清除本地登录态
+ */
+function clearTokens() {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+}
+
+// ─── 请求方法 ──────────────────────────────────────────────────────────────────
+
+/**
+ * 构建请求 headers（含 Authorization）
+ */
+function buildHeaders(options: RequestInit): Record<string, string> {
+  const headers: Record<string, string> = {}
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
+  }
+  const accessToken = localStorage.getItem(TOKEN_KEY)
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+  return headers
+}
+
 /**
  * 统一请求方法（JSON 请求/响应）
+ * 遇到 401 自动刷新 token 并重试一次
  */
 async function request<T>(
   url: string,
@@ -50,30 +125,27 @@ async function request<T>(
 ): Promise<T> {
   const fullUrl = `${BASE_URL}${url}`
 
-  const defaultHeaders: Record<string, string> = {}
-  if (!(options.body instanceof FormData)) {
-    defaultHeaders['Content-Type'] = 'application/json'
+  const doFetch = async () => {
+    const headers = buildHeaders(options)
+    return fetch(fullUrl, {
+      ...options,
+      headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
+    })
   }
 
-  // 从 localStorage 读取 access token，附加到请求头
-  const accessToken = localStorage.getItem(TOKEN_KEY)
-  if (accessToken) {
-    defaultHeaders['Authorization'] = `Bearer ${accessToken}`
-  }
+  let response = await doFetch()
 
-  const response = await fetch(fullUrl, {
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-  })
-
-  // 处理 401：清除本地 token
+  // 401 → 尝试刷新 token 后重试
   if (response.status === 401) {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-    throw new ApiError('Unauthorized', 401)
+    const refreshed = await tryRefreshToken()
+    if (refreshed) {
+      response = await doFetch()
+    }
+    // 刷新失败或重试后仍然 401 → 清除登录态
+    if (response.status === 401) {
+      clearTokens()
+      throw new ApiError('Unauthorized', 401)
+    }
   }
 
   const data = await response.json()
@@ -134,7 +206,7 @@ export function del<T>(url: string): Promise<T> {
 /**
  * 流式请求（SSE 等场景）
  *
- * 与 request() 相同的认证和 401 处理，但不解析 JSON，
+ * 与 request() 相同的认证和 401 刷新处理，但不解析 JSON，
  * 直接返回原始 Response 供调用方读取 ReadableStream。
  */
 export async function stream(
@@ -143,27 +215,32 @@ export async function stream(
 ): Promise<Response> {
   const fullUrl = `${BASE_URL}${url}`
 
-  const defaultHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
+  const doFetch = async () => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    const accessToken = localStorage.getItem(TOKEN_KEY)
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`
+    }
+    return fetch(fullUrl, {
+      ...options,
+      headers: { ...headers, ...(options.headers as Record<string, string> | undefined) },
+    })
   }
 
-  const accessToken = localStorage.getItem(TOKEN_KEY)
-  if (accessToken) {
-    defaultHeaders['Authorization'] = `Bearer ${accessToken}`
-  }
+  let response = await doFetch()
 
-  const response = await fetch(fullUrl, {
-    ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
-  })
-
+  // 401 → 尝试刷新 token 后重试
   if (response.status === 401) {
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-    throw new ApiError('Unauthorized', 401)
+    const refreshed = await tryRefreshToken()
+    if (refreshed) {
+      response = await doFetch()
+    }
+    if (response.status === 401) {
+      clearTokens()
+      throw new ApiError('Unauthorized', 401)
+    }
   }
 
   if (!response.ok) {

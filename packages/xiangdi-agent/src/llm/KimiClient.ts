@@ -24,7 +24,7 @@
  */
 
 import OpenAI from "openai";
-import type { LLMClient, LLMResponse } from "../core/llmTypes.js";
+import type { LLMClient, LLMResponse, OnTokenCallback } from "../core/llmTypes.js";
 import type { Message } from "../core/types.js";
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
@@ -86,6 +86,72 @@ export class KimiClient implements LLMClient {
 
     const completion = await this.openai.chat.completions.create(requestParams);
     return convertToLLMResponse(completion);
+  }
+
+  async createMessageStream(
+    params: {
+      model: string;
+      max_tokens: number;
+      system?: string;
+      messages: Message[];
+      tools?: unknown[];
+      temperature?: number;
+    },
+    onToken: OnTokenCallback
+  ): Promise<LLMResponse> {
+    const openAIMessages = buildOpenAIMessages(params.system, params.messages);
+
+    // 有工具调用时降级为非流式（工具参数需要完整 JSON，逐字流式无法可靠解析）
+    const hasTools = params.tools && params.tools.length > 0;
+    if (hasTools) {
+      const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
+        model: params.model || this.defaultModel,
+        messages: openAIMessages,
+        max_tokens: params.max_tokens,
+        temperature: params.temperature ?? 0.7,
+        tools: convertToOpenAITools(params.tools!),
+        tool_choice: "auto",
+      };
+      const completion = await this.openai.chat.completions.create(requestParams);
+      const textContent = completion.choices[0]?.message?.content ?? "";
+      if (textContent) onToken(textContent);
+      return convertToLLMResponse(completion);
+    }
+
+    // 纯文本：流式调用，逐 token 回调
+    const stream = await this.openai.chat.completions.create({
+      model: params.model || this.defaultModel,
+      messages: openAIMessages,
+      max_tokens: params.max_tokens,
+      temperature: params.temperature ?? 0.7,
+      stream: true,
+    });
+
+    let fullText = "";
+    let finishReason: string | null = null;
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content;
+      if (delta) {
+        fullText += delta;
+        onToken(delta);
+      }
+      const reason = chunk.choices[0]?.finish_reason;
+      if (reason) finishReason = reason;
+    }
+
+    let stopReason: string;
+    switch (finishReason) {
+      case "stop": stopReason = "end_turn"; break;
+      case "tool_calls": stopReason = "tool_use"; break;
+      case "length": stopReason = "max_tokens"; break;
+      default: stopReason = finishReason ?? "end_turn";
+    }
+
+    return {
+      stop_reason: stopReason,
+      content: fullText ? [{ type: "text", text: fullText }] : [{ type: "text", text: "" }],
+    };
   }
 }
 

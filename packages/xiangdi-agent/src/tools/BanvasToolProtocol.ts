@@ -8,6 +8,13 @@
  * 1. 原子性：每个工具只做一件事
  * 2. 幂等性：相同输入产生相同结果
  * 3. 描述清晰：description 是 LLM 理解工具的唯一依据，务必准确
+ *
+ * 数据格式：AI Projection（ADR-027）
+ *   - 视图类型：GRAPHVIEW / TEXTVIEW / IMAGEVIEW / VIDEOVIEW / COMBINEDVIEW
+ *   - 坐标：{ x, y, rotation?, scaleX?, scaleY? }
+ *   - 尺寸：{ width, height }
+ *   - 装饰：{ fill?, stroke?, cornerRadius?, overflow? }
+ *   - 页面包含 children[]，每个 child 是 AIProjectionNode
  */
 
 import type { ToolDefinition } from "../core/types.js";
@@ -33,7 +40,9 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: BANVAS_TOOLS.GET_APP_STATE,
     description:
-      "获取当前应用的完整状态（AISchema 格式）。在进行任何修改前，应先调用此工具了解现有结构。",
+      "获取当前应用的完整状态（AI Projection 格式）。返回所有页面的结构化数据，包括视图树、坐标、尺寸、装饰、事件绑定等。在进行任何修改前，应先调用此工具了解现有结构。\n\n" +
+      "返回格式示例（单页面）：\n" +
+      '{ "id": "page_xxx", "name": "首页", "size": { "width": 375, "height": 812 }, "children": [...] }',
     input_schema: {
       type: "object",
       properties: {
@@ -46,7 +55,7 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: BANVAS_TOOLS.CREATE_PAGE,
-    description: "在应用中新建一个页面。",
+    description: "在应用中新建一个页面。返回新页面的 ID。",
     input_schema: {
       type: "object",
       properties: {
@@ -71,16 +80,37 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
     name: BANVAS_TOOLS.ADD_NODE,
     description:
       "向指定页面添加一个新节点。返回新节点的 id。\n\n" +
-      "【重要】node 必须包含 transform 嵌套结构来描述位置和尺寸：\n" +
+      "【重要】使用 AI Projection 格式描述节点：\n" +
+      "- type: 视图类型，可选 GRAPHVIEW / TEXTVIEW / IMAGEVIEW / VIDEOVIEW / COMBINEDVIEW\n" +
+      "- transform: { x, y, rotation?, scaleX?, scaleY? } 位置坐标\n" +
+      "- size: { width, height } 尺寸\n" +
+      "- decoration: { fill?, stroke?, cornerRadius?, overflow? } 装饰样式（可选）\n" +
+      "- content: 视图内容（类型相关，可选）\n" +
+      "- children: 子节点数组（COMBINEDVIEW 适用）\n\n" +
+      "示例 — 添加红色圆角矩形：\n" +
       "{\n" +
-      '  "type": "rect",\n' +
-      '  "transform": {\n' +
-      '    "position": { "x": 100, "y": 50 },\n' +
-      '    "size": { "width": 200, "height": 100 }\n' +
-      "  },\n" +
-      '  "fill": { "type": "solid", "color": "#ff0000" }\n' +
+      '  "type": "GRAPHVIEW",\n' +
+      '  "transform": { "x": 20, "y": 100 },\n' +
+      '  "size": { "width": 335, "height": 48 },\n' +
+      '  "decoration": { "fill": { "color": "#ff4d4f" }, "cornerRadius": 8 },\n' +
+      '  "content": { "graphType": "ROUNDED_RECT", "data": { "radii": 8 } }\n' +
       "}\n\n" +
-      "支持的 type: rect / text / image / group / flex / cubic_bezier / quadratic_bezier",
+      "示例 — 添加文本：\n" +
+      "{\n" +
+      '  "type": "TEXTVIEW",\n' +
+      '  "transform": { "x": 20, "y": 160 },\n' +
+      '  "size": { "width": 200, "height": 24 },\n' +
+      '  "content": { "paragraphs": [{ "elements": [{ "text": "Hello" }] }] }\n' +
+      "}\n\n" +
+      "示例 — 添加 Flex 容器：\n" +
+      "{\n" +
+      '  "type": "COMBINEDVIEW",\n' +
+      '  "transform": { "x": 0, "y": 0 },\n' +
+      '  "size": { "width": 375, "height": 200 },\n' +
+      '  "layoutMode": "flex",\n' +
+      '  "flexLayout": { "direction": "column", "gap": 8, "padding": 16 },\n' +
+      '  "children": []\n' +
+      "}",
     input_schema: {
       type: "object",
       properties: {
@@ -88,60 +118,58 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
         node: {
           type: "object",
           description:
-            "节点描述对象。必须包含 type 和 transform 字段。",
+            "AI Projection 格式的节点描述。必须包含 type、transform、size 字段。",
           properties: {
             type: {
               type: "string",
-              enum: ["rect", "text", "image", "group", "flex", "cubic_bezier", "quadratic_bezier"],
-              description: "节点类型",
+              enum: ["GRAPHVIEW", "TEXTVIEW", "IMAGEVIEW", "VIDEOVIEW", "COMBINEDVIEW"],
+              description: "视图类型",
             },
             transform: {
               type: "object",
-              description: "位置与尺寸信息（必填）",
+              description: "位置坐标",
               properties: {
-                position: {
-                  type: "object",
-                  properties: {
-                    x: { type: "number", description: "水平位置 px，左上角为原点" },
-                    y: { type: "number", description: "垂直位置 px，左上角为原点" },
-                  },
-                  required: ["x", "y"],
-                },
-                size: {
-                  type: "object",
-                  properties: {
-                    width: { type: "number", description: "宽度 px" },
-                    height: { type: "number", description: "高度 px" },
-                  },
-                  required: ["width", "height"],
-                },
+                x: { type: "number", description: "水平位置 px，左上角为原点" },
+                y: { type: "number", description: "垂直位置 px，左上角为原点" },
                 rotation: { type: "number", description: "旋转角度（默认 0）" },
-                opacity: { type: "number", description: "透明度 0-1（默认 1）" },
+                scaleX: { type: "number", description: "水平缩放（默认 1）" },
+                scaleY: { type: "number", description: "垂直缩放（默认 1）" },
               },
-              required: ["position", "size"],
+              required: ["x", "y"],
             },
-            name: { type: "string", description: "可读名称（可选）" },
-            fill: {
+            size: {
               type: "object",
-              description: "填充（rect 适用）。示例：{ \"type\": \"solid\", \"color\": \"#ffffff\" }",
+              description: "尺寸",
+              properties: {
+                width: { type: "number", description: "宽度 px" },
+                height: { type: "number", description: "高度 px" },
+              },
+              required: ["width", "height"],
             },
-            stroke: {
+            decoration: {
               type: "object",
-              description: "描边。示例：{ \"color\": \"#000000\", \"width\": 1, \"style\": \"solid\" }",
+              description: "装饰样式：{ fill?: { color, opacity? }, stroke?: { color, width? }, cornerRadius?, overflow? }",
             },
-            cornerRadius: { type: "number", description: "圆角半径（rect 适用，默认 0）" },
-            content: { type: "string", description: "文本内容（text 类型必填）" },
-            style: {
+            content: {
               type: "object",
-              description: "文本样式（text 适用）。示例：{ \"fontSize\": 16, \"color\": \"#000000\", \"align\": \"center\" }",
+              description: "视图内容。GRAPHVIEW: { graphType, data }; TEXTVIEW: { paragraphs }; IMAGEVIEW: 使用 src 字段",
             },
-            src: { type: "string", description: "图片 URL（image 类型必填）" },
+            src: { type: "string", description: "图片/视频 URL（IMAGEVIEW/VIDEOVIEW 适用）" },
+            layoutMode: {
+              type: "string",
+              enum: ["free", "flex", "list", "grid"],
+              description: "布局模式（COMBINEDVIEW 适用，默认 free）",
+            },
+            flexLayout: {
+              type: "object",
+              description: "Flex 布局配置：{ direction?, gap?, padding?, mainAxisAlignment?, crossAxisAlignment? }",
+            },
             children: {
               type: "array",
-              description: "子节点数组（group/flex 类型适用）",
+              description: "子节点数组（COMBINEDVIEW 适用）",
             },
           },
-          required: ["type", "transform"],
+          required: ["type", "transform", "size"],
         },
       },
       required: ["pageId", "node"],
@@ -150,7 +178,11 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: BANVAS_TOOLS.UPDATE_NODE,
     description:
-      "更新已有节点的属性。只需传入需要修改的字段（深度合并），不需要传完整节点。",
+      "更新已有节点的属性。只需传入需要修改的字段（深度合并），不需要传完整节点。\n\n" +
+      "示例 — 修改背景色和圆角：\n" +
+      '{ "pageId": "xxx", "nodeId": "yyy", "patch": { "decoration": { "fill": { "color": "#1890ff" }, "cornerRadius": 12 } } }\n\n' +
+      "示例 — 修改文本内容：\n" +
+      '{ "pageId": "xxx", "nodeId": "yyy", "patch": { "content": { "paragraphs": [{ "elements": [{ "text": "New text" }] }] } } }',
     input_schema: {
       type: "object",
       properties: {
@@ -158,7 +190,7 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
         nodeId: { type: "string", description: "目标节点 ID" },
         patch: {
           type: "object",
-          description: "需要更新的字段，支持嵌套路径，如 { style: { fontSize: 16 } }",
+          description: "需要更新的字段（AI Projection 格式），深度合并到现有节点。可更新 transform/size/decoration/content/layoutMode/flexLayout 等。",
         },
       },
       required: ["pageId", "nodeId", "patch"],
@@ -178,7 +210,7 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: BANVAS_TOOLS.MOVE_NODE,
-    description: "移动节点到新位置。",
+    description: "移动节点到新位置（更新 transform 的 x/y）。",
     input_schema: {
       type: "object",
       properties: {
@@ -192,7 +224,7 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: BANVAS_TOOLS.RESIZE_NODE,
-    description: "调整节点尺寸。",
+    description: "调整节点尺寸（更新 size 的 width/height）。",
     input_schema: {
       type: "object",
       properties: {
@@ -207,14 +239,14 @@ export const BANVAS_TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: BANVAS_TOOLS.APPLY_PATCH,
     description:
-      "批量应用一组操作（原子事务）。适合需要同时修改多个节点的场景，避免中间状态不一致。",
+      "批量应用一组操作（原子事务）。适合需要同时修改多个节点的场景，避免中间状态不一致。所有操作在内存中共享同一份 Projection 状态，最终一次性写回。",
     input_schema: {
       type: "object",
       properties: {
         operations: {
           type: "array",
           description:
-            "操作列表，每项为 { tool: BanvasToolName, input: object }",
+            "操作列表，每项为 { tool: BanvasToolName, input: object }。tool 可选值：banvas_create_page / banvas_add_node / banvas_update_node / banvas_delete_node / banvas_move_node / banvas_resize_node",
           items: {
             type: "object",
             properties: {

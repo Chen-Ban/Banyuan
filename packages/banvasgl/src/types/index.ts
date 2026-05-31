@@ -214,6 +214,21 @@ export type {
     IUseBanvasResult,
 } from './hook/hook'
 
+// ── 物料系统接口 ──
+export type {
+    MaterialSource,
+    IMaterialMeta,
+    MaterialParameterType,
+    IMaterialParameter,
+    IMaterialAsset,
+    IMaterialTemplate,
+    IInternalIdRef,
+    IMaterial,
+    IMaterialActions,
+    IMaterialSerializeConfig,
+    IMaterialParameterBinding,
+} from './material/material'
+
 // ── PropertyAdapter 接口 ──
 export type {
     PropertyCategory,

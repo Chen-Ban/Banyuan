@@ -13,11 +13,13 @@ import { createViewActions as _createViewActions } from './viewActions.js'
 import { createPageActions as _createPageActions } from './pageActions.js'
 import { createAppActions as _createAppActions } from './appActions.js'
 import { createHistoryActions as _createHistoryActions } from './historyActions.js'
+import { createMaterialActions as _createMaterialActions } from './materialActions.js'
 import { defaultViewCreatorStrategies, graphCreatorStrategies } from './viewCreateStrategies.js'
 
 // ── Re-exports（公共 API） ──
 export type { ViewCreatorStrategy } from './viewActions.js'
 export { defaultViewCreatorStrategies } from './viewCreateStrategies.js'
+export { createMaterialActions } from './materialActions.js'
 
 // ── Factory Options ──
 
@@ -39,5 +41,6 @@ export function createBanvasActions(
         page: _createPageActions(getApp),
         app: _createAppActions(getApp),
         history: _createHistoryActions(getApp),
+        material: _createMaterialActions(getApp),
     }
 }

@@ -95,23 +95,55 @@ export function fromAIProjection(projection: AIProjectionScene, version: string)
 }
 
 /**
- * 批量转换：将 pages 数组（string[]）转换为 AIProjectionScene 数组
+ * 从 App 级别的 appJSON 字符串中提取并转换为 AIProjectionScene 数组。
+ *
+ * appJSON 格式：{ type: "APP", version, data: { lifetimes, scenes: [{ $type, $value }, ...] }, metadata }
+ * 每个 scene 元素包装为 { $type: "SCENE", $value: sceneData }。
  */
-export function pagesToProjection(pages: string[]): AIProjectionScene[] {
-    return pages.map((pageStr) => {
-        const serializedData: SerializedData = JSON.parse(pageStr)
-        return toAIProjection(serializedData)
+export function appJSONToProjection(appJSON: string): AIProjectionScene[] {
+    const appSerialized: SerializedData = JSON.parse(appJSON)
+    const appData = appSerialized.data
+    if (!appData || !Array.isArray(appData.scenes)) {
+        return []
+    }
+    return appData.scenes.map((sceneWrapper: { $type: string; $value: any }) => {
+        // 每个 sceneWrapper 是 { $type: "SCENE", $value: sceneData }
+        // 构造一个 Scene 级别的 SerializedData，复用 toAIProjection
+        const sceneSerializedData: SerializedData = {
+            type: 'SCENE',
+            version: appSerialized.version,
+            data: sceneWrapper,
+            metadata: appSerialized.metadata,
+        }
+        return toAIProjection(sceneSerializedData)
     })
 }
 
 /**
- * 批量逆转换：将 AIProjectionScene 数组转换回 pages 数组（string[]）
+ * 将 AIProjectionScene 数组转换回 App 级别的 appJSON 字符串。
+ *
+ * 输出格式：{ type: "APP", version, data: { lifetimes, scenes: [{ $type, $value }, ...] }, metadata }
  */
-export function projectionToPages(scenes: AIProjectionScene[], version: string): string[] {
-    return scenes.map((scene) => {
-        const serializedData = fromAIProjection(scene, version)
-        return JSON.stringify(serializedData)
+export function projectionToAppJSON(scenes: AIProjectionScene[], version: string): string {
+    const sceneWrappers = scenes.map((scene) => {
+        const sceneSerializedData = fromAIProjection(scene, version)
+        // fromAIProjection 返回 { type: "SCENE", version, data: { $type: "SCENE", $value: ... }, metadata }
+        // 我们取其 data 作为 App.scenes 数组的元素
+        return sceneSerializedData.data
     })
+    const appSerializedData: SerializedData = {
+        type: 'APP',
+        version,
+        data: {
+            lifetimes: { onLaunch: null, onUnlaunch: null },
+            scenes: sceneWrappers,
+        },
+        metadata: {
+            timestamp: Date.now(),
+            source: 'AI Projection',
+        },
+    }
+    return JSON.stringify(appSerializedData)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

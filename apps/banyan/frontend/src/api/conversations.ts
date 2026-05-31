@@ -38,10 +38,10 @@ export type AssistantContent =
   | { type: 'text'; text: string }
   | { type: 'tool_call'; id: string; name: string; input: unknown }
   | { type: 'tool_result'; id: string; result: unknown; isError: boolean }
-  | { type: 'pages_snapshot'; pages: string[] }
-  | { type: 'schema_update'; collections: SchemaCollectionDef[] }
-  | { type: 'disambiguation'; options: DisambiguationOptions }
-  | { type: 'done'; pages: string[] }
+| { type: 'app_snapshot'; appJSON: string }
+| { type: 'schema_update'; collections: SchemaCollectionDef[] }
+| { type: 'disambiguation'; options: DisambiguationOptions }
+| { type: 'done'; appJSON: string }
   | { type: 'error'; message: string }
 
 /** 消息 */

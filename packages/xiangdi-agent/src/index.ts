@@ -48,6 +48,8 @@ export type {
   DisambiguationPendingEvent,
   RoundSummaryEvent,
   MemoryUpdateEvent,
+  PlanningProgressStreamEvent,
+  ResumeClarificationStreamEvent,
   // LLM 客户端接口
   LLMClient,
   LLMResponse,
@@ -74,6 +76,30 @@ export {
   buildSpecSystemPrompt,
   loadSpecPrompt,
   createExtractMemoryNode,
+  // Multi-Agent Planning (ADR-032/033/034)
+  PlanningOrchestrator,
+  runSubAgent,
+  runPMAgent,
+  runArchAgent,
+  runVisualAgent,
+  runTaskPlannerAgent,
+  buildPMContext,
+  buildArchContext,
+  buildVisualContext,
+  buildTaskContext,
+  buildContextSummary,
+  // Resume (ADR-034)
+  PLANNING_DAG,
+  getDownstream,
+  getDirectDownstream,
+  getValidArtifacts,
+  getResumeStartAgent,
+  getInvalidatedAgents,
+  classifyResumeIntent,
+  handleContinue,
+  handleRefine,
+  handleRestart,
+  handleClarify,
 } from "./graph/index.js";
 export type {
   MasterState,
@@ -86,14 +112,42 @@ export type {
   SpecNodeConfig,
   ExtractMemoryConfig,
   MemoryNodeState,
+  // Multi-Agent Planning types
+  PlanningOrchestratorConfig,
+  PlanningResult,
+  PlanningRunOptions,
+  SubAgentConfig,
+  SubAgentRunResult,
+  SubAgentLLMConfig,
+  SubAgentState,
+  PMAgentInput,
+  PMAgentConfig,
+  ArchAgentInput,
+  ArchAgentConfig,
+  VisualAgentInput,
+  VisualAgentConfig,
+  TaskPlannerInput,
+  TaskPlannerAgentConfig,
+  TokenBudget,
+  // Resume types
+  ResumeIntent,
+  ResumeClassification,
+  CompletedArtifactEntry,
+  CompletedArtifacts,
+  PartialAgentState,
+  PlanningSnapshot,
+  RefinementContext,
+  PlanningArtifactStatus,
+  ResumeClassifierConfig,
+  ResumeClassifierInput,
 } from "./graph/index.js";
 
 // ─── Schema 层（AI Projection，ADR-027）─────────────────────────────────────
 export {
-  toAIProjection,
-  fromAIProjection,
-  pagesToProjection,
-  projectionToPages,
+toAIProjection,
+fromAIProjection,
+appJSONToProjection,
+projectionToAppJSON,
 } from "./schema/index.js";
 
 export type {
@@ -160,6 +214,14 @@ export {
   createSchemaGetHandler,
   createSchemaSetCollectionsHandler,
   registerSchemaTools,
+  // Material 物料工具
+  MATERIAL_SEARCH_TOOL_NAME,
+  MATERIAL_SEARCH_TOOL_DEFINITION,
+  MATERIAL_GET_DETAIL_TOOL_NAME,
+  MATERIAL_GET_DETAIL_TOOL_DEFINITION,
+  createMaterialSearchHandler,
+  createMaterialGetDetailHandler,
+  registerMaterialTools,
 } from "./tools/index.js";
 
 export type {
@@ -206,6 +268,14 @@ export type {
   SchemaSetCollectionsInput,
   SchemaSetCollectionsOutput,
   SchemaToolsConfig,
+  // Material 物料工具类型
+  MaterialStore,
+  MaterialSummary,
+  MaterialDetail,
+  MaterialSearchInput,
+  MaterialSearchOutput,
+  MaterialGetDetailInput,
+  MaterialGetDetailOutput,
 } from "./tools/index.js";
 
 // ─── 提示词 ───────────────────────────────────────────────────────────────────
@@ -213,12 +283,17 @@ export {
   XIANGDI_SYSTEM_PROMPT,
   buildSystemPrompt,
   generateAISchemaDoc,
+  generateNodeSchemaDoc,
   getAllFewshots,
   flattenFewshots,
   FEWSHOT_CREATE_LOGIN_PAGE,
+  // Multi-Agent Prompts
+  DEFAULT_AGENT_PROMPTS,
+  getAgentPrompt,
+  getAgentPromptVersions,
 } from "./prompts/index.js";
 
-export type { BuildSystemPromptOptions } from "./prompts/index.js";
+export type { BuildSystemPromptOptions, AgentPromptEntry } from "./prompts/index.js";
 
 // ─── Spec 层（SDD 两层规范）──────────────────────────────────────────────────
 export {
@@ -247,6 +322,19 @@ export type {
   // SpecPlanner 类型
   SpecPlannerConfig,
   PlanResult,
+  // Multi-Agent Planning 类型 (ADR-032)
+  AgentRole,
+  Feature,
+  FeatureDependency,
+  FeatureList,
+  ViewChange,
+  SchemaChange,
+  TechPlan,
+  PageVisualSpec,
+  DesignTokens,
+  ComponentChoice,
+  VisualSpec,
+  PlanningProgressEvent,
 } from "./spec/index.js";
 
 // ─── Harness 层（约束 + 反馈回路）────────────────────────────────────────────
@@ -331,11 +419,15 @@ export type {
   SignalListener,
 } from "./llm/index.js";
 
-// ─── Memory 层（中期记忆 + 长期记忆）─────────────────────────────────────────
+// ─── Memory 层（中期记忆 + 长期记忆 + 命名空间）──────────────────────────────
 export {
   LocalEpisodicMemory,
   LocalSemanticMemory,
   DefaultMemoryManager,
+  // 命名空间记忆 (ADR-033)
+  NamespacedMemoryManager,
+  createMemoryManager,
+  SharedMemoryWriter,
 } from "./memory/index.js";
 
 export type {
@@ -355,6 +447,9 @@ export type {
   LocalEpisodicMemoryConfig,
   LocalSemanticMemoryConfig,
   DefaultMemoryManagerConfig,
+  // 命名空间记忆 (ADR-033)
+  MemoryNamespace,
+  NamespacedMemoryManagerConfig,
 } from "./memory/index.js";
 
 // ─── 编排层（类型定义）────────────────────────────────────────────────

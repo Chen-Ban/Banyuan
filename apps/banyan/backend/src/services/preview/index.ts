@@ -82,12 +82,12 @@ export function buildPreviewHtml(data: PreviewData): string {
       import { useRuntimeBanvas } from 'https://esm.sh/@banyuan/banvas-runtime-web@${canvasVersion}'
 
       const APP_JSON = ${safeAppJson}
-      const APP_PAGES = JSON.parse(APP_JSON)
+      const APP_DATA = JSON.parse(APP_JSON)
       const WIDTH = ${width}
       const HEIGHT = ${height}
 
       function App() {
-        const { Banvas } = useRuntimeBanvas(APP_PAGES, { width: WIDTH, height: HEIGHT })
+        const { Banvas } = useRuntimeBanvas(APP_DATA, { width: WIDTH, height: HEIGHT })
         return React.createElement(React.Fragment, null, Banvas)
       }
 

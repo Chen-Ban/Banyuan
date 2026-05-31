@@ -305,46 +305,56 @@ export default class RoundedRect
 
     if (index === 0) {
       // 左上角：右下角固定
-      const newW = x + w - point.x;
-      const newH = y + h - point.y;
-      this.x = point.x;
-      this.y = point.y;
-      this.width = Math.max(0, newW);
-      this.height = Math.max(0, newH);
+      const anchorX = x + w;
+      const anchorY = y + h;
+      this.x = Math.min(point.x, anchorX);
+      this.y = Math.min(point.y, anchorY);
+      this.width = Math.abs(anchorX - point.x);
+      this.height = Math.abs(anchorY - point.y);
     } else if (index === 1) {
       // 上边中点：只改 y 和 height，底边固定
-      const newH = y + h - point.y;
-      this.y = point.y;
-      this.height = Math.max(0, newH);
+      const anchorY = y + h;
+      this.y = Math.min(point.y, anchorY);
+      this.height = Math.abs(anchorY - point.y);
     } else if (index === 2) {
       // 右上角：左下角固定
-      const newW = point.x - x;
-      const newH = y + h - point.y;
-      this.y = point.y;
-      this.width = Math.max(0, newW);
-      this.height = Math.max(0, newH);
+      const anchorX = x;
+      const anchorY = y + h;
+      this.x = Math.min(point.x, anchorX);
+      this.y = Math.min(point.y, anchorY);
+      this.width = Math.abs(point.x - anchorX);
+      this.height = Math.abs(anchorY - point.y);
     } else if (index === 3) {
       // 右边中点：只改 width，左边固定
-      this.width = Math.max(0, point.x - x);
+      const anchorX = x;
+      this.x = Math.min(point.x, anchorX);
+      this.width = Math.abs(point.x - anchorX);
     } else if (index === 4) {
       // 右下角：左上角固定
-      this.width = Math.max(0, point.x - x);
-      this.height = Math.max(0, point.y - y);
+      const anchorX = x;
+      const anchorY = y;
+      this.x = Math.min(point.x, anchorX);
+      this.y = Math.min(point.y, anchorY);
+      this.width = Math.abs(point.x - anchorX);
+      this.height = Math.abs(point.y - anchorY);
     } else if (index === 5) {
       // 下边中点：只改 height，顶边固定
-      this.height = Math.max(0, point.y - y);
+      const anchorY = y;
+      this.y = Math.min(point.y, anchorY);
+      this.height = Math.abs(point.y - anchorY);
     } else if (index === 6) {
       // 左下角：右上角固定
-      const newW = x + w - point.x;
-      const newH = point.y - y;
-      this.x = point.x;
-      this.width = Math.max(0, newW);
-      this.height = Math.max(0, newH);
+      const anchorX = x + w;
+      const anchorY = y;
+      this.x = Math.min(point.x, anchorX);
+      this.y = Math.min(point.y, anchorY);
+      this.width = Math.abs(anchorX - point.x);
+      this.height = Math.abs(point.y - anchorY);
     } else if (index === 7) {
       // 左边中点：只改 x 和 width，右边固定
-      const newW = x + w - point.x;
-      this.x = point.x;
-      this.width = Math.max(0, newW);
+      const anchorX = x + w;
+      this.x = Math.min(point.x, anchorX);
+      this.width = Math.abs(anchorX - point.x);
     } else if (index >= 8 && index <= 11) {
       // 圆角控制点：限制最大半径为相邻两边中较短边的一半
       const maxRadius = Math.min(this.width, this.height) / 2;

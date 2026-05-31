@@ -143,6 +143,15 @@ export enum StyleType {
 }
 
 /**
+ * 应用类型枚举
+ *
+ * 标识 App 对象的类型，用于 Serializer 注册。
+ */
+export enum AppType {
+    APP = 'APP',
+}
+
+/**
  * 场景类型枚举
  *
  * 标识场景对象的类型，用于 Serializer 注册。当前仅有默认场景类型。

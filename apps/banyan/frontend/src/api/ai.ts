@@ -59,9 +59,9 @@ export interface AiToolResultEvent {
   isError: boolean
 }
 
-export interface AiPagesSnapshotEvent {
-  type: 'pages_snapshot'
-  pages: string[]
+export interface AiAppSnapshotEvent {
+  type: 'app_snapshot'
+  appJSON: string
 }
 
 export interface SchemaFieldDef {
@@ -88,12 +88,50 @@ export interface AiSchemaUpdateEvent {
 
 export interface AiDoneEvent {
   type: 'done'
-  pages: string[]
+  appJSON: string
 }
 
 export interface AiErrorEvent {
   type: 'error'
   message: string
+}
+
+// ─── interrupt 事件（humanGate 方案确认）────────────────────────────────────────
+
+export interface PlanTask {
+  taskId: string
+  description: string
+}
+
+export interface AiInterruptEvent {
+  type: 'interrupt'
+  threadId: string
+  node: string
+  value: {
+    type: 'humanGate'
+    planDescription: string
+    intentSummary: string
+    tasks: PlanTask[]
+  } | null
+}
+
+// ─── Planning Progress 事件（Multi-Agent 规划进度）────────────────────────────
+
+/** Agent 角色 */
+export type AgentRole = 'pm' | 'arch' | 'visual' | 'task'
+
+/** 规划进度事件 — 某 SubAgent 完成后 XiangDi 推送 */
+export interface AiPlanningProgressEvent {
+  type: 'planning_progress'
+  agent: AgentRole
+  /** Agent 推理过程摘要 */
+  reasoning?: string
+  /** 结构化产出（JSON） */
+  output: unknown
+  /** Token 用量 */
+  tokenUsage: { input: number; output: number }
+  /** 耗时（ms） */
+  durationMs: number
 }
 
 // ─── 消歧选项类型 ─────────────────────────────────────────────────────────────
@@ -118,9 +156,11 @@ export type AiStreamEvent =
   | AiTextDeltaEvent
   | AiToolCallEvent
   | AiToolResultEvent
-  | AiPagesSnapshotEvent
+  | AiAppSnapshotEvent
   | AiSchemaUpdateEvent
+  | AiPlanningProgressEvent
   | AiDisambiguationEvent
+  | AiInterruptEvent
   | AiDoneEvent
   | AiErrorEvent
 
@@ -199,11 +239,205 @@ export async function respondToDisambiguation(choiceId: string): Promise<void> {
   await post<ApiResponse>('/ai/disambiguation-response', { choiceId })
 }
 
+// ─── Resume（方案确认后恢复执行）──────────────────────────────────────────────
+
+export interface AiResumeOptions {
+  appId: string
+  /** 对话 ID（可选，未传时后端自动查找最近 pending dialogue） */
+  dialogueId?: string
+  /** 用户对 interrupt 的响应值（如 { approved: true } 或 { approved: false, feedback: '...' }） */
+  resumeValue?: unknown
+  onEvent: (event: AiStreamEvent) => void
+  signal?: AbortSignal
+}
+
+/**
+ * 恢复被 interrupt 暂停的 AI 执行（方案确认后继续）
+ * 返回 Promise，在 done 或 error 事件后 resolve/reject
+ */
+export async function aiResume(options: AiResumeOptions): Promise<string> {
+  const { appId, dialogueId, resumeValue, onEvent, signal } = options
+
+  const body: Record<string, unknown> = {}
+  if (dialogueId) body.dialogueId = dialogueId
+  if (resumeValue !== undefined) body.resumeValue = resumeValue
+
+  const response = await stream(`/ai/${appId}/resume`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    signal,
+  })
+
+  if (!response.body) {
+    throw new Error('响应体为空，无法读取 SSE 流')
+  }
+
+  return new Promise<string>((resolve, reject) => {
+    const reader = response.body!.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let settled = false
+
+    function settle(fn: () => void): void {
+      if (settled) return
+      settled = true
+      reader.cancel().catch(() => { /* 忽略 cancel 本身的错误 */ })
+      fn()
+    }
+
+    function parseSSEChunk(chunk: string): void {
+      const events = (buffer + chunk).split('\n\n')
+      buffer = events.pop() ?? ''
+
+      for (const eventStr of events) {
+        if (!eventStr.trim()) continue
+
+        let eventType = ''
+        let dataStr = ''
+
+        for (const line of eventStr.split('\n')) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim()
+          } else if (line.startsWith('data: ')) {
+            if (!dataStr) dataStr = line.slice(6).trim()
+          }
+        }
+
+        if (!eventType || !dataStr) continue
+
+        let data: unknown
+        try {
+          data = JSON.parse(dataStr)
+        } catch (parseErr) {
+          console.warn('[aiResume] SSE JSON 解析失败', { eventType, dataStr, parseErr })
+          continue
+        }
+
+        switch (eventType) {
+          case 'text_delta':
+            onEvent({ type: 'text_delta', text: (data as { text?: string }).text ?? '' })
+            break
+          case 'tool_call':
+            onEvent({
+              type: 'tool_call',
+              id: (data as { id: string }).id,
+              name: (data as { name: string }).name,
+              input: (data as { input: unknown }).input,
+            })
+            break
+          case 'tool_result':
+            onEvent({
+              type: 'tool_result',
+              id: (data as { id: string }).id,
+              result: (data as { result: unknown }).result,
+              isError: (data as { isError?: boolean }).isError ?? false,
+            })
+            break
+          case 'app_snapshot':
+            onEvent({ type: 'app_snapshot', appJSON: (data as { appJSON?: string }).appJSON ?? '' })
+            break
+          case 'schema_update':
+            onEvent({ type: 'schema_update', collections: (data as AiSchemaUpdateEvent).collections ?? [] })
+            break
+          case 'planning_progress':
+            onEvent({
+              type: 'planning_progress',
+              agent: (data as { agent: AgentRole }).agent,
+              reasoning: (data as { reasoning?: string }).reasoning,
+              output: (data as { output: unknown }).output,
+              tokenUsage: (data as { tokenUsage: { input: number; output: number } }).tokenUsage,
+              durationMs: (data as { durationMs: number }).durationMs,
+            })
+            break
+          case 'interrupt':
+            onEvent({ type: 'interrupt', threadId: (data as { threadId: string }).threadId, node: (data as { node: string }).node, value: (data as { value: unknown }).value as AiInterruptEvent['value'] })
+            break
+          case 'done': {
+            const appJSON = (data as { appJSON?: string }).appJSON ?? ''
+            onEvent({ type: 'done', appJSON })
+            settle(() => resolve(appJSON))
+            break
+          }
+          case 'error': {
+            const message = (data as { message?: string }).message ?? '未知错误'
+            onEvent({ type: 'error', message })
+            settle(() => reject(new Error(message)))
+            break
+          }
+        }
+
+        if (settled) return
+      }
+    }
+
+    async function pump(): Promise<void> {
+      try {
+        while (!settled) {
+          const { done, value } = await reader.read()
+          if (done) break
+          parseSSEChunk(decoder.decode(value, { stream: true }))
+        }
+        settle(() => resolve(''))
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') {
+          settle(() => resolve(''))
+        } else {
+          settle(() => reject(err as Error))
+        }
+      }
+    }
+
+    pump()
+  })
+}
+
+// ─── 对话事务控制（V3：confirm / discard / pending）──────────────────────────
+
+export interface PendingDialogueInfo {
+  dialogueId: string
+  type: 'chat' | 'task'
+  status: 'streaming' | 'done' | 'error'
+  userContent: string
+  assistantContent: string | null
+  createdAt: string
+}
+
+/**
+ * 确认对话：将 pending 暂存数据持久化到 MongoDB。
+ * 只有 task 模式且 pending.status === 'done' 时后端才接受。
+ */
+export async function confirmDialogue(appId: string): Promise<{ dialogueId: string }> {
+  return post<{ dialogueId: string }>(`/ai/${appId}/confirm`, {})
+}
+
+/**
+ * 撤销对话：丢弃 pending 暂存数据。
+ * 前端应同时回滚画布到对话前的状态。
+ */
+export async function discardDialogue(appId: string): Promise<void> {
+  await post<{ success: boolean }>(`/ai/${appId}/discard`, {})
+}
+
+/**
+ * 获取当前 pending 对话数据。
+ * 用于页面刷新后恢复"确认/撤销"状态。
+ */
+export async function getPendingDialogue(appId: string): Promise<{ hasPending: boolean; pending?: PendingDialogueInfo }> {
+  return get<{ hasPending: boolean; pending?: PendingDialogueInfo }>(`/ai/${appId}/pending`)
+}
+
+// ─── SSE 流式对话 ─────────────────────────────────────────────────────────────
+
 /**
  * 发起 AI 对话，通过 SSE 接收流式事件
  * 返回 Promise，在 done 或 error 事件后 resolve/reject
+ *
+ * 修复要点：
+ *   1. pump() 结束（stream EOF）时若既无 done 也无 error，兜底 resolve([])，防止 Promise 永久悬空
+ *   2. 捕获 AbortError 时主动 reader.cancel() 释放底层 ReadableStream 锁
+ *   3. 每次解析到 done/error 后立即 reader.cancel() 关闭上游流，避免持续占用网络连接
  */
-export async function aiChat(options: AiChatOptions): Promise<string[]> {
+export async function aiChat(options: AiChatOptions): Promise<string> {
   const { appId, prompt, type = 'task', images = [], onEvent, signal } = options
 
   const response = await stream(`/ai/${appId}/chat`, {
@@ -216,10 +450,20 @@ export async function aiChat(options: AiChatOptions): Promise<string[]> {
     throw new Error('响应体为空，无法读取 SSE 流')
   }
 
-  return new Promise<string[]>((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const reader = response.body!.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    // 标记是否已经通过 done/error 事件完成了 Promise，防止重复 settle
+    let settled = false
+
+    function settle(fn: () => void): void {
+      if (settled) return
+      settled = true
+      // 关闭流：不再需要后续数据
+      reader.cancel().catch(() => { /* 忽略 cancel 本身的错误 */ })
+      fn()
+    }
 
     function parseSSEChunk(chunk: string): void {
       // SSE 格式：每个事件由 "event: xxx\ndata: yyy\n\n" 组成
@@ -236,59 +480,98 @@ export async function aiChat(options: AiChatOptions): Promise<string[]> {
           if (line.startsWith('event: ')) {
             eventType = line.slice(7).trim()
           } else if (line.startsWith('data: ')) {
-            dataStr = line.slice(6).trim()
+            // 取第一行 data，多行 data（罕见）取首行
+            if (!dataStr) dataStr = line.slice(6).trim()
           }
         }
 
         if (!eventType || !dataStr) continue
 
+        let data: unknown
         try {
-          const data = JSON.parse(dataStr)
-
-          switch (eventType) {
-            case 'text_delta':
-              onEvent({ type: 'text_delta', text: data.text ?? '' })
-              break
-            case 'tool_call':
-              onEvent({ type: 'tool_call', id: data.id, name: data.name, input: data.input })
-              break
-            case 'tool_result':
-              onEvent({ type: 'tool_result', id: data.id, result: data.result, isError: data.isError ?? false })
-              break
-            case 'pages_snapshot':
-              onEvent({ type: 'pages_snapshot', pages: data.pages ?? [] })
-              break
-            case 'schema_update':
-              onEvent({ type: 'schema_update', collections: (data as AiSchemaUpdateEvent).collections ?? [] })
-              break
-            case 'disambiguation':
-              onEvent({ type: 'disambiguation', options: data as DisambiguationOptions })
-              break
-            case 'done':
-              onEvent({ type: 'done', pages: data.pages ?? [] })
-              resolve(data.pages ?? [])
-              break
-            case 'error':
-              onEvent({ type: 'error', message: data.message ?? '未知错误' })
-              reject(new Error(data.message ?? '未知错误'))
-              break
-          }
-        } catch {
-          // 忽略解析失败的事件
+          data = JSON.parse(dataStr)
+        } catch (parseErr) {
+          console.warn('[aiChat] SSE JSON 解析失败', { eventType, dataStr, parseErr })
+          continue
         }
+
+        switch (eventType) {
+          case 'text_delta':
+            onEvent({ type: 'text_delta', text: (data as { text?: string }).text ?? '' })
+            break
+          case 'tool_call':
+            onEvent({
+              type: 'tool_call',
+              id: (data as { id: string }).id,
+              name: (data as { name: string }).name,
+              input: (data as { input: unknown }).input,
+            })
+            break
+          case 'tool_result':
+            onEvent({
+              type: 'tool_result',
+              id: (data as { id: string }).id,
+              result: (data as { result: unknown }).result,
+              isError: (data as { isError?: boolean }).isError ?? false,
+            })
+            break
+          case 'app_snapshot':
+            onEvent({ type: 'app_snapshot', appJSON: (data as { appJSON?: string }).appJSON ?? '' })
+            break
+          case 'schema_update':
+            onEvent({ type: 'schema_update', collections: (data as AiSchemaUpdateEvent).collections ?? [] })
+            break
+          case 'disambiguation':
+            onEvent({ type: 'disambiguation', options: data as DisambiguationOptions })
+            break
+          case 'planning_progress':
+            onEvent({
+              type: 'planning_progress',
+              agent: (data as { agent: AgentRole }).agent,
+              reasoning: (data as { reasoning?: string }).reasoning,
+              output: (data as { output: unknown }).output,
+              tokenUsage: (data as { tokenUsage: { input: number; output: number } }).tokenUsage,
+              durationMs: (data as { durationMs: number }).durationMs,
+            })
+            break
+          case 'interrupt':
+            onEvent({ type: 'interrupt', threadId: (data as { threadId: string }).threadId, node: (data as { node: string }).node, value: (data as { value: unknown }).value as AiInterruptEvent['value'] })
+            break
+          case 'done': {
+            const appJSON = (data as { appJSON?: string }).appJSON ?? ''
+            onEvent({ type: 'done', appJSON })
+            settle(() => resolve(appJSON))
+            break
+          }
+          case 'error': {
+            const message = (data as { message?: string }).message ?? '未知错误'
+            onEvent({ type: 'error', message })
+            settle(() => reject(new Error(message)))
+            break
+          }
+        }
+
+        // 一旦 settled，停止解析后续事件
+        if (settled) return
       }
     }
 
     async function pump(): Promise<void> {
       try {
-        while (true) {
+        while (!settled) {
           const { done, value } = await reader.read()
           if (done) break
           parseSSEChunk(decoder.decode(value, { stream: true }))
         }
+        // 流正常结束（EOF）但未收到 done/error 事件 → 兜底 resolve
+        // 常见于服务端正常关闭连接但漏发 done，或被 abort 提前终止
+        settle(() => resolve(''))
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          reject(err)
+        if ((err as Error).name === 'AbortError') {
+          // 用户主动取消，兜底 resolve（不报错）
+          settle(() => resolve(''))
+        } else {
+          settle(() => reject(err as Error))
         }
       }
     }

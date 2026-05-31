@@ -9,6 +9,7 @@ import React from 'react'
 import { Drawer, Tooltip } from 'antd'
 import type { DesignMaterialPaletteProps } from '@/components/DesignEditor/DesignMaterialPalette'
 import type { IComponentDefinition, IDragProps } from '@banyuan/banvasgl'
+import MaterialPanel from '@/components/MaterialPanel'
 import styles from './index.module.scss'
 
 interface ComponentPaletteProps {
@@ -85,6 +86,7 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
         className={styles.grid}
         renderMaterial={renderMaterial}
       />
+      <MaterialPanel />
     </Drawer>
   )
 }

@@ -18,10 +18,73 @@
   font-size: $text-2xl;
   font-weight: $font-semibold;
   color: var(--color-text-primary);
-  margin: 0 0 16px;
+  margin: 0 0 24px !important;
 }
 
-.placeholder {
-  font-size: $text-md;
+// ─── 区块 ─────────────────────────────────────────────────────────────────────
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: $text-lg;
+  font-weight: $font-medium;
+  color: var(--color-text-primary);
+  margin: 0 0 6px !important;
+}
+
+.sectionDesc {
+  display: block;
+  font-size: $text-sm;
+  margin-bottom: 16px;
+}
+
+// ─── AI 角色配置 ──────────────────────────────────────────────────────────────
+
+.roleTabs {
+  :global(.ant-tabs-tab) {
+    padding: 8px 12px;
+  }
+}
+
+.customTag {
+  margin-left: 6px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.rolePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.roleDesc {
+  font-size: $text-sm;
+}
+
+.promptTextarea {
+  font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: $text-sm;
+  line-height: 1.6;
+}
+
+.roleActions {
+  display: flex;
+  gap: 8px;
+}
+
+// ─── 加载 ─────────────────────────────────────────────────────────────────────
+
+.loadingWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
   color: var(--color-text-tertiary);
+  font-size: $text-sm;
 }

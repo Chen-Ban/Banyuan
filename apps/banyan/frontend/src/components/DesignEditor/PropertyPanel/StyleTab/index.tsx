@@ -1,6 +1,6 @@
 import React from 'react'
 import { Select } from 'antd'
-import type { View } from '@banyuan/banvasgl'
+import type { View, IBanvasActions } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
 
 const OVERFLOW_OPTIONS = [
@@ -11,9 +11,10 @@ const OVERFLOW_OPTIONS = [
 
 export interface StyleTabProps {
     view: View
+    actions: IBanvasActions
 }
 
-export const StyleTab: React.FC<StyleTabProps> = ({ view }) => {
+export const StyleTab: React.FC<StyleTabProps> = ({ view, actions }) => {
     return (
         <div className={styles.content}>
             <section className={styles.section}>
@@ -25,9 +26,7 @@ export const StyleTab: React.FC<StyleTabProps> = ({ view }) => {
                         value={view.style?.overflow ?? 'visible'}
                         options={OVERFLOW_OPTIONS}
                         onChange={(val) => {
-                            if (view.style) {
-                                view.style.overflow = val as 'visible' | 'hidden' | 'scroll'
-                            }
+                            actions.view.setViewStyle(view.id, 'overflow', val)
                         }}
                         style={{ flex: 1, marginLeft: 8 }}
                     />

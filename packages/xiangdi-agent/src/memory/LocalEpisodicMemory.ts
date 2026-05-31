@@ -33,6 +33,7 @@ import type {
   EpisodicMemory,
   EpisodicRecallOptions,
   ConsolidateOptions,
+  MemoryNamespace,
 } from "./types.js";
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
@@ -40,6 +41,8 @@ import type {
 export interface LocalEpisodicMemoryConfig {
   /** 存储目录路径 */
   storagePath?: string;
+  /** 命名空间（可选），设置后文件存储在 {storagePath}/{namespace}/episodes.json */
+  namespace?: MemoryNamespace;
   /** 最大经验条目数（超出时触发 consolidate），默认 200 */
   maxEpisodes?: number;
   /** 时间衰减半衰期（天），默认 30 */
@@ -53,10 +56,12 @@ export class LocalEpisodicMemory implements EpisodicMemory {
   private readonly maxEpisodes: number;
   private readonly decayHalfLifeDays: number;
   private readonly storagePath: string | null;
+  private readonly namespace: MemoryNamespace | undefined;
   private loaded = false;
 
   constructor(config: LocalEpisodicMemoryConfig = {}) {
     this.storagePath = config.storagePath ?? null;
+    this.namespace = config.namespace;
     this.maxEpisodes = config.maxEpisodes ?? 200;
     this.decayHalfLifeDays = config.decayHalfLifeDays ?? 30;
   }
@@ -70,6 +75,7 @@ export class LocalEpisodicMemory implements EpisodicMemory {
     const episode: Episode = {
       ...input,
       id: `ep-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      namespace: this.namespace ?? input.namespace,
       createdAt: now,
       lastAccessedAt: now,
     };
@@ -89,10 +95,15 @@ export class LocalEpisodicMemory implements EpisodicMemory {
     await this.ensureLoaded();
 
     const topK = options?.topK ?? 5;
+    const includeShared = options?.includeShared ?? true;
     const now = Date.now();
 
-    // 过滤
-    let candidates = this.episodes;
+    // 合并 shared 命名空间的经验
+    let candidates = [...this.episodes];
+    if (includeShared && this.namespace && this.namespace !== "shared" && this.storagePath) {
+      const sharedEpisodes = await this.loadSharedEpisodes();
+      candidates = [...candidates, ...sharedEpisodes];
+    }
 
     if (options?.outcomeFilter) {
       candidates = candidates.filter((e) =>
@@ -213,6 +224,14 @@ export class LocalEpisodicMemory implements EpisodicMemory {
 
   // ── 持久化 ────────────────────────────────────────────────────────────────
 
+  /** 获取当前命名空间的存储目录 */
+  private getStorageDir(): string {
+    if (!this.storagePath) return "";
+    return this.namespace
+      ? `${this.storagePath}/${this.namespace}`
+      : this.storagePath;
+  }
+
   private async ensureLoaded(): Promise<void> {
     if (this.loaded || !this.storagePath) {
       this.loaded = true;
@@ -221,7 +240,7 @@ export class LocalEpisodicMemory implements EpisodicMemory {
 
     try {
       const { readFile } = await import("node:fs/promises");
-      const filePath = `${this.storagePath}/episodes.json`;
+      const filePath = `${this.getStorageDir()}/episodes.json`;
       const content = await readFile(filePath, "utf-8");
       this.episodes = JSON.parse(content) as Episode[];
     } catch {
@@ -237,11 +256,25 @@ export class LocalEpisodicMemory implements EpisodicMemory {
 
     try {
       const { writeFile, mkdir } = await import("node:fs/promises");
-      await mkdir(this.storagePath, { recursive: true });
-      const filePath = `${this.storagePath}/episodes.json`;
+      const dir = this.getStorageDir();
+      await mkdir(dir, { recursive: true });
+      const filePath = `${dir}/episodes.json`;
       await writeFile(filePath, JSON.stringify(this.episodes, null, 2), "utf-8");
     } catch {
       // 持久化失败不影响主流程
+    }
+  }
+
+  /** 加载 shared 命名空间的经验（用于合并检索） */
+  private async loadSharedEpisodes(): Promise<Episode[]> {
+    if (!this.storagePath) return [];
+    try {
+      const { readFile } = await import("node:fs/promises");
+      const filePath = `${this.storagePath}/shared/episodes.json`;
+      const content = await readFile(filePath, "utf-8");
+      return JSON.parse(content) as Episode[];
+    } catch {
+      return [];
     }
   }
 }

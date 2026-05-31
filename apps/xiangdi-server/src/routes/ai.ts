@@ -7,7 +7,7 @@
  *           requireApproval?: boolean }
  *   Response: text/event-stream（SSE）
  *
- *   架构变更：不再接收 pages/appSchema，通过 BanyanClient 从 banyan 后端按需拉取
+ *   架构变更：不再接收 appJSON/appSchema，通过 BanyanClient 从 banyan 后端按需拉取
  *
  *   previousMessages: 最近的对话消息（由 banyan 后端 ContextBuilder 裁剪后传入）
  *     格式与 XiangDi Message 类型兼容：{ role: 'user'|'assistant', content: string|ContentBlock[] }[]
@@ -20,7 +20,7 @@
  *     与 previousMessages 形成互补：contextSummary 覆盖远期历史摘要，messages 覆盖近期完整对话
  *
  * POST /ai/resume
- *   Body: { threadId: string, resumeValue?: unknown, pages?: string[] }
+ *   Body: { threadId: string, resumeValue?: unknown, appJSON?: string }
  *   Response: text/event-stream（SSE）
  *
  * GET /ai/thread/:threadId/status
@@ -40,7 +40,7 @@
  *   text_delta         — LLM 输出的文字片段 { text: string }
  *   tool_call          — 工具调用开始 { id, name, input }
  *   tool_result        — 工具调用结果 { id, name, result, isError }
- *   pages_snapshot     — 写操作后实时推送当前 pages { pages: string[] }
+ *   app_snapshot       — 写操作后实时推送当前 appJSON { appJSON: string }
  *   schema_update      — AI 调用 schema_set_collections 后推送新 Schema
  *   disambiguation     — 检测到意图冲突，推送消歧选项
  *   round_summary      — 本轮对话总结 { summary: string }
@@ -48,7 +48,7 @@
  *   checkpoint         — 执行状态已持久化 { threadId, node, step }
  *   interrupt          — 图执行被中断，等待人工介入 { threadId, node, value }
  *   resumed            — 从 checkpoint 恢复执行 { fromNode, step }
- *   done               — 完成，携带最终 pages { pages: string[] }
+ *   done               — 完成，携带最终 appJSON { appJSON: string }
  *   error              — 发生错误 { message: string }
  *
  * POST /ai/disambiguation-response
@@ -66,18 +66,17 @@ import Router from '@koa/router'
 import { Command } from '@langchain/langgraph'
 import {
     createBanvasToolRegistry,
-    buildSystemPrompt,
-    generateAISchemaDoc,
+buildSystemPrompt,
     createMasterGraph,
     createChatGraph,
     LLMRouter,
     registerKnowledgeSearchTool,
     registerSchemaTools,
+    registerMaterialTools,
 } from '@banyuan/xiangdi-agent'
 import { RemoteKnowledgeStore } from '../knowledge/RemoteKnowledgeStore.js'
-import { BanyanClient, registerDataFetchTools } from '../banyan/index.js'
-import { getCheckpointer } from '../checkpoint/index.js'
-import { recordThreadActivity } from '../checkpoint/cleanup.js'
+import { BanyanClient, registerDataFetchTools, RemoteMaterialStore } from '../banyan/index.js'
+import { getStore } from '../checkpoint/index.js'
 import { HumanMessage } from '@langchain/core/messages'
 import { createLLMClient, getModelsInfo, switchProvider, PROVIDER_CATALOG } from '../llm/createLLMClient.js'
 import { ServiceUnavailableError } from '../errors.js'
@@ -94,6 +93,12 @@ function sseWrite(res: ServerResponse, event: string, data: unknown): void {
     if (res.writableEnded) return
     const payload = typeof data === 'string' ? data : JSON.stringify(data)
     res.write(`event: ${event}\ndata: ${payload}\n\n`)
+    // 强制立即冲刷 TCP 缓冲区，避免 Nagle 算法或 Node.js 内部缓冲造成的批量延迟
+    const socket = (res as unknown as { socket?: { cork?: () => void; uncork?: () => void } }).socket
+    if (socket?.cork && socket?.uncork) {
+        socket.cork()
+        process.nextTick(() => socket.uncork!())
+    }
 }
 
 function sseDone(res: ServerResponse): void {
@@ -121,7 +126,7 @@ function startSSEHeartbeat(res: ServerResponse): () => void {
     return cleanup
 }
 
-// ─── 写操作工具集合（执行后需推送 pages_snapshot）────────────────
+// ─── 写操作工具集合（执行后需推送 app_snapshot）────────────────
 
 const WRITE_TOOLS = new Set([
     'banvas_create_page',
@@ -133,19 +138,27 @@ const WRITE_TOOLS = new Set([
     'banvas_apply_patch',
 ])
 
-// ─── 内存 BanvasHostAdapter（pages 由 BanyanClient 拉取后传入，不直接访问 MongoDB）──
+// ─── 内存 BanvasHostAdapter（appJSON 由 BanyanClient 拉取后传入，不直接访问 MongoDB）──
 
-function createMemoryAdapter(initialPages: string[]): BanvasHostAdapter & { getPages(): Promise<string[]> } {
-    let pages = [...initialPages]
+function createMemoryAdapter(initialAppJSON: string): BanvasHostAdapter & { getAppJSON(): Promise<string> } {
+    let appJSON = initialAppJSON
     return {
-        async getPages(): Promise<string[]> {
-            return pages
+        async getAppJSON(): Promise<string> {
+            return appJSON
         },
-        async setPages(newPages: string[]): Promise<void> {
-            pages = newPages
+        async setAppJSON(newAppJSON: string): Promise<void> {
+            appJSON = newAppJSON
         },
         async getAppMeta(): Promise<{ id: string; name: string; version: string }> {
-            return { id: 'runtime', name: 'Banyuan App', version: '1.0.0' }
+            // 从 appJSON 中提取 version（SerializedData.version 字段），确保写回时版本一致
+            let version = '1.0.0'
+            if (appJSON) {
+                try {
+                    const parsed = JSON.parse(appJSON)
+                    if (parsed.version) version = parsed.version
+                } catch { /* 解析失败时使用默认版本 */ }
+            }
+            return { id: 'runtime', name: 'Banyuan App', version }
         },
     }
 }
@@ -165,10 +178,6 @@ function getActiveModel(llmRouter: LLMRouter): string {
         ? (process.env.KIMI_MODEL ?? 'kimi-k2.6')
         : (process.env.DEEPSEEK_MODEL ?? 'deepseek-v4-pro')
 }
-
-// ─── AISchema 文档（启动时生成一次，注入所有 system prompt）─────────────────
-
-const aiSchemaDoc = generateAISchemaDoc();
 
 // ─── 远程 KnowledgeStore ─────────────────────────────────────────────────────
 
@@ -207,10 +216,10 @@ function createSSEStreamCallback(
                     result: event.data.result,
                     isError: event.data.is_error ?? false,
                 })
-                // 写操作工具执行完毕后，立即推送 pages_snapshot
+                // 写操作工具执行完毕后，立即推送 app_snapshot
                 if (WRITE_TOOLS.has(event.data.name)) {
-                    adapter.getPages().then((currentPages) => {
-                        sseWrite(res, 'pages_snapshot', { pages: currentPages })
+                    adapter.getAppJSON().then((currentAppJSON) => {
+                        sseWrite(res, 'app_snapshot', { appJSON: currentAppJSON })
                     }).catch(() => { /* 静默失败 */ })
                 }
                 break
@@ -270,7 +279,7 @@ router.post('/run', async (ctx) => {
     // 409 冲突检测：若客户端提供了 threadId 且该 thread 已有 checkpoint，拒绝重复执行
     if (clientThreadId) {
         try {
-            const checkpointer = getCheckpointer()
+            const checkpointer = getStore().getCheckpointer()
             const existing = await checkpointer.getTuple({ configurable: { thread_id: clientThreadId } })
             if (existing) {
                 ctx.status = 409
@@ -296,6 +305,11 @@ router.post('/run', async (ctx) => {
 
     // 启动 SSE 心跳
     const stopHeartbeat = startSSEHeartbeat(res)
+
+    // P0-3: 创建 AbortController，监听客户端断开，取消 Agent 执行
+    const abortController = new AbortController()
+    const onClientAbort = () => abortController.abort()
+    res.on('close', onClientAbort)
 
     // 创建请求级 logger
     const reqLogger = createRequestLogger(threadId)
@@ -338,7 +352,7 @@ router.post('/run', async (ctx) => {
         // ─── 根据 mode 路由到不同的 Graph ─────────────────────────────────────
         if (mode === 'chat') {
             // ═══ Chat 模式：轻量聊天管线（无工具、无知识检索）═══
-            const adapter = createMemoryAdapter([])
+            const adapter = createMemoryAdapter('')
             const streamCallback = createSSEStreamCallback(res, adapter, threadId)
 
             const chatGraph = createChatGraph({
@@ -347,28 +361,34 @@ router.post('/run', async (ctx) => {
                 chatModel: getActiveModel(llmRouter),
             })
 
-            recordThreadActivity(threadId, 'running')
+            getStore().recordActivity(threadId, 'running')
             const result = await chatGraph.invoke({
                 messages: initialMessages,
                 agentMemory: agentMemory ?? '',
                 contextSummary: memoryHint ?? '',
                 finalText: '',
                 roundSummary: '',
+            }, {
+                signal: abortController.signal,
             })
 
             // Chat 模式不支持 interrupt，直接发送 done
-            sseWrite(res, 'done', { pages: [], threadId, roundSummary: result.roundSummary ?? '' })
-            recordThreadActivity(threadId, 'completed')
+            sseWrite(res, 'done', { appJSON: '', threadId, roundSummary: result.roundSummary ?? '' })
+            getStore().recordActivity(threadId, 'completed')
         } else {
             // ═══ Task 模式：完整 MasterGraph V2 管线 ═══
 
-            // 1. 通过 BanyanClient 按需拉取 pages（Pull-based 架构）
-            const pages = await banyanClient.getPages(appId)
-            const adapter = createMemoryAdapter(pages)
+            // 1. 通过 BanyanClient 按需拉取 appJSON（Pull-based 架构）
+            const appJSON = await banyanClient.getAppJSON(appId)
+            const adapter = createMemoryAdapter(appJSON)
             const registry = createBanvasToolRegistry(adapter)
             registerKnowledgeSearchTool(registry, knowledgeStore)
 
-            // 1b. 注册数据拉取工具（AI 可按需获取 pages/schema/cloudFunctions）
+            // 1a. 注册物料工具（AI 可搜索/获取自定义物料）
+            const materialStore = new RemoteMaterialStore(banyanClient)
+            registerMaterialTools(registry, materialStore)
+
+            // 1b. 注册数据拉取工具（AI 可按需获取 appJSON/schema/cloudFunctions）
             registerDataFetchTools(registry, banyanClient, appId)
 
             // 1c. 注册 Schema 工具（读取通过 BanyanClient 拉取，写入通过 SSE 推送）
@@ -388,10 +408,10 @@ router.post('/run', async (ctx) => {
             const streamCallback = createSSEStreamCallback(res, adapter, threadId)
 
             // 3. 构建上下文分层
-            const systemPrompt = buildSystemPrompt({ aiSchemaDoc })
+            const systemPrompt = buildSystemPrompt()
 
             // 4. 创建 MasterGraph V2 统一管线（带 checkpointer 持久化）
-            const checkpointer = getCheckpointer()
+            const checkpointer = getStore().getCheckpointer()
             const masterGraph = createMasterGraph({
                 llmClient: client,
                 toolRegistry: registry,
@@ -400,8 +420,8 @@ router.post('/run', async (ctx) => {
                 checkpointer,
             })
 
-            // 5. 执行 MasterGraph V2（带 thread_id 用于 checkpoint 持久化）
-            recordThreadActivity(threadId, 'running')
+            // 5. 执行 MasterGraph V2（带 thread_id 用于 checkpoint 持久化，传入 AbortSignal）
+            getStore().recordActivity(threadId, 'running')
             const result = await masterGraph.invoke({
                 messages: initialMessages,
                 systemPrompt,
@@ -425,6 +445,7 @@ router.post('/run', async (ctx) => {
             }, {
                 recursionLimit: 100,
                 configurable: { thread_id: threadId },
+                signal: abortController.signal,
             })
 
             // 6. 检查执行是否因 interrupt() 暂停（humanGate 等节点）
@@ -444,17 +465,20 @@ router.post('/run', async (ctx) => {
                     node: next[0],
                     value: interruptValue,
                 })
-                recordThreadActivity(threadId, 'interrupted')
+                getStore().recordActivity(threadId, 'interrupted')
             } else {
                 // 图正常完成：发送 done 事件
                 sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
-                const finalPages = await adapter.getPages()
-                sseWrite(res, 'done', { pages: finalPages, threadId })
-                recordThreadActivity(threadId, 'completed')
+                const finalAppJSON = await adapter.getAppJSON()
+                sseWrite(res, 'done', { appJSON: finalAppJSON, threadId })
+                getStore().recordActivity(threadId, 'completed')
             }
         }
     } catch (err) {
-        if (err instanceof ServiceUnavailableError) {
+        if (abortController.signal.aborted) {
+            // 客户端主动断开，静默处理（不报错，不发 error 事件）
+            getStore().recordActivity(threadId, 'interrupted')
+        } else if (err instanceof ServiceUnavailableError) {
             reqLogger.error('Service unavailable during agent run', err, { service: err.service, appId })
             sseWrite(res, 'error', { message: `Service unavailable: ${err.message}`, code: 'SERVICE_UNAVAILABLE', service: err.service })
         } else {
@@ -463,6 +487,7 @@ router.post('/run', async (ctx) => {
             sseWrite(res, 'error', { message })
         }
     } finally {
+        res.removeListener('close', onClientAbort)
         stopHeartbeat()
         // 清理该 thread 的 disambiguation pending（防止内存泄漏）
         disambiguationPendingMap.delete(threadId)
@@ -475,10 +500,10 @@ router.post('/run', async (ctx) => {
 // 从 LangGraph Checkpointer 恢复执行（支持 interrupt/resume 模式）
 
 router.post('/resume', async (ctx) => {
-    const { threadId, resumeValue, pages } = ctx.request.body as {
+    const { threadId, resumeValue, appJSON } = ctx.request.body as {
         threadId?: string
         resumeValue?: unknown
-        pages?: string[]
+        appJSON?: string
     }
 
     if (!threadId || typeof threadId !== 'string') {
@@ -488,14 +513,15 @@ router.post('/resume', async (ctx) => {
     }
 
     // 获取 checkpointer 并验证 thread 存在
-    const checkpointer = getCheckpointer()
+    const checkpointer = getStore().getCheckpointer()
 
     // 构建 graph 来获取状态和恢复执行
-    // pages 由 banyan 后端从 MongoDB 读取后传入，确保 adapter 以最新状态恢复
+    // appJSON 由 banyan 后端从 MongoDB 读取后传入，确保 adapter 以最新状态恢复
     const client = await createLLMClient()
-    const adapter = createMemoryAdapter(pages ?? [])
+    const adapter = createMemoryAdapter(appJSON ?? '')
     const registry = createBanvasToolRegistry(adapter)
     registerKnowledgeSearchTool(registry, knowledgeStore)
+    registerMaterialTools(registry, new RemoteMaterialStore(banyanClient))
 
     const res = ctx.res as ServerResponse
     const streamCallback = createSSEStreamCallback(res, adapter, threadId)
@@ -528,12 +554,17 @@ router.post('/resume', async (ctx) => {
     // 启动 SSE 心跳
     const stopHeartbeat = startSSEHeartbeat(res)
 
+    // P0-3: 创建 AbortController，监听客户端断开，取消 resume 执行
+    const resumeAbortController = new AbortController()
+    const onResumeClientAbort = () => resumeAbortController.abort()
+    res.on('close', onResumeClientAbort)
+
     try {
         // 发送 resumed 事件
         const fromNode = Array.isArray(state.next) && state.next.length > 0 ? state.next[0] : 'unknown'
         const step = (state.metadata as Record<string, unknown> | undefined)?.step ?? 0
         sseWrite(res, 'resumed', { fromNode, step })
-        recordThreadActivity(threadId, 'running')
+        getStore().recordActivity(threadId, 'running')
 
         // 恢复执行：如果有 resumeValue 则使用 Command({ resume })，否则传 null
         const resumeInput = resumeValue !== undefined
@@ -544,6 +575,7 @@ router.post('/resume', async (ctx) => {
         const stream = await masterGraph.stream(resumeInput, {
             configurable: { thread_id: threadId },
             streamMode: 'values',
+            signal: resumeAbortController.signal,
         })
 
         for await (const _chunk of stream) {
@@ -568,17 +600,20 @@ router.post('/resume', async (ctx) => {
                 node: postNext[0],
                 value: interruptValue,
             })
-            recordThreadActivity(threadId, 'interrupted')
+            getStore().recordActivity(threadId, 'interrupted')
         } else {
             // 正常完成
             sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
-            const finalPages = await adapter.getPages()
-            sseWrite(res, 'done', { pages: finalPages, threadId })
-            recordThreadActivity(threadId, 'completed')
+            const finalAppJSON = await adapter.getAppJSON()
+            sseWrite(res, 'done', { appJSON: finalAppJSON, threadId })
+            getStore().recordActivity(threadId, 'completed')
         }
     } catch (err) {
         const resumeLogger = createRequestLogger(threadId)
-        if (err instanceof ServiceUnavailableError) {
+        if (resumeAbortController.signal.aborted) {
+            // 客户端主动断开，静默处理
+            getStore().recordActivity(threadId, 'interrupted')
+        } else if (err instanceof ServiceUnavailableError) {
             resumeLogger.error('Service unavailable during resume', err, { service: err.service })
             sseWrite(res, 'error', { message: `Service unavailable: ${err.message}`, code: 'SERVICE_UNAVAILABLE', service: err.service })
         } else {
@@ -587,6 +622,7 @@ router.post('/resume', async (ctx) => {
             sseWrite(res, 'error', { message })
         }
     } finally {
+        res.removeListener('close', onResumeClientAbort)
         stopHeartbeat()
         // 清理该 thread 的 disambiguation pending（防止内存泄漏）
         disambiguationPendingMap.delete(threadId)
@@ -602,9 +638,9 @@ router.get('/thread/:threadId/status', async (ctx) => {
     const { threadId } = ctx.params
 
     try {
-        const checkpointer = getCheckpointer()
+        const checkpointer = getStore().getCheckpointer()
         const client = await createLLMClient()
-        const adapter = createMemoryAdapter([])
+        const adapter = createMemoryAdapter('')
         const registry = createBanvasToolRegistry(adapter)
 
         const masterGraph = createMasterGraph({

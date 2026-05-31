@@ -249,7 +249,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     {
       key: "style",
       label: "样式",
-      children: <StyleTab view={view} />,
+      children: <StyleTab view={view} actions={actions} />,
     },
     {
       key: "data",

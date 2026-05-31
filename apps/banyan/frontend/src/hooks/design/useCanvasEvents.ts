@@ -449,10 +449,10 @@ export function useCanvasEvents({
         const dataStr = e.dataTransfer.getData("application/json");
         if (!dataStr) return;
 
-        const { template } = JSON.parse(dataStr) as {
-          template: IComponentTemplate;
+        const parsed = JSON.parse(dataStr) as {
+          template?: IComponentTemplate;
+          materialId?: string;
         };
-        if (!template) return;
 
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
@@ -461,7 +461,21 @@ export function useCanvasEvents({
         const x = (e.clientX - rect.left) * scaleX;
         const y = (e.clientY - rect.top) * scaleY;
 
-        actions.view.create(template, { x, y });
+        if (parsed.materialId) {
+          // 自定义物料拖拽：从后端获取完整物料 → instantiate
+          import("@/api/materials").then(({ fetchMaterial }) => {
+            fetchMaterial(parsed.materialId!).then((res) => {
+              if (res.data) {
+                actions.material.instantiate(res.data, { x, y });
+              }
+            }).catch((err) => {
+              console.error("[BanvasDesign] 物料实例化失败:", err);
+            });
+          });
+        } else if (parsed.template) {
+          // 内置物料拖拽
+          actions.view.create(parsed.template, { x, y });
+        }
       } catch (error) {
         console.error("[BanvasDesign] 拖拽创建组件失败:", error);
       }

@@ -19,7 +19,7 @@ export interface IApplicationListResult {
 export interface IUpdateApplicationData {
   name?: string;
   description?: string;
-  pages?: string[];
+  appJSON?: string;
   thumbnail?: string;
   tags?: string[];
   updatedBy?: string;
@@ -27,7 +27,7 @@ export interface IUpdateApplicationData {
 
 class ApplicationService {
   /**
-   * 查询应用列表（不返回 pages 字段，减少传输量）
+   * 查询应用列表（不返回 appJSON 字段，减少传输量）
    */
   async getApplicationList(
     query: IApplicationQuery = {},
@@ -62,7 +62,7 @@ class ApplicationService {
     const [total, applications] = await Promise.all([
       Application.countDocuments(filter),
       Application.find(filter)
-        .select("-pages")
+        .select("-appJSON")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageSize)
@@ -78,7 +78,7 @@ class ApplicationService {
   }
 
   /**
-   * 根据ID获取应用详情（含 pages）
+   * 根据ID获取应用详情（含 appJSON）
    */
   async getApplicationById(
     applicationId: string,
@@ -92,7 +92,7 @@ class ApplicationService {
   /**
    * 创建空白应用
    *
-   * 服务端自动生成 application_id，默认 name 为「未命名应用」，默认 pages 为空数组。
+   * 服务端自动生成 application_id，默认 name 为「未命名应用」，默认 appJSON 为空字符串。
    */
   async createApplication(
     userId: string,
@@ -103,7 +103,7 @@ class ApplicationService {
       application_id,
       name: "未命名应用",
       description: "",
-      pages: [],
+      appJSON: "",
       tags: [],
       version: 1,
       tenantId,
@@ -132,7 +132,7 @@ class ApplicationService {
     if (updateData.name !== undefined) application.name = updateData.name;
     if (updateData.description !== undefined)
       application.description = updateData.description;
-    if (updateData.pages !== undefined) application.pages = updateData.pages;
+    if (updateData.appJSON !== undefined) application.appJSON = updateData.appJSON;
     if (updateData.thumbnail !== undefined)
       application.thumbnail = updateData.thumbnail;
     if (updateData.tags !== undefined) application.tags = updateData.tags;

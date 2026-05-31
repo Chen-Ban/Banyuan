@@ -10,7 +10,7 @@
  *   - 对比前后快照可以看出一次对话做了什么改动
  *
  * 存储策略：
- *   - 独立集合避免 Conversation 文档膨胀（pages JSON 可能很大）
+ *   - 独立集合避免 Conversation 文档膨胀（appJSON 可能很大）
  *   - 通过 dialogueId 唯一关联，一个 task 对话最多一个快照
  *   - 通过 appId + createdAt 索引支持按应用查询快照历史
  */
@@ -60,8 +60,8 @@ export interface ISnapshot extends Document {
   appId: string
   /** 关联的 Dialogue._id */
   dialogueId: Types.ObjectId
-  /** BanvasGL 页面 JSON 数组 */
-  pages: string[]
+  /** App 级别序列化字符串 */
+  appJSON: string
   /** 云函数快照列表 */
   cloudFunctions: ICloudFunctionSnapshot[]
   /** 数据库表定义快照列表 */
@@ -115,10 +115,10 @@ const SnapshotSchema = new Schema<ISnapshot>(
       type: Schema.Types.ObjectId,
       required: true,
     },
-    pages: {
-      type: [String],
+    appJSON: {
+      type: String,
       required: true,
-      default: [],
+      default: '',
     },
     cloudFunctions: {
       type: [CloudFunctionSnapshotSchema],

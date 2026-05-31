@@ -33,7 +33,7 @@
  * ```
  */
 
-import type { LLMClient, LLMResponse } from "../core/llmTypes.js";
+import type { LLMClient, LLMResponse, OnTokenCallback } from "../core/llmTypes.js";
 import type { Message } from "../core/types.js";
 
 // ─── 类型定义 ──────────────────────────────────────────────────────────────────
@@ -264,6 +264,64 @@ export class LLMRouter implements LLMClient {
           }
         }
       }
+
+      throw error;
+    }
+  }
+
+  async createMessageStream(
+    params: {
+      model: string;
+      max_tokens: number;
+      system?: string;
+      messages: Message[];
+      tools?: unknown[];
+      temperature?: number;
+    },
+    onToken: OnTokenCallback
+  ): Promise<LLMResponse> {
+    const provider = this.getActiveProvider();
+    const health = this.healthMap.get(provider.id)!;
+    const startTime = Date.now();
+
+    try {
+      const response = await provider.client.createMessageStream(params, onToken);
+      const latency = Date.now() - startTime;
+
+      this.recordSuccess(health, latency);
+
+      if (latency > this.highLatencyThresholdMs) {
+        this.emitSignal({
+          type: "high_latency",
+          providerId: provider.id,
+          message: `流式请求延迟 ${latency}ms 超过阈值 ${this.highLatencyThresholdMs}ms`,
+          suggestedAction: "retry",
+          healthSnapshot: { ...health },
+        });
+      }
+
+      return response;
+    } catch (err) {
+      const latency = Date.now() - startTime;
+      const error = err instanceof Error ? err : new Error(String(err));
+
+      this.recordFailure(health, error.message);
+
+      const signalType = classifyError(error, latency, this.highLatencyThresholdMs);
+      const suggestedAction = determineSuggestedAction(
+        signalType,
+        health.consecutiveFailures,
+        this.consecutiveFailureThreshold
+      );
+
+      this.emitSignal({
+        type: signalType,
+        providerId: provider.id,
+        message: `流式请求失败: ${error.message}`,
+        suggestedAction,
+        errorDetail: error.message,
+        healthSnapshot: { ...health },
+      });
 
       throw error;
     }

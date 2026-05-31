@@ -2,7 +2,7 @@
  * BanyanClient — Banyan 后端内部 API 客户端（Pull-based 架构）
  *
  * XiangDi 服务在 Agent 执行过程中，通过此客户端按需拉取应用数据：
- *   - GET /internal/apps/:appId/pages          → 获取 pages JSON 数组
+ *   - GET /internal/apps/:appId/appJSON        → 获取 appJSON 字符串
  *   - GET /internal/apps/:appId/schema         → 获取 CollectionSchema
  *   - GET /internal/apps/:appId/cloud-functions → 获取所有云函数列表
  *   - GET /internal/apps/:appId/cloud-functions/:functionId → 获取单个云函数
@@ -10,7 +10,7 @@
  * 鉴权：通过 X-Internal-Token header（与 INTERNAL_API_TOKEN 环境变量对齐）
  *
  * 设计决策：
- *   - 替代原先"请求体传入 pages/appSchema"的 push 模式
+ *   - 替代原先“请求体传入 appJSON/appSchema”的 push 模式
  *   - XiangDi 服务按需获取数据，减小请求体体积，支持更灵活的工具组合
  *   - 错误处理：请求失败时抛出 ServiceUnavailableError，由调用方决定是否降级
  */
@@ -72,12 +72,12 @@ export class BanyanClient {
     }
 
     /**
-     * 获取应用的 pages（JSON 字符串数组）
+     * 获取应用的 appJSON（App 级别序列化字符串）
      * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
-    async getPages(appId: string): Promise<string[]> {
-        const resp = await this.get<{ success: boolean; data: { pages: string[] } }>(`/internal/apps/${appId}/pages`)
-        return resp.data?.pages ?? []
+    async getAppJSON(appId: string): Promise<string> {
+        const resp = await this.get<{ success: boolean; data: { appJSON: string } }>(`/internal/apps/${appId}/appJSON`)
+        return resp.data?.appJSON ?? ''
     }
 
     /**
@@ -107,6 +107,44 @@ export class BanyanClient {
         return resp.data?.function ?? null
     }
 
+    /**
+     * 搜索物料（通过后端 /api/materials/search）
+     */
+    async searchMaterials(keyword: string, limit?: number): Promise<{ material_id: string; name: string; description?: string; tags?: string[]; parameterNames?: string[] }[]> {
+        const params = new URLSearchParams({ keyword })
+        if (limit) params.set('limit', String(limit))
+        const resp = await this.get<{ success: boolean; data: { material_id: string; name: string; description?: string; tags?: string[]; template?: { parameters?: { name: string }[] } }[] }>(`/api/materials/search?${params.toString()}`)
+        const materials = resp.data ?? []
+        return materials.map((m) => ({
+            material_id: m.material_id,
+            name: m.name,
+            description: m.description,
+            tags: m.tags,
+            parameterNames: m.template?.parameters?.map((p) => p.name),
+        }))
+    }
+
+    /**
+     * 获取物料详情
+     */
+    async getMaterialDetail(materialId: string): Promise<{ material_id: string; name: string; description?: string; tags?: string[]; parameters: { id: string; name: string; type: string; description?: string; defaultValue?: unknown; required?: boolean }[]; assets: { id: string; type: string; url: string }[] } | null> {
+        try {
+            const resp = await this.get<{ success: boolean; data: { material_id: string; name: string; description?: string; tags?: string[]; template?: { parameters?: { id: string; name: string; type: string; description?: string; defaultValue?: unknown; required?: boolean }[]; assets?: { id: string; type: string; url: string }[] } } }>(`/api/materials/${materialId}`)
+            const m = resp.data
+            if (!m) return null
+            return {
+                material_id: m.material_id,
+                name: m.name,
+                description: m.description,
+                tags: m.tags,
+                parameters: m.template?.parameters ?? [],
+                assets: m.template?.assets ?? [],
+            }
+        } catch {
+            return null
+        }
+    }
+
     // ─── HTTP 请求内核 ──────────────────────────────────────────────────────
 
     private get<T>(path: string): Promise<T> {
@@ -118,7 +156,7 @@ export class BanyanClient {
             const options: http.RequestOptions = {
                 hostname: url.hostname,
                 port: url.port || (isHttps ? 443 : 3001),
-                path: url.pathname,
+                path: url.pathname + url.search,
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',

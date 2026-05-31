@@ -416,6 +416,18 @@ export function createViewActions(
             notify()
         },
 
+        setViewStyle(viewId: string, prop: string, value: unknown): void {
+            const scene = getScene()
+            if (!scene) return
+            const view = scene.findViewById(viewId)
+            if (!view) return
+            if (!view.style) {
+                ;(view as any).style = {}
+            }
+            ;(view.style as any)[prop] = value
+            notify()
+        },
+
         beginPropertyEdit(): void {
             const scene = getScene()
             if (!scene) return

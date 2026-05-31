@@ -33,6 +33,8 @@
 export interface Episode {
   /** 唯一标识 */
   id: string;
+  /** 所属命名空间 */
+  namespace?: MemoryNamespace;
   /** 关联的 ChangeSpec ID */
   changeSpecId?: string;
   /** 事件标题/摘要 */
@@ -105,6 +107,8 @@ export interface EpisodicRecallOptions {
   since?: number;
   /** 标签过滤 */
   tags?: string[];
+  /** 是否同时检索 shared 命名空间的经验，默认 true */
+  includeShared?: boolean;
 }
 
 export interface ConsolidateOptions {
@@ -122,6 +126,8 @@ export interface ConsolidateOptions {
 export interface Fact {
   /** 唯一标识 */
   id: string;
+  /** 所属命名空间 */
+  namespace?: MemoryNamespace;
   /** 事实类别 */
   category: FactCategory;
   /** 事实内容（自然语言描述） */
@@ -145,6 +151,14 @@ export type FactCategory =
   | "project_knowledge"  // 项目知识（如"首页的导航栏用了 position:fixed"）
   | "tool_usage"         // 工具使用经验（如"修改布局时先 getAppState"）
   | "error_pattern"      // 错误模式（如"不能给 Group 节点设置 fill"）
+  | "project_constraint" // 项目约束（如"禁止在 packages/ 中引入 React"）
+  | "feature_history"    // 功能演变历史
+  | "user_intent_pattern" // 用户意图模式（如"用户说'大一点'通常指 +4px"）
+  | "api_usage"          // API 使用模式（如"createView 后需要 attachToScene"）
+  | "adr_summary"        // 架构决策摘要
+  | "component_pattern"  // 组件使用模式
+  | "tool_sequence"      // 工具调用序列模式
+  | "operation_pattern"  // 操作模式
   | "general";           // 其他
 
 /**
@@ -193,6 +207,8 @@ export interface SemanticRecallOptions {
   minConfidence?: number;
   /** 类别过滤 */
   categories?: FactCategory[];
+  /** 是否同时检索 shared 命名空间的事实，默认 true */
+  includeShared?: boolean;
 }
 
 // ─── MemoryManager：统一记忆管理 ──────────────────────────────────────────────
@@ -205,6 +221,47 @@ export interface SemanticRecallOptions {
  *   2. 任务结束时的记忆写入（记录经验、提炼事实）
  *   3. 定期的记忆整理（压缩、遗忘、概括）
  */
+// ─── 记忆命名空间 ────────────────────────────────────────────────────────────
+
+/**
+ * 记忆命名空间
+ *
+ * 每个 Subagent 拥有自己的命名空间，互不干扰：
+ *   - pm：产品/需求管理 Agent
+ *   - arch：架构设计 Agent
+ *   - visual：视觉设计 Agent
+ *   - task：任务执行 Agent
+ *   - shared：跨 Agent 共享（只有 PlanningOrchestrator 可写入）
+ */
+export type MemoryNamespace = "pm" | "arch" | "visual" | "task" | "shared";
+
+/**
+ * 命名空间记忆管理器接口
+ *
+ * 每个 Subagent 持有一个绑定到自己命名空间的实例。
+ * 读取时自动合并 shared 命名空间的内容。
+ */
+export interface NamespacedMemoryManager extends MemoryManager {
+  /** 当前绑定的命名空间 */
+  readonly namespace: MemoryNamespace;
+}
+
+/**
+ * 共享记忆写入器接口
+ *
+ * 只有 PlanningOrchestrator 有权写入 shared 命名空间。
+ */
+export interface SharedMemoryWriter {
+  /** 写入项目约束 */
+  writeConstraint(content: string, confidence?: number): Promise<Fact>;
+  /** 写入项目事实 */
+  writeProjectFact(content: string, confidence?: number): Promise<Fact>;
+  /** 写入共享经验 */
+  writeEpisode(
+    episode: Omit<Episode, "id" | "namespace" | "createdAt" | "lastAccessedAt">
+  ): Promise<Episode>;
+}
+
 export interface MemoryManager {
   /** 中期记忆（经验） */
   readonly episodic: EpisodicMemory;

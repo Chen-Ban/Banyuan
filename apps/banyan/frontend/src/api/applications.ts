@@ -9,7 +9,8 @@ export interface Application {
   name: string
   description?: string
   thumbnail?: string
-  pages?: string[]
+  /** 完整 App 序列化 JSON（包含 lifetimes + scenes） */
+  appJSON?: string
   tags?: string[]
   version?: number
   createdBy?: string
@@ -25,7 +26,8 @@ export interface ApplicationFormData {
   name: string
   description?: string
   thumbnail?: string
-  pages?: string[]
+  /** 完整 App 序列化 JSON */
+  appJSON?: string
   tags?: string[]
 }
 
@@ -62,7 +64,7 @@ export function fetchApplication(id: string): Promise<ApiResponse<Application>> 
 }
 
 /**
- * 创建空白应用（服务端自动生成 ID、默认名称、空 pages）
+ * 创建空白应用（服务端自动生成 ID、默认名称、空 appJSON）
  */
 export function createApplication(): Promise<ApiResponse<Application>> {
   return post<ApiResponse<Application>>('/applications', {})

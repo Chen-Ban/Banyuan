@@ -59,11 +59,10 @@ export interface BuildSystemPromptOptions {
   /** 项目特定的额外指令 */
   customInstructions?: string;
   /**
-   * AISchema 结构描述文本。
-   * 将被注入 system prompt，让 LLM 了解可操作的节点类型和属性结构。
-   * 推荐使用 generateAISchemaDoc() 自动生成。
+   * @deprecated 节点结构已迁移至 knowledge_search 工具按需检索，不再注入 system prompt。
+   * 保留字段仅为兼容过渡期，传入后不生效。
    */
-  aiSchemaDoc?: string;
+  nodeSchemaDoc?: string;
 }
 
 /**
@@ -72,12 +71,7 @@ export interface BuildSystemPromptOptions {
 export function buildSystemPrompt(options?: BuildSystemPromptOptions): string {
   let prompt = XIANGDI_SYSTEM_PROMPT;
 
-  if (options?.aiSchemaDoc) {
-    prompt += `\n\n## 节点结构参考（AISchema）\n\n`;
-    prompt += `以下是你可以操作的节点类型及其属性结构。`;
-    prompt += `创建或修改节点时，请严格遵循这些类型定义。\n\n`;
-    prompt += options.aiSchemaDoc;
-  }
+  // nodeSchemaDoc 已迁移至 knowledge_search 工具按需检索，不再注入 system prompt
 
   if (options?.appName) {
     prompt += `\n\n## 当前应用\n应用名称：${options.appName}`;
@@ -93,10 +87,17 @@ export function buildSystemPrompt(options?: BuildSystemPromptOptions): string {
   return prompt;
 }
 
-// ─── AISchema 文档生成 ─────────────────────────────────────────────────────────
+// ─── 节点结构文档生成（AI Projection）───────────────────────────────────────────
 
 /**
- * 从 AISchema 的 Zod 定义中自动生成 LLM 友好的结构描述文本。
+ * @deprecated 使用 generateNodeSchemaDoc() 代替
+ */
+export function generateAISchemaDoc(): string {
+  return generateNodeSchemaDoc();
+}
+
+/**
+ * 自动生成面向 LLM 的节点结构描述文本（AI Projection 格式）。
  *
  * 不是把 TypeScript 类型原样粘贴，而是生成一份面向 LLM 的精简文档：
  * - 每种节点类型列出其属性、类型、默认值
@@ -104,7 +105,7 @@ export function buildSystemPrompt(options?: BuildSystemPromptOptions): string {
  *
  * 生成的文本约 1500 tokens，适合直接注入 system prompt。
  */
-export function generateAISchemaDoc(): string {
+export function generateNodeSchemaDoc(): string {
   const lines: string[] = [];
 
   lines.push(`### 基础类型`);
@@ -169,7 +170,7 @@ export function generateAISchemaDoc(): string {
   lines.push(``);
   lines.push(`**Page**：{ id: string, name: string（默认 "页面"）, width: number（默认 375）, height: number（默认 812）, backgroundColor: Color（默认 "#ffffff"）, nodes: Node[] }`);
   lines.push(``);
-  lines.push(`**App**：{ id: string, name: string, pages: Page[]（至少 1 个）, version: string（默认 "1.0.0"）}`);
+  lines.push(`**App**：{ id: string, name: string, scenes: Scene[]（至少 1 个）, version: string（默认 "1.0.0"）}`);
 
   return lines.join("\n");
 }

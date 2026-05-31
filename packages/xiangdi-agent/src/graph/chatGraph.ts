@@ -137,25 +137,31 @@ export function createChatGraph(config: ChatGraphConfig) {
     // 将 LangChain messages 转为 XiangDi Message 格式
     const xiangdiMessages = langchainToXiangdi(state.messages);
 
-    const response = await llmClient.createMessage({
-      model: chatModel,
-      max_tokens: 2048,
-      system: systemPrompt,
-      messages: xiangdiMessages,
-      temperature: 0.7,
-    });
+    // 使用流式调用，每个 token 到达时立即触发 streamCallback
+    let finalText = "";
+    const response = await llmClient.createMessageStream(
+      {
+        model: chatModel,
+        max_tokens: 2048,
+        system: systemPrompt,
+        messages: xiangdiMessages,
+        temperature: 0.7,
+      },
+      (token) => {
+        finalText += token;
+        streamCallback?.({ type: "text_delta", data: { text: token } });
+      }
+    );
 
-    // 提取文本回复
-    const textParts: string[] = [];
-    for (const block of response.content) {
-      if (block.type === "text" && block.text) {
-        textParts.push(block.text);
-        // 流式推送
-        streamCallback?.({ type: "text_delta", data: { text: block.text } });
+    // createMessageStream 中纯文本路径 finalText 已由 onToken 拼接完成；
+    // 若降级为非流式（工具调用路径），response.content 中仍有完整文本，确保兜底。
+    if (!finalText) {
+      for (const block of response.content) {
+        if (block.type === "text" && block.text) {
+          finalText = block.text;
+        }
       }
     }
-
-    const finalText = textParts.join("");
 
     // 生成简短的 roundSummary（用于偏好提取上下文）
     const lastUserMsg = [...state.messages].reverse().find((m) => m._getType() === "human");

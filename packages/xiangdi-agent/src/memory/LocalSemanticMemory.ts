@@ -30,6 +30,7 @@ import type {
   FactCategory,
   SemanticMemory,
   SemanticRecallOptions,
+  MemoryNamespace,
 } from "./types.js";
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
@@ -37,6 +38,8 @@ import type {
 export interface LocalSemanticMemoryConfig {
   /** 存储目录路径 */
   storagePath?: string;
+  /** 命名空间（可选），设置后文件存储在 {storagePath}/{namespace}/facts.json */
+  namespace?: MemoryNamespace;
   /** 最大事实条目数，默认 500 */
   maxFacts?: number;
   /** 置信度衰减率（每次 maintain 时未被引用的事实衰减多少），默认 0.05 */
@@ -48,12 +51,14 @@ export interface LocalSemanticMemoryConfig {
 export class LocalSemanticMemory implements SemanticMemory {
   private facts: Map<string, Fact> = new Map();
   private readonly storagePath: string | null;
+  private readonly namespace: MemoryNamespace | undefined;
   private readonly maxFacts: number;
   private readonly decayRate: number;
   private loaded = false;
 
   constructor(config: LocalSemanticMemoryConfig = {}) {
     this.storagePath = config.storagePath ?? null;
+    this.namespace = config.namespace;
     this.maxFacts = config.maxFacts ?? 500;
     this.decayRate = config.decayRate ?? 0.05;
   }
@@ -89,6 +94,7 @@ export class LocalSemanticMemory implements SemanticMemory {
     const fact: Fact = {
       ...input,
       id: `fact-${now}-${Math.random().toString(36).slice(2, 8)}`,
+      namespace: this.namespace ?? input.namespace,
       referenceCount: 0,
       createdAt: now,
       updatedAt: now,
@@ -111,11 +117,19 @@ export class LocalSemanticMemory implements SemanticMemory {
     const topK = options?.topK ?? 10;
     const minConfidence = options?.minConfidence ?? 0.3;
     const categories = options?.categories;
+    const includeShared = options?.includeShared ?? true;
+
+    // 合并 shared 命名空间的事实
+    let allFacts = [...this.facts.values()];
+    if (includeShared && this.namespace && this.namespace !== "shared" && this.storagePath) {
+      const sharedFacts = await this.loadSharedFacts();
+      allFacts = [...allFacts, ...sharedFacts];
+    }
 
     const queryTokens = tokenize(query);
     const scored: Array<{ fact: Fact; score: number }> = [];
 
-    for (const fact of this.facts.values()) {
+    for (const fact of allFacts) {
       // 置信度过滤
       if (fact.confidence < minConfidence) continue;
 
@@ -233,6 +247,14 @@ export class LocalSemanticMemory implements SemanticMemory {
 
   // ── 持久化 ────────────────────────────────────────────────────────────────
 
+  /** 获取当前命名空间的存储目录 */
+  private getStorageDir(): string {
+    if (!this.storagePath) return "";
+    return this.namespace
+      ? `${this.storagePath}/${this.namespace}`
+      : this.storagePath;
+  }
+
   private async ensureLoaded(): Promise<void> {
     if (this.loaded || !this.storagePath) {
       this.loaded = true;
@@ -241,7 +263,7 @@ export class LocalSemanticMemory implements SemanticMemory {
 
     try {
       const { readFile } = await import("node:fs/promises");
-      const filePath = `${this.storagePath}/facts.json`;
+      const filePath = `${this.getStorageDir()}/facts.json`;
       const content = await readFile(filePath, "utf-8");
       const arr = JSON.parse(content) as Fact[];
       this.facts = new Map(arr.map((f) => [f.id, f]));
@@ -257,12 +279,26 @@ export class LocalSemanticMemory implements SemanticMemory {
 
     try {
       const { writeFile, mkdir } = await import("node:fs/promises");
-      await mkdir(this.storagePath, { recursive: true });
-      const filePath = `${this.storagePath}/facts.json`;
+      const dir = this.getStorageDir();
+      await mkdir(dir, { recursive: true });
+      const filePath = `${dir}/facts.json`;
       const arr = [...this.facts.values()];
       await writeFile(filePath, JSON.stringify(arr, null, 2), "utf-8");
     } catch {
       // 持久化失败不影响主流程
+    }
+  }
+
+  /** 加载 shared 命名空间的事实（用于合并检索） */
+  private async loadSharedFacts(): Promise<Fact[]> {
+    if (!this.storagePath) return [];
+    try {
+      const { readFile } = await import("node:fs/promises");
+      const filePath = `${this.storagePath}/shared/facts.json`;
+      const content = await readFile(filePath, "utf-8");
+      return JSON.parse(content) as Fact[];
+    } catch {
+      return [];
     }
   }
 }

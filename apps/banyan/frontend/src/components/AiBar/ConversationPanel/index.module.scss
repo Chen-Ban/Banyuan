@@ -173,9 +173,72 @@
   padding: 2px 4px;
 }
 
-.statusRowError { color: var(--color-error-text); }
+.statusRowError   { color: var(--color-error-text); }
+.statusRowAborted { color: var(--color-text-secondary); }
 
 .doneIcon  { color: var(--color-success-text); font-size: $text-sm; }
 .doneText  { color: var(--color-success-text); }
 
 .thinkingIcon { color: var(--color-brand-primary); font-size: $text-sm; }
+
+// ─── 待确认 task 对话（确认/撤销按钮区） ──────────────────────────────────────
+
+.pendingActions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px;
+  margin: 4px 0;
+  border-radius: 10px;
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-secondary);
+}
+
+.pendingHint {
+  font-size: $text-sm;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.pendingBtnGroup {
+  display: flex;
+  gap: 10px;
+}
+
+.pendingBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-container);
+  font-size: $text-sm;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: var(--color-brand-primary);
+    color: var(--color-brand-primary);
+  }
+}
+
+.pendingBtnConfirm {
+  background: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+  color: #fff;
+
+  &:hover {
+    opacity: 0.85;
+    border-color: var(--color-brand-primary);
+    color: #fff;
+  }
+}
+
+.pendingBtnDiscard {
+  &:hover {
+    border-color: var(--color-error-text);
+    color: var(--color-error-text);
+  }
+}

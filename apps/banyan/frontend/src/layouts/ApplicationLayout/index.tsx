@@ -14,9 +14,9 @@
  * 职责：
  *   - 加载并管理应用元数据（名称、描述），写入 AppLayoutCtx 供 Sidebar 面包屑读取
  *   - 提供保存（handleSave）和生成应用（handleBuild）操作
- *   - handleSave：发布 appEvents.saveApp 事件，UIPage 订阅后负责序列化 pages 并写 DB；
+ *   - handleSave：发布 appEvents.saveApp 事件，UIPage 订阅后负责序列化 appJSON 并写 DB；
  *     ApplicationLayout 自身只负责保存 name / description
- *   - 通过 AppLayoutCtx.registerGetPages 接收 UIPage 注册的序列化函数（供 handleBuild 使用）
+ *   - 通过 AppLayoutCtx.registerGetApp 接收 UIPage 注册的序列化函数（供 handleBuild 使用）
  *
  * 注：AiBar 单例已提升到 RootLayout 层，本组件不再持有任何 AiBar 相关逻辑。
  */
@@ -81,15 +81,15 @@ const ApplicationLayout: React.FC = () => {
   // ── 画布尺寸（由 UIPage 通过 ctx 同步，供 handleBuild 使用） ──────────────
   const canvasSizeRef = useRef({ width: 1280, height: 800 })
 
-  // ── getPages 回调注册（由 UIPage 注册，供 handleBuild 序列化） ─────────────
-  const getPagesRef = useRef<(() => string[]) | null>(null)
+  // ── getApp 回调注册（由 UIPage 注册，供 handleBuild 序列化） ─────────────
+  const getAppRef = useRef<(() => string) | null>(null)
 
-  const registerGetPages = useCallback((fn: () => string[]) => {
-    getPagesRef.current = fn
+  const registerGetApp = useCallback((fn: () => string) => {
+    getAppRef.current = fn
   }, [])
 
-  const unregisterGetPages = useCallback(() => {
-    getPagesRef.current = null
+  const unregisterGetApp = useCallback(() => {
+    getAppRef.current = null
   }, [])
 
   // ── 同步应用名称到 RootLayoutCtx（供 Sidebar 面包屑读取） ──────────────────
@@ -147,7 +147,7 @@ const ApplicationLayout: React.FC = () => {
   }, [triggerAutoSaveMeta, setRootAppName])
 
   // ── 保存应用 ──────────────────────────────────────────────────────────────
-  // 发布 saveApp 事件 → UIPage 订阅后序列化 pages 并写 DB
+  // 发布 saveApp 事件 → UIPage 订阅后序列化 appJSON 并写 DB
   // ApplicationLayout 自身只负责保存 name / description（元数据）
   const handleSave = useCallback(async () => {
     if (!applicationName.trim()) {
@@ -158,7 +158,7 @@ const ApplicationLayout: React.FC = () => {
     setSaving(true)
     try {
       await Promise.all([
-        // 1. 通知各子页面保存自身数据（UIPage 序列化 pages 写 DB）
+        // 1. 通知各子页面保存自身数据（UIPage 序列化 appJSON 写 DB）
         appEvents.emitSaveApp(),
         // 2. 保存元数据（name / description）
         applicationApi.updateApplication(application_id, {
@@ -180,14 +180,13 @@ const ApplicationLayout: React.FC = () => {
       message.warning('请先输入应用名称')
       return
     }
-    if (!getPagesRef.current) {
+    if (!getAppRef.current) {
       message.warning('请先切换到画布页再生成应用')
       return
     }
     setBuildSubmitting(true)
     try {
-      const serializedPages = getPagesRef.current()
-      const appJson = JSON.stringify(serializedPages)
+      const appJson = getAppRef.current()
       const { width, height } = canvasSizeRef.current
       const res = await buildApi.submitBuild({
         appJson,
@@ -217,8 +216,8 @@ const ApplicationLayout: React.FC = () => {
 
   return (
     <AppLayoutCtx.Provider value={{
-      registerGetPages,
-      unregisterGetPages,
+      registerGetApp,
+      unregisterGetApp,
       appName: applicationName,
       onAppRename: handleNameChange,
     }}>

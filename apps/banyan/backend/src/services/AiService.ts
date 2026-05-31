@@ -1,45 +1,21 @@
 /**
- * AI 服务（HTTP 代理层）— V2
+ * AI 服务（HTTP 代理层）— V3（事务化）
  *
- * 负责：
- * 1. 从 MongoDB 获取/创建该应用的唯一会话
- * 2. 创建 Dialogue（对话）并追加用户消息
- * 3. 通过 ContextBuilder 组装分层上下文（contextSummary + recentMessages）
- * 4. 从 AgentMemory 检索相关记忆（L2 层），作为 agentMemory 字段传入
- * 5. 将精简请求体（appId + prompt + context）发送给 XiangDi 独立服务（:3002）
- *    XiangDi 通过内部 API（/internal/apps/:appId/*）按需拉取 pages/schema/cloudFunctions
- * 6. 透传 XiangDi 返回的 SSE 流给前端（memory_update 除外）
- * 7. 收集所有 SSE 事件作为 AssistantContent 持久化到 Dialogue
- * 8. 收到 done 事件后，将最终 pages 写回 MongoDB，持久化对话摘要
- * 9. task 类型对话完成时，创建 Snapshot（应用状态快照）
- * 10. 收到 memory_update 事件后，异步持久化到 AgentMemory 集合
- * 11. 管理 threadId 生命周期（生成 → running → completed/failed/interrupted）
+ * 核心变更（V3）：
+ *   - task 模式引入"对话即事务"语义：SSE 期间所有副作用暂存到 PendingStore，
+ *     用户确认后才一次性写入 MongoDB（confirm），撤销则丢弃（discard）
+ *   - chat 模式保持直接写 DB（纯文字问答无应用副作用，不需要确认）
+ *   - 新增 confirmDialogue / discardDialogue / getPendingDialogue 方法
+ *   - resume 场景适配 pending 模型
  *
  * 架构：
  *   前端 ←SSE── banyan 后端(:3001) ←SSE── XiangDi 服务(:3002)
- *                     ↕ MongoDB          ↕ Internal API (pull-based)
- *                   (persist)        (on-demand fetch)
- *
- * 会话模型（V2: 1 App = 1 Conversation, Dialogue 为核心聚合单元）：
- *   - 每个应用只有一个会话，以 appId 为唯一标识
- *   - 每次请求创建一个 Dialogue（chat/task），内含 messages[]
- *   - threadId/threadStatus 挂载到 Dialogue 级别
- *   - assistant 消息的 assistantContent[] 完整保留 SSE 实时进度
- *   - task 类型对话完成时生成 Snapshot（支持撤销/恢复）
+ *                     ↕ PendingStore (task)    ↕ Internal API (pull-based)
+ *                     ↕ MongoDB (confirm后)
  *
  * SSE 事件类型（与 XiangDi 服务保持一致）：
- *   text_delta       — LLM 输出的文字片段
- *   tool_call        — 工具调用开始（含工具名和入参）
- *   tool_result      — 工具调用结果
- *   pages_snapshot   — 写操作完成后推送当前 pages
- *   schema_update    — AI 调用 schema_set_collections 后推送新 Schema（后端持久化 + 转发）
- *   round_summary    — 本轮对话总结（转发给前端 + 后端持久化为 dialogue.summary）
- *   memory_update    — Agent 记忆更新（仅后端持久化，不转发给前端）
- *   checkpoint       — 执行状态已持久化 { threadId, node, step }
- *   interrupt        — 图执行被中断，等待人工介入 { threadId, node, value }
- *   resumed          — 从 checkpoint 恢复执行 { fromNode, step }
- *   done             — 完成，携带最终 pages JSON + threadId
- *   error            — 发生错误
+ *   text_delta / tool_call / tool_result / app_snapshot / schema_update
+ *   round_summary / memory_update / checkpoint / interrupt / resumed / done / error
  */
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -49,22 +25,29 @@ import { Types } from 'mongoose'
 import applicationService from './ApplicationService.js'
 import conversationService from './ConversationService.js'
 import snapshotService from './SnapshotService.js'
+import planningArtifactService from './PlanningArtifactService.js'
 import contextBuilder, { ContextBudgetOverflowError } from './ContextBuilder.js'
 import type { ContextBuildOptions } from './ContextBuilder.js'
 import { SchemaService } from './SchemaService.js'
 import memoryService, { type MemoryUpdateInput } from './MemoryService.js'
+import pendingStore from './PendingStore.js'
+import type { PendingDialogueData } from './PendingStore.js'
 import type { ICollectionDef } from '../models/CollectionSchema.js'
 import type { IAssistantContent, DialogueType } from '../models/Conversation.js'
+import type { AgentRole } from '../models/PlanningArtifact.js'
 
-// XiangDi 服务地址，通过环境变量配置，默认本地开发地址
+// XiangDi 服务地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
-// 内部认证 token，与 XiangDi 服务共享
 const XIANGDI_INTERNAL_TOKEN = process.env.XIANGDI_INTERNAL_TOKEN
 
-/**
- * 获取当前 LLM 模型名称（与 XiangDi 服务共享环境变量）
- * 用于 ContextBuilder 查询模型上下文窗口大小
- */
+/** 向 XiangDi 发起请求的超时（毫秒），默认 10 分钟 */
+const PROXY_REQUEST_TIMEOUT_MS = Number(process.env.AI_PROXY_TIMEOUT_MS ?? 600_000)
+
+/** SSE 心跳间隔（毫秒） */
+const SSE_HEARTBEAT_INTERVAL_MS = 20_000
+
+// ─── 工具函数 ─────────────────────────────────────────────────────────────────
+
 function getActiveModelName(): string {
   const provider = process.env.LLM_PROVIDER ?? 'deepseek'
   if (provider === 'kimi') {
@@ -73,9 +56,6 @@ function getActiveModelName(): string {
   return process.env.DEEPSEEK_MODEL ?? 'deepseek-v4-pro'
 }
 
-/**
- * 估算文本的 token 数量（与 ContextBuilder 内部使用同一算法）
- */
 function estimateTokens(text: string): number {
   if (!text) return 0
   return Math.ceil(text.length / 2)
@@ -93,26 +73,333 @@ function sseDone(res: ServerResponse): void {
   if (!res.writableEnded) res.end()
 }
 
+function startHeartbeat(res: ServerResponse): () => void {
+  const timer = setInterval(() => {
+    if (res.writableEnded) {
+      clearInterval(timer)
+      return
+    }
+    res.write(':ping\n\n')
+  }, SSE_HEARTBEAT_INTERVAL_MS)
+  timer.unref()
+  return () => clearInterval(timer)
+}
+
+// ─── 统一 SSE 代理核心 ────────────────────────────────────────────────────────
+
+interface ProxySSECallbacks {
+  onDone: (appJSON: string, assistantContent: IAssistantContent[], roundSummary: string | null) => Promise<void>
+  onError?: () => Promise<void>
+  onInterrupt?: () => Promise<void>
+  /** schema_update 事件：调用者决定直接写 DB 还是暂存 */
+  onSchemaUpdate?: (collections: ICollectionDef[]) => void
+  /** memory_update 事件：调用者决定直接写 DB 还是暂存 */
+  onMemoryUpdate?: (memoryInput: MemoryUpdateInput) => void
+  /** planning_progress 事件：某个 Agent 完成 */
+  onPlanningProgress?: (agent: AgentRole, entry: { output: unknown; reasoning?: string; tokenUsage: { input: number; output: number }; durationMs: number }) => Promise<void>
+  /** planning_progress 事件：某个 Agent 失败 */
+  onPlanningFailed?: (agent: AgentRole) => Promise<void>
+}
+
+function proxySSECore(
+  xiangdiPath: string,
+  requestBody: string,
+  clientRes: ServerResponse,
+  callbacks: ProxySSECallbacks,
+  _appId: string,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const url = new URL(xiangdiPath, XIANGDI_BASE_URL)
+    const isHttps = url.protocol === 'https:'
+    const transport = isHttps ? https : http
+
+    const options: http.RequestOptions = {
+      hostname: url.hostname,
+      port: url.port || (isHttps ? 443 : 3002),
+      path: url.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(requestBody),
+        'Accept': 'text/event-stream',
+        ...(XIANGDI_INTERNAL_TOKEN ? { 'X-Internal-Token': XIANGDI_INTERNAL_TOKEN } : {}),
+      },
+    }
+
+    let settled = false
+    let upstreamReq: http.ClientRequest | null = null
+
+    function settle(fn: () => void): void {
+      if (settled) return
+      settled = true
+      cleanup()
+      fn()
+    }
+
+    const stopHeartbeat = startHeartbeat(clientRes)
+
+    const onClientClose = () => {
+      if (!settled && upstreamReq) {
+        upstreamReq.destroy(new Error('Client disconnected'))
+      }
+    }
+    clientRes.on('close', onClientClose)
+
+    function cleanup(): void {
+      stopHeartbeat()
+      clientRes.removeListener('close', onClientClose)
+    }
+
+    // ── 收集状态 ─────────────────────────────────────────────────────────────
+    let textBuffer = ''
+    let roundSummaryBuffer: string | null = null
+    const assistantContentBuffer: IAssistantContent[] = []
+
+    function dispatchEvent(currentEvent: string, dataStr: string): void {
+      if (!currentEvent || !dataStr) return
+
+      if (currentEvent === 'text_delta') {
+        try {
+          const parsed = JSON.parse(dataStr) as { text?: string }
+          if (parsed.text) textBuffer += parsed.text
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'tool_call') {
+        try {
+          const parsed = JSON.parse(dataStr) as { id: string; name: string; input: unknown }
+          assistantContentBuffer.push({ type: 'tool_call', id: parsed.id, name: parsed.name, input: parsed.input })
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'tool_result') {
+        try {
+          const parsed = JSON.parse(dataStr) as { id: string; result: unknown; isError: boolean }
+          assistantContentBuffer.push({ type: 'tool_result', id: parsed.id, result: parsed.result, isError: parsed.isError ?? false })
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'app_snapshot') {
+        try {
+          const parsed = JSON.parse(dataStr) as { appJSON: string }
+          assistantContentBuffer.push({ type: 'app_snapshot', appJSON: parsed.appJSON ?? '' })
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'schema_update') {
+        try {
+          const parsed = JSON.parse(dataStr) as { collections?: ICollectionDef[] }
+          if (Array.isArray(parsed.collections) && parsed.collections.length > 0) {
+            callbacks.onSchemaUpdate?.(parsed.collections)
+            assistantContentBuffer.push({ type: 'schema_update', collections: parsed.collections })
+          }
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'disambiguation') {
+        try {
+          const parsed = JSON.parse(dataStr)
+          assistantContentBuffer.push({ type: 'disambiguation', options: parsed })
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'planning_progress') {
+        try {
+          const parsed = JSON.parse(dataStr) as {
+            agent: AgentRole
+            status: 'started' | 'completed' | 'failed'
+            output?: unknown
+            reasoning?: string
+            tokenUsage?: { input: number; output: number }
+            durationMs?: number
+          }
+          if (parsed.status === 'completed' && parsed.output && callbacks.onPlanningProgress) {
+            callbacks.onPlanningProgress(parsed.agent, {
+              output: parsed.output,
+              reasoning: parsed.reasoning,
+              tokenUsage: parsed.tokenUsage ?? { input: 0, output: 0 },
+              durationMs: parsed.durationMs ?? 0,
+            }).catch(err => {
+              console.error('[AiService] planning_progress 处理失败:', err)
+            })
+          }
+          if (parsed.status === 'failed' && callbacks.onPlanningFailed) {
+            callbacks.onPlanningFailed(parsed.agent).catch(err => {
+              console.error('[AiService] planning_failed 处理失败:', err)
+            })
+          }
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'round_summary') {
+        try {
+          const parsed = JSON.parse(dataStr) as { summary?: string }
+          if (parsed.summary) roundSummaryBuffer = parsed.summary
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'memory_update') {
+        try {
+          const parsed = JSON.parse(dataStr) as {
+            episode?: {
+              title: string; content: string; outcome: string
+              lessons: string[]; involvedEntities: string[]; tags: string[]; importance: number
+            } | null
+            facts?: Array<{ category: string; content: string; confidence: number }>
+          }
+          const memoryInput: MemoryUpdateInput = {
+            episode: (parsed.episode ?? null) as MemoryUpdateInput['episode'],
+            facts: (parsed.facts ?? []) as MemoryUpdateInput['facts'],
+          }
+          callbacks.onMemoryUpdate?.(memoryInput)
+        } catch { /* ignore */ }
+        // memory_update 不转发给前端
+        return
+      }
+
+      if (currentEvent === 'done') {
+        try {
+          const parsed = JSON.parse(dataStr) as { appJSON?: string }
+          const finalAppJSON = parsed.appJSON ?? ''
+          if (textBuffer) {
+            assistantContentBuffer.unshift({ type: 'text', text: textBuffer })
+          }
+          assistantContentBuffer.push({ type: 'done', appJSON: finalAppJSON })
+          callbacks.onDone(finalAppJSON, assistantContentBuffer, roundSummaryBuffer).catch((err) => {
+            console.error('[AiService] onDone 回调失败:', err)
+          })
+        } catch { /* ignore */ }
+      }
+
+      if (currentEvent === 'error') {
+        try {
+          const parsed = JSON.parse(dataStr) as { message?: string }
+          assistantContentBuffer.push({ type: 'error', message: parsed.message ?? '未知错误' })
+        } catch { /* ignore */ }
+        callbacks.onError?.().catch((err) => {
+          console.error('[AiService] onError 回调失败:', err)
+        })
+      }
+
+      if (currentEvent === 'interrupt') {
+        callbacks.onInterrupt?.().catch((err) => {
+          console.error('[AiService] onInterrupt 回调失败:', err)
+        })
+      }
+
+      // 透传所有非 memory_update 事件给前端
+      sseWrite(clientRes, currentEvent, dataStr)
+
+      const socket = clientRes.socket
+      if (socket && !socket.destroyed) {
+        socket.cork()
+        process.nextTick(() => socket.uncork())
+      }
+    }
+
+    function parseBuffer(buf: string): string {
+      const blocks = buf.split('\n\n')
+      const remaining = blocks.pop() ?? ''
+      for (const block of blocks) {
+        if (!block.trim()) continue
+        let currentEvent = ''
+        let dataStr = ''
+        for (const line of block.split('\n')) {
+          if (line.startsWith('event: ')) {
+            currentEvent = line.slice(7).trim()
+          } else if (line.startsWith('data: ') && !dataStr) {
+            dataStr = line.slice(6)
+          }
+        }
+        dispatchEvent(currentEvent, dataStr)
+      }
+      return remaining
+    }
+
+    let lineBuffer = ''
+
+    upstreamReq = transport.request(options, (upstream: IncomingMessage) => {
+      if (upstream.statusCode && upstream.statusCode >= 400) {
+        callbacks.onError?.().catch(() => {})
+        settle(() => reject(new Error(`XiangDi 服务返回错误状态码: ${upstream.statusCode}`)))
+        return
+      }
+
+      upstream.on('data', (chunk: Buffer) => {
+        if (settled) return
+        lineBuffer += chunk.toString()
+        lineBuffer = parseBuffer(lineBuffer)
+      })
+
+      upstream.on('end', () => {
+        if (lineBuffer.trim()) {
+          parseBuffer(lineBuffer + '\n\n')
+          lineBuffer = ''
+        }
+        sseDone(clientRes)
+        settle(() => resolve())
+      })
+
+      upstream.on('error', (err) => {
+        if (settled) return
+        callbacks.onError?.().catch(() => {})
+        sseWrite(clientRes, 'error', { message: err.message })
+        sseDone(clientRes)
+        settle(() => reject(err))
+      })
+    })
+
+    upstreamReq.setTimeout(PROXY_REQUEST_TIMEOUT_MS, () => {
+      if (!settled) {
+        upstreamReq?.destroy(new Error(`XiangDi 请求超时 (${PROXY_REQUEST_TIMEOUT_MS}ms)`))
+      }
+    })
+
+    upstreamReq.on('error', (err) => {
+      if (settled) return
+      if (err.message === 'Client disconnected') {
+        sseDone(clientRes)
+        settle(() => resolve())
+        return
+      }
+      callbacks.onError?.().catch(() => {})
+      const message = `无法连接到 XiangDi 服务 (${XIANGDI_BASE_URL}): ${err.message}`
+      sseWrite(clientRes, 'error', { message })
+      sseDone(clientRes)
+      settle(() => reject(new Error(message)))
+    })
+
+    upstreamReq.write(requestBody)
+    upstreamReq.end()
+  })
+}
+
+// ─── Per-App 并发互斥锁 ──────────────────────────────────────────────────────
+
+const appLockMap = new Map<string, Promise<void>>()
+
+function withAppLock<T>(appId: string, fn: () => Promise<T>): Promise<T> {
+  const prev = appLockMap.get(appId) ?? Promise.resolve()
+  let releaseLock!: () => void
+  const lockPromise = new Promise<void>((resolve) => { releaseLock = resolve })
+  appLockMap.set(appId, lockPromise)
+
+  return prev.then(() => fn()).finally(() => {
+    if (appLockMap.get(appId) === lockPromise) {
+      appLockMap.delete(appId)
+    }
+    releaseLock()
+  })
+}
+
 // ─── AiService ────────────────────────────────────────────────────────────────
 
 class AiService {
   /**
    * 处理一次 AI 对话请求，通过 SSE 流式推送进度
    *
-   * 流程（V2）：
-   *   1. 创建 Dialogue（含第一条 user 消息）
-   *   2. 构建 threadId = `${appId}:${dialogueId}`
-   *   3. 标记 Dialogue threadStatus = 'running'
-   *   4. 请求体携带 threadId 传给 XiangDi 服务
-   *   5. 收集所有 SSE 事件作为 AssistantContent[]
-   *   6. done 时：追加 assistant 消息 + 写回 pages + 创建 Snapshot（task 类型）
-   *   7. SSE 事件回调更新 threadStatus（done → completed, error → failed, interrupt → interrupted）
-   *
-   * @param appId   目标应用 ID
-   * @param prompt  用户自然语言指令
-   * @param type    对话类型（chat/task），由前端按钮状态决定
-   * @param images  用户上传的图片列表
-   * @param res     Koa 的底层 ServerResponse（用于 SSE 写入）
+   * - chat 模式：沿用 V2 逻辑，直接写 DB
+   * - task 模式：所有副作用暂存到 PendingStore，等 confirm 后才写 DB
    */
   async runWithSSE(
     appId: string,
@@ -121,7 +408,16 @@ class AiService {
     images: Array<{ url: string; alt?: string }>,
     res: ServerResponse,
   ): Promise<void> {
-    // 设置 SSE 响应头（由 Controller 负责，此处仅做防御性检查）
+    return withAppLock(appId, () => this._runWithSSECore(appId, prompt, type, images, res))
+  }
+
+  private async _runWithSSECore(
+    appId: string,
+    prompt: string,
+    type: DialogueType,
+    images: Array<{ url: string; alt?: string }>,
+    res: ServerResponse,
+  ): Promise<void> {
     if (!res.headersSent) {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -130,96 +426,22 @@ class AiService {
         'X-Accel-Buffering': 'no',
       })
     }
-    // 禁用 Nagle 算法，确保每次 write() 立即发送，实现逐字流式输出
     res.socket?.setNoDelay(true)
 
     try {
-      // 1. 校验应用存在
       const app = await applicationService.getApplicationById(appId)
       if (!app) throw new Error(`应用 ${appId} 不存在`)
 
-      // 2. 获取或创建会话（1 App = 1 Conversation）
       await conversationService.getOrCreate(appId)
 
-      // 3. 创建新 Dialogue 并追加第一条 user 消息
-      const { dialogueId } = await conversationService.createDialogue(
-        appId,
-        type,
-        { prompt, images }
-      )
-
-      // 4. 构建 threadId 并标记执行状态为 running
-      const threadId = `${appId}:${dialogueId.toString()}`
-      await conversationService.setThreadInfo(appId, dialogueId, threadId, 'running')
-
-      // 5. 检索 Agent 记忆（L2 层）+ 构建分层上下文
-      const agentMemoryText = await memoryService.recall(appId, prompt)
-
-      const contextOptions: ContextBuildOptions = {
-        modelName: getActiveModelName(),
-        systemPromptTokens: 2500,
-        agentMemoryTokens: estimateTokens(agentMemoryText ?? ''),
-        currentPromptTokens: estimateTokens(prompt),
+      if (type === 'task') {
+        await this._runTaskMode(appId, prompt, type, images, res)
+      } else {
+        await this._runChatMode(appId, prompt, type, images, res)
       }
-
-      const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
-      const { contextSummary, recentMessages: historyMessages } = layeredContext
-
-      // 6. 构造请求体，发送给 XiangDi 服务
-      const imageUrls = images.length > 0 ? images.map(img => img.url) : undefined
-      const requestBody = JSON.stringify({
-        appId,
-        prompt,
-        threadId,
-        mode: type,  // chat | task → XiangDi 路由到不同 Graph
-        previousMessages: historyMessages,
-        ...(contextSummary ? { memoryHint: contextSummary } : {}),
-        ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),
-        ...(imageUrls ? { images: imageUrls } : {}),
-      })
-
-      // 7. 向 XiangDi 服务发起 SSE 请求并透传给前端
-      await this.proxySSE(requestBody, res, {
-        onDone: async (finalPages: string[], assistantContent: IAssistantContent[], roundSummary: string | null) => {
-          // 收到 done 事件后，并行执行：写回 pages + 保存 assistant 消息 + 标记完成
-          await Promise.all([
-            applicationService.updateApplication(appId, { pages: finalPages }),
-            conversationService.appendAssistantMessage(appId, dialogueId, assistantContent),
-            conversationService.updateThreadStatus(appId, dialogueId, 'completed'),
-          ])
-
-          // task 类型对话完成时，创建 Snapshot（异步 fire-and-forget）
-          if (type === 'task') {
-            snapshotService.createSnapshot(appId, dialogueId).catch(err => {
-              console.error('[AiService] Snapshot 创建失败:', err)
-            })
-          }
-
-          // 持久化对话摘要 + 生成 embedding（异步 fire-and-forget）
-          if (roundSummary) {
-            this.persistDialogueSummary(appId, dialogueId, roundSummary).catch(err => {
-              console.error('[AiService] 对话摘要持久化失败:', err)
-            })
-          }
-        },
-        onError: async () => {
-          await conversationService.updateThreadStatus(appId, dialogueId, 'failed').catch(err => {
-            console.error('[AiService] 更新 threadStatus(failed) 失败:', err)
-          })
-        },
-        onInterrupt: async () => {
-          await conversationService.updateThreadStatus(appId, dialogueId, 'interrupted').catch(err => {
-            console.error('[AiService] 更新 threadStatus(interrupted) 失败:', err)
-          })
-        },
-      }, appId)
     } catch (err) {
       if (err instanceof ContextBudgetOverflowError) {
-        sseWrite(res, 'error', {
-          code: err.code,
-          message: err.message,
-          details: err.details,
-        })
+        sseWrite(res, 'error', { code: err.code, message: err.message, details: err.details })
       } else {
         const message = err instanceof Error ? err.message : String(err)
         sseWrite(res, 'error', { message })
@@ -229,18 +451,157 @@ class AiService {
   }
 
   /**
-   * 从 checkpoint 恢复 AI 执行（断点续跑）
+   * Chat 模式：直接写 DB（无副作用回滚需求）
+   */
+  private async _runChatMode(
+    appId: string,
+    prompt: string,
+    type: DialogueType,
+    images: Array<{ url: string; alt?: string }>,
+    res: ServerResponse,
+  ): Promise<void> {
+    const { dialogueId } = await conversationService.createDialogue(appId, type, { prompt, images })
+    const threadId = `${appId}:${dialogueId.toString()}`
+    await conversationService.setThreadInfo(appId, dialogueId, threadId, 'running')
+
+    const agentMemoryText = await memoryService.recall(appId, prompt)
+    const contextOptions: ContextBuildOptions = {
+      modelName: getActiveModelName(),
+      systemPromptTokens: 2500,
+      agentMemoryTokens: estimateTokens(agentMemoryText ?? ''),
+      currentPromptTokens: estimateTokens(prompt),
+    }
+    const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
+    const { contextSummary, recentMessages: historyMessages } = layeredContext
+
+    const imageUrls = images.length > 0 ? images.map(img => img.url) : undefined
+    const requestBody = JSON.stringify({
+      appId,
+      prompt,
+      threadId,
+      mode: type,
+      previousMessages: historyMessages,
+      ...(contextSummary ? { memoryHint: contextSummary } : {}),
+      ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),
+      ...(imageUrls ? { images: imageUrls } : {}),
+    })
+
+    await proxySSECore('/ai/run', requestBody, res, {
+      onDone: async (finalAppJSON, assistantContent, roundSummary) => {
+        await Promise.all([
+          applicationService.updateApplication(appId, { appJSON: finalAppJSON }),
+          conversationService.appendAssistantMessage(appId, dialogueId, assistantContent),
+          conversationService.updateThreadStatus(appId, dialogueId, 'completed'),
+        ])
+        if (roundSummary) {
+          this.persistDialogueSummary(appId, dialogueId, roundSummary).catch(err => {
+            console.error('[AiService] 对话摘要持久化失败:', err)
+          })
+        }
+      },
+      onError: async () => {
+        await conversationService.updateThreadStatus(appId, dialogueId, 'failed').catch(err => {
+          console.error('[AiService] 更新 threadStatus(failed) 失败:', err)
+        })
+      },
+      onSchemaUpdate: (collections) => {
+        SchemaService.setCollections(appId, collections).catch(err => {
+          console.error('[AiService] Schema 写入失败:', err)
+        })
+      },
+      onMemoryUpdate: (memoryInput) => {
+        memoryService.handleMemoryUpdate(appId, memoryInput).catch(err => {
+          console.error('[AiService] Agent 记忆写入失败:', err)
+        })
+      },
+    }, appId)
+  }
+
+  /**
+   * Task 模式：副作用全部暂存到 PendingStore，等 confirm 后才写 DB
+   */
+  private async _runTaskMode(
+    appId: string,
+    prompt: string,
+    type: DialogueType,
+    images: Array<{ url: string; alt?: string }>,
+    res: ServerResponse,
+  ): Promise<void> {
+    // 预生成 dialogueId，不写 DB
+    const dialogueId = new Types.ObjectId()
+    const threadId = `${appId}:${dialogueId.toString()}`
+
+    // 创建 PendingDialogue（仅内存 + 文件缓存）
+    pendingStore.create({
+      appId,
+      dialogueId: dialogueId.toString(),
+      threadId,
+      type,
+      userMessage: { prompt, images },
+    })
+
+    // 构建上下文
+    const agentMemoryText = await memoryService.recall(appId, prompt)
+    const contextOptions: ContextBuildOptions = {
+      modelName: getActiveModelName(),
+      systemPromptTokens: 2500,
+      agentMemoryTokens: estimateTokens(agentMemoryText ?? ''),
+      currentPromptTokens: estimateTokens(prompt),
+    }
+    const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
+    const { contextSummary, recentMessages: historyMessages } = layeredContext
+
+    const imageUrls = images.length > 0 ? images.map(img => img.url) : undefined
+    const requestBody = JSON.stringify({
+      appId,
+      prompt,
+      threadId,
+      mode: type,
+      previousMessages: historyMessages,
+      ...(contextSummary ? { memoryHint: contextSummary } : {}),
+      ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),
+      ...(imageUrls ? { images: imageUrls } : {}),
+      requireApproval: true,
+    })
+
+    // 代理 SSE，所有副作用暂存
+    await proxySSECore('/ai/run', requestBody, res, {
+      onDone: async (finalAppJSON, assistantContent, roundSummary) => {
+        pendingStore.setFinalAppJSON(appId, finalAppJSON)
+        pendingStore.setAssistantContent(appId, assistantContent)
+        if (roundSummary) {
+          pendingStore.setRoundSummary(appId, roundSummary)
+        }
+        await pendingStore.markDone(appId)
+      },
+      onError: async () => {
+        pendingStore.updateStatus(appId, 'failed')
+      },
+      onInterrupt: async () => {
+        pendingStore.updateStatus(appId, 'interrupted')
+      },
+      onSchemaUpdate: (collections) => {
+        pendingStore.setSchemaUpdates(appId, collections)
+      },
+      onMemoryUpdate: (memoryInput) => {
+        pendingStore.setMemoryUpdates(appId, memoryInput)
+      },
+      onPlanningProgress: async (agent, entry) => {
+        pendingStore.addPlanningEntry(appId, { agent, ...entry })
+      },
+      onPlanningFailed: async (agent) => {
+        pendingStore.setPlanningFailed(appId, agent)
+      },
+    }, appId)
+  }
+
+  // ─── Resume（断点续跑） ─────────────────────────────────────────────────────
+
+  /**
+   * 从 checkpoint 恢复 AI 执行
    *
-   * 流程（V2）：
-   *   1. 若前端未传 dialogueId，从最近对话中查找 pending dialogue
-   *   2. 更新 threadStatus 为 'running'（恢复中）
-   *   3. 调用 XiangDi 服务 POST /ai/resume { threadId, resumeValue? }
-   *   4. 透传 SSE 流，done/error 时更新 threadStatus
-   *
-   * @param appId        目标应用 ID
-   * @param res          Koa 的底层 ServerResponse（用于 SSE 写入）
-   * @param dialogueId   要恢复的对话 ID（可选，未传时自动查找最近 pending dialogue）
-   * @param resumeValue  用户对 interrupt 的响应值（如审批结果、澄清回复）
+   * resume 始终操作 pending 中的对话（interrupted 状态）。
+   * 恢复后若成功完成（done），pending 状态变为 done，仍等 confirm 写 DB。
    */
   async resumeSSE(
     appId: string,
@@ -248,7 +609,15 @@ class AiService {
     dialogueId?: string,
     resumeValue?: unknown
   ): Promise<void> {
-    // 设置 SSE 响应头
+    return withAppLock(appId, () => this._resumeSSECore(appId, res, dialogueId, resumeValue))
+  }
+
+  private async _resumeSSECore(
+    appId: string,
+    res: ServerResponse,
+    dialogueId?: string,
+    resumeValue?: unknown
+  ): Promise<void> {
     if (!res.headersSent) {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -257,75 +626,122 @@ class AiService {
         'X-Accel-Buffering': 'no',
       })
     }
-    // 禁用 Nagle 算法，确保每次 write() 立即发送，实现逐字流式输出
     res.socket?.setNoDelay(true)
 
     try {
       // 1. 确定要恢复的对话
-      let resolvedDialogueId: Types.ObjectId
       let resolvedThreadId: string
 
-      if (dialogueId) {
-        resolvedDialogueId = new Types.ObjectId(dialogueId)
+      // 优先从 PendingStore 中查找（task 模式的 interrupted）
+      const pending = pendingStore.get(appId)
+      if (pending && pending.status === 'interrupted') {
+        resolvedThreadId = pending.threadId
+      } else if (dialogueId) {
+        // 兼容：从 DB 中查找（chat 模式或旧数据）
         resolvedThreadId = `${appId}:${dialogueId}`
       } else {
-        const pending = await conversationService.getLastPendingDialogue(appId)
-        if (!pending) {
+        // 从 DB 查找最近 pending dialogue
+        const dbPending = await conversationService.getLastPendingDialogue(appId)
+        if (!dbPending) {
           throw new Error('没有找到可恢复的执行线程')
         }
-        resolvedDialogueId = pending.dialogueId
-        resolvedThreadId = pending.threadId
+        resolvedThreadId = dbPending.threadId
       }
 
-      // 2. 更新状态为 running（恢复中）
-      await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'running')
+      // 2. 如果是 pending 模式，更新 pending 状态
+      if (pending && pending.status === 'interrupted') {
+        pendingStore.updateStatus(appId, 'streaming')
+      }
 
-      // 3. 读取最新 pages（resume 时需传递给 XiangDi 初始化 adapter）
+      // 3. 读取最新 appJSON
       const app = await applicationService.getApplicationById(appId)
       if (!app) throw new Error(`应用 ${appId} 不存在`)
-      const pages: string[] = app.pages ?? []
+      const appJSON: string = app.appJSON ?? ''
 
       // 4. 构造请求体
       const requestBody = JSON.stringify({
         threadId: resolvedThreadId,
-        pages,
+        appJSON,
         ...(resumeValue !== undefined ? { resumeValue } : {}),
       })
 
-      // 5. 转发到 XiangDi 服务 /ai/resume
-      await this.proxyResumeSSE(requestBody, res, {
-        onDone: async (finalPages: string[], assistantContent: IAssistantContent[], roundSummary: string | null) => {
-          // 写回 pages + 追加 assistant 消息 + 标记完成
-          await Promise.all([
-            applicationService.updateApplication(appId, { pages: finalPages }),
-            conversationService.appendAssistantMessage(appId, resolvedDialogueId, assistantContent),
-            conversationService.updateThreadStatus(appId, resolvedDialogueId, 'completed'),
-          ])
+      // 5. 根据是否有 pending 决定回调策略
+      if (pending) {
+        // task 模式 resume：副作用继续暂存到 pending
+        await proxySSECore('/ai/resume', requestBody, res, {
+          onDone: async (finalAppJSON, assistantContent, roundSummary) => {
+            pendingStore.setFinalAppJSON(appId, finalAppJSON)
+            pendingStore.setAssistantContent(appId, assistantContent)
+            if (roundSummary) {
+              pendingStore.setRoundSummary(appId, roundSummary)
+            }
+            await pendingStore.markDone(appId)
+          },
+          onError: async () => {
+            pendingStore.updateStatus(appId, 'failed')
+          },
+          onInterrupt: async () => {
+            pendingStore.updateStatus(appId, 'interrupted')
+          },
+          onSchemaUpdate: (collections) => {
+            pendingStore.setSchemaUpdates(appId, collections)
+          },
+          onMemoryUpdate: (memoryInput) => {
+            pendingStore.setMemoryUpdates(appId, memoryInput)
+          },
+          onPlanningProgress: async (agent, entry) => {
+            pendingStore.addPlanningEntry(appId, { agent, ...entry })
+          },
+          onPlanningFailed: async (agent) => {
+            pendingStore.setPlanningFailed(appId, agent)
+          },
+        }, appId)
+      } else {
+        // chat 模式 resume（罕见）：直接写 DB
+        const resolvedDialogueId = dialogueId
+          ? new Types.ObjectId(dialogueId)
+          : (await conversationService.getLastPendingDialogue(appId))!.dialogueId
 
-          // task 类型对话完成时创建 Snapshot
-          // 需要查询 dialogue type（从 pending 信息中无法直接获取，此处简化为总是创建）
-          snapshotService.createSnapshot(appId, resolvedDialogueId).catch(err => {
-            console.error('[AiService] resume Snapshot 创建失败:', err)
-          })
+        await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'running')
 
-          // 持久化对话摘要（异步 fire-and-forget）
-          if (roundSummary) {
-            this.persistDialogueSummary(appId, resolvedDialogueId, roundSummary).catch(err => {
-              console.error('[AiService] resume 对话摘要持久化失败:', err)
+        await proxySSECore('/ai/resume', requestBody, res, {
+          onDone: async (finalAppJSON, assistantContent, roundSummary) => {
+            await Promise.all([
+              applicationService.updateApplication(appId, { appJSON: finalAppJSON }),
+              conversationService.appendAssistantMessage(appId, resolvedDialogueId, assistantContent),
+              conversationService.updateThreadStatus(appId, resolvedDialogueId, 'completed'),
+            ])
+            snapshotService.createSnapshot(appId, resolvedDialogueId).catch(err => {
+              console.error('[AiService] resume Snapshot 创建失败:', err)
             })
-          }
-        },
-        onError: async () => {
-          await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'failed').catch(err => {
-            console.error('[AiService] 更新 threadStatus(failed) 失败:', err)
-          })
-        },
-        onInterrupt: async () => {
-          await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'interrupted').catch(err => {
-            console.error('[AiService] 更新 threadStatus(interrupted) 失败:', err)
-          })
-        },
-      }, appId)
+            if (roundSummary) {
+              this.persistDialogueSummary(appId, resolvedDialogueId, roundSummary).catch(err => {
+                console.error('[AiService] resume 对话摘要持久化失败:', err)
+              })
+            }
+          },
+          onError: async () => {
+            await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'failed').catch(err => {
+              console.error('[AiService] 更新 threadStatus(failed) 失败:', err)
+            })
+          },
+          onInterrupt: async () => {
+            await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'interrupted').catch(err => {
+              console.error('[AiService] 更新 threadStatus(interrupted) 失败:', err)
+            })
+          },
+          onSchemaUpdate: (collections) => {
+            SchemaService.setCollections(appId, collections).catch(err => {
+              console.error('[AiService] Schema 写入失败:', err)
+            })
+          },
+          onMemoryUpdate: (memoryInput) => {
+            memoryService.handleMemoryUpdate(appId, memoryInput).catch(err => {
+              console.error('[AiService] Agent 记忆写入失败:', err)
+            })
+          },
+        }, appId)
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       sseWrite(res, 'error', { message })
@@ -333,17 +749,138 @@ class AiService {
     }
   }
 
+  // ─── Confirm / Discard（事务确认/撤销）──────────────────────────────────────
+
+  /**
+   * 确认对话：将 PendingStore 中暂存的所有副作用一次性写入 MongoDB
+   *
+   * 这是"对话即事务"的 commit 操作。
+   * 使用 withAppLock 防止与 SSE 流（runWithSSE/resumeSSE）竞态。
+   */
+  async confirmDialogue(appId: string): Promise<{ dialogueId: string }> {
+    return withAppLock(appId, () => this._confirmDialogueCore(appId))
+  }
+
+  private async _confirmDialogueCore(appId: string): Promise<{ dialogueId: string }> {
+    const pending = pendingStore.getConfirmable(appId)
+    if (!pending) {
+      throw new Error('没有可确认的待处理对话')
+    }
+
+    const dialogueId = new Types.ObjectId(pending.dialogueId)
+
+    // 1. 创建 Dialogue + user 消息 → 写 DB
+    await conversationService.createDialogueWithId(
+      appId,
+      dialogueId,
+      pending.type,
+      { prompt: pending.userMessage.prompt, images: pending.userMessage.images }
+    )
+
+    // 2. 设置 threadInfo
+    await conversationService.setThreadInfo(appId, dialogueId, pending.threadId, 'completed')
+
+    // 3. 追加 assistant 消息
+    if (pending.assistantContent.length > 0) {
+      await conversationService.appendAssistantMessage(appId, dialogueId, pending.assistantContent)
+    }
+
+    // 4. 写回 appJSON
+    if (pending.finalAppJSON) {
+      await applicationService.updateApplication(appId, { appJSON: pending.finalAppJSON })
+    }
+
+    // 5. 写 Schema
+    if (pending.schemaUpdates) {
+      await SchemaService.setCollections(appId, pending.schemaUpdates)
+    }
+
+    // 6. 写 Agent 记忆
+    if (pending.memoryUpdates) {
+      await memoryService.handleMemoryUpdate(appId, pending.memoryUpdates)
+    }
+
+    // 7. 写规划产物（如果有）
+    if (pending.planningEntries.length > 0) {
+      const artifact = await planningArtifactService.create(appId, dialogueId)
+      const artifactId = artifact._id as Types.ObjectId
+      await conversationService.setPlanningArtifactId(appId, dialogueId, artifactId)
+      for (const entry of pending.planningEntries) {
+        await planningArtifactService.writeAgentOutput(artifactId, entry.agent, {
+          output: entry.output,
+          reasoning: entry.reasoning,
+          tokenUsage: entry.tokenUsage,
+          durationMs: entry.durationMs,
+        })
+      }
+      if (pending.planningFailedAgent) {
+        await planningArtifactService.updateStatus(artifactId, 'failed', { failedAt: pending.planningFailedAgent })
+      } else {
+        await planningArtifactService.updateStatus(artifactId, 'completed', { completedAt: new Date() })
+      }
+    }
+
+    // 8. 创建 Snapshot（task 模式）
+    snapshotService.createSnapshot(appId, dialogueId).catch(err => {
+      console.error('[AiService] confirm Snapshot 创建失败:', err)
+    })
+
+    // 9. 持久化对话摘要 + embedding（异步）
+    if (pending.roundSummary) {
+      this.persistDialogueSummary(appId, dialogueId, pending.roundSummary).catch(err => {
+        console.error('[AiService] 对话摘要持久化失败:', err)
+      })
+    }
+
+    // 10. 清除 pending
+    await pendingStore.delete(appId)
+
+    return { dialogueId: dialogueId.toString() }
+  }
+
+  /**
+   * 撤销对话：丢弃 PendingStore 中的所有暂存数据，不写 DB
+   *
+   * 这是"对话即事务"的 rollback 操作。
+   * 使用 withAppLock 防止与 SSE 流竞态。
+   */
+  async discardDialogue(appId: string): Promise<void> {
+    return withAppLock(appId, () => pendingStore.delete(appId))
+  }
+
+  /**
+   * 获取待确认的 pending 对话数据
+   * 用于前端重新加载页面时恢复"确认/撤销"状态
+   */
+  getPendingDialogue(appId: string): PendingDialogueData | null {
+    return pendingStore.get(appId)
+  }
+
+  // ─── 查询接口 ──────────────────────────────────────────────────────────────
+
   /**
    * 查询应用当前的 AI 执行状态
    */
   async getStatus(appId: string): Promise<{ dialogueId: string; threadId: string; status: string; canResume: boolean } | null> {
-    const pending = await conversationService.getLastPendingDialogue(appId)
-    if (!pending) return null
+    // 优先检查 pending
+    const pending = pendingStore.get(appId)
+    if (pending && (pending.status === 'streaming' || pending.status === 'interrupted')) {
+      return {
+        dialogueId: pending.dialogueId,
+        threadId: pending.threadId,
+        status: pending.status === 'streaming' ? 'running' : 'interrupted',
+        canResume: pending.status === 'interrupted',
+      }
+    }
+
+    // 再查 DB（chat 模式的旧数据）
+    const dbPending = await conversationService.getLastPendingDialogue(appId)
+    if (!dbPending) return null
     return {
-      dialogueId: pending.dialogueId.toString(),
-      threadId: pending.threadId,
-      status: pending.status,
-      canResume: pending.status === 'interrupted' || pending.status === 'running',
+      dialogueId: dbPending.dialogueId.toString(),
+      threadId: dbPending.threadId,
+      status: dbPending.status,
+      canResume: dbPending.status === 'interrupted' || dbPending.status === 'running',
     }
   }
 
@@ -368,499 +905,10 @@ class AiService {
     return this.proxyJSON('POST', '/ai/models/switch', { provider })
   }
 
-  /**
-   * 向 XiangDi 服务 /ai/run 发起 SSE 请求并透传
-   *
-   * V2 变更：收集所有 SSE 事件作为 AssistantContent[]，在 onDone 时一并传出
-   */
-  private proxySSE(
-    requestBody: string,
-    clientRes: ServerResponse,
-    callbacks: {
-      onDone: (pages: string[], assistantContent: IAssistantContent[], roundSummary: string | null) => Promise<void>
-      onError?: () => Promise<void>
-      onInterrupt?: () => Promise<void>
-    },
-    appId: string
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const url = new URL('/ai/run', XIANGDI_BASE_URL)
-      const isHttps = url.protocol === 'https:'
-      const transport = isHttps ? https : http
-
-      const options: http.RequestOptions = {
-        hostname: url.hostname,
-        port: url.port || (isHttps ? 443 : 3002),
-        path: url.pathname,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(requestBody),
-          'Accept': 'text/event-stream',
-          ...(XIANGDI_INTERNAL_TOKEN ? { 'X-Internal-Token': XIANGDI_INTERNAL_TOKEN } : {}),
-        },
-      }
-
-      // 收集 text_delta 拼接完整文本（用于 AssistantContent 中的 text 块）
-      let textBuffer = ''
-      // 收集 round_summary 事件的摘要内容
-      let roundSummaryBuffer: string | null = null
-      // 收集所有 SSE 事件作为 AssistantContent（持久化用）
-      const assistantContentBuffer: IAssistantContent[] = []
-
-      const req = transport.request(options, (upstream: IncomingMessage) => {
-        if (upstream.statusCode && upstream.statusCode >= 400) {
-          reject(new Error(`XiangDi 服务返回错误状态码: ${upstream.statusCode}`))
-          return
-        }
-
-        let buffer = ''
-
-        upstream.on('data', (chunk: Buffer) => {
-          buffer += chunk.toString()
-          const lines = buffer.split('\n')
-          buffer = lines.pop() ?? ''
-
-          let currentEvent = ''
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              currentEvent = line.slice(7).trim()
-            } else if (line.startsWith('data: ')) {
-              const dataStr = line.slice(6)
-
-              if (currentEvent === 'text_delta') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { text?: string }
-                  if (parsed.text) textBuffer += parsed.text
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'tool_call') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { id: string; name: string; input: unknown }
-                  assistantContentBuffer.push({
-                    type: 'tool_call',
-                    id: parsed.id,
-                    name: parsed.name,
-                    input: parsed.input,
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'tool_result') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { id: string; result: unknown; isError: boolean }
-                  assistantContentBuffer.push({
-                    type: 'tool_result',
-                    id: parsed.id,
-                    result: parsed.result,
-                    isError: parsed.isError ?? false,
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'pages_snapshot') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { pages: string[] }
-                  assistantContentBuffer.push({
-                    type: 'pages_snapshot',
-                    pages: parsed.pages ?? [],
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'schema_update') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { collections?: ICollectionDef[] }
-                  if (Array.isArray(parsed.collections) && parsed.collections.length > 0) {
-                    // 写入 DB（异步 fire-and-forget）
-                    SchemaService.setCollections(appId, parsed.collections).catch((err) => {
-                      console.error('[AiService] 写入 Schema 失败:', err)
-                    })
-                    assistantContentBuffer.push({
-                      type: 'schema_update',
-                      collections: parsed.collections,
-                    })
-                  }
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'disambiguation') {
-                try {
-                  const parsed = JSON.parse(dataStr)
-                  assistantContentBuffer.push({
-                    type: 'disambiguation',
-                    options: parsed,
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'round_summary') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { summary?: string }
-                  if (parsed.summary) {
-                    roundSummaryBuffer = parsed.summary
-                  }
-                } catch {
-                  // 解析失败不影响主流程
-                }
-              }
-
-              if (currentEvent === 'memory_update') {
-                try {
-                  const parsed = JSON.parse(dataStr) as {
-                    episode?: { title: string; content: string; outcome: string; lessons: string[]; involvedEntities: string[]; tags: string[]; importance: number } | null
-                    facts?: Array<{ category: string; content: string; confidence: number }>
-                  }
-                  const memoryInput: MemoryUpdateInput = {
-                    episode: (parsed.episode ?? null) as MemoryUpdateInput['episode'],
-                    facts: (parsed.facts ?? []) as MemoryUpdateInput['facts'],
-                  }
-                  memoryService.handleMemoryUpdate(appId, memoryInput).catch((err) => {
-                    console.error('[AiService] Agent 记忆写入失败:', err)
-                  })
-                } catch {
-                  // 解析失败不影响主流程
-                }
-                // 跳过透传：memory_update 是后端内部事件，不发送给前端
-                currentEvent = ''
-              }
-
-              if (currentEvent === 'done') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { pages?: string[] }
-                  const finalPages = parsed.pages ?? []
-
-                  // 将累积的文本作为 text 内容块加入（放在最前面）
-                  if (textBuffer) {
-                    assistantContentBuffer.unshift({ type: 'text', text: textBuffer })
-                  }
-
-                  // 添加 done 内容块
-                  assistantContentBuffer.push({ type: 'done', pages: finalPages })
-
-                  // 异步写回，不阻塞 SSE 流
-                  callbacks.onDone(finalPages, assistantContentBuffer, roundSummaryBuffer).catch((err) => {
-                    console.error('[AiService] 写回数据失败:', err)
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'error') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { message?: string }
-                  assistantContentBuffer.push({
-                    type: 'error',
-                    message: parsed.message ?? '未知错误',
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'interrupt') {
-                callbacks.onInterrupt?.().catch((err) => {
-                  console.error('[AiService] onInterrupt 回调失败:', err)
-                })
-              }
-
-              // 透传所有事件给前端（memory_update 除外，已在上面置空 currentEvent）
-              if (currentEvent) {
-                sseWrite(clientRes, currentEvent, dataStr)
-              }
-              currentEvent = ''
-            }
-          }
-        })
-
-        upstream.on('end', () => {
-          sseDone(clientRes)
-          resolve()
-        })
-
-        upstream.on('error', (err) => {
-          callbacks.onError?.().catch(() => {})
-          sseWrite(clientRes, 'error', { message: err.message })
-          sseDone(clientRes)
-          reject(err)
-        })
-      })
-
-      req.on('error', (err) => {
-        callbacks.onError?.().catch(() => {})
-        const message = `无法连接到 XiangDi 服务 (${XIANGDI_BASE_URL}): ${err.message}`
-        sseWrite(clientRes, 'error', { message })
-        sseDone(clientRes)
-        reject(new Error(message))
-      })
-
-      req.write(requestBody)
-      req.end()
-    })
-  }
-
-  /**
-   * 向 XiangDi 服务 /ai/resume 发起 SSE 请求并透传
-   *
-   * V2 变更：同样收集 AssistantContent[]
-   */
-  private proxyResumeSSE(
-    requestBody: string,
-    clientRes: ServerResponse,
-    callbacks: {
-      onDone: (pages: string[], assistantContent: IAssistantContent[], roundSummary: string | null) => Promise<void>
-      onError?: () => Promise<void>
-      onInterrupt?: () => Promise<void>
-    },
-    appId: string
-  ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const url = new URL('/ai/resume', XIANGDI_BASE_URL)
-      const isHttps = url.protocol === 'https:'
-      const transport = isHttps ? https : http
-
-      const options: http.RequestOptions = {
-        hostname: url.hostname,
-        port: url.port || (isHttps ? 443 : 3002),
-        path: url.pathname,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(requestBody),
-          'Accept': 'text/event-stream',
-          ...(XIANGDI_INTERNAL_TOKEN ? { 'X-Internal-Token': XIANGDI_INTERNAL_TOKEN } : {}),
-        },
-      }
-
-      let textBuffer = ''
-      let roundSummaryBuffer: string | null = null
-      const assistantContentBuffer: IAssistantContent[] = []
-
-      const req = transport.request(options, (upstream: IncomingMessage) => {
-        if (upstream.statusCode && upstream.statusCode >= 400) {
-          callbacks.onError?.().catch(() => {})
-          reject(new Error(`XiangDi /ai/resume 返回错误状态码: ${upstream.statusCode}`))
-          return
-        }
-
-        let buffer = ''
-
-        upstream.on('data', (chunk: Buffer) => {
-          buffer += chunk.toString()
-          const lines = buffer.split('\n')
-          buffer = lines.pop() ?? ''
-
-          let currentEvent = ''
-          for (const line of lines) {
-            if (line.startsWith('event: ')) {
-              currentEvent = line.slice(7).trim()
-            } else if (line.startsWith('data: ')) {
-              const dataStr = line.slice(6)
-
-              if (currentEvent === 'text_delta') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { text?: string }
-                  if (parsed.text) textBuffer += parsed.text
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'tool_call') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { id: string; name: string; input: unknown }
-                  assistantContentBuffer.push({
-                    type: 'tool_call',
-                    id: parsed.id,
-                    name: parsed.name,
-                    input: parsed.input,
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'tool_result') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { id: string; result: unknown; isError: boolean }
-                  assistantContentBuffer.push({
-                    type: 'tool_result',
-                    id: parsed.id,
-                    result: parsed.result,
-                    isError: parsed.isError ?? false,
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'pages_snapshot') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { pages: string[] }
-                  assistantContentBuffer.push({
-                    type: 'pages_snapshot',
-                    pages: parsed.pages ?? [],
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'schema_update') {
-                // schema_update 事件：解析 collections，写入 DB（异步 fire-and-forget）
-                try {
-                  const parsed = JSON.parse(dataStr) as { collections?: ICollectionDef[] }
-                  if (Array.isArray(parsed.collections) && parsed.collections.length > 0) {
-                    SchemaService.setCollections(appId, parsed.collections).catch((err) => {
-                      console.error('[AiService] resume 写入 Schema 失败:', err)
-                    })
-                    assistantContentBuffer.push({
-                      type: 'schema_update',
-                      collections: parsed.collections,
-                    })
-                  }
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'disambiguation') {
-                try {
-                  const parsed = JSON.parse(dataStr)
-                  assistantContentBuffer.push({
-                    type: 'disambiguation',
-                    options: parsed,
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'round_summary') {
-                // round_summary 事件：捕获对话摘要
-                try {
-                  const parsed = JSON.parse(dataStr) as { summary?: string }
-                  if (parsed.summary) {
-                    roundSummaryBuffer = parsed.summary
-                  }
-                } catch {
-                  // 解析失败不影响主流程
-                }
-              }
-
-              if (currentEvent === 'memory_update') {
-                // memory_update 事件：持久化到 AgentMemory 集合，不转发给前端
-                try {
-                  const parsed = JSON.parse(dataStr) as {
-                    episode?: { title: string; content: string; outcome: string; lessons: string[]; involvedEntities: string[]; tags: string[]; importance: number } | null
-                    facts?: Array<{ category: string; content: string; confidence: number }>
-                  }
-                  const memoryInput: MemoryUpdateInput = {
-                    episode: (parsed.episode ?? null) as MemoryUpdateInput['episode'],
-                    facts: (parsed.facts ?? []) as MemoryUpdateInput['facts'],
-                  }
-                  memoryService.handleMemoryUpdate(appId, memoryInput).catch((err) => {
-                    console.error('[AiService] resume Agent 记忆写入失败:', err)
-                  })
-                } catch {
-                  // 解析失败不影响主流程
-                }
-                // 跳过透传：memory_update 是后端内部事件，不发送给前端
-                currentEvent = ''
-              }
-
-              if (currentEvent === 'done') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { pages?: string[] }
-                  const finalPages = parsed.pages ?? []
-
-                  // 将累积的文本作为 text 内容块加入（放在最前面）
-                  if (textBuffer) {
-                    assistantContentBuffer.unshift({ type: 'text', text: textBuffer })
-                  }
-
-                  // 添加 done 内容块
-                  assistantContentBuffer.push({ type: 'done', pages: finalPages })
-
-                  callbacks.onDone(finalPages, assistantContentBuffer, roundSummaryBuffer).catch((err) => {
-                    console.error('[AiService] resume 写回数据失败:', err)
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'error') {
-                try {
-                  const parsed = JSON.parse(dataStr) as { message?: string }
-                  assistantContentBuffer.push({
-                    type: 'error',
-                    message: parsed.message ?? '未知错误',
-                  })
-                } catch {
-                  // 解析失败不影响透传
-                }
-              }
-
-              if (currentEvent === 'interrupt') {
-                callbacks.onInterrupt?.().catch((err) => {
-                  console.error('[AiService] resume onInterrupt 回调失败:', err)
-                })
-              }
-
-              // 透传所有事件给前端（memory_update 除外，已在上面置空 currentEvent）
-              if (currentEvent) {
-                sseWrite(clientRes, currentEvent, dataStr)
-              }
-              currentEvent = ''
-            }
-          }
-        })
-
-        upstream.on('end', () => {
-          sseDone(clientRes)
-          resolve()
-        })
-
-        upstream.on('error', (err) => {
-          callbacks.onError?.().catch(() => {})
-          sseWrite(clientRes, 'error', { message: err.message })
-          sseDone(clientRes)
-          reject(err)
-        })
-      })
-
-      req.on('error', (err) => {
-        callbacks.onError?.().catch(() => {})
-        const message = `无法连接到 XiangDi 服务 (${XIANGDI_BASE_URL}): ${err.message}`
-        sseWrite(clientRes, 'error', { message })
-        sseDone(clientRes)
-        reject(new Error(message))
-      })
-
-      req.write(requestBody)
-      req.end()
-    })
-  }
+  // ─── 私有方法 ──────────────────────────────────────────────────────────────
 
   /**
    * 持久化对话摘要 + 调用知识服务生成向量
-   *
-   * 异步执行（fire-and-forget），不阻塞主流程。
    */
   private async persistDialogueSummary(
     appId: string,
@@ -879,7 +927,6 @@ class AiService {
 
   /**
    * 通用 JSON 请求代理（非 SSE）
-   * 向 XiangDi 服务发起普通 HTTP 请求并返回解析后的 JSON
    */
   private proxyJSON(method: 'GET' | 'POST', path: string, body: unknown): Promise<unknown> {
     return new Promise((resolve, reject) => {

@@ -1,6 +1,5 @@
 import app from './app'
-import { startCheckpointCleanup, stopCheckpointCleanup } from './checkpoint/cleanup.js'
-import { closeCheckpointer } from './checkpoint/index.js'
+import { getStore } from './checkpoint/index.js'
 import { logger } from './logger.js'
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3002
@@ -15,8 +14,10 @@ const server = app.listen(PORT, () => {
         ],
     })
 
-    // 启动 checkpoint 过期清理定时任务
-    startCheckpointCleanup()
+    // 启动 CheckpointStore（含 TTL 清理定时任务）
+    const store = getStore()
+    store.start()
+    logger.info(`CheckpointStore backend: ${store.backend}`)
 })
 
 // ─── Graceful Shutdown ────────────────────────────────────────────────────────
@@ -50,11 +51,10 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
     // 3. 清理资源
     try {
-        stopCheckpointCleanup()
-        await closeCheckpointer()
-        logger.info('Checkpoint resources released')
+        await getStore().stop()
+        logger.info('CheckpointStore stopped')
     } catch (err) {
-        logger.error('Error during checkpoint cleanup', err)
+        logger.error('Error stopping CheckpointStore', err)
     }
 
     logger.info('Graceful shutdown complete')

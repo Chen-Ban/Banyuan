@@ -17,17 +17,22 @@
  *   - disambiguation    → 靠左无气泡卡片
  */
 
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Spin } from "antd";
 import {
   CheckCircleOutlined,
+  CheckOutlined,
+  CloseOutlined,
   LoadingOutlined,
+  StopOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
 import Markdown from "react-markdown";
-import type { ProgressMessage } from "@/hooks/useXiangDi";
+import type { ProgressMessage, PlanApprovalState, PlanningStep } from "@/hooks/useXiangDi";
 import type { ConversationMessage, DisambiguationOptions } from "@/api";
 import DisambiguationPanel from "../DisambiguationPanel";
+import PlanApprovalCard from "../PlanApprovalCard";
+import PlanningCard from "../PlanningCard";
 import styles from "./index.module.scss";
 
 // assistant 气泡折叠时最多显示的行数
@@ -43,8 +48,19 @@ export interface ConversationPanelProps {
   messages: ProgressMessage[];
   currentText: string;
   loading: boolean;
+  /** Multi-Agent 规划步骤状态 */
+  planningSteps: PlanningStep[] | null;
   disambiguationState: DisambiguationOptions | null;
-  onDisambiguationSelect: (choiceId: string) => void;
+  onDisambiguationSelect: (feedback: string) => void;
+  planApproval: PlanApprovalState | null;
+  onPlanApprove: () => void;
+  onPlanReject: (feedback: string) => void;
+  /** 是否有待确认的 task 对话（V4 事务化） */
+  hasPendingTask: boolean;
+  /** 确认 task 对话 */
+  onConfirmTask: () => void;
+  /** 撤销 task 对话 */
+  onDiscardTask: () => void;
 }
 
 // ─── ConversationPanel ────────────────────────────────────────────────────────
@@ -55,8 +71,15 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   messages,
   currentText,
   loading,
+  planningSteps,
   disambiguationState,
   onDisambiguationSelect,
+  planApproval,
+  onPlanApprove,
+  onPlanReject,
+  hasPendingTask,
+  onConfirmTask,
+  onDiscardTask,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -65,6 +88,8 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   // 阈值：距离底部 60px 以内视为"在底部"
   const SCROLL_THRESHOLD = 60;
   const isAtBottomRef = useRef(true);
+  // RAF 节流：避免 text_delta 高频更新时排队大量平滑滚动动画
+  const scrollRafRef = useRef<number | null>(null);
 
   // 监听滚动事件，记录用户是否在底部
   const handleScroll = useCallback(() => {
@@ -82,12 +107,37 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
     return () => el.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
-  // 当内容更新时，仅在用户已在底部时才滚动
+  // 清理 RAF（组件卸载时）
+  useEffect(() => {
+    return () => {
+      if (scrollRafRef.current !== null) {
+        cancelAnimationFrame(scrollRafRef.current);
+      }
+    };
+  }, []);
+
+  // 节流版 scrollIntoView：同一帧内多次触发只执行一次
+  const scheduleScrollToBottom = useCallback(() => {
+    if (!isAtBottomRef.current) return;
+    if (scrollRafRef.current !== null) return; // 已有待执行的 RAF，跳过
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      if (isAtBottomRef.current) {
+        endRef.current?.scrollIntoView({ behavior: "smooth" });
+      }
+    });
+  }, []);
+
+  // 内容维度变化时触发滚动（用 length 而非引用，避免 history/messages 数组引用每次都变）
+  const scrollKey = useMemo(
+    () => `${history.length}_${messages.length}_${currentText.length}`,
+    [history.length, messages.length, currentText.length]
+  );
+
   useLayoutEffect(() => {
-    if (isAtBottomRef.current) {
-      endRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [history, messages, currentText]);
+    scheduleScrollToBottom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollKey]);
 
   const isEmpty =
     !historyLoading &&
@@ -140,11 +190,21 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
                 <span>{msg.content}</span>
               </div>
             );
+          case 'plan_approval':
+            // 方案确认卡片的占位符（实际卡片在下方渲染）
+            return null;
           case 'done':
             return (
               <div key={msg.id} className={styles.statusRow}>
                 <CheckCircleOutlined className={styles.doneIcon} />
                 <span className={styles.doneText}>完成</span>
+              </div>
+            );
+          case 'aborted':
+            return (
+              <div key={msg.id} className={`${styles.statusRow} ${styles.statusRowAborted}`}>
+                <StopOutlined />
+                <span>{msg.content}</span>
               </div>
             );
           case 'error':
@@ -171,6 +231,15 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         </div>
       )}
 
+      {/* ── 方案确认卡片（humanGate interrupt） ── */}
+      {planApproval && (
+        <PlanApprovalCard
+          plan={planApproval}
+          onApprove={onPlanApprove}
+          onReject={onPlanReject}
+        />
+      )}
+
       {/* ── 消歧面板（靠左，无气泡） ── */}
       {disambiguationState && (
         <DisambiguationPanel
@@ -179,16 +248,43 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         />
       )}
 
+      {/* ── Multi-Agent 规划进度卡片 ── */}
+      {planningSteps && <PlanningCard steps={planningSteps} />}
+
       {/* ── 初始思考中（无任何内容时） ── */}
       {loading &&
         messages.length === 0 &&
         !currentText &&
+        !planningSteps &&
         !disambiguationState && (
           <div className={styles.statusRow}>
             <LoadingOutlined className={styles.thinkingIcon} />
             <span>banyan 正在思考...</span>
           </div>
         )}
+
+      {/* ── 待确认 task 对话（确认/撤销按钮） ── */}
+      {hasPendingTask && !loading && (
+        <div className={styles.pendingActions}>
+          <div className={styles.pendingHint}>任务已完成，请预览画布效果后确认或撤销</div>
+          <div className={styles.pendingBtnGroup}>
+            <button
+              className={`${styles.pendingBtn} ${styles.pendingBtnConfirm}`}
+              onClick={onConfirmTask}
+            >
+              <CheckOutlined />
+              <span>确认保存</span>
+            </button>
+            <button
+              className={`${styles.pendingBtn} ${styles.pendingBtnDiscard}`}
+              onClick={onDiscardTask}
+            >
+              <CloseOutlined />
+              <span>撤销修改</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div ref={endRef} />
     </div>

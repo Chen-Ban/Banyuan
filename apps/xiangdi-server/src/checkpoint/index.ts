@@ -1,50 +1,76 @@
 /**
- * 相地服务 · Checkpoint 持久化模块
+ * Checkpoint 模块公共入口
  *
- * 使用 LangGraph SqliteSaver 实现 MasterGraph 的执行状态持久化。
- * 每个节点完成后自动 checkpoint，支持连接断开后恢复执行。
+ * 通过工厂函数根据环境变量创建 CheckpointStore 实例，
+ * 对外暴露统一的抽象接口。
  *
- * 存储位置：./data/checkpoints.db（相对于 xiangdi-server 工作目录）
+ * 环境变量：
+ * - CHECKPOINT_BACKEND: "sqlite" | "memory"，默认 "sqlite"
+ * - CHECKPOINT_DB_PATH: SQLite 模式下的文件路径（默认 ./data/checkpoints.db）
+ *
+ * 使用方式：
+ *   import { getStore } from './checkpoint/index.js'
+ *   const store = getStore()
+ *   const checkpointer = store.getCheckpointer()
  */
 
-import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
-import { existsSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
+import type { CheckpointStore } from "./types.js";
+import { SqliteCheckpointStore } from "./SqliteCheckpointStore.js";
+import { MemoryCheckpointStore } from "./MemoryCheckpointStore.js";
 
-// ─── 配置 ──────────────────────────────────────────────────────────────────────
+export type { CheckpointStore, ThreadStatus, CleanupConfig } from "./types.js";
 
-const CHECKPOINT_DB_PATH = process.env.CHECKPOINT_DB_PATH || "./data/checkpoints.db";
+// ─── 全局单例 ────────────────────────────────────────────────────────────────────
 
-// ─── 初始化 ──────────────────────────────────────────────────────────────────────
-
-/** 确保存储目录存在 */
-function ensureDataDir(): void {
-  const dir = dirname(CHECKPOINT_DB_PATH);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-}
-
-/** 全局 checkpointer 单例 */
-let _checkpointer: SqliteSaver | null = null;
+let _store: CheckpointStore | null = null;
 
 /**
- * 获取 Checkpointer 实例（懒初始化单例）
+ * 创建或获取 CheckpointStore 全局单例。
+ * 首次调用时根据 CHECKPOINT_BACKEND 环境变量决定使用哪种实现。
  */
-export function getCheckpointer(): SqliteSaver {
-  if (!_checkpointer) {
-    ensureDataDir();
-    _checkpointer = SqliteSaver.fromConnString(CHECKPOINT_DB_PATH);
+export function getStore(): CheckpointStore {
+  if (!_store) {
+    _store = createStore();
   }
-  return _checkpointer;
+  return _store;
 }
 
 /**
- * 关闭 Checkpointer 连接（进程退出时调用）
+ * 工厂函数：根据环境配置创建对应的 CheckpointStore 实现。
+ */
+function createStore(): CheckpointStore {
+  const backend = process.env.CHECKPOINT_BACKEND ?? "sqlite";
+
+  switch (backend) {
+    case "memory":
+      return new MemoryCheckpointStore();
+
+    case "sqlite":
+      return new SqliteCheckpointStore();
+
+    default:
+      console.warn(
+        `[checkpoint] Unknown CHECKPOINT_BACKEND="${backend}", falling back to sqlite`
+      );
+      return new SqliteCheckpointStore();
+  }
+}
+
+// ─── 兼容性导出（逐步废弃） ─────────────────────────────────────────────────────
+
+/**
+ * @deprecated 使用 `getStore().getCheckpointer()` 代替
+ */
+export function getCheckpointer() {
+  return getStore().getCheckpointer();
+}
+
+/**
+ * @deprecated 使用 `getStore().stop()` 代替
  */
 export async function closeCheckpointer(): Promise<void> {
-  if (_checkpointer) {
-    // SqliteSaver 没有显式 close 方法，置空即可
-    _checkpointer = null;
+  if (_store) {
+    await _store.stop();
+    _store = null;
   }
 }

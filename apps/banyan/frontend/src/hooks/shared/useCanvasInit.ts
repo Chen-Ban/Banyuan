@@ -2,9 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { App, BaseCamera, Scene } from '@banyuan/banvasgl'
 import type { IAppOptions, IRendererOptions } from '@banyuan/banvasgl'
 
-/** Scene 序列化后的 JSON 字符串（由 Serializer.serialize() 生成） */
-type SerializedPageJSON = string
-
 // ── BOM 属性（内联，避免跨目录依赖） ──
 function useBOMProperties(): { dpr: number } {
     const [dpr, setDpr] = useState<number>(() =>
@@ -54,14 +51,14 @@ export interface UseCanvasInitResult {
  *
  * 职责：
  *   1. 创建并销毁 App 实例
- *   2. 将序列化页面数据反序列化到 App
+ *   2. 将序列化的 appJSON 反序列化到 App
  *   3. 响应尺寸 / DPR 变化
  *
  * 被 useDesignBanvas、useFlowBanvas 共用。
  * 不包含任何事件绑定或业务逻辑。
  */
 export function useCanvasInit(
-    serializedPages: SerializedPageJSON[],
+    appJSON: string,
     options: UseCanvasOptions,
 ): UseCanvasInitResult {
     const { dpr } = useBOMProperties()
@@ -92,13 +89,14 @@ export function useCanvasInit(
         }
     }, [canvasNode]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Effect 2: 页面初始化（将序列化数据填充到 app）
+    // Effect 2: 从 appJSON 恢复应用状态
     useEffect(() => {
         if (!app) return
 
-        if (Array.isArray(serializedPages) && serializedPages.length > 0) {
-            app.initFromSerializedScenes(serializedPages)
+        if (appJSON) {
+            app.initFromSerialized(appJSON)
         } else {
+            // 空应用：创建默认空白页
             const camera = new BaseCamera()
             const scene = new Scene(camera)
             app.addScene(scene)
@@ -106,7 +104,7 @@ export function useCanvasInit(
         }
 
         app.notify()
-    }, [app, serializedPages])
+    }, [app, appJSON])
 
     // Effect 3: 尺寸 / DPR 变化时更新画布物理像素
     useEffect(() => {

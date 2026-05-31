@@ -35,16 +35,19 @@ import Conversation, {
 class ConversationService {
   /**
    * 获取或创建会话（按 appId，唯一）
+   *
+   * 使用 findOneAndUpdate + upsert 原子操作，避免并发下的 TOCTOU 竞态：
+   * - 若 appId 对应的文档已存在，直接返回现有文档（setOnInsert 不修改已有字段）
+   * - 若不存在，原子性创建并返回新文档
+   * - 即使两个请求同时到达，MongoDB 唯一索引确保只创建一个文档
    */
   async getOrCreate(appId: string): Promise<IConversation> {
-    const existing = await Conversation.findOne({ appId })
-    if (existing) return existing
-
-    const conv = new Conversation({
-      appId,
-      dialogues: [],
-    })
-    await conv.save()
+    const conv = await Conversation.findOneAndUpdate(
+      { appId },
+      { $setOnInsert: { appId, dialogues: [] } },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    )
+    if (!conv) throw new Error(`getOrCreate 返回 null（appId=${appId}）`)
     return conv
   }
 
@@ -102,6 +105,43 @@ class ConversationService {
       dialogueId: createdDialogue._id!,
       messageId: createdMessage._id!,
     }
+  }
+
+  /**
+   * 创建新对话（指定 _id），用于 confirm 时将 pending 数据写入 DB
+   *
+   * @param appId       应用 ID
+   * @param dialogueId  预生成的对话 ID
+   * @param type        对话类型（chat/task）
+   * @param userContent 用户消息内容
+   */
+  async createDialogueWithId(
+    appId: string,
+    dialogueId: Types.ObjectId,
+    type: DialogueType,
+    userContent: IUserContent
+  ): Promise<void> {
+    const now = new Date()
+
+    const userMessage: IMessage = {
+      role: 'user',
+      userContent,
+      createdAt: now,
+    }
+
+    const dialogue: IDialogue = {
+      _id: dialogueId,
+      type,
+      messages: [userMessage],
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    await Conversation.findOneAndUpdate(
+      { appId },
+      { $push: { dialogues: dialogue } },
+      { new: true }
+    )
   }
 
   /**
@@ -253,6 +293,24 @@ class ConversationService {
         $set: {
           'dialogues.$.summary': summary,
           'dialogues.$.embedding': embedding,
+        },
+      }
+    )
+  }
+
+  /**
+   * 设置对话关联的 PlanningArtifact ID（Multi-Agent 规划产物）
+   */
+  async setPlanningArtifactId(
+    appId: string,
+    dialogueId: Types.ObjectId,
+    artifactId: Types.ObjectId
+  ): Promise<void> {
+    await Conversation.updateOne(
+      { appId, 'dialogues._id': dialogueId },
+      {
+        $set: {
+          'dialogues.$.planningArtifactId': artifactId,
         },
       }
     )
