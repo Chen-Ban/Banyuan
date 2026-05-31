@@ -16,6 +16,15 @@ router.post('/models/switch', aiController.switchModel.bind(aiController))
 // GET  /api/ai/:appId/status  — 查询应用当前 AI 执行状态（是否有可恢复的 thread）
 router.get('/:appId/status', appOwnership, aiController.getStatus.bind(aiController))
 
+// GET  /api/ai/:appId/pending — 获取 pending 对话数据（用于页面恢复确认/撤销状态）
+router.get('/:appId/pending', appOwnership, aiController.getPending.bind(aiController))
+
+// POST /api/ai/:appId/confirm — 确认对话：将 pending 暂存数据持久化到 MongoDB
+router.post('/:appId/confirm', appOwnership, aiController.confirm.bind(aiController))
+
+// POST /api/ai/:appId/discard — 撤销对话：丢弃 pending 暂存数据
+router.post('/:appId/discard', appOwnership, aiController.discard.bind(aiController))
+
 // POST /api/ai/:appId/resume  — 从 checkpoint 恢复 AI 执行（SSE 流式）
 router.post('/:appId/resume', appOwnership, aiController.resume.bind(aiController))
 

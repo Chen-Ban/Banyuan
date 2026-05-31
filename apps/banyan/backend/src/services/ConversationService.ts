@@ -108,6 +108,43 @@ class ConversationService {
   }
 
   /**
+   * 创建新对话（指定 _id），用于 confirm 时将 pending 数据写入 DB
+   *
+   * @param appId       应用 ID
+   * @param dialogueId  预生成的对话 ID
+   * @param type        对话类型（chat/task）
+   * @param userContent 用户消息内容
+   */
+  async createDialogueWithId(
+    appId: string,
+    dialogueId: Types.ObjectId,
+    type: DialogueType,
+    userContent: IUserContent
+  ): Promise<void> {
+    const now = new Date()
+
+    const userMessage: IMessage = {
+      role: 'user',
+      userContent,
+      createdAt: now,
+    }
+
+    const dialogue: IDialogue = {
+      _id: dialogueId,
+      type,
+      messages: [userMessage],
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    await Conversation.findOneAndUpdate(
+      { appId },
+      { $push: { dialogues: dialogue } },
+      { new: true }
+    )
+  }
+
+  /**
    * 在现有对话内追加用户消息（用于 interrupted 后用户回复）
    *
    * @param appId       应用 ID
