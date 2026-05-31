@@ -391,6 +391,43 @@ export async function aiResume(options: AiResumeOptions): Promise<string> {
   })
 }
 
+// ─── 对话事务控制（V3：confirm / discard / pending）──────────────────────────
+
+export interface PendingDialogueInfo {
+  dialogueId: string
+  type: 'chat' | 'task'
+  status: 'streaming' | 'done' | 'error'
+  userContent: string
+  assistantContent: string | null
+  createdAt: string
+}
+
+/**
+ * 确认对话：将 pending 暂存数据持久化到 MongoDB。
+ * 只有 task 模式且 pending.status === 'done' 时后端才接受。
+ */
+export async function confirmDialogue(appId: string): Promise<{ dialogueId: string }> {
+  return post<{ dialogueId: string }>(`/ai/${appId}/confirm`, {})
+}
+
+/**
+ * 撤销对话：丢弃 pending 暂存数据。
+ * 前端应同时回滚画布到对话前的状态。
+ */
+export async function discardDialogue(appId: string): Promise<void> {
+  await post<{ success: boolean }>(`/ai/${appId}/discard`, {})
+}
+
+/**
+ * 获取当前 pending 对话数据。
+ * 用于页面刷新后恢复"确认/撤销"状态。
+ */
+export async function getPendingDialogue(appId: string): Promise<{ hasPending: boolean; pending?: PendingDialogueInfo }> {
+  return get<{ hasPending: boolean; pending?: PendingDialogueInfo }>(`/ai/${appId}/pending`)
+}
+
+// ─── SSE 流式对话 ─────────────────────────────────────────────────────────────
+
 /**
  * 发起 AI 对话，通过 SSE 接收流式事件
  * 返回 Promise，在 done 或 error 事件后 resolve/reject

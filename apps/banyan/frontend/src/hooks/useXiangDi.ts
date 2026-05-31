@@ -1,5 +1,5 @@
 /**
- * useXiangDi Hook（V2）
+ * useXiangDi Hook（V4 — 事务化）
  *
  * 封装与后端 XiangDi AI 服务的 SSE 通信逻辑。
  * 提供：
@@ -9,19 +9,16 @@
  * - 对话历史（dialogues / history 兼容层）
  * - 加载状态（loading）
  * - 中止请求（abort）
+ * - 确认/撤销 task 模式对话结果（confirmTask / discardTask）
  *
- * V2 变更：
- *   - 历史数据从 ConversationMessage[] 改为 Dialogue[]
- *   - sendPrompt 新增 type 参数（默认 task）
- *   - 保留 history（ConversationMessage[]）兼容层，通过 dialoguesToFlatMessages 转换
- *   - 新增 dialogues 状态，暴露完整的 Dialogue 结构
- *
- * V3 变更（消息混排）：
- *   - text_delta 不再仅累积到独立的 currentText 状态
- *   - 当遇到 tool_call 时，将之前累积的文字"冻结"为 type='text' 的 ProgressMessage
- *   - messages 数组按时间顺序混排 text 段落和 tool_call/tool_result
- *   - currentText 仅表示"当前正在流入、尚未冻结"的文字片段（用于光标渲染）
- *   - 这确保了 UI 能按真实执行顺序展示：文字1 → 工具1 → 文字2 → 工具2 → ...
+ * V4 变更（对话即事务）：
+ *   - task 模式引入"pending confirm"语义：
+ *     · SSE 流结束后（done 事件）对话处于"待确认"状态（hasPendingTask=true）
+ *     · 用户在前端画布预览结果后，调用 confirmTask 确认持久化，或 discardTask 撤销
+ *   - chat 模式不变：done 后直接写 DB（纯文字无副作用）
+ *   - 新增 hasPendingTask 状态 + pendingDialogue 数据
+ *   - 新增 confirmTask / discardTask 方法
+ *   - 页面刷新时自动检查 pending 状态（恢复确认/撤销 UI）
  *
  * 会话模型：1 App = 1 Conversation，以 appId 为唯一标识，
  * 前端无需管理 conversationId。
@@ -30,7 +27,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { aiApi, conversationApi } from '@/api'
 import type { AiStreamEvent, AiInterruptEvent, AiPlanningProgressEvent, AgentRole } from '@/api'
-import type { DisambiguationOptions } from '@/api'
+import type { DisambiguationOptions, PendingDialogueInfo } from '@/api'
 import type { ConversationMessage, Dialogue, DialogueType, ImageItem } from '@/api'
 import { dialoguesToFlatMessages } from '@/api/conversations'
 
@@ -95,6 +92,10 @@ export interface UseXiangDiOptions {
   onError?: (message: string) => void
   /** 检测到意图冲突时回调，前端展示消歧 UI */
   onDisambiguation?: (options: DisambiguationOptions) => void
+  /** task 确认成功后回调（可用于重新加载 appJSON） */
+  onConfirmed?: (dialogueId: string) => void
+  /** task 撤销后回调（前端应回滚画布到对话前的状态） */
+  onDiscarded?: () => void
 }
 
 export interface UseXiangDiReturn {
@@ -114,6 +115,10 @@ export interface UseXiangDiReturn {
   planningSteps: PlanningStep[] | null
   /** 方案确认状态（humanGate interrupt 时非 null） */
   planApproval: PlanApprovalState | null
+  /** 是否有 pending 的 task 对话待确认 */
+  hasPendingTask: boolean
+  /** pending 对话详情（非 null 时前端应显示确认/撤销按钮） */
+  pendingDialogue: PendingDialogueInfo | null
   /** 发送指令（type 默认 task） */
   sendPrompt: (prompt: string, type?: DialogueType, images?: Array<{ url: string; alt?: string }>) => Promise<void>
   /** 中止当前请求 */
@@ -126,6 +131,10 @@ export interface UseXiangDiReturn {
   respondToDisambiguation: (choiceId: string) => Promise<void>
   /** 响应方案确认（approved=true 直接执行，approved=false 附带 feedback 退回修改） */
   resumeApproval: (approved: boolean, feedback?: string) => Promise<void>
+  /** 确认 task 对话：持久化到 DB，画布保持当前状态 */
+  confirmTask: () => Promise<void>
+  /** 撤销 task 对话：丢弃暂存数据，画布回滚 */
+  discardTask: () => Promise<void>
 }
 
 let msgIdCounter = 0
@@ -134,7 +143,7 @@ function nextMsgId(): string {
 }
 
 export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
-  const { appId, onBeforeSend, onDone, onAppSnapshot, onError, onDisambiguation } = options
+  const { appId, onBeforeSend, onDone, onAppSnapshot, onError, onDisambiguation, onConfirmed, onDiscarded } = options
 
   const [loading, setLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
@@ -143,6 +152,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   const [currentText, setCurrentText] = useState('')
   const [planningSteps, setPlanningSteps] = useState<PlanningStep[] | null>(null)
   const [planApproval, setPlanApproval] = useState<PlanApprovalState | null>(null)
+  const [hasPendingTask, setHasPendingTask] = useState(false)
+  const [pendingDialogue, setPendingDialogue] = useState<PendingDialogueInfo | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
   // 同步互斥锁，防止 loading state 批次更新延迟导致的重复提交
@@ -151,12 +162,14 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   const currentTextRef = useRef('')
   // 累积所有文字（包括已冻结 + 当前流入的），用于 done 时构建 assistant 消息
   const allTextRef = useRef('')
+  // 当前对话类型（用于 done 事件中判断是否需要 pending confirm）
+  const currentTypeRef = useRef<DialogueType>('task')
 
   // ─── 兼容层：从 dialogues 派生扁平 history ──────────────────────────────────
 
   const history = useMemo(() => dialoguesToFlatMessages(dialogues), [dialogues])
 
-  // ─── 加载对话历史 ──────────────────────────────────────────────────────────
+  // ─── 加载对话历史 + 检查 pending 状态 ──────────────────────────────────────────
 
   useEffect(() => {
     if (!appId) return
@@ -164,15 +177,20 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     let cancelled = false
     setHistoryLoading(true)
 
-    conversationApi.getDialogues(appId).then((result) => {
-      if (!cancelled) {
-        setDialogues(result)
-        setHistoryLoading(false)
+    // 并行加载对话历史和 pending 状态
+    Promise.all([
+      conversationApi.getDialogues(appId),
+      aiApi.getPendingDialogue(appId),
+    ]).then(([dialogueResult, pendingResult]) => {
+      if (cancelled) return
+      setDialogues(dialogueResult)
+      if (pendingResult.hasPending && pendingResult.pending) {
+        setHasPendingTask(true)
+        setPendingDialogue(pendingResult.pending)
       }
+      setHistoryLoading(false)
     }).catch(() => {
-      if (!cancelled) {
-        setHistoryLoading(false)
-      }
+      if (!cancelled) setHistoryLoading(false)
     })
 
     return () => { cancelled = true }
@@ -310,31 +328,49 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
         // 规划完成时清空步骤指示器
         setPlanningSteps(null)
 
-        // 将 assistant 回复追加到临时 Dialogue 中
         const assistantText = allTextRef.current.trim()
-        if (assistantText) {
-          setDialogues((prev) => {
-            if (prev.length === 0) return prev
-            const updated = prev.slice(0, -1)
-            const lastDialogue = prev[prev.length - 1]
-            updated.push({
-              ...lastDialogue,
-              messages: [
-                ...lastDialogue.messages,
-                {
-                  role: 'assistant',
-                  assistantContent: [{ type: 'text', text: assistantText }],
-                  createdAt: new Date().toISOString(),
-                },
-              ],
+
+        if (currentTypeRef.current === 'task') {
+          // task 模式：进入 pending confirm 状态，不直接追加到 dialogues
+          setHasPendingTask(true)
+          setPendingDialogue({
+            dialogueId: `pending_${Date.now()}`,
+            type: 'task',
+            status: 'done',
+            userContent: '', // 已在 tempDialogue 中
+            assistantContent: assistantText || null,
+            createdAt: new Date().toISOString(),
+          })
+          addMessage({
+            type: 'done',
+            content: '任务完成，请确认或撤销修改',
+          })
+        } else {
+          // chat 模式：直接追加 assistant 回复到 dialogues（已写 DB）
+          if (assistantText) {
+            setDialogues((prev) => {
+              if (prev.length === 0) return prev
+              const updated = prev.slice(0, -1)
+              const lastDialogue = prev[prev.length - 1]
+              updated.push({
+                ...lastDialogue,
+                messages: [
+                  ...lastDialogue.messages,
+                  {
+                    role: 'assistant',
+                    assistantContent: [{ type: 'text', text: assistantText }],
+                    createdAt: new Date().toISOString(),
+                  },
+                ],
+              })
+              return updated
             })
-            return updated
+          }
+          addMessage({
+            type: 'done',
+            content: '完成',
           })
         }
-        addMessage({
-          type: 'done',
-          content: '完成',
-        })
         break
       }
       case 'error': {
@@ -354,6 +390,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     // 同步互斥：sendingRef 是即时生效的，比 loading state 更可靠
     if (sendingRef.current) return
     sendingRef.current = true
+    currentTypeRef.current = type
 
     // 乐观追加 user 消息到 dialogues（创建一个临时 Dialogue）
     const tempDialogue: Dialogue = {
@@ -421,8 +458,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       sendingRef.current = false
       abortControllerRef.current = null
     }
-  }, [appId, onBeforeSend, addMessage, freezeCurrentText, handleEvent, onDone, onError])
-  // 注意：依赖数组中移除了 loading，因为现在用 sendingRef 做互斥，loading 仅用于 UI 展示
+  }, [appId, onBeforeSend, addMessage, handleEvent, onDone, onError])
 
   const respondToDisambiguationFn = useCallback(async (choiceId: string) => {
     await aiApi.respondToDisambiguation(choiceId)
@@ -430,8 +466,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
 
   /**
    * 响应方案确认：
-   * - approved=true → 直接恢复执行（resume { approved: true }）
-   * - approved=false → 附带 feedback 退回修改（resume { approved: false, feedback }）
+   * - approved=true -> 直接恢复执行（resume { approved: true }）
+   * - approved=false -> 附带 feedback 退回修改（resume { approved: false, feedback }）
    *
    * Resume 本身也是 SSE 流式：恢复执行后，后续事件继续走 handleEvent 推送到 messages/currentText。
    */
@@ -473,6 +509,53 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     }
   }, [appId, addMessage, handleEvent, onDone, onError])
 
+  // ─── 对话事务控制：confirm / discard ─────────────────────────────────────────
+
+  const confirmTask = useCallback(async () => {
+    if (!hasPendingTask) return
+    try {
+      const result = await aiApi.confirmDialogue(appId)
+      setHasPendingTask(false)
+      setPendingDialogue(null)
+      // 确认成功后重新加载对话历史（确保 _id 等字段是 DB 真实值）
+      conversationApi.getDialogues(appId).then(setDialogues).catch(() => { /* ignore */ })
+      onConfirmed?.(result.dialogueId)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      onError?.(msg)
+    }
+  }, [appId, hasPendingTask, onConfirmed, onError])
+
+  const discardTask = useCallback(async () => {
+    if (!hasPendingTask) return
+    try {
+      await aiApi.discardDialogue(appId)
+      setHasPendingTask(false)
+      setPendingDialogue(null)
+      // 撤销：仅移除 sendPrompt 时乐观添加的临时对话（_id 以 temp_ 开头）
+      // 页面刷新后 dialogues 全部来自 DB，不含临时对话，此时不应删除任何条目
+      setDialogues((prev) => {
+        if (prev.length === 0) return prev
+        const last = prev[prev.length - 1]
+        if (last._id.startsWith('temp_')) {
+          return prev.slice(0, -1)
+        }
+        return prev
+      })
+      // 清空进度消息
+      setMessages([])
+      setCurrentText('')
+      currentTextRef.current = ''
+      allTextRef.current = ''
+      onDiscarded?.()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      onError?.(msg)
+    }
+  }, [appId, hasPendingTask, onDiscarded, onError])
+
+  // ─── 通用操作 ──────────────────────────────────────────────────────────────
+
   const abort = useCallback(() => {
     if (!abortControllerRef.current) return
     abortControllerRef.current.abort()
@@ -501,6 +584,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     allTextRef.current = ''
     setPlanApproval(null)
     setPlanningSteps(null)
+    setHasPendingTask(false)
+    setPendingDialogue(null)
   }, [])
 
   return {
@@ -512,12 +597,16 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     currentText,
     planningSteps,
     planApproval,
+    hasPendingTask,
+    pendingDialogue,
     sendPrompt,
     abort,
     clearMessages,
     newConversation,
     respondToDisambiguation: respondToDisambiguationFn,
     resumeApproval,
+    confirmTask,
+    discardTask,
   }
 }
 

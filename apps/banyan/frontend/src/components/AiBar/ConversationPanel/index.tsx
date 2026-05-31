@@ -21,6 +21,8 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } fr
 import { Spin } from "antd";
 import {
   CheckCircleOutlined,
+  CheckOutlined,
+  CloseOutlined,
   LoadingOutlined,
   StopOutlined,
   WarningOutlined,
@@ -53,6 +55,12 @@ export interface ConversationPanelProps {
   planApproval: PlanApprovalState | null;
   onPlanApprove: () => void;
   onPlanReject: (feedback: string) => void;
+  /** 是否有待确认的 task 对话（V4 事务化） */
+  hasPendingTask: boolean;
+  /** 确认 task 对话 */
+  onConfirmTask: () => void;
+  /** 撤销 task 对话 */
+  onDiscardTask: () => void;
 }
 
 // ─── ConversationPanel ────────────────────────────────────────────────────────
@@ -69,6 +77,9 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   planApproval,
   onPlanApprove,
   onPlanReject,
+  hasPendingTask,
+  onConfirmTask,
+  onDiscardTask,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -251,6 +262,29 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
             <span>banyan 正在思考...</span>
           </div>
         )}
+
+      {/* ── 待确认 task 对话（确认/撤销按钮） ── */}
+      {hasPendingTask && !loading && (
+        <div className={styles.pendingActions}>
+          <div className={styles.pendingHint}>任务已完成，请预览画布效果后确认或撤销</div>
+          <div className={styles.pendingBtnGroup}>
+            <button
+              className={`${styles.pendingBtn} ${styles.pendingBtnConfirm}`}
+              onClick={onConfirmTask}
+            >
+              <CheckOutlined />
+              <span>确认保存</span>
+            </button>
+            <button
+              className={`${styles.pendingBtn} ${styles.pendingBtnDiscard}`}
+              onClick={onDiscardTask}
+            >
+              <CloseOutlined />
+              <span>撤销修改</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div ref={endRef} />
     </div>

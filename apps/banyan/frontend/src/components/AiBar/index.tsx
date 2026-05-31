@@ -53,6 +53,10 @@ export interface AiBarProps {
   onAppSnapshot?: (appJSON: string) => void;
   /** AI 完成后回调，携带最终 appJSON */
   onDone?: (appJSON: string) => void;
+  /** task 确认成功后回调（可用于重新加载 appJSON） */
+  onConfirmed?: (dialogueId: string) => void;
+  /** task 撤销后回调（前端应回滚画布到对话前的状态） */
+  onDiscarded?: () => void;
 }
 
 // ─── 粘贴图片类型 ─────────────────────────────────────────────────────────────
@@ -70,6 +74,8 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   onBeforeSend,
   onAppSnapshot,
   onDone,
+  onConfirmed,
+  onDiscarded,
 }, ref) {
   const [inputValue, setInputValue] = useState("");
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
@@ -107,15 +113,20 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     currentText,
     planningSteps,
     planApproval,
+    hasPendingTask,
     sendPrompt,
     abort,
     resumeApproval,
+    confirmTask,
+    discardTask,
   } = useXiangDi({
     appId,
     onBeforeSend,
     onDone,
     onAppSnapshot,
     onDisambiguation: (options) => setDisambiguationState(options),
+    onConfirmed,
+    onDiscarded,
   });
 
   // 暴露 sendPrompt 给父组件（首页跳转后自动触发）
@@ -256,6 +267,9 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
         planApproval={planApproval}
         onPlanApprove={handlePlanApprove}
         onPlanReject={handlePlanReject}
+        hasPendingTask={hasPendingTask}
+        onConfirmTask={confirmTask}
+        onDiscardTask={discardTask}
       />
 
       {/* 输入框容器（底部固定高度） */}
