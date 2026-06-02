@@ -108,7 +108,7 @@ const TemplateDetail = () => {
 } = useDesignBanvas(loaded ? initialPages : [], banvasOptions);
 
 const printComponents = useMemo(
-    () => materials.filter(c => PRINT_COMPONENT_IDS.includes(c.id)),
+    () => materials.filter(c => PRINT_COMPONENT_IDS.includes(c.meta.id)),
     [materials],
 );
 

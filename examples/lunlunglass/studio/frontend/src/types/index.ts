@@ -3,3 +3,4 @@
  */
 
 export * from './product'
+export * from './contextMenu'
