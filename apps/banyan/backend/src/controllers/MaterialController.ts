@@ -1,6 +1,6 @@
 import { Context } from 'koa'
 import materialService from '../services/MaterialService.js'
-import type { MaterialSource } from '../models/index.js'
+import type { MaterialSource, MaterialKind } from '../models/index.js'
 
 class MaterialController {
   /**
@@ -8,27 +8,36 @@ class MaterialController {
    */
   async getMaterialList(ctx: Context) {
     try {
-      const { keyword, tags, source, status, page = '1', pageSize = '20' } = ctx.query
+      const { keyword, tags, kind, source, status, page = '1', pageSize = '20' } = ctx.query
       const user = ctx.state.user!
 
       const query: {
         keyword?: string
         tags?: string[]
+        kind?: MaterialKind
         source?: MaterialSource
         status?: any
-        tenantId: string
+        tenantId?: string
         createdBy?: string
       } = {
         keyword: keyword as string | undefined,
-        tags: tags ? (Array.isArray(tags) ? tags as string[] : [tags as string]) : undefined,
+        tags: tags
+          ? (Array.isArray(tags)
+            ? tags as string[]
+            : (tags as string).split(',').map(t => t.trim()).filter(Boolean))
+          : undefined,
+        kind: kind as MaterialKind | undefined,
         source: source as MaterialSource | undefined,
         status: status as any,
-        tenantId: user.tenantId,
       }
 
-      // 成员只看自己创建的 + builtin
-      if (user.role === 'member') {
-        query.createdBy = user.userId
+      // builtin 物料对所有人可见，不需要 tenantId/createdBy 过滤
+      if (source !== 'builtin') {
+        query.tenantId = user.tenantId
+        // 成员只看自己创建的 + builtin
+        if (user.role === 'member') {
+          query.createdBy = user.userId
+        }
       }
 
       const result = await materialService.getMaterialList(
@@ -85,6 +94,7 @@ class MaterialController {
         name: body.name,
         description: body.description,
         tags: body.tags,
+        kind: body.kind,
         thumbnail: body.thumbnail,
         source: body.source,
         version: body.version,

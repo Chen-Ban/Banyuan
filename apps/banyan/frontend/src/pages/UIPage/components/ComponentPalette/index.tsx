@@ -7,9 +7,11 @@
 
 import React from 'react'
 import { Drawer, Tooltip } from 'antd'
-import type { DesignMaterialPaletteProps } from '@/components/DesignEditor/DesignMaterialPalette'
-import type { IComponentDefinition, IDragProps } from '@banyuan/banvasgl'
+import { DesignMaterialPalette } from '@/components/DesignEditor'
+import type { IMaterial } from '@banyuan/banvasgl'
+import type { IDragProps } from '@/types'
 import MaterialPanel from '@/components/MaterialPanel'
+import MaterialThumbnail from '@/components/MaterialThumbnail'
 import styles from './index.module.scss'
 
 interface ComponentPaletteProps {
@@ -18,30 +20,20 @@ interface ComponentPaletteProps {
   onClose: () => void
   /** 抽屉挂载的 DOM 容器（相对定位基准） */
   container: HTMLElement | null
-  /**
-   * 由 useDesignBanvas 返回的 MaterialPalette 组件
-   * 传入时通过 renderMaterial slot 自定义卡片样式
-   */
-  MaterialPalette: React.FC<DesignMaterialPaletteProps>
 }
 
 /** 单个物料卡片（深色主题 grid 项） */
 const MaterialItem: React.FC<{
-  def: IComponentDefinition
+  material: IMaterial
   dragProps: IDragProps
-}> = ({ def, dragProps }) => {
-  const icon = def.icon
+}> = ({ material, dragProps }) => {
   return (
-    <Tooltip title={def.description ?? def.label} placement="right" mouseEnterDelay={0.4}>
+    <Tooltip title={material.meta.description ?? material.meta.name} placement="right" mouseEnterDelay={0.4}>
       <div className={styles.item} {...dragProps}>
         <span className={styles.itemIcon}>
-          {icon.type === 'svg' ? (
-            <span dangerouslySetInnerHTML={{ __html: icon.content }} />
-          ) : (
-            <img src={icon.src} width={18} height={18} alt="" style={{ objectFit: 'contain' }} />
-          )}
+          <MaterialThumbnail material={material} size={18} />
         </span>
-        <span className={styles.itemLabel}>{def.label}</span>
+        <span className={styles.itemLabel}>{material.meta.name}</span>
       </div>
     </Tooltip>
   )
@@ -51,10 +43,9 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
   open,
   onClose,
   container,
-  MaterialPalette,
 }) => {
-  const renderMaterial = (def: IComponentDefinition, dragProps: IDragProps) => (
-    <MaterialItem key={def.id} def={def} dragProps={dragProps} />
+  const renderMaterial = (material: IMaterial, dragProps: IDragProps) => (
+    <MaterialItem key={material.meta.id} material={material} dragProps={dragProps} />
   )
 
   return (
@@ -82,7 +73,7 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
         },
       }}
     >
-      <MaterialPalette
+      <DesignMaterialPalette
         className={styles.grid}
         renderMaterial={renderMaterial}
       />

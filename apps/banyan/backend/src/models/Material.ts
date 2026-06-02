@@ -8,6 +8,9 @@ export type MaterialSource = 'builtin' | 'user' | 'team' | 'marketplace'
 /** 物料状态 */
 export type MaterialStatus = 'active' | 'deprecated' | 'draft'
 
+/** 物料种类：render 渲染物料（图形/文本/媒体/容器）/ flow 流程节点物料 */
+export type MaterialKind = 'render' | 'flow'
+
 /** 物料参数类型 */
 export type MaterialParameterType = 'string' | 'number' | 'boolean' | 'color' | 'url' | 'enum' | 'json'
 
@@ -59,7 +62,9 @@ export interface IMaterial extends Document {
   description: string
   /** 分类标签 */
   tags: string[]
-  /** 缩略图 URL */
+  /** 物料种类（render 渲染物料 / flow 流程节点物料） */
+  kind: MaterialKind
+  /** 缩略图（内置物料为内联 svg 字符串，用户物料为 URL） */
   thumbnail: string
   /** 物料来源 */
   source: MaterialSource
@@ -153,6 +158,12 @@ const MaterialSchema = new Schema<IMaterial>(
       type: [String],
       default: [],
     },
+    kind: {
+      type: String,
+      required: true,
+      enum: ['render', 'flow'],
+      default: 'render',
+    },
     thumbnail: {
       type: String,
       default: '',
@@ -210,6 +221,7 @@ MaterialSchema.index({ material_id: 1 }, { unique: true })
 MaterialSchema.index({ name: 'text', description: 'text', tags: 'text' })
 MaterialSchema.index({ tags: 1 })
 MaterialSchema.index({ source: 1 })
+MaterialSchema.index({ source: 1, kind: 1 })
 MaterialSchema.index({ status: 1 })
 MaterialSchema.index({ createdBy: 1 })
 MaterialSchema.index({ tenantId: 1, createdBy: 1 })

@@ -1,17 +1,23 @@
 /**
- * AI 服务（HTTP 代理层）— V3（事务化）
+ * AI 服务（HTTP 代理层）— V4（Snapshot 事务化）
  *
- * 核心变更（V3）：
- *   - task 模式引入"对话即事务"语义：SSE 期间所有副作用暂存到 PendingStore，
- *     用户确认后才一次性写入 MongoDB（confirm），撤销则丢弃（discard）
+ * 核心变更（V4）：
+ *   - task 模式引入"对话即事务"语义：SSE 期间应用状态数据（appJSON/collections/cloudFunctions）
+ *     暂存到 Snapshot 表（MongoDB），对话元数据（消息/摘要/规划产物等）暂存在 PendingStore（内存）
+ *   - 用户确认：snapshotService.confirm() 同步应用状态到持久化表 + PendingStore 写对话数据到 DB
+ *   - 用户撤销：snapshotService.discard() 标记丢弃 + PendingStore 清除
  *   - chat 模式保持直接写 DB（纯文字问答无应用副作用，不需要确认）
- *   - 新增 confirmDialogue / discardDialogue / getPendingDialogue 方法
- *   - resume 场景适配 pending 模型
+ *   - resume 场景从 Snapshot 读取当前 appJSON（而非持久化表）
+ *
+ * Snapshot vs PendingStore 分工：
+ *   - Snapshot（MongoDB）：appJSON / collections / cloudFunctions — 可回滚、可持久化恢复
+ *   - PendingStore（内存）：对话消息、摘要、规划产物 — 进程内缓存，confirm 时一次性写 DB
  *
  * 架构：
  *   前端 ←SSE── banyan 后端(:3001) ←SSE── XiangDi 服务(:3002)
- *                     ↕ PendingStore (task)    ↕ Internal API (pull-based)
- *                     ↕ MongoDB (confirm后)
+ *                     ↕ Snapshot 表 (task, 应用状态)
+ *                     ↕ PendingStore (task, 对话元数据)
+ *                     ↕ 持久化表 (confirm后同步)
  *
  * SSE 事件类型（与 XiangDi 服务保持一致）：
  *   text_delta / tool_call / tool_result / app_snapshot / schema_update
@@ -32,6 +38,7 @@ import { SchemaService } from './SchemaService.js'
 import memoryService, { type MemoryUpdateInput } from './MemoryService.js'
 import pendingStore from './PendingStore.js'
 import type { PendingDialogueData } from './PendingStore.js'
+import type { ISnapshot } from '../models/Snapshot.js'
 import type { ICollectionDef } from '../models/CollectionSchema.js'
 import type { IAssistantContent, DialogueType } from '../models/Conversation.js'
 import type { AgentRole } from '../models/PlanningArtifact.js'
@@ -398,8 +405,8 @@ class AiService {
   /**
    * 处理一次 AI 对话请求，通过 SSE 流式推送进度
    *
-   * - chat 模式：沿用 V2 逻辑，直接写 DB
-   * - task 模式：所有副作用暂存到 PendingStore，等 confirm 后才写 DB
+   * - chat 模式：直接写 DB（无副作用回滚需求）
+   * - task 模式：应用状态暂存到 Snapshot 表，对话元数据暂存在 PendingStore，等 confirm 后同步
    */
   async runWithSSE(
     appId: string,
@@ -518,7 +525,7 @@ class AiService {
   }
 
   /**
-   * Task 模式：副作用全部暂存到 PendingStore，等 confirm 后才写 DB
+   * Task 模式：应用状态暂存到 Snapshot 表，对话元数据暂存在 PendingStore，等 confirm 后同步
    */
   private async _runTaskMode(
     appId: string,
@@ -527,11 +534,15 @@ class AiService {
     images: Array<{ url: string; alt?: string }>,
     res: ServerResponse,
   ): Promise<void> {
-    // 预生成 dialogueId，不写 DB
+    // 预生成 dialogueId，不写持久化表
     const dialogueId = new Types.ObjectId()
     const threadId = `${appId}:${dialogueId.toString()}`
 
-    // 创建 PendingDialogue（仅内存 + 文件缓存）
+    // 创建 pending Snapshot（写入 MongoDB Snapshot 集合，status=pending）
+    // Snapshot 以当前持久化表的状态作为基线
+    await snapshotService.createPending(appId, dialogueId)
+
+    // 对话元数据暂存在 PendingStore（内存）
     pendingStore.create({
       appId,
       dialogueId: dialogueId.toString(),
@@ -564,23 +575,46 @@ class AiService {
       requireApproval: true,
     })
 
-    // 代理 SSE，所有副作用暂存
+    // 代理 SSE：应用状态写 Snapshot，对话元数据写 PendingStore
     await proxySSECore('/ai/run', requestBody, res, {
       onDone: async (finalAppJSON, assistantContent, roundSummary) => {
+        // 应用状态 → Snapshot
+        await snapshotService.updateAppJSON(appId, finalAppJSON)
+        await snapshotService.markDone(appId)
+        // 对话元数据 → PendingStore
         pendingStore.setFinalAppJSON(appId, finalAppJSON)
         pendingStore.setAssistantContent(appId, assistantContent)
         if (roundSummary) {
           pendingStore.setRoundSummary(appId, roundSummary)
         }
-        await pendingStore.markDone(appId)
+        pendingStore.updateStatus(appId, 'done')
       },
       onError: async () => {
+        // 即使失败，Snapshot 中可能已有部分改动，标记为 done 让用户选择
+        await snapshotService.markDoneOnInterrupt(appId)
         pendingStore.updateStatus(appId, 'failed')
       },
       onInterrupt: async () => {
+        await snapshotService.markDoneOnInterrupt(appId)
         pendingStore.updateStatus(appId, 'interrupted')
       },
       onSchemaUpdate: (collections) => {
+        // Schema 变更 → Snapshot（持久化）+ PendingStore（confirm 时写 DB 兼容）
+        snapshotService.updateCollections(appId, collections.map(col => ({
+          name: col.name,
+          displayName: col.displayName,
+          fields: (col.fields ?? []).map(f => ({
+            name: f.name,
+            displayName: f.displayName,
+            type: f.type,
+            required: f.required ?? false,
+            defaultValue: f.defaultValue,
+            refCollection: f.refCollection,
+            enumValues: f.enumValues,
+          })),
+        }))).catch(err => {
+          console.error('[AiService] Snapshot collections 更新失败:', err)
+        })
         pendingStore.setSchemaUpdates(appId, collections)
       },
       onMemoryUpdate: (memoryInput) => {
@@ -600,8 +634,8 @@ class AiService {
   /**
    * 从 checkpoint 恢复 AI 执行
    *
-   * resume 始终操作 pending 中的对话（interrupted 状态）。
-   * 恢复后若成功完成（done），pending 状态变为 done，仍等 confirm 写 DB。
+   * task 模式：从 Snapshot 读取当前 appJSON（含已有改动），继续执行
+   * 恢复后若成功完成（done），Snapshot/PendingStore 状态变为 done，仍等 confirm。
    */
   async resumeSSE(
     appId: string,
@@ -648,15 +682,21 @@ class AiService {
         resolvedThreadId = dbPending.threadId
       }
 
-      // 2. 如果是 pending 模式，更新 pending 状态
+      // 2. 如果是 task 模式，更新 PendingStore 状态
       if (pending && pending.status === 'interrupted') {
         pendingStore.updateStatus(appId, 'streaming')
       }
 
-      // 3. 读取最新 appJSON
-      const app = await applicationService.getApplicationById(appId)
-      if (!app) throw new Error(`应用 ${appId} 不存在`)
-      const appJSON: string = app.appJSON ?? ''
+      // 3. 读取 appJSON：task 模式从 Snapshot 读取（含已有改动），chat 模式从持久化表读取
+      let appJSON: string
+      if (pending) {
+        const snapshot = await snapshotService.getActivePending(appId)
+        appJSON = snapshot?.appJSON ?? ''
+      } else {
+        const app = await applicationService.getApplicationById(appId)
+        if (!app) throw new Error(`应用 ${appId} 不存在`)
+        appJSON = app.appJSON ?? ''
+      }
 
       // 4. 构造请求体
       const requestBody = JSON.stringify({
@@ -667,23 +707,42 @@ class AiService {
 
       // 5. 根据是否有 pending 决定回调策略
       if (pending) {
-        // task 模式 resume：副作用继续暂存到 pending
+        // task 模式 resume：应用状态继续写 Snapshot，对话元数据写 PendingStore
         await proxySSECore('/ai/resume', requestBody, res, {
           onDone: async (finalAppJSON, assistantContent, roundSummary) => {
+            await snapshotService.updateAppJSON(appId, finalAppJSON)
+            await snapshotService.markDone(appId)
             pendingStore.setFinalAppJSON(appId, finalAppJSON)
             pendingStore.setAssistantContent(appId, assistantContent)
             if (roundSummary) {
               pendingStore.setRoundSummary(appId, roundSummary)
             }
-            await pendingStore.markDone(appId)
+            pendingStore.updateStatus(appId, 'done')
           },
           onError: async () => {
+            await snapshotService.markDoneOnInterrupt(appId)
             pendingStore.updateStatus(appId, 'failed')
           },
           onInterrupt: async () => {
+            await snapshotService.markDoneOnInterrupt(appId)
             pendingStore.updateStatus(appId, 'interrupted')
           },
           onSchemaUpdate: (collections) => {
+            snapshotService.updateCollections(appId, collections.map(col => ({
+              name: col.name,
+              displayName: col.displayName,
+              fields: (col.fields ?? []).map(f => ({
+                name: f.name,
+                displayName: f.displayName,
+                type: f.type,
+                required: f.required ?? false,
+                defaultValue: f.defaultValue,
+                refCollection: f.refCollection,
+                enumValues: f.enumValues,
+              })),
+            }))).catch(err => {
+              console.error('[AiService] Snapshot collections 更新失败:', err)
+            })
             pendingStore.setSchemaUpdates(appId, collections)
           },
           onMemoryUpdate: (memoryInput) => {
@@ -711,9 +770,6 @@ class AiService {
               conversationService.appendAssistantMessage(appId, resolvedDialogueId, assistantContent),
               conversationService.updateThreadStatus(appId, resolvedDialogueId, 'completed'),
             ])
-            snapshotService.createSnapshot(appId, resolvedDialogueId).catch(err => {
-              console.error('[AiService] resume Snapshot 创建失败:', err)
-            })
             if (roundSummary) {
               this.persistDialogueSummary(appId, resolvedDialogueId, roundSummary).catch(err => {
                 console.error('[AiService] resume 对话摘要持久化失败:', err)
@@ -752,7 +808,9 @@ class AiService {
   // ─── Confirm / Discard（事务确认/撤销）──────────────────────────────────────
 
   /**
-   * 确认对话：将 PendingStore 中暂存的所有副作用一次性写入 MongoDB
+   * 确认对话：
+   *   1. snapshotService.confirm() — 将 Snapshot 中的应用状态同步到持久化表
+   *   2. 从 PendingStore 取对话元数据，写入 Conversation 集合
    *
    * 这是"对话即事务"的 commit 操作。
    * 使用 withAppLock 防止与 SSE 流（runWithSSE/resumeSSE）竞态。
@@ -762,12 +820,17 @@ class AiService {
   }
 
   private async _confirmDialogueCore(appId: string): Promise<{ dialogueId: string }> {
+    // ─── Step 1: 确认 Snapshot（应用状态 → 持久化表） ────────────────────────
+    const snapshot = await snapshotService.confirm(appId)
+    const dialogueId = snapshot.dialogueId
+
+    // ─── Step 2: 对话元数据 → Conversation 集合 ─────────────────────────────
     const pending = pendingStore.getConfirmable(appId)
     if (!pending) {
-      throw new Error('没有可确认的待处理对话')
+      // Snapshot 已确认但 PendingStore 无数据（进程重启恢复场景）
+      // 应用状态已同步，但对话消息丢失，返回 dialogueId 即可
+      return { dialogueId: dialogueId.toString() }
     }
-
-    const dialogueId = new Types.ObjectId(pending.dialogueId)
 
     // 1. 创建 Dialogue + user 消息 → 写 DB
     await conversationService.createDialogueWithId(
@@ -785,22 +848,12 @@ class AiService {
       await conversationService.appendAssistantMessage(appId, dialogueId, pending.assistantContent)
     }
 
-    // 4. 写回 appJSON
-    if (pending.finalAppJSON) {
-      await applicationService.updateApplication(appId, { appJSON: pending.finalAppJSON })
-    }
-
-    // 5. 写 Schema
-    if (pending.schemaUpdates) {
-      await SchemaService.setCollections(appId, pending.schemaUpdates)
-    }
-
-    // 6. 写 Agent 记忆
+    // 4. 写 Agent 记忆
     if (pending.memoryUpdates) {
       await memoryService.handleMemoryUpdate(appId, pending.memoryUpdates)
     }
 
-    // 7. 写规划产物（如果有）
+    // 5. 写规划产物（如果有）
     if (pending.planningEntries.length > 0) {
       const artifact = await planningArtifactService.create(appId, dialogueId)
       const artifactId = artifact._id as Types.ObjectId
@@ -820,60 +873,96 @@ class AiService {
       }
     }
 
-    // 8. 创建 Snapshot（task 模式）
-    snapshotService.createSnapshot(appId, dialogueId).catch(err => {
-      console.error('[AiService] confirm Snapshot 创建失败:', err)
-    })
-
-    // 9. 持久化对话摘要 + embedding（异步）
+    // 6. 持久化对话摘要 + embedding（异步）
     if (pending.roundSummary) {
       this.persistDialogueSummary(appId, dialogueId, pending.roundSummary).catch(err => {
         console.error('[AiService] 对话摘要持久化失败:', err)
       })
     }
 
-    // 10. 清除 pending
+    // 7. 清除 PendingStore
     await pendingStore.delete(appId)
 
     return { dialogueId: dialogueId.toString() }
   }
 
   /**
-   * 撤销对话：丢弃 PendingStore 中的所有暂存数据，不写 DB
+   * 撤销对话：Snapshot 标记为 discarded + 清除 PendingStore
    *
    * 这是"对话即事务"的 rollback 操作。
+   * 持久化表不受影响（应用状态恢复到对话开始前）。
    * 使用 withAppLock 防止与 SSE 流竞态。
    */
   async discardDialogue(appId: string): Promise<void> {
-    return withAppLock(appId, () => pendingStore.delete(appId))
+    return withAppLock(appId, async () => {
+      await snapshotService.discard(appId)
+      await pendingStore.delete(appId)
+    })
   }
 
   /**
    * 获取待确认的 pending 对话数据
    * 用于前端重新加载页面时恢复"确认/撤销"状态
+   *
+   * 注意：进程重启后 PendingStore（内存）数据丢失，但 Snapshot 仍在 MongoDB 中。
+   * 前端可通过 getStatus 检测到 Snapshot 存在（status=done），此时只能 confirm/discard，
+   * 但对话消息等元数据将丢失（可接受的降级行为）。
    */
   getPendingDialogue(appId: string): PendingDialogueData | null {
     return pendingStore.get(appId)
+  }
+
+  /**
+   * 获取待确认的 Snapshot（用于进程恢复场景，PendingStore 可能为空但 Snapshot 仍在）
+   */
+  async getPendingSnapshot(appId: string): Promise<ISnapshot | null> {
+    return snapshotService.getActivePending(appId)
   }
 
   // ─── 查询接口 ──────────────────────────────────────────────────────────────
 
   /**
    * 查询应用当前的 AI 执行状态
+   *
+   * 优先级：PendingStore（进程内） → Snapshot（MongoDB） → Conversation DB
    */
-  async getStatus(appId: string): Promise<{ dialogueId: string; threadId: string; status: string; canResume: boolean } | null> {
-    // 优先检查 pending
+  async getStatus(appId: string): Promise<{ dialogueId: string; threadId: string; status: string; canResume: boolean; canConfirm: boolean } | null> {
+    // 1. 优先检查 PendingStore（进程内状态）
     const pending = pendingStore.get(appId)
-    if (pending && (pending.status === 'streaming' || pending.status === 'interrupted')) {
-      return {
-        dialogueId: pending.dialogueId,
-        threadId: pending.threadId,
-        status: pending.status === 'streaming' ? 'running' : 'interrupted',
-        canResume: pending.status === 'interrupted',
+    if (pending) {
+      if (pending.status === 'streaming' || pending.status === 'interrupted') {
+        return {
+          dialogueId: pending.dialogueId,
+          threadId: pending.threadId,
+          status: pending.status === 'streaming' ? 'running' : 'interrupted',
+          canResume: pending.status === 'interrupted',
+          canConfirm: false,
+        }
+      }
+      if (pending.status === 'done' || pending.status === 'failed') {
+        return {
+          dialogueId: pending.dialogueId,
+          threadId: pending.threadId,
+          status: pending.status === 'done' ? 'awaiting_confirm' : 'failed',
+          canResume: false,
+          canConfirm: true,
+        }
       }
     }
 
-    // 再查 DB（chat 模式的旧数据）
+    // 2. 再查 Snapshot（进程重启恢复场景，PendingStore 空但 Snapshot 仍在）
+    const snapshot = await snapshotService.getActivePending(appId)
+    if (snapshot && snapshot.status === 'done') {
+      return {
+        dialogueId: snapshot.dialogueId.toString(),
+        threadId: `${appId}:${snapshot.dialogueId.toString()}`,
+        status: 'awaiting_confirm',
+        canResume: false,
+        canConfirm: true,
+      }
+    }
+
+    // 3. 最后查 DB（chat 模式的旧数据）
     const dbPending = await conversationService.getLastPendingDialogue(appId)
     if (!dbPending) return null
     return {
@@ -881,6 +970,7 @@ class AiService {
       threadId: dbPending.threadId,
       status: dbPending.status,
       canResume: dbPending.status === 'interrupted' || dbPending.status === 'running',
+      canConfirm: false,
     }
   }
 

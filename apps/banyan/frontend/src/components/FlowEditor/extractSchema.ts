@@ -1,21 +1,23 @@
-import type { Scene } from '@banyuan/banvasgl'
-import type { FlowSchema, FlowNode, FlowEdge } from '@banyuan/flow'
+import type { View } from '@banyuan/banvasgl'
+import type { FlowSchema, FlowNode, FlowEdge } from '@banyuan/banvasgl'
 import { NodeView, EdgeView } from '@banyuan/banvasgl'
 
 /**
- * extractSchema —— 从 Scene 中提取完整 FlowSchema
+ * extractSchema —— 从视图列表中提取完整 FlowSchema
  *
- * 遍历场景中的 NodeView 和 EdgeView：
+ * 遍历 NodeView 和 EdgeView：
  * - NodeView.schema 包含完整业务数据，坐标从 View.matrix 读取
  * - EdgeView 根据端口 ID 反推 from/to nodeId 和 branch
  *
  * 这是流程图的"序列化"操作，等价于主画布的 Serializer.serialize()。
+ *
+ * @param children 当前页面的顶层子视图列表（通过 actions.page.getTopLevelViews() 获取）
  */
-export function extractSchema(scene: Scene): FlowSchema {
+export function extractSchema(children: View[]): FlowSchema {
     const nodes: FlowNode[] = []
     const edges: FlowEdge[] = []
 
-    for (const child of scene.children) {
+    for (const child of children) {
         if (child instanceof NodeView) {
             nodes.push({
                 ...child.schema,

@@ -46,7 +46,7 @@ export type {
     FieldType,
     IFieldSchema,
     IFieldSchemaMap,
-    // Flow 类型（从 @banyuan/flow 统一透传）
+    // Flow 类型（从内部 flow 模块统一透传）
     FlowValue,
     FlowCondition,
     FlowLiteralValue,
@@ -188,19 +188,10 @@ export type {
 
 // ── Hook 公共接口 ──
 export type {
-    IComponentTemplate,
-    ComponentIcon,
-    ComponentSource,
-    IComponentDefinition,
-    IViewActions,
-    IPageActions,
+IViewActions,
+IPageActions,
     IAppActions,
-    IHistoryActions,
     IBanvasActions,
-    IContextMenuItem,
-    IContextMenuState,
-    IDragProps,
-    IUseBanvasResult,
 } from './types'
 
 // ── 物料系统接口 ──
@@ -230,6 +221,7 @@ export type {
 export {
     isGraphType,
     isViewType,
+    isView,
     isCombinedGraph,
     isAnalyticGraph,
     isMediaElement,
@@ -364,20 +356,28 @@ export { clearAllStates } from './engine'
 // ║  actions — 操作 API                                               ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-export { createBanvasActions, createMaterialActions } from './actions'
-export type { CreateBanvasActionsOptions } from './actions'
-export { defaultViewCreatorStrategies } from './actions'
-export type { ViewCreatorStrategy } from './actions'
+export { createBanvasActions } from './actions'
+export { getClipboard } from './actions/viewActions.js'
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  data — 预设数据                                                  ║
+// ║  interaction — 交互状态机                                          ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-export { DESIGN_MATERIALS } from './data'
-export { createViewContextMenuItems, createCanvasContextMenuItems } from './data'
-// 流程图节点物料（Phase 1.4 将移至 banvas-flow-editor）
-export { CLIENT_FLOW_NODE_MATERIALS, SERVER_FLOW_NODE_MATERIALS } from './data'
-export type { FlowNodeMaterial } from './data'
+export { InteractionStateMachine, resolveActivationTarget } from './engine/interaction'
+export type {
+InteractionState,
+    InteractionInput,
+    InteractionOutput,
+    InteractionDelegate,
+    InteractionStateMachineConfig,
+    InteractionCapability,
+    HoverTarget,
+    PointerDownInput,
+    PointerMoveInput,
+    PointerUpInput,
+    KeyDownInput,
+    KeyUpInput,
+} from './engine/interaction'
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  version                                                          ║

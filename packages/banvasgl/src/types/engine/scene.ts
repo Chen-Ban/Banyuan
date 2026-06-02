@@ -20,7 +20,7 @@ import type { IAnimationDescriptor } from './animation'
 export {
   DiffType,
   Operation,
-} from '@/engine/operations'
+} from '@/engine/scene'
 
 export type {
   Diff,
@@ -30,7 +30,7 @@ export type {
   ReorderDiff,
   PropChange,
   ApplyDirection,
-} from '@/engine/operations'
+} from '@/engine/scene'
 
 // ────────────────────────────────────────────
 //  操作栈接口
@@ -38,7 +38,7 @@ export type {
 
 /** 操作栈接口 */
 export interface IOperationStack {
-    do(operation: import('@/engine/operations').Operation): boolean
+    do(operation: import('@/engine/scene').Operation): boolean
     undo(): boolean
     redo(): boolean
     clear(): void

@@ -8,8 +8,8 @@ export interface BaseCameraOptions {
     up?: [number, number, number]
 }
 
-export default class BaseCamera {
-    public readonly type: CameraType = CameraType.BASE
+export abstract class BaseCamera {
+    public abstract readonly type: CameraType
     protected _position: Vector3
     protected _target: Vector3
     protected _up: Vector3
@@ -22,7 +22,6 @@ export default class BaseCamera {
     protected _dirty: boolean
 
     constructor(options: BaseCameraOptions = {}) {
-        // 默认参数
         this._position = new Vector3(
             options.position?.[0] ?? 0,
             options.position?.[1] ?? 0,
@@ -38,20 +37,18 @@ export default class BaseCamera {
             options.up?.[1] ?? 1,
             options.up?.[2] ?? 0
         )
-        // 基础相机不关心近远裁剪平面，这里只给一个默认值，具体相机（透视 / 正交）自己决定是否使用和如何暴露
         this._near = 0.1
         this._far = 1000
 
-        // 初始化矩阵
         this._viewMatrix = Matrix4.identity()
         this._projectionMatrix = Matrix4.identity()
         this._viewProjectionMatrix = Matrix4.identity()
         this._dirty = true
-
-        this.updateMatrices()
+        // 注意：子类构造函数末尾需自行调用 this.updateMatrices()
     }
 
-    // 位置相关方法
+    // ── 位置 ──
+
     get position(): Vector3 {
         return this._position.copy()
     }
@@ -77,7 +74,8 @@ export default class BaseCamera {
         return this
     }
 
-    // 目标点相关方法
+    // ── 目标点 ──
+
     get target(): Vector3 {
         return this._target.copy()
     }
@@ -102,7 +100,8 @@ export default class BaseCamera {
         return this
     }
 
-    // 上方向相关方法
+    // ── 上方向 ──
+
     get up(): Vector3 {
         return this._up.copy()
     }
@@ -122,7 +121,8 @@ export default class BaseCamera {
         return this
     }
 
-    // 投影参数
+    // ── 近远裁剪平面 ──
+
     get near(): number {
         return this._near
     }
@@ -141,7 +141,8 @@ export default class BaseCamera {
         this._dirty = true
     }
 
-    // 相机移动方法
+    // ── 相机移动 ──
+
     moveForward(distance: number): this {
         const direction = this.getDirection()
         this._position = this._position.add(new Vector3(
@@ -186,7 +187,8 @@ export default class BaseCamera {
         return this.moveUp(-distance)
     }
 
-    // 相机旋转方法
+    // ── 相机旋转 ──
+
     rotateAroundTarget(horizontalAngle: number, verticalAngle: number): this {
         const direction = new Vector3(
             this._target.x - this._position.x,
@@ -195,11 +197,9 @@ export default class BaseCamera {
         )
         const distance = direction.length
 
-        // 水平旋转（绕Y轴）
         const horizontalRotation = Matrix4.rotationY(horizontalAngle)
         const rotatedDirection = this.applyMatrixToVector(direction, horizontalRotation)
 
-        // 垂直旋转（绕右向量）
         const right = this.getRight()
         const verticalRotation = this.createRotationMatrix(right, verticalAngle)
         const finalDirection = this.applyMatrixToVector(rotatedDirection, verticalRotation)
@@ -213,7 +213,8 @@ export default class BaseCamera {
         return this
     }
 
-    // 获取相机方向向量
+    // ── 方向向量 ──
+
     getDirection(): Vector3 {
         const direction = new Vector3(
             this._target.x - this._position.x,
@@ -223,108 +224,70 @@ export default class BaseCamera {
         return direction.normalized
     }
 
-    // 获取相机右向量
     getRight(): Vector3 {
         const direction = this.getDirection()
         return direction.cross(this._up).normalized
     }
 
-    // 获取相机上向量
     getUp(): Vector3 {
         const right = this.getRight()
         const direction = this.getDirection()
         return right.cross(direction).normalized
     }
 
-    // 矩阵获取方法
+    // ── 矩阵 getter（含 dirty 自动更新）──
+
     get viewMatrix(): Matrix4 {
-        if (this._dirty) {
-            this.updateMatrices()
-        }
+        if (this._dirty) this.updateMatrices()
         return this._viewMatrix.copy()
     }
 
     get projectionMatrix(): Matrix4 {
-        if (this._dirty) {
-            this.updateMatrices()
-        }
+        if (this._dirty) this.updateMatrices()
         return this._projectionMatrix.copy()
     }
 
     get viewProjectionMatrix(): Matrix4 {
-        if (this._dirty) {
-            this.updateMatrices()
-        }
+        if (this._dirty) this.updateMatrices()
         return this._viewProjectionMatrix.copy()
     }
 
-    // 获取视口尺寸的默认实现
-    public getSize(): { width: number, height: number } {
-        return { width: 800, height: 600 }
+    // ── 视口尺寸（子类实现）──
+
+    public abstract getSize(): { width: number; height: number }
+
+    // ── 矩阵更新 ──
+
+    /**
+     * 更新 V、P、VP 矩阵。
+     * 子类通过 override updateViewMatrix() / updateProjectionMatrix() 提供各自的矩阵实现。
+     */
+    protected updateMatrices(): void {
+        this.updateViewMatrix()
+        this.updateProjectionMatrix()
+        this._viewProjectionMatrix = this._projectionMatrix.multiply(this._viewMatrix)
+        this._dirty = false
     }
 
-    // 更新矩阵
-    protected updateMatrices(): void {
-        // 更新视图矩阵
+    /**
+     * 更新视图矩阵。
+     * 默认使用 lookAt；2D 正交相机可 override 为 identity。
+     */
+    protected updateViewMatrix(): void {
         this._viewMatrix = Matrix4.lookAt(
             [this._position.x, this._position.y, this._position.z],
             [this._target.x, this._target.y, this._target.z],
             [this._up.x, this._up.y, this._up.z]
         )
-        // 基础相机不计算投影矩阵，只使用单位矩阵
-        this._projectionMatrix = Matrix4.identity()
-
-        // 更新视图投影矩阵
-        this._viewProjectionMatrix = this._projectionMatrix.copy().multiply(this._viewMatrix.copy())
-        this._dirty = false
     }
 
-    // 世界坐标转屏幕坐标（基础相机直接使用视图矩阵）
-    worldToScreen(worldPos: [number, number, number], screenWidth: number, screenHeight: number): [number, number] | null {
-        if (this._dirty) {
-            this.updateMatrices()
-        }
-
-        // 将世界坐标转换为齐次坐标
-        const worldVec = new Vector3(worldPos[0], worldPos[1], worldPos[2])
-
-        // 应用视图矩阵（基础相机不使用投影矩阵）
-        const viewPos = this.applyMatrixToVector(worldVec, this._viewMatrix)
-
-        // 基础相机直接使用视图坐标，不需要透视除法
-        const ndcX = viewPos.x
-        const ndcY = viewPos.y
-
-        // 转换为屏幕坐标（假设视图坐标范围是[-1, 1]）
-        const screenX = (ndcX + 1) * 0.5 * screenWidth
-        const screenY = (1 - ndcY) * 0.5 * screenHeight
-
-        return [screenX, screenY]
-    }
-
-    // 屏幕坐标转世界坐标（基础相机直接使用视图矩阵）
-    screenToWorld(screenPos: [number, number], depth: number, screenWidth: number, screenHeight: number): [number, number, number] | null {
-        if (this._dirty) {
-            this.updateMatrices()
-        }
-
-        // 转换为NDC坐标
-        const ndcX = (screenPos[0] / screenWidth) * 2 - 1
-        const ndcY = 1 - (screenPos[1] / screenHeight) * 2
-
-        // 创建视图坐标
-        const viewPos = new Vector3(ndcX, ndcY, depth)
-
-        // 计算视图矩阵的逆矩阵
-        const invViewMatrix = this._viewMatrix.inverse()
-
-        // 应用逆矩阵
-        const worldPos = this.applyMatrixToVector(viewPos, invViewMatrix)
-
-        return [worldPos.x, worldPos.y, worldPos.z]
-    }
+    /**
+     * 更新投影矩阵（子类必须实现）。
+     */
+    protected abstract updateProjectionMatrix(): void
 
     // ── 序列化 ──
+
     toJSON(): any {
         return {
             position: [this._position.x, this._position.y, this._position.z],
@@ -333,15 +296,8 @@ export default class BaseCamera {
         }
     }
 
-    static fromJSON(data: any): BaseCamera {
-        return new BaseCamera({
-            position: data.position,
-            target: data.target,
-            up: data.up,
-        })
-    }
+    // ── 重置 ──
 
-    // 重置相机
     reset(): this {
         this._position = new Vector3(0, 0, 5)
         this._target = new Vector3(0, 0, 0)
@@ -352,7 +308,8 @@ export default class BaseCamera {
         return this
     }
 
-    // 辅助方法
+    // ── 工具方法（供子类使用）──
+
     protected applyMatrixToVector(vector: Vector3, matrix: Matrix4): Vector3 {
         const x = vector.x * matrix.get(0, 0) + vector.y * matrix.get(0, 1) + vector.z * matrix.get(0, 2)
         const y = vector.x * matrix.get(1, 0) + vector.y * matrix.get(1, 1) + vector.z * matrix.get(1, 2)

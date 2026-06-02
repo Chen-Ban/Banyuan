@@ -36,3 +36,18 @@
   user-select: none;
   white-space: nowrap;
 }
+
+.placeholder {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+  padding: 12px 0;
+  text-align: center;
+}
+
+.error {
+  font-size: 12px;
+  color: var(--color-error, #f5222d);
+  padding: 12px 0;
+  text-align: center;
+}

@@ -92,8 +92,8 @@ export interface IOrthographicCamera extends ICamera {
     isPointInViewport(point: [number, number, number]): boolean
     isRectInViewport(rect: { left: number; right: number; bottom: number; top: number }): boolean
     getViewportBounds(): { left: number; right: number; bottom: number; top: number }
-    worldToViewport(worldPos: [number, number, number]): [number, number] | null
-    viewportToWorld(viewportPos: [number, number], depth?: number): [number, number, number] | null
+    worldToViewport(worldPos: [number, number, number]): [number, number]
+    viewportToWorld(viewportPos: [number, number], depth?: number): [number, number, number]
     copy(): IOrthographicCamera
 }
 

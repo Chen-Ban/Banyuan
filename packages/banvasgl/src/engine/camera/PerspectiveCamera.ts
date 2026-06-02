@@ -1,4 +1,4 @@
-import BaseCamera, { BaseCameraOptions } from './BaseCamera'
+import { BaseCamera, BaseCameraOptions } from './BaseCamera.js'
 import { MathUtils, Matrix4, Vector3 } from '@/foundation/math'
 import { CameraType } from '@/foundation/constants'
 
@@ -11,7 +11,7 @@ export interface PerspectiveCameraOptions extends BaseCameraOptions {
     far?: number
 }
 
-export default class PerspectiveCamera extends BaseCamera {
+export class PerspectiveCamera extends BaseCamera {
     public readonly type: CameraType = CameraType.PERSPECTIVE
     private _fov: number
     private _aspect: number
@@ -113,7 +113,6 @@ export default class PerspectiveCamera extends BaseCamera {
         return this
     }
 
-    // 获取视口尺寸
     getSize(): { width: number, height: number } {
         return {
             width: this._width,
@@ -240,23 +239,19 @@ export default class PerspectiveCamera extends BaseCamera {
         }
     }
 
-    // 检查点是否在视锥体内
+    // 检查点是否在视锥体内（透视除法后与 NDC 立方体比较）
     isPointInFrustum(point: [number, number, number]): boolean {
-        if (this._dirty) {
-            this.updateMatrices()
-        }
+        if (this._dirty) this.updateMatrices()
 
         const worldVec = new Vector3(point[0], point[1], point[2])
         const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
 
-        // 透视除法
         if (Math.abs(clipPos.z) < MathUtils.FLOAT_EPSILON) return false
 
         const ndcX = clipPos.x / clipPos.z
         const ndcY = clipPos.y / clipPos.z
         const ndcZ = clipPos.z / clipPos.z
 
-        // 检查是否在NDC立方体内
         return ndcX >= -1 && ndcX <= 1 &&
             ndcY >= -1 && ndcY <= 1 &&
             ndcZ >= -1 && ndcZ <= 1
@@ -264,28 +259,23 @@ export default class PerspectiveCamera extends BaseCamera {
 
     // 检查球体是否在视锥体内
     isSphereInFrustum(center: [number, number, number], radius: number): boolean {
-        if (this._dirty) {
-            this.updateMatrices()
-        }
+        if (this._dirty) this.updateMatrices()
 
         const worldVec = new Vector3(center[0], center[1], center[2])
         const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
 
-        // 透视除法
         if (Math.abs(clipPos.z) < MathUtils.FLOAT_EPSILON) return false
 
         const ndcX = clipPos.x / clipPos.z
         const ndcY = clipPos.y / clipPos.z
         const ndcZ = clipPos.z / clipPos.z
 
-        // 检查球体是否与NDC立方体相交
         return ndcX >= -1 - radius && ndcX <= 1 + radius &&
             ndcY >= -1 - radius && ndcY <= 1 + radius &&
             ndcZ >= -1 - radius && ndcZ <= 1 + radius
     }
 
-    // 实现抽象方法：更新投影矩阵
-    protected updateProjectionMatrix(): void {
+    protected override updateProjectionMatrix(): void {
         this._projectionMatrix = Matrix4.perspective(
             this._fov,
             this._aspect,
@@ -295,7 +285,7 @@ export default class PerspectiveCamera extends BaseCamera {
     }
 
     // ── 序列化 ──
-    toJSON(): any {
+    override toJSON(): any {
         return {
             ...super.toJSON(),
             fov: this._fov,
@@ -334,8 +324,7 @@ export default class PerspectiveCamera extends BaseCamera {
         })
     }
 
-    // 重置相机
-    reset(): this {
+    override reset(): this {
         super.reset()
         this._fov = Math.PI / 4
         this._aspect = 1

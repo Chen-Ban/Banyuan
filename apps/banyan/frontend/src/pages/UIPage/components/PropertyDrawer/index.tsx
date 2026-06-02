@@ -3,7 +3,7 @@ import { Drawer, Tooltip } from "antd";
 import { PropertyPanel } from "@/components/DesignEditor/PropertyPanel";
 import { FlowEditorModal } from "@/components/FlowEditor/FlowEditorModal";
 import { SettingOutlined } from "@ant-design/icons";
-import type useDesignBanvas from "@/hooks/design/useDesignBanvas";
+import type useDesignBanvas from "@/hooks/useDesignBanvas";
 import styles from "./index.module.scss";
 
 type DesignBanvasReturn = ReturnType<typeof useDesignBanvas>;

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import type { FlowNode } from '@banyuan/flow'
+import type { FlowNode } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
 
 const POPOVER_WIDTH = 240
@@ -8,8 +8,8 @@ const GAP = 10
 
 export interface NodeSchemaPopoverProps {
     node: FlowNode | null
+    /** 节点在 viewport 中的 CSS 坐标和尺寸 */
     nodePos: { x: number; y: number; width: number; height: number } | null
-    canvasRect: DOMRect | null
     onClose: () => void
     onFieldChange?: (nodeId: string, field: string, value: unknown) => void
 }
@@ -106,7 +106,6 @@ function renderFields(node: FlowNode): React.ReactNode {
 export const NodeSchemaPopover: React.FC<NodeSchemaPopoverProps> = ({
     node,
     nodePos,
-    canvasRect,
     onClose,
     onFieldChange: _onFieldChange,
 }) => {
@@ -114,11 +113,11 @@ export const NodeSchemaPopover: React.FC<NodeSchemaPopoverProps> = ({
     const [placement, setPlacement] = useState<'right' | 'left'>('right')
 
     useEffect(() => {
-        if (!nodePos || !canvasRect) return
-        const nodeRightInViewport = canvasRect.left + nodePos.x + nodePos.width + GAP
+        if (!nodePos) return
+        const nodeRightInViewport = nodePos.x + nodePos.width + GAP
         const wouldOverflow = nodeRightInViewport + POPOVER_WIDTH > window.innerWidth - 16
         setPlacement(wouldOverflow ? 'left' : 'right')
-    }, [nodePos, canvasRect])
+    }, [nodePos])
 
     const handleOverlayClick = useCallback((e: React.MouseEvent) => {
         if (e.target === e.currentTarget) onClose()
@@ -132,18 +131,12 @@ export const NodeSchemaPopover: React.FC<NodeSchemaPopoverProps> = ({
         return () => document.removeEventListener('keydown', handler)
     }, [onClose])
 
-    if (!node || !nodePos || !canvasRect) return null
+    if (!node || !nodePos) return null
 
-    const dpr = window.devicePixelRatio || 1
-    const nodeLeft   = nodePos.x / dpr
-    const nodeTop    = nodePos.y / dpr
-    const nodeWidth  = nodePos.width / dpr
-    const nodeHeight = nodePos.height / dpr
-
-    const popoverTop = canvasRect.top + nodeTop + nodeHeight / 2 - 40
+    const popoverTop = nodePos.y + nodePos.height / 2 - 40
     const popoverLeft = placement === 'right'
-        ? canvasRect.left + nodeLeft + nodeWidth + GAP
-        : canvasRect.left + nodeLeft - POPOVER_WIDTH - GAP
+        ? nodePos.x + nodePos.width + GAP
+        : nodePos.x - POPOVER_WIDTH - GAP
 
     const arrowTop = 40 - ARROW_SIZE / 2
 

@@ -1,5 +1,5 @@
 import crypto from 'node:crypto'
-import { Material, IMaterial, MaterialSource, MaterialStatus, IMaterialTemplate } from '../models/index.js'
+import { Material, IMaterial, MaterialSource, MaterialStatus, MaterialKind, IMaterialTemplate } from '../models/index.js'
 
 // ─── Query 接口 ──────────────────────────────────────────────────────────────
 
@@ -8,6 +8,8 @@ export interface IMaterialQuery {
   keyword?: string
   /** 按标签筛选 */
   tags?: string[]
+  /** 按种类筛选（render 渲染物料 / flow 流程节点物料） */
+  kind?: MaterialKind
   /** 按来源筛选 */
   source?: MaterialSource
   /** 按状态筛选 */
@@ -29,6 +31,7 @@ export interface ICreateMaterialData {
   name: string
   description?: string
   tags?: string[]
+  kind?: MaterialKind
   thumbnail?: string
   source?: MaterialSource
   version?: string
@@ -68,6 +71,9 @@ class MaterialService {
     if (query.tags && query.tags.length > 0) {
       filter.tags = { $in: query.tags }
     }
+    if (query.kind) {
+      filter.kind = query.kind
+    }
     if (query.source) {
       filter.source = query.source
     }
@@ -77,13 +83,25 @@ class MaterialService {
       // 默认不显示已废弃的物料
       filter.status = { $ne: 'deprecated' }
     }
-    if (query.tenantId && query.createdBy) {
-      filter.tenantId = query.tenantId
-      filter.createdBy = query.createdBy
+    // builtin 物料对所有用户可见，不受 tenant/owner 限制
+    if (query.source === 'builtin') {
+      // 不加 tenant/owner 过滤
+    } else if (query.tenantId && query.createdBy) {
+      // 非 builtin 查询：限定为当前租户 + 当前用户 或 builtin
+      filter.$or = [
+        { tenantId: query.tenantId, createdBy: query.createdBy },
+        { source: 'builtin' },
+      ]
     } else if (query.tenantId) {
-      filter.tenantId = query.tenantId
+      filter.$or = [
+        { tenantId: query.tenantId },
+        { source: 'builtin' },
+      ]
     } else if (query.createdBy) {
-      filter.createdBy = query.createdBy
+      filter.$or = [
+        { createdBy: query.createdBy },
+        { source: 'builtin' },
+      ]
     }
 
     const skip = (page - 1) * pageSize
@@ -119,6 +137,7 @@ class MaterialService {
       name: data.name,
       description: data.description ?? '',
       tags: data.tags ?? [],
+      kind: data.kind ?? 'render',
       thumbnail: data.thumbnail ?? '',
       source: data.source ?? 'user',
       status: 'active',
@@ -180,7 +199,7 @@ class MaterialService {
       { $text: { $search: keyword }, status: 'active' },
       { score: { $meta: 'textScore' } },
     )
-      .select('material_id name description tags thumbnail template.parameters template.assets')
+      .select('material_id name description tags kind thumbnail template.parameters template.assets')
       .sort({ score: { $meta: 'textScore' } })
       .limit(limit)
       .lean() as unknown as Partial<IMaterial>[]

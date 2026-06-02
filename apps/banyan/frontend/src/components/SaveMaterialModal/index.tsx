@@ -55,8 +55,8 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
 
     setLoading(true)
     try {
-      // 调用 BanvasGL material.serialize 生成模板
-      const template = actions.material.serialize(viewId, {
+      // 调用 BanvasGL view.serializeMaterial 生成模板
+      const template = actions.view.serializeMaterial(viewId, {
         name: name.trim(),
         description: description.trim() || undefined,
         parameterBindings: [],

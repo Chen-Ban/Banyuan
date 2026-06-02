@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Button, Tooltip, Popover } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, EyeOutlined, CloudUploadOutlined } from '@ant-design/icons'
-import type { IComponentDefinition } from '@banyuan/banvasgl'
+import type { IMaterial } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
 
 interface ComponentPaletteProps {
@@ -15,31 +15,30 @@ interface ComponentPaletteProps {
     onBack: () => void
     onPreview: () => void
     /** 引擎内置物料，直接来自 useDesignBanvas().materials */
-    materials: IComponentDefinition[]
+    materials: IMaterial[]
     /**
      * 用户自定义物料（可选）
      *
      * 格式与内置物料完全一致，source 建议设为 'user'。
      * 未来社区物料也通过同一接口接入，面板无需改动。
      */
-    userComponents?: IComponentDefinition[]
+    userComponents?: IMaterial[]
     /** 是否正在发布 */
     publishing?: boolean
     /** 发布模板回调（仅已有模板显示） */
     onPublish?: () => void
 }
 
-/** 渲染物料图标 */
-const ComponentIcon: React.FC<{ icon: IComponentDefinition['icon'] }> = ({ icon }) => {
-    if (icon.type === 'svg') {
-        return (
-            <span
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                dangerouslySetInnerHTML={{ __html: icon.content }}
-            />
-        )
+/** 渲染物料图标：优先 thumbnail，fallback 为首字 */
+const MaterialIcon: React.FC<{ material: IMaterial }> = ({ material }) => {
+    if (material.meta.thumbnail) {
+        return <img src={material.meta.thumbnail} width={20} height={20} alt="" style={{ objectFit: 'contain' }} />
     }
-    return <img src={icon.src} width={20} height={20} alt="" style={{ objectFit: 'contain' }} />
+    return (
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+            {material.meta.name.charAt(0)}
+        </span>
+    )
 }
 
 /** 栅格最多展示 6 个，超出折叠到「更多」 */
@@ -67,20 +66,20 @@ const ComponentPalette: React.FC<ComponentPaletteProps> = ({
     const visibleComponents = allComponents.slice(0, MAX_VISIBLE)
     const overflowComponents = allComponents.slice(MAX_VISIBLE)
 
-    const handleDragStart = (e: React.DragEvent, def: IComponentDefinition) => {
-        // 只序列化 template（创建数据），不传 icon/label 等展示信息
-        e.dataTransfer.setData('application/json', JSON.stringify({ template: def.template }))
+    const handleDragStart = (e: React.DragEvent, material: IMaterial) => {
+        // 只序列化 template（创建数据），不传 meta 等展示信息
+        e.dataTransfer.setData('application/json', JSON.stringify({ template: material.template }))
         e.dataTransfer.effectAllowed = 'copy'
     }
 
-    const renderItem = (def: IComponentDefinition) => (
-        <Tooltip key={def.id} title={def.description ?? def.label} placement="bottom">
+    const renderItem = (material: IMaterial) => (
+        <Tooltip key={material.meta.id} title={material.meta.description ?? material.meta.name} placement="bottom">
             <div
                 className={styles.componentItem}
                 draggable
-                onDragStart={e => handleDragStart(e, def)}
+                onDragStart={e => handleDragStart(e, material)}
             >
-                <ComponentIcon icon={def.icon} />
+                <MaterialIcon material={material} />
             </div>
         </Tooltip>
     )

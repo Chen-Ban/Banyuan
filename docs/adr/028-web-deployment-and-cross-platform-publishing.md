@@ -41,16 +41,24 @@ Banyuan 当前的构建产物只有桌面安装包（Electron 封装的 .dmg/.ex
 - 应用间：Docker 容器级别隔离（同一 ECS 内）
 - 网络：每台 ECS 绑定独立弹性 IP，Nginx 网关统一入口
 
-### 决策二：构建集中化，运行分布化
+### 决策二：去中心化构建（租户端构建 + 就地部署）
 
-构建在平台侧（Banyan 后端所在机器/构建集群）完成，产物分发到租户 ECS 部署。
+构建在租户自己的 ECS 上由 deploy-agent 完成（scaffold → pnpm install → vite build → 部署到 Nginx）。平台后端通过 WebSocket 将 appJSON 发送给 agent，agent 一站式完成构建和部署。这是架构选型，不是 MVP 简化。
 
-**理由**：
+**选择去中心化构建的理由**：
 
-- 构建是 CPU 密集操作（Vite + esbuild），不应消耗租户服务器资源
-- 租户服务器不安装 node_modules，保持运行环境干净
-- 产物标准化为 `dist/` 目录（index.html + assets + pages.json），与平台无关
-- 同一份产物可部署到 Web（Nginx 托管）、Electron（本地加载）、Capacitor（移动壳）
+- **无排队**：每个租户在自己的 ECS 上构建，100 个租户同时发布互不影响；中心化构建必然面临队列积压
+- **数据本地性**：appJSON → scaffold → build → dist → nginx，全链路在同一台机器完成，零网络传输、零 OSS 中转
+- **天然水平扩展**：租户数增长 = ECS 数增长 = 构建能力线性增长，无需扩容中心构建集群
+- **故障隔离**：一台 ECS 构建失败不影响其他租户
+- **架构简洁**：不需要 OSS 产物仓库、不需要独立构建服务、不需要 BullMQ 队列、不需要产物分发调度
+- **运行时复用**：deploy-agent 本身运行在 Node.js 之上，构建环境零额外安装成本
+- **语义正确**：谁的应用在谁的机器上构建，产物天然属于该租户，无跨租户数据流动
+
+**产物标准化**：
+
+- 构建产物为 `dist/` 目录（index.html + assets），与平台无关
+- 同一份 appJSON 可在不同环境构建：Web（租户 ECS）、Electron（用户本地）、Capacitor（移动端构建机）
 
 ### 决策三：每个应用 = 一个自包含的 Docker 容器
 
@@ -67,11 +75,12 @@ Banyuan 当前的构建产物只有桌面安装包（Electron 封装的 .dmg/.ex
 
 ### 决策四：deploy-agent 作为租户服务器管控代理
 
-在每台租户 ECS 上运行轻量 deploy-agent（Node.js 守护进程）：
+在每台租户 ECS 上运行轻量 deploy-agent（Node.js 守护进程，`packages/deploy-agent/`）。注意：此 agent 是纯粹的部署代理程序，与 XiangDi AI Agent 无关。
 
-- 通过 WebSocket 长连接与平台 Deploy Service 通信
-- 负责：拉取产物、创建/更新/停止容器、更新 Nginx 配置、上报健康状态
+- 通过 WebSocket 长连接主动连接 Banyan 后端（`/ws/agent`），由后端 AgentGateway 管理连接
+- 核心职责：接收 appJSON → scaffold 生成项目 → 安装依赖 → 构建 → 部署到 Nginx → 上报进度和结果
 - 无需在租户服务器上暴露任何端口给公网（agent 主动外连）
+- 认证方式：agent 启动时通过 `agentToken`（租户注册时自动生成）进行身份认证
 - 后续开放控制台时，agent 扩展为 Web Terminal 代理即可
 
 ### 决策五：泛域名 + 自定义域名双模式
@@ -233,40 +242,41 @@ Vite 构建的 `dist/` 目录是所有平台的统一入口：
 ## 架构总览
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Banyuan 平台层                         │
-│                                                         │
-│  Banyan 设计器(:5174) ──▶ Banyan 后端(:3001)            │
-│                                │                        │
-│                                ▼                        │
-│                    ┌─────────────────────┐              │
-│                    │  Deploy Service     │              │
-│                    │  (:3004)            │              │
-│                    │                     │              │
-│                    │  - BullMQ 构建队列  │              │
-│                    │  - 阿里云 ECS API   │              │
-│                    │  - 产物分发调度     │              │
-│                    └────────┬────────────┘              │
-│                             │                           │
-│              ┌──────────────┼──────────────┐            │
-│              ▼              ▼              ▼            │
-│         OSS 产物仓库   阿里云 DNS    SSL 证书管理       │
-└─────────────────────────────────────────────────────────┘
-                              │
-                    WebSocket 长连接
-                              │
-        ┌─────────────────────┼─────────────────────┐
-        ▼                     ▼                     ▼
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│ 租户A ECS    │    │ 租户B ECS    │    │ 租户C ECS    │
-│              │    │              │    │              │
-│ deploy-agent │    │ deploy-agent │    │ deploy-agent │
-│ Nginx 网关   │    │ Nginx 网关   │    │ Nginx 网关   │
-│              │    │              │    │              │
-│ ┌──┐┌──┐┌──┐│    │ ┌──┐┌──┐    │    │ ┌──┐         │
-│ │A1││A2││A3││    │ │B1││B2│    │    │ │C1│         │
-│ └──┘└──┘└──┘│    │ └──┘└──┘    │    │ └──┘         │
-└──────────────┘    └──────────────┘    └──────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                       Banyuan 平台层                           │
+│                                                              │
+│  Banyan 设计器(:5174) ──▶ Banyan 后端(:3001)                 │
+│                                │                             │
+│                    ┌───────────┴───────────┐                 │
+│                    │                       │                 │
+│                    ▼                       ▼                 │
+│         ┌──────────────────┐    ┌──────────────────┐         │
+│         │  AgentGateway    │    │ TenantProvision  │         │
+│         │  (WebSocket网关) │    │ Service          │         │
+│         │  /ws/agent       │    │ (ECS/DNS 自动化) │         │
+│         └────────┬─────────┘    └──────────────────┘         │
+│                  │                                           │
+└──────────────────┼───────────────────────────────────────────┘
+                   │
+         WebSocket 长连接（agent 主动外连）
+                   │
+     ┌─────────────┼─────────────────────┐
+     ▼             ▼                     ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│ 租户A ECS    │  │ 租户B ECS    │  │ 租户C ECS    │
+│              │  │              │  │              │
+│ deploy-agent │  │ deploy-agent │  │ deploy-agent │
+│ (构建+部署)  │  │ (构建+部署)  │  │ (构建+部署)  │
+│ Nginx 网关   │  │ Nginx 网关   │  │ Nginx 网关   │
+│ MongoDB      │  │ MongoDB      │  │ MongoDB      │
+│              │  │              │  │              │
+│ ┌──┐┌──┐┌──┐│  │ ┌──┐┌──┐    │  │ ┌──┐         │
+│ │A1││A2││A3││  │ │B1││B2│    │  │ │C1│         │
+│ └──┘└──┘└──┘│  │ └──┘└──┘    │  │ └──┘         │
+└──────────────┘  └──────────────┘  └──────────────┘
+
+去中心化构建：后端通过 WebSocket 发送 appJSON → agent 端完成 scaffold/build/deploy
+每个租户独立构建，无排队、无中转、天然水平扩展
 ```
 
 ---
@@ -295,18 +305,19 @@ Vite 构建的 `dist/` 目录是所有平台的统一入口：
 
 ```
 用户点击"发布" → Banyan 后端
-  → 提交构建任务到 Deploy Service 队列
-  → 构建 Worker 执行:
-      1. scaffold() — 生成 Vite 项目
-      2. bundle() — Vite 构建
-      3. 压缩 dist/ → {appId}-{version}.tar.gz
-      4. 上传到 OSS
-  → 通知 deploy-agent:
-      - 从 OSS 拉取产物
-      - 解压到 /srv/banyuan/apps/{appId}/versions/{version}/
-      - 更新 current 软链接
-      - 若容器不存在则创建，否则 reload Nginx
-  → 返回正式链接: https://{appSlug}.{tenantId}.banyuan.app
+  → 校验租户环境就绪 + agent 在线
+  → 创建 Deployment 记录（status: pending）
+  → 通过 WebSocket 向 deploy-agent 发送 deploy:start 消息（payload: appJSON + appSlug + tenantDomain）
+  → deploy-agent 执行:
+      1. scaffold() — 根据 appJSON 生成 Vite 项目
+      2. pnpm install — 安装依赖
+      3. pnpm build — Vite 构建
+      4. 复制 dist/ 到 /opt/banyuan/www/{appSlug}/
+      5. 生成 Nginx server block 配置
+      6. nginx -s reload — 热加载
+  → agent 上报 deploy:progress（实时进度）和 deploy:result（最终结果）
+  → 后端更新 Deployment 状态 + Application.webUrl
+  → 返回正式链接: https://{appSlug}.{tenantId}.banyuan.club
 ```
 
 ### 版本回滚
@@ -357,3 +368,47 @@ Vite 构建的 `dist/` 目录是所有平台的统一入口：
 - 后续有需求时可对接阿里云容器服务（ACK），deploy-agent 平滑迁移为 K8s Operator
 - 开放控制台：deploy-agent 扩展 Web Terminal + 简易日志查看器
 - iOS/Android 构建：平台侧增加 Capacitor 构建流水线（需 macOS 构建机用于 iOS）
+
+---
+
+## 附录：环境变量清单
+
+本系统涉及两个运行环境的环境变量配置：
+
+### Banyan 后端（apps/banyan/backend/.env）
+
+| 变量名 | 必填 | 默认值 | 用途 | 获取方式 |
+|--------|------|--------|------|---------|
+| `ECS_ACCESS_KEY_ID` | 是 | - | 阿里云 RAM 子账号 AccessKey（ECS/VPC 操作） | 阿里云控制台 → RAM 访问控制 → 用户 → AccessKey 管理 |
+| `ECS_ACCESS_KEY_SECRET` | 是 | - | 阿里云 RAM 子账号 SecretKey | 同上，创建时仅显示一次 |
+| `ECS_REGION` | 否 | `cn-beijing` | ECS 实例所在地域 | 按业务选择（cn-hangzhou/cn-shanghai 等） |
+| `ECS_INSTANCE_TYPE` | 否 | `ecs.t6-c1m2.large` | ECS 实例规格（2C4G） | 阿里云 ECS 规格族文档 |
+| `ECS_IMAGE_ID` | 是 | - | 预制自定义镜像 ID（含 Docker/Node.js/Nginx） | 阿里云控制台 → ECS → 镜像 → 自定义镜像（初期可用公共镜像 `ubuntu_22_04_x64_20G_alibase_*.vhd`） |
+| `ECS_SECURITY_GROUP_ID` | 是 | - | 安全组 ID（需开放 80/443/WebSocket 端口） | 阿里云控制台 → ECS → 安全组，创建后获取 ID（格式 `sg-xxx`） |
+| `ECS_VSWITCH_ID` | 是 | - | VPC 交换机 ID（实例网络） | 阿里云控制台 → VPC → 交换机（格式 `vsw-xxx`） |
+| `DNS_ACCESS_KEY_ID` | 否 | 取 `ECS_ACCESS_KEY_ID` | DNS 操作的 AccessKey（可与 ECS 共用） | 同 ECS_ACCESS_KEY_ID，或单独授权 DNS 操作的子账号 |
+| `DNS_ACCESS_KEY_SECRET` | 否 | 取 `ECS_ACCESS_KEY_SECRET` | DNS 操作的 SecretKey | 同上 |
+| `DNS_DOMAIN` | 是 | - | 平台主域名（已托管到阿里云 DNS） | 需先将域名添加到阿里云云解析 DNS 并完成 NS 验证（如 `banyuan.club`） |
+| `BACKEND_PUBLIC_URL` | 是 | `http://localhost:3001` | 后端公网可达地址（deploy-agent 通过此地址建立 WebSocket 连接） | 部署后端服务器后，填写其公网 URL（如 `https://api.banyuan.club`） |
+
+### 租户 ECS 上的 deploy-agent（systemd 环境变量）
+
+deploy-agent 的环境变量由 `TenantProvisionService.generateAgentScript()` 在初始化时自动写入 systemd service 文件，**不需要手动配置**：
+
+| 变量名 | 来源 | 用途 |
+|--------|------|------|
+| `TENANT_ID` | 自动（注册时生成） | 标识当前租户 |
+| `AGENT_TOKEN` | 自动（注册时生成，存入 Tenant.agentToken） | WebSocket 认证令牌 |
+| `BACKEND_WS_URL` | 自动（由 BACKEND_PUBLIC_URL 推导，替换 http→ws + /ws/agent） | 后端 WebSocket 连接地址 |
+| `DEPLOY_ROOT` | 自动（默认 /opt/banyuan/apps） | 项目 scaffold 和构建的工作目录 |
+| `NGINX_SITES_DIR` | 自动（默认 /etc/nginx/sites-enabled） | Nginx 站点配置存放目录 |
+
+### 前置准备步骤
+
+在配置环境变量之前，需要完成以下阿里云资源准备：
+
+1. **RAM 子账号**：在阿里云 RAM 控制台创建子账号，授予 `AliyunECSFullAccess` + `AliyunVPCFullAccess` + `AliyunDNSFullAccess` 权限，获取 AccessKey
+2. **VPC + 交换机**：在目标地域创建 VPC（10.0.0.0/8 网段），创建交换机（子网），记录 VSwitch ID
+3. **安全组**：在 VPC 内创建安全组，添加入方向规则：TCP 80（HTTP）、TCP 443（HTTPS），记录安全组 ID
+4. **域名**：购买域名（如 `banyuan.club`），将 NS 解析迁移到阿里云云解析 DNS，验证生效
+5. **ECS 镜像**（可选）：制作自定义镜像（预装 Docker + Node.js 22 + pnpm + Nginx），记录镜像 ID；或直接使用 Ubuntu 公共镜像，由初始化脚本安装所有依赖（首次开通约 5 分钟）

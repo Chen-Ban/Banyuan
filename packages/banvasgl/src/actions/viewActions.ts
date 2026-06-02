@@ -1,19 +1,20 @@
 /**
  * View 级别操作
  *
- * viewCreatorStrategies 通过参数注入，核心包不硬编码具体创建策略，
- * 由上层（banvas-design）传入完整的策略表。
+ * 提供视图 CRUD、属性编辑、命中检测、物料序列化/实例化等操作。
+ * 创建视图统一走 instantiateMaterial() 路径。
  */
 
 import View from '@/view/View/View'
-import { clearAllStates, flattenViewTree } from '@/engine/operations/ViewTree'
+import { clearAllStates, flattenViewTree } from '@/engine/scene/utils'
 import { adapterRegistry } from '@/view/property'
-import type { IViewActions, IComponentTemplate } from '@/types/hook/hook'
-import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes } from '@/types/view/view'
-import type App from '@/engine/App'
-
-/** View 创建策略函数签名 */
-export type ViewCreatorStrategy = (defaultProps: Record<string, any>, x: number, y: number) => View
+import type { IViewActions } from '@/types/hook/hook'
+import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes, IInteractResult, ViewTypeMap } from '@/types/view/view'
+import { Cursor } from '@/types/view/view'
+import { Point3, ViewType } from '@/foundation'
+import type { App } from '@/engine/App'
+import { screenToWorld as _screenToWorld, worldToScreen as _worldToScreen } from '@/engine/camera/cameraUtils.js'
+import { createMaterialActions as _createMaterialActions } from '@/engine/material/index.js'
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null
@@ -23,18 +24,12 @@ export function getClipboard(): View | null {
     return clipboard
 }
 
-export interface CreateViewActionsOptions {
-    /** View 创建策略表，key 为 ViewType 字符串 */
-    viewCreatorStrategies?: Map<string, ViewCreatorStrategy>
-}
-
 export function createViewActions(
     getApp: () => App | null,
-    options: CreateViewActionsOptions = {},
 ): IViewActions {
-    const { viewCreatorStrategies } = options
     const getScene = () => getApp()?.getCurrentScene() ?? null
     const notify = () => getApp()?.notify()
+    const materialActions = _createMaterialActions(getApp)
 
     return {
         select(viewId: string, multiple?: boolean): void {
@@ -95,43 +90,6 @@ export function createViewActions(
             const safeIndex = Math.min(newIndex, siblings.length)
             siblings.splice(safeIndex, 0, view)
             notify()
-        },
-
-        create(template: IComponentTemplate, position: { x: number; y: number }): string | null {
-            const app = getApp()
-            const scene = getScene()
-            if (!scene || !app) return null
-
-            if (!viewCreatorStrategies) {
-                console.warn('[BanvasGL] actions.view.create: viewCreatorStrategies 未注入，无法创建视图')
-                return null
-            }
-
-            const { viewType, graphType, defaultProps = {} } = template
-            const { x, y } = position
-
-            const viewStrategy = viewCreatorStrategies.get(viewType)
-            if (!viewStrategy) {
-                console.warn(`[BanvasGL] actions.view.create: 未知 viewType "${viewType}"，已跳过`)
-                return null
-            }
-
-            const propsWithGraphType = viewType === 'GRAPHVIEW' && graphType
-                ? { ...defaultProps, _graphType: graphType }
-                : defaultProps
-
-            let newView: View | null = null
-            try {
-                newView = viewStrategy(propsWithGraphType, x, y)
-            } catch (err) {
-                console.warn(err instanceof Error ? err.message : err)
-                return null
-            }
-
-            scene.addChild(newView)
-            scene.select(newView)
-            notify()
-            return newView.id
         },
 
         setVisible(viewId: string, visible: boolean): void {
@@ -447,5 +405,150 @@ export function createViewActions(
             if (!scene) return
             scene.rollbackTransaction()
         },
+
+        hitTest(point: Point3): IInteractResult {
+            const app = getApp()
+            const scene = getScene()
+            const empty: IInteractResult = { view: null, content: null, extraData: null }
+            if (!app || !scene) return empty
+
+            const bufferCtx = app.renderer.getCanvasContext().getBufferContext()
+            let result: IInteractResult = empty
+            for (const view of scene.children) {
+                const hit = view.interact(point, bufferCtx)
+                if (hit.view && hit.content && hit.extraData) {
+                    result = hit
+                }
+            }
+            return result
+        },
+
+        hitTestAll(point: Point3): IInteractResult[] {
+            const app = getApp()
+            const scene = getScene()
+            if (!app || !scene) return []
+
+            const bufferCtx = app.renderer.getCanvasContext().getBufferContext()
+            const results: IInteractResult[] = []
+            for (const view of scene.children) {
+                const hit = view.interact(point, bufferCtx)
+                if (hit.view && hit.content && hit.extraData) {
+                    results.push(hit)
+                }
+            }
+            return results
+        },
+
+
+        // ── 交互层底层支持 ──
+
+        hitTestDetailed(point: Point3): IInteractResult & { cursor: Cursor } {
+            const app = getApp()
+            const scene = getScene()
+            const empty: IInteractResult & { cursor: Cursor } = { view: null, content: null, extraData: null, cursor: Cursor.Default }
+            if (!app || !scene) return empty
+
+            const bufferCtx = app.renderer.getCanvasContext().getBufferContext()
+            let result: IInteractResult & { cursor: Cursor } = empty
+            for (const view of scene.children) {
+                const hit = view.interact(point, bufferCtx)
+                if (hit.view && hit.content && hit.extraData) {
+                    result = { ...hit, cursor: hit.extraData.cursorStyle }
+                }
+            }
+            return result
+        },
+
+        getBufferContext(): CanvasRenderingContext2D | null {
+            const app = getApp()
+            if (!app) return null
+            return app.renderer.getCanvasContext().getBufferContext()
+        },
+
+        addTempChild(view: View): void {
+            const scene = getScene()
+            if (!scene) return
+            scene.addChild(view, false)
+        },
+
+        removeTempChild(view: View): void {
+            const scene = getScene()
+            if (!scene) return
+            scene.removeChild(view, false)
+        },
+
+        getAllActivedViews(): View[] {
+            const scene = getScene()
+            if (!scene) return []
+            return scene.getAllActived()
+        },
+
+        getSelectedView<T extends keyof ViewTypeMap>(viewType?: T): (T extends undefined ? View : ViewTypeMap[T]) | null {
+            const scene = getScene()
+            if (!scene) return null
+            const view = scene.getSelectedView() ?? null
+            if (!view) return null
+            if (viewType !== undefined && view.type !== viewType) return null
+            return view as any
+        },
+
+        flattenViewTree(): View[] {
+            const scene = getScene()
+            if (!scene) return []
+            return flattenViewTree(scene)
+        },
+
+        translateActived(dx: number, dy: number): void {
+            const scene = getScene()
+            if (!scene) return
+            for (const view of scene.getAllActived()) {
+                view.translate(dx, dy, 0)
+            }
+        },
+
+        snapAlignBegin(): void {
+            const scene = getScene()
+            if (!scene) return
+            scene.snapAlign.begin(scene, scene.getAllActived())
+        },
+
+        snapAlignSnap(viewId: string): { offsetX: number; offsetY: number } {
+            const scene = getScene()
+            if (!scene) return { offsetX: 0, offsetY: 0 }
+            const view = scene.findViewById(viewId)
+            if (!view) return { offsetX: 0, offsetY: 0 }
+            return scene.snapAlign.snap(view)
+        },
+
+        snapAlignEnd(): void {
+            const scene = getScene()
+            if (!scene) return
+            scene.snapAlign.end()
+        },
+
+        // ── 坐标转换 ──
+
+        screenToWorld(e: MouseEvent): Point3 {
+            const app = getApp()
+            if (!app) return new Point3(0, 0, 0)
+            const scene = app.getCurrentScene()
+            if (!scene) return new Point3(0, 0, 0)
+            const canvas = app.renderer.getCanvas()
+            return _screenToWorld(e.clientX, e.clientY, scene, canvas)
+        },
+
+        worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
+            const app = getApp()
+            if (!app) return { x: 0, y: 0 }
+            const scene = app.getCurrentScene()
+            if (!scene) return { x: 0, y: 0 }
+            const canvas = app.renderer.getCanvas()
+            return _worldToScreen(worldX, worldY, scene, canvas)
+        },
+
+        // ── 物料操作（从 materialActions 合并） ──
+
+        serializeMaterial: materialActions.serialize,
+        instantiateMaterial: materialActions.instantiate,
     }
 }

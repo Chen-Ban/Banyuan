@@ -21,7 +21,7 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import useDesignBanvas from "@/hooks/design/useDesignBanvas";
+import useDesignBanvas from "@/hooks/useDesignBanvas";
 import { DesignContextMenu } from "@/components/DesignEditor/DesignContextMenu";
 import { App, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
@@ -112,7 +112,6 @@ const UIPage = () => {
     selectedViewId,
     actions,
     contextMenu: rawContextMenu,
-    MaterialPalette,
   } = useDesignBanvas(loaded ? appJSON : '', banvasOptions);
 
   // ── 扩展右键菜单：为视图添加"保存为物料"选项 ─────────────────────────────────
@@ -231,7 +230,6 @@ const UIPage = () => {
             open={paletteOpen}
             onClose={() => setPaletteOpen(false)}
             container={canvasSectionEl}
-            MaterialPalette={MaterialPalette}
           />
 
           {/* 属性面板（挂载在 canvasSection，从右侧弹出，不占画布空间） */}

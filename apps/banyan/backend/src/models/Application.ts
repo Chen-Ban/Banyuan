@@ -26,6 +26,19 @@ export interface IApplication extends Document {
   createdBy: string
   /** 最后修改者 */
   updatedBy: string
+
+  // ─── Web 发布相关（ADR-028）─────────────────────────────────────────────────
+  /** 应用 URL slug（用于子域名路由，如 my-app → my-app.tenant.banyuan.club） */
+  appSlug?: string
+  /** 已发布的版本号（null 表示从未发布） */
+  publishedVersion?: number
+  /** Web 访问 URL（发布后填充） */
+  webUrl?: string
+  /** 最近一次部署时间 */
+  lastDeployedAt?: Date
+  /** 部署类型 */
+  deployType?: 'static' | 'fullstack'
+
   /** 创建时间 */
   createdAt: Date
   /** 更新时间 */
@@ -88,6 +101,32 @@ const ApplicationSchema = new Schema<IApplication>(
       default: '',
       trim: true,
     },
+
+    // Web 发布相关（ADR-028）
+    appSlug: {
+      type: String,
+      default: undefined,
+      trim: true,
+      sparse: true,
+    },
+    publishedVersion: {
+      type: Number,
+      default: undefined,
+    },
+    webUrl: {
+      type: String,
+      default: undefined,
+      trim: true,
+    },
+    lastDeployedAt: {
+      type: Date,
+      default: undefined,
+    },
+    deployType: {
+      type: String,
+      enum: ['static', 'fullstack'],
+      default: undefined,
+    },
   },
   {
     timestamps: true,
@@ -101,6 +140,7 @@ ApplicationSchema.index({ tags: 1 })
 ApplicationSchema.index({ createdBy: 1 })
 ApplicationSchema.index({ createdAt: -1 })
 ApplicationSchema.index({ tenantId: 1, createdBy: 1 })
+ApplicationSchema.index({ tenantId: 1, appSlug: 1 }, { unique: true, sparse: true })
 
 const Application = mongoose.model<IApplication>('Application', ApplicationSchema)
 
