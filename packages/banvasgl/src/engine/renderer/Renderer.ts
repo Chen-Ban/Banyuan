@@ -1,8 +1,8 @@
-import Scene from "@/engine/Scene";
-import CanvasContext, { createCanvasContext } from "./CanvasContext";
+import { Scene } from "@/engine/scene/Scene";
+import { CanvasContext, createCanvasContext } from "./CanvasContext";
 import { IRendererOptions } from '@/types'
 
-export default class Renderer {
+export class Renderer {
   // 渲染状态
   private isRendering: boolean = false;
   private lastRenderTime: number = 0;

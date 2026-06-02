@@ -1,9 +1,10 @@
 import type { Diff, ApplyDirection } from './OperationStack'
 import { DiffType, Operation } from './OperationStack'
-import type { SceneAccessor, ReviverFactory } from './types'
+import type { SceneAccessor } from '@/types'
 import { Matrix4 } from '@/foundation/math'
 import Bounds from '@/graph/base/Bounds'
 import { isContainerView } from '@/types'
+import { Serializer } from '@/engine/serialization/Serializer'
 
 /**
  * Diff 回放执行器
@@ -14,13 +15,11 @@ import { isContainerView } from '@/types'
  * 在三层架构中的位置：
  *   TransactionManager（记录）→ OperationStack（调度）→ DiffApplier（执行）
  */
-export default class DiffApplier {
+export class DiffApplier {
   private scene: SceneAccessor
-  private getReviver: ReviverFactory
 
-  constructor(scene: SceneAccessor, getReviver: ReviverFactory) {
+  constructor(scene: SceneAccessor) {
     this.scene = scene
-    this.getReviver = getReviver
   }
 
   /**
@@ -75,16 +74,18 @@ export default class DiffApplier {
         this.scene.removeChild(view)
       }
     } else {
-      // 重做添加 = 从快照恢复
-      const view = this.getReviver().revive(diff.snapshot)
+      // 重做添加 = 从快照恢复（snapshot 是 serialize() 产出的 JSON 字符串）
+      const serializer = Serializer.getInstance()
+      const view = serializer.deserialize(diff.snapshot)
       this.scene.insertChildAt(view, diff.index)
     }
   }
 
   private applyRemoveDiff(diff: Extract<Diff, { type: DiffType.REMOVE }>, direction: ApplyDirection): void {
     if (direction === 'undo') {
-      // 撤销删除 = 从快照恢复
-      const view = this.getReviver().revive(diff.snapshot)
+      // 撤销删除 = 从快照恢复（snapshot 是 serialize() 产出的 JSON 字符串）
+      const serializer = Serializer.getInstance()
+      const view = serializer.deserialize(diff.snapshot)
       this.scene.insertChildAt(view, diff.index)
     } else {
       // 重做删除 = 再次删除
@@ -128,6 +129,8 @@ export default class DiffApplier {
    * 根据 path 调用对应类型的 fromJSON 方法重建实例
    */
   private restoreProperty(view: any, path: string, value: any): void {
+    const serializer = Serializer.getInstance()
+
     switch (path) {
       case 'matrix':
         view.matrix = Matrix4.fromJSON(value)
@@ -142,7 +145,8 @@ export default class DiffApplier {
           view.markLayoutDirty()
           break
         }
-        view.content = this.getReviver().revive(value)
+        // content 是 { $type, $value } 包装的对象，走 deserialize 的对象路径
+        view.content = serializer.deserialize(value)
         view.markLayoutDirty()
         break
       }
@@ -151,7 +155,8 @@ export default class DiffApplier {
         if (isContainerView(view)) {
           view.clear()
           const children = (value || []).map((child: any) => {
-            return this.getReviver().revive(child)
+            // 每个 child 是 { $type, $value } 包装的对象
+            return serializer.deserialize(child)
           })
           for (const child of children) {
             view.addChild(child)  // addChild 内部已调用 markLayoutDirty

@@ -1,6 +1,6 @@
-import Scene from "@/engine/Scene";
-import Serializer from "@/engine/Serializer";
-import Renderer from "@/engine/Renderer";
+import { Scene } from "@/engine/scene/Scene";
+import { Serializer } from "@/engine/serialization/Serializer";
+import { Renderer } from "@/engine/renderer/Renderer";
 import {
   IAppOptions,
   IAppLifetimes,
@@ -9,13 +9,14 @@ import {
   ISerializable,
 } from "@/types";
 import { AppType } from "@/foundation/constants";
-import { createClientFlowRunner } from "@banyuan/flow/client";
-import type { FlowRunner, FlowContext } from "@banyuan/flow";
+import { createClientFlowRunner } from "@/flow/presets/client.js";
+import type { FlowRunner } from "@/flow/runtime/FlowRunner.js";
+import type { FlowContext } from "@/flow/runtime/context.js";
 import { AnimationManager } from "@/foundation/animation";
-import { flattenViewTree } from "@/engine/operations/ViewTree";
+import { flattenViewTree } from "@/engine/scene/utils";
 import type View from "@/view/View/View";
 
-export default class App implements ISerializable {
+export class App implements ISerializable {
   // 类型标识（用于 Serializer 注册）
   public readonly type: AppType = AppType.APP;
 

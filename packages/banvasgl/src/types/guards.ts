@@ -12,7 +12,7 @@
 
 import { GraphType, ViewType, AddonType } from '@/foundation/constants'
 import type { IGraph, GraphTypeMap } from './graph/graph'
-import type { IView, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IBoxDecorationAddon, IPortView, INodeView, IEdgeView } from './view/view'
+import type { IView, ISceneNode, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IBoxDecorationAddon, IPortView, INodeView, IEdgeView } from './view/view'
 
 // ────────────────────────────────────────────
 //  Graph 类型守卫
@@ -52,6 +52,20 @@ export function isViewType<T extends keyof ViewTypeMap>(
     type: T
 ): view is ViewTypeMap[T] {
     return view.type === type
+}
+
+// ────────────────────────────────────────────
+//  View / SceneNode 区分守卫
+// ────────────────────────────────────────────
+
+/**
+ * 判断 View.parent 是否为 IView（而非 ISceneNode）。
+ *
+ * View.parent 类型为 `ISceneNode | IView | null`。
+ * IView 拥有 `type` 字段（ViewType 枚举），ISceneNode 没有，以此区分。
+ */
+export function isView(node: ISceneNode | IView | null | undefined): node is IView {
+    return !!node && 'type' in node
 }
 
 // ────────────────────────────────────────────

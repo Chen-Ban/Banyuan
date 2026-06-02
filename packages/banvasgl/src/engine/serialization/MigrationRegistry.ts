@@ -1,4 +1,4 @@
-import type { SerializedData } from '@/engine/Serializer.js'
+import type { SerializedData } from './Serializer'
 import { version as BANVASGL_VERSION } from '@/version.js'
 
 /**

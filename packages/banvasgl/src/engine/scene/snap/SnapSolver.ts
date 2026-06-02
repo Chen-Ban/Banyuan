@@ -1,6 +1,6 @@
 import type Bounds from '@/graph/base/Bounds'
 import type { CacheEntry } from './SnapCache'
-import { SnapAxis, type AxisSnap } from './types'
+import { SnapAxis, type AxisSnap } from '@/types'
 
 /**
  * X/Y 轴独立的边/中点吸附求解器

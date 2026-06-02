@@ -1,7 +1,8 @@
 import View from "@/view/View/View";
-import { BaseCamera } from "@/engine";
-import { LayerManager, TransactionManager } from "./operations";
+import { BaseCamera, OrthographicCamera } from "@/engine/camera";
+import { LayerManager } from "./layer";
 import { generateId, generateName } from "@/foundation/utils";
+import { TransactionManager } from "./transaction";
 import {
   flattenViewTree,
   clearAllStates,
@@ -9,16 +10,15 @@ import {
   isViewInTree,
   groupViews,
   ungroupView,
-} from "./operations";
+} from "./utils";
 import { ISerializable, isCombinedView, isContainerView, type ISceneLifetimes, type IView, type FlowSchema } from "@/types";
-import type { FlowContext } from "@banyuan/flow";
+import type { FlowContext } from "@/flow/runtime/context.js";
 import { AnimationDescriptor, AnimationManager } from "@/foundation/animation";
 import AnimationAddon from "@/view/addon/AnimationAddon";
 import { SceneType } from "@/foundation/constants";
-import { SnapAlignManager } from "./operations/snap";
-import Serializer from "@/engine/Serializer";
+import { SnapAlignManager } from "./snap";
 import CombinedView from "@/view/CombinedViews";
-import type CanvasContext from "@/engine/CanvasContext";
+import type { CanvasContext } from "@/engine/renderer/CanvasContext";
 
 export interface SceneOptions {
   name?: string;
@@ -27,7 +27,7 @@ export interface SceneOptions {
   lifetimes?: Partial<ISceneLifetimes>;
 }
 
-export default class Scene implements ISerializable {
+export class Scene implements ISerializable {
   // 基本属性
   public readonly type: SceneType = SceneType.SCENE;
   public id: string = "";
@@ -69,17 +69,13 @@ export default class Scene implements ISerializable {
   constructor(camera: BaseCamera, options: SceneOptions = {}) {
     this.camera = camera;
     this.layerManager = new LayerManager(() => this);
-    this.transactionManager = new TransactionManager(
-      {
-        findViewById: (id: string) => this.findViewById(id),
-        removeChild: (child: View) => this.removeChild(child, false),
-        insertChildAt: (child: View, index: number) =>
-          this.insertChildAt(child, index),
-        findContainerById: (id: string) => this.findContainerById(id),
-      },
-      // 工厂函数：延迟到 undo/redo 执行时才取 Serializer，确保其已初始化
-      () => Serializer.getInstance()
-    );
+    this.transactionManager = new TransactionManager({
+      findViewById: (id: string) => this.findViewById(id),
+      removeChild: (child: View) => this.removeChild(child, false),
+      insertChildAt: (child: View, index: number) =>
+        this.insertChildAt(child, index),
+      findContainerById: (id: string) => this.findContainerById(id),
+    });
 
     // 设置选项
     if (options.data) {
@@ -183,9 +179,60 @@ export default class Scene implements ISerializable {
     // 渲染前将 Camera 的 VP 矩阵广播到所有子 View
     this.broadcastVPMatrix();
 
-    this.children.forEach((view) => {
-      view.render(canvasContext);
-    });
+    // 视口裁剪优化：仅渲染与相机视口相交的 View
+    const camera = this.camera;
+    if (camera instanceof OrthographicCamera) {
+      const bounds = camera.getViewportBounds();
+      for (const view of this.children) {
+        if (this._isViewInViewport(view, bounds)) {
+          view.render(canvasContext);
+        }
+      }
+    } else {
+      // 非正交相机（BaseCamera）：渲染全部
+      this.children.forEach((view) => {
+        view.render(canvasContext);
+      });
+    }
+  }
+
+  /**
+   * 判断 View 是否与相机视口相交（用于视口裁剪）
+   *
+   * 通过 View 的 matrix 平移分量 + viewport 尺寸构造世界空间 AABB，
+   * 与相机的 left/right/top/bottom 做矩形相交测试。
+   *
+   * 注意：此方法忽略旋转/缩放对包围盒的影响（保守策略：
+   * 对于有旋转的 View 可能略微过度渲染，但不会遗漏）。
+   */
+  private _isViewInViewport(
+    view: View,
+    cameraBounds: { left: number; right: number; bottom: number; top: number },
+  ): boolean {
+    // 选中态的 View 始终渲染（避免拖拽到视口外时消失）
+    if (view.actived || view.selected) return true;
+
+    const viewport = view.viewport;
+    if (!viewport) return true; // 无 viewport 信息则保守渲染
+
+    // 从 matrix 提取世界坐标平移分量（行主序：row0col3 = tx, row1col3 = ty）
+    const tx = view.matrix.get(0, 3);
+    const ty = view.matrix.get(1, 3);
+
+    // 构造世界空间 AABB（左上角坐标系，y 向下）
+    const viewLeft = tx;
+    const viewRight = tx + viewport.width;
+    const viewTop = ty;
+    const viewBottom = ty + viewport.height;
+
+    // AABB 相交测试（注意：camera 的 top < bottom 因为 y 轴向下）
+    // OrthographicCamera 的 top 是较小的 y 值，bottom 是较大的 y 值
+    return !(
+      viewRight < cameraBounds.left ||
+      viewLeft > cameraBounds.right ||
+      viewBottom < cameraBounds.top ||
+      viewTop > cameraBounds.bottom
+    );
   }
 
   // ── 运行时动画注册表 ──

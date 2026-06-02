@@ -1,5 +1,5 @@
 import type View from '@/view/View/View'
-import type { ReorderChange } from './OperationStack'
+import type { ReorderChange } from '../transaction/OperationStack'
 import { isContainerView } from '@/types'
 
 /**
@@ -13,7 +13,7 @@ import { isContainerView } from '@/types'
  *
  * 每个修改方法返回 ReorderChange[]，由 Scene 代理层提交到操作栈。
  */
-export default class LayerManager {
+export class LayerManager {
   /**
    * 获取场景根节点，用于祖先链递归
    * 返回的对象需要有 children 和 id 属性

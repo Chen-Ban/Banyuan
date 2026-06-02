@@ -1,6 +1,6 @@
 import { ViewType } from "@/foundation/constants";
 import Matrix4 from "@/foundation/math/Matrix4";
-import CanvasContext from "@/engine/CanvasContext";
+import { CanvasContext } from "@/engine/renderer/CanvasContext";
 import {
   Action,
   AddonCapability,
@@ -29,7 +29,7 @@ import { getDefaultStyle } from "@/graph/DefaultStyleRegistry";
 import { BoundingBoxAddon, BoxDecorationAddon } from "@/view/addon";
 import { Point3, Vector3 } from "@/foundation/math";
 import Bounds from "@/graph/base/Bounds";
-import Scene from "@/engine/Scene";
+import { Scene } from "@/engine/scene/Scene";
 import {
   RESIZE_SIZE_MAP,
   RESIZE_ORIGIN_MAP,

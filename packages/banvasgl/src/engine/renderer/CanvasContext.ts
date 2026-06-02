@@ -233,4 +233,4 @@ export function createCanvasContext(
 }
 
 // 导出类定义
-export default CanvasContext;
+export { CanvasContext };

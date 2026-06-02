@@ -1,7 +1,7 @@
-import Scene from '@/engine/Scene'
-import App from '@/engine/App'
+import { Scene } from '@/engine/scene/Scene'
+import { App } from '@/engine/App'
 import { version as BANVASGL_VERSION } from '@/version.js'
-import { migrationRegistry } from '@/engine/migrations/index.js'
+import { migrationRegistry } from './MigrationRegistry'
 import Matrix4 from '@/foundation/math/Matrix4'
 import { Point3, Vector3 } from '@/foundation/math'
 import Style from '@/foundation/style/Style'
@@ -51,9 +51,9 @@ import VideoView from '@/view/MediaViews/VideoView'
 import { NodeView, EdgeView, PortView } from '@/view/FlowViews/index.js'
 
 // 相机类型
-import BaseCamera from '@/engine/camera/BaseCamera'
-import OrthographicCamera from '@/engine/camera/OrthographicCamera'
-import PerspectiveCamera from '@/engine/camera/PerspectiveCamera'
+import { BaseCamera } from '@/engine/camera/BaseCamera'
+import { OrthographicCamera } from '@/engine/camera/OrthographicCamera'
+import { PerspectiveCamera } from '@/engine/camera/PerspectiveCamera'
 
 // ISerializable
 import type { ISerializable, ISerializableClass } from '@/types'
@@ -111,7 +111,7 @@ interface TypeRegistry {
  * 实现了 ISerializable 的类会自动使用 toJSON()/fromJSON() 进行序列化。
  * 也支持通过 registerType() 注册自定义序列化器（用于 Operation/Diff 等特殊类型）。
  */
-export default class Serializer {
+export class Serializer {
     private static instance: Serializer
     private typeRegistry: Map<string, TypeRegistry> = new Map()
     private circularRefs: Map<any, string> = new Map()
@@ -274,52 +274,36 @@ export default class Serializer {
     }
 
     /**
-     * 反序列化JSON字符串为对象
+     * 反序列化为对象实例
      *
-     * 调用链：JSON.parse → MigrationRegistry.migrate → deserializeValue
+     * 统一入口，支持两种输入：
+     * 1. JSON 字符串（SerializedData 格式）：JSON.parse → migrate → deserializeValue
+     * 2. 纯数据对象（{ $type, $value } 包装或普通值）：直接 deserializeValue
+     *
+     * 这样 undo/redo 快照（字符串）和属性级恢复（对象）都走同一个方法。
      */
     public deserialize<T = any>(
-        json: string,
+        input: string | object,
         options: Partial<SerializerOptions> = {}
     ): T {
         const opts = { ...this.defaultOptions, ...options }
-        let serializedData: SerializedData = JSON.parse(json)
 
-        if (!serializedData.type || !serializedData.data) {
-            throw new Error('Invalid serialized data format')
-        }
+        if (typeof input === 'string') {
+            // ── 字符串路径：完整的 SerializedData JSON ──
+            let serializedData: SerializedData = JSON.parse(input)
 
-        // 数据格式迁移：将旧版本数据升级到当前引擎版本
-        serializedData = migrationRegistry.migrate(serializedData)
-
-        return this.deserializeValue(serializedData.data, opts) as T
-    }
-
-    /**
-     * 从纯数据对象恢复实例（公共方法）
-     *
-     * 支持 { $type, $value } 包装格式和普通值。
-     * 用于操作栈的 applyDiff 等场景，无需经过 JSON.stringify/parse。
-     *
-     * @param data - 纯数据对象（可能是旧版本格式）
-     * @param fromVersion - 可选，数据的来源版本号。若提供且低于当前版本，
-     *                      会将 data 包装为 SerializedData 经过迁移管线处理。
-     */
-    public revive<T = any>(data: any, fromVersion?: string): T {
-        let resolvedData = data
-
-        // 如果指定了来源版本且需要迁移，包装为 SerializedData 走迁移管线
-        if (fromVersion) {
-            const wrapped: SerializedData = {
-                type: data?.$type ?? 'unknown',
-                version: fromVersion,
-                data,
+            if (!serializedData.type || !serializedData.data) {
+                throw new Error('Invalid serialized data format')
             }
-            const migrated = migrationRegistry.migrate(wrapped)
-            resolvedData = migrated.data
+
+            // 数据格式迁移：将旧版本数据升级到当前引擎版本
+            serializedData = migrationRegistry.migrate(serializedData)
+
+            return this.deserializeValue(serializedData.data, opts) as T
         }
 
-        return this.deserializeValue(resolvedData, this.defaultOptions) as T
+        // ── 对象路径：{ $type, $value } 包装或普通值 ──
+        return this.deserializeValue(input, opts) as T
     }
 
     /**

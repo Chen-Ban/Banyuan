@@ -1,8 +1,7 @@
 import type { Diff, PropChange, AddDiff, RemoveDiff, ReorderDiff, ReorderChange } from './OperationStack'
-import { DiffType, Operation } from './OperationStack'
-import OperationStack from './OperationStack'
-import DiffApplier from './DiffApplier'
-import type { ReviverFactory } from './types'
+import { DiffType, Operation, OperationStack } from './OperationStack'
+import { DiffApplier } from './DiffApplier'
+import { Serializer } from '@/engine/serialization/Serializer'
 
 // ============ 快照相关类型 ============
 
@@ -34,8 +33,7 @@ interface PendingTransaction {
   beforeSnapshots: Map<string, ViewSnapshot>
 }
 
-// SceneAccessor 接口已迁移至 @/types
-import type { SceneAccessor } from './types'
+import type { SceneAccessor } from '@/types'
 
 // ============ 快照工具函数 ============
 
@@ -95,7 +93,7 @@ function diffSnapshots(before: ViewSnapshot, after: ViewSnapshot): PropChange[] 
  *   - 持续性操作：mousedown 时 beginTransaction，mouseup 时 commitTransaction
  *   - 瞬时操作：直接调用 recordAdd / recordRemove / recordReorder
  */
-export default class TransactionManager {
+export class TransactionManager {
   private operationStack: OperationStack
   private scene: SceneAccessor
   private pending: PendingTransaction | null = null
@@ -103,9 +101,9 @@ export default class TransactionManager {
   /**
    * @param scene Scene 的访问接口（viewFinder、removeChild、insertChildAt）
    */
-  constructor(scene: SceneAccessor, getReviver: ReviverFactory) {
+  constructor(scene: SceneAccessor) {
     this.scene = scene
-    const diffApplier = new DiffApplier(scene, getReviver)
+    const diffApplier = new DiffApplier(scene)
     this.operationStack = new OperationStack(diffApplier.apply.bind(diffApplier))
   }
 
@@ -186,7 +184,8 @@ export default class TransactionManager {
    * @param index 插入位置
    */
   recordAdd(parentId: string, view: { id: string; toJSON(): any; type: any }, index: number): void {
-    const snapshot = { $type: view.type, $value: view.toJSON() }
+    const serializer = Serializer.getInstance()
+    const snapshot = serializer.serialize(view)
     const diff: AddDiff = {
       type: DiffType.ADD,
       parentId,
@@ -204,7 +203,8 @@ export default class TransactionManager {
    * @param index 原来的位置
    */
   recordRemove(parentId: string, view: { id: string; toJSON(): any; type: any }, index: number): void {
-    const snapshot = { $type: view.type, $value: view.toJSON() }
+    const serializer = Serializer.getInstance()
+    const snapshot = serializer.serialize(view)
     const diff: RemoveDiff = {
       type: DiffType.REMOVE,
       parentId,

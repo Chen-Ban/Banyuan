@@ -24,7 +24,7 @@ import type { IContainerView, IFieldSchemaMap, IContainerViewOptions, IInteractR
 import { Rectangle } from '@/graph/combined/Polygon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
 import type Matrix4 from '@/foundation/math/Matrix4.js'
-import type CanvasContext from '@/engine/CanvasContext.js'
+import type { CanvasContext } from '@/engine/renderer/CanvasContext'
 import { Point3, Vector3 } from '@/foundation/math/index.js'
 
 export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSchemaMap>

@@ -30,21 +30,21 @@ export interface ModifyDiff {
   changes: PropChange[]
 }
 
-/** 新增节点：存完整快照，undo 时删除，redo 时恢复 */
+/** 新增节点：存完整快照（serialize() 产出的 JSON 字符串），undo 时删除，redo 时恢复 */
 export interface AddDiff {
   type: DiffType.ADD
   parentId: string
   viewId: string
-  snapshot: any
+  snapshot: string
   index: number
 }
 
-/** 删除节点：存完整快照，undo 时恢复，redo 时删除 */
+/** 删除节点：存完整快照（serialize() 产出的 JSON 字符串），undo 时恢复，redo 时删除 */
 export interface RemoveDiff {
   type: DiffType.REMOVE
   parentId: string
   viewId: string
-  snapshot: any
+  snapshot: string
   index: number
 }
 
@@ -121,7 +121,7 @@ const SENTINEL_OPERATION: Operation = new Operation([])
  * - redo: tail 前进到 next，对新 tail 执行正向操作
  * - do: 在 tail 后追加新节点，丢弃 tail 之后的所有节点（分支丢弃）
  */
-export default class OperationStack {
+export class OperationStack {
   private head: LinkNode<Operation>
   private tail: LinkNode<Operation>
   private applier: OperationApplier | undefined
