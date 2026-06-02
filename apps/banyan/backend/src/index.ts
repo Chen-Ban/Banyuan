@@ -1,6 +1,9 @@
 import 'dotenv/config'
+import http from 'http'
 import app from './app'
 import { connectDatabase } from './config/database'
+import { agentGateway } from './services/AgentGateway.js'
+import { seedBuiltinMaterials } from './seeds/builtinMaterials.js'
 
 const PORT = process.env.PORT || 3001
 
@@ -9,7 +12,16 @@ async function startServer() {
     await connectDatabase()
     console.log('✅ MongoDB connected')
 
-    app.listen(PORT, () => {
+    // Seed 内置物料（幂等，基于 material_id upsert）
+    const seeded = await seedBuiltinMaterials()
+    console.log(`✅ Builtin materials seeded (${seeded} items)`)
+
+    // 创建 HTTP server 并附加 WebSocket 网关（ADR-028）
+    const server = http.createServer(app.callback())
+    agentGateway.attach(server)
+    console.log('✅ AgentGateway WebSocket attached at /ws/agent')
+
+    server.listen(PORT, () => {
       console.log(`🌳 Banyan server is running on http://localhost:${PORT}`)
     })
   } catch (error) {

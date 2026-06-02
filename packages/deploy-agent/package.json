@@ -1,0 +1,27 @@
+{
+  "name": "@banyuan/deploy-agent",
+  "version": "0.1.0",
+  "description": "Banyuan 部署代理 - 运行在租户 ECS 上，接收并执行部署指令",
+  "type": "module",
+  "bin": {
+    "deploy-agent": "./dist/cli.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/cli.ts",
+    "build": "tsup src/cli.ts src/index.ts --format esm --dts --clean",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.0",
+    "@types/node": "^22.10.1",
+    "tsup": "^8.4.0",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.3"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

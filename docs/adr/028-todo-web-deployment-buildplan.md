@@ -24,41 +24,39 @@
 
 ---
 
-### Step 2：构建流水线改造（P0，核心链路）
+### Step 2：部署 API + 部署记录（P0，核心链路）
 
-**目标**：构建产物从本地存储迁移到 OSS，支持分发
+**目标**：后端提供发布接口，记录部署历史，通过 WebSocket 协调 agent
 
 **内容**：
 
-- 将现有 `apps/banyan/backend/src/services/build/` 中的 scaffold + bundle 逻辑提取为可复用函数
-- 构建完成后：压缩 `dist/` 为 tar.gz → 上传阿里云 OSS
-- OSS 路径规范：`builds/{tenantId}/{appId}/{version}/{appId}-{version}.tar.gz`
-- 构建记录持久化到 MongoDB（PublishRecord 模型：version/status/ossPath/createdAt）
-- banyan 后端新增路由：`POST /api/v1/apps/:appId/publish`（触发 Web 发布）
+- Banyan 后端新增 DeployController + `/api/deploy` 路由：publish / getStatus / getHistory / getAgentStatus
+- 新增 Deployment Model（deploymentId/applicationId/tenantId/version/status/progress/url/error）
+- Application Model 扩展：appSlug（URL 路径标识）、publishedVersion、webUrl、lastDeployedAt、deployType
+- 后端 AgentGateway（WebSocket Server at `/ws/agent`）：管理 agent 连接、认证、心跳、部署请求/进度/结果
+- 部署流程：后端发送 `deploy:start`（含 appJSON）→ agent 构建并上报 `deploy:progress` → 完成发送 `deploy:result`
 
-**依赖**：Step 1（队列基础设施）
+**依赖**：Step 1（WebSocket 协议定义）
 
 ---
 
 ### Step 3：deploy-agent 开发（P0，核心链路）
 
-**目标**：开发运行在租户 ECS 上的管控代理
+**目标**：开发运行在租户 ECS 上的轻量部署代理（纯部署守护进程，非 AI Agent）
 
 **内容**：
 
-- 创建 `packages/deploy-agent/`（独立 Node.js 进程，零外部依赖原则）
-- WebSocket Client：主动连接平台 Deploy Service，断线重连 + 心跳
-- 指令处理器：
-  - `deploy`：从 OSS 下载产物 → 解压 → 更新 current 软链接 → reload Nginx
-  - `rollback`：切换 current 到指定版本 → reload Nginx
-  - `create-app`：创建容器 + Nginx server block
-  - `remove-app`：停止容器 + 删除 Nginx 配置
-  - `health`：上报容器状态、磁盘、内存
-- 版本目录管理：保留最近 5 个版本，自动清理旧版本
-- systemd service 配置文件（开机自启、崩溃重启）
-- 安装脚本：`install.sh`（一键部署 agent 到目标 ECS）
+- 创建 `packages/deploy-agent/`（独立 Node.js 守护进程）
+- WebSocket Client：主动连接 Banyan 后端 `/ws/agent`，agentToken 认证 + 断线重连 + 心跳
+- 指令处理器（去中心化构建模式）：
+  - `deploy:start`：接收 appJSON → scaffold 生成 Vite 项目 → pnpm install → pnpm build → 复制 dist 到 www 目录 → 生成 Nginx 配置 → reload
+  - 全栈应用额外：生成 Dockerfile + 构建镜像 + 启动容器 + 配置反向代理
+- 进度上报：通过 `deploy:progress` 实时发送步骤/百分比/消息
+- 结果上报：通过 `deploy:result` 发送成功 URL 或失败原因
+- CLI 入口：从环境变量读取配置（AGENT_TOKEN/TENANT_ID/BACKEND_WS_URL/DEPLOY_ROOT/NGINX_SITES_DIR）
+- systemd service 配置（由 TenantProvisionService 初始化脚本自动生成）
 
-**依赖**：Step 1（WebSocket 协议定义）
+**依赖**：Step 2（WebSocket 协议 + AgentGateway）
 
 ---
 

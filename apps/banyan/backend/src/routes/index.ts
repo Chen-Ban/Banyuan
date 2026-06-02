@@ -13,6 +13,7 @@ import knowledgeRouter from './knowledge.js'
 import materialRouter from './materials.js'
 import planningRouter from './planning.js'
 import internalRouter from './internal.js'
+import deployRouter from './deploy.js'
 import { authMiddleware } from '../middleware/auth.js'
 
 const router = new Router()
@@ -62,5 +63,8 @@ router.use(materialRouter.routes(), materialRouter.allowedMethods())
 
 // Multi-Agent 规划产物 + Agent Prompt 配置（ADR-032/033/034）
 router.use(planningRouter.routes(), planningRouter.allowedMethods())
+
+// Web 部署（ADR-028）
+router.use(deployRouter.routes(), deployRouter.allowedMethods())
 
 export default router

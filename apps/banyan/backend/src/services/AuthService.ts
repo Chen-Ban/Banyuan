@@ -4,6 +4,7 @@ import { Tenant } from '../models/Tenant.js'
 import { User, IUser, UserRole } from '../models/User.js'
 import { RefreshToken } from '../models/RefreshToken.js'
 import { smsService } from './SmsService.js'
+import { tenantProvisionService } from './TenantProvisionService.js'
 
 // ─── 环境变量 ─────────────────────────────────────────────────────────────────
 
@@ -117,7 +118,14 @@ export class AuthService {
       // 自动注册：创建租户 + owner 用户
       isNewUser = true
       const tenantId = generateId('tenant')
-      await Tenant.create({ tenantId, name: `用户${phone.slice(-4)}的空间`, plan: 'free' })
+      const agentToken = crypto.randomBytes(32).toString('hex')
+      await Tenant.create({
+        tenantId,
+        name: `用户${phone.slice(-4)}的空间`,
+        plan: 'free',
+        agentToken,
+        provisionStatus: 'pending',
+      })
       const userId = generateId('user')
       user = await User.create({
         userId,
@@ -126,6 +134,11 @@ export class AuthService {
         username: `用户${phone.slice(-4)}`,
         role: 'owner',
         status: 'active',
+      })
+
+      // 异步触发租户环境开通（不阻塞登录响应）
+      tenantProvisionService.provision(tenantId).catch((err) => {
+        console.error(`[Auth] tenant provision failed for ${tenantId}:`, err)
       })
     }
 
