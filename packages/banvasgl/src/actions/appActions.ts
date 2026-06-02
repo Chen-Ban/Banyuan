@@ -5,7 +5,7 @@
 import type { IAppActions } from '@/types/hook/hook'
 import type { IAppLifetimes } from '@/types/engine/app'
 import type { EventHandler } from '@/types/view/view'
-import type App from '@/engine/App'
+import type { App } from '@/engine/App'
 
 export function createAppActions(
     getApp: () => App | null,
@@ -43,6 +43,10 @@ export function createAppActions(
             const app = getApp()
             if (!app) return null
             return app.toDataURL(type, quality)
+        },
+
+        notify(): void {
+            notify()
         },
     }
 }

@@ -4,9 +4,62 @@
   "description": "Banyuan 自研 2D 图形引擎，提供图形基元、场景管理、动画系统、序列化及编辑态/运行态 React Hook",
   "exports": {
     ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./react": {
+      "import": {
+        "types": "./dist/react.d.mts",
+        "default": "./dist/react.mjs"
+      },
+      "require": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.cjs"
+      }
+    },
+    "./flow": {
+      "import": {
+        "types": "./dist/flow/index.d.mts",
+        "default": "./dist/flow/index.mjs"
+      },
+      "require": {
+        "types": "./dist/flow/index.d.ts",
+        "default": "./dist/flow/index.cjs"
+      }
+    },
+    "./flow/client": {
+      "import": {
+        "types": "./dist/flow/client.d.mts",
+        "default": "./dist/flow/client.mjs"
+      },
+      "require": {
+        "types": "./dist/flow/client.d.ts",
+        "default": "./dist/flow/client.cjs"
+      }
+    },
+    "./flow/server": {
+      "import": {
+        "types": "./dist/flow/server.d.mts",
+        "default": "./dist/flow/server.mjs"
+      },
+      "require": {
+        "types": "./dist/flow/server.d.ts",
+        "default": "./dist/flow/server.cjs"
+      }
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "react": ["./dist/react.d.mts"],
+      "flow": ["./dist/flow/index.d.mts"],
+      "flow/client": ["./dist/flow/client.d.mts"],
+      "flow/server": ["./dist/flow/server.d.mts"]
     }
   },
   "main": "./dist/index.cjs",
@@ -30,13 +83,21 @@
   "author": "",
   "license": "AGPL-3.0",
   "packageManager": "pnpm@10.10.0",
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@types/react": "^19.0.0",
     "@types/uuid": "^10.0.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.0"
   },
   "dependencies": {
-    "@banyuan/flow": "workspace:*",
     "uuid": "^11.1.0"
   }
 }

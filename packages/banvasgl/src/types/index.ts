@@ -51,7 +51,7 @@ export type {
     FieldType,
     IFieldSchema,
     IFieldSchemaMap,
-    // Flow 类型（从 @banyuan/flow 统一透传）
+    // Flow 类型（从内部 flow 模块统一透传）
     FlowValue,
     FlowCondition,
     FlowLiteralValue,
@@ -165,6 +165,10 @@ export type {
 
 export { DiffType, Operation } from './engine/scene'
 
+// ── Snap 接口 ──
+export { SnapAxis } from './engine/snap'
+export type { AxisSnap, SnapResult } from './engine/snap'
+
 // ── App 接口 ──
 export type {
     IPage,
@@ -199,19 +203,10 @@ export type { ITransferable, TransferableData } from './foundation/transferable'
 
 // ── Hook 公共接口 ──
 export type {
-    IComponentTemplate,
-    ComponentIcon,
-    ComponentSource,
-    IComponentDefinition,
     IViewActions,
     IPageActions,
     IAppActions,
-    IHistoryActions,
     IBanvasActions,
-    IContextMenuItem,
-    IContextMenuState,
-    IDragProps,
-    IUseBanvasResult,
 } from './hook/hook'
 
 // ── 物料系统接口 ──
@@ -237,10 +232,38 @@ export type {
     ConflictGroup,
 } from './view/property'
 
+// ── 交互状态机接口 ──
+export type {
+    InteractionCapability,
+    HoverTarget,
+    IdleState,
+    HoverState,
+    PanningState,
+    MovingState,
+    ResizingState,
+    RotatingState,
+    ConnectingState,
+    BoxSelectingState,
+    TextSelectingState,
+    EditingPointState,
+    InteractionState,
+    StateOfMode,
+    PointerDownInput,
+    PointerMoveInput,
+    PointerUpInput,
+    KeyDownInput,
+    KeyUpInput,
+    InteractionInput,
+    InteractionOutput,
+    InteractionDelegate,
+    InteractionStateMachineConfig,
+} from './interaction'
+
 // ── 统一类型守卫 ──
 export {
     isGraphType,
     isViewType,
+    isView,
     isCombinedGraph,
     isAnalyticGraph,
     isMediaElement,

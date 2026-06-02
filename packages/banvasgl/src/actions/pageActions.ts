@@ -2,17 +2,22 @@
  * Page（Scene）级别操作
  */
 
-import { BaseCamera } from '@/engine/camera'
-import Scene from '@/engine/Scene'
+import { OrthographicCamera } from '@/engine/camera'
+import { Scene } from '@/engine/scene/Scene'
 import type { IPageActions } from '@/types/hook/hook'
 import type { IFieldSchema, IFieldSchemaMap, EventHandler } from '@/types/view/view'
 import type { ISceneLifetimes } from '@/types/engine/scene'
-import type App from '@/engine/App'
+import type { App } from '@/engine/App'
 
 export function createPageActions(
     getApp: () => App | null,
 ): IPageActions {
     const notify = () => getApp()?.notify()
+
+    // ── Pan 内部状态（闭包私有） ──
+    let _isPanning = false
+    let _panStart: { x: number; y: number } | null = null
+    let _spaceHeld = false
 
     return {
         getPageIds(): string[] {
@@ -27,6 +32,14 @@ export function createPageActions(
             const scene = app.getScene(pageId)
             if (!scene) return []
             return (scene as Scene).children.map((child) => child.id)
+        },
+
+        getTopLevelViews() {
+            const app = getApp()
+            if (!app) return []
+            const scene = app.currentScene
+            if (!scene) return []
+            return [...(scene as Scene).children]
         },
 
         getPageCount(): number {
@@ -48,7 +61,8 @@ export function createPageActions(
         add(name?: string): string | null {
             const app = getApp()
             if (!app) return null
-            const camera = new BaseCamera()
+            // 新建页面使用正交相机，初始视口 800×600（首次 resize 时会被 syncCameraToContainer 覆盖）
+            const camera = new OrthographicCamera({ left: 0, right: 800, top: 0, bottom: 600, canvasWidth: 800, canvasHeight: 600 })
             const scene = new Scene(camera, { name })
             app.addScene(scene)
             app.navigateTo(scene)
@@ -151,6 +165,103 @@ export function createPageActions(
             if (!scene) return
             scene.lifetimes = { ...scene.lifetimes, [lifetimeName]: null }
             notify()
+        },
+
+        // ── 历史/事务操作 ──
+
+        undo(): boolean {
+            const scene = getApp()?.getCurrentScene()
+            if (!scene) return false
+            const result = scene.undo()
+            if (result) notify()
+            return result
+        },
+
+        redo(): boolean {
+            const scene = getApp()?.getCurrentScene()
+            if (!scene) return false
+            const result = scene.redo()
+            if (result) notify()
+            return result
+        },
+
+        get canUndo(): boolean {
+            return getApp()?.getCurrentScene()?.canUndo ?? false
+        },
+
+        get canRedo(): boolean {
+            return getApp()?.getCurrentScene()?.canRedo ?? false
+        },
+
+        beginTransaction(viewIds: string[]): void {
+            const scene = getApp()?.getCurrentScene()
+            if (!scene || viewIds.length === 0) return
+            scene.beginTransaction(viewIds)
+        },
+
+        commitTransaction(): void {
+            const scene = getApp()?.getCurrentScene()
+            if (!scene) return
+            scene.commitTransaction()
+        },
+
+        rollbackTransaction(): void {
+            const scene = getApp()?.getCurrentScene()
+            if (!scene) return
+            scene.rollbackTransaction()
+        },
+
+        // ── 视口平移（Pan） ──
+
+        get isPanning(): boolean {
+            return _isPanning
+        },
+
+        panStart(clientX: number, clientY: number): boolean {
+            if (!_spaceHeld) return false
+            _isPanning = true
+            _panStart = { x: clientX, y: clientY }
+            return true
+        },
+
+        panMove(clientX: number, clientY: number, canvasClientWidth: number, canvasClientHeight: number): boolean {
+            if (!_isPanning || !_panStart) return false
+            const app = getApp()
+            const scene = app?.getCurrentScene()
+            if (!scene) return false
+            const camera = scene.camera
+            if (!(camera instanceof OrthographicCamera)) return false
+
+            const dx = clientX - _panStart.x
+            const dy = clientY - _panStart.y
+            _panStart = { x: clientX, y: clientY }
+
+            // 屏幕像素差 → 世界坐标差
+            const worldPerPixelX = (camera.right - camera.left) / canvasClientWidth
+            const worldPerPixelY = (camera.bottom - camera.top) / canvasClientHeight
+            camera.pan(-dx * worldPerPixelX, -dy * worldPerPixelY)
+            scene.markDirty()
+            return true
+        },
+
+        panEnd(): boolean {
+            if (!_isPanning) return false
+            _isPanning = false
+            _panStart = null
+            return true
+        },
+
+        setSpaceHeld(held: boolean): void {
+            _spaceHeld = held
+            if (!held) {
+                // Space 释放时强制结束 pan
+                _isPanning = false
+                _panStart = null
+            }
+        },
+
+        get isSpaceHeld(): boolean {
+            return _spaceHeld
         },
     }
 }

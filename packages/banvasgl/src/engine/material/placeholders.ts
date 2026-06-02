@@ -1,163 +1,36 @@
 /**
- * 物料操作 —— serialize（View → 物料模板）& instantiate（物料模板 → View）
+ * 物料占位符层 —— 收集与替换 ID / 参数 / 资源占位符的纯函数集合
  *
- * 设计决策参见 ADR-027 Step 4。
+ * 物料模板在 serialize 阶段把易变信息（ID、可参数化字段、资源 URL）替换为占位符，
+ * 在 instantiate 阶段再填回真实值。本文件汇总这些无状态的递归遍历逻辑，
+ * 与 Serializer 的"对象 ⇄ JSON"职责正交。
  */
 
 import { v4 as uuid } from 'uuid'
-import type App from '@/engine/App.js'
-import Serializer from '@/engine/Serializer.js'
 import type {
-    IMaterial,
-    IMaterialTemplate,
-    IMaterialActions,
-    IMaterialSerializeConfig,
-    IMaterialParameter,
     IMaterialAsset,
-    IInternalIdRef,
+    IMaterialParameter,
     IMaterialParameterBinding,
+    IInternalIdRef,
 } from '@/types/material/material.js'
+import { getValueByPath, setValueByPath } from './pathUtils.js'
 
-// ── ID 占位符格式 ──
-const ID_PLACEHOLDER_RE = /\{\{id:(\d+)\}\}/g
-const PARAM_PLACEHOLDER_RE = /\{\{param:([^}]+)\}\}/g
-const ASSET_PLACEHOLDER_RE = /\{\{asset:([^}]+)\}\}/g
+// ── 占位符格式 ──
+export const ID_PLACEHOLDER_RE = /\{\{id:(\d+)\}\}/g
+export const PARAM_PLACEHOLDER_RE = /\{\{param:([^}]+)\}\}/g
+export const ASSET_PLACEHOLDER_RE = /\{\{asset:([^}]+)\}\}/g
 
 /** 资源 URL 模式匹配（http/https 链接中常见的图片/视频/音频后缀） */
 const ASSET_URL_RE = /^https?:\/\/.+\.(png|jpe?g|gif|webp|svg|mp4|webm|mp3|wav|ogg|woff2?|ttf|otf)(\?.*)?$/i
 
-/**
- * 创建物料操作实例
- */
-export function createMaterialActions(
-    getApp: () => App | null,
-): IMaterialActions {
-    const getScene = () => getApp()?.getCurrentScene() ?? null
-    const notify = () => getApp()?.notify()
-
-    return {
-        serialize(
-            viewId: string,
-            config: IMaterialSerializeConfig,
-        ): IMaterialTemplate | null {
-            const scene = getScene()
-            if (!scene) return null
-
-            const view = scene.findViewById(viewId)
-            if (!view) return null
-
-            // 1. 获取完整子树 JSON
-            const json = view.toJSON()
-
-            // 2. 收集所有 ID 并建立映射
-            const idMap = new Map<string, string>() // oldId → placeholder
-            let idCounter = 0
-            collectIds(json, idMap, () => `{{id:${idCounter++}}}`)
-
-            // 3. 深拷贝并替换 ID
-            const root = deepCloneAndReplace(json, idMap)
-
-            // 4. 扫描 FlowSchema 中的 viewId 引用
-            const internalIdRefs: IInternalIdRef[] = []
-            scanFlowSchemaRefs(root, '', idMap, internalIdRefs)
-
-            // 5. 提取资源 URL
-            const assets: IMaterialAsset[] = []
-            const assetMap = new Map<string, string>() // url → placeholder
-            extractAssets(root, assets, assetMap)
-
-            // 6. 替换资源 URL 为占位符
-            if (assetMap.size > 0) {
-                replaceAssetUrls(root, assetMap)
-            }
-
-            // 7. 处理参数绑定
-            const parameters: IMaterialParameter[] = []
-            if (config.parameterBindings && config.parameterBindings.length > 0) {
-                applyParameterBindings(root, config.parameterBindings, parameters)
-            }
-
-            // 8. 根节点 transform 归零（将坐标置为原点）
-            zeroRootTransform(root)
-
-            return {
-                root,
-                idCount: idCounter,
-                internalIdRefs,
-                parameters,
-                assets,
-            }
-        },
-
-        instantiate(
-            material: IMaterial | IMaterialTemplate,
-            position: { x: number; y: number },
-            params?: Record<string, unknown>,
-        ): string | null {
-            const app = getApp()
-            const scene = getScene()
-            if (!scene || !app) return null
-
-            const template = 'template' in material ? material.template : material
-
-            // 1. 深拷贝模板 root
-            const root = JSON.parse(JSON.stringify(template.root))
-
-            // 2. 生成新 ID 并替换占位符
-            const newIds: string[] = []
-            for (let i = 0; i < template.idCount; i++) {
-                newIds.push(uuid())
-            }
-            replaceIdPlaceholders(root, newIds)
-
-            // 3. 替换 FlowSchema 中的内部 ID 引用
-            for (const ref of template.internalIdRefs) {
-                const idIndex = extractIdIndex(ref.placeholder)
-                if (idIndex !== null && idIndex < newIds.length) {
-                    setValueByPath(root, ref.path, newIds[idIndex])
-                }
-            }
-
-            // 4. 填充参数
-            if (template.parameters.length > 0) {
-                for (const param of template.parameters) {
-                    const value = params?.[param.id] ?? param.defaultValue
-                    replaceParamPlaceholders(root, param.id, value)
-                }
-            }
-
-            // 5. 替换资源占位符
-            if (template.assets.length > 0) {
-                for (const asset of template.assets) {
-                    replaceAssetPlaceholderById(root, asset.id, asset.url)
-                }
-            }
-
-            // 6. 设置根节点位置
-            setRootPosition(root, position)
-
-            // 7. 通过 Serializer 恢复 View 实例树
-            const serializer = Serializer.getInstance()
-            const viewInstance = serializer.revive(root)
-            if (!viewInstance) return null
-
-            // 8. 添加到场景
-            scene.addChild(viewInstance)
-            notify()
-
-            return viewInstance.id
-        },
-    }
-}
-
 // ══════════════════════════════════════════════════════════════════════════════
-// 内部辅助函数
+// serialize 阶段：收集 / 占位符化
 // ══════════════════════════════════════════════════════════════════════════════
 
 /**
  * 递归收集 JSON 树中所有 id 字段
  */
-function collectIds(
+export function collectIds(
     obj: any,
     idMap: Map<string, string>,
     nextPlaceholder: () => string,
@@ -187,7 +60,7 @@ function collectIds(
 /**
  * 深拷贝对象并将所有 id 字段值替换为占位符
  */
-function deepCloneAndReplace(obj: any, idMap: Map<string, string>): any {
+export function deepCloneAndReplace(obj: any, idMap: Map<string, string>): any {
     if (obj === null || obj === undefined) return obj
     if (typeof obj !== 'object') return obj
 
@@ -213,7 +86,7 @@ function deepCloneAndReplace(obj: any, idMap: Map<string, string>): any {
  *
  * FlowSchema 节点中的 targetViewId 等字段如果匹配已知 ID，记录为 internalIdRef
  */
-function scanFlowSchemaRefs(
+export function scanFlowSchemaRefs(
     obj: any,
     currentPath: string,
     idMap: Map<string, string>,
@@ -256,7 +129,7 @@ function isFlowSchemaPath(path: string): boolean {
 /**
  * 提取 JSON 中所有看起来像资源 URL 的字符串值
  */
-function extractAssets(
+export function extractAssets(
     obj: any,
     assets: IMaterialAsset[],
     assetMap: Map<string, string>,
@@ -299,7 +172,7 @@ function inferAssetType(url: string): IMaterialAsset['type'] {
 /**
  * 将 JSON 中的资源 URL 替换为占位符
  */
-function replaceAssetUrls(obj: any, assetMap: Map<string, string>): void {
+export function replaceAssetUrls(obj: any, assetMap: Map<string, string>): void {
     if (obj === null || obj === undefined || typeof obj !== 'object') return
 
     if (Array.isArray(obj)) {
@@ -325,7 +198,7 @@ function replaceAssetUrls(obj: any, assetMap: Map<string, string>): void {
 /**
  * 应用参数绑定：将指定路径的值替换为参数占位符
  */
-function applyParameterBindings(
+export function applyParameterBindings(
     root: Record<string, any>,
     bindings: IMaterialParameterBinding[],
     parameters: IMaterialParameter[],
@@ -358,7 +231,7 @@ function applyParameterBindings(
  * BanvasGL 序列化格式中 matrix 是 $type/$value 包装的 16 元素数组。
  * 我们只需将平移分量（[12], [13]）置为 0。
  */
-function zeroRootTransform(root: Record<string, any>): void {
+export function zeroRootTransform(root: Record<string, any>): void {
     if (root.matrix) {
         // matrix 可能是 { $type: 'Matrix4', $value: number[] } 或直接是 number[]
         if (root.matrix.$value && Array.isArray(root.matrix.$value)) {
@@ -371,10 +244,14 @@ function zeroRootTransform(root: Record<string, any>): void {
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// instantiate 阶段：占位符回填
+// ══════════════════════════════════════════════════════════════════════════════
+
 /**
  * 设置根节点位置（instantiate 时使用）
  */
-function setRootPosition(root: Record<string, any>, position: { x: number; y: number }): void {
+export function setRootPosition(root: Record<string, any>, position: { x: number; y: number }): void {
     if (root.matrix) {
         if (root.matrix.$value && Array.isArray(root.matrix.$value)) {
             root.matrix.$value[12] = position.x
@@ -389,7 +266,7 @@ function setRootPosition(root: Record<string, any>, position: { x: number; y: nu
 /**
  * 递归替换所有 {{id:N}} 占位符为真实 UUID
  */
-function replaceIdPlaceholders(obj: any, newIds: string[]): void {
+export function replaceIdPlaceholders(obj: any, newIds: string[]): void {
     if (obj === null || obj === undefined || typeof obj !== 'object') return
 
     if (Array.isArray(obj)) {
@@ -423,7 +300,7 @@ function replaceIdPlaceholders(obj: any, newIds: string[]): void {
 /**
  * 递归替换所有 {{param:paramId}} 占位符为实际值
  */
-function replaceParamPlaceholders(obj: any, paramId: string, value: unknown): void {
+export function replaceParamPlaceholders(obj: any, paramId: string, value: unknown): void {
     const placeholder = `{{param:${paramId}}}`
 
     if (obj === null || obj === undefined || typeof obj !== 'object') return
@@ -451,7 +328,7 @@ function replaceParamPlaceholders(obj: any, paramId: string, value: unknown): vo
 /**
  * 递归替换 {{asset:assetId}} 占位符为实际 URL
  */
-function replaceAssetPlaceholderById(obj: any, assetId: string, url: string): void {
+export function replaceAssetPlaceholderById(obj: any, assetId: string, url: string): void {
     const placeholder = `{{asset:${assetId}}}`
 
     if (obj === null || obj === undefined || typeof obj !== 'object') return
@@ -477,39 +354,7 @@ function replaceAssetPlaceholderById(obj: any, assetId: string, url: string): vo
 }
 
 /** 从占位符字符串提取 ID 索引 */
-function extractIdIndex(placeholder: string): number | null {
+export function extractIdIndex(placeholder: string): number | null {
     const match = /\{\{id:(\d+)\}\}/.exec(placeholder)
     return match ? parseInt(match[1], 10) : null
-}
-
-/** 通过 dot-notation 路径获取值 */
-function getValueByPath(obj: any, path: string): any {
-    const parts = parsePath(path)
-    let current = obj
-    for (const part of parts) {
-        if (current === null || current === undefined) return undefined
-        current = current[part]
-    }
-    return current
-}
-
-/** 通过 dot-notation 路径设置值 */
-function setValueByPath(obj: any, path: string, value: any): void {
-    const parts = parsePath(path)
-    let current = obj
-    for (let i = 0; i < parts.length - 1; i++) {
-        if (current === null || current === undefined) return
-        current = current[parts[i]]
-    }
-    if (current !== null && current !== undefined) {
-        current[parts[parts.length - 1]] = value
-    }
-}
-
-/**
- * 解析路径字符串为数组
- * 支持 'a.b[0].c' → ['a', 'b', '0', 'c']
- */
-function parsePath(path: string): string[] {
-    return path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean)
 }
