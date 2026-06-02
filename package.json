@@ -4,12 +4,11 @@
   "description": "虽由人作，宛自天开 —— 以画布为山石，以组件为草木，以数据为活水，以 AI 为匠心，造一方数字园林。BanvasGL 自研 2D 引擎 + XiangDi AI Agent（SDD + Harness）+ Banyan 低代码平台。",
   "main": "index.js",
   "scripts": {
-    "build:flow": "pnpm --filter @banyuan/flow build",
     "build:banvasgl": "pnpm --filter @banyuan/banvasgl build",
     "build:agent": "pnpm --filter @banyuan/xiangdi-agent build",
-    "build:libs": "pnpm run build:flow && pnpm run build:banvasgl && pnpm run build:agent",
-    "dev:banyan": "pnpm run build:libs && concurrently --kill-others -c \"green.bold,magenta.bold,gray.bold,#ff9900.bold,#00cc99.bold,cyan.bold\" -n flow,canvas,agent,xiangdi-srv,knowledge-srv,banyan \"pnpm --filter @banyuan/flow dev\" \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter @banyuan/xiangdi-agent dev\" \"pnpm --filter xiangdi-server dev\" \"pnpm --filter knowledge-server dev\" \"pnpm --filter banyan dev\"",
-    "dev:lunlunglass": "pnpm run build:flow && pnpm run build:banvasgl && concurrently --kill-others -c \"green.bold,magenta.bold,cyan.bold\" -n flow,canvas,lunlunglass \"pnpm --filter @banyuan/flow dev\" \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter lunlunglass dev\""
+    "build:libs": "pnpm run build:banvasgl && pnpm run build:agent",
+    "dev:banyan": "pnpm run build:libs && concurrently --kill-others -c \"magenta.bold,gray.bold,#ff9900.bold,#00cc99.bold,cyan.bold\" -n canvas,agent,xiangdi-srv,knowledge-srv,banyan \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter @banyuan/xiangdi-agent dev\" \"pnpm --filter xiangdi-server dev\" \"pnpm --filter knowledge-server dev\" \"pnpm --filter banyan dev\"",
+    "dev:lunlunglass": "pnpm run build:banvasgl && concurrently --kill-others -c \"magenta.bold,cyan.bold\" -n canvas,lunlunglass \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter lunlunglass dev\""
   },
   "keywords": [],
   "author": "",
