@@ -131,11 +131,44 @@ View (基类)
 
 所有图形继承自 `Graph` 基类，组合图形继承自 `CombinedGraph`。内置类型覆盖：解析图形（Line、Arc、Circle、QuadraticBezier、CubicBezier）、组合图形（Polygon、Triangle、Quadrilateral、Rectangle、RegularPolygon、RoundedRect）、轨迹图形（DenseTrajectory）、媒体元素（ImageElement、VideoElement）、富文本（TextElement、TextFields、TextParagraph）。
 
-### FlowRunner（内置流程执行）
+### Flow 引擎（`flow/`）
 
-App 实例持有一个 `FlowRunner`（通过 `createClientFlowRunner()` 创建）。Scene.triggerSchema 直接构造 `FlowContext` 并调用 FlowRunner.run，将 setViewData/navigateTo/playAnimation/setViewVisible 等环境能力注入 ctx.env。
+内置的声明式流程执行器，以节点图（FlowSchema = nodes + edges）驱动。采用 **kind-agnostic** 设计——FlowRunner 不关心具体节点类型，通过 `NodeExecutorRegistry` 按 kind 查找执行器，新增节点类型只需注册即可。
 
-前后端执行器分离：客户端预设（animate/navigate/setData/setVisible）和服务端预设（dbQuery/dbInsert/dbUpdate/dbDelete/httpRequest/script/transform）共享 shared 执行器（condition/delay/setVariable/callFlow/subFlow）。
+**核心数据结构**：
+
+```typescript
+interface FlowSchema { nodes: FlowNode[]; edges: FlowEdge[] }
+interface FlowEdge  { id: string; from: string; to: string; branch?: 'true' | 'false'; toParam?: string }
+```
+
+FlowNode 按 kind 分为动作节点和值节点。动作节点参与控制流：共享（condition/delay/setVariable/callFlow/subFlow）、前端（setData/navigate/animate/setVisible）、后端（dbQuery/dbInsert/dbUpdate/dbDelete/httpRequest/transform/script）。值节点（variable/pageVar/eventParam）仅产出值供参数引用。
+
+FlowValue 描述动态值来源（5 种 kind）：`literal`（字面量）、`dataRef`（View.data 引用）、`pageDataRef`（页面变量）、`eventArg`（事件参数）、`nodeRef`（值节点输出）。
+
+**执行模型**：建图 → 找入口（无入边的第一个动作节点）→ 顺序执行（每步查 registry 执行 executor）→ condition 节点按 branch 选边 → MAX_STEPS=1000 防死循环。
+
+**与视图层的集成**：
+
+- App 持有 `FlowRunner` 实例（`createClientFlowRunner()` 创建）
+- View.events（12 个事件处理器）和 View.lifetimes（3 个钩子）的类型均为 `FlowSchema | null`
+- Scene.lifetimes（4 个场景生命周期）类型为 `FlowSchema | null`
+- Scene.triggerSchema 构造 `FlowContext` 并调用 FlowRunner.run，注入 env 能力
+
+**FlowContext 接口**：前端 env 注入 `{ appId, navigateTo, playAnimation, markDirty }`；后端 env 注入 `{ db, appId, httpClient }`。
+
+**目录结构**：
+
+```
+src/flow/
+├── runtime/        # FlowRunner 调度器 · FlowContext · resolveValue
+├── executors/      # 按端分组的执行器实现
+│   ├── shared/     # condition · delay · setVariable · callFlow · subFlow
+│   ├── client/     # setData · navigate · animate · setVisible
+│   └── server/     # dbQuery · dbInsert · dbUpdate · dbDelete · httpRequest · transform · script
+├── presets/        # createClientFlowRunner() · createServerFlowRunner()
+└── types/          # FlowSchema · FlowNode · FlowEdge · FlowValue 类型定义
+```
 
 ### 动画系统（`foundation/animation`）
 
