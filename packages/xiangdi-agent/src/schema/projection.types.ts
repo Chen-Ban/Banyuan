@@ -14,7 +14,7 @@
 
 /**
  * FlowSchema 在投影中是透传的（不做结构变换），
- * 使用 unknown 避免对 @banyuan/flow 的硬依赖。
+ * 使用 unknown 避免对 @banyuan/banvasgl/flow 的硬依赖。
  * 实际运行时值为 FlowSchema 对象（nodes + edges 的声明式流程图）。
  */
 type FlowSchema = unknown
