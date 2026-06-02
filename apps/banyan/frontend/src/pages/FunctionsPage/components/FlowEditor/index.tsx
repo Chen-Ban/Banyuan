@@ -8,10 +8,11 @@ import {
   useState,
 } from "react";
 import { App, Input, Space } from "antd";
-import type { FlowSchema } from "@banyuan/flow";
-import useFlowBanvas from "@/hooks/flow/useFlowBanvas";
+import type { FlowSchema } from "@banyuan/banvasgl";
+import useFlowBanvas from "@/hooks/useFlowBanvas";
 import { FlowContextMenu } from "@/components/FlowEditor/FlowContextMenu";
 import { NodeSchemaPopover } from "@/components/FlowEditor/NodeSchemaPopover";
+import { FlowMaterialPalette } from "@/components/FlowEditor";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
 import styles from "./index.module.scss";
@@ -42,22 +43,17 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
   const [localName, setLocalName] = useState(fn.name);
   const [localDisplayName, setLocalDisplayName] = useState(fn.displayName);
   const [_saving, setSaving] = useState(false);
-  const [schemaDirty, setSchemaDirty] = useState(false);
 
   const initialSchema = useMemo<FlowSchema>(
     () => (fn.schema as FlowSchema) ?? { nodes: [], edges: [] },
     [fn],
   );
 
-  // 直接使用 hook —— 返回 Canvas 元素 + schema + MaterialPalette + contextMenuState
   const {
     Canvas,
-    app,
-    schema,
-    canvasRef,
+    getSchema,
     selectedNode,
-    selectedNodePos,
-    MaterialPalette,
+    selectedViewPos,
     contextMenuState,
   } = useFlowBanvas(
     {
@@ -66,10 +62,9 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
       backgroundColor: "transparent",
     },
     initialSchema,
-    "server",
   );
 
-  // ── 节点属性浮层开关（对齐 FlowEditorModal 的做法） ──
+  // ── 节点属性浮层开关 ──
   const [popoverOpen, setPopoverOpen] = useState(false);
   const prevSelectedNodeIdRef = useRef<string | null>(null);
   const currentNodeId = selectedNode?.id ?? null;
@@ -85,27 +80,13 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
 
   const handleClosePopover = useCallback(() => setPopoverOpen(false), []);
 
-  // canvas 的 DOMRect（Popover 定位用）
-  const canvasRect = canvasRef.current
-    ? canvasRef.current.getBoundingClientRect()
-    : null;
-
-  // dirty 检测（元信息部分）
+  // dirty 检测（仅元信息部分）
   const metaDirty =
     localName !== fn.name || localDisplayName !== fn.displayName;
 
   useEffect(() => {
-    onDirtyChange(metaDirty || schemaDirty);
-  }, [metaDirty, schemaDirty, onDirtyChange]);
-
-  // 监听画布 version 变化 → 标记 schema dirty
-  useEffect(() => {
-    if (!app) return;
-    const unsubscribe = app.subscribe(() => {
-      setSchemaDirty(true);
-    });
-    return unsubscribe;
-  }, [app]);
+    onDirtyChange(metaDirty);
+  }, [metaDirty, onDirtyChange]);
 
   const handleSave = async () => {
     if (!localName.trim()) {
@@ -115,6 +96,7 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
 
     setSaving(true);
     try {
+      const schema = getSchema();
       const res = await cloudFunctionApi.updateFunction(appId, fn.functionId, {
         name: localName.trim(),
         displayName: localDisplayName.trim() || localName.trim(),
@@ -124,7 +106,6 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
       if (res.data) {
         onSaved(res.data);
         onDirtyChange(false);
-        setSchemaDirty(false);
         message.success("保存成功");
       }
     } catch (err: unknown) {
@@ -134,7 +115,7 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
     }
   };
 
-  // ── 暴露 save 给父组件（供 appEvents.onSaveApp 调用） ──────────────────────
+  // ── 暴露 save 给父组件（供 appEvents.onSaveApp 调用） ──
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useImperativeHandle(ref, () => ({ save: handleSave }));
 
@@ -162,9 +143,9 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
         </div>
       </div>
 
-      {/* 节点物料面板（使用 hook 提供的默认 UI） */}
+      {/* 节点物料面板（自含组件，内部获取物料） */}
       <div className={styles.paletteArea}>
-        <MaterialPalette />
+        <FlowMaterialPalette mode="server" />
       </div>
 
       {/* 流程画布 */}
@@ -174,11 +155,10 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
       <FlowContextMenu state={contextMenuState} />
 
       {/* 节点属性浮层 */}
-      {popoverOpen && selectedNode && selectedNodePos && (
+      {popoverOpen && selectedNode && selectedViewPos && (
         <NodeSchemaPopover
           node={selectedNode}
-          nodePos={selectedNodePos}
-          canvasRect={canvasRect}
+          nodePos={selectedViewPos}
           onClose={handleClosePopover}
         />
       )}

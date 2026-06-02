@@ -1,9 +1,10 @@
 import React, { useCallback, useRef, useState } from 'react'
 import { Modal } from 'antd'
-import type { FlowSchema } from '@banyuan/flow'
-import useFlowBanvas from '../../../hooks/flow/useFlowBanvas'
+import type { FlowSchema } from '@banyuan/banvasgl'
+import useFlowBanvas from '../../../hooks/useFlowBanvas'
 import { FlowContextMenu } from '../FlowContextMenu'
 import { NodeSchemaPopover } from '../NodeSchemaPopover'
+import FlowMaterialPalette from '../FlowMaterialPalette'
 import styles from './index.module.scss'
 
 export interface FlowEditorModalProps {
@@ -20,8 +21,8 @@ const CANVAS_HEIGHT = 400
 /**
  * 流程编辑弹窗
  *
- * 直接使用 useFlowBanvas hook，不额外封装组件。
- * hook 返回 Canvas + MaterialPalette（默认物料面板 UI）。
+ * 直接使用 useFlowBanvas hook + FlowMaterialPalette 自含组件。
+ * 拖拽创建节点统一走 application/json + materialId 协议，网络获取物料。
  */
 export const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
     open,
@@ -32,16 +33,13 @@ export const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
 }) => {
     const {
         Canvas,
-        schema,
-        canvasRef,
+        getSchema,
         selectedNode,
-        selectedNodePos,
-        MaterialPalette,
+        selectedViewPos,
         contextMenuState,
     } = useFlowBanvas(
         { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, backgroundColor: 'transparent' },
         initialSchema,
-        'client',
     )
 
     const [popoverOpen, setPopoverOpen] = useState(false)
@@ -59,17 +57,15 @@ export const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
 
     const handleClosePopover = useCallback(() => setPopoverOpen(false), [])
 
-    const canvasRect = canvasRef.current ? canvasRef.current.getBoundingClientRect() : null
-
     const handleOk = useCallback(() => {
-        onSave(schema)
+        onSave(getSchema())
         onClose()
-    }, [schema, onSave, onClose])
+    }, [getSchema, onSave, onClose])
 
     const handleCancel = useCallback(() => {
-        onSave(schema)
+        onSave(getSchema())
         onClose()
-    }, [schema, onSave, onClose])
+    }, [getSchema, onSave, onClose])
 
     return (
         <Modal
@@ -85,7 +81,7 @@ export const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
         >
             <div className={styles.modalBody}>
                 <div className={styles.paletteArea}>
-                    <MaterialPalette />
+                    <FlowMaterialPalette mode="client" />
                 </div>
                 <div className={styles.canvasArea}>
                     {Canvas}
@@ -94,11 +90,10 @@ export const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
 
             <FlowContextMenu state={contextMenuState} />
 
-            {popoverOpen && selectedNode && selectedNodePos && (
-                <NodeSchemaPopover
-                    node={selectedNode}
-                    nodePos={selectedNodePos}
-                    canvasRect={canvasRect}
+{popoverOpen && selectedNode && selectedViewPos && (
+<NodeSchemaPopover
+node={selectedNode}
+nodePos={selectedViewPos}
                     onClose={handleClosePopover}
                 />
             )}
