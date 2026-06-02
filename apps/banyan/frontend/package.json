@@ -12,12 +12,14 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "@banyuan/banvasgl": "workspace:*",
-    "@banyuan/flow": "workspace:*",
     "antd": "^6.0.0",
+    "motion": "^12.40.0",
+    "ogl": "^1.0.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.9.1"
+    "react-router-dom": "^7.9.1",
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",

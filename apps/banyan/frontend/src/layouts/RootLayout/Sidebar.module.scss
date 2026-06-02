@@ -1,6 +1,6 @@
 // Sidebar — 左侧导航栏样式
-@use '../../styles/tokens/typography' as *;
-@use '../../styles/mixins' as *;
+@use "../../styles/tokens/typography" as *;
+@use "../../styles/mixins" as *;
 
 // ── 容器 ─────────────────────────────────────────────────────────────────────
 
@@ -42,10 +42,7 @@
 .brandLogo {
   font-size: 18px;
   font-weight: $font-bold;
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ffffff;
   line-height: 1;
 }
 
@@ -83,7 +80,9 @@
   font-size: $text-base;
   font-weight: $font-medium;
   color: var(--color-text-secondary);
-  transition: color var(--duration-normal), background var(--duration-normal);
+  transition:
+    color var(--duration-normal),
+    background var(--duration-normal);
 
   &:hover {
     color: var(--color-text-primary);
@@ -100,7 +99,9 @@
   font-size: $text-base;
   font-weight: $font-medium;
   color: var(--color-brand-text);
-  transition: background var(--duration-normal), border-color var(--duration-normal);
+  transition:
+    background var(--duration-normal),
+    border-color var(--duration-normal);
 
   &:hover {
     background: var(--color-brand-subtle-hover);
@@ -122,7 +123,9 @@
   border-radius: var(--radius-full);
   transition: opacity var(--duration-normal);
 
-  &:hover { opacity: 0.8; }
+  &:hover {
+    opacity: 0.8;
+  }
 }
 
 .userAvatar {
@@ -141,10 +144,14 @@
   cursor: pointer;
   transition: background var(--duration-normal);
 
-  &:hover { background: var(--color-bg-hover-md); }
+  &:hover {
+    background: var(--color-bg-hover-md);
+  }
 }
 
-.userCardAvatar { flex-shrink: 0; }
+.userCardAvatar {
+  flex-shrink: 0;
+}
 
 .userCardInfo {
   flex: 1;
@@ -192,7 +199,9 @@
   max-width: 150px;
   transition: background var(--duration-normal);
 
-  &:hover { background: var(--color-bg-hover-md); }
+  &:hover {
+    background: var(--color-bg-hover-md);
+  }
 }
 
 .appNameText {
@@ -223,7 +232,9 @@
   cursor: pointer;
   font-size: $text-base;
   color: var(--color-text-tertiary);
-  transition: background var(--duration-normal), color var(--duration-normal);
+  transition:
+    background var(--duration-normal),
+    color var(--duration-normal);
   text-align: left;
 
   &:hover {
@@ -278,7 +289,9 @@
   border-radius: var(--radius-md);
   color: var(--color-text-tertiary);
   font-size: 20px;
-  transition: color var(--duration-normal), background var(--duration-normal);
+  transition:
+    color var(--duration-normal),
+    background var(--duration-normal);
   text-decoration: none;
 
   &:hover {

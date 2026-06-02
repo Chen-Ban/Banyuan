@@ -14,10 +14,10 @@
  *   - app：AiBar 单例（由 AppLayoutCtx.aiBarNode 提供，ApplicationLayout 持有）
  */
 
-import { useCallback, useState } from 'react'
-import { useNavigate, useLocation, useParams } from 'react-router-dom'
-import { App, Avatar, Dropdown, Input, Modal } from 'antd'
-import type { MenuProps } from 'antd'
+import { useCallback, useState } from "react";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
+import { App, Avatar, Dropdown, Input, Modal } from "antd";
+import type { MenuProps } from "antd";
 import {
   HomeOutlined,
   AppstoreOutlined,
@@ -29,34 +29,34 @@ import {
   EditOutlined,
   SwapOutlined,
   GithubOutlined,
-} from '@ant-design/icons'
-import { useAuth } from '@/hooks/useAuth'
-import { applicationApi } from '@/api'
-import type { Application } from '@/api'
-import { useRootLayoutCtx, type SidebarMode } from './RootLayoutCtx'
-import styles from './Sidebar.module.scss'
+} from "@ant-design/icons";
+import { useAuth } from "@/hooks/useAuth";
+import { applicationApi } from "@/api";
+import type { Application } from "@/api";
+import { useRootLayoutCtx, type SidebarMode } from "./RootLayoutCtx";
+import styles from "./Sidebar.module.scss";
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────────
 
 function getInitial(username: string): string {
-  return username.charAt(0).toUpperCase()
+  return username.charAt(0).toUpperCase();
 }
 
 // ─── Props ──────────────────────────────────────────────────────────────────────
 
 interface SidebarProps {
-  mode: SidebarMode
+  mode: SidebarMode;
 }
 
 // ─── 组件 ────────────────────────────────────────────────────────────────────────
 
 const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
-  const { message } = App.useApp()
-  const navigate = useNavigate()
-  const { user, loading: authLoading, logout, openLoginModal } = useAuth()
+  const { message } = App.useApp();
+  const navigate = useNavigate();
+  const { user, loading: authLoading, logout, openLoginModal } = useAuth();
 
   // 是否为首页/列表页模式
-  const isNavMode = mode === 'nav'
+  const isNavMode = mode === "nav";
 
   // ── 信息栏（左右结构：左侧面包屑，右侧用户信息） ────────────────────────────────
 
@@ -65,11 +65,11 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
       <div className={styles.infoBar}>
         {/* 左侧：Logo / 页面标题 面包屑 */}
         <div className={styles.infoBarLeft}>
-          <button className={styles.brandLink} onClick={() => navigate('/')}>
+          <button className={styles.brandLink} onClick={() => navigate("/")}>
             <span className={styles.brandLogo}>Banyan</span>
           </button>
 
-          {mode !== 'nav' && (
+          {mode !== "nav" && (
             <>
               <span className={styles.breadcrumbSep}>/</span>
               {renderPageTitle()}
@@ -78,32 +78,30 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
         </div>
 
         {/* 右侧：用户信息 */}
-        <div className={styles.infoBarRight}>
-          {renderInfoBarUser()}
-        </div>
+        <div className={styles.infoBarRight}>{renderInfoBarUser()}</div>
       </div>
-    )
-  }
+    );
+  };
 
   // ── 页面标题（面包屑中的一段） ────────────────────────────────────────────────
 
   const renderPageTitle = () => {
-    if (mode === 'settings') {
-      return <span className={styles.pageTitle}>设置</span>
+    if (mode === "settings") {
+      return <span className={styles.pageTitle}>设置</span>;
     }
-    if (mode === 'app') {
-      return <AppBreadcrumb />
+    if (mode === "app") {
+      return <AppBreadcrumb />;
     }
-    return null
-  }
+    return null;
+  };
 
   // ── 信息栏右侧用户信息 ────────────────────────────────────────────────────────
 
   const renderInfoBarUser = () => {
-    if (authLoading) return null
+    if (authLoading) return null;
 
     // 首页/列表页 + 已登录：不在信息栏显示用户信息（用户卡片在导航区上方）
-    if (isNavMode && user) return null
+    if (isNavMode && user) return null;
 
     // 未登录：显示 Sign in 按钮
     if (!user) {
@@ -113,55 +111,63 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
             Sign in
           </button>
         </div>
-      )
+      );
     }
 
     // 其他页面 + 已登录：显示用户头像 + 下拉菜单
-    const menuItems: MenuProps['items'] = [
+    const menuItems: MenuProps["items"] = [
       {
-        key: 'username',
+        key: "username",
         label: user.username,
         disabled: true,
-        style: { color: 'rgba(255,255,255,0.6)', cursor: 'default' },
+        style: { color: "rgba(255,255,255,0.6)", cursor: "default" },
       },
-      { type: 'divider' },
+      { type: "divider" },
       {
-        key: 'logout',
+        key: "logout",
         icon: <LogoutOutlined />,
-        label: '退出登录',
+        label: "退出登录",
         onClick: () => logout(),
         danger: true,
       },
-    ]
+    ];
 
     return (
-      <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+      <Dropdown
+        menu={{ items: menuItems }}
+        trigger={["click"]}
+        placement="bottomRight"
+      >
         <button className={styles.avatarBtn}>
           <Avatar size={24} className={styles.userAvatar}>
             {getInitial(user.username)}
           </Avatar>
         </button>
       </Dropdown>
-    )
-  }
+    );
+  };
 
   // ── 用户卡片（仅首页/列表页 + 已登录时显示） ──────────────────────────────────
 
   const renderUserCard = () => {
-    if (!isNavMode || !user || authLoading) return null
+    if (!isNavMode || !user || authLoading) return null;
 
-    const menuItems: MenuProps['items'] = [
+    const menuItems: MenuProps["items"] = [
       {
-        key: 'logout',
+        key: "logout",
         icon: <LogoutOutlined />,
-        label: '退出登录',
+        label: "退出登录",
         onClick: () => logout(),
         danger: true,
       },
-    ]
+    ];
 
     return (
-      <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomLeft">
+      <Dropdown
+        menu={{ items: menuItems }}
+        trigger={["click"]}
+        placement="bottomLeft"
+      >
         <div className={styles.userCard}>
           <Avatar size={28} className={styles.userCardAvatar}>
             {getInitial(user.username)}
@@ -172,30 +178,30 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
           <DownOutlined className={styles.userCardArrow} />
         </div>
       </Dropdown>
-    )
-  }
+    );
+  };
 
   // ── 内容区 ──────────────────────────────────────────────────────────────────
 
   const renderContent = () => {
-    if (mode === 'nav') {
-      return <NavMenu />
+    if (mode === "nav") {
+      return <NavMenu />;
     }
-    if (mode === 'settings') {
-      return <SettingsNav />
+    if (mode === "settings") {
+      return <SettingsNav />;
     }
     // app 模式：直接渲染 ApplicationLayout 持有的 AiBar 单例节点
-    return <AppAiBar />
-  }
+    return <AppAiBar />;
+  };
 
   return (
     <div className={styles.sidebar}>
       {renderInfoBar()}
-      <div className={mode === 'app' ? styles.appContent : styles.navContent}>
+      <div className={mode === "app" ? styles.appContent : styles.navContent}>
         {renderUserCard()}
         {renderContent()}
       </div>
-      {mode !== 'app' && (
+      {mode !== "app" && (
         <div className={styles.bottomSection}>
           <a
             className={styles.githubLink}
@@ -209,56 +215,56 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
 // ─── 子组件：导航菜单 ────────────────────────────────────────────────────────────
 
 const NavMenu: React.FC = () => {
-  const navigate = useNavigate()
-  const location = useLocation()
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const items = [
-    { key: '/', label: '首页', icon: <HomeOutlined /> },
-    { key: '/applications', label: '应用列表', icon: <AppstoreOutlined /> },
-    { key: '/settings', label: '设置', icon: <SettingOutlined /> },
-  ]
+    { key: "/", label: "首页", icon: <HomeOutlined /> },
+    { key: "/applications", label: "应用列表", icon: <AppstoreOutlined /> },
+    { key: "/settings", label: "设置", icon: <SettingOutlined /> },
+  ];
 
   return (
     <>
       {items.map((item) => {
-        const isActive = location.pathname === item.key
+        const isActive = location.pathname === item.key;
         return (
           <button
             key={item.key}
-            className={`${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
+            className={`${styles.navItem} ${isActive ? styles.navItemActive : ""}`}
             onClick={() => navigate(item.key)}
           >
             <span className={styles.navIcon}>{item.icon}</span>
             <span>{item.label}</span>
           </button>
-        )
+        );
       })}
     </>
-  )
-}
+  );
+};
 
 // ─── 子组件：设置项列表（复用 navItem 样式，保持一致） ──────────────────────────────
 
 const SettingsNav: React.FC = () => {
-  const [activeKey, setActiveKey] = useState('general')
+  const [activeKey, setActiveKey] = useState("general");
 
   const settingsItems = [
-    { key: 'general', label: '通用设置', icon: <SettingOutlined /> },
-    { key: 'account', label: '账户设置', icon: <UserOutlined /> },
-  ]
+    { key: "general", label: "通用设置", icon: <SettingOutlined /> },
+    { key: "account", label: "账户设置", icon: <UserOutlined /> },
+  ];
 
   return (
     <>
       {settingsItems.map((item) => (
         <button
           key={item.key}
-          className={`${styles.navItem} ${activeKey === item.key ? styles.navItemActive : ''}`}
+          className={`${styles.navItem} ${activeKey === item.key ? styles.navItemActive : ""}`}
           onClick={() => setActiveKey(item.key)}
         >
           <span className={styles.navIcon}>{item.icon}</span>
@@ -266,107 +272,126 @@ const SettingsNav: React.FC = () => {
         </button>
       ))}
     </>
-  )
-}
+  );
+};
 
 // ─── 子组件：应用面包屑（含下拉菜单：重命名 / 切换应用 / 删除） ──────────────────
 
 const AppBreadcrumb: React.FC = () => {
-  const navigate = useNavigate()
-  const params = useParams<{ id: string }>()
-  const currentAppId = params.id ?? ''
+  const navigate = useNavigate();
+  const params = useParams<{ id: string }>();
+  const currentAppId = params.id ?? "";
 
   // 从 RootLayoutCtx 读取应用名（ApplicationLayout 写入）
-  const { appName: rootAppName, setAppName } = useRootLayoutCtx()
-  const appName = rootAppName || '未命名应用'
+  const { appName: rootAppName, setAppName } = useRootLayoutCtx();
+  const appName = rootAppName || "未命名应用";
 
   // ── 重命名弹窗 ──
-  const [renameOpen, setRenameOpen] = useState(false)
-  const [renameValue, setRenameValue] = useState('')
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
 
   const handleRename = useCallback(() => {
-    setRenameValue(appName)
-    setRenameOpen(true)
-  }, [appName])
+    setRenameValue(appName);
+    setRenameOpen(true);
+  }, [appName]);
 
   const handleRenameConfirm = useCallback(async () => {
-    const trimmed = renameValue.trim()
+    const trimmed = renameValue.trim();
     if (!trimmed) {
-      message.warning('应用名称不能为空')
-      return
+      message.warning("应用名称不能为空");
+      return;
     }
     try {
-      await applicationApi.updateApplication(currentAppId, { name: trimmed })
-      setAppName(trimmed)
-      setRenameOpen(false)
-      message.success('已重命名')
+      await applicationApi.updateApplication(currentAppId, { name: trimmed });
+      setAppName(trimmed);
+      setRenameOpen(false);
+      message.success("已重命名");
     } catch {
-      message.error('重命名失败')
+      message.error("重命名失败");
     }
-  }, [renameValue, currentAppId, setAppName])
+  }, [renameValue, currentAppId, setAppName]);
 
   // ── 删除应用 ──
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteInputValue, setDeleteInputValue] = useState('')
-  const [deleting, setDeleting] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteInputValue, setDeleteInputValue] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
-  const deleteConfirmMatch = deleteInputValue.trim() === appName
+  const deleteConfirmMatch = deleteInputValue.trim() === appName;
 
   const handleDelete = useCallback(() => {
-    setDeleteInputValue('')
-    setDeleteOpen(true)
-  }, [])
+    setDeleteInputValue("");
+    setDeleteOpen(true);
+  }, []);
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!deleteConfirmMatch) return
-    setDeleting(true)
+    if (!deleteConfirmMatch) return;
+    setDeleting(true);
     try {
-      await applicationApi.deleteApplication(currentAppId)
-      message.success('应用已删除')
-      setDeleteOpen(false)
-      navigate('/')
+      await applicationApi.deleteApplication(currentAppId);
+      message.success("应用已删除");
+      setDeleteOpen(false);
+      navigate("/");
     } catch {
-      message.error('删除失败')
+      message.error("删除失败");
     } finally {
-      setDeleting(false)
+      setDeleting(false);
     }
-  }, [deleteConfirmMatch, currentAppId, navigate])
+  }, [deleteConfirmMatch, currentAppId, navigate]);
 
   // ── 切换应用子菜单 ──
-  const [appList, setAppList] = useState<Application[]>([])
+  const [appList, setAppList] = useState<Application[]>([]);
 
   const loadAppList = useCallback(() => {
-    applicationApi.fetchApplications().then((res) => {
-      setAppList(res.data?.applications ?? [])
-    }).catch(() => {})
-  }, [])
+    applicationApi
+      .fetchApplications()
+      .then((res) => {
+        setAppList(res.data?.applications ?? []);
+      })
+      .catch(() => {});
+  }, []);
 
-  const switchItems: MenuProps['items'] = appList
+  const switchItems: MenuProps["items"] = appList
     .filter((a) => a.application_id !== currentAppId)
     .map((a) => ({
       key: a.application_id,
-      label: a.name || '未命名应用',
+      label: a.name || "未命名应用",
       onClick: () => navigate(`/application/${a.application_id}/ui`),
-    }))
+    }));
 
-  const menuItems: MenuProps['items'] = [
-    { key: 'rename', icon: <EditOutlined />, label: '重命名', onClick: handleRename },
+  const menuItems: MenuProps["items"] = [
     {
-      key: 'switch',
-      icon: <SwapOutlined />,
-      label: '切换应用',
-      children: switchItems.length > 0 ? switchItems : [{ key: 'empty', label: '暂无其他应用', disabled: true }],
+      key: "rename",
+      icon: <EditOutlined />,
+      label: "重命名",
+      onClick: handleRename,
     },
-    { type: 'divider' },
-    { key: 'delete', icon: <DeleteOutlined />, label: '删除应用', danger: true, onClick: handleDelete },
-  ]
+    {
+      key: "switch",
+      icon: <SwapOutlined />,
+      label: "切换应用",
+      children:
+        switchItems.length > 0
+          ? switchItems
+          : [{ key: "empty", label: "暂无其他应用", disabled: true }],
+    },
+    { type: "divider" },
+    {
+      key: "delete",
+      icon: <DeleteOutlined />,
+      label: "删除应用",
+      danger: true,
+      onClick: handleDelete,
+    },
+  ];
 
   return (
     <>
       <Dropdown
         menu={{ items: menuItems }}
-        trigger={['click']}
-        onOpenChange={(open) => { if (open) loadAppList() }}
+        trigger={["click"]}
+        onOpenChange={(open) => {
+          if (open) loadAppList();
+        }}
       >
         <button className={styles.appNameBtn}>
           <span className={styles.appNameText}>{appName}</span>
@@ -420,14 +445,14 @@ const AppBreadcrumb: React.FC = () => {
         />
       </Modal>
     </>
-  )
-}
+  );
+};
 
 // ─── 子组件：app 模式 AiBar 容器（从 RootLayoutCtx 取单例节点） ──────────────────
 
 const AppAiBar: React.FC = () => {
-  const { aiBarNode } = useRootLayoutCtx()
-  return <>{aiBarNode}</>
-}
+  const { aiBarNode } = useRootLayoutCtx();
+  return <>{aiBarNode}</>;
+};
 
-export default Sidebar
+export default Sidebar;

@@ -1,8 +1,8 @@
-// HomePage — 首页样式
-@use '../../styles/tokens/typography' as *;
-@use '../../styles/mixins' as *;
+// HomePage - Landing page styles
+@use "../../styles/tokens/typography" as *;
+@use "../../styles/mixins" as *;
 
-// ── 整页容器 ──────────────────────────────────────────────────────────────────
+// -- Full-page container --
 
 .page {
   position: relative;
@@ -11,32 +11,23 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: transparent;
+  background: #0f0a1e;
   overflow-x: hidden;
   overflow-y: auto;
   @include scrollbar-dark-md;
 }
 
-// ── 背景光晕 ──────────────────────────────────────────────────────────────────
+// -- Grainient background layer --
 
-.bgGlow {
+.bgLayer {
   position: absolute;
-  top: -20%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 900px;
-  height: 600px;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(99, 102, 241, 0.18) 0%,
-    rgba(139, 92, 246, 0.10) 40%,
-    transparent 70%
-  );
-  pointer-events: none;
+  inset: 0;
   z-index: 0;
+  pointer-events: none;
+  opacity: 0.85;
 }
 
-// ── 主体居中区 ────────────────────────────────────────────────────────────────
+// -- Main content area --
 
 .hero {
   position: relative;
@@ -49,50 +40,66 @@
   padding: 100px 24px 80px;
 }
 
-// ── 标题 ──────────────────────────────────────────────────────────────────────
+// -- TextPressure title --
 
-.title {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  margin: 0 0 40px;
+.titleWrap {
+  width: 380px;
+  height: 80px;
+  margin-bottom: 16px;
+}
+
+// -- DecryptedText subtitle --
+
+.subtitleWrap {
+  margin-bottom: 40px;
   text-align: center;
+  font-size: $text-lg;
+  line-height: 1.8;
+  letter-spacing: 0.08em;
 }
 
-.titleGradient {
-  font-size: $text-hero;
-  font-weight: $font-bold;
-  letter-spacing: $tracking-tight;
-  background: var(--gradient-brand);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  line-height: 1.3;
-  padding-bottom: 4px;
+.subtitleChar {
+  color: rgba(255, 255, 255, 0.85);
+  transition: color 0.3s ease;
 }
 
-.titleSub {
-  font-size: $text-xl;
-  color: var(--color-text-tertiary);
-  font-weight: $font-normal;
-  letter-spacing: $tracking-wide;
+.subtitleCharEncrypted {
+  color: rgba(139, 92, 246, 0.5);
+  transition: color 0.05s ease;
 }
 
-// ── 输入框卡片 ────────────────────────────────────────────────────────────────
+// -- Input card --
 
 .inputCard {
+  position: relative;
   width: 100%;
-  background: var(--color-bg-hover);
-  border: 1px solid var(--color-border-md);
+  border-radius: var(--radius-3xl);
+  overflow: hidden;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.inputCardFocused {
+  transform: scale(1.01);
+  box-shadow:
+    0 0 40px rgba(99, 102, 241, 0.15),
+    0 0 80px rgba(139, 92, 246, 0.08);
+}
+
+
+.inputInner {
+  position: relative;
+  z-index: 1;
+  background: rgba(15, 10, 30, 0.75);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(99, 102, 241, 0.2);
   border-radius: var(--radius-3xl);
   padding: 16px 16px 12px;
-  backdrop-filter: blur(12px);
-  transition: border-color var(--duration-slow), box-shadow var(--duration-slow);
+  transition: border-color 0.3s ease;
 
-  &:focus-within {
-    border-color: var(--color-brand-border-focus);
-    box-shadow: var(--shadow-brand-ring), var(--shadow-md);
+  .inputCardFocused & {
+    border-color: rgba(99, 102, 241, 0.5);
   }
 }
 
@@ -104,13 +111,13 @@
   resize: none;
   font-size: $text-lg;
   line-height: $leading-relaxed;
-  color: var(--color-text-primary);
+  color: #ffffff;
   min-height: 28px;
   max-height: 200px;
   overflow-y: auto;
 
   &::placeholder {
-    color: var(--color-text-disabled);
+    color: rgba(255, 255, 255, 0.35);
   }
 
   &:disabled {
@@ -146,52 +153,62 @@
   align-items: center;
   justify-content: center;
   font-size: 15px;
-  transition: background var(--duration-normal), transform var(--duration-fast), opacity var(--duration-normal);
-  background: var(--color-bg-active);
-  color: var(--color-text-disabled);
+  transition:
+    background 0.2s,
+    transform 0.15s,
+    opacity 0.2s;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.35);
 
-  &:disabled { cursor: not-allowed; }
+  &:disabled {
+    cursor: not-allowed;
+  }
 }
 
 .sendBtnActive {
-  background: var(--gradient-brand-btn);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
   color: #fff;
-  box-shadow: var(--shadow-brand);
+  box-shadow: 0 2px 12px rgba(99, 102, 241, 0.4);
 
   &:hover {
     transform: scale(1.05);
-    box-shadow: var(--shadow-brand-hover);
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
   }
 
-  &:active { transform: scale(0.97); }
+  &:active {
+    transform: scale(0.97);
+  }
 }
 
-// ── 示例提示词 ────────────────────────────────────────────────────────────────
+// -- Suggestion chips --
 
 .suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
-  margin-top: 20px;
+  margin-top: 24px;
   width: 100%;
 }
 
 .suggestionChip {
   padding: 6px 14px;
   border-radius: var(--radius-full);
-  border: 1px solid var(--color-border-md);
-  background: var(--color-bg-hover);
-  color: var(--color-text-tertiary);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
   font-size: $text-base;
   cursor: pointer;
-  transition: border-color var(--duration-normal), color var(--duration-normal), background var(--duration-normal);
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    background 0.2s;
   white-space: nowrap;
 
   &:hover:not(:disabled) {
-    border-color: var(--color-brand-border-focus);
-    color: var(--color-text-secondary);
-    background: var(--color-brand-subtle);
+    border-color: rgba(99, 102, 241, 0.5);
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(99, 102, 241, 0.1);
   }
 
   &:disabled {
@@ -200,16 +217,16 @@
   }
 }
 
-// ── 模型选择器 ────────────────────────────────────────────────────────────────
+// -- Model selector --
 
 .modelSelect {
   :global(.ant-select-selector) {
-    color: var(--color-text-tertiary) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
     font-size: $text-sm !important;
     padding: 0 4px !important;
   }
 
   :global(.ant-select-arrow) {
-    color: var(--color-text-tertiary);
+    color: rgba(255, 255, 255, 0.4);
   }
 }
