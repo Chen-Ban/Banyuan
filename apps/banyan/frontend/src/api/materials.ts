@@ -3,8 +3,11 @@
  */
 
 import { get, post, put, del } from './client'
-import type { ApiResponse, PaginatedResponse } from './client'
+import type { ApiResponse } from './client'
 import type { IMaterial } from '@banyuan/banvasgl'
+
+/** 物料种类：render 渲染物料 / flow 流程节点物料 */
+export type MaterialKind = 'render' | 'flow'
 
 /**
  * 物料列表查询参数
@@ -12,6 +15,8 @@ import type { IMaterial } from '@banyuan/banvasgl'
 export interface MaterialListParams {
   keyword?: string
   tags?: string[]
+  /** 区分渲染物料与流程物料 */
+  kind?: MaterialKind
   source?: string
   status?: string
   page?: number
@@ -38,6 +43,7 @@ export interface CreateMaterialData {
   name: string
   description?: string
   tags?: string[]
+  kind?: MaterialKind
   category?: string
   source?: string
   template: IMaterial['template']

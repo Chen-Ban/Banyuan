@@ -1,54 +1,101 @@
-import React from 'react'
-import type { IComponentDefinition, IDragProps } from '@banyuan/banvasgl'
+import React, { useCallback, useEffect, useState } from 'react'
+import type { IMaterial, IMaterialTemplate } from '@banyuan/banvasgl'
+import type { IDragProps } from '@/types'
+import { materialApi } from '@/api'
+import MaterialThumbnail from '@/components/MaterialThumbnail'
 import styles from './index.module.scss'
 
 export interface DesignMaterialPaletteProps {
-    renderMaterial?: (material: IComponentDefinition, dragProps: IDragProps) => React.ReactNode
+    renderMaterial?: (material: IMaterial, dragProps: IDragProps) => React.ReactNode
     className?: string
     style?: React.CSSProperties
 }
 
-interface InternalProps extends DesignMaterialPaletteProps {
-    materials: IComponentDefinition[]
-    dragProps: (component: IComponentDefinition) => IDragProps
-}
-
-const ComponentIcon: React.FC<{ icon: IComponentDefinition['icon'] }> = ({ icon }) => {
-    if (icon.type === 'svg') {
-        return (
-            <span
-                className={styles.iconWrapper}
-                dangerouslySetInnerHTML={{ __html: icon.content }}
-            />
-        )
-    }
-    return <img src={icon.src} width={20} height={20} alt="" style={{ objectFit: 'contain' }} />
-}
-
-const DesignMaterialPaletteInner: React.FC<InternalProps> = ({
-    materials,
-    dragProps,
+/**
+ * 设计物料面板（自含组件）
+ *
+ * 内部自行获取物料数据并管理拖拽协议，消费方直接渲染即可：
+ * ```tsx
+ * <DesignMaterialPalette />
+ * // 或自定义渲染：
+ * <DesignMaterialPalette renderMaterial={(m, dp) => <MyCard {...dp}>{m.meta.name}</MyCard>} />
+ * ```
+ */
+const DesignMaterialPalette: React.FC<DesignMaterialPaletteProps> = ({
     renderMaterial,
     className,
     style,
 }) => {
+    const [materials, setMaterials] = useState<IMaterial[]>([])
+
+    // ── 从后端获取物料列表 ──
+    useEffect(() => {
+        let cancelled = false
+        materialApi
+            .fetchMaterials({ source: 'builtin', kind: 'render', status: 'active', pageSize: 50 })
+            .then((res) => {
+                if (cancelled) return
+                return Promise.all(
+                    res.data.materials.map((m: any) =>
+                        materialApi.fetchMaterial(m.material_id!).then((detail) => detail.data),
+                    ),
+                )
+            })
+            .then((fullMaterials) => {
+                if (cancelled || !fullMaterials) return
+                const mapped: IMaterial[] = fullMaterials.map((m: any) => ({
+                    meta: {
+                        id: m.material_id,
+                        name: m.name,
+                        description: m.description,
+                        tags: m.tags,
+                        thumbnail: m.thumbnail,
+                        source: m.source,
+                        version: m.version,
+                    },
+                    template: m.template as IMaterialTemplate,
+                }))
+                setMaterials(mapped)
+            })
+            .catch(() => {
+                /* 静默处理 */
+            })
+
+        return () => { cancelled = true }
+    }, [])
+
+    // ── 拖拽 props 工厂 ──
+    const dragProps = useCallback(
+        (material: IMaterial): IDragProps => ({
+            draggable: true,
+            onDragStart: (e: any) => {
+                e.dataTransfer.setData(
+                    'application/json',
+                    JSON.stringify({ template: material.template }),
+                )
+                e.dataTransfer.effectAllowed = 'copy'
+            },
+        }),
+        [],
+    )
+
     return (
         <div className={`${styles.palette} ${className ?? ''}`} style={style}>
-            {materials.map(def => {
-                const dp = dragProps(def)
+            {materials.map(material => {
+                const dp = dragProps(material)
 
                 if (renderMaterial) {
-                    return <React.Fragment key={def.id}>{renderMaterial(def, dp)}</React.Fragment>
+                    return <React.Fragment key={material.meta.id}>{renderMaterial(material, dp)}</React.Fragment>
                 }
 
                 return (
                     <div
-                        key={def.id}
+                        key={material.meta.id}
                         className={styles.item}
-                        title={def.description ?? def.label}
+                        title={material.meta.description ?? material.meta.name}
                         {...dp}
                     >
-                        <ComponentIcon icon={def.icon} />
+                        <MaterialThumbnail material={material} size={20} className={styles.iconWrapper} />
                     </div>
                 )
             })}
@@ -56,17 +103,5 @@ const DesignMaterialPaletteInner: React.FC<InternalProps> = ({
     )
 }
 
-export function createDesignMaterialPalette(
-    materials: IComponentDefinition[],
-    dragProps: (component: IComponentDefinition) => IDragProps,
-): React.FC<DesignMaterialPaletteProps> {
-    const BoundPalette: React.FC<DesignMaterialPaletteProps> = (props) => (
-        <DesignMaterialPaletteInner
-            {...props}
-            materials={materials}
-            dragProps={dragProps}
-        />
-    )
-    BoundPalette.displayName = 'DesignMaterialPalette'
-    return BoundPalette
-}
+export default DesignMaterialPalette
+export type { DesignMaterialPaletteProps as DesignMaterialPaletteExportProps }
