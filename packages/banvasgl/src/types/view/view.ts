@@ -54,7 +54,7 @@ export interface IFieldSchema {
 export type IFieldSchemaMap = Record<string, IFieldSchema>
 
 // ────────────────────────────────────────────
-//  Flow 类型 —— 从 @banyuan/flow 统一重导出
+//  Flow 类型 —— 从内部 flow 模块统一重导出
 // ────────────────────────────────────────────
 
 export type {
@@ -79,10 +79,10 @@ export type {
     FlowEventParamNode,
     FlowEdge,
     FlowSchema,
-} from '@banyuan/flow'
+} from '@/flow/types/index.js'
 
 // 文件内使用（EventHandler 等需要引用 FlowSchema）
-import type { FlowSchema } from '@banyuan/flow'
+import type { FlowSchema } from '@/flow/types/schema.js'
 
 // ────────────────────────────────────────────
 //  IViewEvents / IViewLifetimes —— 事件与生命周期

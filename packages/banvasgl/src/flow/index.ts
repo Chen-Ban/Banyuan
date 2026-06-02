@@ -1,10 +1,10 @@
 /**
- * banvas-flow —— 主入口
+ * @banyuan/banvasgl/flow —— 流程引擎主入口
  *
  * 导出核心运行时 + 类型 + 执行器注册表
  * 预组装 preset 通过子路径导入：
- *   import { createClientFlowRunner } from '@banyuan/flow/client'
- *   import { createServerFlowRunner } from '@banyuan/flow/server'
+ *   import { createClientFlowRunner } from '@banyuan/banvasgl/flow/client'
+ *   import { createServerFlowRunner } from '@banyuan/banvasgl/flow/server'
  */
 
 // 类型

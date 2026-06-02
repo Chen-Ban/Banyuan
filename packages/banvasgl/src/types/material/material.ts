@@ -135,7 +135,12 @@ export interface IMaterial {
 
 // ── Actions 接口 ──
 
-/** 物料操作接口（挂载到 IBanvasActions.material） */
+/**
+ * 物料操作接口
+ *
+ * 实现位于 engine/material/，由 actions/viewActions 代理为
+ * view.serializeMaterial / view.instantiateMaterial 暴露。
+ */
 export interface IMaterialActions {
     /**
      * 将视图子树序列化为物料模板
