@@ -817,11 +817,15 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
      * ```
      */
     static fromJSON(data: any): PrintableTextElement {
+        // 容错：content 必须是单字符（构造函数会校验），历史 / 异常数据可能为
+        // 空串或多字符，此处回退到一个空格占位，避免反序列化整棵 appJSON 时抛错白屏。
+        const rawContent = typeof data?.content === 'string' ? data.content : ''
+        const content = rawContent.length === 1 ? rawContent : (rawContent[0] ?? ' ')
         const el = new PrintableTextElement(
-            data.content,
-            TextOptions.fromJSON(data.options),
+            content,
+            TextOptions.fromJSON(data?.options),
         )
-        el.id = data.id
+        if (data?.id) el.id = data.id
         return el
     }
 

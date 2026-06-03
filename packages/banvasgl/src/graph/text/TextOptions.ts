@@ -97,8 +97,14 @@ export default class TextOptions {
   }
 
   static fromJSON(data: any): TextOptions {
+    // 容错：历史 / 异常数据中 options 可能整体缺失，或 color 子字段缺失。
+    // 此处对缺失字段回退到构造函数默认值，避免反序列化整棵 appJSON 时因单个
+    // 文字元素数据不完整而抛错导致整页崩溃（ErrorBoundary 白屏）。
+    if (!data) {
+      return new TextOptions()
+    }
     return new TextOptions(
-      Color.fromJSON(data.color),
+      data.color ? Color.fromJSON(data.color) : Color.BLACK,
       data.family,
       data.size,
       data.letterSpacing,
