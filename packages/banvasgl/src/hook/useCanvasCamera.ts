@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { App } from '@/engine/App.js'
 import { OrthographicCamera } from '@/engine/camera/index.js'
+import { Point3 } from '@/foundation/math/index.js'
 
 const MIN_ZOOM_LEVEL = 0.1; // 最小缩放比（视口 = 初始 × 10）
 const MAX_ZOOM_LEVEL = 10; // 最大缩放比（视口 = 初始 / 10）
@@ -51,12 +52,18 @@ export function useCanvasCamera({
 
       if (e.ctrlKey || e.metaKey) {
         // ── Pinch / Ctrl+Wheel → zoom-to-cursor ──
-        // offsetX/Y 是相对于 canvas 的 CSS 像素坐标，与 VP 矩阵坐标系一致
+        // offsetX/Y 是相对于 canvas 的 CSS 像素坐标
         const cursorX = e.offsetX;
         const cursorY = e.offsetY;
 
-        // 1. 记录缩放前鼠标下方的世界坐标
-        const worldBefore = camera.screenToWorld(cursorX, cursorY);
+        // CSS 像素 → 画布逻辑坐标
+        const { width: logicalW, height: logicalH } = camera.getSize();
+        const logicalX = cursorX * (logicalW / canvas.clientWidth);
+        const logicalY = cursorY * (logicalH / canvas.clientHeight);
+
+        // 1. 记录缩放前鼠标下方的世界坐标（VP 逆变换）
+        const vpInverse = camera.viewProjectionMatrix.inverse();
+        const worldBefore = vpInverse.multiply(new Point3(logicalX, logicalY, 0));
 
         // 2. 计算缩放因子并 clamp
         const zoomDelta = -e.deltaY * ZOOM_SENSITIVITY;
@@ -76,18 +83,23 @@ export function useCanvasCamera({
         camera.zoom(factor);
 
         // 4. 补偿偏移（zoom-to-cursor）：缩放后鼠标下方的世界坐标应与缩放前一致
-        const worldAfter = camera.screenToWorld(cursorX, cursorY);
+        const vpInverseAfter = camera.viewProjectionMatrix.inverse();
+        const worldAfter = vpInverseAfter.multiply(new Point3(logicalX, logicalY, 0));
         camera.pan(
-          worldAfter[0] - worldBefore[0],
-          worldAfter[1] - worldBefore[1],
+          worldAfter.x - worldBefore.x,
+          worldAfter.y - worldBefore.y,
         );
       } else {
         // ── 两指滑动 / 普通 Wheel → pan ──
-        const viewportWidth = camera.right - camera.left;
-        const viewportHeight = camera.bottom - camera.top;
-        const worldPerPixelX = viewportWidth / canvas.clientWidth;
-        const worldPerPixelY = viewportHeight / canvas.clientHeight;
-        camera.pan(-e.deltaX * worldPerPixelX, -e.deltaY * worldPerPixelY);
+        // deltaX/Y 是 CSS 像素增量，转为世界坐标增量
+        const { width: logicalW, height: logicalH } = camera.getSize();
+        const worldPerCssX = logicalW / canvas.clientWidth;
+        const worldPerCssY = logicalH / canvas.clientHeight;
+
+        // pan 的增量需要从逻辑坐标空间转到世界坐标空间
+        // 对于纯平移相机，逻辑增量 = 世界增量（VP 的线性部分是 identity scale）
+        // 通用做法：用 VP 逆矩阵变换增量向量
+        camera.pan(-e.deltaX * worldPerCssX, -e.deltaY * worldPerCssY);
       }
 
       scene.markDirty();
@@ -124,9 +136,6 @@ export function useCanvasCamera({
         currentCenterY + currentViewportHeight / 2,
         currentCenterY - currentViewportHeight / 2,
       );
-
-      // 同步画布逻辑像素尺寸，使 VP 矩阵正确映射世界坐标到屏幕像素
-      camera.setCanvasSize(containerWidth, containerHeight);
 
       // 记录初始视口宽度（首次调用时）
       if (initialViewportWidthRef.current === 0) {

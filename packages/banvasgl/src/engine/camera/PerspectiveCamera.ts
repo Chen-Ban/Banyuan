@@ -1,5 +1,5 @@
 import { BaseCamera, BaseCameraOptions } from './BaseCamera.js'
-import { MathUtils, Matrix4, Vector3 } from '@/foundation/math'
+import { MathUtils, Matrix4, Point3, Vector3 } from '@/foundation/math'
 import { CameraType } from '@/foundation/constants'
 
 export interface PerspectiveCameraOptions extends BaseCameraOptions {
@@ -167,70 +167,30 @@ export class PerspectiveCamera extends BaseCamera {
         const right = this.getRight()
         const up = this.getUp()
 
-        // 近平面中心点
-        const nearCenter = new Vector3(
-            this._position.x + direction.x * this._near,
-            this._position.y + direction.y * this._near,
-            this._position.z + direction.z * this._near
-        )
+        // 近平面中心点 = position + direction * near
+        const nearCenter = this._position.add(direction.scale(this._near))
 
-        // 远平面中心点
-        const farCenter = new Vector3(
-            this._position.x + direction.x * this._far,
-            this._position.y + direction.y * this._far,
-            this._position.z + direction.z * this._far
-        )
+        // 远平面中心点 = position + direction * far
+        const farCenter = this._position.add(direction.scale(this._far))
 
         // 计算近平面四个顶点
         const nearHalfWidth = frustum.nearWidth / 2
         const nearHalfHeight = frustum.nearHeight / 2
         const nearVertices: [number, number, number][] = [
-            [
-                nearCenter.x - right.x * nearHalfWidth - up.x * nearHalfHeight,
-                nearCenter.y - right.y * nearHalfWidth - up.y * nearHalfHeight,
-                nearCenter.z - right.z * nearHalfWidth - up.z * nearHalfHeight
-            ],
-            [
-                nearCenter.x + right.x * nearHalfWidth - up.x * nearHalfHeight,
-                nearCenter.y + right.y * nearHalfWidth - up.y * nearHalfHeight,
-                nearCenter.z + right.z * nearHalfWidth - up.z * nearHalfHeight
-            ],
-            [
-                nearCenter.x + right.x * nearHalfWidth + up.x * nearHalfHeight,
-                nearCenter.y + right.y * nearHalfWidth + up.y * nearHalfHeight,
-                nearCenter.z + right.z * nearHalfWidth + up.z * nearHalfHeight
-            ],
-            [
-                nearCenter.x - right.x * nearHalfWidth + up.x * nearHalfHeight,
-                nearCenter.y - right.y * nearHalfWidth + up.y * nearHalfHeight,
-                nearCenter.z - right.z * nearHalfWidth + up.z * nearHalfHeight
-            ]
+            this.pointToTuple(nearCenter.add(right.scale(-nearHalfWidth).add(up.scale(-nearHalfHeight)))),
+            this.pointToTuple(nearCenter.add(right.scale(nearHalfWidth).add(up.scale(-nearHalfHeight)))),
+            this.pointToTuple(nearCenter.add(right.scale(nearHalfWidth).add(up.scale(nearHalfHeight)))),
+            this.pointToTuple(nearCenter.add(right.scale(-nearHalfWidth).add(up.scale(nearHalfHeight)))),
         ]
 
         // 计算远平面四个顶点
         const farHalfWidth = frustum.farWidth / 2
         const farHalfHeight = frustum.farHeight / 2
         const farVertices: [number, number, number][] = [
-            [
-                farCenter.x - right.x * farHalfWidth - up.x * farHalfHeight,
-                farCenter.y - right.y * farHalfWidth - up.y * farHalfHeight,
-                farCenter.z - right.z * farHalfWidth - up.z * farHalfHeight
-            ],
-            [
-                farCenter.x + right.x * farHalfWidth - up.x * farHalfHeight,
-                farCenter.y + right.y * farHalfWidth - up.y * farHalfHeight,
-                farCenter.z + right.z * farHalfWidth - up.z * farHalfHeight
-            ],
-            [
-                farCenter.x + right.x * farHalfWidth + up.x * farHalfHeight,
-                farCenter.y + right.y * farHalfWidth + up.y * farHalfHeight,
-                farCenter.z + right.z * farHalfWidth + up.z * farHalfHeight
-            ],
-            [
-                farCenter.x - right.x * farHalfWidth + up.x * farHalfHeight,
-                farCenter.y - right.y * farHalfWidth + up.y * farHalfHeight,
-                farCenter.z - right.z * farHalfWidth + up.z * farHalfHeight
-            ]
+            this.pointToTuple(farCenter.add(right.scale(-farHalfWidth).add(up.scale(-farHalfHeight)))),
+            this.pointToTuple(farCenter.add(right.scale(farHalfWidth).add(up.scale(-farHalfHeight)))),
+            this.pointToTuple(farCenter.add(right.scale(farHalfWidth).add(up.scale(farHalfHeight)))),
+            this.pointToTuple(farCenter.add(right.scale(-farHalfWidth).add(up.scale(farHalfHeight)))),
         ]
 
         return {
@@ -243,36 +203,31 @@ export class PerspectiveCamera extends BaseCamera {
     isPointInFrustum(point: [number, number, number]): boolean {
         if (this._dirty) this.updateMatrices()
 
-        const worldVec = new Vector3(point[0], point[1], point[2])
-        const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
+        // 用 Point3 经 VP 矩阵变换（含平移）
+        const clipPos = this._viewProjectionMatrix.multiply(new Point3(point[0], point[1], point[2]))
 
         if (Math.abs(clipPos.z) < MathUtils.FLOAT_EPSILON) return false
 
         const ndcX = clipPos.x / clipPos.z
         const ndcY = clipPos.y / clipPos.z
-        const ndcZ = clipPos.z / clipPos.z
 
         return ndcX >= -1 && ndcX <= 1 &&
-            ndcY >= -1 && ndcY <= 1 &&
-            ndcZ >= -1 && ndcZ <= 1
+            ndcY >= -1 && ndcY <= 1
     }
 
     // 检查球体是否在视锥体内
     isSphereInFrustum(center: [number, number, number], radius: number): boolean {
         if (this._dirty) this.updateMatrices()
 
-        const worldVec = new Vector3(center[0], center[1], center[2])
-        const clipPos = this.applyMatrixToVector(worldVec, this._viewProjectionMatrix)
+        const clipPos = this._viewProjectionMatrix.multiply(new Point3(center[0], center[1], center[2]))
 
         if (Math.abs(clipPos.z) < MathUtils.FLOAT_EPSILON) return false
 
         const ndcX = clipPos.x / clipPos.z
         const ndcY = clipPos.y / clipPos.z
-        const ndcZ = clipPos.z / clipPos.z
 
         return ndcX >= -1 - radius && ndcX <= 1 + radius &&
-            ndcY >= -1 - radius && ndcY <= 1 + radius &&
-            ndcZ >= -1 - radius && ndcZ <= 1 + radius
+            ndcY >= -1 - radius && ndcY <= 1 + radius
     }
 
     protected override updateProjectionMatrix(): void {
@@ -299,9 +254,9 @@ export class PerspectiveCamera extends BaseCamera {
 
     static fromJSON(data: any): PerspectiveCamera {
         return new PerspectiveCamera({
-            position: data.position,
-            target: data.target,
-            up: data.up,
+            position: data.position ? Point3.fromJSON(data.position) : undefined,
+            target: data.target ? Point3.fromJSON(data.target) : undefined,
+            up: data.up ? Vector3.fromJSON(data.up) : undefined,
             fov: data.fov,
             aspect: data.aspect,
             width: data.width,
@@ -314,9 +269,9 @@ export class PerspectiveCamera extends BaseCamera {
     // 复制相机
     copy(): PerspectiveCamera {
         return new PerspectiveCamera({
-            position: [this._position.x, this._position.y, this._position.z],
-            target: [this._target.x, this._target.y, this._target.z],
-            up: [this._up.x, this._up.y, this._up.z],
+            position: this._position.copy(),
+            target: this._target.copy(),
+            up: this._up.copy(),
             fov: this._fov,
             aspect: this._aspect,
             near: this._near,
@@ -330,5 +285,11 @@ export class PerspectiveCamera extends BaseCamera {
         this._aspect = 1
         this._dirty = true
         return this
+    }
+
+    // ── 工具方法 ──
+
+    private pointToTuple(p: Point3): [number, number, number] {
+        return [p.x, p.y, p.z]
     }
 }

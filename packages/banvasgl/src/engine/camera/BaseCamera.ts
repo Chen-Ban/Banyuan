@@ -1,17 +1,18 @@
 import Matrix4 from '@/foundation/math/Matrix4'
+import Point3 from '@/foundation/math/Point3'
 import Vector3 from '@/foundation/math/Vector3'
 import { CameraType } from '@/foundation/constants'
 
 export interface BaseCameraOptions {
-    position?: [number, number, number]
-    target?: [number, number, number]
-    up?: [number, number, number]
+    position?: Point3
+    target?: Point3
+    up?: Vector3
 }
 
 export abstract class BaseCamera {
     public abstract readonly type: CameraType
-    protected _position: Vector3
-    protected _target: Vector3
+    protected _position: Point3
+    protected _target: Point3
     protected _up: Vector3
     protected _near: number
     protected _far: number
@@ -22,21 +23,9 @@ export abstract class BaseCamera {
     protected _dirty: boolean
 
     constructor(options: BaseCameraOptions = {}) {
-        this._position = new Vector3(
-            options.position?.[0] ?? 0,
-            options.position?.[1] ?? 0,
-            options.position?.[2] ?? 0
-        )
-        this._target = new Vector3(
-            options.target?.[0] ?? 0,
-            options.target?.[1] ?? 0,
-            options.target?.[2] ?? -1
-        )
-        this._up = new Vector3(
-            options.up?.[0] ?? 0,
-            options.up?.[1] ?? 1,
-            options.up?.[2] ?? 0
-        )
+        this._position = options.position?.copy() ?? new Point3(0, 0, 0)
+        this._target = options.target?.copy() ?? new Point3(0, 0, -1)
+        this._up = options.up?.copy() ?? new Vector3(0, 1, 0)
         this._near = 0.1
         this._far = 1000
 
@@ -49,55 +38,54 @@ export abstract class BaseCamera {
 
     // ── 位置 ──
 
-    get position(): Vector3 {
+    get position(): Point3 {
         return this._position.copy()
     }
 
-    set position(pos: Vector3 | [number, number, number]) {
-        if (pos instanceof Vector3) {
-            this._position = pos.copy()
-        } else {
-            this._position = new Vector3(pos[0], pos[1], pos[2])
-        }
+    set position(pos: Point3) {
+        this._position = pos.copy()
         this._dirty = true
     }
 
-    setPosition(x: number, y: number, z: number): this {
-        this._position = new Vector3(x, y, z)
+    setPosition(pos: Point3): this {
+        this._position = pos.copy()
         this._dirty = true
         return this
     }
 
-    translate(x: number, y: number, z: number): this {
-        this._position = this._position.add(new Vector3(x, y, z))
+    translate(offset: Vector3): this {
+        this._position = this._position.add(offset)
         this._dirty = true
         return this
     }
 
     // ── 目标点 ──
 
-    get target(): Vector3 {
+    get target(): Point3 {
         return this._target.copy()
     }
 
-    set target(tgt: Vector3 | [number, number, number]) {
-        if (tgt instanceof Vector3) {
-            this._target = tgt.copy()
-        } else {
-            this._target = new Vector3(tgt[0], tgt[1], tgt[2])
-        }
+    set target(tgt: Point3) {
+        this._target = tgt.copy()
         this._dirty = true
     }
 
-    setTarget(x: number, y: number, z: number): this {
-        this._target = new Vector3(x, y, z)
+    setTarget(tgt: Point3): this {
+        this._target = tgt.copy()
         this._dirty = true
         return this
     }
 
-    lookAt(x: number, y: number, z: number): this {
-        this.setTarget(x, y, z)
-        return this
+    /**
+     * 设置相机朝向目标点（可选更新 up 向量），返回更新后的视图矩阵。
+     *
+     * 符合图形学惯例：lookAt 的产物是 View Matrix。
+     */
+    lookAt(tgt: Point3, up?: Vector3): Matrix4 {
+        this._target = tgt.copy()
+        if (up) this._up = up.copy()
+        this._dirty = true
+        return this.viewMatrix
     }
 
     // ── 上方向 ──
@@ -106,17 +94,13 @@ export abstract class BaseCamera {
         return this._up.copy()
     }
 
-    set up(upVector: Vector3 | [number, number, number]) {
-        if (upVector instanceof Vector3) {
-            this._up = upVector.copy()
-        } else {
-            this._up = new Vector3(upVector[0], upVector[1], upVector[2])
-        }
+    set up(upVector: Vector3) {
+        this._up = upVector.copy()
         this._dirty = true
     }
 
-    setUp(x: number, y: number, z: number): this {
-        this._up = new Vector3(x, y, z)
+    setUp(upVector: Vector3): this {
+        this._up = upVector.copy()
         this._dirty = true
         return this
     }
@@ -145,11 +129,7 @@ export abstract class BaseCamera {
 
     moveForward(distance: number): this {
         const direction = this.getDirection()
-        this._position = this._position.add(new Vector3(
-            direction.x * distance,
-            direction.y * distance,
-            direction.z * distance
-        ))
+        this._position = this._position.add(direction.scale(distance))
         this._dirty = true
         return this
     }
@@ -160,11 +140,7 @@ export abstract class BaseCamera {
 
     moveRight(distance: number): this {
         const right = this.getRight()
-        this._position = this._position.add(new Vector3(
-            right.x * distance,
-            right.y * distance,
-            right.z * distance
-        ))
+        this._position = this._position.add(right.scale(distance))
         this._dirty = true
         return this
     }
@@ -174,11 +150,7 @@ export abstract class BaseCamera {
     }
 
     moveUp(distance: number): this {
-        this._position = this._position.add(new Vector3(
-            this._up.x * distance,
-            this._up.y * distance,
-            this._up.z * distance
-        ))
+        this._position = this._position.add(this._up.scale(distance))
         this._dirty = true
         return this
     }
@@ -187,41 +159,10 @@ export abstract class BaseCamera {
         return this.moveUp(-distance)
     }
 
-    // ── 相机旋转 ──
-
-    rotateAroundTarget(horizontalAngle: number, verticalAngle: number): this {
-        const direction = new Vector3(
-            this._target.x - this._position.x,
-            this._target.y - this._position.y,
-            this._target.z - this._position.z
-        )
-        const distance = direction.length
-
-        const horizontalRotation = Matrix4.rotationY(horizontalAngle)
-        const rotatedDirection = this.applyMatrixToVector(direction, horizontalRotation)
-
-        const right = this.getRight()
-        const verticalRotation = this.createRotationMatrix(right, verticalAngle)
-        const finalDirection = this.applyMatrixToVector(rotatedDirection, verticalRotation)
-
-        this._position = new Vector3(
-            this._target.x - finalDirection.x * distance,
-            this._target.y - finalDirection.y * distance,
-            this._target.z - finalDirection.z * distance
-        )
-        this._dirty = true
-        return this
-    }
-
     // ── 方向向量 ──
 
     getDirection(): Vector3 {
-        const direction = new Vector3(
-            this._target.x - this._position.x,
-            this._target.y - this._position.y,
-            this._target.z - this._position.z
-        )
-        return direction.normalized
+        return this._target.subtract(this._position).normalized
     }
 
     getRight(): Vector3 {
@@ -290,17 +231,17 @@ export abstract class BaseCamera {
 
     toJSON(): any {
         return {
-            position: [this._position.x, this._position.y, this._position.z],
-            target: [this._target.x, this._target.y, this._target.z],
-            up: [this._up.x, this._up.y, this._up.z],
+            position: this._position.toJSON(),
+            target: this._target.toJSON(),
+            up: this._up.toJSON(),
         }
     }
 
     // ── 重置 ──
 
     reset(): this {
-        this._position = new Vector3(0, 0, 5)
-        this._target = new Vector3(0, 0, 0)
+        this._position = new Point3(0, 0, 5)
+        this._target = new Point3(0, 0, 0)
         this._up = new Vector3(0, 1, 0)
         this._near = 0.1
         this._far = 1000
@@ -308,37 +249,4 @@ export abstract class BaseCamera {
         return this
     }
 
-    // ── 工具方法（供子类使用）──
-
-    protected applyMatrixToVector(vector: Vector3, matrix: Matrix4): Vector3 {
-        const x = vector.x * matrix.get(0, 0) + vector.y * matrix.get(0, 1) + vector.z * matrix.get(0, 2)
-        const y = vector.x * matrix.get(1, 0) + vector.y * matrix.get(1, 1) + vector.z * matrix.get(1, 2)
-        const z = vector.x * matrix.get(2, 0) + vector.y * matrix.get(2, 1) + vector.z * matrix.get(2, 2)
-        return new Vector3(x, y, z)
-    }
-
-    protected createRotationMatrix(axis: Vector3, angle: number): Matrix4 {
-        const cos = Math.cos(angle)
-        const sin = Math.sin(angle)
-        const oneMinusCos = 1 - cos
-
-        const x = axis.x
-        const y = axis.y
-        const z = axis.z
-
-        const matrix = Matrix4.identity()
-        matrix.set(0, 0, cos + x * x * oneMinusCos)
-        matrix.set(0, 1, x * y * oneMinusCos - z * sin)
-        matrix.set(0, 2, x * z * oneMinusCos + y * sin)
-
-        matrix.set(1, 0, y * x * oneMinusCos + z * sin)
-        matrix.set(1, 1, cos + y * y * oneMinusCos)
-        matrix.set(1, 2, y * z * oneMinusCos - x * sin)
-
-        matrix.set(2, 0, z * x * oneMinusCos - y * sin)
-        matrix.set(2, 1, z * y * oneMinusCos + x * sin)
-        matrix.set(2, 2, cos + z * z * oneMinusCos)
-
-        return matrix
-    }
 }

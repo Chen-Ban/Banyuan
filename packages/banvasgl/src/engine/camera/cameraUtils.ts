@@ -1,11 +1,14 @@
 /**
- * cameraUtils —— 相机坐标转换工具函数
+ * cameraUtils —— 屏幕坐标转换工具函数
  *
  * 提供世界坐标 ↔ 屏幕坐标的转换，供设计态和流程图编辑态共用。
  *
  * 坐标转换链路：
- *   screenToWorld：clientX/Y → canvas 逻辑像素坐标 → camera.screenToWorld（VP 逆变换）→ 世界坐标
- *   worldToScreen：世界坐标 → camera.worldToScreen（VP 变换）→ canvas 逻辑像素坐标 → CSS 像素偏移
+ *   screenToWorld：clientX/Y → canvasX/Y（CSS 像素）→ 逻辑坐标（× logicalSize/styleSize）→ VP⁻¹ → 世界坐标
+ *   worldToScreen：世界坐标 → VP → 逻辑坐标 → canvasX/Y（÷ logicalSize/styleSize）→ + DOM 偏移 → 屏幕坐标
+ *
+ * 相机只在画布逻辑空间中工作，不关心样式尺寸和 DOM 偏移。
+ * 样式尺寸到逻辑尺寸的映射（含长边适配缩放）在此处处理。
  */
 
 import { Point3 } from "@/foundation/math/index.js";
@@ -13,9 +16,12 @@ import { OrthographicCamera } from "./OrthographicCamera.js";
 import type { Scene } from "@/engine/scene/Scene";
 
 /**
- * 将 clientX/clientY 转为世界坐标（经过 Camera VP 逆变换）
+ * 将 clientX/clientY 转为世界坐标
  *
- * 统一入口，适用于 MouseEvent、DragEvent、WheelEvent 等所有场景。
+ * 链路：
+ *   1. client 坐标 → canvas CSS 像素坐标（减去 canvas 在页面中的偏移）
+ *   2. CSS 像素 → 画布逻辑坐标（乘以 逻辑尺寸/样式尺寸 比例）
+ *   3. 逻辑坐标左乘 VP 逆矩阵 → 世界坐标
  */
 export function screenToWorld(
   clientX: number,
@@ -24,24 +30,30 @@ export function screenToWorld(
   canvas: HTMLCanvasElement,
 ): Point3 {
   const rect = canvas.getBoundingClientRect();
-  // client 坐标 → canvas CSS 像素偏移（即逻辑像素坐标，与 VP 矩阵输出的坐标系一致）
+
+  // 1. client → canvas CSS 像素
   const canvasX = clientX - rect.left;
   const canvasY = clientY - rect.top;
 
+  // 2. CSS 像素 → 画布逻辑坐标
   const camera = scene.camera;
-  if (camera instanceof OrthographicCamera) {
-    const [wx, wy] = camera.screenToWorld(canvasX, canvasY);
-    return new Point3(wx, wy, 0);
-  }
+  const { width: logicalW, height: logicalH } = camera.getSize();
+  const logicalX = canvasX * (logicalW / rect.width);
+  const logicalY = canvasY * (logicalH / rect.height);
 
-  // 降级：无正交相机时直接返回 canvas 逻辑像素坐标
-  return new Point3(canvasX, canvasY, 0);
+  // 3. 逻辑坐标左乘 VP 逆矩阵 → 世界坐标
+  const vpInverse = camera.viewProjectionMatrix.inverse();
+
+  return vpInverse.multiply(new Point3(logicalX, logicalY, 0));
 }
 
 /**
  * 世界坐标 → 屏幕 CSS 坐标（相对于 canvas 元素的 offsetParent）
  *
- * 用于文本编辑 input 定位、ContextMenu 定位等需要将世界坐标映射到 DOM 位置的场景。
+ * 链路：
+ *   1. 世界坐标左乘 VP 矩阵 → 画布逻辑坐标
+ *   2. 逻辑坐标 → CSS 像素（除以 逻辑尺寸/样式尺寸 比例）
+ *   3. 加上 canvas 的 DOM 偏移 → 屏幕坐标
  */
 export function worldToScreen(
   worldX: number,
@@ -50,16 +62,21 @@ export function worldToScreen(
   canvas: HTMLCanvasElement,
 ): { x: number; y: number } {
   const camera = scene.camera;
-  if (camera instanceof OrthographicCamera) {
-    // VP 矩阵输出已是 CSS 逻辑像素坐标（setCanvasSize 传入的是 CSS 尺寸）
-    const [cssX, cssY] = camera.worldToScreen(worldX, worldY);
-    return { x: cssX + canvas.offsetLeft, y: cssY + canvas.offsetTop };
-  }
 
-  // 降级：无正交相机时直接使用世界坐标作为 CSS 像素
+  // 1. 世界坐标 → 逻辑坐标
+  const vpMatrix = camera.viewProjectionMatrix;
+  const logical = vpMatrix.multiply(new Point3(worldX, worldY, 0));
+
+  // 2. 逻辑坐标 → CSS 像素
+  const { width: logicalW, height: logicalH } = camera.getSize();
+  const rect = canvas.getBoundingClientRect();
+  const cssX = logical.x * (rect.width / logicalW);
+  const cssY = logical.y * (rect.height / logicalH);
+
+  // 3. 加 DOM 偏移
   return {
-    x: worldX + canvas.offsetLeft,
-    y: worldY + canvas.offsetTop,
+    x: cssX + canvas.offsetLeft,
+    y: cssY + canvas.offsetTop,
   };
 }
 

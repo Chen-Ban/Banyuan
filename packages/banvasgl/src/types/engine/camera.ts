@@ -5,7 +5,7 @@
  * 社区插件通过 interface 访问 Camera 对象，无需 import 具体 class。
  */
 
-import type { Matrix4, Vector3 } from '@/foundation/math'
+import type { Matrix4, Point3, Vector3 } from '@/foundation/math'
 
 // ────────────────────────────────────────────
 //  Camera 基础接口
@@ -14,8 +14,8 @@ import type { Matrix4, Vector3 } from '@/foundation/math'
 /** BaseCamera 的公共契约 */
 export interface ICamera {
     // 空间属性
-    position: Vector3
-    target: Vector3
+    position: Point3
+    target: Point3
     up: Vector3
     near: number
     far: number
@@ -26,11 +26,11 @@ export interface ICamera {
     readonly viewProjectionMatrix: Matrix4
 
     // 位置控制
-    setPosition(x: number, y: number, z: number): ICamera
-    translate(x: number, y: number, z: number): ICamera
-    setTarget(x: number, y: number, z: number): ICamera
-    lookAt(x: number, y: number, z: number): ICamera
-    setUp(x: number, y: number, z: number): ICamera
+    setPosition(pos: Point3): ICamera
+    translate(offset: Vector3): ICamera
+    setTarget(tgt: Point3): ICamera
+    lookAt(tgt: Point3, up?: Vector3): Matrix4
+    setUp(upVector: Vector3): ICamera
 
     // 移动
     moveForward(distance: number): ICamera
@@ -40,9 +40,6 @@ export interface ICamera {
     moveUp(distance: number): ICamera
     moveDown(distance: number): ICamera
 
-    // 旋转
-    rotateAroundTarget(horizontalAngle: number, verticalAngle: number): ICamera
-
     // 方向查询
     getDirection(): Vector3
     getRight(): Vector3
@@ -50,17 +47,8 @@ export interface ICamera {
     getSize(): { width: number; height: number }
 
     // 坐标转换
-    worldToScreen(
-        worldPos: [number, number, number],
-        screenWidth: number,
-        screenHeight: number
-    ): [number, number] | null
-    screenToWorld(
-        screenPos: [number, number],
-        depth: number,
-        screenWidth: number,
-        screenHeight: number
-    ): [number, number, number] | null
+    worldToScreen(worldX: number, worldY: number): [number, number]
+    screenToWorld(screenX: number, screenY: number): [number, number, number]
 
     // 重置
     reset(): ICamera
@@ -92,8 +80,8 @@ export interface IOrthographicCamera extends ICamera {
     isPointInViewport(point: [number, number, number]): boolean
     isRectInViewport(rect: { left: number; right: number; bottom: number; top: number }): boolean
     getViewportBounds(): { left: number; right: number; bottom: number; top: number }
-    worldToViewport(worldPos: [number, number, number]): [number, number]
-    viewportToWorld(viewportPos: [number, number], depth?: number): [number, number, number]
+    worldToScreen(worldX: number, worldY: number): [number, number]
+    screenToWorld(screenX: number, screenY: number): [number, number, number]
     copy(): IOrthographicCamera
 }
 
