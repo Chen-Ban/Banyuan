@@ -465,7 +465,13 @@ export default class Color implements ISerializable {
    * const color = Color.fromJSON({ r: 255, g: 0, b: 0, a: 1 })
    * ```
    */
-  static fromJSON(data: { r: number; g: number; b: number; a: number }): Color {
+  static fromJSON(data: { r: number; g: number; b: number; a: number } | null | undefined): Color {
+    // 容错：color 数据缺失时回退到黑色，避免反序列化时整棵 appJSON 崩溃。
+    // Color.fromJSON 是 FillStyle / ShadowStyle / TextOptions / 渐变色标等多处反序列化的叶子节点，
+    // 任一处 color 字段缺失都不应导致整页白屏。
+    if (!data) {
+      return new Color(0, 0, 0, 1)
+    }
     return new Color(data.r, data.g, data.b, data.a)
   }
 

@@ -78,6 +78,14 @@ const HomePage = () => {
     try {
       const res = await applicationApi.createApplication();
       const app = res.data!;
+      // 把初始 prompt 暂存到 sessionStorage（以 appId 为 key）。
+      // 不依赖 location.state：详情页经 ProtectedRoute 鉴权门控 + KeepAlive 挂载，
+      // location.state 在多次重挂载 / StrictMode 双挂载中可能丢失，sessionStorage 可稳定跨挂载存活。
+      try {
+        sessionStorage.setItem(`banyan:initialPrompt:${app.application_id}`, text);
+      } catch {
+        /* 隐私模式等场景下 setItem 可能抛错，忽略，仍走 location.state 兜底 */
+      }
       navigate(`/application/${app.application_id}/ui`, {
         state: { initialPrompt: text },
       });

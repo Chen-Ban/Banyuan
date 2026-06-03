@@ -73,8 +73,10 @@ const ApplicationSchema = new Schema<IApplication>(
       trim: true,
     },
     appJSON: {
+      // 注意：不能加 required: true。
+      // Mongoose 的 String required 校验会把空字符串 '' 视为「缺失」而校验失败，
+      // 而新建空白应用的初始 appJSON 合法值就是空字符串，因此只保留 default。
       type: String,
-      required: true,
       default: '',
     },
     tags: {

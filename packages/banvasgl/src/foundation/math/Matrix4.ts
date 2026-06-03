@@ -827,6 +827,49 @@ export default class Matrix4 implements ISerializable {
   }
 
   /**
+   * 绕任意轴旋转矩阵（Rodrigues 旋转公式）
+   *
+   * 创建一个绕给定单位轴旋转指定角度的 4×4 旋转矩阵。
+   * 传入的 axis 应为单位向量，内部不再归一化。
+   *
+   * @param axis - 旋转轴（单位向量）
+   * @param angle - 旋转角度（弧度，右手定则）
+   * @returns 绕指定轴旋转的旋转矩阵
+   *
+   * @example
+   * ```ts
+   * const axis = new Vector3(0, 1, 0);
+   * const rot = Matrix4.rotationAxis(axis, Math.PI / 4);
+   * const v = rot.multiply(new Vector3(1, 0, 0));
+   * // v 约等于 Vector3(0.707, 0, 0.707)
+   * ```
+   */
+  static rotationAxis(axis: Vector3, angle: number): Matrix4 {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const oneMinusCos = 1 - cos;
+
+    const x = axis.x;
+    const y = axis.y;
+    const z = axis.z;
+
+    const matrix = Matrix4.identity();
+    matrix.data[0] = cos + x * x * oneMinusCos;
+    matrix.data[1] = x * y * oneMinusCos - z * sin;
+    matrix.data[2] = x * z * oneMinusCos + y * sin;
+
+    matrix.data[4] = y * x * oneMinusCos + z * sin;
+    matrix.data[5] = cos + y * y * oneMinusCos;
+    matrix.data[6] = y * z * oneMinusCos - x * sin;
+
+    matrix.data[8] = z * x * oneMinusCos - y * sin;
+    matrix.data[9] = z * y * oneMinusCos + x * sin;
+    matrix.data[10] = cos + z * z * oneMinusCos;
+
+    return matrix;
+  }
+
+  /**
    * 创建透视投影矩阵
    *
    * 根据视场角、宽高比和近远裁剪面参数，创建一个透视投影 4×4 矩阵（行主序）。

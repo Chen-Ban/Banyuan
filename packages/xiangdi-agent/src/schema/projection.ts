@@ -353,7 +353,17 @@ function unprojectTextView(node: AITextViewNode): Record<string, unknown> {
     return {
         content: {
             $type: 'TEXTFIELDS',
-            $value: { paragraphs: unprojectTextParagraphs(node.content.paragraphs) },
+            $value: {
+                paragraphs: unprojectTextParagraphs(node.content.paragraphs),
+                // options 必须存在：TextFields.fromJSON → TextFieldsOptions.fromJSON(undefined)
+                // 会因读取 undefined.verticalAlign 抛错，补全默认值避免反序列化崩溃。
+                options: {
+                    verticalAlign: 'TOP',
+                    paragraphSpacing: 0,
+                    fixedWidth: true,
+                    fixedHeight: false,
+                },
+            },
         },
         children: [],
         editable: true,
@@ -361,47 +371,141 @@ function unprojectTextView(node: AITextViewNode): Record<string, unknown> {
     }
 }
 
+/** AI 简化模型的 align ←→ banvasgl HorizontalAlign 互转 */
+const AI_ALIGN_TO_BANVAS: Record<string, string> = { left: 'LEFT', center: 'CENTER', right: 'RIGHT' }
+const BANVAS_ALIGN_TO_AI: Record<string, 'left' | 'center' | 'right'> = { LEFT: 'left', CENTER: 'center', RIGHT: 'right' }
+
+/** {r,g,b,a} → '#rrggbb'（banvasgl Color.toJSON 形态 → AI 简化色串） */
+function rgbaToHex(color: any): string | undefined {
+    if (!color || typeof color !== 'object') return undefined
+    const toHex = (n: number) => Math.max(0, Math.min(255, Math.round(n ?? 0))).toString(16).padStart(2, '0')
+    return `#${toHex(color.r)}${toHex(color.g)}${toHex(color.b)}`
+}
+
+/** '#rrggbb' → {r,g,b,a}（AI 简化色串 → banvasgl Color.toJSON 形态） */
+function hexToRgba(hex: string): { r: number; g: number; b: number; a: number } {
+    let h = (hex || '#000000').replace('#', '')
+    if (h.length === 3 || h.length === 4) h = h.split('').map((c) => c + c).join('')
+    const r = parseInt(h.substring(0, 2), 16)
+    const g = parseInt(h.substring(2, 4), 16)
+    const b = parseInt(h.substring(4, 6), 16)
+    const a = h.length === 8 ? parseInt(h.substring(6, 8), 16) / 255 : 1
+    return {
+        r: Number.isNaN(r) ? 0 : r,
+        g: Number.isNaN(g) ? 0 : g,
+        b: Number.isNaN(b) ? 0 : b,
+        a: Number.isNaN(a) ? 1 : a,
+    }
+}
+
+/**
+ * 正投影：banvasgl TextParagraph JSON → AI 简化模型。
+ *
+ * banvasgl 段落结构为 `{ texts: [...PrintableTextElement, NonPrintableTextElement], options }`，
+ * 每个 PrintableTextElement 是「单字符」`{ content, options: { color:{r,g,b,a}, size, weight, style } }`，
+ * 末尾还有一个 NonPrintableTextElement 段落守卫。AI 侧使用「整段文本 + style」的语义化表示，
+ * 因此这里需要：① 跳过守卫；② 把连续同 style 的单字符合并成一个 element 文本。
+ */
 function projectTextParagraphs(paragraphs: any[]): any[] {
     return paragraphs.map((para: any) => {
         const paraData = para.$value ?? para
-        const elements = (paraData.elements ?? []).map((elem: any) => {
-            const elemData = elem.$value ?? elem
-            const result: any = { text: elemData.text ?? '' }
-            const style: any = {}
-            if (elemData.fontSize != null && elemData.fontSize !== 14) style.fontSize = elemData.fontSize
-            if (elemData.fontWeight && elemData.fontWeight !== 'normal') style.fontWeight = elemData.fontWeight
-            if (elemData.color && elemData.color !== '#000000') style.color = elemData.color
-            if (elemData.italic) style.italic = true
-            if (elemData.underline) style.underline = true
-            if (Object.keys(style).length > 0) result.style = style
-            return result
-        })
+        // banvasgl 真实字段为 texts，历史/异常数据可能用 elements，做兜底
+        const rawTexts: any[] = paraData.texts ?? paraData.elements ?? []
+
+        type RunStyle = { fontSize?: number; fontWeight?: string; color?: string; italic?: boolean }
+        const elements: Array<{ text: string; style?: any }> = []
+        let curText = ''
+        let curStyleKey: string | null = null
+        let curStyle: RunStyle = {}
+
+        const flush = () => {
+            if (curText === '') return
+            const el: any = { text: curText }
+            if (Object.keys(curStyle).length > 0) el.style = curStyle
+            elements.push(el)
+            curText = ''
+        }
+
+        for (const raw of rawTexts) {
+            const t = raw.$value ?? raw
+            // 跳过不可打印段落守卫（NonPrintableTextElement）
+            if (t.$class === 'NonPrintableTextElement') continue
+
+            const opts = t.options ?? {}
+            const style: RunStyle = {}
+            const fontSize = opts.size
+            if (fontSize != null && fontSize !== 14) style.fontSize = fontSize
+            if (opts.weight && opts.weight !== 'normal') style.fontWeight = opts.weight
+            const hex = rgbaToHex(opts.color)
+            if (hex && hex !== '#000000') style.color = hex
+            if (opts.style === 'italic') style.italic = true
+
+            const styleKey = JSON.stringify(style)
+            const char = typeof t.content === 'string' ? t.content : ''
+            if (styleKey !== curStyleKey) {
+                flush()
+                curStyleKey = styleKey
+                curStyle = style
+            }
+            curText += char
+        }
+        flush()
+
         const result: any = { elements }
-        if (paraData.align && paraData.align !== 'left') result.align = paraData.align
-        if (paraData.lineHeight && paraData.lineHeight !== 1.5) result.lineHeight = paraData.lineHeight
+        const align = BANVAS_ALIGN_TO_AI[paraData.options?.horizontalAlign as string]
+        if (align && align !== 'left') result.align = align
         return result
     })
 }
 
+/**
+ * 反投影：AI 简化模型 → banvasgl TextParagraph JSON。
+ *
+ * 与 banvasgl 反序列化契约严格对齐：
+ * - 段落字段为 `texts`（不是 elements），末尾必须补一个 NonPrintableTextElement 段落守卫；
+ * - 每个文字 element 的 `text` 需拆分为「单字符」PrintableTextElement，每个带完整 `options`；
+ * - `options.color` 为 `{r,g,b,a}` 对象（不是色串），`options` 字段必须存在，否则
+ *   `TextOptions.fromJSON(undefined)` → `Color.fromJSON(undefined.color)` 会抛 `reading 'color'`。
+ */
 function unprojectTextParagraphs(paragraphs: any[]): any[] {
-    return paragraphs.map((para) => ({
-        $type: 'TEXTPARAGRAPH',
-        $value: {
-            elements: para.elements.map((elem: any) => ({
-                $type: 'PRINTABLE_TEXTELEMENT',
-                $value: {
-                    text: elem.text,
-                    fontSize: elem.style?.fontSize ?? 14,
-                    fontWeight: elem.style?.fontWeight ?? 'normal',
-                    color: elem.style?.color ?? '#000000',
-                    italic: elem.style?.italic ?? false,
-                    underline: elem.style?.underline ?? false,
-                },
-            })),
-            align: para.align ?? 'left',
-            lineHeight: para.lineHeight ?? 1.5,
-        },
-    }))
+    return paragraphs.map((para) => {
+        const texts: any[] = []
+        for (const elem of para.elements ?? []) {
+            const options = {
+                color: hexToRgba(elem.style?.color ?? '#000000'),
+                family: 'Arial',
+                size: elem.style?.fontSize ?? 14,
+                letterSpacing: 0,
+                style: elem.style?.italic ? 'italic' : 'normal',
+                weight: elem.style?.fontWeight ?? 'normal',
+            }
+            const text = typeof elem.text === 'string' ? elem.text : ''
+            // 拆分为单字符 PrintableTextElement，满足 banvasgl 单字符约束。
+            // banvasgl TextParagraph.fromJSON 按 $class 分发，type 字段不参与反序列化，故省略。
+            for (const char of Array.from(text)) {
+                texts.push({
+                    $class: 'PrintableTextElement',
+                    content: char,
+                    options: { ...options, color: { ...options.color } },
+                })
+            }
+        }
+        // 段落守卫：banvasgl TextParagraph 末尾固定有一个 NonPrintableTextElement
+        texts.push({ $class: 'NonPrintableTextElement' })
+
+        return {
+            id: crypto.randomUUID(),
+            texts,
+            options: {
+                horizontalAlign: AI_ALIGN_TO_BANVAS[para.align ?? 'left'] ?? 'LEFT',
+                leading: 1.2,
+                preHeight: 0,
+                postHeight: 0,
+                indentation: 0,
+                preWidth: 0,
+            },
+        }
+    })
 }
 
 // ─── ImageView ────────────────────────────────────────────────────────────────

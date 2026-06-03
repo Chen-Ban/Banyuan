@@ -32,9 +32,10 @@ export function extractSchema(children: View[]): FlowSchema {
             const toNodeId = child.toPortId.replace(/_[^_]+$/, '')
             const fromSuffix = child.fromPortId.slice(fromNodeId.length + 1)
 
-            let branch: 'true' | 'false' | undefined
+            let branch: 'true' | 'false' | 'error' | undefined
             if (fromSuffix === 'true') branch = 'true'
             else if (fromSuffix === 'false') branch = 'false'
+            else if (fromSuffix === 'error') branch = 'error'
 
             edges.push({
                 id: child.id || `edge_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,

@@ -26,7 +26,7 @@
 
 ## 模块概览
 
-Banyuan 是一个 pnpm monorepo，由引擎层、SDK 层和应用层组成。依赖方向严格单向向下：应用层 → SDK 层 → 引擎层。引擎层不感知上层的存在，禁止循环依赖。
+Banyuan 是一个 pnpm monorepo，由引擎层和应用层组成。依赖方向严格单向向下：应用层 → 引擎层。引擎层不感知上层的存在，禁止循环依赖。
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -40,64 +40,53 @@ Banyuan 是一个 pnpm monorepo，由引擎层、SDK 层和应用层组成。依
 │   └────────────┬───────────────┘  └───────┬──────┘  └───────────────────────┘   │
 │                │                          │                                      │
 ├────────────────┼──────────────────────────┼──────────────────────────────────────┤
-│                ▼                          ▼                                      │
-│   ┌──────────────────────────────────────────────────────────────────────────┐   │
-│   │                    @banyuan/banyan-sdk（聚合 SDK）                         │   │
-│   │  banvas-design · banvas-runtime-web · flow-design · banvasgl · flow      │   │
-│   └──────────────────────────────────────────────────────────────────────────┘   │
-│                │                                                                 │
-│   ┌────────────┼────────────────────────────────────────────────────────────┐    │
-│   │            ▼              引擎层 (packages/)                             │    │
-│   │                                                                         │    │
-│   │   ┌─────────────────┐  ┌──────────────────┐  ┌──────────────────────┐  │    │
-│   │   │ @banyuan/       │  │ @banyuan/flow    │  │ @banyuan/            │  │    │
-│   │   │ banvasgl        │  │ 声明式流程执行器   │  │ xiangdi-agent        │  │    │
-│   │   │ 2D 图形引擎     │  │                  │  │ AI Agent 引擎         │  │    │
-│   │   └─────────────────┘  └──────────────────┘  └──────────────────────┘  │    │
-│   └─────────────────────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────────────────────┘
+│                ▼                          ▼           引擎层 (packages/)          │
+│                                                                                  │
+│   ┌─────────────────────────┐  ┌──────────────────────┐  ┌──────────────────┐   │
+│   │ @banyuan/banvasgl       │  │ @banyuan/            │  │ @banyuan/        │   │
+│   │ 2D 图形引擎 + Flow 流程  │  │ xiangdi-agent        │  │ deploy-agent     │   │
+│   │ 引擎（子路径导出）        │  │ AI Agent 引擎         │  │ 部署代理          │   │
+│   └─────────────────────────┘  └──────────────────────┘  └──────────────────┘   │
+│                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### BanvasGL —— 自研 2D 图形引擎（`@banyuan/banvasgl`）
+### BanvasGL —— 自研 2D 图形引擎 + 流程引擎（`@banyuan/banvasgl`）
 
-零外部依赖的 Canvas 2D 渲染引擎，是整个平台的图形基础。五层内部架构：engine（App/Scene/Renderer/Camera/TransactionManager）、view（View 基类 + 容器视图 + FlexView 弹性布局）、graph（图形基元）、foundation（数学/样式基础）、types（纯接口契约）。
+零外部依赖（仅 `uuid`）的 Canvas 2D 渲染引擎，是整个平台的图形基础。内部八层架构：engine（App/Scene/Renderer/Camera/TransactionManager）、view（View 基类 + 容器视图 + 布局策略）、graph（图形基元）、foundation（数学/样式/动画基础）、flow（声明式流程引擎）、types（纯接口契约）、actions（封装的操作函数与物料系统）、hook（React 绑定）。
 
-核心能力包括：完整的场景图体系（嵌套视图、分组、层级管理）、ViewRegistry 可扩展视图注册、关键帧动画系统、内置 FlowRunner 流程执行（App 持有实例，Scene 直接调用）、事务化撤销/重做（TransactionManager + OperationStack）、FlexView 弹性布局容器、Addon 能力管线（BoundingBox/BoxDecoration/Vertex/Animation/TextSelection）、以及完整的序列化/反序列化。
+核心能力包括：完整的场景图体系（嵌套视图、分组、层级管理）、关键帧动画系统、内置 FlowRunner 流程执行（App 持有实例，Scene 直接调用）、事务化撤销/重做（TransactionManager + OperationStack）、CombinedView 容器视图（Flex/Grid/List 多种 layoutMode）、Addon 能力管线（BoundingBox/BoxDecoration/Vertex/Animation/TextSelection）、完整的序列化/反序列化与版本迁移、物料实例化/序列化系统。
 
-引擎采用单入口设计（`src/index.ts`），仅导出核心图形能力。编辑态、运行态、流程图编辑器已拆分为独立包。
+引擎提供多个子路径导出：`.`（核心图形引擎）、`./react`（React Hook 绑定）、`./flow`（流程引擎核心）、`./flow/client`（前端流程预组装）、`./flow/server`（后端流程预组装）。
 
-### Flow —— 声明式流程引擎（`@banyuan/flow`）
+### Flow —— 声明式流程引擎（`@banyuan/banvasgl/flow`）
 
-独立的声明式 FlowSchema 执行器，以节点图（nodes + edges）驱动。前后端执行器分离：`@banyuan/flow/client` 提供 animate、navigate、setData、setVisible 等前端节点；`@banyuan/flow/server` 提供 dbQuery、dbInsert、httpRequest、script、transform 等后端节点。通过 `createServerFlowRunner()` + `ServerFlowContext` 注入 db 和 httpClient 能力。
+内置于 BanvasGL 的声明式 FlowSchema 执行器，以节点图（nodes + edges）驱动。前后端执行器分离：`@banyuan/banvasgl/flow/client` 提供 animate、navigate、setData、setVisible 等前端节点；`@banyuan/banvasgl/flow/server` 提供 dbQuery、dbInsert、dbUpdate、dbDelete、httpRequest、script、transform 等后端节点。共享节点（condition、delay、setVariable、callFlow、subFlow）两端复用。通过 `createClientFlowRunner()` / `createServerFlowRunner()` 预组装。
 
 ### XiangDi —— AI Agent 引擎（`@banyuan/xiangdi-agent`）
 
-驱动 AI 生成能力的 Agent 引擎。执行模式为 LangGraph StateGraph（MasterGraph V2）：`START → spec → think → tools → extractPreferences → END`。核心架构：
+驱动 AI 生成能力的 Agent 引擎。执行模式为 LangGraph StateGraph（MasterGraph V2）：`START → plan → humanGate → execute → assemble → audit → summarize → extractMemory → END`。核心架构：
 
 - 信息三层：ProjectSpec（全局约束，管线注入）+ KnowledgeStore（按需知识，Tool 模式）+ 工具调用（实时状态）
 - Spec 体系：SpecPlanner 规划 → HarnessRunner 执行 → Guard/Checkpoint 验证
+- 多 Agent 规划管线：PlanningOrchestrator 协调 PMAgent/ArchAgent/VisualAgent/TaskPlannerAgent
 - 工具协议：BanvasToolProtocol + ToolRegistry，Tool Handler 签名 `(input: TInput) => Promise<TOutput>`
 - LLM 客户端：LLMClient 接口，DeepSeek（主）+ Kimi（备），LLMRouter 做健康检测
-- 记忆层：LocalEpisodicMemory（中期经验）+ LocalSemanticMemory（长期事实）
+- 记忆层：LocalEpisodicMemory（中期经验）+ LocalSemanticMemory（长期事实）+ NamespacedMemoryManager
 - 冲突检测：ConflictDetector + DisambiguationHandler
+- 中断恢复：ResumeClassifier + 多策略恢复（invalidation/strategies）
 - AISchema ↔ BanvasGL 双向转换层，LLM 输出直接映射为画布操作
 
-### 编辑态 / 运行态分层包
+### Deploy Agent —— 部署代理（`@banyuan/deploy-agent`）
 
-| 包 | 职责 |
-|---|---|
-| `@banyuan/banvas-design` | 编辑态 React 绑定：`useDesignBanvas` Hook、交互分发（InteractionDispatcher）、Worker 管理（快照 Diff/文本排版）、AppTree/PropertyPanel 等 UI 组件 |
-| `@banyuan/banvas-runtime` | 运行态统一接口层：平台无关的运行态契约定义 |
-| `@banyuan/banvas-runtime-web` | 运行态 Web 平台适配：`useRuntimeBanvas` / `useCanvasInit` / `useRuntimeEvents` |
-| `@banyuan/flow-design` | 流程图编辑器：`useFlowBanvas` Hook、NodeView/EdgeView/PortView 视图、FlowEditorModal |
-| `@banyuan/banyan-sdk` | 伞包，聚合所有子包统一导出 |
+运行在租户 ECS 上的部署代理服务，通过 WebSocket 接收并执行部署指令。提供 CLI 入口（`deploy-agent` 命令），负责将构建产物部署到目标机器。
 
 ### Banyan —— 低代码平台应用
 
 基于上述引擎构建的完整低代码平台，包含三个子应用：
 
-- **frontend**（React 19 + Vite + Ant Design 6，:5174）：拖拽画布编辑器、属性面板、AI 对话栏、数据库 Schema 设计器、云函数流程编辑器
-- **backend**（Koa + MongoDB/Mongoose，:3001）：应用 CRUD、动态 ORM（SchemaService + OrmService，集合名 `app_{appId}_{collectionName}`）、云函数管理、AI 请求代理（SSE 10 步代理）、构建/预览任务
+- **frontend**（React 19 + Vite + Ant Design 6，:5174）：拖拽画布编辑器（`useDesignBanvas`）、属性面板、AI 对话栏（含规划审批/消歧）、数据库 Schema 设计器、云函数流程编辑器（`useFlowBanvas`）、物料管理、部署面板
+- **backend**（Koa + MongoDB/Mongoose，:3001）：应用 CRUD、动态 ORM（SchemaService + OrmService，集合名 `app_{appId}_{collectionName}`）、云函数管理、AI 请求代理（AgentGateway SSE 代理）、构建/预览任务、多租户部署管理、物料存储
 - **electron**（Electron 36）：跨平台桌面壳，构建为可分发的安装包
 
 ### 知识服务（Knowledge Server）
@@ -129,14 +118,9 @@ Banyuan 是一个 pnpm monorepo，由引擎层、SDK 层和应用层组成。依
 ```
 Banyuan/
 ├── packages/
-│   ├── banvasgl/            # 核心 2D 图形引擎 (@banyuan/banvasgl)
-│   ├── banvas-design/       # 编辑态 React 绑定 (@banyuan/banvas-design)
-│   ├── banvas-runtime/      # 运行态统一接口层 (@banyuan/banvas-runtime)
-│   ├── banvas-runtime-web/  # 运行态 Web 平台适配 (@banyuan/banvas-runtime-web)
-│   ├── flow/                # 声明式流程执行器 (@banyuan/flow)
-│   ├── flow-design/         # 流程图编辑器 (@banyuan/flow-design)
+│   ├── banvasgl/            # 核心 2D 图形引擎 + 流程引擎 (@banyuan/banvasgl)
 │   ├── xiangdi-agent/       # AI Agent 引擎 (@banyuan/xiangdi-agent)
-│   └── banyan-sdk/          # 伞包 SDK (@banyuan/banyan-sdk)
+│   └── deploy-agent/        # 部署代理 (@banyuan/deploy-agent)
 ├── apps/
 │   ├── banyan/              # 低代码平台应用
 │   │   ├── frontend/        #   React 19 + Vite + Ant Design 6 (:5174)
@@ -152,27 +136,19 @@ Banyuan/
 └── docs/
     ├── business.md          # 业务上下文
     ├── pitfalls.md          # 踩坑记录
-    ├── adr/                 # 架构决策记录（ADR-001 ~ ADR-024）
+    ├── adr/                 # 架构决策记录（ADR-001 ~ ADR-038）
     └── todos/               # 实现计划
 ```
 
 ### 包间依赖方向
 
 ```
-@banyuan/flow (独立，无 workspace 依赖)
+@banyuan/banvasgl (独立，无 workspace 依赖；flow 作为子路径导出内置)
     ↑
-@banyuan/banvasgl (依赖 flow)
-    ↑
-@banyuan/banvas-runtime (peerDep: banvasgl)
-@banyuan/banvas-runtime-web (peerDep: banvasgl + banvas-runtime)
-@banyuan/banvas-design (peerDep: banvasgl + banvas-runtime-web)
-@banyuan/flow-design (peerDep: banvasgl + banvas-runtime-web + flow)
-    ↑
-@banyuan/banyan-sdk (聚合以上全部)
 @banyuan/xiangdi-agent (optional peerDep: banvasgl)
     ↑
-apps/banyan/frontend (依赖 banyan-sdk)
-apps/banyan/backend (依赖 flow)
+apps/banyan/frontend (依赖 banvasgl)
+apps/banyan/backend (依赖 banvasgl/flow/server)
 apps/xiangdi-server (依赖 xiangdi-agent + banvasgl)
 apps/knowledge-server (依赖 banvasgl，仅读取 version 做表名隔离)
 ```
@@ -206,9 +182,9 @@ apps/knowledge-server (依赖 banvasgl，仅读取 version 做表名隔离)
 
 Banyuan 的目标之一是让同一份应用能跑在浏览器、Electron 桌面、将来可能的移动端和小程序。DOM 是浏览器的产物，字体渲染、事件模型、滚动行为在不同平台上表现不一致，用 DOM 做跨平台注定要持续踩坑。Canvas 2D 在所有这些宿主里行为一致，是唯一能真正做到"一套渲染逻辑，多端运行"的底层。自研引擎的代价是要自己建场景图、事件系统这些基础设施，但换来的是渲染行为完全可控、跨平台路径清晰。
 
-### 分层拆包：编辑态 / 运行态 / 流程图必须物理隔离
+### Flow 内置于 BanvasGL：流程与渲染是同一层抽象
 
-一个低代码平台的运行态产物不应包含编辑器代码——编辑器有 Worker 管理、交互分发、组件物料等重逻辑，全塞进运行态 bundle 会让产物体积膨胀数倍。通过将 BanvasGL 拆为核心引擎 + 编辑态绑定 + 运行态绑定 + 流程图编辑器，每个消费方只引入自己需要的部分，构建时自动 tree-shake。
+View 是带有流程控制语义的对象——每个 View 通过 `events`（12 个事件处理器）和 `lifetimes`（3 个生命周期钩子）绑定 FlowSchema，Scene 同样有生命周期绑定。这使得渲染层和流程控制自然耦合，放在同一个包中是正确的归属。后端通过子路径导出（`@banyuan/banvasgl/flow/server`）独立使用流程执行能力，无需加载图形引擎代码——这由 tsup 的多入口构建保证物理隔离。
 
 ### XiangDi：AI 生成的目标是有约束的结构，不是自由文本
 
@@ -253,12 +229,7 @@ pnpm dev:lunlunglass
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| @banyuan/flow | — | tsup watch，流程引擎代码变更自动重编译 |
-| @banyuan/banvasgl | — | tsup watch，图形引擎代码变更自动重编译 |
-| @banyuan/banvas-runtime | — | tsup watch |
-| @banyuan/banvas-runtime-web | — | tsup watch |
-| @banyuan/banvas-design | — | tsup watch |
-| @banyuan/banyan-sdk | — | tsup watch |
+| @banyuan/banvasgl | — | tsup watch，图形引擎 + 流程引擎代码变更自动重编译 |
 | @banyuan/xiangdi-agent | — | tsup watch，AI 引擎代码变更自动重编译 |
 | XiangDi 服务 | :3002 | 无状态 AI Agent HTTP 服务 |
 | Knowledge 服务 | :3003 | 知识检索微服务 |
@@ -268,7 +239,6 @@ pnpm dev:lunlunglass
 
 | 服务 | 端口 | 说明 |
 |------|------|------|
-| @banyuan/flow | — | tsup watch |
 | @banyuan/banvasgl | — | tsup watch |
 | LunlunGlass | :5173 | 示例应用（Vite） |
 
@@ -282,9 +252,10 @@ Banyan 前端基于 React 19 + react-router-dom，采用 Layout + Page 分层：
 |------|------|------|
 | `/` | HomePage | 首页（创建/打开应用入口） |
 | `/applications` | ApplicationListPage | 应用列表 |
-| `/application/:id` | UIPage | 画布编辑器（AppTree + 组件物料 + 画布 + 属性抽屉 + AI 对话） |
+| `/application/:id` | UIPage | 画布编辑器（组件物料 + 画布 + 属性抽屉 + AI 对话） |
 | `/application/:id/database` | DatabasePage | 数据库 Schema 设计器 |
 | `/application/:id/functions` | FunctionsPage | 云函数流程编辑器 |
+| `/application/:id/settings` | SettingsPage | 应用设置 |
 
 顶部 ApplicationLayout 提供应用级操作（保存、构建、Tab 导航），子页面通过 `AppLayoutCtx` 与 Layout 共享状态（appName、getPages 注册等）。
 
@@ -293,17 +264,19 @@ Banyan 前端基于 React 19 + react-router-dom，采用 Layout + Page 分层：
 ## 路线图
 
 - [x] BanvasGL 引擎核心：场景图、渲染、动画、序列化
-- [x] BanvasGL FlexView 弹性布局容器
-- [x] BanvasGL 分层拆包：核心/编辑态/运行态/流程图物理隔离
-- [x] BanvasGL ViewRegistry + FlowRunner + Addon 管线
-- [x] Flow 引擎：声明式节点图执行器（前后端分离）
+- [x] BanvasGL CombinedView 容器视图（Flex/Grid/List layoutMode）
+- [x] BanvasGL Addon 管线 + 物料系统
+- [x] Flow 引擎：声明式节点图执行器（前后端分离，子路径导出）
 - [x] XiangDi AI Agent 引擎：MasterGraph V2 + Spec 体系 + Harness
+- [x] XiangDi 多 Agent 规划管线：PM/Arch/Visual/TaskPlanner 协作
 - [x] XiangDi 多 LLM 支持：DeepSeek + Kimi + LLMRouter
 - [x] XiangDi 知识检索：独立知识服务 + 混合检索 + 精排
+- [x] XiangDi 中断恢复：ResumeClassifier + 多策略
 - [x] Banyan 编辑器：拖拽画布 + 属性面板 + AI 对话
 - [x] Banyan 后端 Phase 1：Schema Builder + 动态 ORM
 - [x] Banyan 后端 Phase 2：云函数 Tab + Flow 执行器集成
 - [x] Banyan 应用构建：Electron 打包 + 跨平台桌面安装包
+- [x] Deploy Agent：租户 ECS 部署代理
 - [ ] AI 生成云函数：自然语言 → 业务函数
 - [ ] 实时协同编辑
 - [ ] 多租户 SaaS 部署
@@ -316,6 +289,7 @@ Banyan 前端基于 React 19 + react-router-dom，采用 Layout + Page 分层：
 | 文档 | 路径 | 说明 |
 |------|------|------|
 | BanvasGL | [packages/banvasgl/README.md](./packages/banvasgl/README.md) | 核心 2D 图形引擎详细文档 |
+| Flow 引擎 | [packages/banvasgl/src/flow/README.md](./packages/banvasgl/src/flow/README.md) | 声明式流程引擎文档 |
 | XiangDi Agent | [packages/xiangdi-agent/README.md](./packages/xiangdi-agent/README.md) | AI Agent 引擎详细文档 |
 | XiangDi Server | [apps/xiangdi-server/README.md](./apps/xiangdi-server/README.md) | AI Agent 独立 HTTP 服务 |
 | Knowledge Server | [apps/knowledge-server/README.md](./apps/knowledge-server/README.md) | 知识微服务 |
@@ -323,7 +297,7 @@ Banyan 前端基于 React 19 + react-router-dom，采用 Layout + Page 分层：
 | LunlunGlass | [examples/lunlunglass/README.md](./examples/lunlunglass/README.md) | 示例应用：眼镜店管理系统 |
 | 业务上下文 | [docs/business.md](./docs/business.md) | 产品逻辑、用户故事、功能边界 |
 | 踩坑记录 | [docs/pitfalls.md](./docs/pitfalls.md) | 已知陷阱与规避方式 |
-| 架构决策记录 | [docs/adr/](./docs/adr/) | 关键设计决策的背景与权衡（ADR-001 ~ ADR-024） |
+| 架构决策记录 | [docs/adr/](./docs/adr/) | 关键设计决策的背景与权衡（ADR-001 ~ ADR-038） |
 
 ---
 

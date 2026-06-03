@@ -56,6 +56,29 @@ export interface FlowSubFlowNode {
   outputs: Array<{ name: string; description?: string }>
 }
 
+/** 提前终止流程节点 */
+export interface FlowReturnNode {
+  kind: 'return'
+  outputValue?: FlowValue // 可选：子流程通过 return 向父流程传值
+}
+
+/** 列表迭代节点 */
+export interface FlowForEachNode {
+  kind: 'forEach'
+  collection: FlowValue        // 要迭代的数组
+  itemVariable: string         // 每次迭代注入的变量名，如 'item'
+  indexVariable?: string       // 可选，索引变量名，如 'index'
+  body: FlowSchema             // 内嵌子流程（每次迭代执行一遍）
+}
+
+/** 并行执行节点 */
+export interface FlowParallelNode {
+  kind: 'parallel'
+  branches: FlowSchema[]       // N 条并行子流程
+  joinMode: 'all' | 'any'      // all = Promise.all (全部完成), any = Promise.race (任一完成)
+  resultsVariable: string       // 结果数组写入的变量名
+}
+
 /** 共享节点联合 */
 export type SharedFlowNode =
   | FlowConditionNode
@@ -63,3 +86,6 @@ export type SharedFlowNode =
   | FlowSetVariableNode
   | FlowCallFlowNode
   | FlowSubFlowNode
+  | FlowReturnNode
+  | FlowForEachNode
+  | FlowParallelNode

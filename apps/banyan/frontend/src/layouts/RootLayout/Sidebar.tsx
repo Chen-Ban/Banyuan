@@ -51,7 +51,6 @@ interface SidebarProps {
 // ─── 组件 ────────────────────────────────────────────────────────────────────────
 
 const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
-  const { message } = App.useApp();
   const navigate = useNavigate();
   const { user, loading: authLoading, logout, openLoginModal } = useAuth();
 
@@ -278,6 +277,7 @@ const SettingsNav: React.FC = () => {
 // ─── 子组件：应用面包屑（含下拉菜单：重命名 / 切换应用 / 删除） ──────────────────
 
 const AppBreadcrumb: React.FC = () => {
+  const { message } = App.useApp();
   const navigate = useNavigate();
   const params = useParams<{ id: string }>();
   const currentAppId = params.id ?? "";

@@ -10,6 +10,9 @@ class CanvasContext {
   // bufferCanvas 使用离屏 canvas（OffscreenCanvas）
   private bufferCanvas: OffscreenCanvas;
 
+  // 设备像素比（用于渲染时将逻辑坐标映射到物理像素）
+  private _dpr: number = 1;
+
   // 选项
   private readonly options: ICanvasContextOptions;
 
@@ -175,6 +178,12 @@ class CanvasContext {
   public getBufferContext(): CanvasRenderingContext2D {
     return this.bufferCtx;
   }
+
+  // ── DPR ──
+
+  get dpr(): number { return this._dpr; }
+
+  setDPR(dpr: number): void { this._dpr = dpr; }
 
   // 设置选项
   public setOptions(options: Partial<ICanvasContextOptions>): void {

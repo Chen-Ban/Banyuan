@@ -163,7 +163,7 @@ export default function useFlowBanvas(
 // ── 内部辅助 ──
 
 function resolveEdgePorts(
-    edge: { from: string; to: string; branch?: 'true' | 'false' },
+    edge: { from: string; to: string; branch?: 'true' | 'false' | 'error' },
     nodes: FlowNode[],
 ): { fromPortId: string; toPortId: string } | null {
     const fromNode = nodes.find(n => n.id === edge.from)
@@ -175,6 +175,8 @@ function resolveEdgePorts(
         fromPortId = `${edge.from}_true`
     } else if (edge.branch === 'false') {
         fromPortId = `${edge.from}_false`
+    } else if (edge.branch === 'error') {
+        fromPortId = `${edge.from}_error`
     } else {
         fromPortId = `${edge.from}_out`
     }

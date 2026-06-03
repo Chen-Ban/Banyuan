@@ -77,6 +77,18 @@ function deriveAppearance(kind: FlowNode['kind']): NodeAppearance {
         case 'subFlow':
             return { shape: 'rect', accentColor: '#6366f1', icon: '⊞' }
 
+        // 提前终止 → 红色色条
+        case 'return':
+            return { shape: 'rect', accentColor: '#ef4444', icon: '⏹' }
+
+        // 列表迭代 → 紫色色条
+        case 'forEach':
+            return { shape: 'rect', accentColor: '#a855f7', icon: '↻' }
+
+        // 并行执行 → 青色色条
+        case 'parallel':
+            return { shape: 'rect', accentColor: '#06b6d4', icon: '⫘' }
+
         default:
             return { shape: 'rect', accentColor: '#d1d5db', icon: '●' }
     }
@@ -129,14 +141,22 @@ function derivePortsFromSchema(schema: FlowNode): PortDefinition[] {
         return ports
     }
 
-    // 动作节点：至少一个输入 + 一个输出
+    // 动作节点：至少一个输入 + 一个输出 + 可选的 error 输出
     ports.push({ id: `${schema.id}_in`, direction: 'input' })
 
     if (kind === 'condition') {
         ports.push({ id: `${schema.id}_true`, direction: 'output' })
         ports.push({ id: `${schema.id}_false`, direction: 'output' })
+    } else if (kind === 'return') {
+        // return 节点：仅有入端口，无出端口（终止流程）
+        // 不 push _out
     } else {
         ports.push({ id: `${schema.id}_out`, direction: 'output' })
+    }
+
+    // 所有动作节点（除 return）都可以有 error 输出端口（用于异常处理分支）
+    if (kind !== 'return') {
+        ports.push({ id: `${schema.id}_error`, direction: 'output' })
     }
 
     return ports
@@ -163,6 +183,9 @@ function deriveTitleFromSchema(schema: FlowNode): string {
         case 'callFlow': return '调用流程'
         case 'setVariable': return '设置变量'
         case 'subFlow': return (schema as { name?: string }).name || '子流程'
+        case 'return': return '返回/终止'
+        case 'forEach': return '遍历列表'
+        case 'parallel': return '并行执行'
         default: return 'Node'
     }
 }
