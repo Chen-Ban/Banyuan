@@ -49,7 +49,7 @@ export const subFlowExecutor: NodeExecutor = async (node, ctx, _resolve) => {
   }
 
   // 递归执行子流程
-  await parentRunner.run(body, subCtx)
+  const result = await parentRunner.run(body, subCtx)
 
   // 将子流程的输出变量写回父上下文
   for (const output of outputs) {
@@ -58,4 +58,7 @@ export const subFlowExecutor: NodeExecutor = async (node, ctx, _resolve) => {
       ctx.setVariable('local', `__subflow_output_${output.name}`, val)
     }
   }
+
+  // 冒泡 __return__ 信号（子流程内 return 应终止父流程）
+  if (result === '__return__') return '__return__'
 }

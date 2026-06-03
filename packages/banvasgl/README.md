@@ -131,9 +131,27 @@ View (基类)
 
 所有图形继承自 `Graph` 基类，组合图形继承自 `CombinedGraph`。内置类型覆盖：解析图形（Line、Arc、Circle、QuadraticBezier、CubicBezier）、组合图形（Polygon、Triangle、Quadrilateral、Rectangle、RegularPolygon、RoundedRect）、轨迹图形（DenseTrajectory）、媒体元素（ImageElement、VideoElement）、富文本（TextElement、TextFields、TextParagraph）。
 
-### Flow 引擎（`flow/`）
+### Flow 引擎（`flow/`）—— 领域专用声明式解释器
 
-内置的声明式流程执行器，以节点图（FlowSchema = nodes + edges）驱动。采用 **kind-agnostic** 设计——FlowRunner 不关心具体节点类型，通过 `NodeExecutorRegistry` 按 kind 查找执行器，新增节点类型只需注册即可。
+Flow 本质上是对 JavaScript 的更高层抽象——一个面向低代码场景的领域专用解释器（domain-specific declarative interpreter）。它的存在源于一个核心取舍：用户的「代码」必须同时满足三个约束——可序列化（JSON 持久化/网络传输）、AI 可生成（结构化 schema 优于自由文本）、可视化可编辑（节点图天然映射为画布连线）。
+
+类比编译原理，Flow 的三层结构对应为：
+
+| Flow 组件 | 编译原理概念 | 职责 |
+|-----------|-------------|------|
+| FlowSchema（nodes + edges） | AST（抽象语法树） | 描述「做什么」的结构化数据 |
+| NodeExecutor（registry 注册） | 操作语义（operational semantics） | 定义每种节点的运行时行为 |
+| FlowContext（env + 变量表） | 运行时环境（runtime environment） | 划分前后端职责边界，提供作用域 |
+
+schema 封装控制流（condition/delay/callFlow）和副作用（navigate/dbQuery）为可序列化数据结构；context 按前后端职责注入不同能力（前端: navigateTo/playAnimation，后端: db/httpClient）。FlowRunner 作为 eval 循环，采用 **kind-agnostic** 设计——不关心具体节点类型，通过 `NodeExecutorRegistry` 按 kind 查找执行器，新增节点类型只需注册即可。
+
+**三层设计质量准则**：
+
+| 层 | 核心指标 | 含义 |
+|----|---------|------|
+| Schema | 流程控制的完备集 | 必须能表达所有控制流原语（顺序/条件/循环/延迟/子流程），用户不应被迫逃逸到代码 |
+| Context | 作用域设计（最核心） | 必须完整包含所需内容；scope 粒度决定表达力上限和隔离性下限，需根据业务领域审慎权衡 |
+| Executor | 前后端职责边界划分 | env 按前端/后端划分职责——前端操控视图（navigateTo/animate），后端操作数据（db/httpClient）。平台差异（PC/Android/iOS）由壳层 Bridge 处理（ADR-038），与 Flow 无关 |
 
 **核心数据结构**：
 
@@ -156,6 +174,12 @@ FlowValue 描述动态值来源（5 种 kind）：`literal`（字面量）、`da
 - Scene.triggerSchema 构造 `FlowContext` 并调用 FlowRunner.run，注入 env 能力
 
 **FlowContext 接口**：前端 env 注入 `{ appId, navigateTo, playAnimation, markDirty }`；后端 env 注入 `{ db, appId, httpClient }`。
+
+**事件模型与 Scope 设计决策**：
+
+Banyan 的视图树与浏览器文档模型表面相似，但 Flow 有意不采用 DOM 的捕获/冒泡事件流机制。原因：(1) 目标用户是非专业开发者，多层级事件拦截对他们是困惑而非便利；(2) 引擎层 `InteractionStateMachine` + `resolveActivationTarget` 已完成事件定位，是扁平的「谁被点就触发谁」模型；(3) 冒泡意味着一个 click 触发多个 FlowSchema，可视化编排复杂度会爆炸。
+
+默认 scope 选择**页面级（Page/Scene）**——从 Banyan 设计初衷推导：一个页面就是用户的一个工作单元。页面内组件通过 viewId 级读写 + page 级共享变量互相通信；跨页面通信通过 navigate params + 后端 API，天然形成隔离。如果未来需要跨页面共享状态（全局主题、登录态），应通过 app 级变量或 callFlow 间接实现，而非扩大默认 scope。
 
 **目录结构**：
 

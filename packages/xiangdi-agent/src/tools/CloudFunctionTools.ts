@@ -75,7 +75,7 @@ export type FlowValue = FlowLiteralValue | FlowDataRefValue | { kind: string; [k
 export interface FlowEdge {
   from: string;
   to: string;
-  branch?: "true" | "false";
+  branch?: "true" | "false" | "error";
   toParam?: string;
 }
 
@@ -405,6 +405,49 @@ const FLOW_SCHEMA_SYSTEM_PROMPT = `你是一个 FlowSchema 节点图生成专家
 \`\`\`
 条件节点的出边需要 branch: "true" 或 "false"。
 
+### return — 提前终止流程（共享节点）
+\`\`\`json
+{
+  "id": "node_9",
+  "kind": "return",
+  "outputValue": { "kind": "dataRef", "viewId": "local", "key": "result" }
+}
+\`\`\`
+return 节点终止当前流程执行。outputValue 可选，用于子流程向父流程传值。
+
+### forEach — 遍历列表（共享节点）
+\`\`\`json
+{
+  "id": "node_10",
+  "kind": "forEach",
+  "collection": { "kind": "dataRef", "viewId": "local", "key": "orders" },
+  "itemVariable": "item",
+  "indexVariable": "index",
+  "body": {
+    "nodes": [
+      { "id": "inner_1", "kind": "dbUpdate", "collection": "orders", "filter": { "_id": { "kind": "dataRef", "viewId": "local", "key": "item._id" } }, "update": { "status": { "kind": "literal", "value": "processed" } }, "outputVariable": "updateResult" }
+    ],
+    "edges": []
+  }
+}
+\`\`\`
+forEach 遍历数组，每次迭代执行 body 子流程。itemVariable/indexVariable 注入当前元素和索引。
+
+### parallel — 并行执行（共享节点）
+\`\`\`json
+{
+  "id": "node_11",
+  "kind": "parallel",
+  "branches": [
+    { "nodes": [{ "id": "b1_1", "kind": "httpRequest", "url": { "kind": "literal", "value": "https://api.a.com" }, "method": "GET", "outputVariable": "respA" }], "edges": [] },
+    { "nodes": [{ "id": "b2_1", "kind": "httpRequest", "url": { "kind": "literal", "value": "https://api.b.com" }, "method": "GET", "outputVariable": "respB" }], "edges": [] }
+  ],
+  "joinMode": "all",
+  "resultsVariable": "parallelResults"
+}
+\`\`\`
+parallel 并行执行多条分支，joinMode 为 "all"（全部完成）或 "any"（任一完成），结果数组写入 resultsVariable。
+
 ## FlowValue 值来源
 - 字面量：\`{ "kind": "literal", "value": 123 }\`
 - 引用 local 变量：\`{ "kind": "dataRef", "viewId": "local", "key": "varName" }\`
@@ -414,13 +457,16 @@ const FLOW_SCHEMA_SYSTEM_PROMPT = `你是一个 FlowSchema 节点图生成专家
 \`\`\`json
 { "from": "node_1", "to": "node_2" }
 { "from": "node_8", "to": "node_9", "branch": "true" }
+{ "from": "node_5", "to": "node_12", "branch": "error" }
 \`\`\`
+error 边仅在来源节点执行抛异常时走。异常信息自动写入 local scope 的 "__error__" 变量（含 message 和 name 字段）。
 
 ## 约定
 - 函数的输入参数通过 local scope 变量传入（调用方写入 local scope）
 - 函数的输出结果写入 local scope 的 "result" 变量（FlowRunnerService 读取 local scope 作为结果）
 - 节点 id 使用 "node_1", "node_2" 等简单格式
-- 所有节点必须通过 edges 连接，形成有向无环图（DAG）`;
+- 所有节点必须通过 edges 连接，形成有向无环图（DAG）
+- error 边：任何节点都可以连出 branch: "error" 的边，用于异常处理。异常时 __error__ 变量包含 { message, name }`;
 
 // ─── Handler 工厂 ─────────────────────────────────────────────────────────────
 
