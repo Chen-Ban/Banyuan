@@ -145,8 +145,10 @@ const SnapshotSchema = new Schema<ISnapshot>(
       default: 'pending',
     },
     appJSON: {
+      // 同 Application 模型：不能加 required: true。
+      // Mongoose 的 String required 把空字符串 '' 视为「缺失」而校验失败，
+      // 而空白应用建 pending 快照时 baseAppJSON 合法值就是 ''，只保留 default。
       type: String,
-      required: true,
       default: '',
     },
     cloudFunctions: {
