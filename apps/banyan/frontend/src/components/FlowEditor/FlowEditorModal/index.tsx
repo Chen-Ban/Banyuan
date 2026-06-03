@@ -1,9 +1,8 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback } from 'react'
 import { Modal } from 'antd'
 import type { FlowSchema } from '@banyuan/banvasgl'
 import useFlowBanvas from '../../../hooks/useFlowBanvas'
 import { FlowContextMenu } from '../FlowContextMenu'
-import { NodeSchemaPopover } from '../NodeSchemaPopover'
 import FlowMaterialPalette from '../FlowMaterialPalette'
 import styles from './index.module.scss'
 
@@ -34,28 +33,11 @@ export const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
     const {
         Canvas,
         getSchema,
-        selectedNode,
-        selectedViewPos,
         contextMenuState,
     } = useFlowBanvas(
         { width: CANVAS_WIDTH, height: CANVAS_HEIGHT, backgroundColor: 'transparent' },
         initialSchema,
     )
-
-    const [popoverOpen, setPopoverOpen] = useState(false)
-    const prevSelectedNodeIdRef = useRef<string | null>(null)
-    const currentNodeId = selectedNode?.id ?? null
-
-    if (currentNodeId !== prevSelectedNodeIdRef.current) {
-        prevSelectedNodeIdRef.current = currentNodeId
-        if (currentNodeId !== null && !popoverOpen) {
-            Promise.resolve().then(() => setPopoverOpen(true))
-        } else if (currentNodeId === null) {
-            Promise.resolve().then(() => setPopoverOpen(false))
-        }
-    }
-
-    const handleClosePopover = useCallback(() => setPopoverOpen(false), [])
 
     const handleOk = useCallback(() => {
         onSave(getSchema())
@@ -89,14 +71,6 @@ export const FlowEditorModal: React.FC<FlowEditorModalProps> = ({
             </div>
 
             <FlowContextMenu state={contextMenuState} />
-
-{popoverOpen && selectedNode && selectedViewPos && (
-<NodeSchemaPopover
-node={selectedNode}
-nodePos={selectedViewPos}
-                    onClose={handleClosePopover}
-                />
-            )}
         </Modal>
     )
 }

@@ -187,7 +187,7 @@ src/
 │   │       ├── StyleTab/           # 样式（填充/描边/阴影）
 │   │       ├── DataTab/            # 数据绑定 + FieldSchemaMapEditor
 │   │       └── EventsTab/         # 事件 + FlowEditorModal + FlowCanvas
-│   ├── FlowEditor/        # 流程图编辑器组件（FlowContextMenu / FlowMaterialPalette / FlowEditorModal / NodeSchemaPopover）
+│   ├── FlowEditor/        # 流程图编辑器组件（FlowContextMenu / FlowMaterialPalette / FlowEditorModal）
 │   ├── BuildTaskModal/    # 构建任务弹窗
 │   ├── DeployPanel/       # Web 部署面板
 │   ├── LoginModal/        # 登录弹窗

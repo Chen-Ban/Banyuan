@@ -4,14 +4,12 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { App, Input, Space } from "antd";
 import type { FlowSchema } from "@banyuan/banvasgl";
 import useFlowBanvas from "@/hooks/useFlowBanvas";
 import { FlowContextMenu } from "@/components/FlowEditor/FlowContextMenu";
-import { NodeSchemaPopover } from "@/components/FlowEditor/NodeSchemaPopover";
 import { FlowMaterialPalette } from "@/components/FlowEditor";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
@@ -52,8 +50,6 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
   const {
     Canvas,
     getSchema,
-    selectedNode,
-    selectedViewPos,
     contextMenuState,
   } = useFlowBanvas(
     {
@@ -63,22 +59,6 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
     },
     initialSchema,
   );
-
-  // ── 节点属性浮层开关 ──
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const prevSelectedNodeIdRef = useRef<string | null>(null);
-  const currentNodeId = selectedNode?.id ?? null;
-
-  if (currentNodeId !== prevSelectedNodeIdRef.current) {
-    prevSelectedNodeIdRef.current = currentNodeId;
-    if (currentNodeId !== null && !popoverOpen) {
-      Promise.resolve().then(() => setPopoverOpen(true));
-    } else if (currentNodeId === null) {
-      Promise.resolve().then(() => setPopoverOpen(false));
-    }
-  }
-
-  const handleClosePopover = useCallback(() => setPopoverOpen(false), []);
 
   // dirty 检测（仅元信息部分）
   const metaDirty =
@@ -153,15 +133,6 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
 
       {/* 右键菜单 */}
       <FlowContextMenu state={contextMenuState} />
-
-      {/* 节点属性浮层 */}
-      {popoverOpen && selectedNode && selectedViewPos && (
-        <NodeSchemaPopover
-          node={selectedNode}
-          nodePos={selectedViewPos}
-          onClose={handleClosePopover}
-        />
-      )}
     </div>
   );
 });
