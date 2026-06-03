@@ -52,8 +52,8 @@ export interface UseCanvasOptions {
    *
    * 传了 width + height → **固定模式**：
    * - 画布物理像素 = width * dpr × height * dpr（保证高清）
-   * - ctx.scale(dpr, dpr) 将物理像素空间映射回样式空间
-   * - 相机在映射后的样式空间操作，bounds = [0, width] × [0, height]，不乘 dpr
+   * - dpr 融入 View 的 MVP 变换矩阵，渲染时自动映射到物理像素
+   * - 相机在逻辑空间操作，bounds = [0, width] × [0, height]，不乘 dpr
    * - CSS 样式尺寸在容器内做长边适配（contain fit）居中展示
    *
    * 不传 → **自适应模式**：画布尺寸和相机边界跟随容器实际尺寸动态变化。
@@ -222,8 +222,6 @@ export function useCanvasInit(
         right: w,
         top: 0,
         bottom: h,
-        canvasWidth: w,
-        canvasHeight: h,
       });
       const scene = new Scene(camera);
       app.addScene(scene);
@@ -237,11 +235,6 @@ export function useCanvasInit(
         fixedHeight * dprRef.current,
         dprRef.current,
       );
-      // 同步相机的逻辑画布尺寸（固定模式下 canvasSize = fixedWidth × fixedHeight）
-      const scene = app.getCurrentScene();
-      if (scene?.camera instanceof OrthographicCamera) {
-        scene.camera.setCanvasSize(fixedWidth, fixedHeight);
-      }
     }
 
     actions.app.notify();
@@ -326,11 +319,7 @@ export function useCanvasInit(
         fixedHeight * currentDpr,
         currentDpr,
       );
-      // canvasSize 不变（固定模式下始终是 fixedWidth × fixedHeight）
       const scene = app.getCurrentScene();
-      if (scene?.camera instanceof OrthographicCamera) {
-        scene.camera.setCanvasSize(fixedWidth, fixedHeight);
-      }
       if (scene) scene.markDirty();
     } else {
       syncCameraToContainer(
@@ -411,11 +400,11 @@ export function useCanvasInit(
     let styleHeight: number;
     if (containerAspect > pageAspect) {
       // 容器更宽 → 高度撑满，宽度按比例
-      styleHeight = containerSize.height;
+      styleHeight = containerSize.height - 36;
       styleWidth = styleHeight * pageAspect;
     } else {
       // 容器更高 → 宽度撑满，高度按比例
-      styleWidth = containerSize.width;
+      styleWidth = containerSize.width - 36;
       styleHeight = styleWidth / pageAspect;
     }
 

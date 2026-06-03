@@ -19,6 +19,7 @@ export class Renderer {
     this._canvasContext = createCanvasContext(canvas, options);
     // 保存 dpr，默认为 1
     this.dpr = options.dpr ?? 1;
+    this._canvasContext.setDPR(this.dpr);
   }
 
   // 获取当前实例的 CanvasContext（内部 getter）
@@ -50,18 +51,15 @@ export class Renderer {
       const canvasContext = this.canvasContext;
       if (canvasContext) {
         canvasContext.clear();
-        // 在渲染前应用 dpr scale
-        const ctx = canvasContext.getMainContext();
-        ctx.save();
-        ctx.scale(this.dpr, this.dpr);
+        // dpr 已融入 View 的变换矩阵，不需要在此处 scale
         scene.render(canvasContext);
-        ctx.restore();
 
-        // 渲染吸附对齐辅助线（在场景之上，不受 dpr scale 影响）
+        // 渲染吸附对齐辅助线（VP 输出逻辑坐标，需乘 dpr 映射到物理像素）
         if (scene.snapAlign.overlay.hasContent()) {
+          const ctx = canvasContext.getMainContext();
           const vpMatrix = scene.camera.viewProjectionMatrix;
           const { width, height } = canvasContext.getSize();
-          scene.snapAlign.overlay.render(ctx, vpMatrix, width, height);
+          scene.snapAlign.overlay.render(ctx, vpMatrix, width, height, this.dpr);
         }
       }
 
@@ -118,6 +116,7 @@ export class Renderer {
   // 设置设备像素比
   public setDPR(dpr: number): void {
     this.dpr = dpr;
+    this._canvasContext.setDPR(dpr);
   }
 
   // 获取设备像素比

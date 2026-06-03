@@ -601,32 +601,26 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     if (!viewport) return;
 
     const transform = this.getMVPMatrix().transform;
+    // 将 dpr 融入变换矩阵，将逻辑坐标映射到物理像素
+    const dpr = canvasContext.dpr;
+    const a = transform[0] * dpr;
+    const b = transform[4] * dpr;
+    const c = transform[1] * dpr;
+    const d = transform[5] * dpr;
+    const e = transform[3] * dpr;
+    const f = transform[7] * dpr;
 
     // 阶段0：渲染装饰背景（裁剪前，作为底层）
     if (this.decoration?.hasDecoration()) {
       offscreenCtx.save();
-      offscreenCtx.setTransform(
-        transform[0],
-        transform[4],
-        transform[1],
-        transform[5],
-        transform[3],
-        transform[7],
-      );
+      offscreenCtx.setTransform(a, b, c, d, e, f);
       this.decoration.renderBackground(offscreenCtx, viewport);
       offscreenCtx.restore();
     }
 
     // 阶段1：渲染内容和子节点（受裁剪约束）
     offscreenCtx.save();
-    offscreenCtx.setTransform(
-      transform[0],
-      transform[4],
-      transform[1],
-      transform[5],
-      transform[3],
-      transform[7],
-    );
+    offscreenCtx.setTransform(a, b, c, d, e, f);
 
     const computedOverflow =
       this.decoration?.computedStyle.overflow ?? "visible";
@@ -661,14 +655,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
     // 阶段2：渲染 addon 插件（不受裁剪约束，始终在最顶层）
     offscreenCtx.save();
-    offscreenCtx.setTransform(
-      transform[0],
-      transform[4],
-      transform[1],
-      transform[5],
-      transform[3],
-      transform[7],
-    );
+    offscreenCtx.setTransform(a, b, c, d, e, f);
     this.renderPlugins(offscreenCtx);
     offscreenCtx.restore();
   }

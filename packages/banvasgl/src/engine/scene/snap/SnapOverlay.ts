@@ -28,17 +28,18 @@ export class SnapOverlay {
     ctx: CanvasRenderingContext2D,
     vpMatrix: Matrix4,
     canvasWidth: number,
-    canvasHeight: number
+    canvasHeight: number,
+    dpr: number = 1,
   ): void {
     if (!this.currentResult || this.currentResult.guidelines.length === 0) return
 
     ctx.save()
-    ctx.lineWidth = this.lineWidth
+    ctx.lineWidth = this.lineWidth * dpr
     ctx.strokeStyle = this.guideColor
     ctx.setLineDash([])
 
     for (const guide of this.currentResult.guidelines) {
-      this.renderGuideline(ctx, vpMatrix, guide, canvasWidth, canvasHeight)
+      this.renderGuideline(ctx, vpMatrix, guide, canvasWidth, canvasHeight, dpr)
     }
 
     ctx.restore()
@@ -49,12 +50,13 @@ export class SnapOverlay {
     vpMatrix: Matrix4,
     guide: AxisSnap,
     canvasWidth: number,
-    canvasHeight: number
+    canvasHeight: number,
+    dpr: number,
   ): void {
     if (guide.axis === SnapAxis.X) {
       // 竖线：世界坐标 x = guideCoord，贯穿画布高度
       const screenPoint = vpMatrix.multiply(new Point3(guide.guideCoord, 0, 0))
-      const screenX = screenPoint.x
+      const screenX = screenPoint.x * dpr
       ctx.beginPath()
       ctx.moveTo(screenX, 0)
       ctx.lineTo(screenX, canvasHeight)
@@ -62,7 +64,7 @@ export class SnapOverlay {
     } else {
       // 横线：世界坐标 y = guideCoord，贯穿画布宽度
       const screenPoint = vpMatrix.multiply(new Point3(0, guide.guideCoord, 0))
-      const screenY = screenPoint.y
+      const screenY = screenPoint.y * dpr
       ctx.beginPath()
       ctx.moveTo(0, screenY)
       ctx.lineTo(canvasWidth, screenY)

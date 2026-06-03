@@ -115,9 +115,7 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
       new Point3(topLeft.x, topLeft.y + height / 2, 0),
     ];
 
-    return points.map(
-      (p) => new Rectangle(p.x - half, p.y - half, size, size),
-    );
+    return points.map((p) => new Rectangle(p.x - half, p.y - half, size, size));
   }
 
   private createRotate(): [Line, Circle] {
@@ -197,7 +195,8 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
     const isMoving =
       this.region.isPointOnCurve(p, 5) || this.rotate[0].isPointOnCurve(p, 5);
     const isRotate =
-      this.rotate[1].isPointOnCurve(p, 2) || this.rotate[1].isPointInPath(p, bufferCtx);
+      this.rotate[1].isPointOnCurve(p, 2) ||
+      this.rotate[1].isPointInPath(p, bufferCtx);
     const handler = this.handles.find(
       (rec) => rec.isPointInPath(p, bufferCtx) || rec.isPointOnCurve(p, 5),
     );

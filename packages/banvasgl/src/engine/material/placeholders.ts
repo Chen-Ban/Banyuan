@@ -228,19 +228,15 @@ export function applyParameterBindings(
 /**
  * 根节点 transform 归零
  *
- * BanvasGL 序列化格式中 matrix 是 $type/$value 包装的 16 元素数组。
- * 我们只需将平移分量（[12], [13]）置为 0。
+ * View.toJSON() 输出的 matrix 格式为 { transform: number[16] }（行主序）。
+ * 行主序下平移分量位于 data[3]（tx）和 data[7]（ty）。
  */
 export function zeroRootTransform(root: Record<string, any>): void {
-    if (root.matrix) {
-        // matrix 可能是 { $type: 'Matrix4', $value: number[] } 或直接是 number[]
-        if (root.matrix.$value && Array.isArray(root.matrix.$value)) {
-            root.matrix.$value[12] = 0
-            root.matrix.$value[13] = 0
-        } else if (Array.isArray(root.matrix)) {
-            root.matrix[12] = 0
-            root.matrix[13] = 0
-        }
+    if (!root.matrix) return
+    const arr = root.matrix.transform
+    if (Array.isArray(arr)) {
+        arr[3] = 0
+        arr[7] = 0
     }
 }
 
@@ -250,16 +246,16 @@ export function zeroRootTransform(root: Record<string, any>): void {
 
 /**
  * 设置根节点位置（instantiate 时使用）
+ *
+ * View.toJSON() 输出的 matrix 格式为 { transform: number[16] }（行主序）。
+ * 行主序下平移分量位于 data[3]（tx）和 data[7]（ty）。
  */
 export function setRootPosition(root: Record<string, any>, position: { x: number; y: number }): void {
-    if (root.matrix) {
-        if (root.matrix.$value && Array.isArray(root.matrix.$value)) {
-            root.matrix.$value[12] = position.x
-            root.matrix.$value[13] = position.y
-        } else if (Array.isArray(root.matrix)) {
-            root.matrix[12] = position.x
-            root.matrix[13] = position.y
-        }
+    if (!root.matrix) return
+    const arr = root.matrix.transform
+    if (Array.isArray(arr)) {
+        arr[3] = position.x
+        arr[7] = position.y
     }
 }
 
