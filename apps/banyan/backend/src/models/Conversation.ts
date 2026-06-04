@@ -1,8 +1,15 @@
 /**
- * 对话会话模型（V2）
+ * 对话会话模型（V2 → V3 过渡态）
  *
  * 一个 Application 对应一个 Conversation（1:1 关系）。
  * 以 appId 为唯一索引，无需独立的 conversationId 概念。
+ *
+ * === ADR-039 过渡说明 ===
+ * V3（ADR-039）将 Dialogue 提升为独立顶层集合，Conversation 退化为轻量索引容器。
+ * 过渡期间本文件同时保留：
+ *   - dialogues[] 子文档（旧路径，Phase 3 切读后不再写入）
+ *   - dialogueIds[] 引用数组（新路径，指向独立 Dialogue 集合）
+ * Phase 4 清理时将删除 dialogues[] 字段，Conversation 彻底退化。
  *
  * 核心变更（相对 V1）：
  *   - 引入 Dialogue（对话）作为核心聚合单元，替代旧的 messages[] + rounds[]
@@ -184,8 +191,10 @@ export interface IDialogue {
 export interface IConversation extends Document {
   /** 关联的应用 ID（唯一索引，1 App = 1 Conversation） */
   appId: string
-  /** 按时间顺序排列的对话列表 */
+  /** 按时间顺序排列的对话列表（旧路径，Phase 4 退役） */
   dialogues: IDialogue[]
+  /** 按时间顺序的 Dialogue 引用列表（新路径，指向独立 Dialogue 集合，ADR-039） */
+  dialogueIds: Types.ObjectId[]
   /** 创建时间 */
   createdAt: Date
   /** 最后更新时间 */
@@ -305,6 +314,11 @@ const ConversationSchema = new Schema<IConversation>(
     },
     dialogues: {
       type: [DialogueSchema],
+      default: [],
+    },
+    // ADR-039：新路径，指向独立 Dialogue 集合的引用列表
+    dialogueIds: {
+      type: [{ type: Schema.Types.ObjectId, ref: 'Dialogue' }],
       default: [],
     },
   },

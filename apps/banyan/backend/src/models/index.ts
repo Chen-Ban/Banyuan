@@ -1,6 +1,7 @@
 export { default as Application, IApplication } from './Application.js'
 export { default as Conversation, IConversation, IMessage, IUserContent, IAssistantContent, IDialogue, DialogueType, ThreadStatus } from './Conversation.js'
-export { default as Snapshot, ISnapshot } from './Snapshot.js'
+export { default as Dialogue, IDialogueDoc, DialoguePhase, DiscardReason, IDialogueSummary, ChangeTag, IInterruptMetadata, PHASE_TRANSITIONS } from './Dialogue.js'
+// Snapshot 已退役（ADR-039 Phase 4），历史数据保留在 MongoDB 但不再有代码引用
 export { default as PlanningArtifact, IPlanningArtifact, IArtifactEntry, IPlanningSnapshot, IPartialAgentState, AgentRole, PlanningArtifactStatus } from './PlanningArtifact.js'
 export { default as AgentPrompt, IAgentPrompt, FullAgentRole } from './AgentPrompt.js'
 export { default as PackageTaskModel, IPackageTask } from './PackageTask.js'
@@ -12,3 +13,5 @@ export { Tenant, ITenant, ProvisionStatus } from './Tenant.js'
 export { User, IUser, UserRole, UserStatus } from './User.js'
 export { RefreshToken, IRefreshToken } from './RefreshToken.js'
 export { Deployment, IDeployment, DeployStatus } from './Deployment.js'
+// 共享快照类型（Deployment 和 Dialogue 共用）
+export type { IFieldSnapshot, ICollectionSnapshot, ICloudFunctionSnapshot } from './types/snapshot-types.js'
