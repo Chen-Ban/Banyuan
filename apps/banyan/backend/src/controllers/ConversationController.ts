@@ -7,8 +7,9 @@
  */
 
 import type { Context } from 'koa'
+import { Types } from 'mongoose'
 import conversationService from '../services/ConversationService.js'
-import aiService from '../services/AiService.js'
+import dialogueService from '../services/DialogueService.js'
 
 class ConversationController {
   /**
@@ -35,16 +36,16 @@ class ConversationController {
 
     const dialogues = await conversationService.getDialogues(appId, limit)
 
-    // 查询是否有 pending 对话（task 模式未 confirm/discard）
-    const pending = aiService.getPendingDialogue(appId)
-    const pendingDialogue = pending
+    // ADR-039 Phase 4：从 Dialogue 读取 awaiting_confirm 状态
+    const dlg = await dialogueService.getConfirmable(appId)
+    const pendingDialogue = dlg
       ? {
-          dialogueId: pending.dialogueId,
-          type: pending.type,
-          status: pending.status,
-          userMessage: pending.userMessage,
-          assistantContent: pending.assistantContent,
-          createdAt: pending.createdAt,
+          dialogueId: (dlg._id as Types.ObjectId).toString(),
+          type: dlg.type,
+          status: 'awaiting_confirm' as const,
+          userMessage: dlg.messages.find(m => m.role === 'user')?.userContent ?? { prompt: '', images: [] },
+          assistantContent: dlg.messages.filter(m => m.role === 'assistant').flatMap(m => m.assistantContent ?? []),
+          createdAt: dlg.createdAt,
         }
       : null
 

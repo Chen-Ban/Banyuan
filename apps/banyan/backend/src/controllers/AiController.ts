@@ -7,7 +7,9 @@
  */
 
 import type { Context } from 'koa'
+import { Types } from 'mongoose'
 import aiService from '../services/AiService.js'
+import dialogueService from '../services/DialogueService.js'
 
 class AiController {
   /**
@@ -181,23 +183,27 @@ class AiController {
       return
     }
 
-    const pending = aiService.getPendingDialogue(appId)
-    if (pending) {
-      // 转换为前端期望的 DTO 格式（PendingDialogueInfo）
-      const assistantText = pending.assistantContent
+    // ADR-039 Phase 4：直接从 Dialogue 读取 awaiting_confirm 状态
+    const dlg = await dialogueService.getConfirmable(appId)
+    if (dlg) {
+      // 从 messages 中提取用户输入和助手输出
+      const userMsg = dlg.messages.find(m => m.role === 'user')
+      const assistantMsgs = dlg.messages.filter(m => m.role === 'assistant')
+      const assistantText = assistantMsgs
+        .flatMap(m => m.assistantContent ?? [])
         .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-        .map((c) => c.text)
+        .map(c => c.text)
         .join('')
 
       ctx.body = {
         hasPending: true,
         pending: {
-          dialogueId: pending.dialogueId,
-          type: pending.type,
-          status: pending.status,
-          userContent: pending.userMessage.prompt,
+          dialogueId: (dlg._id as Types.ObjectId).toString(),
+          type: dlg.type,
+          status: 'done',
+          userContent: userMsg?.userContent?.prompt ?? '',
           assistantContent: assistantText || null,
-          createdAt: new Date(pending.createdAt).toISOString(),
+          createdAt: dlg.createdAt.toISOString(),
         },
       }
     } else {
@@ -226,6 +232,37 @@ class AiController {
       } else {
         ctx.body = { dialogueId: null, threadId: null, status: 'idle', canResume: false }
       }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      ctx.status = 500
+      ctx.body = { success: false, error: message }
+    }
+  }
+
+  /**
+   * POST /api/ai/:appId/stop
+   *
+   * 用户主动中止正在进行的 AI 执行。
+   * 前端应在调用此接口后关闭 EventSource。
+   *
+   * 请求体：{ reason?: 'user_aborted' | 'connection_lost' }
+   * 响应：{ success: true }
+   */
+  async stop(ctx: Context): Promise<void> {
+    const { appId } = ctx.params as { appId: string }
+
+    if (!appId) {
+      ctx.status = 400
+      ctx.body = { success: false, message: '缺少 appId 参数' }
+      return
+    }
+
+    const body = ctx.request.body as { reason?: 'user_aborted' | 'connection_lost' } | undefined
+    const reason = body?.reason ?? 'user_aborted'
+
+    try {
+      await aiService.stopDialogue(appId, reason)
+      ctx.body = { success: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       ctx.status = 500
