@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
-import type { ICollectionSnapshot, ICloudFunctionSnapshot, IFieldSnapshot } from './Snapshot.js'
+import type { ICollectionSnapshot, ICloudFunctionSnapshot, IFieldSnapshot } from './types/snapshot-types.js'
 
 // ─── 部署状态 ─────────────────────────────────────────────────────────────────
 
