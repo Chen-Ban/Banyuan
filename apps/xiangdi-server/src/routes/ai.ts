@@ -37,6 +37,7 @@
  *   Response: { success: boolean, activeProvider?: string, error?: string }
  *
  * SSE 事件类型：
+ *   started            — SSE 流建立，携带 threadId { threadId: string }
  *   text_delta         — LLM 输出的文字片段 { text: string }
  *   tool_call          — 工具调用开始 { id, name, input }
  *   tool_result        — 工具调用结果 { id, name, result, isError }
@@ -55,9 +56,10 @@
  *   Body: { threadId: string, choiceId: string }
  *   Response: { success: boolean }
  *
- * 架构说明（LangGraph）：
- *   prompt → createAgentGraph() → StateGraph (think↔tools 循环)
+ * 架构说明（MasterGraph V3）：
+ *   prompt → intent 节点分类 → respond（对话+只读工具）或 task（plan→execute→audit）
  *   StreamCallback 将 Agent 事件桥接到 SSE 响应
+ *   不再区分 chat/task mode，intent 节点自动路由
  */
 
 import type { ServerResponse } from 'http'
@@ -68,8 +70,6 @@ import {
     createBanvasToolRegistry,
 buildSystemPrompt,
     createMasterGraph,
-    createChatGraph,
-    LLMRouter,
     registerKnowledgeSearchTool,
     registerSchemaTools,
     registerMaterialTools,
@@ -171,14 +171,6 @@ function createMemoryAdapter(initialAppJSON: string): BanvasHostAdapter & { getA
  */
 const disambiguationPendingMap = new Map<string, (choiceId: string) => void>()
 
-// ─── 工具函数：根据当前激活 provider 获取模型名 ───────────────────────────────
-
-function getActiveModel(llmRouter: LLMRouter): string {
-    return llmRouter.getActiveProviderId() === 'kimi'
-        ? (process.env.KIMI_MODEL ?? 'kimi-k2.6')
-        : (process.env.DEEPSEEK_MODEL ?? 'deepseek-v4-pro')
-}
-
 // ─── 远程 KnowledgeStore ─────────────────────────────────────────────────────
 
 const knowledgeStore = new RemoteKnowledgeStore();
@@ -246,7 +238,7 @@ function createSSEStreamCallback(
 // ─── POST /ai/run ─────────────────────────────────────────────────────────────
 
 router.post('/run', async (ctx) => {
-    const { appId, prompt, threadId: clientThreadId, previousMessages, memoryHint, agentMemory, requireApproval, mode, images } = ctx.request.body as {
+    const { appId, prompt, threadId: clientThreadId, previousMessages, memoryHint, agentMemory, requireApproval, images } = ctx.request.body as {
         appId?: string
         prompt?: string
         threadId?: string
@@ -256,8 +248,6 @@ router.post('/run', async (ctx) => {
         agentMemory?: string
         /** 是否需要人工审批（默认 false 即 autoRun 模式） */
         requireApproval?: boolean
-        /** 对话模式：chat（轻量聊天）| task（完整任务管线），默认 task */
-        mode?: 'chat' | 'task'
         /** 用户上传的图片 URL 列表（已上传至 OSS） */
         images?: string[]
     }
@@ -315,10 +305,12 @@ router.post('/run', async (ctx) => {
     const reqLogger = createRequestLogger(threadId)
     reqLogger.info('Agent run started', { appId, threadId, hasMemoryHint: !!memoryHint, hasAgentMemory: !!agentMemory })
 
+    // ─── 发送 started 事件（SSE 流建立后立即通知客户端）──────────────────────
+    sseWrite(res, 'started', { threadId })
+
     try {
-        // 初始化 LLM 客户端（chat 和 task 共用）
+        // 初始化 LLM 客户端
         const client = await createLLMClient()
-        const llmRouter = client as LLMRouter
 
         // 构建初始 messages（历史对话 + 当前 prompt）
         const initialMessages: import('@langchain/core/messages').BaseMessage[] = []
@@ -349,130 +341,104 @@ router.post('/run', async (ctx) => {
             initialMessages.push(new HumanMessage(prompt))
         }
 
-        // ─── 根据 mode 路由到不同的 Graph ─────────────────────────────────────
-        if (mode === 'chat') {
-            // ═══ Chat 模式：轻量聊天管线（无工具、无知识检索）═══
-            const adapter = createMemoryAdapter('')
-            const streamCallback = createSSEStreamCallback(res, adapter, threadId)
+        // ═══ MasterGraph V3 统一管线 ═══
+        // intent 节点自动路由：respond（轻量对话+只读工具）/ task（完整任务管线）
 
-            const chatGraph = createChatGraph({
-                llmClient: client,
-                streamCallback,
-                chatModel: getActiveModel(llmRouter),
+        // 1. 通过 BanyanClient 按需拉取 appJSON（Pull-based 架构）
+        const appJSON = await banyanClient.getAppJSON(appId)
+        const adapter = createMemoryAdapter(appJSON)
+        const registry = createBanvasToolRegistry(adapter)
+        registerKnowledgeSearchTool(registry, knowledgeStore)
+
+        // 1a. 注册物料工具（AI 可搜索/获取自定义物料）
+        const materialStore = new RemoteMaterialStore(banyanClient)
+        registerMaterialTools(registry, materialStore)
+
+        // 1b. 注册数据拉取工具（AI 可按需获取 appJSON/schema/cloudFunctions）
+        registerDataFetchTools(registry, banyanClient, appId)
+
+        // 1c. 注册 Schema 工具（读取通过 BanyanClient 拉取，写入通过 SSE 推送）
+        const initialSchema = await banyanClient.getSchema(appId)
+        const currentSchema: AppSchemaSnapshot = {
+            collections: initialSchema as unknown as SchemaCollectionDef[],
+        }
+        registerSchemaTools(registry, {
+            schemaReader: () => currentSchema,
+            schemaWriter: (collections: SchemaCollectionDef[]) => {
+                currentSchema.collections = collections
+                sseWrite(res, 'schema_update', { collections })
+            },
+        })
+
+        // 2. 构建 StreamCallback，桥接 Agent 事件 → SSE
+        const streamCallback = createSSEStreamCallback(res, adapter, threadId)
+
+        // 3. 构建上下文分层
+        const systemPrompt = buildSystemPrompt()
+
+        // 4. 创建 MasterGraph V3 统一管线（带 checkpointer 持久化）
+        //    intent 节点根据用户输入自动分类为 respond/task 路径
+        const checkpointer = getStore().getCheckpointer()
+        const masterGraph = createMasterGraph({
+            llmClient: client,
+            toolRegistry: registry,
+            streamCallback,
+            autoRun: !requireApproval,
+            checkpointer,
+        })
+
+        // 5. 执行 MasterGraph V3（带 thread_id 用于 checkpoint 持久化，传入 AbortSignal）
+        getStore().recordActivity(threadId, 'running')
+        const result = await masterGraph.invoke({
+            messages: initialMessages,
+            systemPrompt,
+            agentMemory: agentMemory ?? '',
+            contextSummary: memoryHint ?? '',
+            maxIterations: 30,
+            finalText: '',
+            projectSpec: null,
+            conflictPending: null,
+            planOutput: null,
+            planIterations: 0,
+            humanApproved: true,
+            subResults: [],
+            assemblyPlan: null,
+            auditResult: null,
+            auditRetries: 0,
+            auditErrorSummary: '',
+            planPhaseSummary: '',
+            executePhaseSummary: '',
+            roundSummary: '',
+        }, {
+            recursionLimit: 100,
+            configurable: { thread_id: threadId },
+            signal: abortController.signal,
+        })
+
+        // 6. 检查执行是否因 interrupt() 暂停（humanGate 等节点）
+        const graphState = await masterGraph.getState({ configurable: { thread_id: threadId } })
+        const next = graphState?.next ?? []
+        const tasks = (graphState as { tasks?: Array<{ interrupts?: Array<{ value?: unknown }> }> })?.tasks ?? []
+        const interruptedTask = tasks.find((t) =>
+            Array.isArray(t.interrupts) && t.interrupts.length > 0
+        )
+
+        if (interruptedTask && next.length > 0) {
+            // 图被中断：发送 interrupt 事件，通知客户端需要人工介入
+            const interruptValue = interruptedTask.interrupts![0]?.value ?? null
+            sseWrite(res, 'checkpoint', { threadId, node: next[0], step: 'interrupted' })
+            sseWrite(res, 'interrupt', {
+                threadId,
+                node: next[0],
+                value: interruptValue,
             })
-
-            getStore().recordActivity(threadId, 'running')
-            const result = await chatGraph.invoke({
-                messages: initialMessages,
-                agentMemory: agentMemory ?? '',
-                contextSummary: memoryHint ?? '',
-                finalText: '',
-                roundSummary: '',
-            }, {
-                signal: abortController.signal,
-            })
-
-            // Chat 模式不支持 interrupt，直接发送 done
-            sseWrite(res, 'done', { appJSON: '', threadId, roundSummary: result.roundSummary ?? '' })
-            getStore().recordActivity(threadId, 'completed')
+            getStore().recordActivity(threadId, 'interrupted')
         } else {
-            // ═══ Task 模式：完整 MasterGraph V2 管线 ═══
-
-            // 1. 通过 BanyanClient 按需拉取 appJSON（Pull-based 架构）
-            const appJSON = await banyanClient.getAppJSON(appId)
-            const adapter = createMemoryAdapter(appJSON)
-            const registry = createBanvasToolRegistry(adapter)
-            registerKnowledgeSearchTool(registry, knowledgeStore)
-
-            // 1a. 注册物料工具（AI 可搜索/获取自定义物料）
-            const materialStore = new RemoteMaterialStore(banyanClient)
-            registerMaterialTools(registry, materialStore)
-
-            // 1b. 注册数据拉取工具（AI 可按需获取 appJSON/schema/cloudFunctions）
-            registerDataFetchTools(registry, banyanClient, appId)
-
-            // 1c. 注册 Schema 工具（读取通过 BanyanClient 拉取，写入通过 SSE 推送）
-            const initialSchema = await banyanClient.getSchema(appId)
-            const currentSchema: AppSchemaSnapshot = {
-                collections: initialSchema as unknown as SchemaCollectionDef[],
-            }
-            registerSchemaTools(registry, {
-                schemaReader: () => currentSchema,
-                schemaWriter: (collections: SchemaCollectionDef[]) => {
-                    currentSchema.collections = collections
-                    sseWrite(res, 'schema_update', { collections })
-                },
-            })
-
-            // 2. 构建 StreamCallback，桥接 Agent 事件 → SSE
-            const streamCallback = createSSEStreamCallback(res, adapter, threadId)
-
-            // 3. 构建上下文分层
-            const systemPrompt = buildSystemPrompt()
-
-            // 4. 创建 MasterGraph V2 统一管线（带 checkpointer 持久化）
-            const checkpointer = getStore().getCheckpointer()
-            const masterGraph = createMasterGraph({
-                llmClient: client,
-                toolRegistry: registry,
-                streamCallback,
-                autoRun: !requireApproval,
-                checkpointer,
-            })
-
-            // 5. 执行 MasterGraph V2（带 thread_id 用于 checkpoint 持久化，传入 AbortSignal）
-            getStore().recordActivity(threadId, 'running')
-            const result = await masterGraph.invoke({
-                messages: initialMessages,
-                systemPrompt,
-                agentMemory: agentMemory ?? '',
-                contextSummary: memoryHint ?? '',
-                maxIterations: 30,
-                finalText: '',
-                projectSpec: null,
-                conflictPending: null,
-                planOutput: null,
-                planIterations: 0,
-                humanApproved: true,
-                subResults: [],
-                assemblyPlan: null,
-                auditResult: null,
-                auditRetries: 0,
-                auditErrorSummary: '',
-                planPhaseSummary: '',
-                executePhaseSummary: '',
-                roundSummary: '',
-            }, {
-                recursionLimit: 100,
-                configurable: { thread_id: threadId },
-                signal: abortController.signal,
-            })
-
-            // 6. 检查执行是否因 interrupt() 暂停（humanGate 等节点）
-            const graphState = await masterGraph.getState({ configurable: { thread_id: threadId } })
-            const next = graphState?.next ?? []
-            const tasks = (graphState as { tasks?: Array<{ interrupts?: Array<{ value?: unknown }> }> })?.tasks ?? []
-            const interruptedTask = tasks.find((t) =>
-                Array.isArray(t.interrupts) && t.interrupts.length > 0
-            )
-
-            if (interruptedTask && next.length > 0) {
-                // 图被中断：发送 interrupt 事件，通知客户端需要人工介入
-                const interruptValue = interruptedTask.interrupts![0]?.value ?? null
-                sseWrite(res, 'checkpoint', { threadId, node: next[0], step: 'interrupted' })
-                sseWrite(res, 'interrupt', {
-                    threadId,
-                    node: next[0],
-                    value: interruptValue,
-                })
-                getStore().recordActivity(threadId, 'interrupted')
-            } else {
-                // 图正常完成：发送 done 事件
-                sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
-                const finalAppJSON = await adapter.getAppJSON()
-                sseWrite(res, 'done', { appJSON: finalAppJSON, threadId })
-                getStore().recordActivity(threadId, 'completed')
-            }
+            // 图正常完成：发送 done 事件
+            sseWrite(res, 'checkpoint', { threadId, node: 'END', step: 'completed' })
+            const finalAppJSON = await adapter.getAppJSON()
+            sseWrite(res, 'done', { appJSON: finalAppJSON, threadId })
+            getStore().recordActivity(threadId, 'completed')
         }
     } catch (err) {
         if (abortController.signal.aborted) {

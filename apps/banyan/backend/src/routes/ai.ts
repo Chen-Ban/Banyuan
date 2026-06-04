@@ -25,6 +25,9 @@ router.post('/:appId/confirm', appOwnership, aiController.confirm.bind(aiControl
 // POST /api/ai/:appId/discard — 撤销对话：丢弃 pending 暂存数据
 router.post('/:appId/discard', appOwnership, aiController.discard.bind(aiController))
 
+// POST /api/ai/:appId/stop    — 用户主动中止 AI 执行（ADR-039 Phase 1）
+router.post('/:appId/stop', appOwnership, aiController.stop.bind(aiController))
+
 // POST /api/ai/:appId/resume  — 从 checkpoint 恢复 AI 执行（SSE 流式）
 router.post('/:appId/resume', appOwnership, aiController.resume.bind(aiController))
 

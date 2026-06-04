@@ -3,17 +3,38 @@
  *
  * 基于 @lancedb/lancedb 的嵌入式向量数据库，结合本地 EmbeddingService 做向量化。
  *
- * 职责：
+ * ## 知识本质定义（ADR-040）
+ *
+ * 本服务存储和检索的"知识"是 BanvasGL 能力体系的完整认知，包含两个维度：
+ *   - 语义维度（What）：每种组件是什么、能做什么、适合什么场景、有什么限制
+ *   - 格式维度（How）：如何将语义理解表达为合法的 AI Projection JSON
+ *
+ * 知识分三层：
+ *   - Schema 种子（能力认知）：语义+格式合一，格式维度自动生成，语义维度人工编写
+ *   - Composition 种子（组合模式）：高质量 Few-shot 示例，LLM 生成 + 程序化验证 + 人工 review
+ *   - Theme 种子（设计 Token）：可枚举的视觉配置值，人工维护
+ *
+ * 正确性验证：格式维度通过 fromAIProjection() 程序化验证；语义维度通过 code review。
+ *
+ * ## 知识归属边界（ADR-040）
+ *
+ * 本服务仅存储系统级知识（所有应用共享的 BanvasGL 能力认知）。
+ * 应用级知识（设计风格/布局偏好）= appJSON 本身，不进入本服务的公共检索池。
+ * 这保证了：隐私合规（用户数据不混入公共知识库）+ 架构简洁（无额外存储层）。
+ *
+ * ## 职责
+ *
  *   - 知识条目的写入、删除、查询（CRUD）
- *   - 向量检索 + BM25 全文检索（RRF 融合）
+ *   - 向量检索 + BM25 全文检索（RRF 融合）+ Cross-Encoder 精排
  *   - 按 BanvasGL 版本隔离知识表（knowledge_v{version}）
  *
- * 消费方：
- *   - banyan 后端通过 HTTP 调用 /knowledge/search 进行上下文检索
+ * ## 消费方
+ *
  *   - xiangdi-server 的 knowledge_search 工具通过 HTTP API 回调本服务
  *   - 知识种子脚本通过 /knowledge/upsert API 写入
  *
- * 设计决策：
+ * ## 设计决策
+ *
  *   - 独立服务，与 BanvasGL 版本强关联，便于追踪发版影响
  *   - 向量化由同进程的 EmbeddingService 完成（无需跨服务 HTTP 调用）
  *   - LanceDB 嵌入式模式，无需额外部署向量数据库

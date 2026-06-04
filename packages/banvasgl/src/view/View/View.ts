@@ -72,6 +72,34 @@ import { calculateDimensionDelta } from "./utils.js";
 export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   implements IView, ISerializable
 {
+  // ── 调试开关 ──
+
+  /**
+   * localStorage key，用于持久化「布局边界调试线框」开关。
+   *
+   * 在浏览器控制台执行以下命令可即时开启/关闭，无需重启：
+   *   开启：localStorage.setItem('banvasgl:debug:layoutBounds', '1')
+   *   关闭：localStorage.removeItem('banvasgl:debug:layoutBounds')
+   */
+  public static readonly DEBUG_LAYOUT_BOUNDS_KEY = 'banvasgl:debug:layoutBounds';
+
+  /**
+   * 调试开关（只读，实时读取 localStorage）：
+   * 开启后在 renderToOffScreen 末尾用不同颜色线框渲染
+   * viewport（红色实线）/ layoutArea（绿色虚线）/ constraintBounds（蓝色点线），
+   * 用于可视化布局几何关系。
+   *
+   * 通过 localStorage 控制，每帧实时读取，无需刷新页面即可生效。
+   */
+  public static get DEBUG_LAYOUT_BOUNDS(): boolean {
+    try {
+      return localStorage.getItem(View.DEBUG_LAYOUT_BOUNDS_KEY) === '1';
+    } catch {
+      // SSR / 隐私模式等无法访问 localStorage 的环境，静默降级为关闭
+      return false;
+    }
+  }
+
   // ── 标识 ──
 
   /** 视图唯一标识符 */
@@ -658,6 +686,40 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     offscreenCtx.setTransform(a, b, c, d, e, f);
     this.renderPlugins(offscreenCtx);
     offscreenCtx.restore();
+
+    // 阶段3（调试）：用不同颜色线框渲染 viewport / layoutArea / constraintBounds
+    // 仅用于开发调试，可视化布局几何关系：
+    //   - viewport（红色实线）：视图自身的矩形区域
+    //   - layoutArea（绿色虚线）：实际内容布局区域（overflow 时可能超出 viewport）
+    //   - constraintBounds（蓝色点线）：父容器传下的布局约束
+    if (View.DEBUG_LAYOUT_BOUNDS) { // 由 localStorage['banvasgl:debug:layoutBounds'] 控制
+      offscreenCtx.save();
+      offscreenCtx.setTransform(a, b, c, d, e, f);
+      // 变换已乘 dpr，逻辑坐标下的线宽需除回 dpr 以保持约 1 物理像素
+      const baseLineWidth = 1 / dpr;
+
+      const strokeBounds = (
+        bounds: Bounds,
+        color: string,
+        dash: number[],
+      ): void => {
+        if (!bounds) return;
+        offscreenCtx.beginPath();
+        offscreenCtx.rect(bounds.x, bounds.y, bounds.width, bounds.height);
+        offscreenCtx.lineWidth = baseLineWidth;
+        offscreenCtx.strokeStyle = color;
+        offscreenCtx.setLineDash(dash.map((d) => d / dpr));
+        offscreenCtx.stroke();
+      };
+
+      // constraintBounds 先画（最底层），viewport 最后画（最顶层）
+      strokeBounds(this.constraintBounds, "#2979ff", [2, 2]); // 蓝色点线
+      strokeBounds(this.layoutArea, "#00c853", [6, 4]); // 绿色虚线
+      strokeBounds(viewport, "#ff1744", []); // 红色实线
+
+      offscreenCtx.setLineDash([]);
+      offscreenCtx.restore();
+    }
   }
 
   /**

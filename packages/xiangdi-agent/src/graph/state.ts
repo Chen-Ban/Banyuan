@@ -39,6 +39,30 @@ import type {
 } from "../orchestration/types.js";
 import type { PlanningSnapshot, ResumeClassification } from "./resume/types.js";
 
+// ─── Intent 分类结果（Phase 2: ADR-039 统一 Graph）──────────────────────────
+
+/**
+ * Intent 节点的分类结果。
+ * - respond: 纯对话/信息查询，路由到 respond 节点
+ * - task: 需要画布操作/数据修改，路由到 plan 节点
+ */
+export type IntentType = "respond" | "task";
+
+/**
+ * Intent 节点输出。
+ * 零 token 规则优先，LLM fallback 分类。
+ */
+export interface IntentResult {
+  /** 分类结果 */
+  type: IntentType;
+  /** 分类来源：rule（规则命中） | llm（LLM 分类） */
+  source: "rule" | "llm";
+  /** 置信度（rule 命中时为 1.0，LLM 分类时为模型返回值） */
+  confidence: number;
+  /** 分类原因（可选，调试用） */
+  reason?: string;
+}
+
 // Messages reducer that appends messages
 function messagesReducer(curr: BaseMessage[], update: BaseMessage[]): BaseMessage[] {
   return [...curr, ...update];
@@ -136,6 +160,25 @@ export const MasterStateAnnotation = Annotation.Root({
   projectSpec: Annotation<ProjectSpec | null>({
     reducer: (_, update) => update,
     default: () => null,
+  }),
+
+  // ─── Intent 阶段（Phase 2: ADR-039）────────────────────────────────────────
+  /** Intent 节点分类结果 */
+  intentResult: Annotation<IntentResult | null>({
+    reducer: (_, update) => update,
+    default: () => null,
+  }),
+
+  // ─── Respond 阶段（Phase 2: ADR-039）────────────────────────────────────────
+  /** Respond 节点产生的消息（含 readonlyTools ReAct） */
+  respondMessages: Annotation<BaseMessage[]>({
+    reducer: messagesReducer,
+    default: () => [],
+  }),
+  /** Respond 节点使用的只读工具调用记录（用于 summarize 判断） */
+  readonlyToolCalls: Annotation<number>({
+    reducer: (_, update) => update,
+    default: () => 0,
   }),
 
   // ─── Plan 阶段 ─────────────────────────────────────────────────────────────
