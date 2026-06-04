@@ -1,27 +1,22 @@
 /**
- * AI 服务（HTTP 代理层）— V4（Snapshot 事务化）
+ * AI 服务（HTTP 代理层）— V5（Dialogue 单一数据路径，ADR-039 Phase 4）
  *
- * 核心变更（V4）：
- *   - task 模式引入"对话即事务"语义：SSE 期间应用状态数据（appJSON/collections/cloudFunctions）
- *     暂存到 Snapshot 表（MongoDB），对话元数据（消息/摘要/规划产物等）暂存在 PendingStore（内存）
- *   - 用户确认：snapshotService.confirm() 同步应用状态到持久化表 + PendingStore 写对话数据到 DB
- *   - 用户撤销：snapshotService.discard() 标记丢弃 + PendingStore 清除
- *   - chat 模式保持直接写 DB（纯文字问答无应用副作用，不需要确认）
- *   - resume 场景从 Snapshot 读取当前 appJSON（而非持久化表）
- *
- * Snapshot vs PendingStore 分工：
- *   - Snapshot（MongoDB）：appJSON / collections / cloudFunctions — 可回滚、可持久化恢复
- *   - PendingStore（内存）：对话消息、摘要、规划产物 — 进程内缓存，confirm 时一次性写 DB
+ * 核心设计：
+ *   - Dialogue 是唯一权威状态机，phase 字段驱动全生命周期
+ *   - SSE 期间所有状态（appJSON/collections/memoryUpdates/planningEntries）写入 Dialogue
+ *   - chat 模式：start → responding → done（直接 commit）
+ *   - task 模式：start → planning → awaiting_confirm → executing → committing → done
+ *   - confirm 从 Dialogue 读取 appJSON/collections 落库，无需 Snapshot/PendingStore 中间层
+ *   - resume 功能已废弃（Dialogue 不支持 interrupted 状态）
  *
  * 架构：
  *   前端 ←SSE── banyan 后端(:3001) ←SSE── XiangDi 服务(:3002)
- *                     ↕ Snapshot 表 (task, 应用状态)
- *                     ↕ PendingStore (task, 对话元数据)
- *                     ↕ 持久化表 (confirm后同步)
+ *                     ↕ Dialogue 集合（唯一暂存）
+ *                     ↕ 持久化表（confirm 后同步）
  *
  * SSE 事件类型（与 XiangDi 服务保持一致）：
  *   text_delta / tool_call / tool_result / app_snapshot / schema_update
- *   round_summary / memory_update / checkpoint / interrupt / resumed / done / error
+ *   round_summary / memory_update / planning_progress / planning_failed / done / error
  */
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -30,18 +25,16 @@ import https from 'https'
 import { Types } from 'mongoose'
 import applicationService from './ApplicationService.js'
 import conversationService from './ConversationService.js'
-import snapshotService from './SnapshotService.js'
-import planningArtifactService from './PlanningArtifactService.js'
 import contextBuilder, { ContextBudgetOverflowError } from './ContextBuilder.js'
 import type { ContextBuildOptions } from './ContextBuilder.js'
 import { SchemaService } from './SchemaService.js'
 import memoryService, { type MemoryUpdateInput } from './MemoryService.js'
-import pendingStore from './PendingStore.js'
-import type { PendingDialogueData } from './PendingStore.js'
-import type { ISnapshot } from '../models/Snapshot.js'
 import type { ICollectionDef } from '../models/CollectionSchema.js'
 import type { IAssistantContent, DialogueType } from '../models/Conversation.js'
 import type { AgentRole } from '../models/PlanningArtifact.js'
+import dialogueService from './DialogueService.js'
+import Conversation from '../models/Conversation.js'
+import { PhaseController } from './PhaseController.js'
 
 // XiangDi 服务地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
@@ -108,19 +101,26 @@ interface ProxySSECallbacks {
   onPlanningFailed?: (agent: AgentRole) => Promise<void>
 }
 
+/** proxySSECore 可选配置 */
+interface ProxySSEOptions {
+  /** Phase 控制器：传入后自动驱动 phase 转移 */
+  phaseCtrl?: PhaseController
+}
+
 function proxySSECore(
   xiangdiPath: string,
   requestBody: string,
   clientRes: ServerResponse,
   callbacks: ProxySSECallbacks,
   _appId: string,
+  options?: ProxySSEOptions,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const url = new URL(xiangdiPath, XIANGDI_BASE_URL)
     const isHttps = url.protocol === 'https:'
     const transport = isHttps ? https : http
 
-    const options: http.RequestOptions = {
+    const reqOptions: http.RequestOptions = {
       hostname: url.hostname,
       port: url.port || (isHttps ? 443 : 3002),
       path: url.pathname,
@@ -161,6 +161,8 @@ function proxySSECore(
     let textBuffer = ''
     let roundSummaryBuffer: string | null = null
     const assistantContentBuffer: IAssistantContent[] = []
+
+    const phaseCtrl = options?.phaseCtrl
 
     function dispatchEvent(currentEvent: string, dataStr: string): void {
       if (!currentEvent || !dataStr) return
@@ -272,8 +274,23 @@ function proxySSECore(
             assistantContentBuffer.unshift({ type: 'text', text: textBuffer })
           }
           assistantContentBuffer.push({ type: 'done', appJSON: finalAppJSON })
-          callbacks.onDone(finalAppJSON, assistantContentBuffer, roundSummaryBuffer).catch((err) => {
-            console.error('[AiService] onDone 回调失败:', err)
+          // Phase 驱动：先执行 onDone 数据写入，再推进 phase
+          // 确保 phase=done 时所有数据已落盘（避免查询竞态）
+          callbacks.onDone(finalAppJSON, assistantContentBuffer, roundSummaryBuffer).then(async () => {
+            if (phaseCtrl && !phaseCtrl.isTerminal()) {
+              const phase = phaseCtrl.getPhase()
+              if (phase === 'responding') {
+                await phaseCtrl.transition('done')
+              } else if (phase === 'planning') {
+                await phaseCtrl.transition('awaiting_confirm')
+              }
+            }
+          }).catch((err) => {
+            console.error('[AiService] onDone 回调或 phase 转移失败:', err)
+            // onDone 失败时尝试标记 failed
+            if (phaseCtrl && !phaseCtrl.isTerminal()) {
+              phaseCtrl.fail().catch(() => {})
+            }
           })
         } catch { /* ignore */ }
       }
@@ -283,12 +300,20 @@ function proxySSECore(
           const parsed = JSON.parse(dataStr) as { message?: string }
           assistantContentBuffer.push({ type: 'error', message: parsed.message ?? '未知错误' })
         } catch { /* ignore */ }
+        // Phase 驱动：error → failed
+        if (phaseCtrl && !phaseCtrl.isTerminal()) {
+          phaseCtrl.fail().catch(() => {})
+        }
         callbacks.onError?.().catch((err) => {
           console.error('[AiService] onError 回调失败:', err)
         })
       }
 
       if (currentEvent === 'interrupt') {
+        // Phase 驱动：interrupt → discarded (connection_lost)
+        if (phaseCtrl && !phaseCtrl.isTerminal()) {
+          phaseCtrl.interrupt('connection_lost').catch(() => {})
+        }
         callbacks.onInterrupt?.().catch((err) => {
           console.error('[AiService] onInterrupt 回调失败:', err)
         })
@@ -325,7 +350,7 @@ function proxySSECore(
 
     let lineBuffer = ''
 
-    upstreamReq = transport.request(options, (upstream: IncomingMessage) => {
+    upstreamReq = transport.request(reqOptions, (upstream: IncomingMessage) => {
       if (upstream.statusCode && upstream.statusCode >= 400) {
         callbacks.onError?.().catch(() => {})
         settle(() => reject(new Error(`XiangDi 服务返回错误状态码: ${upstream.statusCode}`)))
@@ -405,8 +430,9 @@ class AiService {
   /**
    * 处理一次 AI 对话请求，通过 SSE 流式推送进度
    *
-   * - chat 模式：直接写 DB（无副作用回滚需求）
-   * - task 模式：应用状态暂存到 Snapshot 表，对话元数据暂存在 PendingStore，等 confirm 后同步
+   * Phase 4 统一路径：Dialogue 为唯一数据载体
+   * - chat 模式：onDone 直接落库到应用态三张表（无确认环节）
+   * - task 模式：onDone 只写 Dialogue，等用户 confirm 再落库
    */
   async runWithSSE(
     appId: string,
@@ -440,12 +466,7 @@ class AiService {
       if (!app) throw new Error(`应用 ${appId} 不存在`)
 
       await conversationService.getOrCreate(appId)
-
-      if (type === 'task') {
-        await this._runTaskMode(appId, prompt, type, images, res)
-      } else {
-        await this._runChatMode(appId, prompt, type, images, res)
-      }
+      await this._runDialogue(appId, prompt, type, images, res, app.appJSON ?? '')
     } catch (err) {
       if (err instanceof ContextBudgetOverflowError) {
         sseWrite(res, 'error', { code: err.code, message: err.message, details: err.details })
@@ -458,100 +479,37 @@ class AiService {
   }
 
   /**
-   * Chat 模式：直接写 DB（无副作用回滚需求）
+   * 统一对话执行（Phase 4：Dialogue 为唯一数据路径）
+   *
+   * chat 模式：onDone 直接落库（无确认环节），phase 走 responding → done
+   * task 模式：onDone 只写 Dialogue，phase 走 planning → awaiting_confirm，等 confirm 落库
    */
-  private async _runChatMode(
+  private async _runDialogue(
     appId: string,
     prompt: string,
     type: DialogueType,
     images: Array<{ url: string; alt?: string }>,
     res: ServerResponse,
+    currentAppJSON: string,
   ): Promise<void> {
-    const { dialogueId } = await conversationService.createDialogue(appId, type, { prompt, images })
-    const threadId = `${appId}:${dialogueId.toString()}`
-    await conversationService.setThreadInfo(appId, dialogueId, threadId, 'running')
-
-    const agentMemoryText = await memoryService.recall(appId, prompt)
-    const contextOptions: ContextBuildOptions = {
-      modelName: getActiveModelName(),
-      systemPromptTokens: 2500,
-      agentMemoryTokens: estimateTokens(agentMemoryText ?? ''),
-      currentPromptTokens: estimateTokens(prompt),
-    }
-    const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
-    const { contextSummary, recentMessages: historyMessages } = layeredContext
-
-    const imageUrls = images.length > 0 ? images.map(img => img.url) : undefined
-    const requestBody = JSON.stringify({
+    // 1. 创建 Dialogue（唯一数据创建点）
+    const conv = await conversationService.getOrCreate(appId)
+    const dlgDoc = await dialogueService.create({
       appId,
-      prompt,
-      threadId,
-      mode: type,
-      previousMessages: historyMessages,
-      ...(contextSummary ? { memoryHint: contextSummary } : {}),
-      ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),
-      ...(imageUrls ? { images: imageUrls } : {}),
-    })
-
-    await proxySSECore('/ai/run', requestBody, res, {
-      onDone: async (finalAppJSON, assistantContent, roundSummary) => {
-        await Promise.all([
-          applicationService.updateApplication(appId, { appJSON: finalAppJSON }),
-          conversationService.appendAssistantMessage(appId, dialogueId, assistantContent),
-          conversationService.updateThreadStatus(appId, dialogueId, 'completed'),
-        ])
-        if (roundSummary) {
-          this.persistDialogueSummary(appId, dialogueId, roundSummary).catch(err => {
-            console.error('[AiService] 对话摘要持久化失败:', err)
-          })
-        }
-      },
-      onError: async () => {
-        await conversationService.updateThreadStatus(appId, dialogueId, 'failed').catch(err => {
-          console.error('[AiService] 更新 threadStatus(failed) 失败:', err)
-        })
-      },
-      onSchemaUpdate: (collections) => {
-        SchemaService.setCollections(appId, collections).catch(err => {
-          console.error('[AiService] Schema 写入失败:', err)
-        })
-      },
-      onMemoryUpdate: (memoryInput) => {
-        memoryService.handleMemoryUpdate(appId, memoryInput).catch(err => {
-          console.error('[AiService] Agent 记忆写入失败:', err)
-        })
-      },
-    }, appId)
-  }
-
-  /**
-   * Task 模式：应用状态暂存到 Snapshot 表，对话元数据暂存在 PendingStore，等 confirm 后同步
-   */
-  private async _runTaskMode(
-    appId: string,
-    prompt: string,
-    type: DialogueType,
-    images: Array<{ url: string; alt?: string }>,
-    res: ServerResponse,
-  ): Promise<void> {
-    // 预生成 dialogueId，不写持久化表
-    const dialogueId = new Types.ObjectId()
-    const threadId = `${appId}:${dialogueId.toString()}`
-
-    // 创建 pending Snapshot（写入 MongoDB Snapshot 集合，status=pending）
-    // Snapshot 以当前持久化表的状态作为基线
-    await snapshotService.createPending(appId, dialogueId)
-
-    // 对话元数据暂存在 PendingStore（内存）
-    pendingStore.create({
-      appId,
-      dialogueId: dialogueId.toString(),
-      threadId,
+      conversationId: conv._id as import('mongoose').Types.ObjectId,
       type,
       userMessage: { prompt, images },
+      baseAppJSON: type === 'task' ? currentAppJSON : undefined,
     })
+    const dialogueId = dlgDoc._id as import('mongoose').Types.ObjectId
+    const threadId = `${appId}:${dialogueId.toString()}`
+    await dialogueService.setThreadId(dialogueId, threadId)
 
-    // 构建上下文
+    // 2. PhaseController 创建 + 初始 phase 推进
+    const phaseCtrl = PhaseController.create(dialogueId, res)
+    await phaseCtrl.transition(type === 'task' ? 'planning' : 'responding')
+
+    // 3. 构建上下文
     const agentMemoryText = await memoryService.recall(appId, prompt)
     const contextOptions: ContextBuildOptions = {
       modelName: getActiveModelName(),
@@ -562,6 +520,7 @@ class AiService {
     const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
     const { contextSummary, recentMessages: historyMessages } = layeredContext
 
+    // 4. 构造 requestBody
     const imageUrls = images.length > 0 ? images.map(img => img.url) : undefined
     const requestBody = JSON.stringify({
       appId,
@@ -572,35 +531,41 @@ class AiService {
       ...(contextSummary ? { memoryHint: contextSummary } : {}),
       ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),
       ...(imageUrls ? { images: imageUrls } : {}),
-      requireApproval: true,
+      ...(type === 'task' ? { requireApproval: true } : {}),
     })
 
-    // 代理 SSE：应用状态写 Snapshot，对话元数据写 PendingStore
+    // 5. proxySSECore — 回调统一写 Dialogue
     await proxySSECore('/ai/run', requestBody, res, {
       onDone: async (finalAppJSON, assistantContent, roundSummary) => {
-        // 应用状态 → Snapshot
-        await snapshotService.updateAppJSON(appId, finalAppJSON)
-        await snapshotService.markDone(appId)
-        // 对话元数据 → PendingStore
-        pendingStore.setFinalAppJSON(appId, finalAppJSON)
-        pendingStore.setAssistantContent(appId, assistantContent)
+        // 5a. 写入 Dialogue（所有模式共享）
+        await dialogueService.updateAppJSON(dialogueId, finalAppJSON)
+        await dialogueService.appendAssistantContent(dialogueId, assistantContent)
         if (roundSummary) {
-          pendingStore.setRoundSummary(appId, roundSummary)
+          await dialogueService.setRoundSummary(dialogueId, roundSummary)
         }
-        pendingStore.updateStatus(appId, 'done')
+
+        // 5b. chat 模式：直接落库（无确认环节）
+        if (type === 'chat') {
+          await applicationService.updateApplication(appId, { appJSON: finalAppJSON })
+          await Conversation.updateOne({ appId }, { $addToSet: { dialogueIds: dialogueId } })
+          // chat 摘要异步生成 embedding
+          if (roundSummary) {
+            this.persistDialogueSummary(appId, dialogueId, roundSummary).catch(err => {
+              console.error('[AiService] 对话摘要持久化失败:', err)
+            })
+          }
+        }
+        // task 模式：phase 自动驱动到 awaiting_confirm，等用户 confirm
       },
       onError: async () => {
-        // 即使失败，Snapshot 中可能已有部分改动，标记为 done 让用户选择
-        await snapshotService.markDoneOnInterrupt(appId)
-        pendingStore.updateStatus(appId, 'failed')
+        // Phase 由 PhaseController 在 dispatchEvent 中自动驱动到 failed
       },
       onInterrupt: async () => {
-        await snapshotService.markDoneOnInterrupt(appId)
-        pendingStore.updateStatus(appId, 'interrupted')
+        // Phase 由 PhaseController 在 dispatchEvent 中自动驱动到 discarded
       },
       onSchemaUpdate: (collections) => {
-        // Schema 变更 → Snapshot（持久化）+ PendingStore（confirm 时写 DB 兼容）
-        snapshotService.updateCollections(appId, collections.map(col => ({
+        // Schema 变更写入 Dialogue
+        const collectionSnapshots = collections.map(col => ({
           name: col.name,
           displayName: col.displayName,
           fields: (col.fields ?? []).map(f => ({
@@ -612,45 +577,57 @@ class AiService {
             refCollection: f.refCollection,
             enumValues: f.enumValues,
           })),
-        }))).catch(err => {
-          console.error('[AiService] Snapshot collections 更新失败:', err)
+        }))
+        dialogueService.updateCollections(dialogueId, collectionSnapshots).catch(err => {
+          console.error('[AiService] Dialogue collections 更新失败:', err)
         })
-        pendingStore.setSchemaUpdates(appId, collections)
+        // chat 模式同步落库
+        if (type === 'chat') {
+          SchemaService.setCollections(appId, collections).catch(err => {
+            console.error('[AiService] Schema 写入失败:', err)
+          })
+        }
       },
       onMemoryUpdate: (memoryInput) => {
-        pendingStore.setMemoryUpdates(appId, memoryInput)
+        if (type === 'chat') {
+          // chat 直接写入 Agent 记忆
+          memoryService.handleMemoryUpdate(appId, memoryInput).catch(err => {
+            console.error('[AiService] Agent 记忆写入失败:', err)
+          })
+        } else {
+          // task 暂存到 Dialogue，confirm 时落库
+          dialogueService.setMemoryUpdates(dialogueId, memoryInput).catch(err => {
+            console.error('[AiService] Dialogue memoryUpdates 写入失败:', err)
+          })
+        }
       },
       onPlanningProgress: async (agent, entry) => {
-        pendingStore.addPlanningEntry(appId, { agent, ...entry })
+        await dialogueService.appendPlanningEntry(dialogueId, {
+          agent,
+          output: entry.output,
+          reasoning: entry.reasoning,
+          tokenUsage: entry.tokenUsage,
+          durationMs: entry.durationMs,
+        })
       },
       onPlanningFailed: async (agent) => {
-        pendingStore.setPlanningFailed(appId, agent)
+        await dialogueService.setPlanningFailed(dialogueId, agent)
       },
-    }, appId)
+    }, appId, { phaseCtrl })
   }
 
-  // ─── Resume（断点续跑） ─────────────────────────────────────────────────────
+  // ─── Resume（已废弃） ──────────────────────────────────────────────────────
 
   /**
-   * 从 checkpoint 恢复 AI 执行
-   *
-   * task 模式：从 Snapshot 读取当前 appJSON（含已有改动），继续执行
-   * 恢复后若成功完成（done），Snapshot/PendingStore 状态变为 done，仍等 confirm。
+   * @deprecated ADR-039 Phase 4: resume 功能已废弃。
+   * Dialogue 作为唯一状态机后，不再支持"中断-恢复"模式。
+   * 保留方法签名以兼容路由层调用，但直接返回错误。
    */
   async resumeSSE(
-    appId: string,
+    _appId: string,
     res: ServerResponse,
-    dialogueId?: string,
-    resumeValue?: unknown
-  ): Promise<void> {
-    return withAppLock(appId, () => this._resumeSSECore(appId, res, dialogueId, resumeValue))
-  }
-
-  private async _resumeSSECore(
-    appId: string,
-    res: ServerResponse,
-    dialogueId?: string,
-    resumeValue?: unknown
+    _dialogueId?: string,
+    _resumeValue?: unknown
   ): Promise<void> {
     if (!res.headersSent) {
       res.writeHead(200, {
@@ -660,317 +637,170 @@ class AiService {
         'X-Accel-Buffering': 'no',
       })
     }
-    res.socket?.setNoDelay(true)
-
-    try {
-      // 1. 确定要恢复的对话
-      let resolvedThreadId: string
-
-      // 优先从 PendingStore 中查找（task 模式的 interrupted）
-      const pending = pendingStore.get(appId)
-      if (pending && pending.status === 'interrupted') {
-        resolvedThreadId = pending.threadId
-      } else if (dialogueId) {
-        // 兼容：从 DB 中查找（chat 模式或旧数据）
-        resolvedThreadId = `${appId}:${dialogueId}`
-      } else {
-        // 从 DB 查找最近 pending dialogue
-        const dbPending = await conversationService.getLastPendingDialogue(appId)
-        if (!dbPending) {
-          throw new Error('没有找到可恢复的执行线程')
-        }
-        resolvedThreadId = dbPending.threadId
-      }
-
-      // 2. 如果是 task 模式，更新 PendingStore 状态
-      if (pending && pending.status === 'interrupted') {
-        pendingStore.updateStatus(appId, 'streaming')
-      }
-
-      // 3. 读取 appJSON：task 模式从 Snapshot 读取（含已有改动），chat 模式从持久化表读取
-      let appJSON: string
-      if (pending) {
-        const snapshot = await snapshotService.getActivePending(appId)
-        appJSON = snapshot?.appJSON ?? ''
-      } else {
-        const app = await applicationService.getApplicationById(appId)
-        if (!app) throw new Error(`应用 ${appId} 不存在`)
-        appJSON = app.appJSON ?? ''
-      }
-
-      // 4. 构造请求体
-      const requestBody = JSON.stringify({
-        threadId: resolvedThreadId,
-        appJSON,
-        ...(resumeValue !== undefined ? { resumeValue } : {}),
-      })
-
-      // 5. 根据是否有 pending 决定回调策略
-      if (pending) {
-        // task 模式 resume：应用状态继续写 Snapshot，对话元数据写 PendingStore
-        await proxySSECore('/ai/resume', requestBody, res, {
-          onDone: async (finalAppJSON, assistantContent, roundSummary) => {
-            await snapshotService.updateAppJSON(appId, finalAppJSON)
-            await snapshotService.markDone(appId)
-            pendingStore.setFinalAppJSON(appId, finalAppJSON)
-            pendingStore.setAssistantContent(appId, assistantContent)
-            if (roundSummary) {
-              pendingStore.setRoundSummary(appId, roundSummary)
-            }
-            pendingStore.updateStatus(appId, 'done')
-          },
-          onError: async () => {
-            await snapshotService.markDoneOnInterrupt(appId)
-            pendingStore.updateStatus(appId, 'failed')
-          },
-          onInterrupt: async () => {
-            await snapshotService.markDoneOnInterrupt(appId)
-            pendingStore.updateStatus(appId, 'interrupted')
-          },
-          onSchemaUpdate: (collections) => {
-            snapshotService.updateCollections(appId, collections.map(col => ({
-              name: col.name,
-              displayName: col.displayName,
-              fields: (col.fields ?? []).map(f => ({
-                name: f.name,
-                displayName: f.displayName,
-                type: f.type,
-                required: f.required ?? false,
-                defaultValue: f.defaultValue,
-                refCollection: f.refCollection,
-                enumValues: f.enumValues,
-              })),
-            }))).catch(err => {
-              console.error('[AiService] Snapshot collections 更新失败:', err)
-            })
-            pendingStore.setSchemaUpdates(appId, collections)
-          },
-          onMemoryUpdate: (memoryInput) => {
-            pendingStore.setMemoryUpdates(appId, memoryInput)
-          },
-          onPlanningProgress: async (agent, entry) => {
-            pendingStore.addPlanningEntry(appId, { agent, ...entry })
-          },
-          onPlanningFailed: async (agent) => {
-            pendingStore.setPlanningFailed(appId, agent)
-          },
-        }, appId)
-      } else {
-        // chat 模式 resume（罕见）：直接写 DB
-        const resolvedDialogueId = dialogueId
-          ? new Types.ObjectId(dialogueId)
-          : (await conversationService.getLastPendingDialogue(appId))!.dialogueId
-
-        await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'running')
-
-        await proxySSECore('/ai/resume', requestBody, res, {
-          onDone: async (finalAppJSON, assistantContent, roundSummary) => {
-            await Promise.all([
-              applicationService.updateApplication(appId, { appJSON: finalAppJSON }),
-              conversationService.appendAssistantMessage(appId, resolvedDialogueId, assistantContent),
-              conversationService.updateThreadStatus(appId, resolvedDialogueId, 'completed'),
-            ])
-            if (roundSummary) {
-              this.persistDialogueSummary(appId, resolvedDialogueId, roundSummary).catch(err => {
-                console.error('[AiService] resume 对话摘要持久化失败:', err)
-              })
-            }
-          },
-          onError: async () => {
-            await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'failed').catch(err => {
-              console.error('[AiService] 更新 threadStatus(failed) 失败:', err)
-            })
-          },
-          onInterrupt: async () => {
-            await conversationService.updateThreadStatus(appId, resolvedDialogueId, 'interrupted').catch(err => {
-              console.error('[AiService] 更新 threadStatus(interrupted) 失败:', err)
-            })
-          },
-          onSchemaUpdate: (collections) => {
-            SchemaService.setCollections(appId, collections).catch(err => {
-              console.error('[AiService] Schema 写入失败:', err)
-            })
-          },
-          onMemoryUpdate: (memoryInput) => {
-            memoryService.handleMemoryUpdate(appId, memoryInput).catch(err => {
-              console.error('[AiService] Agent 记忆写入失败:', err)
-            })
-          },
-        }, appId)
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      sseWrite(res, 'error', { message })
-      sseDone(res)
-    }
+    sseWrite(res, 'error', { message: 'resume 功能已废弃（ADR-039 Phase 4），请使用新的对话流程' })
+    sseDone(res)
   }
 
   // ─── Confirm / Discard（事务确认/撤销）──────────────────────────────────────
 
   /**
-   * 确认对话：
-   *   1. snapshotService.confirm() — 将 Snapshot 中的应用状态同步到持久化表
-   *   2. 从 PendingStore 取对话元数据，写入 Conversation 集合
+   * 确认对话：Dialogue phase → executing → committing → done（ADR-039 Phase 4）
    *
    * 这是"对话即事务"的 commit 操作。
-   * 使用 withAppLock 防止与 SSE 流（runWithSSE/resumeSSE）竞态。
+   * 使用 withAppLock 防止与 SSE 流竞态。
    */
   async confirmDialogue(appId: string): Promise<{ dialogueId: string }> {
     return withAppLock(appId, () => this._confirmDialogueCore(appId))
   }
 
   private async _confirmDialogueCore(appId: string): Promise<{ dialogueId: string }> {
-    // ─── Step 1: 确认 Snapshot（应用状态 → 持久化表） ────────────────────────
-    const snapshot = await snapshotService.confirm(appId)
-    const dialogueId = snapshot.dialogueId
+    // ─── 纯 Dialogue 路径：从 Dialogue 读取状态并确认（ADR-039 Phase 4）────────
+    const dlg = await dialogueService.getActiveByApp(appId)
 
-    // ─── Step 2: 对话元数据 → Conversation 集合 ─────────────────────────────
-    const pending = pendingStore.getConfirmable(appId)
-    if (!pending) {
-      // Snapshot 已确认但 PendingStore 无数据（进程重启恢复场景）
-      // 应用状态已同步，但对话消息丢失，返回 dialogueId 即可
-      return { dialogueId: dialogueId.toString() }
+    if (!dlg || dlg.phase !== 'awaiting_confirm') {
+      throw new Error(`[AiService] confirmDialogue: 没有处于 awaiting_confirm 状态的对话 (appId=${appId})`)
     }
 
-    // 1. 创建 Dialogue + user 消息 → 写 DB
-    await conversationService.createDialogueWithId(
-      appId,
-      dialogueId,
-      pending.type,
-      { prompt: pending.userMessage.prompt, images: pending.userMessage.images }
-    )
+    const dlgId = dlg._id as Types.ObjectId
 
-    // 2. 设置 threadInfo
-    await conversationService.setThreadInfo(appId, dialogueId, pending.threadId, 'completed')
+    // 1. Phase 推进：awaiting_confirm → executing
+    await dialogueService.setPhase(dlgId, 'executing')
 
-    // 3. 追加 assistant 消息
-    if (pending.assistantContent.length > 0) {
-      await conversationService.appendAssistantMessage(appId, dialogueId, pending.assistantContent)
+    // 2. 应用状态落库（从 Dialogue.appJSON 同步到持久化表）
+    if (dlg.appJSON) {
+      await applicationService.updateApplication(appId, { appJSON: dlg.appJSON })
     }
 
-    // 4. 写 Agent 记忆
-    if (pending.memoryUpdates) {
-      await memoryService.handleMemoryUpdate(appId, pending.memoryUpdates)
+    // 3. Schema 落库（从 Dialogue.collections 同步）
+    if (dlg.collections && dlg.collections.length > 0) {
+      await SchemaService.setCollections(appId, dlg.collections as unknown as ICollectionDef[])
     }
 
-    // 5. 写规划产物（如果有）
-    if (pending.planningEntries.length > 0) {
-      const artifact = await planningArtifactService.create(appId, dialogueId)
-      const artifactId = artifact._id as Types.ObjectId
-      await conversationService.setPlanningArtifactId(appId, dialogueId, artifactId)
-      for (const entry of pending.planningEntries) {
-        await planningArtifactService.writeAgentOutput(artifactId, entry.agent, {
-          output: entry.output,
-          reasoning: entry.reasoning,
-          tokenUsage: entry.tokenUsage,
-          durationMs: entry.durationMs,
-        })
-      }
-      if (pending.planningFailedAgent) {
-        await planningArtifactService.updateStatus(artifactId, 'failed', { failedAt: pending.planningFailedAgent })
-      } else {
-        await planningArtifactService.updateStatus(artifactId, 'completed', { completedAt: new Date() })
-      }
+    // 4. Phase 推进：executing → committing
+    await dialogueService.setPhase(dlgId, 'committing')
+
+    // 5. Conversation 集合写入（从 Dialogue.messages 提取 userContent / assistantContent）
+    const userMsg = dlg.messages.find(m => m.role === 'user')
+    const assistantMsgs = dlg.messages.filter(m => m.role === 'assistant')
+    const assistantContent = assistantMsgs.flatMap(m => m.assistantContent ?? [])
+
+    if (userMsg?.userContent) {
+      await conversationService.createDialogueWithId(
+        appId,
+        dlgId,
+        dlg.type,
+        { prompt: userMsg.userContent.prompt, images: userMsg.userContent.images }
+      )
+    }
+    if (dlg.threadId) {
+      await conversationService.setThreadInfo(appId, dlgId, dlg.threadId, 'completed')
+    }
+    if (assistantContent.length > 0) {
+      await conversationService.appendAssistantMessage(appId, dlgId, assistantContent)
     }
 
-    // 6. 持久化对话摘要 + embedding（异步）
-    if (pending.roundSummary) {
-      this.persistDialogueSummary(appId, dialogueId, pending.roundSummary).catch(err => {
+    // 6. Agent 记忆落库（从 Dialogue.memoryUpdates）
+    if (dlg.memoryUpdates) {
+      await memoryService.handleMemoryUpdate(appId, dlg.memoryUpdates)
+    }
+
+    // 7. 对话摘要向量化（从 Dialogue.summary）
+    if (dlg.summary?.text) {
+      this.persistDialogueSummary(appId, dlgId, dlg.summary.text).catch(err => {
         console.error('[AiService] 对话摘要持久化失败:', err)
       })
     }
 
-    // 7. 清除 PendingStore
-    await pendingStore.delete(appId)
+    // 8. Phase 完成：committing → done
+    await dialogueService.setPhase(dlgId, 'done')
+    await Conversation.updateOne({ appId }, { $addToSet: { dialogueIds: dlgId } })
 
-    return { dialogueId: dialogueId.toString() }
+    return { dialogueId: dlgId.toString() }
   }
 
   /**
-   * 撤销对话：Snapshot 标记为 discarded + 清除 PendingStore
+   * 撤销对话：Dialogue phase → discarded
    *
-   * 这是"对话即事务"的 rollback 操作。
+   * 这是"对话即事务"的 rollback 操作（ADR-039 Phase 4）。
    * 持久化表不受影响（应用状态恢复到对话开始前）。
-   * 使用 withAppLock 防止与 SSE 流竞态。
+   *
+   * 语义上等同于 stopDialogue('user_aborted')，前端两个按钮（stop / discard）
+   * 最终都通过 stopDialogue 实现，保持单一中断路径。
    */
   async discardDialogue(appId: string): Promise<void> {
-    return withAppLock(appId, async () => {
-      await snapshotService.discard(appId)
-      await pendingStore.delete(appId)
-    })
+    return this.stopDialogue(appId, 'user_aborted')
   }
 
+  // ─── Stop（用户主动中止）──────────────────────────────────────────────────
+
   /**
-   * 获取待确认的 pending 对话数据
-   * 用于前端重新加载页面时恢复"确认/撤销"状态
+   * 用户主动中止正在进行的 AI 执行
    *
-   * 注意：进程重启后 PendingStore（内存）数据丢失，但 Snapshot 仍在 MongoDB 中。
-   * 前端可通过 getStatus 检测到 Snapshot 存在（status=done），此时只能 confirm/discard，
-   * 但对话消息等元数据将丢失（可接受的降级行为）。
+   * Dialogue 写中断归因（phase → discarded + interruptMetadata）（ADR-039 Phase 4）
+   *
+   * 注意：stop 不负责断开 SSE 连接，前端应在调用 stop 后自行关闭 EventSource。
+   * 使用 withAppLock 防止与其他操作竞态。
+   *
+   * 保护策略：如果 Dialogue 处于 committing 阶段（正在写持久化表），
+   * 不允许中断（数据一致性优先），只打 warn 日志。
    */
-  getPendingDialogue(appId: string): PendingDialogueData | null {
-    return pendingStore.get(appId)
-  }
+  async stopDialogue(appId: string, reason: 'user_aborted' | 'connection_lost' = 'user_aborted'): Promise<void> {
+    return withAppLock(appId, async () => {
+      const dlg = await dialogueService.getActiveByApp(appId)
+      if (!dlg) return
 
-  /**
-   * 获取待确认的 Snapshot（用于进程恢复场景，PendingStore 可能为空但 Snapshot 仍在）
-   */
-  async getPendingSnapshot(appId: string): Promise<ISnapshot | null> {
-    return snapshotService.getActivePending(appId)
+      // committing 阶段不允许中断：此时持久化表正在写入，中断会导致数据不一致
+      if (dlg.phase === 'committing') {
+        console.warn(`[AiService] stopDialogue: 对话 ${dlg._id} 处于 committing 阶段，拒绝中断`)
+        return
+      }
+
+      await dialogueService.interrupt(
+        dlg._id as Types.ObjectId,
+        reason,
+        dlg.phase
+      )
+    })
   }
 
   // ─── 查询接口 ──────────────────────────────────────────────────────────────
 
   /**
-   * 查询应用当前的 AI 执行状态
+   * 查询应用当前的 AI 执行状态（ADR-039 Phase 4：纯 Dialogue 路径）
    *
-   * 优先级：PendingStore（进程内） → Snapshot（MongoDB） → Conversation DB
+   * 从 Dialogue 的 phase 字段直接推导前端所需状态。
+   * 注意：getActiveByApp 排除终态（done/discarded/failed），
+   * 因此 failed 状态需要单独查询以展示给用户。
    */
   async getStatus(appId: string): Promise<{ dialogueId: string; threadId: string; status: string; canResume: boolean; canConfirm: boolean } | null> {
-    // 1. 优先检查 PendingStore（进程内状态）
-    const pending = pendingStore.get(appId)
-    if (pending) {
-      if (pending.status === 'streaming' || pending.status === 'interrupted') {
-        return {
-          dialogueId: pending.dialogueId,
-          threadId: pending.threadId,
-          status: pending.status === 'streaming' ? 'running' : 'interrupted',
-          canResume: pending.status === 'interrupted',
-          canConfirm: false,
-        }
-      }
-      if (pending.status === 'done' || pending.status === 'failed') {
-        return {
-          dialogueId: pending.dialogueId,
-          threadId: pending.threadId,
-          status: pending.status === 'done' ? 'awaiting_confirm' : 'failed',
-          canResume: false,
-          canConfirm: true,
-        }
-      }
+    // 先查活跃态（start/planning/executing/committing/responding/awaiting_confirm）
+    let dlg = await dialogueService.getActiveByApp(appId)
+
+    // 活跃态未找到时，查最近的 failed（让前端能展示失败状态）
+    if (!dlg) {
+      dlg = await dialogueService.getRecentFailed(appId)
+      if (!dlg) return null
     }
 
-    // 2. 再查 Snapshot（进程重启恢复场景，PendingStore 空但 Snapshot 仍在）
-    const snapshot = await snapshotService.getActivePending(appId)
-    if (snapshot && snapshot.status === 'done') {
-      return {
-        dialogueId: snapshot.dialogueId.toString(),
-        threadId: `${appId}:${snapshot.dialogueId.toString()}`,
-        status: 'awaiting_confirm',
-        canResume: false,
-        canConfirm: true,
-      }
-    }
+    const dlgId = (dlg._id as Types.ObjectId).toString()
+    const threadId = dlg.threadId ?? `${appId}:${dlgId}`
 
-    // 3. 最后查 DB（chat 模式的旧数据）
-    const dbPending = await conversationService.getLastPendingDialogue(appId)
-    if (!dbPending) return null
-    return {
-      dialogueId: dbPending.dialogueId.toString(),
-      threadId: dbPending.threadId,
-      status: dbPending.status,
-      canResume: dbPending.status === 'interrupted' || dbPending.status === 'running',
-      canConfirm: false,
+    // Phase -> frontend status mapping
+    switch (dlg.phase) {
+      case 'start':
+      case 'planning':
+      case 'executing':
+      case 'committing':
+      case 'responding':
+        return { dialogueId: dlgId, threadId, status: 'running', canResume: false, canConfirm: false }
+      case 'awaiting_confirm':
+        return { dialogueId: dlgId, threadId, status: 'awaiting_confirm', canResume: false, canConfirm: true }
+      case 'failed':
+        return { dialogueId: dlgId, threadId, status: 'failed', canResume: false, canConfirm: false }
+      case 'done':
+      case 'discarded':
+      default:
+        return null
     }
   }
 
@@ -999,6 +829,10 @@ class AiService {
 
   /**
    * 持久化对话摘要 + 调用知识服务生成向量
+   *
+   * 双写策略：
+   *   1. Dialogue 集合：写入结构化 summary.embedding（权威数据源，ADR-039）
+   *   2. Conversation 子文档：写入 dialogues.$.embedding（兼容旧查询，后续迁移后移除）
    */
   private async persistDialogueSummary(
     appId: string,
@@ -1012,6 +846,9 @@ class AiService {
       console.warn('[AiService] Embedding 生成失败（知识服务不可用），dialogue 将无向量')
     }
 
+    // 写入独立 Dialogue 文档的 embedding（权威路径）
+    await dialogueService.setSummary(dialogueId, { text: summary, pageIds: [], viewIds: [], changeTags: [] }, embedding)
+    // 兼容写入 Conversation 子文档（过渡期保留，后续移除）
     await conversationService.setSummary(appId, dialogueId, summary, embedding)
   }
 
