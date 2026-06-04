@@ -1,8 +1,24 @@
 /**
- * 相地 · MasterGraph V2 —— 统一 Agent 管线
+ * 相地 · MasterGraph V3 —— 统一 Agent 管线（Phase 2: ADR-039）
  *
- * 管线：
- *   START → plan ↔ humanGate → execute → assemble → audit → summarize → extractMemory → END
+ * 管线（统一拓扑，不再区分 chat/task mode）：
+ *   START → intent → respond⇄readonlyTools / plan⇄humanGate→execute→audit → summarize → END
+ *
+ * intent 节点：
+ *   零 token 规则优先（关键词/模式匹配），命中即路由，不消耗 LLM token。
+ *   未命中时 LLM fallback 分类（轻量模型，短 prompt）。
+ *   输出：intentResult.type = "respond" | "task"
+ *
+ * respond 节点：
+ *   纯对话回答 + 只读工具 ReAct（最多 2 轮）。
+ *   允许查询知识库、物料、Schema、画布状态等只读工具。
+ *   不允许任何写操作。
+ *
+ * plan→humanGate→execute→audit：与 V2 相同的任务管线。
+ *
+ * summarize 节点（合并了原 extractMemory）：
+ *   整轮总结 + 记忆提取，一个节点完成。
+ *   通过 SSE round_summary + memory_update 推给 banyan 后端。
  *
  * 五层上下文模型：
  *   L1: SystemPrompt   — 系统能力描述（AISchema + 工具定义 + 通用规则）
@@ -17,28 +33,19 @@
  * HumanGate 反馈机制：
  *   不是简单追加一句话，而是将「系统方案 + 用户澄清」结构化追加到 L5 后面，
  *   形成完整的 CoT 链条，让 Plan 精确理解修正意图。
- *
- * Summary 生成（L4 → L3 的增量融入）：
- *   - plan↔humanGate 结束 → planPhaseSummary
- *   - execute↔audit 结束 → executePhaseSummary
- *   - summarize 节点 → roundSummary（综合两阶段）→ SSE 推给 banyan 后端持久化
- *   - 后端 ContextBuilder 动态构建 L3（未选中 round 的摘要拼接）和 L4（命中 round 的原始消息）
- *
- * 记忆提取（extractMemory 节点）：
- *   - 在 summarize 之后执行
- *   - 分析本轮执行过程，提取经验（Episode）+ 事实（Fact）
- *   - 通过 SSE memory_update 事件推给 banyan 后端持久化到 AgentMemory 集合
  */
 import { StateGraph, START, END, interrupt } from "@langchain/langgraph";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { AIMessage, HumanMessage, ToolMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
-import { MasterStateAnnotation, type MasterState, type PlanOutput, type PlanTask } from "./state.js";
+import { MasterStateAnnotation, type MasterState, type PlanOutput, type PlanTask, type IntentResult } from "./state.js";
 import type { LLMClient } from "../core/llmTypes.js";
 import type { ToolRegistry } from "../core/ToolRegistry.js";
 import type { StreamCallback, Message, MessageContent } from "../core/types.js";
 import type { AuditResult } from "../orchestration/types.js";
 import { createExtractMemoryNode } from "./nodes/extractMemoryNode.js";
+import { createIntentNode } from "./nodes/intentNode.js";
+import { createRespondNode } from "./nodes/respondNode.js";
 import { PlanningOrchestrator, type PlanningResult } from "./planningAgents/PlanningOrchestrator.js";
 import { classifyResumeIntent } from "./resume/ResumeClassifier.js";
 import { handleContinue, handleRefine, handleRestart } from "./resume/strategies.js";
@@ -582,10 +589,39 @@ export function createMasterGraph(config: MasterGraphConfig) {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ─── Assemble Node ─────────────────────────────────────────────────────────
+  // ─── Intent Node（Phase 2: ADR-039）──────────────────────────────────────
   // ═══════════════════════════════════════════════════════════════════════════
-  async function assembleNode(_state: MasterState): Promise<Partial<MasterState>> {
-    return {};
+  const intentNodeFn = createIntentNode({
+    llmClient,
+    streamCallback,
+    intentModel: "deepseek-v4-pro",
+  });
+
+  async function intentNodeWrapper(state: MasterState): Promise<Partial<MasterState>> {
+    const result = await intentNodeFn(state);
+    return { intentResult: result.intentResult };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ─── Respond Node（Phase 2: ADR-039）──────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  const respondNodeFn = createRespondNode({
+    llmClient,
+    toolRegistry,
+    streamCallback,
+    respondModel: "deepseek-v4-pro",
+    maxReadonlyRounds: 2,
+  });
+
+  async function respondNodeWrapper(state: MasterState): Promise<Partial<MasterState>> {
+    const result = await respondNodeFn(state);
+    return {
+      messages: result.messages,
+      respondMessages: result.respondMessages,
+      readonlyToolCalls: result.readonlyToolCalls,
+      finalText: result.finalText,
+      roundSummary: result.roundSummary,
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -654,57 +690,17 @@ export function createMasterGraph(config: MasterGraphConfig) {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ─── Summarize Node ────────────────────────────────────────────────────────
+  // ─── Summarize Node（合并 extractMemory，Phase 2: ADR-039）────────────────
   // ═══════════════════════════════════════════════════════════════════════════
   /**
-   * 整轮总结节点（ADR-035 增强版）。
-   * 从各节点核心产出中提取结构化改动信息，LLM 归纳为有意义的改动摘要。
-   * 通过 SSE round_summary 推给 banyan 后端持久化。
-   * roundSummary 同时作为 embedding 锚点用于 L3 语义检索。
+   * 整轮总结 + 记忆提取节点。
+   *
+   * Phase 2 合并了原 summarize + extractMemory 两个节点为一个：
+   * 1. 如果 roundSummary 已由 respond 节点生成（对话路径），跳过 LLM 总结
+   * 2. 如果是 task 路径（有 planOutput），从核心产出提取结构化改动信息，LLM 归纳摘要
+   * 3. 执行记忆提取（extractMemory）
+   * 4. 通过 SSE round_summary + memory_update 推给 banyan 后端
    */
-  async function summarizeNode(state: MasterState): Promise<Partial<MasterState>> {
-    // Phase 1: 代码提取结构化改动信息（零 token）
-    const summaryInput = extractChangeSummaryInput(state);
-
-    if (!summaryInput) {
-      return { roundSummary: "" };
-    }
-
-    try {
-      // Phase 2: LLM 归纳为自然语言摘要
-      const response = await llmClient.createMessage({
-        model: "deepseek-v4-pro",
-        max_tokens: 512,
-        system: SUMMARIZE_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: summaryInput }],
-        temperature: 0.2,
-      });
-
-      const textBlock = response.content.find((b) => b.type === "text");
-      const roundSummary = textBlock && textBlock.type === "text"
-        ? textBlock.text.trim()
-        : `${state.planOutput?.intentSummary ?? "用户请求"}。执行完成。`;
-
-      // SSE 推送 roundSummary 给 banyan 后端持久化
-      streamCallback?.({
-        type: "round_summary",
-        data: { summary: roundSummary },
-      });
-
-      return { roundSummary };
-    } catch {
-      const fallbackSummary = `${state.planOutput?.intentSummary ?? "用户请求"}。${state.auditResult?.passed ? "执行成功" : "执行完成"}。`;
-      streamCallback?.({
-        type: "round_summary",
-        data: { summary: fallbackSummary },
-      });
-      return { roundSummary: fallbackSummary };
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // ─── ExtractMemory Node ──────────────────────────────────────────────────────
-  // ═══════════════════════════════════════════════════════════════════════════
   const extractMemoryNodeFn = createExtractMemoryNode({
     llmClient,
     streamCallback,
@@ -713,20 +709,71 @@ export function createMasterGraph(config: MasterGraphConfig) {
     minToolCalls: memoryMinToolCalls,
   });
 
-  async function extractMemoryWrapper(state: MasterState): Promise<Partial<MasterState>> {
+  async function summarizeNode(state: MasterState): Promise<Partial<MasterState>> {
+    let roundSummary = state.roundSummary;
+
+    // 如果 respond 路径已生成 roundSummary，跳过 LLM 总结阶段
+    if (!roundSummary) {
+      // Task 路径：从核心产出提取结构化改动信息
+      const summaryInput = extractChangeSummaryInput(state);
+
+      if (summaryInput) {
+        try {
+          const response = await llmClient.createMessage({
+            model: "deepseek-v4-pro",
+            max_tokens: 512,
+            system: SUMMARIZE_SYSTEM_PROMPT,
+            messages: [{ role: "user", content: summaryInput }],
+            temperature: 0.2,
+          });
+
+          const textBlock = response.content.find((b) => b.type === "text");
+          roundSummary = textBlock && textBlock.type === "text"
+            ? textBlock.text.trim()
+            : `${state.planOutput?.intentSummary ?? "用户请求"}。执行完成。`;
+        } catch {
+          roundSummary = `${state.planOutput?.intentSummary ?? "用户请求"}。${state.auditResult?.passed ? "执行成功" : "执行完成"}。`;
+        }
+      } else {
+        roundSummary = "";
+      }
+    }
+
+    // SSE 推送 roundSummary
+    if (roundSummary) {
+      streamCallback?.({
+        type: "round_summary",
+        data: { summary: roundSummary },
+      });
+    }
+
+    // 执行记忆提取（原 extractMemory 节点的逻辑）
     await extractMemoryNodeFn({
       messages: state.messages,
-      roundSummary: state.roundSummary,
+      roundSummary,
       auditResult: state.auditResult,
       auditRetries: state.auditRetries,
       planOutput: state.planOutput,
     });
-    return {};
+
+    return { roundSummary };
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ─── Routing Functions ─────────────────────────────────────────────────────
   // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Intent 节点后路由：根据 intentResult.type 决定下一跳。
+   * - respond: 纯对话路径
+   * - task: 任务管线路径（plan→humanGate→execute→audit）
+   */
+  function routeAfterIntent(state: MasterState): "respond" | "plan" {
+    if (state.intentResult?.type === "respond") {
+      return "respond";
+    }
+    return "plan";
+  }
 
   function routeAfterHumanGate(state: MasterState): "execute" | "plan" | "__end__" {
     if (state.humanApproved) {
@@ -754,29 +801,36 @@ export function createMasterGraph(config: MasterGraphConfig) {
   const planNodeFn = enableMultiAgentPlanning ? planningNode : planNode;
 
   const graph = new StateGraph(MasterStateAnnotation)
+    .addNode("intent", intentNodeWrapper)
+    .addNode("respond", respondNodeWrapper)
     .addNode(planNodeName, planNodeFn)
     .addNode("humanGate", humanGateNode)
     .addNode("execute", executeNode)
-    .addNode("assemble", assembleNode)
     .addNode("audit", auditNode)
     .addNode("summarize", summarizeNode)
-    .addNode("extractMemory", extractMemoryWrapper)
-    // Edges
-    .addEdge(START, planNodeName)
+    // Edges: START → intent
+    .addEdge(START, "intent")
+    // intent → respond | plan（条件路由）
+    .addConditionalEdges("intent", routeAfterIntent, {
+      respond: "respond",
+      plan: planNodeName,
+    })
+    // respond → summarize（对话路径直达总结）
+    .addEdge("respond", "summarize")
+    // plan → humanGate → execute → audit（任务管线）
     .addEdge(planNodeName, "humanGate")
     .addConditionalEdges("humanGate", routeAfterHumanGate, {
       execute: "execute",
       plan: planNodeName,
       __end__: END,
     })
-    .addEdge("execute", "assemble")
-    .addEdge("assemble", "audit")
+    .addEdge("execute", "audit")
     .addConditionalEdges("audit", routeAfterAudit, {
       execute: "execute",
       summarize: "summarize",
     })
-    .addEdge("summarize", "extractMemory")
-    .addEdge("extractMemory", END);
+    // summarize → END
+    .addEdge("summarize", END);
 
   return graph.compile(config.checkpointer ? { checkpointer: config.checkpointer } : undefined);
 }

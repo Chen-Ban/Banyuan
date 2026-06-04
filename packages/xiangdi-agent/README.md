@@ -427,15 +427,36 @@ Schema 转换层不再使用 AISchema（Zod）+ Converters 的双向转换架构
 
 ---
 
-## 知识体系（三层架构）
+## 知识体系（ADR-040）
 
-XiangDi 的信息架构分三层：ProjectSpec（全局约束，管线注入）+ KnowledgeStore（按需知识，Tool 模式）+ 工具调用（实时状态）。
+### 核心定义
 
-知识种子（`src/knowledge/seeds/`）分三个层级：
+**XiangDi 的知识 = BanvasGL 能力体系的完整认知。**
 
-- **schema/**：BanvasGL 视图节点类型与属性定义（combinedview / graphview / textview / imageview / videoview / nodeview / edgeview / portview / scene / common）
-- **theme/**：设计主题与 token（默认主题、暗色主题），人工维护
-- **composition/**：UI 组合模式（登录表单、商品卡片、统计仪表盘、模态对话框、数据表格、侧边栏布局、顶部导航栏等），LLM 生成 + 人工 review
+包含两个不可分割的维度：
+
+- **语义维度（What）**：每种 ViewType / graphType / layoutMode 是什么、能做什么、适合什么场景、有什么限制——让 LLM 知道"该用什么"
+- **格式维度（How）**：在理解语义后，如何将其表达为合法的 AI Projection JSON——让 LLM 知道"怎么写"
+
+LLM 对通用 UI 世界的理解（什么是详情页、什么是导航栏）来自预训练，不需要教。需要教的是 BanvasGL 特有的能力体系——哪些是 BanvasGL 能表达的、每种表达方式的能力边界和适用场景。正确性验证：格式维度通过 `fromAIProjection()` 程序化验证；语义维度通过 code review 确认。
+
+### 信息三层架构
+
+XiangDi 的信息来源分三层：ProjectSpec（全局约束，管线注入）+ KnowledgeStore（按需知识，Tool 模式）+ 工具调用（实时状态）。
+
+### 知识归属架构
+
+- **系统级知识**：存储在 knowledge-server（:3003），所有应用共享。包含 Schema/Composition/Theme 三层种子。通过 `knowledge_search` 工具按需检索。
+- **应用级知识**：appJSON 本身就是应用的全部知识。应用的设计风格、布局偏好、颜色体系隐含在页面结构中。通过程序化工具（如 `analyze_app_style`）从 appJSON 提取风格摘要，零额外存储成本。
+- **消费原则**：所有知识走 Tool 模式按需拉取，system prompt 不注入应用特定信息，保持 Prompt Cache 命中率。
+
+### 知识种子三层分类
+
+知识种子（`src/knowledge/seeds/`）按知识本质分三层：
+
+- **schema/**（能力认知）：BanvasGL 能力体系的完整描述（语义+格式合一）。包含每种 ViewType 的功能定位、适用场景、能力边界（语义维度）+ 属性名/类型/合法值域/最小示例（格式维度）。格式维度从 TypeScript 类型定义自动生成（`generate-knowledge.ts`，postbuild 阶段）；语义维度需要人工编写。
+- **composition/**（组合模式）：高质量 Few-shot 示例，展示如何运用能力认知解决具体 UI 问题。包含选型决策理由、完整 AI Projection JSON 片段。LLM 初始生成 → `fromAIProjection()` 程序化验证 → 人工 review 视觉效果。
+- **theme/**（视觉表现）：视觉决策的知识化表达，包含语义映射（什么场景用什么视觉处理）、层次规则（如何表达信息主次）、参数值（规则的具体实例化）。设计师/产品维护，纯手工。
 
 ---
 
