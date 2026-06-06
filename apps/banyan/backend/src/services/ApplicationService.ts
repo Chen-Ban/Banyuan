@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { Application, IApplication } from "../models";
+import { Application } from '../models/index.js'
+import type { IApplication } from '../models/types/index.js';
 
 export interface IApplicationQuery {
   name?: string;

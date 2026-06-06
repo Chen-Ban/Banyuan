@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
-import { CloudFunction, ICloudFunction } from '../models/index.js'
+import { CloudFunction } from '../models/index.js'
+import type { ICloudFunction } from '../models/types/index.js'
 
 export interface ICloudFunctionListResult {
   functions: ICloudFunction[]

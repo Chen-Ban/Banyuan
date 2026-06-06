@@ -1,8 +1,6 @@
 import mongoose, { Schema, type Document } from 'mongoose'
 import type { IPackageTask } from './types/index.js'
 
-export type { PackagePlatform, PackageStatus, IPackageTask } from './types/index.js'
-
 /**
  * 构建任务 Mongoose 模型
  *

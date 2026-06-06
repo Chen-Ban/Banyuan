@@ -1,6 +1,6 @@
 import { Context } from 'koa'
 import materialService from '../services/MaterialService.js'
-import type { MaterialSource, MaterialKind } from '../models/index.js'
+import type { MaterialSource, MaterialKind } from '../models/types/index.js'
 
 class MaterialController {
   /**

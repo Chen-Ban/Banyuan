@@ -11,8 +11,6 @@
 import mongoose, { Schema, type Document } from 'mongoose'
 import type { IAgentPrompt } from './types/index.js'
 
-export type { FullAgentRole, IAgentPrompt } from './types/index.js'
-
 type IAgentPromptDoc = IAgentPrompt & Document
 
 // ─── Schema 定义 ──────────────────────────────────────────────────────────────

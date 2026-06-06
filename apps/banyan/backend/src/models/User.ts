@@ -1,8 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 import type { IUser } from './types/index.js'
 
-export type { UserRole, UserStatus, IUser } from './types/index.js'
-
 export type IUserDoc = IUser & Document
 
 const UserSchema = new Schema<IUserDoc>(

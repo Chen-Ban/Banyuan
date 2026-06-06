@@ -1,8 +1,6 @@
 import mongoose, { Schema, type Document } from 'mongoose'
 import type { IMaterial } from './types/index.js'
 
-export type { MaterialSource, MaterialStatus, MaterialKind, MaterialParameterType, IMaterialParameter, IMaterialAsset, IInternalIdRef, IMaterialTemplate, IMaterial } from './types/index.js'
-
 // ─── Material Schema ───────────────────────────────────────────────────────────
 
 type IMaterialDoc = IMaterial & Document

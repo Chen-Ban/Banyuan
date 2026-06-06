@@ -16,19 +16,19 @@
  */
 
 import { Types } from 'mongoose'
-import Dialogue, {
-  type IDialogueDoc,
+import Dialogue, { type IDialogueDoc } from '../models/Dialogue.js'
+import {
+  PHASE_TRANSITIONS,
   type DialoguePhase,
   type DialogueType,
   type DiscardReason,
   type IDialogueSummary,
   type IPlanningEntry,
-  PHASE_TRANSITIONS,
-} from '../models/Dialogue.js'
-import type { IAssistantContent } from '../models/types/message-types.js'
-import type { ICollectionDef } from '../models/CollectionSchema.js'
-import type { ICloudFunction } from '../models/CloudFunction.js'
-import type { MemoryUpdateInput } from './MemoryService.js'
+  type IAssistantContent,
+  type ICollectionDef,
+  type ICloudFunction,
+  type IMemoryUpdateInput,
+} from '../models/types/index.js'
 
 // ─── 终态集合（不可转移的 phase）──────────────────────────────────────────────
 
@@ -280,7 +280,7 @@ class DialogueService {
    * task 模式下 memoryUpdates 暂存在 Dialogue 文档中，
    * 避免在 confirm 之前就写入 AgentMemory（保持事务一致性）。
    */
-  async setMemoryUpdates(dialogueId: Types.ObjectId, memoryInput: MemoryUpdateInput): Promise<void> {
+  async setMemoryUpdates(dialogueId: Types.ObjectId, memoryInput: IMemoryUpdateInput): Promise<void> {
     await Dialogue.updateOne(
       { _id: dialogueId },
       { $set: { memoryUpdates: memoryInput } }

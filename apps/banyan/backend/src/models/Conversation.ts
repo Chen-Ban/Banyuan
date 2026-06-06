@@ -10,8 +10,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 import type { IConversation } from './types/index.js'
 
-export type { IConversation } from './types/index.js'
-
 // ─── 本地文档类型 ─────────────────────────────────────────────────────────────
 
 export type IConversationDoc = IConversation & Document

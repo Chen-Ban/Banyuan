@@ -6,8 +6,6 @@ import type { ICloudFunction } from './types/index.js'
  *
  * 属于应用级资源，多页面共享。接口类型定义见 ./types/index.ts。
  */
-export type { ICloudFunction } from './types/index.js'
-
 // ─── 共享字段定义（供子文档 Schema 复用）───────────────────────────────────────
 
 const cloudFunctionFields = {

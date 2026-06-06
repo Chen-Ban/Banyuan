@@ -22,8 +22,6 @@
 import mongoose, { Schema, type Document } from 'mongoose'
 import type { IEpisode, IFact, IAgentMemory } from './types/index.js'
 
-export type { EpisodeOutcome, IEpisode, FactCategory, IFact, IAgentMemory } from './types/index.js'
-
 export type IAgentMemoryDoc = IAgentMemory & Document
 
 // ─── Schema ───────────────────────────────────────────────────────────────────

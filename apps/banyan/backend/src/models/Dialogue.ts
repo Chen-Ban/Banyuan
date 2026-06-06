@@ -25,20 +25,6 @@ import type { IDialogueSummary, IInterruptMetadata, IDialogue } from './types/in
 import { CollectionDefSchema } from './CollectionSchema.js'
 import { CloudFunctionEmbedSchema } from './CloudFunction.js'
 
-// ─── 向后兼容重导出 ────────────────────────────────────────────────────────────
-
-export type {
-  DialoguePhase,
-  DialogueType,
-  DiscardReason,
-  ChangeTag,
-  IDialogueSummary,
-  IPlanningEntry,
-  IInterruptMetadata,
-  IMemoryUpdateInput,
-} from './types/index.js'
-export { PHASE_TRANSITIONS } from './types/index.js'
-
 // ─── Dialogue Mongoose 文档类型 ───────────────────────────────────────────────
 
 /** Dialogue Mongoose 文档类型 */

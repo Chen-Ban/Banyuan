@@ -2,10 +2,6 @@ import mongoose, { Schema } from 'mongoose'
 import type { Document } from 'mongoose'
 import type { IFieldDef, ICollectionDef, ICollectionSchema } from './types/index.js'
 
-// ── 向后兼容重导出 ─────────────────────────────────────────────────────────────
-
-export type { FieldType, IFieldDef, ICollectionDef, ICollectionSchema } from './types/index.js'
-
 // ── 本地文档类型别名 ───────────────────────────────────────────────────────────
 
 type ICollectionSchemaDoc = ICollectionSchema & Document

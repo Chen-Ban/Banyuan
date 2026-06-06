@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
-import CollectionSchemaModel, { ICollectionDef, IFieldDef } from '../models/CollectionSchema.js'
+import CollectionSchemaModel from '../models/CollectionSchema.js'
+import type { ICollectionDef, IFieldDef } from '../models/types/index.js'
 
 // ── 动态 Model 缓存 ───────────────────────────────────────────────────────────
 // key: `${appId}__${collectionName}`

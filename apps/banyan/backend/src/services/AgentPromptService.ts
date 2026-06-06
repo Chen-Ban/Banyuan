@@ -6,7 +6,7 @@
  */
 
 import { AgentPrompt } from '../models/index.js'
-import type { IAgentPrompt, FullAgentRole } from '../models/index.js'
+import type { IAgentPrompt, FullAgentRole } from '../models/types/index.js'
 
 class AgentPromptService {
   /**

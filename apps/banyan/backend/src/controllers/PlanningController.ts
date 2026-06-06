@@ -13,7 +13,7 @@
 
 import type { Context } from 'koa'
 import agentPromptService from '../services/AgentPromptService.js'
-import type { FullAgentRole } from '../models/index.js'
+import type { FullAgentRole } from '../models/types/index.js'
 
 const VALID_ROLES: FullAgentRole[] = ['master', 'pm', 'arch', 'visual', 'task']
 

@@ -1,8 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 import type { IRefreshToken } from './types/index.js'
 
-export type { IRefreshToken } from './types/index.js'
-
 type IRefreshTokenDoc = IRefreshToken & Document
 
 const RefreshTokenSchema = new Schema<IRefreshTokenDoc>(

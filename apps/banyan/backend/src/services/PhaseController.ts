@@ -22,8 +22,8 @@
 import type { ServerResponse } from 'http'
 import type { Types } from 'mongoose'
 import dialogueService from './DialogueService.js'
-import type { DialoguePhase, DiscardReason } from '../models/Dialogue.js'
-import { PHASE_TRANSITIONS } from '../models/Dialogue.js'
+import type { DialoguePhase, DiscardReason } from '../models/types/index.js'
+import { PHASE_TRANSITIONS } from '../models/types/index.js'
 
 // ─── SSE 工具（复用 AiService 的 sseWrite 签名） ──────────────────────────────
 

@@ -2,8 +2,6 @@ import mongoose, { Schema } from 'mongoose'
 import type { Document } from 'mongoose'
 import type { IApplication } from './types/index.js'
 
-export type { IApplication } from './types/index.js'
-
 // ─── Application Schema ───────────────────────────────────────────────────────
 
 type IApplicationDoc = IApplication & Document

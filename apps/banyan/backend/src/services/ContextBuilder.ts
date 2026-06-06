@@ -35,7 +35,7 @@
  */
 
 import Dialogue, { type IDialogueDoc } from '../models/Dialogue.js'
-import type { IMessage } from '../models/types/message-types.js'
+import type { IMessage } from '../models/types/index.js'
 import knowledgeClient from './KnowledgeClient.js'
 
 // ─── 模型上下文窗口配置 ──────────────────────────────────────────────────────────

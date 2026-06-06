@@ -1,5 +1,6 @@
 import crypto from 'node:crypto'
-import { Material, IMaterial, MaterialSource, MaterialStatus, MaterialKind, IMaterialTemplate } from '../models/index.js'
+import { Material } from '../models/index.js'
+import type { IMaterial, MaterialSource, MaterialStatus, MaterialKind, IMaterialTemplate } from '../models/types/index.js'
 
 // ─── Query 接口 ──────────────────────────────────────────────────────────────
 

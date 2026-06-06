@@ -1,8 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose'
 import type { ITenant } from './types/index.js'
 
-export type { ProvisionStatus, ITenant } from './types/index.js'
-
 type ITenantDoc = ITenant & Document
 
 // ─── Schema ───────────────────────────────────────────────────────────────────

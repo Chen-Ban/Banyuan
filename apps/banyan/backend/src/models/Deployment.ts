@@ -3,8 +3,6 @@ import { CollectionDefSchema } from './CollectionSchema.js'
 import { CloudFunctionEmbedSchema } from './CloudFunction.js'
 import type { IDeploySnapshot, IDeployment } from './types/index.js'
 
-export type { DeployStatus, IDeploySnapshot, IDeployment } from './types/index.js'
-
 // ─── Local Document type alias ────────────────────────────────────────────────
 
 type IDeploymentDoc = IDeployment & Document

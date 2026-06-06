@@ -1,6 +1,6 @@
 import type { Context } from 'koa'
 import { SchemaService } from '../services/SchemaService.js'
-import type { ICollectionDef, IFieldDef } from '../models/CollectionSchema.js'
+import type { ICollectionDef, IFieldDef } from '../models/types/index.js'
 
 export class SchemaController {
   // ── GET /api/apps/:appId/schema ──────────────────────────────────────────────
