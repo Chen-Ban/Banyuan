@@ -1,6 +1,6 @@
 import mongoose, { Schema, type Document } from 'mongoose'
 import { CollectionDefSchema } from './CollectionSchema.js'
-import { CloudFunctionEmbedSchema } from './CloudFunction.js'
+import { CloudFunctionDefSchema } from './CloudFunction.js'
 import type { IDeploySnapshot, IDeployment } from './types/index.js'
 
 // ─── Local Document type alias ────────────────────────────────────────────────
@@ -15,7 +15,7 @@ const DeploySnapshotSubSchema = new Schema<IDeploySnapshot>(
   {
     appJSON: { type: String, required: true },
     collections: { type: [CollectionDefSchema], default: [] },
-    cloudFunctions: { type: [CloudFunctionEmbedSchema], default: [] },
+    cloudFunctions: { type: [CloudFunctionDefSchema], default: [] },
   },
   { _id: false }
 )

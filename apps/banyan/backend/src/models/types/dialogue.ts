@@ -1,14 +1,18 @@
 /**
  * 对话（Dialogue）类型定义
  *
- * Dialogue 是一次完整用户-AI 交互的权威载体，承载状态机、消息、应用快照、规划产物。
- * 每个 done 态的 Dialogue.appJSON 构成应用的版本链，支撑回退。
+ * Dialogue 是一次完整交互的权威载体，承载状态机、消息、内容版本号引用、规划产物。
+ *
+ * 版本号引用模型（取代旧的嵌入快照）：
+ *   - 对话发起时，给三个内容表各 append 一条新版本（拷贝自最新已接受版本），
+ *     Dialogue 持有这三个版本号（appContentVersion / schemaVersion / cloudFunctionVersion）。
+ *   - Agent / 用户编辑时，按版本号定位到内容表那条 in-progress 记录原地修改。
+ *   - confirm = Dialogue phase → done（该版本转为"已接受"）；discard = phase → discarded（该版本永远"未接受"，被读取过滤）。
+ *   - 读取聚合：取最新 done Dialogue 的三个版本号，精确取三表内容（O(1)）。
  */
 
 import type { Types } from 'mongoose'
 import type { IMessage } from './message-types.js'
-import type { ICollectionDef } from './collection.js'
-import type { ICloudFunction } from './cloud-function.js'
 
 // ─── 枚举类型 ─────────────────────────────────────────────────────────────────
 
@@ -26,8 +30,13 @@ export type DialoguePhase =
   | 'discarded'         // 已放弃/被打断（终态）
   | 'failed'            // 失败（终态）
 
-/** 对话类型（intent 节点的默认分流信号来源） */
-export type DialogueType = 'chat' | 'task'
+/**
+ * 对话类型
+ *   - chat：问答（不改应用内容，可含只读工具调用）
+ *   - task：AI 改应用（需经 awaiting_confirm 用户验收）
+ *   - edit：用户手动改应用（直接落地的 done，无需验收，start → committing → done）
+ */
+export type DialogueType = 'chat' | 'task' | 'edit'
 
 /** 中断归因 */
 export type DiscardReason = 'user_aborted' | 'connection_lost'
@@ -119,7 +128,7 @@ export interface IDialogue {
   appId: string
   /** 关联的 Conversation ID（反向索引） */
   conversationId: Types.ObjectId
-  /** 对话类型（chat / task） */
+  /** 对话类型（chat / task / edit） */
   type: DialogueType
   /** 当前阶段（唯一权威状态机） */
   phase: DialoguePhase
@@ -129,13 +138,15 @@ export interface IDialogue {
   /** 该对话内的所有消息（按时间顺序） */
   messages: IMessage[]
 
-  // ─── 应用状态（phase=done 时为最终确认态）─────────────────────────────────
-  /** App 级别序列化 JSON（构建期间增量更新，done 时为确认版本） */
-  appJSON: string
-  /** 数据库表定义 */
-  collections: ICollectionDef[]
-  /** 云函数定义 */
-  cloudFunctions: ICloudFunction[]
+  // ─── 应用内容版本引用（持有三张 append-only 内容表的版本号）───────────────────
+  // 对话创建时，三张内容表各 append 一个新版本（拷贝最新已接受版本），
+  // 对话持有这三个版本号；agent 通过版本号定位记录并原地修改，无需 confirm 落库。
+  /** AppContent 表版本号（App 级别序列化 JSON） */
+  appContentVersion: number
+  /** CollectionSchema 表版本号（数据库表定义） */
+  schemaVersion: number
+  /** CloudFunction 表版本号（云函数定义） */
+  cloudFunctionVersion: number
 
   // ─── 规划产物 ──────────────────────────────────────────────────────────
   /** 各 SubAgent 阶段的规划产出记录 */
@@ -165,7 +176,7 @@ export interface IDialogue {
  * DialogueService.setPhase() 基于此做转移校验，非法转移抛异常。
  */
 export const PHASE_TRANSITIONS: Record<DialoguePhase, DialoguePhase[]> = {
-  start: ['requirements', 'ui_design', 'contract', 'building', 'responding', 'failed'],
+  start: ['requirements', 'ui_design', 'contract', 'building', 'responding', 'committing', 'failed'],
   requirements: ['ui_design', 'failed', 'discarded'],
   ui_design: ['contract', 'failed', 'discarded'],
   contract: ['building', 'failed', 'discarded'],

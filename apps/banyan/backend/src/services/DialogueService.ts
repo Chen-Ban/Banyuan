@@ -2,9 +2,9 @@
  * DialogueService — ADR-041 Dialogue 集合的唯一 CRUD + Phase 转移
  *
  * 职责：
- *   1. 创建 Dialogue（AI 对话发起时，phase=start）
+ *   1. 创建 Dialogue（AI 对话发起时，phase=start），同时给三张内容表 append 草稿版本
  *   2. Phase 转移（校验 PHASE_TRANSITIONS 合法性后 atomic $set）
- *   3. 快照写入（appJSON / collections / cloudFunctions）
+ *   3. 提供最新已接受（done）对话的三个内容版本号（读取聚合与拷贝基线）
  *   4. 消息追加（user / assistant）
  *   5. 规划产物写入（各 SubAgent 阶段产出）
  *   6. Agent 记忆暂存（confirm 时落库）
@@ -25,10 +25,18 @@ import {
   type IDialogueSummary,
   type IPlanningEntry,
   type IAssistantContent,
-  type ICollectionDef,
-  type ICloudFunction,
   type IMemoryUpdateInput,
 } from '../models/types/index.js'
+import appContentService from './AppContentService.js'
+import { SchemaService } from './SchemaService.js'
+import cloudFunctionService from './CloudFunctionService.js'
+
+/** 三个内容表的版本号三元组 */
+export interface IContentVersions {
+  appContentVersion: number
+  schemaVersion: number
+  cloudFunctionVersion: number
+}
 
 // ─── 终态集合（不可转移的 phase）──────────────────────────────────────────────
 
@@ -42,15 +50,18 @@ class DialogueService {
   /**
    * 创建 Dialogue，初始 phase=start
    *
-   * 如果该 appId 下已有活跃（非终态）的 Dialogue，会先将其标记为 discarded（异常恢复）。
+   * 单活跃约束：如果该 appId 下已有活跃（非终态）的 Dialogue，先将其标记为 discarded（异常恢复）。
+   *
+   * 版本号引用模型：
+   *   1. 取最新已接受（done）对话的三个内容版本号作为拷贝基线
+   *   2. 给三张内容表各 append 一个草稿版本（拷贝基线内容），绑定本对话 _id
+   *   3. 将三个新版本号写入 Dialogue
    */
   async create(params: {
     appId: string
     conversationId: Types.ObjectId
     type: DialogueType
     userMessage: { prompt: string; images: Array<{ url: string; alt?: string }> }
-    /** 初始 appJSON（当前应用状态快照，作为本轮对话的起始状态） */
-    appJSON?: string
   }): Promise<IDialogueDoc> {
     // 清理可能存在的孤儿 Dialogue（上一次未正常结束）
     await Dialogue.updateMany(
@@ -70,7 +81,20 @@ class DialogueService {
       }
     )
 
+    // 取最新已接受版本作为拷贝基线
+    const base = await this.getLatestAcceptedVersions(params.appId)
+
+    const dialogueId = new Types.ObjectId()
+
+    // 给三张内容表 append 草稿版本（绑定本对话 _id），方案 A：三表强制对齐 append
+    const [appContentVersion, schemaVersion, cloudFunctionVersion] = await Promise.all([
+      appContentService.createDraftVersion(params.appId, dialogueId, base.appContentVersion),
+      SchemaService.createDraftVersion(params.appId, dialogueId, base.schemaVersion),
+      cloudFunctionService.createDraftVersion(params.appId, dialogueId, base.cloudFunctionVersion),
+    ])
+
     const dialogue = new Dialogue({
+      _id: dialogueId,
       appId: params.appId,
       conversationId: params.conversationId,
       type: params.type,
@@ -85,13 +109,140 @@ class DialogueService {
           createdAt: new Date(),
         },
       ],
-      appJSON: params.appJSON ?? '',
-      collections: [],
-      cloudFunctions: [],
+      appContentVersion,
+      schemaVersion,
+      cloudFunctionVersion,
     })
 
     await dialogue.save()
     return dialogue
+  }
+
+  /**
+   * 获取应用最新已接受（done）对话的三个内容版本号。
+   *
+   * 这是读取聚合与拷贝基线的唯一权威来源——未接受（discarded/failed/进行中）
+   * 对话所持有的版本均被忽略。无 done 对话时返回全 0（空内容基线）。
+   */
+  async getLatestAcceptedVersions(appId: string): Promise<IContentVersions> {
+    const latestDone = await Dialogue.findOne(
+      { appId, phase: 'done' },
+      { appContentVersion: 1, schemaVersion: 1, cloudFunctionVersion: 1 },
+    )
+      .sort({ createdAt: -1 })
+      .lean()
+
+    if (!latestDone) {
+      return { appContentVersion: 0, schemaVersion: 0, cloudFunctionVersion: 0 }
+    }
+
+    return {
+      appContentVersion: latestDone.appContentVersion,
+      schemaVersion: latestDone.schemaVersion,
+      cloudFunctionVersion: latestDone.cloudFunctionVersion,
+    }
+  }
+
+  /**
+   * 获取「当前工作版本」的三个内容版本号。
+   *
+   * 用于 XiangDi 服务回拉应用状态（agent 工作面）：
+   *   - 若存在活跃（非终态）对话，返回其持有的草稿版本号（agent 正在原地编辑这些记录）
+   *   - 否则回退到最新已接受版本（无活跃对话时的只读基线）
+   */
+  async getWorkingVersions(appId: string): Promise<IContentVersions> {
+    const active = await Dialogue.findOne(
+      { appId, phase: { $nin: ['done', 'discarded', 'failed'] } },
+      { appContentVersion: 1, schemaVersion: 1, cloudFunctionVersion: 1 },
+    )
+      .sort({ createdAt: -1 })
+      .lean()
+
+    if (active) {
+      return {
+        appContentVersion: active.appContentVersion,
+        schemaVersion: active.schemaVersion,
+        cloudFunctionVersion: active.cloudFunctionVersion,
+      }
+    }
+
+    return this.getLatestAcceptedVersions(appId)
+  }
+
+  /**
+   * 执行一次「自动验收的直接编辑」对话（方向 B：保证语义一致性）。
+   *
+   * 设计：用户绕过 AI 的自主修改（改表结构 / 云函数 / appJSON）也包装成一个
+   * type='edit' 的对话，使「所有内容变更都归属于某个对话」这一不变式成立，
+   * 从而读取聚合（getLatestAcceptedVersions + getByVersion）始终成立。
+   *
+   * 生命周期：start → committing → done（无 awaiting_confirm，自动验收）。
+   * 内容写入：在 mutator 中按对话持有的三个版本号原地更新三表草稿记录。
+   *
+   * 单活跃约束：若已存在活跃（非终态）对话，拒绝创建（不可与进行中的 AI 对话并发）。
+   *
+   * @param params.appId            应用 ID
+   * @param params.conversationId   会话 ID
+   * @param params.summary          系统生成的、描述本次操作的用户消息文本
+   * @param params.mutate           原地修改回调，入参为本对话持有的三个版本号
+   */
+  async runAutoConfirmedEdit<T>(params: {
+    appId: string
+    conversationId: Types.ObjectId
+    summary: string
+    mutate: (versions: IContentVersions) => Promise<T>
+  }): Promise<T> {
+    // 单活跃约束：存在活跃对话时拒绝（避免与进行中的 AI 对话竞态）
+    const active = await this.getActiveByApp(params.appId)
+    if (active) {
+      throw Object.assign(
+        new Error('[DialogueService] 当前存在进行中的对话，请先完成或撤销后再进行直接编辑'),
+        { status: 409 },
+      )
+    }
+
+    // 取最新已接受版本作为拷贝基线
+    const base = await this.getLatestAcceptedVersions(params.appId)
+    const dialogueId = new Types.ObjectId()
+
+    // 给三表 append 草稿版本（方案 A：三表强制对齐 append）
+    const [appContentVersion, schemaVersion, cloudFunctionVersion] = await Promise.all([
+      appContentService.createDraftVersion(params.appId, dialogueId, base.appContentVersion),
+      SchemaService.createDraftVersion(params.appId, dialogueId, base.schemaVersion),
+      cloudFunctionService.createDraftVersion(params.appId, dialogueId, base.cloudFunctionVersion),
+    ])
+
+    const versions: IContentVersions = { appContentVersion, schemaVersion, cloudFunctionVersion }
+
+    // 创建对话（系统生成的用户消息描述本次直接编辑操作）
+    const dialogue = new Dialogue({
+      _id: dialogueId,
+      appId: params.appId,
+      conversationId: params.conversationId,
+      type: 'edit',
+      phase: 'start',
+      messages: [
+        {
+          role: 'user',
+          userContent: { prompt: params.summary, images: [] },
+          createdAt: new Date(),
+        },
+      ],
+      appContentVersion,
+      schemaVersion,
+      cloudFunctionVersion,
+    })
+    await dialogue.save()
+
+    // 原地修改三表草稿记录
+    const result = await params.mutate(versions)
+
+    // 自动验收：start → committing → done
+    await this.setPhase(dialogueId, 'committing')
+    await this.setRoundSummary(dialogueId, params.summary)
+    await this.setPhase(dialogueId, 'done')
+
+    return result
   }
 
   // ─── Phase 转移 ──────────────────────────────────────────────────────────────
@@ -160,27 +311,6 @@ class DialogueService {
    */
   async setThreadId(dialogueId: Types.ObjectId, threadId: string): Promise<void> {
     await Dialogue.updateOne({ _id: dialogueId }, { $set: { threadId } })
-  }
-
-  /**
-   * 增量更新 appJSON（executing 期间每次快照更新时调用）
-   */
-  async updateAppJSON(dialogueId: Types.ObjectId, appJSON: string): Promise<void> {
-    await Dialogue.updateOne({ _id: dialogueId }, { $set: { appJSON } })
-  }
-
-  /**
-   * 覆盖 collections 快照
-   */
-  async updateCollections(dialogueId: Types.ObjectId, collections: ICollectionDef[]): Promise<void> {
-    await Dialogue.updateOne({ _id: dialogueId }, { $set: { collections } })
-  }
-
-  /**
-   * 覆盖 cloudFunctions 快照
-   */
-  async updateCloudFunctions(dialogueId: Types.ObjectId, cloudFunctions: ICloudFunction[]): Promise<void> {
-    await Dialogue.updateOne({ _id: dialogueId }, { $set: { cloudFunctions } })
   }
 
   // ─── 消息追加 ────────────────────────────────────────────────────────────────

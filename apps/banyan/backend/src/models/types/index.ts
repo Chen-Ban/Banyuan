@@ -5,8 +5,6 @@
  * 模型文件（*.ts）只负责 Schema + Model 定义，不再承担接口定义职责。
  */
 
-export type { ICloudFunction } from './cloud-function.js'
-
 export type {
   FieldType,
   IFieldDef,
@@ -66,6 +64,12 @@ export type {
 export type { PackagePlatform, PackageStatus, IPackageTask } from './package-task.js'
 
 export type { IRefreshToken } from './refresh-token.js'
+
+export type {
+  IAppContent,
+  ICloudFunctionDef,
+  ICloudFunctionGroup,
+} from './versioned-content.js'
 
 export type {
   AssistantContentType,

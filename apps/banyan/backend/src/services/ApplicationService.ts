@@ -1,6 +1,12 @@
 import crypto from "node:crypto";
 import { Application } from '../models/index.js'
 import type { IApplication } from '../models/types/index.js';
+import type { ICollectionDef } from '../models/types/index.js';
+import type { ICloudFunctionDef } from '../models/types/versioned-content.js';
+import appContentService from './AppContentService.js'
+import cloudFunctionService from './CloudFunctionService.js'
+import { SchemaService } from './SchemaService.js'
+import dialogueService from './DialogueService.js'
 
 export interface IApplicationQuery {
   name?: string;
@@ -20,10 +26,22 @@ export interface IApplicationListResult {
 export interface IUpdateApplicationData {
   name?: string;
   description?: string;
-  appJSON?: string;
   thumbnail?: string;
   tags?: string[];
   updatedBy?: string;
+}
+
+/**
+ * 聚合应用详情（ADR-042）
+ *
+ * 前端 getApplicationById 返回的聚合数据：
+ * 包含 application 元数据 + appJSON + schema + cloudFunctions。
+ */
+export interface IApplicationFull {
+  application: IApplication
+  appJSON: string
+  collections: ICollectionDef[]
+  cloudFunctions: ICloudFunctionDef[]
 }
 
 class ApplicationService {
@@ -63,7 +81,6 @@ class ApplicationService {
     const [total, applications] = await Promise.all([
       Application.countDocuments(filter),
       Application.find(filter)
-        .select("-appJSON")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(pageSize)
@@ -80,6 +97,8 @@ class ApplicationService {
 
   /**
    * 根据ID获取应用详情（含 appJSON）
+   *
+   * @deprecated 请使用 getFullApplicationById 获取聚合数据
    */
   async getApplicationById(
     applicationId: string,
@@ -88,6 +107,54 @@ class ApplicationService {
       application_id: applicationId,
     }).lean();
     return application as unknown as IApplication | null;
+  }
+
+  /**
+   * 获取应用聚合详情（版本号引用模型，ADR-042 + ADR-041）
+   *
+   * 聚合返回 application 元数据 + appJSON + collections + cloudFunctions。
+   *
+   * 读取策略：以「最新已验收（done）Dialogue」持有的三个版本号为准，精确从三张
+   * 内容表取对应版本的记录，从而天然过滤掉未验收（discarded/进行中）的草稿内容。
+   * 若该应用尚无任何 done Dialogue，则返回空内容（appJSON 为空、collections/cloudFunctions 为空数组）。
+   */
+  async getFullApplicationById(applicationId: string): Promise<IApplicationFull | null> {
+    const application = await Application.findOne({
+      application_id: applicationId,
+    }).lean();
+
+    if (!application) return null;
+
+    // 最新已验收 Dialogue 持有的三个版本号（唯一权威来源）
+    const versions = await dialogueService.getLatestAcceptedVersions(applicationId);
+
+    // 无任何已验收版本 → 返回空内容
+    if (
+      versions.appContentVersion <= 0 &&
+      versions.schemaVersion <= 0 &&
+      versions.cloudFunctionVersion <= 0
+    ) {
+      return {
+        application: application as unknown as IApplication,
+        appJSON: '',
+        collections: [],
+        cloudFunctions: [],
+      };
+    }
+
+    // 按版本号精确读取三张内容表
+    const [content, schema, group] = await Promise.all([
+      appContentService.getByVersion(applicationId, versions.appContentVersion),
+      SchemaService.getByVersion(applicationId, versions.schemaVersion),
+      cloudFunctionService.getByVersion(applicationId, versions.cloudFunctionVersion),
+    ]);
+
+    return {
+      application: application as unknown as IApplication,
+      appJSON: content?.appJSON ?? '',
+      collections: schema?.collections ?? [],
+      cloudFunctions: group?.functions ?? [],
+    };
   }
 
   /**
@@ -104,7 +171,6 @@ class ApplicationService {
       application_id,
       name: "未命名应用",
       description: "",
-      appJSON: "",
       tags: [],
       version: 1,
       tenantId,
@@ -133,7 +199,6 @@ class ApplicationService {
     if (updateData.name !== undefined) application.name = updateData.name;
     if (updateData.description !== undefined)
       application.description = updateData.description;
-    if (updateData.appJSON !== undefined) application.appJSON = updateData.appJSON;
     if (updateData.thumbnail !== undefined)
       application.thumbnail = updateData.thumbnail;
     if (updateData.tags !== undefined) application.tags = updateData.tags;

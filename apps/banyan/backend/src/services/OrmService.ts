@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import { SchemaService, getDynamicModel } from './SchemaService.js'
+import dialogueService from './DialogueService.js'
 
 // ── CollectionAccessor 接口 ───────────────────────────────────────────────────
 
@@ -31,13 +32,17 @@ export type AppDB = Record<string, CollectionAccessor>
 export class OrmService {
   /**
    * 为指定应用构建 AppDB 访问层
-   * 每次调用都会从 SchemaService 读取最新 Schema，确保字段定义是最新的
+   *
+   * 版本号引用模型：从「最新已接受（done）对话」持有的 Schema 版本读取，
+   * 确保运行时数据访问使用的是已验收的表结构，而非进行中的草稿版本。
    */
   static async buildAppDB(appId: string): Promise<AppDB> {
-    const schema = await SchemaService.getSchema(appId)
+    const versions = await dialogueService.getLatestAcceptedVersions(appId)
+    const schema = await SchemaService.getByVersion(appId, versions.schemaVersion)
+    const collections = schema?.collections ?? []
     const db: AppDB = {}
 
-    for (const collection of schema.collections) {
+    for (const collection of collections) {
       db[collection.name] = OrmService.buildAccessor(appId, collection.name, collection.fields)
     }
 

@@ -1,3 +1,10 @@
+/**
+ * Application 模型（ADR-042）— 纯元数据壳
+ *
+ * appJSON / collectionSchema / cloudFunctions 已拆分到独立的 append-only 内容表。
+ * 读取内容时通过 appId 查内容表最新版本即可，无需版本指针。
+ */
+
 import mongoose, { Schema } from 'mongoose'
 import type { Document } from 'mongoose'
 import type { IApplication } from './types/index.js'
@@ -30,13 +37,6 @@ const ApplicationSchema = new Schema<IApplicationDoc>(
       type: String,
       default: '',
       trim: true,
-    },
-    appJSON: {
-      // 注意：不能加 required: true。
-      // Mongoose 的 String required 校验会把空字符串 '' 视为「缺失」而校验失败，
-      // 而新建空白应用的初始 appJSON 合法值就是空字符串，因此只保留 default。
-      type: String,
-      default: '',
     },
     tags: {
       type: [String],

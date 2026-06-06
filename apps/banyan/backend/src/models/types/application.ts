@@ -1,5 +1,9 @@
 /**
  * 应用（Application）类型定义
+ *
+ * ADR-042：Application 是纯元数据壳。
+ * appJSON / collectionSchema / cloudFunctions 已拆分到独立的 append-only 内容表。
+ * 读取内容时通过 appId 查内容表最新版本，不需要版本指针。
  */
 
 export interface IApplication {
@@ -11,8 +15,6 @@ export interface IApplication {
   description: string
   /** 缩略图 URL */
   thumbnail: string
-  /** 完整 App 序列化 JSON（BanvasGL Serializer 输出，包含 lifetimes + scenes） */
-  appJSON: string
   /** 标签 */
   tags: string[]
   /** 版本号（每次保存自增） */

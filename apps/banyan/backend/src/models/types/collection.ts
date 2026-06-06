@@ -5,6 +5,8 @@
  * 被 Dialogue、Deployment、CollectionSchema 模型共享引用。
  */
 
+import type { Types } from 'mongoose'
+
 // ── 字段类型枚举 ──────────────────────────────────────────────────────────────
 
 export type FieldType =
@@ -45,6 +47,8 @@ export interface ICollectionSchema {
   appId: string
   collections: ICollectionDef[]
   version: number
+  /** 持有该版本的 Dialogue ID（反向引用 / 审计） */
+  dialogueId: Types.ObjectId
   createdAt: Date
   updatedAt: Date
 }

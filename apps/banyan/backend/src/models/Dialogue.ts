@@ -1,8 +1,9 @@
 /**
  * 对话模型（Dialogue）— 独立顶层集合
  *
- * Dialogue 是一次完整用户-AI 交互的权威载体，承载状态机、消息、应用快照、规划产物。
- * 每个 done 态的 Dialogue.appJSON 构成应用的版本链，支撑回退。
+ * Dialogue 是一次完整用户-AI 交互的权威载体，承载状态机、消息、内容版本号引用、规划产物。
+ * 对话持有三张 append-only 内容表的版本号（appContentVersion/schemaVersion/cloudFunctionVersion），
+ * agent / 用户通过版本号定位内容表记录原地修改，无需 confirm 落库。
  *
  * 生命周期（task 路径）：
  *   start → requirements → ui_design → contract → building → awaiting_confirm → committing → done
@@ -22,8 +23,6 @@
 
 import mongoose, { Schema, type Document } from 'mongoose'
 import type { IDialogueSummary, IInterruptMetadata, IDialogue } from './types/index.js'
-import { CollectionDefSchema } from './CollectionSchema.js'
-import { CloudFunctionEmbedSchema } from './CloudFunction.js'
 
 // ─── Dialogue Mongoose 文档类型 ───────────────────────────────────────────────
 
@@ -138,7 +137,7 @@ const DialogueSchema = new Schema<IDialogueDoc>(
     },
     type: {
       type: String,
-      enum: ['chat', 'task'],
+      enum: ['chat', 'task', 'edit'],
       required: true,
     },
     phase: {
@@ -160,18 +159,18 @@ const DialogueSchema = new Schema<IDialogueDoc>(
       default: [],
     },
 
-    // ─── 应用快照 ────────────────────────────────────────────────────────────
-    appJSON: {
-      type: String,
-      default: '',
+    // ─── 应用内容版本引用（持有三张 append-only 内容表的版本号）─────────────────
+    appContentVersion: {
+      type: Number,
+      required: true,
     },
-    collections: {
-      type: [CollectionDefSchema],
-      default: [],
+    schemaVersion: {
+      type: Number,
+      required: true,
     },
-    cloudFunctions: {
-      type: [CloudFunctionEmbedSchema],
-      default: [],
+    cloudFunctionVersion: {
+      type: Number,
+      required: true,
     },
 
     // ─── 规划产物 ──────────────────────────────────────────────────────────
@@ -227,7 +226,7 @@ DialogueSchema.index({ appId: 1, createdAt: -1 })
 // 通过 Conversation 查对话列表
 DialogueSchema.index({ conversationId: 1, createdAt: -1 })
 
-// 查找进行中的对话（初始化降级流：优先用在途 Dialogue 的 appJSON）
+// 查找进行中的对话（单活跃约束校验 + 读取聚合时定位最新 done Dialogue）
 DialogueSchema.index({ appId: 1, phase: 1 })
 
 // TTL 清理卡在非终态的孤儿对话

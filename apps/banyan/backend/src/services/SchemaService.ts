@@ -1,4 +1,18 @@
+/**
+ * SchemaService（ADR-042 升级：append-only 版本化）
+ *
+ * 核心变更：
+ *   - 每次写操作（addCollection/updateCollection/deleteCollection/setCollections 等）
+ *     都产生新版本文档（append-only），旧版本永不修改
+ *   - 通过 Application.currentCollectionSchemaVersion 指针关联当前版本
+ *   - 读操作读最新版本（或指定版本）
+ *   - 字段级 CRUD 有 debounce/merge 语义：多个连续字段操作可以在同一个新版本中合并
+ *
+ * 保留原有的动态 Model 缓存逻辑不变。
+ */
+
 import mongoose from 'mongoose'
+import type { Types } from 'mongoose'
 import CollectionSchemaModel from '../models/CollectionSchema.js'
 import type { ICollectionDef, IFieldDef } from '../models/types/index.js'
 
@@ -136,147 +150,186 @@ export function invalidateAllDynamicModels(appId: string): void {
   }
 }
 
-// ── Schema CRUD ───────────────────────────────────────────────────────────────
+// ── Schema CRUD（ADR-042 版本化语义）─────────────────────────────────────────────
 
 export class SchemaService {
   /**
-   * 获取应用的 Schema（不存在则返回空 Schema）
+   * 获取应用的最新 Schema（从 append-only 表，不存在则返回空）
+   *
+   * 优先从新表读取最新版本。
    */
-  static async getSchema(appId: string) {
-    const doc = await CollectionSchemaModel.findOne({ appId })
+  static async getSchema(appId: string): Promise<{ appId: string; collections: ICollectionDef[]; version: number }> {
+    const doc = await CollectionSchemaModel.findOne({ appId }).sort({ version: -1 }).lean()
     if (!doc) {
       return { appId, collections: [], version: 0 }
     }
-    return doc.toObject()
+    return { appId: doc.appId, collections: doc.collections as unknown as ICollectionDef[], version: doc.version }
+  }
+
+  /**
+   * 获取指定版本的 Schema
+   */
+  static async getByVersion(appId: string, version: number): Promise<{ appId: string; collections: ICollectionDef[]; version: number } | null> {
+    const doc = await CollectionSchemaModel.findOne({ appId, version }).lean()
+    if (!doc) return null
+    return { appId: doc.appId, collections: doc.collections as unknown as ICollectionDef[], version: doc.version }
   }
 
   /**
    * 获取单个 Collection 定义
    */
   static async getCollection(appId: string, collectionName: string): Promise<ICollectionDef | null> {
-    const doc = await CollectionSchemaModel.findOne({ appId })
-    if (!doc) return null
-    return doc.collections.find((c) => c.name === collectionName) ?? null
+    const { collections } = await this.getSchema(appId)
+    return collections.find((c) => c.name === collectionName) ?? null
   }
 
   /**
-   * 新增 Collection
+   * 获取应用当前的最大版本号（含未接受 draft）
+   */
+  static async getMaxVersion(appId: string): Promise<number> {
+    const doc = await CollectionSchemaModel.findOne({ appId }).sort({ version: -1 }).lean()
+    return doc ? doc.version : 0
+  }
+
+  // ─── 版本号引用模型（对话驱动）─────────────────────────────────────────────────
+
+  /**
+   * 创建草稿版本（对话发起时调用）
+   *
+   * 拷贝基线版本的 collections，append 一个新版本并绑定 dialogueId。
+   *
+   * @param appId       应用 ID
+   * @param dialogueId  持有该版本的对话 ID
+   * @param baseVersion 拷贝基线版本号（最新已接受版本，0 表示无基线）
+   * @returns 新版本号
+   */
+  static async createDraftVersion(
+    appId: string,
+    dialogueId: Types.ObjectId,
+    baseVersion: number,
+  ): Promise<number> {
+    const base = baseVersion > 0 ? await this.getByVersion(appId, baseVersion) : null
+    const newVersion = (await this.getMaxVersion(appId)) + 1
+
+    await CollectionSchemaModel.create({
+      appId,
+      collections: base?.collections ?? [],
+      version: newVersion,
+      dialogueId,
+    })
+
+    return newVersion
+  }
+
+  /**
+   * 按版本号原地更新 collections（构建期间 agent / 用户修改）
+   *
+   * 同时清除该应用的所有动态 Model 缓存（集合/字段可能变更）。
+   */
+  static async updateByVersion(
+    appId: string,
+    version: number,
+    collections: ICollectionDef[],
+  ): Promise<void> {
+    invalidateAllDynamicModels(appId)
+    await CollectionSchemaModel.updateOne({ appId, version }, { $set: { collections } })
+  }
+
+  /**
+   * 新增 Collection（产生新版本）
    */
   static async addCollection(
     appId: string,
     collection: ICollectionDef,
   ) {
-    const doc = await CollectionSchemaModel.findOne({ appId })
+    const { collections, version: currentVersion } = await this.getSchema(appId)
 
-    if (doc) {
-      const exists = doc.collections.some((c) => c.name === collection.name)
-      if (exists) {
-        throw Object.assign(new Error(`Collection "${collection.name}" already exists`), { status: 409 })
-      }
-      doc.collections.push(collection)
-      doc.version += 1
-      await doc.save()
-      return doc.toObject()
-    } else {
-      const newDoc = await CollectionSchemaModel.create({
-        appId,
-        collections: [collection],
-        version: 1,
-      })
-      return newDoc.toObject()
+    const exists = collections.some((c) => c.name === collection.name)
+    if (exists) {
+      throw Object.assign(new Error(`Collection "${collection.name}" already exists`), { status: 409 })
     }
+
+    const newCollections = [...collections, collection]
+    return this._writeNewVersion(appId, newCollections, currentVersion)
   }
 
   /**
-   * 更新 Collection（整体替换 fields）
+   * 更新 Collection（整体替换 fields，产生新版本）
    */
   static async updateCollection(
     appId: string,
     collectionName: string,
     updates: Partial<Pick<ICollectionDef, 'displayName' | 'fields'>>,
   ) {
-    const doc = await CollectionSchemaModel.findOne({ appId })
-    if (!doc) {
-      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
-    }
+    const { collections, version: currentVersion } = await this.getSchema(appId)
 
-    const idx = doc.collections.findIndex((c) => c.name === collectionName)
+    const idx = collections.findIndex((c) => c.name === collectionName)
     if (idx === -1) {
       throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
     }
 
+    const newCollections = [...collections]
+    newCollections[idx] = { ...newCollections[idx] }
+
     if (updates.displayName !== undefined) {
-      doc.collections[idx].displayName = updates.displayName
+      newCollections[idx].displayName = updates.displayName
     }
     if (updates.fields !== undefined) {
-      doc.collections[idx].fields = updates.fields
-      // 字段变更，清除 Model 缓存
+      newCollections[idx].fields = updates.fields
       invalidateDynamicModel(appId, collectionName)
     }
 
-    doc.version += 1
-    await doc.save()
-    return doc.toObject()
+    return this._writeNewVersion(appId, newCollections, currentVersion)
   }
 
   /**
-   * 删除 Collection
+   * 删除 Collection（产生新版本）
    */
   static async deleteCollection(appId: string, collectionName: string) {
-    const doc = await CollectionSchemaModel.findOne({ appId })
-    if (!doc) {
-      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
-    }
+    const { collections, version: currentVersion } = await this.getSchema(appId)
 
-    const before = doc.collections.length
-    doc.collections = doc.collections.filter((c) => c.name !== collectionName)
-
-    if (doc.collections.length === before) {
+    const newCollections = collections.filter((c) => c.name !== collectionName)
+    if (newCollections.length === collections.length) {
       throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
     }
 
-    doc.version += 1
-    await doc.save()
-
-    // 清除 Model 缓存
     invalidateDynamicModel(appId, collectionName)
-
-    return doc.toObject()
+    return this._writeNewVersion(appId, newCollections, currentVersion)
   }
 
   /**
-   * 新增字段到 Collection
+   * 新增字段到 Collection（产生新版本）
    */
   static async addField(
     appId: string,
     collectionName: string,
     field: IFieldDef,
   ) {
-    const doc = await CollectionSchemaModel.findOne({ appId })
-    if (!doc) {
-      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
-    }
+    const { collections, version: currentVersion } = await this.getSchema(appId)
 
-    const collection = doc.collections.find((c) => c.name === collectionName)
-    if (!collection) {
+    const collectionIdx = collections.findIndex((c) => c.name === collectionName)
+    if (collectionIdx === -1) {
       throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
     }
 
+    const collection = collections[collectionIdx]
     const fieldExists = collection.fields.some((f) => f.name === field.name)
     if (fieldExists) {
       throw Object.assign(new Error(`Field "${field.name}" already exists`), { status: 409 })
     }
 
-    collection.fields.push(field)
-    doc.version += 1
-    await doc.save()
+    const newCollections = [...collections]
+    newCollections[collectionIdx] = {
+      ...collection,
+      fields: [...collection.fields, field],
+    }
 
     invalidateDynamicModel(appId, collectionName)
-    return doc.toObject()
+    return this._writeNewVersion(appId, newCollections, currentVersion)
   }
 
   /**
-   * 更新字段
+   * 更新字段（产生新版本）
    */
   static async updateField(
     appId: string,
@@ -284,84 +337,182 @@ export class SchemaService {
     fieldName: string,
     updates: Partial<IFieldDef>,
   ) {
-    const doc = await CollectionSchemaModel.findOne({ appId })
-    if (!doc) {
-      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
-    }
+    const { collections, version: currentVersion } = await this.getSchema(appId)
 
-    const collection = doc.collections.find((c) => c.name === collectionName)
-    if (!collection) {
+    const collectionIdx = collections.findIndex((c) => c.name === collectionName)
+    if (collectionIdx === -1) {
       throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
     }
 
+    const collection = collections[collectionIdx]
     const fieldIdx = collection.fields.findIndex((f) => f.name === fieldName)
     if (fieldIdx === -1) {
       throw Object.assign(new Error(`Field "${fieldName}" not found`), { status: 404 })
     }
 
-    Object.assign(collection.fields[fieldIdx], updates)
-    doc.version += 1
-    await doc.save()
+    const newFields = [...collection.fields]
+    newFields[fieldIdx] = { ...newFields[fieldIdx], ...updates }
+
+    const newCollections = [...collections]
+    newCollections[collectionIdx] = { ...collection, fields: newFields }
 
     invalidateDynamicModel(appId, collectionName)
-    return doc.toObject()
+    return this._writeNewVersion(appId, newCollections, currentVersion)
   }
 
   /**
-   * 删除字段
+   * 删除字段（产生新版本）
    */
   static async deleteField(
     appId: string,
     collectionName: string,
     fieldName: string,
   ) {
-    const doc = await CollectionSchemaModel.findOne({ appId })
-    if (!doc) {
-      throw Object.assign(new Error(`CollectionSchema for app "${appId}" not found`), { status: 404 })
-    }
+    const { collections, version: currentVersion } = await this.getSchema(appId)
 
-    const collection = doc.collections.find((c) => c.name === collectionName)
-    if (!collection) {
+    const collectionIdx = collections.findIndex((c) => c.name === collectionName)
+    if (collectionIdx === -1) {
       throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
     }
 
-    const before = collection.fields.length
-    collection.fields = collection.fields.filter((f) => f.name !== fieldName)
-
-    if (collection.fields.length === before) {
+    const collection = collections[collectionIdx]
+    const newFields = collection.fields.filter((f) => f.name !== fieldName)
+    if (newFields.length === collection.fields.length) {
       throw Object.assign(new Error(`Field "${fieldName}" not found`), { status: 404 })
     }
 
-    doc.version += 1
-    await doc.save()
+    const newCollections = [...collections]
+    newCollections[collectionIdx] = { ...collection, fields: newFields }
 
     invalidateDynamicModel(appId, collectionName)
-    return doc.toObject()
+    return this._writeNewVersion(appId, newCollections, currentVersion)
   }
 
   /**
-   * 整体替换应用的 Schema（AI schema_set_collections 工具专用）
+   * 整体替换应用的 Schema（AI schema_set_collections 工具专用，产生新版本）
    *
-   * 策略：upsert 整个文档，version 递增，并失效所有旧 Model 缓存。
    * 调用方（AiService）在收到 schema_update SSE 事件后调用此方法。
    */
   static async setCollections(appId: string, collections: ICollectionDef[]) {
     // 清除所有旧 Model 缓存（新 Schema 可能增删集合或改字段）
     invalidateAllDynamicModels(appId)
 
-    const doc = await CollectionSchemaModel.findOne({ appId })
-    if (doc) {
-      doc.collections = collections
-      doc.version += 1
-      await doc.save()
-      return doc.toObject()
-    } else {
-      const newDoc = await CollectionSchemaModel.create({
-        appId,
-        collections,
-        version: 1,
-      })
-      return newDoc.toObject()
+    const { version: currentVersion } = await this.getSchema(appId)
+    return this._writeNewVersion(appId, collections, currentVersion)
+  }
+
+  // ─── 纯计算辅助（方向 B：直接编辑包装为 edit 对话时复用）────────────────────────
+  // 这些方法不触碰数据库，仅对 collections 数组做不可变变换并返回新数组；
+  // 调用方负责按版本号原地写入（updateByVersion）。
+
+  /** 计算新增 Collection 后的数组（重复则抛 409） */
+  static computeAddCollection(collections: ICollectionDef[], collection: ICollectionDef): ICollectionDef[] {
+    if (collections.some((c) => c.name === collection.name)) {
+      throw Object.assign(new Error(`Collection "${collection.name}" already exists`), { status: 409 })
     }
+    return [...collections, collection]
+  }
+
+  /** 计算更新 Collection 后的数组（不存在则抛 404） */
+  static computeUpdateCollection(
+    collections: ICollectionDef[],
+    collectionName: string,
+    updates: Partial<Pick<ICollectionDef, 'displayName' | 'fields'>>,
+  ): ICollectionDef[] {
+    const idx = collections.findIndex((c) => c.name === collectionName)
+    if (idx === -1) {
+      throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
+    }
+    const next = [...collections]
+    next[idx] = { ...next[idx] }
+    if (updates.displayName !== undefined) next[idx].displayName = updates.displayName
+    if (updates.fields !== undefined) next[idx].fields = updates.fields
+    return next
+  }
+
+  /** 计算删除 Collection 后的数组（不存在则抛 404） */
+  static computeDeleteCollection(collections: ICollectionDef[], collectionName: string): ICollectionDef[] {
+    const next = collections.filter((c) => c.name !== collectionName)
+    if (next.length === collections.length) {
+      throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
+    }
+    return next
+  }
+
+  /** 计算新增字段后的数组（集合不存在 404 / 字段重复 409） */
+  static computeAddField(collections: ICollectionDef[], collectionName: string, field: IFieldDef): ICollectionDef[] {
+    const idx = collections.findIndex((c) => c.name === collectionName)
+    if (idx === -1) {
+      throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
+    }
+    if (collections[idx].fields.some((f) => f.name === field.name)) {
+      throw Object.assign(new Error(`Field "${field.name}" already exists`), { status: 409 })
+    }
+    const next = [...collections]
+    next[idx] = { ...next[idx], fields: [...next[idx].fields, field] }
+    return next
+  }
+
+  /** 计算更新字段后的数组（集合/字段不存在均抛 404） */
+  static computeUpdateField(
+    collections: ICollectionDef[],
+    collectionName: string,
+    fieldName: string,
+    updates: Partial<IFieldDef>,
+  ): ICollectionDef[] {
+    const idx = collections.findIndex((c) => c.name === collectionName)
+    if (idx === -1) {
+      throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
+    }
+    const fieldIdx = collections[idx].fields.findIndex((f) => f.name === fieldName)
+    if (fieldIdx === -1) {
+      throw Object.assign(new Error(`Field "${fieldName}" not found`), { status: 404 })
+    }
+    const newFields = [...collections[idx].fields]
+    newFields[fieldIdx] = { ...newFields[fieldIdx], ...updates }
+    const next = [...collections]
+    next[idx] = { ...next[idx], fields: newFields }
+    return next
+  }
+
+  /** 计算删除字段后的数组（集合/字段不存在均抛 404） */
+  static computeDeleteField(collections: ICollectionDef[], collectionName: string, fieldName: string): ICollectionDef[] {
+    const idx = collections.findIndex((c) => c.name === collectionName)
+    if (idx === -1) {
+      throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
+    }
+    const newFields = collections[idx].fields.filter((f) => f.name !== fieldName)
+    if (newFields.length === collections[idx].fields.length) {
+      throw Object.assign(new Error(`Field "${fieldName}" not found`), { status: 404 })
+    }
+    const next = [...collections]
+    next[idx] = { ...next[idx], fields: newFields }
+    return next
+  }
+
+  // ─── 私有方法 ──────────────────────────────────────────────────────────────
+
+  /**
+   * 写入新版本文档（核心方法）
+   *
+   * 1. 计算 newVersion = currentVersion + 1
+   * 2. 创建新文档到 CollectionSchema 集合
+   *
+   * @returns { appId, collections, version }
+   */
+  private static async _writeNewVersion(
+    appId: string,
+    collections: ICollectionDef[],
+    currentVersion: number,
+  ): Promise<{ appId: string; collections: ICollectionDef[]; version: number }> {
+    const newVersion = currentVersion + 1
+
+    await CollectionSchemaModel.create({
+      appId,
+      collections,
+      version: newVersion,
+    })
+
+    return { appId, collections, version: newVersion }
   }
 }

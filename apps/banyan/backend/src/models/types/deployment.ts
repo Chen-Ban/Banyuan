@@ -3,7 +3,7 @@
  */
 
 import type { ICollectionDef } from './collection.js'
-import type { ICloudFunction } from './cloud-function.js'
+import type { ICloudFunctionDef } from './versioned-content.js'
 
 // ─── 部署状态 ─────────────────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ export interface IDeploySnapshot {
   /** 数据库表定义（fullstack 模式下） */
   collections: ICollectionDef[]
   /** 云函数定义（fullstack 模式下） */
-  cloudFunctions: ICloudFunction[]
+  cloudFunctions: ICloudFunctionDef[]
 }
 
 // ─── 部署记录 ──────────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ export interface IDeployment {
   error?: string
   /** 触发人 */
   triggeredBy: string
-  /** 发布数据快照 —— 回滚时从此处取出完整数据重新部署 */
+  /** 发布数据快照（完整嵌入，支持回滚） */
   snapshot?: IDeploySnapshot
   /** 部署开始时间 */
   startedAt?: Date
