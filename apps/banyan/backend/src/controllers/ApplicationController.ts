@@ -1,10 +1,13 @@
 import { Context } from 'koa'
 import applicationService from '../services/ApplicationService'
 
+// ADR-042：本端点只更新应用「元信息」（name/description/thumbnail/tags）。
+// 画布内容 appJSON 是版本化内容（AppContent 表），不在此更新——
+// 它必须走 PUT /api/apps/:appId/app-content（经 runAutoConfirmedEdit 落库为新版本），
+// 故这里刻意不再声明 appJSON 字段，避免前端误以为能通过本接口保存画布。
 interface UpdateApplicationRequest {
   name?: string
   description?: string
-  appJSON?: string
   thumbnail?: string
   tags?: string[]
   updatedBy?: string

@@ -20,14 +20,16 @@ export interface Application {
 }
 
 /**
- * 应用表单数据
+ * 应用表单数据（仅元信息）
+ *
+ * ADR-042：画布内容 appJSON 是版本化内容，不通过本表单/PUT /applications/:id 更新，
+ * 必须走 appContentApi.saveAppContent → PUT /apps/:appId/app-content。
+ * 故这里刻意不含 appJSON。
  */
 export interface ApplicationFormData {
   name: string
   description?: string
   thumbnail?: string
-  /** 完整 App 序列化 JSON */
-  appJSON?: string
   tags?: string[]
 }
 
