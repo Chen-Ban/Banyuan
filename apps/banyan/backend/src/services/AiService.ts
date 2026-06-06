@@ -22,6 +22,22 @@
  *   - app_state：拦截（不转发前端），按版本号原地更新三张内容表
  *   - started：透传
  *   - 其余事件：原样透传
+ *
+ * SSE `done` 事件与 Dialogue phase 终态的关系（重要）：
+ *   - `done` 是上游 XiangDi 发出的「本轮 AI 执行流结束」信号，chat / task 两条路径都会收到并透传，
+ *     SSE 流随之关闭。但「SSE 流结束」 ≠ 「Dialogue 到达终态」。
+ *   - chat 路径：收到 `done` 时 phase 推进 responding → done（终态），onDone 同步 registerDialogue + 落库。
+ *     即对话在 `done` 时就彻底结束，无后续。
+ *   - task 路径：收到 `done` 时 phase 只推进 building → awaiting_confirm（**非终态**），onDone 不 registerDialogue。
+ *     Dialogue 挂在 awaiting_confirm 等待用户确认；真正的终态 done 由后续一个**带外的 confirm HTTP 请求**
+ *     （confirmDialogue）推进 committing → done，该请求不走 SSE（详见 _confirmDialogueCore 注释）。
+ *
+ * 三条 DialogueType 路径（入口不同，本文件仅负责 chat / task）：
+ *   - chat / task：入口 /api/ai/run（AiController，type: 'chat' | 'task'），经本文件 SSE 代理 XiangDi。
+ *   - edit：用户绕过 AI 在编辑器里手动改表结构 / 云函数 / appJSON，入口为 SchemaController /
+ *     CloudFunctionController，调 DialogueService.runAutoConfirmedEdit。该路径**不走本文件、不走 SSE**，
+ *     是一次同步 HTTP 请求，phase 自动验收 start → committing → done（无 awaiting_confirm）。
+ *     其设计目的是让「所有内容变更都归属于某个对话」这一不变式成立（详见 runAutoConfirmedEdit 注释）。
  */
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -503,9 +519,19 @@ class AiService {
   // ─── Confirm / Discard（事务确认/撤销）──────────────────────────────────────
 
   /**
-   * 确认对话：Dialogue phase → executing → committing → done
+   * 确认对话：Dialogue phase awaiting_confirm → committing → done
    *
+   * 仅用于 task 路径的最后一步（用户在 awaiting_confirm 态点击确认验收）。
    * 使用 withAppLock 防止与 SSE 流竞态。
+   *
+   * 【带外路径，不走 SSE — 前端契约】
+   *   - confirm 是一次性的独立 HTTP 请求（带 response），不在原 AI 执行的 SSE 流内。
+   *     本方法内部的 setPhase(committing) / setPhase(done) 不经过 PhaseController，
+   *     因此**不会发出任何 SSE `phase_change` 事件**，前端在此阶段收不到 SSE 推送。
+   *   - 前端 loading 应由本请求的 HTTP response 驱动：
+   *       点击确认 → 乐观置 loading → response 成功 → 取消 loading；response reject → 切错误态。
+   *   - committing 阶段不可中断（数据一致性优先，见下方 setPhase(committing) 处），
+   *     故前端这个 loading 也应是**不可取消**的（不要提供取消按钮）。
    */
   async confirmDialogue(appId: string): Promise<{ dialogueId: string }> {
     return withAppLock(appId, () => this._confirmDialogueCore(appId))
