@@ -11,7 +11,7 @@
  */
 
 import { Types } from 'mongoose'
-import Conversation, { type IConversation } from '../models/Conversation.js'
+import Conversation, { type IConversationDoc } from '../models/Conversation.js'
 import Dialogue from '../models/Dialogue.js'
 
 // ─── ConversationService ──────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ class ConversationService {
    * - 若不存在，原子性创建并返回新文档
    * - 即使两个请求同时到达，MongoDB 唯一索引确保只创建一个文档
    */
-  async getOrCreate(appId: string): Promise<IConversation> {
+  async getOrCreate(appId: string): Promise<IConversationDoc> {
     const conv = await Conversation.findOneAndUpdate(
       { appId },
       { $setOnInsert: { appId, dialogueIds: [] } },
@@ -38,7 +38,7 @@ class ConversationService {
   /**
    * 按 appId 获取会话
    */
-  async getByApp(appId: string): Promise<IConversation | null> {
+  async getByApp(appId: string): Promise<IConversationDoc | null> {
     return Conversation.findOne({ appId })
   }
 

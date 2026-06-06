@@ -1,53 +1,14 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema } from 'mongoose'
+import type { Document } from 'mongoose'
+import type { IApplication } from './types/index.js'
 
-// ─── 应用文档接口 ──────────────────────────────────────────────────────────────
-
-/**
- * 应用文档接口
- */
-export interface IApplication extends Document {
-  /** 应用业务ID */
-  application_id: string
-  /** 应用名称 */
-  name: string
-  /** 应用描述 */
-  description: string
-  /** 缩略图 URL */
-  thumbnail: string
-  /** 完整 App 序列化 JSON（BanvasGL Serializer 输出，包含 lifetimes + scenes） */
-  appJSON: string
-  /** 标签 */
-  tags: string[]
-  /** 版本号（每次保存自增） */
-  version: number
-  /** 租户 ID */
-  tenantId: string
-  /** 创建者 */
-  createdBy: string
-  /** 最后修改者 */
-  updatedBy: string
-
-  // ─── Web 发布相关（ADR-028）─────────────────────────────────────────────────
-  /** 应用 URL slug（用于子域名路由，如 my-app → my-app.tenant.banyuan.club） */
-  appSlug?: string
-  /** 已发布的版本号（null 表示从未发布） */
-  publishedVersion?: number
-  /** Web 访问 URL（发布后填充） */
-  webUrl?: string
-  /** 最近一次部署时间 */
-  lastDeployedAt?: Date
-  /** 部署类型 */
-  deployType?: 'static' | 'fullstack'
-
-  /** 创建时间 */
-  createdAt: Date
-  /** 更新时间 */
-  updatedAt: Date
-}
+export type { IApplication } from './types/index.js'
 
 // ─── Application Schema ───────────────────────────────────────────────────────
 
-const ApplicationSchema = new Schema<IApplication>(
+type IApplicationDoc = IApplication & Document
+
+const ApplicationSchema = new Schema<IApplicationDoc>(
   {
     application_id: {
       type: String,
@@ -144,6 +105,6 @@ ApplicationSchema.index({ createdAt: -1 })
 ApplicationSchema.index({ tenantId: 1, createdBy: 1 })
 ApplicationSchema.index({ tenantId: 1, appSlug: 1 }, { unique: true, sparse: true })
 
-const Application = mongoose.model<IApplication>('Application', ApplicationSchema)
+const Application = mongoose.model<IApplicationDoc>('Application', ApplicationSchema)
 
 export default Application

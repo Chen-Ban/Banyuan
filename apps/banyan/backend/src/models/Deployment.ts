@@ -1,66 +1,13 @@
-import mongoose, { Schema, Document } from 'mongoose'
-import type { ICollectionDef } from './CollectionSchema.js'
+import mongoose, { Schema, type Document } from 'mongoose'
 import { CollectionDefSchema } from './CollectionSchema.js'
-import type { ICloudFunction } from './CloudFunction.js'
 import { CloudFunctionEmbedSchema } from './CloudFunction.js'
+import type { IDeploySnapshot, IDeployment } from './types/index.js'
 
-// ─── 部署状态 ─────────────────────────────────────────────────────────────────
+export type { DeployStatus, IDeploySnapshot, IDeployment } from './types/index.js'
 
-export type DeployStatus =
-  | 'pending'      // 等待 agent 接收
-  | 'building'     // 构建中（scaffold + install + vite build）
-  | 'deploying'    // 部署中（配置 nginx / 启动容器）
-  | 'success'      // 部署成功
-  | 'failed'       // 部署失败
+// ─── Local Document type alias ────────────────────────────────────────────────
 
-// ─── 部署记录接口 ─────────────────────────────────────────────────────────────
-
-// ─── 发布快照（Publish Snapshot）──────────────────────────────────────────────
-// 每次 publish 时将发送给 agent 的完整数据冻结在此，支持回滚时原样重发
-
-export interface IDeploySnapshot {
-  /** 完整的 appJSON（序列化字符串，与 Snapshot 模型一致） */
-  appJSON: string
-  /** 数据库表定义（fullstack 模式下） */
-  collections: ICollectionDef[]
-  /** 云函数定义（fullstack 模式下） */
-  cloudFunctions: ICloudFunction[]
-}
-
-// ─── 部署记录接口 ─────────────────────────────────────────────────────────────
-
-export interface IDeployment extends Document {
-  /** 部署记录 ID */
-  deploymentId: string
-  /** 关联的应用 ID */
-  applicationId: string
-  /** 租户 ID */
-  tenantId: string
-  /** 部署的应用版本号 */
-  version: number
-  /** 部署类型 */
-  deployType: 'static' | 'fullstack'
-  /** 部署状态 */
-  status: DeployStatus
-  /** 当前步骤描述 */
-  currentStep?: string
-  /** 进度百分比 0-100 */
-  progress: number
-  /** 部署成功后的访问 URL */
-  url?: string
-  /** 错误信息 */
-  error?: string
-  /** 触发人 */
-  triggeredBy: string
-  /** 发布数据快照 —— 回滚时从此处取出完整数据重新部署 */
-  snapshot?: IDeploySnapshot
-  /** 部署开始时间 */
-  startedAt?: Date
-  /** 部署完成时间 */
-  finishedAt?: Date
-  createdAt: Date
-  updatedAt: Date
-}
+type IDeploymentDoc = IDeployment & Document
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
@@ -77,7 +24,7 @@ const DeploySnapshotSubSchema = new Schema<IDeploySnapshot>(
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
 
-const DeploymentSchema = new Schema<IDeployment>(
+const DeploymentSchema = new Schema<IDeploymentDoc>(
   {
     deploymentId: { type: String, required: true, unique: true, index: true },
     applicationId: { type: String, required: true, index: true },
@@ -105,4 +52,4 @@ const DeploymentSchema = new Schema<IDeployment>(
 DeploymentSchema.index({ tenantId: 1, applicationId: 1, createdAt: -1 })
 DeploymentSchema.index({ status: 1 })
 
-export const Deployment = mongoose.model<IDeployment>('Deployment', DeploymentSchema)
+export const Deployment = mongoose.model<IDeploymentDoc>('Deployment', DeploymentSchema)

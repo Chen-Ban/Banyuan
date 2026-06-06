@@ -1,48 +1,14 @@
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema } from 'mongoose'
+import type { Document } from 'mongoose'
+import type { IFieldDef, ICollectionDef, ICollectionSchema } from './types/index.js'
 
-// ── 字段类型枚举 ──────────────────────────────────────────────────────────────
+// ── 向后兼容重导出 ─────────────────────────────────────────────────────────────
 
-export type FieldType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'date'
-  | 'enum'
-  | 'ref'
-  | 'array'
-  | 'object'
+export type { FieldType, IFieldDef, ICollectionDef, ICollectionSchema } from './types/index.js'
 
-// ── 字段定义 ──────────────────────────────────────────────────────────────────
+// ── 本地文档类型别名 ───────────────────────────────────────────────────────────
 
-export interface IFieldDef {
-  name: string
-  displayName: string
-  type: FieldType
-  required: boolean
-  defaultValue?: unknown
-  /** type === 'ref' 时，关联的 Collection 名称 */
-  refCollection?: string
-  /** type === 'enum' 时的可选值列表 */
-  enumValues?: string[]
-}
-
-// ── Collection 定义 ───────────────────────────────────────────────────────────
-
-export interface ICollectionDef {
-  name: string
-  displayName: string
-  fields: IFieldDef[]
-}
-
-// ── CollectionSchema 文档接口 ──────────────────────────────────────────────────
-
-export interface ICollectionSchema extends Document {
-  appId: string
-  collections: ICollectionDef[]
-  version: number
-  createdAt: Date
-  updatedAt: Date
-}
+type ICollectionSchemaDoc = ICollectionSchema & Document
 
 // ── Mongoose Schema 定义 ──────────────────────────────────────────────────────
 
@@ -72,7 +38,7 @@ export const CollectionDefSchema = new Schema<ICollectionDef>(
   { _id: false },
 )
 
-const CollectionSchemaDefinition = new Schema<ICollectionSchema>(
+const CollectionSchemaDefinition = new Schema<ICollectionSchemaDoc>(
   {
     appId: { type: String, required: true, unique: true, index: true },
     collections: { type: [CollectionDefSchema], default: [] },
@@ -81,4 +47,4 @@ const CollectionSchemaDefinition = new Schema<ICollectionSchema>(
   { timestamps: true },
 )
 
-export default mongoose.model<ICollectionSchema>('CollectionSchema', CollectionSchemaDefinition)
+export default mongoose.model<ICollectionSchemaDoc>('CollectionSchema', CollectionSchemaDefinition)

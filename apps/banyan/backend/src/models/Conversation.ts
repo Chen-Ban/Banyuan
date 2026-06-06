@@ -7,24 +7,18 @@
  * 消息类型契约定义在 models/types/message-types.ts。
  */
 
-import mongoose, { Schema, Document, Types } from 'mongoose'
+import mongoose, { Schema, Document } from 'mongoose'
+import type { IConversation } from './types/index.js'
 
-// ─── Conversation 文档接口 ────────────────────────────────────────────────────
+export type { IConversation } from './types/index.js'
 
-export interface IConversation extends Document {
-  /** 关联的应用 ID（唯一索引，1 App = 1 Conversation） */
-  appId: string
-  /** 按时间顺序的 Dialogue 引用列表（指向独立 Dialogue 集合） */
-  dialogueIds: Types.ObjectId[]
-  /** 创建时间 */
-  createdAt: Date
-  /** 最后更新时间 */
-  updatedAt: Date
-}
+// ─── 本地文档类型 ─────────────────────────────────────────────────────────────
+
+export type IConversationDoc = IConversation & Document
 
 // ─── Schema 定义 ──────────────────────────────────────────────────────────────
 
-const ConversationSchema = new Schema<IConversation>(
+const ConversationSchema = new Schema<IConversationDoc>(
   {
     appId: {
       type: String,
@@ -44,6 +38,6 @@ const ConversationSchema = new Schema<IConversation>(
 
 // ─── 模型 ─────────────────────────────────────────────────────────────────────
 
-const Conversation = mongoose.model<IConversation>('Conversation', ConversationSchema)
+const Conversation = mongoose.model<IConversationDoc>('Conversation', ConversationSchema)
 
 export default Conversation

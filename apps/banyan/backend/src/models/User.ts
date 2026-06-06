@@ -1,22 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import type { IUser } from './types/index.js'
 
-export type UserRole = 'owner' | 'admin' | 'member'
-export type UserStatus = 'active' | 'invited' | 'disabled'
+export type { UserRole, UserStatus, IUser } from './types/index.js'
 
-export interface IUser extends Document {
-  userId: string
-  tenantId: string
-  email?: string
-  phone?: string
-  username: string
-  passwordHash?: string
-  role: UserRole
-  status: UserStatus
-  createdAt: Date
-  updatedAt: Date
-}
+export type IUserDoc = IUser & Document
 
-const UserSchema = new Schema<IUser>(
+const UserSchema = new Schema<IUserDoc>(
   {
     userId: { type: String, required: true, unique: true, index: true },
     tenantId: { type: String, required: true, index: true },
@@ -34,4 +23,4 @@ const UserSchema = new Schema<IUser>(
 UserSchema.index({ email: 1 }, { unique: true, sparse: true })
 UserSchema.index({ phone: 1 }, { unique: true, sparse: true })
 
-export const User = mongoose.model<IUser>('User', UserSchema)
+export const User = mongoose.model<IUserDoc>('User', UserSchema)
