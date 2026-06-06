@@ -1,42 +1,68 @@
 import { Context } from 'koa'
-import cloudFunctionService from '../services/CloudFunctionService.js'
+import { Types } from 'mongoose'
+import cloudFunctionService, { CloudFunctionService } from '../services/CloudFunctionService.js'
+import dialogueService from '../services/DialogueService.js'
+import conversationService from '../services/ConversationService.js'
+import type { ICloudFunctionDef } from '../models/types/versioned-content.js'
 
 /**
- * 格式化云函数响应体（避免 Mongoose 内部字段泄漏）
+ * CloudFunctionController — 云函数的直接编辑入口（方向 B）
+ *
+ * 版本号引用模型下，用户绕过 AI 的自主修改也包装成一个自动验收的 type='edit' 对话：
+ *   1. dialogueService.runAutoConfirmedEdit 创建 edit 对话并给三表 append 草稿版本
+ *   2. mutator 中读取云函数草稿版本 → 纯计算变换 → 按版本号原地写回
+ *   3. 对话自动验收（start → committing → done），其持有的版本号成为最新已接受版本
+ *
+ * 读取走最新已接受版本，与 ApplicationService.getFullApplicationById 聚合口径一致。
  */
-function formatCloudFunction(fn: {
-  functionId: string
-  name: string
-  displayName: string
-  description: string
-  flowSchema: Record<string, unknown>
-  version: number
-  createdAt: Date
-  updatedAt: Date
-}) {
+
+/**
+ * 格式化云函数响应体（ADR-042：使用 ICloudFunctionDef）
+ */
+function formatCloudFunction(fn: ICloudFunctionDef) {
   return {
     functionId: fn.functionId,
     name: fn.name,
     displayName: fn.displayName,
     description: fn.description,
     schema: fn.flowSchema,
-    version: fn.version,
-    createdAt: fn.createdAt,
-    updatedAt: fn.updatedAt,
   }
 }
 
 class CloudFunctionController {
   /**
+   * 通用直接编辑封装：读取云函数草稿 → 纯计算 → 原地写回，返回 mutator 结果。
+   */
+  private async runCloudFunctionEdit<T>(
+    appId: string,
+    summary: string,
+    transform: (functions: ICloudFunctionDef[]) => { functions: ICloudFunctionDef[]; result: T },
+  ): Promise<T> {
+    const conv = await conversationService.getOrCreate(appId)
+    return dialogueService.runAutoConfirmedEdit({
+      appId,
+      conversationId: conv._id as Types.ObjectId,
+      summary,
+      mutate: async (versions) => {
+        const draft = await cloudFunctionService.getByVersion(appId, versions.cloudFunctionVersion)
+        const current = draft?.functions ?? []
+        const { functions, result } = transform(current)
+        await cloudFunctionService.updateByVersion(appId, versions.cloudFunctionVersion, functions)
+        return result
+      },
+    })
+  }
+
+  /**
    * GET /api/apps/:appId/cloud-functions
    */
   async list(ctx: Context) {
     const { appId } = ctx.params as { appId: string }
-
-    const functions = await cloudFunctionService.listByApp(appId)
+    const versions = await dialogueService.getLatestAcceptedVersions(appId)
+    const group = await cloudFunctionService.getByVersion(appId, versions.cloudFunctionVersion)
     ctx.body = {
       success: true,
-      data: functions.map(formatCloudFunction),
+      data: (group?.functions ?? []).map(formatCloudFunction),
     }
   }
 
@@ -45,8 +71,9 @@ class CloudFunctionController {
    */
   async getOne(ctx: Context) {
     const { appId, functionId } = ctx.params as { appId: string; functionId: string }
-
-    const fn = await cloudFunctionService.getByFunctionId(appId, functionId)
+    const versions = await dialogueService.getLatestAcceptedVersions(appId)
+    const group = await cloudFunctionService.getByVersion(appId, versions.cloudFunctionVersion)
+    const fn = group?.functions.find((f) => f.functionId === functionId)
     if (!fn) {
       ctx.status = 404
       ctx.body = { success: false, message: '云函数不存在' }
@@ -75,26 +102,22 @@ class CloudFunctionController {
       return
     }
 
-    try {
-      const fn = await cloudFunctionService.create(appId, {
-        name: body.name,
-        displayName: body.displayName,
-        description: body.description,
-        flowSchema: body.schema ?? body.flowSchema,
-      })
+    const created = await this.runCloudFunctionEdit(
+      appId,
+      `新增云函数「${body.displayName?.trim() || body.name.trim()}」`,
+      (functions) => {
+        const { functions: next, created } = CloudFunctionService.computeCreate(functions, {
+          name: body.name!,
+          displayName: body.displayName,
+          description: body.description,
+          flowSchema: body.schema ?? body.flowSchema,
+        })
+        return { functions: next, result: created }
+      },
+    )
 
-      ctx.status = 201
-      ctx.body = { success: true, data: formatCloudFunction(fn) }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : ''
-      if (msg.startsWith('DUPLICATE_NAME:')) {
-        const name = msg.slice('DUPLICATE_NAME:'.length)
-        ctx.status = 409
-        ctx.body = { success: false, message: `云函数名称 "${name}" 已存在` }
-      } else {
-        throw err
-      }
-    }
+    ctx.status = 201
+    ctx.body = { success: true, data: formatCloudFunction(created) }
   }
 
   /**
@@ -110,31 +133,21 @@ class CloudFunctionController {
       flowSchema?: Record<string, unknown>
     }
 
-    try {
-      const fn = await cloudFunctionService.update(appId, functionId, {
-        name: body.name,
-        displayName: body.displayName,
-        description: body.description,
-        flowSchema: body.schema ?? body.flowSchema,
-      })
+    const updated = await this.runCloudFunctionEdit(
+      appId,
+      `更新云函数「${functionId}」`,
+      (functions) => {
+        const { functions: next, updated } = CloudFunctionService.computeUpdate(functions, functionId, {
+          name: body.name,
+          displayName: body.displayName,
+          description: body.description,
+          flowSchema: body.schema ?? body.flowSchema,
+        })
+        return { functions: next, result: updated }
+      },
+    )
 
-      if (!fn) {
-        ctx.status = 404
-        ctx.body = { success: false, message: '云函数不存在' }
-        return
-      }
-
-      ctx.body = { success: true, data: formatCloudFunction(fn) }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : ''
-      if (msg.startsWith('DUPLICATE_NAME:')) {
-        const name = msg.slice('DUPLICATE_NAME:'.length)
-        ctx.status = 409
-        ctx.body = { success: false, message: `云函数名称 "${name}" 已存在` }
-      } else {
-        throw err
-      }
-    }
+    ctx.body = { success: true, data: formatCloudFunction(updated) }
   }
 
   /**
@@ -143,12 +156,14 @@ class CloudFunctionController {
   async remove(ctx: Context) {
     const { appId, functionId } = ctx.params as { appId: string; functionId: string }
 
-    const deleted = await cloudFunctionService.delete(appId, functionId)
-    if (!deleted) {
-      ctx.status = 404
-      ctx.body = { success: false, message: '云函数不存在' }
-      return
-    }
+    await this.runCloudFunctionEdit(
+      appId,
+      `删除云函数「${functionId}」`,
+      (functions) => ({
+        functions: CloudFunctionService.computeDelete(functions, functionId),
+        result: true as const,
+      }),
+    )
 
     ctx.body = { success: true }
   }

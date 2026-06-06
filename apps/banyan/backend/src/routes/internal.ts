@@ -9,9 +9,10 @@
  *   生产环境必须配置 INTERNAL_API_TOKEN 环境变量。
  */
 import Router from '@koa/router'
-import Application from '../models/Application.js'
+import appContentService from '../services/AppContentService.js'
 import { SchemaService } from '../services/SchemaService.js'
 import cloudFunctionService from '../services/CloudFunctionService.js'
+import dialogueService from '../services/DialogueService.js'
 
 const router = new Router({ prefix: '/internal/apps' })
 
@@ -30,37 +31,42 @@ router.use(async (ctx, next) => {
 })
 
 // ─── GET /internal/apps/:appId/appJSON ───────────────────────────────────────
-// 返回应用的 appJSON（App 级别序列化字符串）
+// 返回应用的 appJSON（版本号引用模型：读取当前工作版本——活跃对话的草稿版本，
+// 无活跃对话则回退到最新已接受版本）
 
 router.get('/:appId/appJSON', async (ctx) => {
   const { appId } = ctx.params
-  const app = await Application.findOne({ application_id: appId }).select('appJSON')
+  const versions = await dialogueService.getWorkingVersions(appId)
+  const content = await appContentService.getByVersion(appId, versions.appContentVersion)
 
-  if (!app) {
-    ctx.status = 404
-    ctx.body = { success: false, message: `Application "${appId}" not found` }
-    return
+  ctx.body = {
+    success: true,
+    data: { appJSON: content?.appJSON ?? '', version: versions.appContentVersion },
   }
-
-  ctx.body = { success: true, data: { appJSON: app.appJSON ?? '' } }
 })
 
 // ─── GET /internal/apps/:appId/schema ────────────────────────────────────────
-// 返回应用的 CollectionSchema（表和字段定义）
+// 返回应用的 CollectionSchema（表和字段定义）——当前工作版本
 
 router.get('/:appId/schema', async (ctx) => {
   const { appId } = ctx.params
-  const schema = await SchemaService.getSchema(appId)
+  const versions = await dialogueService.getWorkingVersions(appId)
+  const schema = await SchemaService.getByVersion(appId, versions.schemaVersion)
 
-  ctx.body = { success: true, data: { collections: schema.collections, version: schema.version } }
+  ctx.body = {
+    success: true,
+    data: { collections: schema?.collections ?? [], version: versions.schemaVersion },
+  }
 })
 
 // ─── GET /internal/apps/:appId/cloud-functions ───────────────────────────────
-// 返回应用的所有云函数列表（含 flowSchema）
+// 返回应用的所有云函数列表（含 flowSchema）——当前工作版本
 
 router.get('/:appId/cloud-functions', async (ctx) => {
   const { appId } = ctx.params
-  const functions = await cloudFunctionService.listByApp(appId)
+  const versions = await dialogueService.getWorkingVersions(appId)
+  const group = await cloudFunctionService.getByVersion(appId, versions.cloudFunctionVersion)
+  const functions = group?.functions ?? []
 
   ctx.body = {
     success: true,
@@ -71,18 +77,19 @@ router.get('/:appId/cloud-functions', async (ctx) => {
         displayName: fn.displayName,
         description: fn.description,
         flowSchema: fn.flowSchema,
-        version: fn.version,
       })),
     },
   }
 })
 
 // ─── GET /internal/apps/:appId/cloud-functions/:functionId ───────────────────
-// 返回单个云函数详情
+// 返回单个云函数详情——当前工作版本
 
 router.get('/:appId/cloud-functions/:functionId', async (ctx) => {
   const { appId, functionId } = ctx.params
-  const fn = await cloudFunctionService.getByFunctionId(appId, functionId)
+  const versions = await dialogueService.getWorkingVersions(appId)
+  const group = await cloudFunctionService.getByVersion(appId, versions.cloudFunctionVersion)
+  const fn = group?.functions.find((f) => f.functionId === functionId)
 
   if (!fn) {
     ctx.status = 404
@@ -98,7 +105,6 @@ router.get('/:appId/cloud-functions/:functionId', async (ctx) => {
       displayName: fn.displayName,
       description: fn.description,
       flowSchema: fn.flowSchema,
-      version: fn.version,
     },
   }
 })

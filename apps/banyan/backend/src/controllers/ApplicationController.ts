@@ -55,23 +55,33 @@ class ApplicationController {
     try {
       const { id } = ctx.params
       const user = ctx.state.user!
-      const application = await applicationService.getApplicationById(id)
 
-      if (!application) {
+      // ADR-042：聚合返回 application + appJSON + collections + cloudFunctions
+      const result = await applicationService.getFullApplicationById(id)
+
+      if (!result) {
         ctx.status = 404
         ctx.body = { success: false, message: 'Application not found' }
         return
       }
 
       // 租户归属校验
-      if (application.tenantId !== user.tenantId) {
+      if (result.application.tenantId !== user.tenantId) {
         ctx.status = 403
         ctx.body = { success: false, message: '无权访问该应用' }
         return
       }
 
       ctx.status = 200
-      ctx.body = { success: true, data: application }
+      ctx.body = {
+        success: true,
+        data: {
+          ...result.application,
+          appJSON: result.appJSON,
+          collections: result.collections,
+          cloudFunctions: result.cloudFunctions,
+        },
+      }
     } catch (error: any) {
       ctx.status = 500
       ctx.body = { success: false, message: error.message || 'Failed to get application' }

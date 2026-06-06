@@ -4,9 +4,10 @@
  * 核心设计：
  *   - Dialogue 是唯一权威状态机，phase 字段驱动全生命周期
  *   - SSE 期间所有状态写入 Dialogue
- *   - chat 模式：start → responding → done（直接 commit）
- *   - task 模式：start → planning → awaiting_confirm → executing → committing → done
- *   - confirm 从 Dialogue 读取 appJSON/collections 落库，无需 Snapshot/PendingStore 中间层
+ *   - chat 模式：start → responding → done
+ *   - task 模式：start → requirements → ... → building → awaiting_confirm → committing → done
+ *   - 版本号引用模型：Dialogue 创建时三表已 append 草稿版本，agent 按版本号原地修改；
+ *     confirm 仅是状态扭转（awaiting_confirm → committing → done），无需再落库
  *
  * 架构：
  *   前端 ←SSE── banyan 后端(:3001) ←SSE── XiangDi 服务(:3002)
@@ -18,7 +19,7 @@
  *   text_delta / done / error / app_state / started
  *
  * 事件透传策略：
- *   - app_state：拦截（不转发前端），从中提取最终 appJSON/schema/cloudFunctions 暂存
+ *   - app_state：拦截（不转发前端），按版本号原地更新三张内容表
  *   - started：透传
  *   - 其余事件：原样透传
  */
@@ -28,12 +29,15 @@ import http from 'http'
 import https from 'https'
 import { Types } from 'mongoose'
 import applicationService from './ApplicationService.js'
+import appContentService from './AppContentService.js'
+import cloudFunctionService from './CloudFunctionService.js'
 import conversationService from './ConversationService.js'
 import contextBuilder, { ContextBudgetOverflowError } from './ContextBuilder.js'
 import type { ContextBuildOptions } from './ContextBuilder.js'
 import { SchemaService } from './SchemaService.js'
 import memoryService from './MemoryService.js'
 import type { ICollectionDef, IAssistantContent, DialogueType } from '../models/types/index.js'
+import type { ICloudFunctionDef } from '../models/types/versioned-content.js'
 import dialogueService from './DialogueService.js'
 import { PhaseController } from './PhaseController.js'
 
@@ -387,7 +391,7 @@ class AiService {
       if (!app) throw new Error(`应用 ${appId} 不存在`)
 
       await conversationService.getOrCreate(appId)
-      await this._runDialogue(appId, prompt, type, images, res, app.appJSON ?? '')
+      await this._runDialogue(appId, prompt, type, images, res)
     } catch (err) {
       if (err instanceof ContextBudgetOverflowError) {
         sseWrite(res, 'error', { code: err.code, message: err.message, details: err.details })
@@ -411,18 +415,20 @@ class AiService {
     type: DialogueType,
     images: Array<{ url: string; alt?: string }>,
     res: ServerResponse,
-    currentAppJSON: string,
   ): Promise<void> {
-    // 1. 创建 Dialogue
+    // 1. 创建 Dialogue（同时给三张内容表 append 草稿版本）
     const conv = await conversationService.getOrCreate(appId)
     const dlgDoc = await dialogueService.create({
       appId,
       conversationId: conv._id as import('mongoose').Types.ObjectId,
       type,
       userMessage: { prompt, images },
-      appJSON: type === 'task' ? currentAppJSON : undefined,
     })
     const dialogueId = dlgDoc._id as import('mongoose').Types.ObjectId
+    // 本轮对话持有的三个内容版本号（agent 按版本号原地修改这些草稿记录）
+    const appContentVersion = dlgDoc.appContentVersion
+    const schemaVersion = dlgDoc.schemaVersion
+    const cloudFunctionVersion = dlgDoc.cloudFunctionVersion
 
     // 2. PhaseController 创建 + 初始 phase 推进
     const phaseCtrl = PhaseController.create(dialogueId, res)
@@ -454,16 +460,15 @@ class AiService {
     // 5. proxySSECore — 回调统一写 Dialogue
     await proxySSECore('/ai/run', requestBody, res, {
       onDone: async (finalAppJSON, assistantContent, summary) => {
-        // 5a. 写入 Dialogue（所有模式共享）
-        await dialogueService.updateAppJSON(dialogueId, finalAppJSON)
+        // 5a. 按版本号原地更新 appJSON 草稿记录（所有模式共享）
+        await appContentService.updateByVersion(appId, appContentVersion, finalAppJSON)
         await dialogueService.appendAssistantContent(dialogueId, assistantContent)
         if (summary) {
           await dialogueService.setRoundSummary(dialogueId, summary)
         }
 
-        // 5b. chat 模式：直接落库（无确认环节）
+        // 5b. chat 模式：无需确认，直接扭转到 done（内容已按版本号写入三表）
         if (type === 'chat') {
-          await applicationService.updateApplication(appId, { appJSON: finalAppJSON })
           await conversationService.registerDialogue(appId, dialogueId)
           if (summary) {
             this.persistDialogueSummary(appId, dialogueId, summary).catch(err => {
@@ -477,29 +482,19 @@ class AiService {
         // Phase 由 dispatchEvent 中自动驱动到 failed
       },
       onAppState: (state) => {
-        // Schema 变更写入 Dialogue + chat 模式直接落库
+        // Schema 变更：按版本号原地更新草稿记录
         if (Array.isArray(state.schema) && state.schema.length > 0) {
-          const collectionSnapshots = state.schema.map(col => ({
-            name: col.name,
-            displayName: col.displayName,
-            fields: (col.fields ?? []).map(f => ({
-              name: f.name,
-              displayName: f.displayName,
-              type: f.type,
-              required: f.required ?? false,
-              defaultValue: f.defaultValue,
-              refCollection: f.refCollection,
-              enumValues: f.enumValues,
-            })),
-          }))
-          dialogueService.updateCollections(dialogueId, collectionSnapshots).catch(err => {
-            console.error('[AiService] Dialogue collections 更新失败:', err)
+          SchemaService.updateByVersion(appId, schemaVersion, state.schema).catch(err => {
+            console.error('[AiService] Schema 按版本号更新失败:', err)
           })
-          if (type === 'chat') {
-            SchemaService.setCollections(appId, state.schema).catch(err => {
-              console.error('[AiService] Schema 写入失败:', err)
-            })
-          }
+        }
+
+        // CloudFunctions 变更：按版本号原地更新草稿记录
+        if (Array.isArray(state.cloudFunctions) && state.cloudFunctions.length > 0) {
+          const cfDefs = state.cloudFunctions as ICloudFunctionDef[]
+          cloudFunctionService.updateByVersion(appId, cloudFunctionVersion, cfDefs).catch(err => {
+            console.error('[AiService] CloudFunction 按版本号更新失败:', err)
+          })
         }
       },
     }, appId, { phaseCtrl })
@@ -525,27 +520,20 @@ class AiService {
 
     const dlgId = dlg._id as Types.ObjectId
 
-    // 1. Phase 推进：awaiting_confirm → committing
+    // 版本号引用模型：agent 已按版本号原地写入三表草稿，confirm 仅是状态扭转，无需再落库。
+    // 该对话扭转到 done 后，其持有的三个版本号即成为“最新已验收”版本。
+
+    // 1. Phase 推进：awaiting_confirm → committing（后端状态扭转边界，不可中断）
     await dialogueService.setPhase(dlgId, 'committing')
 
-    // 2. 应用状态落库
-    if (dlg.appJSON) {
-      await applicationService.updateApplication(appId, { appJSON: dlg.appJSON })
-    }
-
-    // 3. Schema 落库
-    if (dlg.collections && dlg.collections.length > 0) {
-      await SchemaService.setCollections(appId, dlg.collections as unknown as ICollectionDef[])
-    }
-
-    // 4. 对话摘要向量化
+    // 2. 对话摘要向量化
     if (dlg.summary?.text) {
       this.persistDialogueSummary(appId, dlgId, dlg.summary.text).catch(err => {
         console.error('[AiService] 对话摘要持久化失败:', err)
       })
     }
 
-    // 5. Phase 完成：committing → done，并注册到 Conversation 索引
+    // 3. Phase 完成：committing → done，并注册到 Conversation 索引
     await dialogueService.setPhase(dlgId, 'done')
     await conversationService.registerDialogue(appId, dlgId)
 
