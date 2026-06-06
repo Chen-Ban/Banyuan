@@ -11,7 +11,7 @@
  *
  * 设计原则：
  *   - 输出为 FlowSchema JSON（{ nodes: FlowNode[], edges: FlowEdge[] }），
- *     与 banvas-flow 的 FlowRunnerService 直接兼容
+ *     与后端 FlowSchema 执行器（`createServerFlowRunner()`，运行于用户 ECS 产物）直接兼容
  *   - handler 内部构造 prompt 调用 LLMClient 生成 FlowSchema
  *   - AppSchema 注入 prompt，帮助 AI 理解可操作的数据集合和字段
  *
@@ -116,7 +116,7 @@ export const GENERATE_CLOUD_FUNCTION_TOOL_DEFINITION: ToolDefinition = {
   name: GENERATE_CLOUD_FUNCTION_TOOL_NAME,
   description:
     "根据自然语言描述和应用数据模型（AppSchema）生成完整的云函数 FlowSchema（节点图）。" +
-    "生成结果为可直接被 FlowRunnerService 执行的 { nodes, edges } 结构。" +
+    "生成结果为可直接被后端 FlowSchema 执行器（ECS 产物）执行的 { nodes, edges } 结构。" +
     "示例：'查询所有未完成的订单并按创建时间排序'",
   input_schema: {
     type: "object",
@@ -463,7 +463,7 @@ error 边仅在来源节点执行抛异常时走。异常信息自动写入 loca
 
 ## 约定
 - 函数的输入参数通过 local scope 变量传入（调用方写入 local scope）
-- 函数的输出结果写入 local scope 的 "result" 变量（FlowRunnerService 读取 local scope 作为结果）
+- 函数的输出结果写入 local scope 的 "result" 变量（后端执行器读取 local scope 作为结果）
 - 节点 id 使用 "node_1", "node_2" 等简单格式
 - 所有节点必须通过 edges 连接，形成有向无环图（DAG）
 - error 边：任何节点都可以连出 branch: "error" 的边，用于异常处理。异常时 __error__ 变量包含 { message, name }`;

@@ -6,7 +6,6 @@ import buildRouter from './build.js'
 import previewRouter from './preview.js'
 import schemaRouter from './schema.js'
 import dataRouter from './data.js'
-import flowsRouter from './flows.js'
 import cloudFunctionsRouter from './cloudFunctions.js'
 import { uploadRouter } from './upload.js'
 import knowledgeRouter from './knowledge.js'
@@ -46,10 +45,7 @@ router.use(buildRouter.routes(), buildRouter.allowedMethods())
 router.use(schemaRouter.routes(), schemaRouter.allowedMethods())
 router.use(dataRouter.routes(), dataRouter.allowedMethods())
 
-// Phase 2：FlowSchema 后端执行（ADR-013）
-router.use(flowsRouter.routes(), flowsRouter.allowedMethods())
-
-// 云函数 CRUD
+// 云函数 CRUD（仅定义存储；执行宿主已迁往用户 ECS 产物，banyan 不再执行 FlowSchema）
 router.use(cloudFunctionsRouter.routes(), cloudFunctionsRouter.allowedMethods())
 
 // 文件上传（缩略图 → OSS）
