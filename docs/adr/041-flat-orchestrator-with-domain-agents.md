@@ -2006,7 +2006,7 @@ function adaptEvent(rawEvent: NewAiStreamEvent): OldAiStreamEvent | null {
 - 前端 Worker 按页面粒度执行 + patch 语义写入，解决 App 级 lifetimes 丢失问题，且数据结构天然兼容未来拆为多 Page Worker 并行
 - 消除了 Plan/Execute 刚性边界导致的回退困难
 - 前后端领域分离，各自 Worker 的 context window 更精炼
-- `awaiting_confirm` 永久保留（无 TTL 清理）：用户可以跨越时间间隔回来确认或拒绝历史变更，多个待验收的 Dialogue 构成版本选择列表，用户拥有完整的历史还原能力
+- `awaiting_confirm` 无 TTL 清理：用户可以跨越任意时间间隔回来确认或拒绝变更结果，不会因超时失效。同一应用同一时刻至多一个 `awaiting_confirm` 的 Dialogue（用户发起新 task 会自动放弃旧的待验收结果）。历史已确认的 Dialogue 链构成版本历史，用户通过新一轮对话表达"回到上一个版本"来触发还原
 - 云函数生成从"工具里藏 LLM"回归为"Agent 直接决策"，上下文完整
 - 扁平结构使流程可观测——每个 SubAgent 的输入输出都可以作为 SSE 事件暴露给前端
 - 契约机制使前后端的依赖关系显式化，审计有明确的校验基准
