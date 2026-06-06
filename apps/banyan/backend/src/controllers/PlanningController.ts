@@ -1,11 +1,9 @@
 /**
  * Planning Controller
  *
- * 处理 Multi-Agent 规划产物查询和 Agent Prompt 配置 CRUD。
+ * 处理 Agent Prompt 配置 CRUD。
  *
  * 路由：
- *   GET  /api/applications/:appId/planning/artifact/:dialogueId — 获取某对话的规划产物
- *   GET  /api/applications/:appId/planning/artifact-latest      — 获取最近完成的规划产物
  *   GET  /api/applications/:appId/prompts                       — 获取应用全部角色配置
  *   GET  /api/applications/:appId/prompts/:agent                — 获取某角色配置
  *   PUT  /api/applications/:appId/prompts/:agent                — 更新某角色配置
@@ -14,57 +12,12 @@
  */
 
 import type { Context } from 'koa'
-import { Types } from 'mongoose'
-import planningArtifactService from '../services/PlanningArtifactService.js'
 import agentPromptService from '../services/AgentPromptService.js'
 import type { FullAgentRole } from '../models/index.js'
 
 const VALID_ROLES: FullAgentRole[] = ['master', 'pm', 'arch', 'visual', 'task']
 
 class PlanningController {
-  // ─── Planning Artifact 查询 ──────────────────────────────────────────────────
-
-  /**
-   * GET /api/applications/:appId/planning/artifact/:dialogueId
-   * 获取某对话关联的规划产物
-   */
-  async getArtifactByDialogue(ctx: Context): Promise<void> {
-    const { dialogueId } = ctx.params as { appId: string; dialogueId: string }
-
-    if (!dialogueId || !Types.ObjectId.isValid(dialogueId)) {
-      ctx.status = 400
-      ctx.body = { success: false, message: '无效的 dialogueId 参数' }
-      return
-    }
-
-    const artifact = await planningArtifactService.getByDialogueId(
-      new Types.ObjectId(dialogueId)
-    )
-
-    if (!artifact) {
-      ctx.status = 404
-      ctx.body = { success: false, message: '未找到规划产物' }
-      return
-    }
-
-    ctx.body = { success: true, data: artifact }
-  }
-
-  /**
-   * GET /api/applications/:appId/planning/artifact-latest
-   * 获取应用最近完成的规划产物
-   */
-  async getLatestArtifact(ctx: Context): Promise<void> {
-    const { appId } = ctx.params as { appId: string }
-
-    const artifact = await planningArtifactService.getLatestCompleted(appId)
-
-    ctx.body = {
-      success: true,
-      data: artifact ?? null,
-    }
-  }
-
   // ─── Agent Prompt 配置 ───────────────────────────────────────────────────────
 
   /**

@@ -67,7 +67,6 @@ export type {
   PartialAgentState,
   PlanningSnapshot,
   RefinementContext,
-  PlanningArtifactStatus,
   ResumeClassifierConfig,
   ResumeClassifierInput,
 } from "./resume/index.js";

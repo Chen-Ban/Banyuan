@@ -1,5 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose'
-import type { ICollectionSnapshot, ICloudFunctionSnapshot, IFieldSnapshot } from './types/snapshot-types.js'
+import type { ICollectionDef } from './CollectionSchema.js'
+import { CollectionDefSchema } from './CollectionSchema.js'
+import type { ICloudFunction } from './CloudFunction.js'
+import { CloudFunctionEmbedSchema } from './CloudFunction.js'
 
 // ─── 部署状态 ─────────────────────────────────────────────────────────────────
 
@@ -19,9 +22,9 @@ export interface IDeploySnapshot {
   /** 完整的 appJSON（序列化字符串，与 Snapshot 模型一致） */
   appJSON: string
   /** 数据库表定义（fullstack 模式下） */
-  collections: ICollectionSnapshot[]
+  collections: ICollectionDef[]
   /** 云函数定义（fullstack 模式下） */
-  cloudFunctions: ICloudFunctionSnapshot[]
+  cloudFunctions: ICloudFunction[]
 }
 
 // ─── 部署记录接口 ─────────────────────────────────────────────────────────────
@@ -63,43 +66,11 @@ export interface IDeployment extends Document {
 
 // ─── Snapshot 子 Schema ───────────────────────────────────────────────────────
 
-const FieldSnapshotSubSchema = new Schema<IFieldSnapshot>(
-  {
-    name: { type: String, required: true },
-    displayName: { type: String, required: true },
-    type: { type: String, required: true },
-    required: { type: Boolean, default: false },
-    defaultValue: { type: Schema.Types.Mixed, default: undefined },
-    refCollection: { type: String, default: undefined },
-    enumValues: { type: [String], default: undefined },
-  },
-  { _id: false }
-)
-
-const CollectionSnapshotSubSchema = new Schema<ICollectionSnapshot>(
-  {
-    name: { type: String, required: true },
-    displayName: { type: String, required: true },
-    fields: { type: [FieldSnapshotSubSchema], default: [] },
-  },
-  { _id: false }
-)
-
-const CloudFunctionSnapshotSubSchema = new Schema<ICloudFunctionSnapshot>(
-  {
-    functionId: { type: String, required: true },
-    name: { type: String, required: true },
-    displayName: { type: String, default: '' },
-    flowSchema: { type: Schema.Types.Mixed, default: {} },
-  },
-  { _id: false }
-)
-
 const DeploySnapshotSubSchema = new Schema<IDeploySnapshot>(
   {
     appJSON: { type: String, required: true },
-    collections: { type: [CollectionSnapshotSubSchema], default: [] },
-    cloudFunctions: { type: [CloudFunctionSnapshotSubSchema], default: [] },
+    collections: { type: [CollectionDefSchema], default: [] },
+    cloudFunctions: { type: [CloudFunctionEmbedSchema], default: [] },
   },
   { _id: false }
 )

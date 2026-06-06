@@ -465,14 +465,14 @@ export class PlanningOrchestrator {
   createSnapshot(
     interruptedAt: AgentRole | 'execute',
     completedArtifacts: CompletedArtifacts,
-    artifactId: string,
+    dialogueId?: string,
     planDescription?: string,
   ): PlanningSnapshot {
     return {
       interruptedAt,
       completedArtifacts,
       interruptedAt_ts: Date.now(),
-      artifactId,
+      dialogueId,
       planDescription,
     };
   }

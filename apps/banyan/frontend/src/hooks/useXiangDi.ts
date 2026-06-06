@@ -1,5 +1,5 @@
 /**
- * useXiangDi Hook（V4 — 事务化）
+ * useXiangDi Hook（V5 — ADR-041 Orchestrator）
  *
  * 封装与后端 XiangDi AI 服务的 SSE 通信逻辑。
  * 提供：
@@ -11,14 +11,15 @@
  * - 中止请求（abort）
  * - 确认/撤销 task 模式对话结果（confirmTask / discardTask）
  *
- * V4 变更（对话即事务）：
- *   - task 模式引入"pending confirm"语义：
- *     · SSE 流结束后（done 事件）对话处于"待确认"状态（hasPendingTask=true）
- *     · 用户在前端画布预览结果后，调用 confirmTask 确认持久化，或 discardTask 撤销
- *   - chat 模式不变：done 后直接写 DB（纯文字无副作用）
- *   - 新增 hasPendingTask 状态 + pendingDialogue 数据
- *   - 新增 confirmTask / discardTask 方法
- *   - 页面刷新时自动检查 pending 状态（恢复确认/撤销 UI）
+ * V5 变更（ADR-041 Orchestrator 统一管线）：
+ *   - SSE 事件协议全面更新：
+ *     started / phase_change / agent_progress / tool_activity
+ *     audit_progress / text_delta / done / error
+ *   - 移除旧事件：tool_call/tool_result/app_snapshot/disambiguation/interrupt/planning_progress
+ *   - 移除 resumeApproval / respondToDisambiguation（无 checkpoint/resume）
+ *   - 移除 PlanApprovalState / PlanningStep 旧模型
+ *   - 新增 AgentStep 模型（agent_progress 驱动）
+ *   - 新增 phase 状态跟踪
  *
  * 会话模型：1 App = 1 Conversation，以 appId 为唯一标识，
  * 前端无需管理 conversationId。
@@ -26,55 +27,41 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { aiApi, conversationApi } from '@/api'
-import type { AiStreamEvent, AiInterruptEvent, AiPlanningProgressEvent, AgentRole } from '@/api'
-import type { DisambiguationOptions, PendingDialogueInfo } from '@/api'
+import type { AiStreamEvent } from '@/api'
 import type { ConversationMessage, Dialogue, DialogueType, ImageItem } from '@/api'
 import { dialoguesToFlatMessages } from '@/api/conversations'
 
 // ─── 进度消息类型 ─────────────────────────────────────────────────────────────
 
-export type ProgressMessageType = 'text' | 'tool_call' | 'tool_result' | 'done' | 'error' | 'aborted' | 'plan_approval' | 'planning_progress'
+export type ProgressMessageType = 'text' | 'tool_activity' | 'agent_progress' | 'audit' | 'done' | 'error' | 'aborted' | 'phase_change'
 
 export interface ProgressMessage {
   id: string
   type: ProgressMessageType
   /** 主要展示文本 */
   content: string
-  /** 工具调用时的工具名 */
+  /** 工具名（tool_activity 时有值） */
   toolName?: string
-  /** 工具调用关联的 tool_use_id，用于匹配 tool_result */
-  toolCallId?: string
+  /** Agent 名（agent_progress/tool_activity 时有值） */
+  agentName?: string
   /** 是否为错误 */
   isError?: boolean
-  /** 工具调用是否已完成（收到 tool_result 后标记） */
+  /** 工具是否已完成 */
   completed?: boolean
   timestamp: number
 }
 
-// ─── Planning Progress 状态 ───────────────────────────────────────────────────
+// ─── Agent 进度状态（ADR-041） ────────────────────────────────────────────────
 
-/** Multi-Agent 规划步骤状态 */
-export interface PlanningStep {
-  agent: AgentRole
-  status: 'pending' | 'running' | 'completed' | 'failed'
-  reasoning?: string
-  output?: unknown
-  durationMs?: number
+/** SubAgent 执行步骤状态 */
+export interface AgentStep {
+  agent: string
+  status: 'started' | 'completed' | 'error'
+  message: string
+  timestamp: number
 }
-
-/** 规划步骤顺序 */
-const AGENT_ORDER: AgentRole[] = ['pm', 'arch', 'visual', 'task']
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
-
-/** 方案确认状态（humanGate interrupt 推送给前端的数据） */
-export interface PlanApprovalState {
-  threadId: string
-  node: string
-  planDescription: string
-  intentSummary: string
-  tasks: Array<{ taskId: string; description: string }>
-}
 
 export interface UseXiangDiOptions {
   appId: string
@@ -84,14 +71,10 @@ export interface UseXiangDiOptions {
    * 后端 XiangDi 通过内部 API 按需拉取，无需随请求体传入。
    */
   onBeforeSend?: () => Promise<void>
-  /** AI 完成后回调，携带最终 appJSON */
-  onDone?: (appJSON: string) => void
-  /** 写操作工具执行完毕后实时推送当前 appJSON，用于画布实时更新 */
-  onAppSnapshot?: (appJSON: string) => void
+  /** AI 完成后回调，携带 done 事件的 summary */
+  onDone?: (summary: string) => void
   /** 发生错误时回调 */
   onError?: (message: string) => void
-  /** 检测到意图冲突时回调，前端展示消歧 UI */
-  onDisambiguation?: (options: DisambiguationOptions) => void
   /** task 确认成功后回调（可用于重新加载 appJSON） */
   onConfirmed?: (dialogueId: string) => void
   /** task 撤销后回调（前端应回滚画布到对话前的状态） */
@@ -107,18 +90,18 @@ export interface UseXiangDiReturn {
   dialogues: Dialogue[]
   /** 对话历史消息（兼容层：user + assistant 交替的扁平列表） */
   history: ConversationMessage[]
-  /** 当前轮次的进度消息列表（按时间顺序，混排文字段落和工具调用） */
+  /** 当前轮次的进度消息列表（按时间顺序混排文字段落和工具活动） */
   messages: ProgressMessage[]
   /** 当前正在流入的 LLM 文字（尚未冻结的最新文字片段，用于光标渲染） */
   currentText: string
-  /** Multi-Agent 规划步骤状态（仅 task 类型对话有值，null 表示非规划模式） */
-  planningSteps: PlanningStep[] | null
-  /** 方案确认状态（humanGate interrupt 时非 null） */
-  planApproval: PlanApprovalState | null
+  /** SubAgent 进度步骤列表（agent_progress 事件驱动） */
+  agentSteps: AgentStep[]
+  /** 当前阶段名（phase_change 事件驱动） */
+  currentPhase: string | null
   /** 是否有 pending 的 task 对话待确认 */
   hasPendingTask: boolean
   /** pending 对话详情（非 null 时前端应显示确认/撤销按钮） */
-  pendingDialogue: PendingDialogueInfo | null
+  pendingDialogue: import('@/api').PendingDialogueInfo | null
   /** 发送指令（type 默认 task） */
   sendPrompt: (prompt: string, type?: DialogueType, images?: Array<{ url: string; alt?: string }>) => Promise<void>
   /** 中止当前请求 */
@@ -127,10 +110,6 @@ export interface UseXiangDiReturn {
   clearMessages: () => void
   /** 新建对话（清空所有历史和进度消息） */
   newConversation: () => void
-  /** 响应消歧选择，通知后端恢复 AgentLoop */
-  respondToDisambiguation: (choiceId: string) => Promise<void>
-  /** 响应方案确认（approved=true 直接执行，approved=false 附带 feedback 退回修改） */
-  resumeApproval: (approved: boolean, feedback?: string) => Promise<void>
   /** 确认 task 对话：持久化到 DB，画布保持当前状态 */
   confirmTask: () => Promise<void>
   /** 撤销 task 对话：丢弃暂存数据，画布回滚 */
@@ -143,17 +122,17 @@ function nextMsgId(): string {
 }
 
 export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
-  const { appId, onBeforeSend, onDone, onAppSnapshot, onError, onDisambiguation, onConfirmed, onDiscarded } = options
+  const { appId, onBeforeSend, onDone, onError, onConfirmed, onDiscarded } = options
 
   const [loading, setLoading] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [dialogues, setDialogues] = useState<Dialogue[]>([])
   const [messages, setMessages] = useState<ProgressMessage[]>([])
   const [currentText, setCurrentText] = useState('')
-  const [planningSteps, setPlanningSteps] = useState<PlanningStep[] | null>(null)
-  const [planApproval, setPlanApproval] = useState<PlanApprovalState | null>(null)
+  const [agentSteps, setAgentSteps] = useState<AgentStep[]>([])
+  const [currentPhase, setCurrentPhase] = useState<string | null>(null)
   const [hasPendingTask, setHasPendingTask] = useState(false)
-  const [pendingDialogue, setPendingDialogue] = useState<PendingDialogueInfo | null>(null)
+  const [pendingDialogue, setPendingDialogue] = useState<import('@/api').PendingDialogueInfo | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
   // 同步互斥锁，防止 loading state 批次更新延迟导致的重复提交
@@ -207,7 +186,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
 
   /**
    * 冻结当前累积的文字为一个 text 类型的 ProgressMessage。
-   * 在遇到 tool_call 时调用，确保文字段落和工具调用按真实顺序混排。
+   * 在遇到 tool_activity 时调用，确保文字段落和工具活动按真实顺序混排。
    */
   const freezeCurrentText = useCallback(() => {
     const text = currentTextRef.current
@@ -220,133 +199,130 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   }, [addMessage])
 
   /**
-   * 统一的 SSE 事件处理回调（sendPrompt 和 resumeApproval 共享）。
-   * 处理所有 SSE 事件类型并更新对应状态。
+   * 统一的 SSE 事件处理回调。
+   * 处理 ADR-041 Orchestrator 事件协议。
    */
   const handleEvent = useCallback((event: AiStreamEvent) => {
     switch (event.type) {
+      case 'started': {
+        // 流开始，可用于记录 threadId（目前无需特殊处理）
+        break
+      }
       case 'text_delta': {
-        currentTextRef.current += event.text
-        allTextRef.current += event.text
+        currentTextRef.current += event.delta
+        allTextRef.current += event.delta
         setCurrentText(currentTextRef.current)
         break
       }
-      case 'tool_call': {
-        // 冻结之前的文字段落，再追加 tool_call
-        freezeCurrentText()
-        const friendlyName = formatToolName(event.name)
+      case 'phase_change': {
+        setCurrentPhase(event.to)
         addMessage({
-          type: 'tool_call',
-          content: `正在执行：${friendlyName}`,
-          toolName: event.name,
-          toolCallId: event.id,
+          type: 'phase_change',
+          content: `阶段切换：${event.from} → ${event.to}`,
         })
         break
       }
-      case 'tool_result': {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.type === 'tool_call' && m.toolCallId === event.id
-              ? { ...m, completed: true }
-              : m
-          )
-        )
-        if (event.isError) {
+      case 'agent_progress': {
+        setAgentSteps((prev) => {
+          // 更新已存在的 agent 或追加新的
+          const existing = prev.find((s) => s.agent === event.agent)
+          if (existing) {
+            return prev.map((s) =>
+              s.agent === event.agent
+                ? { ...s, status: event.status, message: event.message, timestamp: event.timestamp }
+                : s
+            )
+          }
+          return [...prev, {
+            agent: event.agent,
+            status: event.status,
+            message: event.message,
+            timestamp: event.timestamp,
+          }]
+        })
+        if (event.status === 'started') {
           addMessage({
-            type: 'tool_result',
-            content: `操作失败：${typeof event.result === 'string' ? event.result : JSON.stringify(event.result)}`,
+            type: 'agent_progress',
+            content: event.message || `${event.agent} 开始执行`,
+            agentName: event.agent,
+          })
+        } else if (event.status === 'error') {
+          addMessage({
+            type: 'agent_progress',
+            content: event.message || `${event.agent} 执行失败`,
+            agentName: event.agent,
             isError: true,
           })
         }
         break
       }
-      case 'planning_progress': {
-        const progressEvent = event as AiPlanningProgressEvent
-        setPlanningSteps((prev) => {
-          if (!prev) return prev
-          return prev.map((step) => {
-            if (step.agent === progressEvent.agent) {
-              return {
-                ...step,
-                status: 'completed',
-                reasoning: progressEvent.reasoning,
-                output: progressEvent.output,
-                durationMs: progressEvent.durationMs,
-              }
-            }
-            // 标记下一个 agent 为 running
-            const completedIdx = AGENT_ORDER.indexOf(progressEvent.agent)
-            const nextIdx = completedIdx + 1
-            if (nextIdx < AGENT_ORDER.length && step.agent === AGENT_ORDER[nextIdx] && step.status === 'pending') {
-              return { ...step, status: 'running' }
-            }
-            return step
-          })
-        })
-        addMessage({
-          type: 'planning_progress',
-          content: progressEvent.reasoning ?? `${progressEvent.agent} 已完成`,
-          toolName: progressEvent.agent,
-        })
-        break
-      }
-      case 'app_snapshot': {
-        onAppSnapshot?.(event.appJSON)
-        break
-      }
-      case 'disambiguation': {
-        // 消歧事件：展示消歧卡片，用户选择后通过 onDisambiguation 回调处理
-        // 在 requireApproval 模式下，消歧通过 interrupt 事件统一处理
-        // 这里保留兼容：非 requireApproval 模式下仍可能收到独立 disambiguation 事件
-        onDisambiguation?.(event.options)
-        break
-      }
-      case 'interrupt': {
-        // humanGate 方案确认：冻结已有文字，设置 planApproval 状态
-        freezeCurrentText()
-        const interruptData = event as AiInterruptEvent
-        if (interruptData.value?.type === 'humanGate') {
-          const approvalState: PlanApprovalState = {
-            threadId: interruptData.threadId,
-            node: interruptData.node,
-            planDescription: interruptData.value.planDescription,
-            intentSummary: interruptData.value.intentSummary,
-            tasks: interruptData.value.tasks,
-          }
-          setPlanApproval(approvalState)
+      case 'tool_activity': {
+        if (event.status === 'started') {
+          // 冻结之前的文字段落，再追加工具活动
+          freezeCurrentText()
+          const friendlyName = formatToolName(event.tool)
           addMessage({
-            type: 'plan_approval',
-            content: interruptData.value.planDescription,
+            type: 'tool_activity',
+            content: `正在执行：${friendlyName}`,
+            toolName: event.tool,
+            agentName: event.agent,
+          })
+        } else if (event.status === 'completed') {
+          // 标记对应工具为已完成
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.type === 'tool_activity' && m.toolName === event.tool && !m.completed
+                ? { ...m, completed: true }
+                : m
+            )
+          )
+        } else if (event.status === 'error') {
+          addMessage({
+            type: 'tool_activity',
+            content: `操作失败：${event.error ?? event.tool}`,
+            toolName: event.tool,
+            agentName: event.agent,
+            isError: true,
           })
         }
-        // interrupt 后 loading 保持 true（等待用户操作 → resume）
+        break
+      }
+      case 'audit_progress': {
+        addMessage({
+          type: 'audit',
+          content: event.status === 'started'
+            ? '正在审计...'
+            : event.status === 'passed'
+              ? '审计通过'
+              : `审计失败：${event.message ?? ''}`,
+          isError: event.status === 'failed',
+        })
         break
       }
       case 'done': {
         // 冻结最后剩余的文字
         freezeCurrentText()
-        // 规划完成时清空步骤指示器
-        setPlanningSteps(null)
+        setCurrentPhase(event.finalPhase)
 
         const assistantText = allTextRef.current.trim()
 
         if (currentTypeRef.current === 'task') {
-          // task 模式：进入 pending confirm 状态，不直接追加到 dialogues
+          // task 模式：进入 pending confirm 状态
           setHasPendingTask(true)
           setPendingDialogue({
             dialogueId: `pending_${Date.now()}`,
             type: 'task',
             status: 'done',
-            userContent: '', // 已在 tempDialogue 中
+            userContent: '',
             assistantContent: assistantText || null,
             createdAt: new Date().toISOString(),
           })
           addMessage({
             type: 'done',
-            content: '任务完成，请确认或撤销修改',
+            content: event.summary || '任务完成，请确认或撤销修改',
           })
         } else {
-          // chat 模式：直接追加 assistant 回复到 dialogues（已写 DB）
+          // chat 模式：直接追加 assistant 回复到 dialogues
           if (assistantText) {
             setDialogues((prev) => {
               if (prev.length === 0) return prev
@@ -368,7 +344,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
           }
           addMessage({
             type: 'done',
-            content: '完成',
+            content: event.summary || '完成',
           })
         }
         break
@@ -384,7 +360,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
         break
       }
     }
-  }, [addMessage, freezeCurrentText, onAppSnapshot, onDisambiguation])
+  }, [addMessage, freezeCurrentText])
 
   const sendPrompt = useCallback(async (prompt: string, type: DialogueType = 'task', images: ImageItem[] = []) => {
     // 同步互斥：sendingRef 是即时生效的，比 loading state 更可靠
@@ -412,18 +388,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setCurrentText('')
     currentTextRef.current = ''
     allTextRef.current = ''
-
-    // task 类型对话初始化规划步骤
-    if (type === 'task') {
-      setPlanningSteps(
-        AGENT_ORDER.map((agent, idx) => ({
-          agent,
-          status: idx === 0 ? 'running' : 'pending',
-        }))
-      )
-    } else {
-      setPlanningSteps(null)
-    }
+    setAgentSteps([])
+    setCurrentPhase(null)
 
     // 创建新的 AbortController
     const controller = new AbortController()
@@ -439,7 +405,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     }
 
     try {
-      const finalPages = await aiApi.aiChat({
+      const summary = await aiApi.aiChat({
         appId,
         prompt,
         type,
@@ -447,7 +413,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
         onEvent: handleEvent,
         signal: controller.signal,
       })
-      onDone?.(finalPages)
+      onDone?.(summary)
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
       const msg = err instanceof Error ? err.message : String(err)
@@ -459,55 +425,6 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       abortControllerRef.current = null
     }
   }, [appId, onBeforeSend, addMessage, handleEvent, onDone, onError])
-
-  const respondToDisambiguationFn = useCallback(async (choiceId: string) => {
-    await aiApi.respondToDisambiguation(choiceId)
-  }, [])
-
-  /**
-   * 响应方案确认：
-   * - approved=true -> 直接恢复执行（resume { approved: true }）
-   * - approved=false -> 附带 feedback 退回修改（resume { approved: false, feedback }）
-   *
-   * Resume 本身也是 SSE 流式：恢复执行后，后续事件继续走 handleEvent 推送到 messages/currentText。
-   */
-  const resumeApproval = useCallback(async (approved: boolean, feedback?: string) => {
-    // 清除方案确认状态
-    setPlanApproval(null)
-
-    // 重置文字累积（resume 会产生新的 text_delta 流）
-    currentTextRef.current = ''
-    allTextRef.current = ''
-    setCurrentText('')
-
-    // 创建新的 AbortController 用于 resume SSE
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-    sendingRef.current = true
-
-    try {
-      const resumeValue = approved
-        ? { approved: true }
-        : { approved: false, feedback: feedback ?? '请修改方案' }
-
-      const finalPages = await aiApi.aiResume({
-        appId,
-        resumeValue,
-        onEvent: handleEvent,
-        signal: controller.signal,
-      })
-      onDone?.(finalPages)
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return
-      const msg = err instanceof Error ? err.message : String(err)
-      addMessage({ type: 'error', content: msg, isError: true })
-      onError?.(msg)
-    } finally {
-      setLoading(false)
-      sendingRef.current = false
-      abortControllerRef.current = null
-    }
-  }, [appId, addMessage, handleEvent, onDone, onError])
 
   // ─── 对话事务控制：confirm / discard ─────────────────────────────────────────
 
@@ -533,7 +450,6 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       setHasPendingTask(false)
       setPendingDialogue(null)
       // 撤销：仅移除 sendPrompt 时乐观添加的临时对话（_id 以 temp_ 开头）
-      // 页面刷新后 dialogues 全部来自 DB，不含临时对话，此时不应删除任何条目
       setDialogues((prev) => {
         if (prev.length === 0) return prev
         const last = prev[prev.length - 1]
@@ -547,6 +463,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       setCurrentText('')
       currentTextRef.current = ''
       allTextRef.current = ''
+      setAgentSteps([])
+      setCurrentPhase(null)
       onDiscarded?.()
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -559,9 +477,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   const abort = useCallback(() => {
     if (!abortControllerRef.current) return
     abortControllerRef.current.abort()
-    // 给用户一条「已停止」的 UI 反馈
     addMessage({ type: 'aborted', content: '已停止' })
-    setPlanApproval(null)
     setLoading(false)
     sendingRef.current = false
     abortControllerRef.current = null
@@ -572,8 +488,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setCurrentText('')
     currentTextRef.current = ''
     allTextRef.current = ''
-    setPlanApproval(null)
-    setPlanningSteps(null)
+    setAgentSteps([])
+    setCurrentPhase(null)
   }, [])
 
   const newConversation = useCallback(() => {
@@ -582,8 +498,8 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setCurrentText('')
     currentTextRef.current = ''
     allTextRef.current = ''
-    setPlanApproval(null)
-    setPlanningSteps(null)
+    setAgentSteps([])
+    setCurrentPhase(null)
     setHasPendingTask(false)
     setPendingDialogue(null)
   }, [])
@@ -595,16 +511,14 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     history,
     messages,
     currentText,
-    planningSteps,
-    planApproval,
+    agentSteps,
+    currentPhase,
     hasPendingTask,
     pendingDialogue,
     sendPrompt,
     abort,
     clearMessages,
     newConversation,
-    respondToDisambiguation: respondToDisambiguationFn,
-    resumeApproval,
     confirmTask,
     discardTask,
   }

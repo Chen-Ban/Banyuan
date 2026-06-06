@@ -8,13 +8,14 @@
  *   - history user      → 靠右蓝色气泡
  *   - history assistant → 靠左灰色气泡
  *   - messages（按时间顺序混排）：
- *     - type='text'       → 靠左灰色气泡（已冻结的文字段落）
- *     - type='tool_call'  → 靠左无气泡进度行
- *     - type='tool_result'(error) → 靠左错误行
- *     - type='done'       → 靠左完成提示行
- *     - type='error'      → 靠左错误行
+ *     - type='text'           → 靠左灰色气泡（已冻结的文字段落）
+ *     - type='tool_activity'  → 靠左无气泡进度行
+ *     - type='agent_progress' → 靠左进度行
+ *     - type='audit'          → 靠左审计状态行
+ *     - type='phase_change'   → 靠左阶段提示行
+ *     - type='done'           → 靠左完成提示行
+ *     - type='error'          → 靠左错误行
  *   - currentText       → 靠左灰色气泡（正在流入的文字，末尾光标）
- *   - disambiguation    → 靠左无气泡卡片
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from "react";
@@ -28,11 +29,9 @@ import {
   WarningOutlined,
 } from "@ant-design/icons";
 import Markdown from "react-markdown";
-import type { ProgressMessage, PlanApprovalState, PlanningStep } from "@/hooks/useXiangDi";
-import type { ConversationMessage, DisambiguationOptions } from "@/api";
-import DisambiguationPanel from "../DisambiguationPanel";
-import PlanApprovalCard from "../PlanApprovalCard";
-import PlanningCard from "../PlanningCard";
+import type { ProgressMessage, AgentStep } from "@/hooks/useXiangDi";
+import type { ConversationMessage } from "@/api";
+import AgentProgressCard from "../AgentProgressCard";
 import styles from "./index.module.scss";
 
 // assistant 气泡折叠时最多显示的行数
@@ -48,13 +47,8 @@ export interface ConversationPanelProps {
   messages: ProgressMessage[];
   currentText: string;
   loading: boolean;
-  /** Multi-Agent 规划步骤状态 */
-  planningSteps: PlanningStep[] | null;
-  disambiguationState: DisambiguationOptions | null;
-  onDisambiguationSelect: (feedback: string) => void;
-  planApproval: PlanApprovalState | null;
-  onPlanApprove: () => void;
-  onPlanReject: (feedback: string) => void;
+  /** SubAgent 执行进度（ADR-041 agent_progress 驱动） */
+  agentSteps: AgentStep[];
   /** 是否有待确认的 task 对话（V4 事务化） */
   hasPendingTask: boolean;
   /** 确认 task 对话 */
@@ -71,12 +65,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   messages,
   currentText,
   loading,
-  planningSteps,
-  disambiguationState,
-  onDisambiguationSelect,
-  planApproval,
-  onPlanApprove,
-  onPlanReject,
+  agentSteps,
   hasPendingTask,
   onConfirmTask,
   onDiscardTask,
@@ -180,19 +169,28 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         switch (msg.type) {
           case 'text':
             return <TextBubble key={msg.id} content={msg.content} />;
-          case 'tool_call':
+          case 'tool_activity':
             return <ToolRow key={msg.id} message={msg} />;
-          case 'tool_result':
-            // 只有错误的 tool_result 才会被加入 messages
+          case 'agent_progress':
             return (
-              <div key={msg.id} className={`${styles.statusRow} ${styles.statusRowError}`}>
-                <WarningOutlined />
+              <div key={msg.id} className={`${styles.statusRow} ${msg.isError ? styles.statusRowError : ''}`}>
+                {msg.isError ? <WarningOutlined /> : <CheckCircleOutlined className={styles.doneIcon} />}
                 <span>{msg.content}</span>
               </div>
             );
-          case 'plan_approval':
-            // 方案确认卡片的占位符（实际卡片在下方渲染）
-            return null;
+          case 'audit':
+            return (
+              <div key={msg.id} className={`${styles.statusRow} ${msg.isError ? styles.statusRowError : ''}`}>
+                {msg.isError ? <WarningOutlined /> : <CheckCircleOutlined className={styles.doneIcon} />}
+                <span>{msg.content}</span>
+              </div>
+            );
+          case 'phase_change':
+            return (
+              <div key={msg.id} className={styles.statusRow}>
+                <span className={styles.phaseText}>{msg.content}</span>
+              </div>
+            );
           case 'done':
             return (
               <div key={msg.id} className={styles.statusRow}>
@@ -231,32 +229,14 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         </div>
       )}
 
-      {/* ── 方案确认卡片（humanGate interrupt） ── */}
-      {planApproval && (
-        <PlanApprovalCard
-          plan={planApproval}
-          onApprove={onPlanApprove}
-          onReject={onPlanReject}
-        />
-      )}
-
-      {/* ── 消歧面板（靠左，无气泡） ── */}
-      {disambiguationState && (
-        <DisambiguationPanel
-          options={disambiguationState}
-          onSelect={onDisambiguationSelect}
-        />
-      )}
-
-      {/* ── Multi-Agent 规划进度卡片 ── */}
-      {planningSteps && <PlanningCard steps={planningSteps} />}
+      {/* ── SubAgent 进度卡片（ADR-041） ── */}
+      {agentSteps.length > 0 && loading && <AgentProgressCard steps={agentSteps} />}
 
       {/* ── 初始思考中（无任何内容时） ── */}
       {loading &&
         messages.length === 0 &&
         !currentText &&
-        !planningSteps &&
-        !disambiguationState && (
+        agentSteps.length === 0 && (
           <div className={styles.statusRow}>
             <LoadingOutlined className={styles.thinkingIcon} />
             <span>banyan 正在思考...</span>
@@ -365,12 +345,14 @@ const HistoryBubble: React.FC<{ message: ConversationMessage }> = ({
 // ─── ToolRow ──────────────────────────────────────────────────────────────────
 
 const ToolRow: React.FC<{ message: ProgressMessage }> = ({ message }) => {
-  const isRunning = message.type === "tool_call" && !message.completed;
+  const isRunning = message.type === "tool_activity" && !message.completed;
 
   return (
     <div className={styles.toolRow}>
       {isRunning ? (
         <LoadingOutlined className={styles.toolIcon} />
+      ) : message.isError ? (
+        <WarningOutlined className={styles.toolIconError} />
       ) : (
         <CheckCircleOutlined className={styles.toolIconDone} />
       )}

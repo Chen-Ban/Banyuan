@@ -42,7 +42,7 @@ import { MasterStateAnnotation, type MasterState, type PlanOutput, type PlanTask
 import type { LLMClient } from "../core/llmTypes.js";
 import type { ToolRegistry } from "../core/ToolRegistry.js";
 import type { StreamCallback, Message, MessageContent } from "../core/types.js";
-import type { AuditResult } from "../orchestration/types.js";
+import type { LegacyAuditResult as AuditResult } from "../orchestration/index.js";
 import { createExtractMemoryNode } from "./nodes/extractMemoryNode.js";
 import { createIntentNode } from "./nodes/intentNode.js";
 import { createRespondNode } from "./nodes/respondNode.js";

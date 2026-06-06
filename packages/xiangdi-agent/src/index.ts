@@ -109,7 +109,7 @@ export type {
   PlanTask,
   PlanOutput,
   IntentType,
-  IntentResult,
+  IntentResult as LegacyIntentResult,
   MasterGraphConfig,
   ChatGraphConfig,
   ChatState,
@@ -143,7 +143,6 @@ export type {
   PartialAgentState,
   PlanningSnapshot,
   RefinementContext,
-  PlanningArtifactStatus,
   ResumeClassifierConfig,
   ResumeClassifierInput,
 } from "./graph/index.js";
@@ -154,6 +153,9 @@ toAIProjection,
 fromAIProjection,
 appJSONToProjection,
 projectionToAppJSON,
+// Patch Projection（ADR-041）
+patchProjection,
+patchProjectionViaAdapter,
 } from "./schema/index.js";
 
 export type {
@@ -179,6 +181,9 @@ export type {
   AIEdgeViewNode,
   AIPortViewNode,
   AIGenericViewNode,
+  // Patch Projection（ADR-041）
+  PatchProjectionInput,
+  PatchProjectionResult,
 } from "./schema/index.js";
 
 // ─── 工具协议 ─────────────────────────────────────────────────────────────────
@@ -328,9 +333,8 @@ export type {
   // SpecPlanner 类型
   SpecPlannerConfig,
   PlanResult,
-  // Multi-Agent Planning 类型 (ADR-032)
+  // Multi-Agent Planning 类型 (ADR-032) — Legacy，Phase 2 删除
   AgentRole,
-  Feature,
   FeatureDependency,
   FeatureList,
   ViewChange,
@@ -458,39 +462,154 @@ export type {
   NamespacedMemoryManagerConfig,
 } from "./memory/index.js";
 
-// ─── 编排层（类型定义）────────────────────────────────────────────────
-export { DEFAULT_ORCHESTRATION_CONFIG } from "./orchestration/index.js";
+// ─── 编排层（ADR-041: Orchestrator + 领域 SubAgent 统一管线）────────────────
+export {
+  // Orchestrator 主图
+  OrchestratorStateAnnotation,
+  createOrchestratorGraph,
+  // SubAgent 协议
+  SUBAGENT_NAMES,
+  SUBAGENT_DEPENDENCIES,
+  SUBAGENT_TOPO_ORDER,
+  getDependents,
+  canRunInParallel,
+  // Dialogue Phase 状态机
+  DIALOGUE_PHASES,
+  PHASE_TRANSITIONS,
+  PHASE_METADATA,
+  canTransition,
+  getPhaseIndex,
+  isTerminal,
+  isRollback,
+  // 节点工厂
+  callSubAgentLLM,
+  parseWithRetry,
+  buildExecution,
+  emitProgress,
+  createIntentNode as createOrchestratorIntentNode,
+  createRespondNode as createOrchestratorRespondNode,
+  createRequirementsNode,
+  createUIDesignNode,
+  createContractNode,
+  createFrontendNode as createOrchestratorFrontendNode,
+  createBackendNode,
+  createAuditNode,
+  createRollbackNode,
+  createCommitNode,
+  createSummarizeNode,
+  // Worker SubGraph
+  createWorkerGraph,
+  extractFinalText,
+  createFrontendToolRegistry,
+  createBackendToolRegistry,
+  // SubAgent 结构化输出 Zod Schemas（运行时验证）
+  FeatureSchema,
+  StructuredRequirementsSchema,
+  ComponentSpecSchema,
+  InteractionSpecSchema,
+  PageSpecSchema,
+  NavigationFlowSchema,
+  DesignTokenOverridesSchema,
+  UIDesignSpecSchema,
+  FieldContractSchema,
+  CollectionContractSchema,
+  ParamContractSchema,
+  SideEffectSchema,
+  FunctionContractSchema,
+  ParamMappingSchema,
+  BindingContractSchema,
+  IntegrationContractSchema,
+  FlowSchemaZod,
+  ClientFlowBindingSchema,
+  AIProjectionSceneZod,
+  PageArtifactSchema,
+  FrontendArtifactsSchema,
+  CollectionFieldSchema,
+  IndexDefinitionSchema,
+  CollectionDefinitionSchema,
+  CloudFunctionEntrySchema,
+  BackendArtifactsSchema,
+} from "./orchestration/index.js";
 
 export type {
-  // Port 系统
-  PortDirection,
-  PortDataType,
-  DataPort,
-  EventPort,
-  ContainerPorts,
-  // SubAgent 任务
-  ContainerRole,
-  SubAgentTask,
-  SubAgentConstraints,
-  SubAgentContext,
-  FlowFragment,
-  SubAgentResult,
-  DataUsageDeclaration,
-  // 组装
-  ContainerPlacement,
-  DataBinding,
-  EventWiring,
-  AssemblyPlan,
+  // Orchestrator 主图类型
+  OrchestratorMode,
+  OrchestratorState,
+  OrchestratorGraphConfig,
+  // SubAgent 协议
+  SubAgentName,
+  SubAgentDescriptor,
+  SubAgentInput,
+  SubAgentOutput,
+  SubAgentMetadata,
+  SubAgentErrorPhase,
+  SubAgentError,
+  // 工件仓库
+  ArtifactStore,
+  ArtifactUpdate,
+  // Intent
+  IntentResult,
   // 审计
-  AuditSeverity,
-  AuditIssue,
-  AuditRequest,
+  AuditFailCategory,
+  AuditFailReason,
   AuditResult,
-  // 配置与事件
-  OrchestrationConfig,
-  OrchestrationPhase,
-  OrchestrationProgressEvent,
-  OrchestrationResult,
+  // 回退
+  RollbackResult,
+  // 执行记录
+  NodeExecution,
+  // Dialogue Phase 类型
+  DialoguePhase,
+  PhaseMetadata,
+  // SSE 事件类型
+  PhaseChangeEvent,
+  AgentProgressStatus,
+  AgentProgressEvent,
+  ToolActivityStatus,
+  ToolActivityEvent,
+  AuditProgressStatus,
+  AuditProgressEvent,
+  TextDeltaEvent as OrchestratorTextDeltaEvent,
+  DoneArtifactsOverview,
+  DoneSSEEvent,
+  OrchestratorSSEEvent,
+  OrchestratorSSECallback,
+  // 节点工厂类型
+  SubAgentLLMCallConfig,
+  ParseWithRetryConfig,
+  ParseResult,
+  AuditNodeConfig,
+  RollbackNodeConfig,
+  CommitNodeConfig,
+  SummarizeNodeConfig,
+  WorkerGraphConfig,
+  WorkerState,
+  FrontendToolHandlers,
+  BackendToolHandlers,
+  // SubAgent 结构化输出类型
+  Feature,
+  StructuredRequirements,
+  ComponentSpec,
+  InteractionSpec,
+  PageSpec,
+  NavigationFlow,
+  DesignTokenOverrides,
+  UIDesignSpec,
+  FieldContract,
+  CollectionContract,
+  ParamContract,
+  SideEffect,
+  FunctionContract,
+  ParamMapping,
+  BindingContract,
+  IntegrationContract,
+  ClientFlowBinding,
+  PageArtifact,
+  FrontendArtifacts,
+  CollectionField,
+  IndexDefinition,
+  CollectionDefinition,
+  CloudFunctionEntry,
+  BackendArtifacts,
 } from "./orchestration/index.js";
 
 // ─── 版本 ─────────────────────────────────────────────────────────────────────

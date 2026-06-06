@@ -1,5 +1,5 @@
 /**
- * PhaseController — ADR-039 Phase 3 Dialogue Phase 权威推进器
+ * PhaseController — ADR-041 Dialogue Phase 权威推进器
  *
  * 职责：
  *   1. 持有当前 Dialogue 的 ID 和 phase 缓存（避免每次 DB 查询）
@@ -16,7 +16,7 @@
  *
  * SSE 事件格式：
  *   event: phase
- *   data: { "phase": "planning", "previousPhase": "start" }
+ *   data: { "phase": "requirements", "previousPhase": "start" }
  */
 
 import type { ServerResponse } from 'http'

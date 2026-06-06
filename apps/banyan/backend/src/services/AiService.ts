@@ -1,22 +1,26 @@
 /**
- * AI 服务（HTTP 代理层）— V5（Dialogue 单一数据路径，ADR-039 Phase 4）
+ * AI 服务（HTTP 代理层）— V6（ADR-041 Orchestrator 架构）
  *
  * 核心设计：
  *   - Dialogue 是唯一权威状态机，phase 字段驱动全生命周期
- *   - SSE 期间所有状态（appJSON/collections/memoryUpdates/planningEntries）写入 Dialogue
+ *   - SSE 期间所有状态写入 Dialogue
  *   - chat 模式：start → responding → done（直接 commit）
  *   - task 模式：start → planning → awaiting_confirm → executing → committing → done
  *   - confirm 从 Dialogue 读取 appJSON/collections 落库，无需 Snapshot/PendingStore 中间层
- *   - resume 功能已废弃（Dialogue 不支持 interrupted 状态）
  *
  * 架构：
  *   前端 ←SSE── banyan 后端(:3001) ←SSE── XiangDi 服务(:3002)
  *                     ↕ Dialogue 集合（唯一暂存）
  *                     ↕ 持久化表（confirm 后同步）
  *
- * SSE 事件类型（与 XiangDi 服务保持一致）：
- *   text_delta / tool_call / tool_result / app_snapshot / schema_update
- *   round_summary / memory_update / planning_progress / planning_failed / done / error
+ * SSE 事件类型（ADR-041 Orchestrator 统一事件协议）：
+ *   phase_change / agent_progress / tool_activity / audit_progress
+ *   text_delta / done / error / app_state / started
+ *
+ * 事件透传策略：
+ *   - app_state：拦截（不转发前端），从中提取最终 appJSON/schema/cloudFunctions 暂存
+ *   - started：透传
+ *   - 其余事件：原样透传
  */
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -28,12 +32,11 @@ import conversationService from './ConversationService.js'
 import contextBuilder, { ContextBudgetOverflowError } from './ContextBuilder.js'
 import type { ContextBuildOptions } from './ContextBuilder.js'
 import { SchemaService } from './SchemaService.js'
-import memoryService, { type MemoryUpdateInput } from './MemoryService.js'
+import memoryService from './MemoryService.js'
 import type { ICollectionDef } from '../models/CollectionSchema.js'
-import type { IAssistantContent, DialogueType } from '../models/Conversation.js'
-import type { AgentRole } from '../models/PlanningArtifact.js'
+import type { IAssistantContent } from '../models/types/message-types.js'
+import type { DialogueType } from '../models/Dialogue.js'
 import dialogueService from './DialogueService.js'
-import Conversation from '../models/Conversation.js'
 import { PhaseController } from './PhaseController.js'
 
 // XiangDi 服务地址
@@ -85,25 +88,18 @@ function startHeartbeat(res: ServerResponse): () => void {
   return () => clearInterval(timer)
 }
 
-// ─── 统一 SSE 代理核心 ────────────────────────────────────────────────────────
+// ─── 统一 SSE 代理核心（ADR-041 Orchestrator 事件协议）───────────────────────
 
 interface ProxySSECallbacks {
-  onDone: (appJSON: string, assistantContent: IAssistantContent[], roundSummary: string | null) => Promise<void>
+  /** 流结束时回调：携带最终 appJSON 和助手内容 */
+  onDone: (appJSON: string, assistantContent: IAssistantContent[], summary: string | null) => Promise<void>
+  /** 错误时回调 */
   onError?: () => Promise<void>
-  onInterrupt?: () => Promise<void>
-  /** schema_update 事件：调用者决定直接写 DB 还是暂存 */
-  onSchemaUpdate?: (collections: ICollectionDef[]) => void
-  /** memory_update 事件：调用者决定直接写 DB 还是暂存 */
-  onMemoryUpdate?: (memoryInput: MemoryUpdateInput) => void
-  /** planning_progress 事件：某个 Agent 完成 */
-  onPlanningProgress?: (agent: AgentRole, entry: { output: unknown; reasoning?: string; tokenUsage: { input: number; output: number }; durationMs: number }) => Promise<void>
-  /** planning_progress 事件：某个 Agent 失败 */
-  onPlanningFailed?: (agent: AgentRole) => Promise<void>
+  /** 收到 app_state 事件（包含 schema + cloudFunctions）时回调 */
+  onAppState?: (state: { appJSON: string; schema: ICollectionDef[]; cloudFunctions: unknown[] }) => void
 }
 
-/** proxySSECore 可选配置 */
 interface ProxySSEOptions {
-  /** Phase 控制器：传入后自动驱动 phase 转移 */
   phaseCtrl?: PhaseController
 }
 
@@ -159,135 +155,73 @@ function proxySSECore(
 
     // ── 收集状态 ─────────────────────────────────────────────────────────────
     let textBuffer = ''
-    let roundSummaryBuffer: string | null = null
+    let summaryBuffer: string | null = null
     const assistantContentBuffer: IAssistantContent[] = []
+    /** app_state 中的最终 appJSON（覆盖 done 中可能没有的 appJSON） */
+    let finalAppJSON = ''
 
     const phaseCtrl = options?.phaseCtrl
 
     function dispatchEvent(currentEvent: string, dataStr: string): void {
       if (!currentEvent || !dataStr) return
 
+      // ── text_delta：累积文字 + 透传 ──
       if (currentEvent === 'text_delta') {
         try {
-          const parsed = JSON.parse(dataStr) as { text?: string }
-          if (parsed.text) textBuffer += parsed.text
+          const parsed = JSON.parse(dataStr) as { delta?: string; text?: string }
+          const text = parsed.delta ?? parsed.text ?? ''
+          if (text) textBuffer += text
         } catch { /* ignore */ }
       }
 
-      if (currentEvent === 'tool_call') {
+      // ── tool_activity：收集工具调用记录 + 透传 ──
+      if (currentEvent === 'tool_activity') {
         try {
-          const parsed = JSON.parse(dataStr) as { id: string; name: string; input: unknown }
-          assistantContentBuffer.push({ type: 'tool_call', id: parsed.id, name: parsed.name, input: parsed.input })
-        } catch { /* ignore */ }
-      }
-
-      if (currentEvent === 'tool_result') {
-        try {
-          const parsed = JSON.parse(dataStr) as { id: string; result: unknown; isError: boolean }
-          assistantContentBuffer.push({ type: 'tool_result', id: parsed.id, result: parsed.result, isError: parsed.isError ?? false })
-        } catch { /* ignore */ }
-      }
-
-      if (currentEvent === 'app_snapshot') {
-        try {
-          const parsed = JSON.parse(dataStr) as { appJSON: string }
-          assistantContentBuffer.push({ type: 'app_snapshot', appJSON: parsed.appJSON ?? '' })
-        } catch { /* ignore */ }
-      }
-
-      if (currentEvent === 'schema_update') {
-        try {
-          const parsed = JSON.parse(dataStr) as { collections?: ICollectionDef[] }
-          if (Array.isArray(parsed.collections) && parsed.collections.length > 0) {
-            callbacks.onSchemaUpdate?.(parsed.collections)
-            assistantContentBuffer.push({ type: 'schema_update', collections: parsed.collections })
+          const parsed = JSON.parse(dataStr) as { agent?: string; tool?: string; status?: string; inputSummary?: string; outputSummary?: string; error?: string }
+          if (parsed.status === 'started') {
+            assistantContentBuffer.push({ type: 'tool_call', id: `${parsed.agent}_${parsed.tool}_${Date.now()}`, name: parsed.tool ?? '', input: parsed.inputSummary ?? '' })
+          } else if (parsed.status === 'completed' || parsed.status === 'error') {
+            assistantContentBuffer.push({ type: 'tool_result', id: `${parsed.agent}_${parsed.tool}_${Date.now()}`, result: parsed.outputSummary ?? parsed.error ?? '', isError: parsed.status === 'error' })
           }
         } catch { /* ignore */ }
       }
 
-      if (currentEvent === 'disambiguation') {
+      // ── app_state：拦截，不透传给前端 ──
+      if (currentEvent === 'app_state') {
         try {
-          const parsed = JSON.parse(dataStr)
-          assistantContentBuffer.push({ type: 'disambiguation', options: parsed })
+          const parsed = JSON.parse(dataStr) as { appJSON?: string; schema?: ICollectionDef[]; cloudFunctions?: unknown[] }
+          finalAppJSON = parsed.appJSON ?? ''
+          callbacks.onAppState?.({
+            appJSON: finalAppJSON,
+            schema: parsed.schema ?? [],
+            cloudFunctions: parsed.cloudFunctions ?? [],
+          })
         } catch { /* ignore */ }
-      }
-
-      if (currentEvent === 'planning_progress') {
-        try {
-          const parsed = JSON.parse(dataStr) as {
-            agent: AgentRole
-            status: 'started' | 'completed' | 'failed'
-            output?: unknown
-            reasoning?: string
-            tokenUsage?: { input: number; output: number }
-            durationMs?: number
-          }
-          if (parsed.status === 'completed' && parsed.output && callbacks.onPlanningProgress) {
-            callbacks.onPlanningProgress(parsed.agent, {
-              output: parsed.output,
-              reasoning: parsed.reasoning,
-              tokenUsage: parsed.tokenUsage ?? { input: 0, output: 0 },
-              durationMs: parsed.durationMs ?? 0,
-            }).catch(err => {
-              console.error('[AiService] planning_progress 处理失败:', err)
-            })
-          }
-          if (parsed.status === 'failed' && callbacks.onPlanningFailed) {
-            callbacks.onPlanningFailed(parsed.agent).catch(err => {
-              console.error('[AiService] planning_failed 处理失败:', err)
-            })
-          }
-        } catch { /* ignore */ }
-      }
-
-      if (currentEvent === 'round_summary') {
-        try {
-          const parsed = JSON.parse(dataStr) as { summary?: string }
-          if (parsed.summary) roundSummaryBuffer = parsed.summary
-        } catch { /* ignore */ }
-      }
-
-      if (currentEvent === 'memory_update') {
-        try {
-          const parsed = JSON.parse(dataStr) as {
-            episode?: {
-              title: string; content: string; outcome: string
-              lessons: string[]; involvedEntities: string[]; tags: string[]; importance: number
-            } | null
-            facts?: Array<{ category: string; content: string; confidence: number }>
-          }
-          const memoryInput: MemoryUpdateInput = {
-            episode: (parsed.episode ?? null) as MemoryUpdateInput['episode'],
-            facts: (parsed.facts ?? []) as MemoryUpdateInput['facts'],
-          }
-          callbacks.onMemoryUpdate?.(memoryInput)
-        } catch { /* ignore */ }
-        // memory_update 不转发给前端
+        // 不透传：return 提前退出
         return
       }
 
+      // ── done：触发 onDone + Phase 推进 ──
       if (currentEvent === 'done') {
         try {
-          const parsed = JSON.parse(dataStr) as { appJSON?: string }
-          const finalAppJSON = parsed.appJSON ?? ''
+          const parsed = JSON.parse(dataStr) as { summary?: string; artifacts?: unknown }
+          summaryBuffer = parsed.summary ?? null
           if (textBuffer) {
             assistantContentBuffer.unshift({ type: 'text', text: textBuffer })
           }
-          assistantContentBuffer.push({ type: 'done', appJSON: finalAppJSON })
-          // Phase 驱动：先执行 onDone 数据写入，再推进 phase
-          // 确保 phase=done 时所有数据已落盘（避免查询竞态）
-          callbacks.onDone(finalAppJSON, assistantContentBuffer, roundSummaryBuffer).then(async () => {
+          assistantContentBuffer.push({ type: 'app_snapshot', appJSON: finalAppJSON })
+
+          callbacks.onDone(finalAppJSON, assistantContentBuffer, summaryBuffer).then(async () => {
             if (phaseCtrl && !phaseCtrl.isTerminal()) {
               const phase = phaseCtrl.getPhase()
               if (phase === 'responding') {
                 await phaseCtrl.transition('done')
-              } else if (phase === 'planning') {
+              } else if (phase === 'building') {
                 await phaseCtrl.transition('awaiting_confirm')
               }
             }
           }).catch((err) => {
             console.error('[AiService] onDone 回调或 phase 转移失败:', err)
-            // onDone 失败时尝试标记 failed
             if (phaseCtrl && !phaseCtrl.isTerminal()) {
               phaseCtrl.fail().catch(() => {})
             }
@@ -295,12 +229,12 @@ function proxySSECore(
         } catch { /* ignore */ }
       }
 
+      // ── error：Phase → failed ──
       if (currentEvent === 'error') {
         try {
           const parsed = JSON.parse(dataStr) as { message?: string }
           assistantContentBuffer.push({ type: 'error', message: parsed.message ?? '未知错误' })
         } catch { /* ignore */ }
-        // Phase 驱动：error → failed
         if (phaseCtrl && !phaseCtrl.isTerminal()) {
           phaseCtrl.fail().catch(() => {})
         }
@@ -309,17 +243,7 @@ function proxySSECore(
         })
       }
 
-      if (currentEvent === 'interrupt') {
-        // Phase 驱动：interrupt → discarded (connection_lost)
-        if (phaseCtrl && !phaseCtrl.isTerminal()) {
-          phaseCtrl.interrupt('connection_lost').catch(() => {})
-        }
-        callbacks.onInterrupt?.().catch((err) => {
-          console.error('[AiService] onInterrupt 回调失败:', err)
-        })
-      }
-
-      // 透传所有非 memory_update 事件给前端
+      // ── 透传所有非 app_state 事件给前端 ──
       sseWrite(clientRes, currentEvent, dataStr)
 
       const socket = clientRes.socket
@@ -430,7 +354,6 @@ class AiService {
   /**
    * 处理一次 AI 对话请求，通过 SSE 流式推送进度
    *
-   * Phase 4 统一路径：Dialogue 为唯一数据载体
    * - chat 模式：onDone 直接落库到应用态三张表（无确认环节）
    * - task 模式：onDone 只写 Dialogue，等用户 confirm 再落库
    */
@@ -479,9 +402,9 @@ class AiService {
   }
 
   /**
-   * 统一对话执行（Phase 4：Dialogue 为唯一数据路径）
+   * 统一对话执行（ADR-041 Orchestrator 架构）
    *
-   * chat 模式：onDone 直接落库（无确认环节），phase 走 responding → done
+   * chat 模式：onDone 直接落库，phase 走 responding → done
    * task 模式：onDone 只写 Dialogue，phase 走 planning → awaiting_confirm，等 confirm 落库
    */
   private async _runDialogue(
@@ -492,22 +415,20 @@ class AiService {
     res: ServerResponse,
     currentAppJSON: string,
   ): Promise<void> {
-    // 1. 创建 Dialogue（唯一数据创建点）
+    // 1. 创建 Dialogue
     const conv = await conversationService.getOrCreate(appId)
     const dlgDoc = await dialogueService.create({
       appId,
       conversationId: conv._id as import('mongoose').Types.ObjectId,
       type,
       userMessage: { prompt, images },
-      baseAppJSON: type === 'task' ? currentAppJSON : undefined,
+      appJSON: type === 'task' ? currentAppJSON : undefined,
     })
     const dialogueId = dlgDoc._id as import('mongoose').Types.ObjectId
-    const threadId = `${appId}:${dialogueId.toString()}`
-    await dialogueService.setThreadId(dialogueId, threadId)
 
     // 2. PhaseController 创建 + 初始 phase 推进
     const phaseCtrl = PhaseController.create(dialogueId, res)
-    await phaseCtrl.transition(type === 'task' ? 'planning' : 'responding')
+    await phaseCtrl.transition(type === 'task' ? 'requirements' : 'responding')
 
     // 3. 构建上下文
     const agentMemoryText = await memoryService.recall(appId, prompt)
@@ -520,37 +441,34 @@ class AiService {
     const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
     const { contextSummary, recentMessages: historyMessages } = layeredContext
 
-    // 4. 构造 requestBody
+    // 4. 构造 requestBody（ADR-041 协议：无 threadId/requireApproval）
     const imageUrls = images.length > 0 ? images.map(img => img.url) : undefined
     const requestBody = JSON.stringify({
       appId,
       prompt,
-      threadId,
       mode: type,
       previousMessages: historyMessages,
       ...(contextSummary ? { memoryHint: contextSummary } : {}),
       ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),
       ...(imageUrls ? { images: imageUrls } : {}),
-      ...(type === 'task' ? { requireApproval: true } : {}),
     })
 
     // 5. proxySSECore — 回调统一写 Dialogue
     await proxySSECore('/ai/run', requestBody, res, {
-      onDone: async (finalAppJSON, assistantContent, roundSummary) => {
+      onDone: async (finalAppJSON, assistantContent, summary) => {
         // 5a. 写入 Dialogue（所有模式共享）
         await dialogueService.updateAppJSON(dialogueId, finalAppJSON)
         await dialogueService.appendAssistantContent(dialogueId, assistantContent)
-        if (roundSummary) {
-          await dialogueService.setRoundSummary(dialogueId, roundSummary)
+        if (summary) {
+          await dialogueService.setRoundSummary(dialogueId, summary)
         }
 
         // 5b. chat 模式：直接落库（无确认环节）
         if (type === 'chat') {
           await applicationService.updateApplication(appId, { appJSON: finalAppJSON })
-          await Conversation.updateOne({ appId }, { $addToSet: { dialogueIds: dialogueId } })
-          // chat 摘要异步生成 embedding
-          if (roundSummary) {
-            this.persistDialogueSummary(appId, dialogueId, roundSummary).catch(err => {
+          await conversationService.registerDialogue(appId, dialogueId)
+          if (summary) {
+            this.persistDialogueSummary(appId, dialogueId, summary).catch(err => {
               console.error('[AiService] 对话摘要持久化失败:', err)
             })
           }
@@ -558,95 +476,42 @@ class AiService {
         // task 模式：phase 自动驱动到 awaiting_confirm，等用户 confirm
       },
       onError: async () => {
-        // Phase 由 PhaseController 在 dispatchEvent 中自动驱动到 failed
+        // Phase 由 dispatchEvent 中自动驱动到 failed
       },
-      onInterrupt: async () => {
-        // Phase 由 PhaseController 在 dispatchEvent 中自动驱动到 discarded
-      },
-      onSchemaUpdate: (collections) => {
-        // Schema 变更写入 Dialogue
-        const collectionSnapshots = collections.map(col => ({
-          name: col.name,
-          displayName: col.displayName,
-          fields: (col.fields ?? []).map(f => ({
-            name: f.name,
-            displayName: f.displayName,
-            type: f.type,
-            required: f.required ?? false,
-            defaultValue: f.defaultValue,
-            refCollection: f.refCollection,
-            enumValues: f.enumValues,
-          })),
-        }))
-        dialogueService.updateCollections(dialogueId, collectionSnapshots).catch(err => {
-          console.error('[AiService] Dialogue collections 更新失败:', err)
-        })
-        // chat 模式同步落库
-        if (type === 'chat') {
-          SchemaService.setCollections(appId, collections).catch(err => {
-            console.error('[AiService] Schema 写入失败:', err)
+      onAppState: (state) => {
+        // Schema 变更写入 Dialogue + chat 模式直接落库
+        if (Array.isArray(state.schema) && state.schema.length > 0) {
+          const collectionSnapshots = state.schema.map(col => ({
+            name: col.name,
+            displayName: col.displayName,
+            fields: (col.fields ?? []).map(f => ({
+              name: f.name,
+              displayName: f.displayName,
+              type: f.type,
+              required: f.required ?? false,
+              defaultValue: f.defaultValue,
+              refCollection: f.refCollection,
+              enumValues: f.enumValues,
+            })),
+          }))
+          dialogueService.updateCollections(dialogueId, collectionSnapshots).catch(err => {
+            console.error('[AiService] Dialogue collections 更新失败:', err)
           })
+          if (type === 'chat') {
+            SchemaService.setCollections(appId, state.schema).catch(err => {
+              console.error('[AiService] Schema 写入失败:', err)
+            })
+          }
         }
-      },
-      onMemoryUpdate: (memoryInput) => {
-        if (type === 'chat') {
-          // chat 直接写入 Agent 记忆
-          memoryService.handleMemoryUpdate(appId, memoryInput).catch(err => {
-            console.error('[AiService] Agent 记忆写入失败:', err)
-          })
-        } else {
-          // task 暂存到 Dialogue，confirm 时落库
-          dialogueService.setMemoryUpdates(dialogueId, memoryInput).catch(err => {
-            console.error('[AiService] Dialogue memoryUpdates 写入失败:', err)
-          })
-        }
-      },
-      onPlanningProgress: async (agent, entry) => {
-        await dialogueService.appendPlanningEntry(dialogueId, {
-          agent,
-          output: entry.output,
-          reasoning: entry.reasoning,
-          tokenUsage: entry.tokenUsage,
-          durationMs: entry.durationMs,
-        })
-      },
-      onPlanningFailed: async (agent) => {
-        await dialogueService.setPlanningFailed(dialogueId, agent)
       },
     }, appId, { phaseCtrl })
-  }
-
-  // ─── Resume（已废弃） ──────────────────────────────────────────────────────
-
-  /**
-   * @deprecated ADR-039 Phase 4: resume 功能已废弃。
-   * Dialogue 作为唯一状态机后，不再支持"中断-恢复"模式。
-   * 保留方法签名以兼容路由层调用，但直接返回错误。
-   */
-  async resumeSSE(
-    _appId: string,
-    res: ServerResponse,
-    _dialogueId?: string,
-    _resumeValue?: unknown
-  ): Promise<void> {
-    if (!res.headersSent) {
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no',
-      })
-    }
-    sseWrite(res, 'error', { message: 'resume 功能已废弃（ADR-039 Phase 4），请使用新的对话流程' })
-    sseDone(res)
   }
 
   // ─── Confirm / Discard（事务确认/撤销）──────────────────────────────────────
 
   /**
-   * 确认对话：Dialogue phase → executing → committing → done（ADR-039 Phase 4）
+   * 确认对话：Dialogue phase → executing → committing → done
    *
-   * 这是"对话即事务"的 commit 操作。
    * 使用 withAppLock 防止与 SSE 流竞态。
    */
   async confirmDialogue(appId: string): Promise<{ dialogueId: string }> {
@@ -654,7 +519,6 @@ class AiService {
   }
 
   private async _confirmDialogueCore(appId: string): Promise<{ dialogueId: string }> {
-    // ─── 纯 Dialogue 路径：从 Dialogue 读取状态并确认（ADR-039 Phase 4）────────
     const dlg = await dialogueService.getActiveByApp(appId)
 
     if (!dlg || dlg.phase !== 'awaiting_confirm') {
@@ -663,69 +527,35 @@ class AiService {
 
     const dlgId = dlg._id as Types.ObjectId
 
-    // 1. Phase 推进：awaiting_confirm → executing
-    await dialogueService.setPhase(dlgId, 'executing')
+    // 1. Phase 推进：awaiting_confirm → committing
+    await dialogueService.setPhase(dlgId, 'committing')
 
-    // 2. 应用状态落库（从 Dialogue.appJSON 同步到持久化表）
+    // 2. 应用状态落库
     if (dlg.appJSON) {
       await applicationService.updateApplication(appId, { appJSON: dlg.appJSON })
     }
 
-    // 3. Schema 落库（从 Dialogue.collections 同步）
+    // 3. Schema 落库
     if (dlg.collections && dlg.collections.length > 0) {
       await SchemaService.setCollections(appId, dlg.collections as unknown as ICollectionDef[])
     }
 
-    // 4. Phase 推进：executing → committing
-    await dialogueService.setPhase(dlgId, 'committing')
-
-    // 5. Conversation 集合写入（从 Dialogue.messages 提取 userContent / assistantContent）
-    const userMsg = dlg.messages.find(m => m.role === 'user')
-    const assistantMsgs = dlg.messages.filter(m => m.role === 'assistant')
-    const assistantContent = assistantMsgs.flatMap(m => m.assistantContent ?? [])
-
-    if (userMsg?.userContent) {
-      await conversationService.createDialogueWithId(
-        appId,
-        dlgId,
-        dlg.type,
-        { prompt: userMsg.userContent.prompt, images: userMsg.userContent.images }
-      )
-    }
-    if (dlg.threadId) {
-      await conversationService.setThreadInfo(appId, dlgId, dlg.threadId, 'completed')
-    }
-    if (assistantContent.length > 0) {
-      await conversationService.appendAssistantMessage(appId, dlgId, assistantContent)
-    }
-
-    // 6. Agent 记忆落库（从 Dialogue.memoryUpdates）
-    if (dlg.memoryUpdates) {
-      await memoryService.handleMemoryUpdate(appId, dlg.memoryUpdates)
-    }
-
-    // 7. 对话摘要向量化（从 Dialogue.summary）
+    // 4. 对话摘要向量化
     if (dlg.summary?.text) {
       this.persistDialogueSummary(appId, dlgId, dlg.summary.text).catch(err => {
         console.error('[AiService] 对话摘要持久化失败:', err)
       })
     }
 
-    // 8. Phase 完成：committing → done
+    // 5. Phase 完成：committing → done，并注册到 Conversation 索引
     await dialogueService.setPhase(dlgId, 'done')
-    await Conversation.updateOne({ appId }, { $addToSet: { dialogueIds: dlgId } })
+    await conversationService.registerDialogue(appId, dlgId)
 
     return { dialogueId: dlgId.toString() }
   }
 
   /**
    * 撤销对话：Dialogue phase → discarded
-   *
-   * 这是"对话即事务"的 rollback 操作（ADR-039 Phase 4）。
-   * 持久化表不受影响（应用状态恢复到对话开始前）。
-   *
-   * 语义上等同于 stopDialogue('user_aborted')，前端两个按钮（stop / discard）
-   * 最终都通过 stopDialogue 实现，保持单一中断路径。
    */
   async discardDialogue(appId: string): Promise<void> {
     return this.stopDialogue(appId, 'user_aborted')
@@ -736,20 +566,13 @@ class AiService {
   /**
    * 用户主动中止正在进行的 AI 执行
    *
-   * Dialogue 写中断归因（phase → discarded + interruptMetadata）（ADR-039 Phase 4）
-   *
-   * 注意：stop 不负责断开 SSE 连接，前端应在调用 stop 后自行关闭 EventSource。
-   * 使用 withAppLock 防止与其他操作竞态。
-   *
-   * 保护策略：如果 Dialogue 处于 committing 阶段（正在写持久化表），
-   * 不允许中断（数据一致性优先），只打 warn 日志。
+   * 保护策略：committing 阶段不允许中断（数据一致性优先）。
    */
   async stopDialogue(appId: string, reason: 'user_aborted' | 'connection_lost' = 'user_aborted'): Promise<void> {
     return withAppLock(appId, async () => {
       const dlg = await dialogueService.getActiveByApp(appId)
       if (!dlg) return
 
-      // committing 阶段不允许中断：此时持久化表正在写入，中断会导致数据不一致
       if (dlg.phase === 'committing') {
         console.warn(`[AiService] stopDialogue: 对话 ${dlg._id} 处于 committing 阶段，拒绝中断`)
         return
@@ -766,49 +589,36 @@ class AiService {
   // ─── 查询接口 ──────────────────────────────────────────────────────────────
 
   /**
-   * 查询应用当前的 AI 执行状态（ADR-039 Phase 4：纯 Dialogue 路径）
-   *
-   * 从 Dialogue 的 phase 字段直接推导前端所需状态。
-   * 注意：getActiveByApp 排除终态（done/discarded/failed），
-   * 因此 failed 状态需要单独查询以展示给用户。
+   * 查询应用当前的 AI 执行状态
    */
-  async getStatus(appId: string): Promise<{ dialogueId: string; threadId: string; status: string; canResume: boolean; canConfirm: boolean } | null> {
-    // 先查活跃态（start/planning/executing/committing/responding/awaiting_confirm）
+  async getStatus(appId: string): Promise<{ dialogueId: string; threadId: string; status: string; canConfirm: boolean } | null> {
     let dlg = await dialogueService.getActiveByApp(appId)
 
-    // 活跃态未找到时，查最近的 failed（让前端能展示失败状态）
     if (!dlg) {
       dlg = await dialogueService.getRecentFailed(appId)
       if (!dlg) return null
     }
 
     const dlgId = (dlg._id as Types.ObjectId).toString()
-    const threadId = dlg.threadId ?? `${appId}:${dlgId}`
 
-    // Phase -> frontend status mapping
     switch (dlg.phase) {
       case 'start':
-      case 'planning':
-      case 'executing':
+      case 'requirements':
+      case 'ui_design':
+      case 'contract':
+      case 'building':
       case 'committing':
       case 'responding':
-        return { dialogueId: dlgId, threadId, status: 'running', canResume: false, canConfirm: false }
+        return { dialogueId: dlgId, threadId: dlgId, status: 'running', canConfirm: false }
       case 'awaiting_confirm':
-        return { dialogueId: dlgId, threadId, status: 'awaiting_confirm', canResume: false, canConfirm: true }
+        return { dialogueId: dlgId, threadId: dlgId, status: 'awaiting_confirm', canConfirm: true }
       case 'failed':
-        return { dialogueId: dlgId, threadId, status: 'failed', canResume: false, canConfirm: false }
+        return { dialogueId: dlgId, threadId: dlgId, status: 'failed', canConfirm: false }
       case 'done':
       case 'discarded':
       default:
         return null
     }
-  }
-
-  /**
-   * 转发消歧响应到 XiangDi 服务
-   */
-  async respondToDisambiguation(choiceId: string): Promise<unknown> {
-    return this.proxyJSON('POST', '/ai/disambiguation-response', { choiceId })
   }
 
   /**
@@ -829,13 +639,9 @@ class AiService {
 
   /**
    * 持久化对话摘要 + 调用知识服务生成向量
-   *
-   * 双写策略：
-   *   1. Dialogue 集合：写入结构化 summary.embedding（权威数据源，ADR-039）
-   *   2. Conversation 子文档：写入 dialogues.$.embedding（兼容旧查询，后续迁移后移除）
    */
   private async persistDialogueSummary(
-    appId: string,
+    _appId: string,
     dialogueId: Types.ObjectId,
     summary: string
   ): Promise<void> {
@@ -846,10 +652,13 @@ class AiService {
       console.warn('[AiService] Embedding 生成失败（知识服务不可用），dialogue 将无向量')
     }
 
-    // 写入独立 Dialogue 文档的 embedding（权威路径）
-    await dialogueService.setSummary(dialogueId, { text: summary, pageIds: [], viewIds: [], changeTags: [] }, embedding)
-    // 兼容写入 Conversation 子文档（过渡期保留，后续移除）
-    await conversationService.setSummary(appId, dialogueId, summary, embedding)
+    await dialogueService.setSummary(dialogueId, {
+      text: summary,
+      embedding: embedding ?? null,
+      pageIds: [],
+      viewIds: [],
+      changeTags: [],
+    })
   }
 
   /**

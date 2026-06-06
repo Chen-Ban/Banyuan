@@ -17,7 +17,7 @@
 import type { LLMClient } from "../../core/llmTypes.js";
 import type { StreamCallback } from "../../core/types.js";
 import type { BaseMessage } from "@langchain/core/messages";
-import type { AuditResult } from "../../orchestration/types.js";
+import type { LegacyAuditResult as AuditResult } from "../../orchestration/index.js";
 import type { PlanOutput } from "../state.js";
 import type { MemoryNamespace } from "../../memory/types.js";
 

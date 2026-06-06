@@ -1,18 +1,18 @@
 /**
- * DialogueService — ADR-039 Dialogue 集合的唯一 CRUD + Phase 转移
+ * DialogueService — ADR-041 Dialogue 集合的唯一 CRUD + Phase 转移
  *
  * 职责：
  *   1. 创建 Dialogue（AI 对话发起时，phase=start）
  *   2. Phase 转移（校验 PHASE_TRANSITIONS 合法性后 atomic $set）
  *   3. 快照写入（appJSON / collections / cloudFunctions）
  *   4. 消息追加（user / assistant）
- *   5. 规划产物写入（planning phase 内各 Agent 产出）
+ *   5. 规划产物写入（各 SubAgent 阶段产出）
  *   6. Agent 记忆暂存（confirm 时落库）
  *   7. 摘要写入（done 时）
  *   8. 中断归因（discarded 终态 + interruptMetadata）
  *   9. 查询接口（getActiveByApp / getById / getConfirmable）
  *
- * Phase 4 后本 Service 是 Dialogue 的唯一数据路径，承担完整读写责任。
+ * 本 Service 是 Dialogue 的唯一数据路径，承担完整读写责任。
  */
 
 import { Types } from 'mongoose'
@@ -25,8 +25,9 @@ import Dialogue, {
   type IPlanningEntry,
   PHASE_TRANSITIONS,
 } from '../models/Dialogue.js'
-import type { IAssistantContent } from '../models/Conversation.js'
-import type { ICollectionSnapshot, ICloudFunctionSnapshot } from '../models/types/snapshot-types.js'
+import type { IAssistantContent } from '../models/types/message-types.js'
+import type { ICollectionDef } from '../models/CollectionSchema.js'
+import type { ICloudFunction } from '../models/CloudFunction.js'
 import type { MemoryUpdateInput } from './MemoryService.js'
 
 // ─── 终态集合（不可转移的 phase）──────────────────────────────────────────────
@@ -48,7 +49,8 @@ class DialogueService {
     conversationId: Types.ObjectId
     type: DialogueType
     userMessage: { prompt: string; images: Array<{ url: string; alt?: string }> }
-    baseAppJSON?: string
+    /** 初始 appJSON（当前应用状态快照，作为本轮对话的起始状态） */
+    appJSON?: string
   }): Promise<IDialogueDoc> {
     // 清理可能存在的孤儿 Dialogue（上一次未正常结束）
     await Dialogue.updateMany(
@@ -83,7 +85,7 @@ class DialogueService {
           createdAt: new Date(),
         },
       ],
-      appJSON: params.baseAppJSON ?? '',
+      appJSON: params.appJSON ?? '',
       collections: [],
       cloudFunctions: [],
     })
@@ -170,14 +172,14 @@ class DialogueService {
   /**
    * 覆盖 collections 快照
    */
-  async updateCollections(dialogueId: Types.ObjectId, collections: ICollectionSnapshot[]): Promise<void> {
+  async updateCollections(dialogueId: Types.ObjectId, collections: ICollectionDef[]): Promise<void> {
     await Dialogue.updateOne({ _id: dialogueId }, { $set: { collections } })
   }
 
   /**
    * 覆盖 cloudFunctions 快照
    */
-  async updateCloudFunctions(dialogueId: Types.ObjectId, cloudFunctions: ICloudFunctionSnapshot[]): Promise<void> {
+  async updateCloudFunctions(dialogueId: Types.ObjectId, cloudFunctions: ICloudFunction[]): Promise<void> {
     await Dialogue.updateOne({ _id: dialogueId }, { $set: { cloudFunctions } })
   }
 
@@ -248,17 +250,13 @@ class DialogueService {
     )
   }
 
-  // ─── 摘要与嵌入 ──────────────────────────────────────────────────────────────
+  // ─── 摘要 ──────────────────────────────────────────────────────────────────────
 
   /**
-   * 写入结构化 summary + embedding（done 时调用）
+   * 写入结构化 summary（含 embedding，done 时调用）
    */
-  async setSummary(dialogueId: Types.ObjectId, summary: IDialogueSummary, embedding?: number[] | null): Promise<void> {
-    const update: Record<string, unknown> = { summary }
-    if (embedding !== undefined) {
-      update.embedding = embedding
-    }
-    await Dialogue.updateOne({ _id: dialogueId }, { $set: update })
+  async setSummary(dialogueId: Types.ObjectId, summary: IDialogueSummary): Promise<void> {
+    await Dialogue.updateOne({ _id: dialogueId }, { $set: { summary } })
   }
 
   // ─── 规划产物 ──────────────────────────────────────────────────────────────
@@ -273,15 +271,6 @@ class DialogueService {
     )
   }
 
-  /**
-   * 标记规划失败的 Agent
-   */
-  async setPlanningFailed(dialogueId: Types.ObjectId, agent: string): Promise<void> {
-    await Dialogue.updateOne(
-      { _id: dialogueId },
-      { $set: { planningFailedAgent: agent } }
-    )
-  }
 
   // ─── Agent 记忆暂存 ────────────────────────────────────────────────────────
 

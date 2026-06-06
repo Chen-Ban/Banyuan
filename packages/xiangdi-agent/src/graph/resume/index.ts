@@ -13,7 +13,6 @@ export type {
   PartialAgentState,
   PlanningSnapshot,
   RefinementContext,
-  PlanningArtifactStatus,
 } from './types.js';
 
 // Invalidation

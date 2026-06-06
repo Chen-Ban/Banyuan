@@ -35,8 +35,8 @@ import type { DisambiguationOptions } from "../core/DisambiguationHandler.js";
 import type {
   SubAgentResult,
   AssemblyPlan,
-  AuditResult,
-} from "../orchestration/types.js";
+  LegacyAuditResult as AuditResult,
+} from "../orchestration/index.js";
 import type { PlanningSnapshot, ResumeClassification } from "./resume/types.js";
 
 // ─── Intent 分类结果（Phase 2: ADR-039 统一 Graph）──────────────────────────

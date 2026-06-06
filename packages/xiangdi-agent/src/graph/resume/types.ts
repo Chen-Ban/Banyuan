@@ -65,8 +65,8 @@ export interface PlanningSnapshot {
   partialState?: PartialAgentState;
   /** 中断时间 */
   interruptedAt_ts: number;
-  /** 关联的 PlanningArtifact ID */
-  artifactId: string;
+  /** 关联的 Dialogue ID */
+  dialogueId?: string;
   /** 原始方案概述（用于 ResumeClassifier 上下文） */
   planDescription?: string;
 }
@@ -83,13 +83,3 @@ export interface RefinementContext {
   instruction: string;
 }
 
-// ─── Planning Artifact Status ────────────────────────────────────────────────
-
-/** PlanningArtifact 的状态 */
-export type PlanningArtifactStatus =
-  | 'running'
-  | 'completed'
-  | 'partial'
-  | 'failed'
-  | 'interrupted'
-  | 'abandoned';

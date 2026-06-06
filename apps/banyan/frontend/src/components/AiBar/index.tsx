@@ -28,7 +28,7 @@ import {
 } from "@ant-design/icons";
 import { useXiangDi } from "@/hooks/useXiangDi";
 import { aiApi } from "@/api";
-import type { DisambiguationOptions, ProviderInfo, ImageItem } from "@/api";
+import type { ProviderInfo, ImageItem } from "@/api";
 import ConversationPanel from "./ConversationPanel";
 import styles from "./index.module.scss";
 
@@ -49,10 +49,8 @@ export interface AiBarProps {
    * 后端 XiangDi 通过内部 API 按需拉取，无需随请求体传入。
    */
   onBeforeSend?: () => Promise<void>;
-  /** 写操作工具执行完毕后实时推送当前 appJSON，用于画布实时更新 */
-  onAppSnapshot?: (appJSON: string) => void;
-  /** AI 完成后回调，携带最终 appJSON */
-  onDone?: (appJSON: string) => void;
+  /** AI 完成后回调，携带 done 事件的 summary */
+  onDone?: (summary: string) => void;
   /** task 确认成功后回调（可用于重新加载 appJSON） */
   onConfirmed?: (dialogueId: string) => void;
   /** task 撤销后回调（前端应回滚画布到对话前的状态） */
@@ -72,15 +70,12 @@ interface PastedImage {
 const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   appId,
   onBeforeSend,
-  onAppSnapshot,
   onDone,
   onConfirmed,
   onDiscarded,
 }, ref) {
   const [inputValue, setInputValue] = useState("");
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
-  const [disambiguationState, setDisambiguationState] =
-    useState<DisambiguationOptions | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ─── 模型选择 ──────────────────────────────────────────────────────────────
@@ -111,42 +106,22 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     history,
     messages,
     currentText,
-    planningSteps,
-    planApproval,
+    agentSteps,
     hasPendingTask,
     sendPrompt,
     abort,
-    resumeApproval,
     confirmTask,
     discardTask,
   } = useXiangDi({
     appId,
     onBeforeSend,
     onDone,
-    onAppSnapshot,
-    onDisambiguation: (options) => setDisambiguationState(options),
     onConfirmed,
     onDiscarded,
   });
 
   // 暴露 sendPrompt 给父组件（首页跳转后自动触发）
   useImperativeHandle(ref, () => ({ sendPrompt }), [sendPrompt]);
-
-  const handleDisambiguationSelect = useCallback(
-    (feedback: string) => {
-      setDisambiguationState(null);
-      resumeApproval(false, feedback);
-    },
-    [resumeApproval],
-  );
-
-  const handlePlanApprove = useCallback(() => {
-    resumeApproval(true);
-  }, [resumeApproval]);
-
-  const handlePlanReject = useCallback((feedback: string) => {
-    resumeApproval(false, feedback);
-  }, [resumeApproval]);
 
   // ─── 输入框逻辑 ────────────────────────────────────────────────────────────
 
@@ -261,12 +236,7 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
         messages={messages}
         currentText={currentText}
         loading={loading}
-        planningSteps={planningSteps}
-        disambiguationState={disambiguationState}
-        onDisambiguationSelect={handleDisambiguationSelect}
-        planApproval={planApproval}
-        onPlanApprove={handlePlanApprove}
-        onPlanReject={handlePlanReject}
+        agentSteps={agentSteps}
         hasPendingTask={hasPendingTask}
         onConfirmTask={confirmTask}
         onDiscardTask={discardTask}

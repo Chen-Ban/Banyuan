@@ -10,16 +10,12 @@
  *   - AssistantContent：助手消息的内容块，与 SSE 事件类型一一对应
  */
 
-import type { SchemaCollectionDef, DisambiguationOptions } from './ai'
 import { get } from './client'
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
 
 /** 对话类型 */
 export type DialogueType = 'chat' | 'task'
-
-/** 线程状态 */
-export type ThreadStatus = 'running' | 'completed' | 'failed' | 'interrupted'
 
 /** 图片项 */
 export interface ImageItem {
@@ -36,12 +32,9 @@ export interface UserContent {
 /** 助手消息内容块（discriminated union，与 SSE 事件类型对应） */
 export type AssistantContent =
   | { type: 'text'; text: string }
-  | { type: 'tool_call'; id: string; name: string; input: unknown }
-  | { type: 'tool_result'; id: string; result: unknown; isError: boolean }
-| { type: 'app_snapshot'; appJSON: string }
-| { type: 'schema_update'; collections: SchemaCollectionDef[] }
-| { type: 'disambiguation'; options: DisambiguationOptions }
-| { type: 'done'; appJSON: string }
+  | { type: 'tool_activity'; agent: string; tool: string; status: 'started' | 'completed' | 'error' }
+  | { type: 'agent_progress'; agent: string; status: 'started' | 'completed' | 'error'; message: string }
+  | { type: 'done'; summary: string }
   | { type: 'error'; message: string }
 
 /** 消息 */
@@ -59,13 +52,13 @@ export interface Message {
 export interface Dialogue {
   _id: string
   type: DialogueType
+  /** 当前阶段（ADR-041 唯一权威状态机） */
+  phase: string
   messages: Message[]
-  /** 线程 ID（用于 checkpoint 恢复） */
+  /** XiangDi 执行线程 ID */
   threadId?: string
-  /** 线程状态 */
-  threadStatus?: ThreadStatus
-  /** 对话摘要（由 AI 生成） */
-  summary?: string
+  /** 对话摘要（由 AI 生成，结构化） */
+  summary?: { text: string; pageIds: string[]; viewIds: string[]; changeTags: string[] }
   createdAt: string
   updatedAt: string
 }

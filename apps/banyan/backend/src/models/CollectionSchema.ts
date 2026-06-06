@@ -46,7 +46,7 @@ export interface ICollectionSchema extends Document {
 
 // ── Mongoose Schema 定义 ──────────────────────────────────────────────────────
 
-const FieldDefSchema = new Schema<IFieldDef>(
+export const FieldDefSchema = new Schema<IFieldDef>(
   {
     name: { type: String, required: true },
     displayName: { type: String, required: true },
@@ -63,7 +63,7 @@ const FieldDefSchema = new Schema<IFieldDef>(
   { _id: false },
 )
 
-const CollectionDefSchema = new Schema<ICollectionDef>(
+export const CollectionDefSchema = new Schema<ICollectionDef>(
   {
     name: { type: String, required: true },
     displayName: { type: String, required: true },
