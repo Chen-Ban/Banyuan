@@ -10,8 +10,8 @@ import type { IAppContent } from './types/versioned-content.js'
 
 const AppContentSchema = new Schema<IAppContent>(
   {
-    appId: { type: String, required: true, trim: true },
-    version: { type: Number, required: true, min: 1 },
+    appId: { type: String, required: true, trim: true, index: true },
+    version: { type: Number, required: true, min: 1, default: 1 },
     dialogueId: { type: Schema.Types.ObjectId, required: true, index: true },
     appJSON: { type: String, default: '' },
   },

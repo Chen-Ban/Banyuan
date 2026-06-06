@@ -30,8 +30,8 @@ export const CloudFunctionDefSchema = new Schema<ICloudFunctionDef>(
 
 const CloudFunctionSchema = new Schema<ICloudFunctionGroup>(
   {
-    appId: { type: String, required: true, trim: true },
-    version: { type: Number, required: true, min: 1 },
+    appId: { type: String, required: true, trim: true, index: true },
+    version: { type: Number, required: true, min: 1, default: 1 },
     dialogueId: { type: Schema.Types.ObjectId, required: true, index: true },
     functions: { type: [CloudFunctionDefSchema], default: [] },
   },

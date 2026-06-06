@@ -49,7 +49,7 @@ const CollectionSchemaDefinition = new Schema<ICollectionSchemaDoc>(
     version: { type: Number, required: true, default: 1 },
     dialogueId: { type: Schema.Types.ObjectId, required: true, index: true },
   },
-  { timestamps: true },
+  { timestamps: { createdAt: true, updatedAt: false } },
 )
 
 // ADR-042: 联合唯一索引（同一 app 的版本号不可重复）
