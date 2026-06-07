@@ -5,6 +5,7 @@ import logger from 'koa-logger'
 import cors from '@koa/cors'
 import router from './routes'
 import authRouter from './routes/auth.js'
+import { errorHandler } from './middleware/errorHandler.js'
 
 const app = new Koa()
 
@@ -22,20 +23,8 @@ app.use(koaBody({
   },
 }))
 
-// 错误处理中间件
-app.use(async (ctx, next) => {
-  try {
-    await next()
-  } catch (err: any) {
-    ctx.status = err.statusCode || err.status || 500
-    ctx.body = {
-      success: false,
-      message: err.message || 'Internal Server Error',
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-    }
-    ctx.app.emit('error', err, ctx)
-  }
-})
+// 全局错误处理中间件（统一结构化 ErrorPayload 响应）
+app.use(errorHandler())
 
 // 路由
 app.use(authRouter.routes())

@@ -56,6 +56,17 @@ import type { ICollectionDef, IAssistantContent, DialogueType } from '../models/
 import type { ICloudFunctionDef } from '../models/types/versioned-content.js'
 import dialogueService from './DialogueService.js'
 import { PhaseController } from './PhaseController.js'
+import {
+  AiAppNotFoundError,
+  AiContextBudgetError,
+  AiUpstreamConnectError,
+  AiUpstreamTimeoutError,
+  AiUpstreamStatusError,
+  AiUpstreamStreamError,
+  AiAgentError,
+  AiNoConfirmableDialogueError,
+} from '../errors/index.js'
+import { sseWriteError } from '../errors/sse.js'
 
 // XiangDi 服务地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
@@ -247,18 +258,27 @@ function proxySSECore(
         } catch { /* ignore */ }
       }
 
-      // ── error：Phase → failed ──
+      // ── error：Phase → failed，拦截 XiangDi 错误，给用户通用提示，原始错误仅日志 ──
       if (currentEvent === 'error') {
         try {
-          const parsed = JSON.parse(dataStr) as { message?: string }
-          assistantContentBuffer.push({ type: 'error', message: parsed.message ?? '未知错误' })
-        } catch { /* ignore */ }
+          const parsed = JSON.parse(dataStr) as { message?: string; code?: string }
+          const agentErr = new AiAgentError(parsed.message ?? '未知错误', parsed.code)
+          console.error('[AiService] XiangDi upstream error:', parsed.message, parsed.code)
+          assistantContentBuffer.push({ type: 'error', message: agentErr.userMessage })
+          // 重新序列化为统一格式写给前端（用户看到通用提示，不看到技术细节）
+          sseWriteError(clientRes, agentErr)
+        } catch {
+          console.error('[AiService] XiangDi upstream error (unparseable):', dataStr)
+          sseWriteError(clientRes, new AiAgentError('未知错误'))
+        }
         if (phaseCtrl && !phaseCtrl.isTerminal()) {
           phaseCtrl.fail().catch(() => {})
         }
         callbacks.onError?.().catch((err) => {
           console.error('[AiService] onError 回调失败:', err)
         })
+        // 已经通过 sseWriteError 写给前端了，不再透传原始 dataStr
+        return
       }
 
       // ── 透传所有非 app_state 事件给前端 ──
@@ -295,7 +315,7 @@ function proxySSECore(
     upstreamReq = transport.request(reqOptions, (upstream: IncomingMessage) => {
       if (upstream.statusCode && upstream.statusCode >= 400) {
         callbacks.onError?.().catch(() => {})
-        settle(() => reject(new Error(`XiangDi 服务返回错误状态码: ${upstream.statusCode}`)))
+        settle(() => reject(new AiUpstreamStatusError(upstream.statusCode!)))
         return
       }
 
@@ -317,15 +337,16 @@ function proxySSECore(
       upstream.on('error', (err) => {
         if (settled) return
         callbacks.onError?.().catch(() => {})
-        sseWrite(clientRes, 'error', { message: err.message })
+        const streamErr = new AiUpstreamStreamError(err)
+        sseWriteError(clientRes, streamErr)
         sseDone(clientRes)
-        settle(() => reject(err))
+        settle(() => reject(streamErr))
       })
     })
 
     upstreamReq.setTimeout(PROXY_REQUEST_TIMEOUT_MS, () => {
       if (!settled) {
-        upstreamReq?.destroy(new Error(`XiangDi 请求超时 (${PROXY_REQUEST_TIMEOUT_MS}ms)`))
+        upstreamReq?.destroy(new AiUpstreamTimeoutError(PROXY_REQUEST_TIMEOUT_MS))
       }
     })
 
@@ -337,10 +358,10 @@ function proxySSECore(
         return
       }
       callbacks.onError?.().catch(() => {})
-      const message = `无法连接到 XiangDi 服务 (${XIANGDI_BASE_URL}): ${err.message}`
-      sseWrite(clientRes, 'error', { message })
+      const connectErr = new AiUpstreamConnectError('XiangDi', XIANGDI_BASE_URL, err)
+      sseWriteError(clientRes, connectErr)
       sseDone(clientRes)
-      settle(() => reject(new Error(message)))
+      settle(() => reject(connectErr))
     })
 
     upstreamReq.write(requestBody)
@@ -404,16 +425,15 @@ class AiService {
 
     try {
       const app = await applicationService.getApplicationById(appId)
-      if (!app) throw new Error(`应用 ${appId} 不存在`)
+      if (!app) throw new AiAppNotFoundError(appId)
 
       await conversationService.getOrCreate(appId)
       await this._runDialogue(appId, prompt, type, images, res)
     } catch (err) {
       if (err instanceof ContextBudgetOverflowError) {
-        sseWrite(res, 'error', { code: err.code, message: err.message, details: err.details })
+        sseWriteError(res, new AiContextBudgetError(err.details))
       } else {
-        const message = err instanceof Error ? err.message : String(err)
-        sseWrite(res, 'error', { message })
+        sseWriteError(res, err)
       }
       sseDone(res)
     }
@@ -541,7 +561,7 @@ class AiService {
     const dlg = await dialogueService.getActiveByApp(appId)
 
     if (!dlg || dlg.phase !== 'awaiting_confirm') {
-      throw new Error(`[AiService] confirmDialogue: 没有处于 awaiting_confirm 状态的对话 (appId=${appId})`)
+      throw new AiNoConfirmableDialogueError()
     }
 
     const dlgId = dlg._id as Types.ObjectId
@@ -711,7 +731,7 @@ class AiService {
       })
 
       req.on('error', (err) => {
-        reject(new Error(`无法连接到 XiangDi 服务 (${XIANGDI_BASE_URL}): ${err.message}`))
+        reject(new AiUpstreamConnectError('XiangDi', XIANGDI_BASE_URL, err))
       })
 
       if (bodyStr) req.write(bodyStr)

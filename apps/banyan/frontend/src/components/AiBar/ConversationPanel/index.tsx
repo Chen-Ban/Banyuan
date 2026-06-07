@@ -25,6 +25,7 @@ import {
   CheckOutlined,
   CloseOutlined,
   LoadingOutlined,
+  ReloadOutlined,
   StopOutlined,
   WarningOutlined,
 } from "@ant-design/icons";
@@ -55,6 +56,8 @@ export interface ConversationPanelProps {
   onConfirmTask: () => void;
   /** 撤销 task 对话 */
   onDiscardTask: () => void;
+  /** 重试错误消息（移除该错误并重发原始 prompt） */
+  onRetry?: (messageId: string) => void;
 }
 
 // ─── ConversationPanel ────────────────────────────────────────────────────────
@@ -69,6 +72,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
   hasPendingTask,
   onConfirmTask,
   onDiscardTask,
+  onRetry,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -206,12 +210,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
               </div>
             );
           case 'error':
-            return (
-              <div key={msg.id} className={`${styles.statusRow} ${styles.statusRowError}`}>
-                <WarningOutlined />
-                <span>{msg.content}</span>
-              </div>
-            );
+            return <ErrorRow key={msg.id} message={msg} onRetry={onRetry} />;
           default:
             return null;
         }
@@ -357,6 +356,44 @@ const ToolRow: React.FC<{ message: ProgressMessage }> = ({ message }) => {
         <CheckCircleOutlined className={styles.toolIconDone} />
       )}
       <span className={styles.toolText}>{message.content}</span>
+    </div>
+  );
+};
+
+// ─── ErrorRow（圆角卡片错误展示） ──────────────────────────────────────────────
+
+const ErrorRow: React.FC<{ message: ProgressMessage; onRetry?: (messageId: string) => void }> = ({ message, onRetry }) => {
+  const payload = message.errorPayload;
+  const displayMessage = payload?.message || message.content;
+  // retryable + 有重试上下文 → 显示重试按钮
+  const canRetry = !!(payload?.retryable && message.retryContext);
+  // resource/auth 类错误：给“刷新页面”按钮
+  const shouldRefreshPage = payload?.category === 'resource' || payload?.category === 'auth';
+
+  return (
+    <div className={styles.errorCard}>
+      <div className={styles.errorCardBody}>
+        <WarningOutlined className={styles.errorCardIcon} />
+        <span className={styles.errorCardMessage}>{displayMessage}</span>
+      </div>
+      {canRetry && onRetry && (
+        <button
+          className={styles.errorCardRetryBtn}
+          onClick={() => onRetry(message.id)}
+          title="重试"
+        >
+          <ReloadOutlined />
+        </button>
+      )}
+      {shouldRefreshPage && !canRetry && (
+        <button
+          className={styles.errorCardRetryBtn}
+          onClick={() => window.location.reload()}
+          title="刷新页面"
+        >
+          <ReloadOutlined />
+        </button>
+      )}
     </div>
   );
 };

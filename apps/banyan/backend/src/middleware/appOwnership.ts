@@ -13,6 +13,7 @@
 
 import { Context, Next } from 'koa'
 import { Application } from '../models/index.js'
+import { AuthTokenInvalidError, AuthForbiddenError, ResourceNotFoundError } from '../errors/index.js'
 
 export async function appOwnership(ctx: Context, next: Next): Promise<void> {
   const appId = ctx.params.appId || ctx.params.id
@@ -23,9 +24,7 @@ export async function appOwnership(ctx: Context, next: Next): Promise<void> {
 
   const user = ctx.state.user
   if (!user) {
-    ctx.status = 401
-    ctx.body = { success: false, message: '未认证' }
-    return
+    throw new AuthTokenInvalidError('未认证')
   }
 
   const application = await Application.findOne({ application_id: appId })
@@ -33,15 +32,11 @@ export async function appOwnership(ctx: Context, next: Next): Promise<void> {
     .lean()
 
   if (!application) {
-    ctx.status = 404
-    ctx.body = { success: false, message: '应用不存在' }
-    return
+    throw new ResourceNotFoundError('应用')
   }
 
   if (application.tenantId !== user.tenantId) {
-    ctx.status = 403
-    ctx.body = { success: false, message: '无权访问该应用' }
-    return
+    throw new AuthForbiddenError('无权访问该应用')
   }
 
   await next()

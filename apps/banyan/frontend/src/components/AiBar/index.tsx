@@ -112,6 +112,7 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     abort,
     confirmTask,
     discardTask,
+    retryError,
   } = useXiangDi({
     appId,
     onBeforeSend,
@@ -240,6 +241,7 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
         hasPendingTask={hasPendingTask}
         onConfirmTask={confirmTask}
         onDiscardTask={discardTask}
+        onRetry={retryError}
       />
 
       {/* 输入框容器（底部固定高度） */}

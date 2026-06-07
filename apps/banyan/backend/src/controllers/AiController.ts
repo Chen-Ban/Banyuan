@@ -16,6 +16,8 @@ import type { Context } from 'koa'
 import { Types } from 'mongoose'
 import aiService from '../services/AiService.js'
 import dialogueService from '../services/DialogueService.js'
+import { AiMissingParamError } from '../errors/index.js'
+import { sseWriteError } from '../errors/sse.js'
 
 class AiController {
   /**
@@ -35,17 +37,8 @@ class AiController {
     const type = body?.type ?? 'task'
     const images = body?.images ?? []
 
-    if (!appId) {
-      ctx.status = 400
-      ctx.body = { success: false, message: '缺少 appId 参数' }
-      return
-    }
-
-    if (!prompt) {
-      ctx.status = 400
-      ctx.body = { success: false, message: '缺少 prompt 参数' }
-      return
-    }
+    if (!appId) throw new AiMissingParamError('appId')
+    if (!prompt) throw new AiMissingParamError('prompt')
 
     // 设置 SSE 响应头
     ctx.set({
@@ -65,8 +58,7 @@ class AiController {
       await aiService.runWithSSE(appId, prompt, type, images, res)
     } catch (err) {
       if (!res.writableEnded) {
-        const message = err instanceof Error ? err.message : String(err)
-        res.write(`event: error\ndata: ${JSON.stringify({ message })}\n\n`)
+        sseWriteError(res, err)
         res.end()
       }
     }
@@ -79,21 +71,10 @@ class AiController {
    */
   async confirm(ctx: Context): Promise<void> {
     const { appId } = ctx.params as { appId: string }
+    if (!appId) throw new AiMissingParamError('appId')
 
-    if (!appId) {
-      ctx.status = 400
-      ctx.body = { success: false, message: '缺少 appId 参数' }
-      return
-    }
-
-    try {
-      const result = await aiService.confirmDialogue(appId)
-      ctx.body = { success: true, ...result }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      ctx.status = 400
-      ctx.body = { success: false, error: message }
-    }
+    const result = await aiService.confirmDialogue(appId)
+    ctx.body = { success: true, ...result }
   }
 
   /**
@@ -103,21 +84,10 @@ class AiController {
    */
   async discard(ctx: Context): Promise<void> {
     const { appId } = ctx.params as { appId: string }
+    if (!appId) throw new AiMissingParamError('appId')
 
-    if (!appId) {
-      ctx.status = 400
-      ctx.body = { success: false, message: '缺少 appId 参数' }
-      return
-    }
-
-    try {
-      await aiService.discardDialogue(appId)
-      ctx.body = { success: true }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      ctx.status = 500
-      ctx.body = { success: false, error: message }
-    }
+    await aiService.discardDialogue(appId)
+    ctx.body = { success: true }
   }
 
   /**
@@ -127,12 +97,7 @@ class AiController {
    */
   async getPending(ctx: Context): Promise<void> {
     const { appId } = ctx.params as { appId: string }
-
-    if (!appId) {
-      ctx.status = 400
-      ctx.body = { success: false, message: '缺少 appId 参数' }
-      return
-    }
+    if (!appId) throw new AiMissingParamError('appId')
 
     const dlg = await dialogueService.getConfirmable(appId)
     if (dlg) {
@@ -167,24 +132,13 @@ class AiController {
    */
   async getStatus(ctx: Context): Promise<void> {
     const { appId } = ctx.params as { appId: string }
+    if (!appId) throw new AiMissingParamError('appId')
 
-    if (!appId) {
-      ctx.status = 400
-      ctx.body = { success: false, message: '缺少 appId 参数' }
-      return
-    }
-
-    try {
-      const status = await aiService.getStatus(appId)
-      if (status) {
-        ctx.body = status
-      } else {
-        ctx.body = { dialogueId: null, threadId: null, status: 'idle', canConfirm: false }
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      ctx.status = 500
-      ctx.body = { success: false, error: message }
+    const status = await aiService.getStatus(appId)
+    if (status) {
+      ctx.body = status
+    } else {
+      ctx.body = { dialogueId: null, threadId: null, status: 'idle', canConfirm: false }
     }
   }
 
@@ -195,38 +149,21 @@ class AiController {
    */
   async stop(ctx: Context): Promise<void> {
     const { appId } = ctx.params as { appId: string }
-
-    if (!appId) {
-      ctx.status = 400
-      ctx.body = { success: false, message: '缺少 appId 参数' }
-      return
-    }
+    if (!appId) throw new AiMissingParamError('appId')
 
     const body = ctx.request.body as { reason?: 'user_aborted' | 'connection_lost' } | undefined
     const reason = body?.reason ?? 'user_aborted'
 
-    try {
-      await aiService.stopDialogue(appId, reason)
-      ctx.body = { success: true }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      ctx.status = 500
-      ctx.body = { success: false, error: message }
-    }
+    await aiService.stopDialogue(appId, reason)
+    ctx.body = { success: true }
   }
 
   /**
    * GET /api/ai/models
    */
   async getModels(ctx: Context): Promise<void> {
-    try {
-      const result = await aiService.getModels()
-      ctx.body = { success: true, data: result }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      ctx.status = 500
-      ctx.body = { success: false, error: message }
-    }
+    const result = await aiService.getModels()
+    ctx.body = { success: true, data: result }
   }
 
   /**
@@ -235,21 +172,10 @@ class AiController {
   async switchModel(ctx: Context): Promise<void> {
     const body = ctx.request.body as { provider?: string }
     const provider = body?.provider?.trim()
+    if (!provider) throw new AiMissingParamError('provider')
 
-    if (!provider) {
-      ctx.status = 400
-      ctx.body = { success: false, error: '缺少 provider 参数' }
-      return
-    }
-
-    try {
-      const result = await aiService.switchModel(provider)
-      ctx.body = result
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      ctx.status = 500
-      ctx.body = { success: false, error: message }
-    }
+    const result = await aiService.switchModel(provider)
+    ctx.body = result
   }
 }
 

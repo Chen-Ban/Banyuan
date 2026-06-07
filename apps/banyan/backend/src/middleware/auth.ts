@@ -1,5 +1,6 @@
 import { Context, Next } from 'koa'
 import { authService, AuthPayload } from '../services/AuthService.js'
+import { AuthTokenInvalidError, AuthTokenExpiredError, AuthForbiddenError } from '../errors/index.js'
 
 // Extend Koa's state type
 declare module 'koa' {
@@ -16,19 +17,17 @@ declare module 'koa' {
 export async function authMiddleware(ctx: Context, next: Next): Promise<void> {
   const authHeader = ctx.headers.authorization
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    ctx.status = 401
-    ctx.body = { success: false, message: '未提供认证 token' }
-    return
+    throw new AuthTokenInvalidError('未提供认证 token')
   }
 
   const token = authHeader.slice(7)
   try {
     ctx.state.user = authService.verifyAccessToken(token)
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Token 验证失败'
-    ctx.status = 401
-    ctx.body = { success: false, message }
-    return
+    if (err instanceof Error && err.message.includes('expired')) {
+      throw new AuthTokenExpiredError()
+    }
+    throw new AuthTokenInvalidError('Token 验证失败')
   }
 
   await next()
@@ -42,14 +41,10 @@ export function requireRole(...roles: AuthPayload['role'][]): (ctx: Context, nex
   return async (ctx: Context, next: Next): Promise<void> => {
     const user = ctx.state.user
     if (!user) {
-      ctx.status = 401
-      ctx.body = { success: false, message: '未认证' }
-      return
+      throw new AuthTokenInvalidError('未认证')
     }
     if (!roles.includes(user.role)) {
-      ctx.status = 403
-      ctx.body = { success: false, message: '权限不足' }
-      return
+      throw new AuthForbiddenError()
     }
     await next()
   }

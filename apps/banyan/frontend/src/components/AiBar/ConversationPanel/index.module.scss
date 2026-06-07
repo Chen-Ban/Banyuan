@@ -188,6 +188,64 @@
 
 .thinkingIcon { color: var(--color-brand-primary); font-size: $text-sm; }
 
+// ─── 错误卡片样式 ─────────────────────────────────────────────────────────────
+
+.errorCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-error-bg, rgba(255, 77, 79, 0.08));
+  border: 1px solid var(--color-error-border, rgba(255, 77, 79, 0.2));
+}
+
+.errorCardBody {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.errorCardIcon {
+  flex-shrink: 0;
+  color: var(--color-error-text);
+  font-size: 14px;
+}
+
+.errorCardMessage {
+  color: var(--color-error-text);
+  font-size: $text-sm;
+  word-break: break-word;
+  line-height: 1.4;
+}
+
+.errorCardRetryBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+
+  &:hover {
+    background: var(--color-bg-hover-md);
+    color: var(--color-text-primary);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
 // ─── 待确认 task 对话（确认/撤销按钮区） ──────────────────────────────────────
 
 .pendingActions {
