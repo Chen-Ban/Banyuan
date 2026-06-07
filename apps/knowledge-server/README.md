@@ -1,302 +1,92 @@
-# knowledge-server — BanvasGL 知识服务
+# knowledge-server —— BanvasGL 知识服务
 
-Knowledge Server 是 Banyuan 平台的独立知识微服务，运行在 `:3003`，负责知识的向量化、持久化与混合检索。它将 AI 上下文检索能力从 XiangDi Agent 执行路径中解耦出来，以独立服务的形式对 banyan 后端和 xiangdi-server 提供语义检索能力。
-
-## 架构定位
-
-```
-banyan 后端(:3001) ──▶ 知识服务(:3003) ◀── XiangDi 服务(:3002)
-     │                       │
-     │ /knowledge/embed       ├── EmbeddingService（Xenova/multilingual-e5-small）
-     │ /knowledge/search      ├── RerankerService（Xenova/ms-marco-MiniLM-L-6-v2）
-     │                        ├── KnowledgeService（LanceDB + BM25 混合检索）
-     └─────────────────────── └── BanvasGL 版本隔离（knowledge_v{version}）
-
-种子脚本 ──▶ /knowledge/upsert ──▶ 知识服务
-```
-
-**核心设计原则**：知识与 BanvasGL 版本强关联，AISchema 变更会影响知识的有效性，独立发版便于追踪版本影响。向量化与存储均在同一进程内完成（ONNX 本地推理 + LanceDB 嵌入式存储），无需额外部署向量数据库或外部推理服务。
-
-## 检索流程
-
-```
-查询文本
-    │
-    ▼
-EmbeddingService（ONNX 推理，multilingual-e5-small）
-    │ 384 维向量
-    ▼
-┌──────────────────────────────────┐
-│           粗排（Coarse Rank）      │
-│                                  │
-│  向量检索（LanceDB）               │
-│  BM25 全文检索（LanceDB FTS）      │
-│         ↓                        │
-│   RRF 融合（Reciprocal Rank Fusion）│
-│   权重：向量 60% + BM25 40%         │
-└──────────────────┬───────────────┘
-                   │ topK × rerankFactor 候选
-                   ▼
-┌──────────────────────────────────┐
-│          精排（Rerank）            │
-│                                  │
-│   Cross-Encoder（ms-marco-MiniLM）│
-│   对 (query, candidate) 逐对打分   │
-│   用精排分数替换粗排分数             │
-└──────────────────┬───────────────┘
-                   │ 最终 topK 结果
-                   ▼
-              KnowledgeChunk[]
-```
-
-精排失败时自动降级到粗排结果，保障检索可用性。当知识库条目不足或 FTS 索引未就绪时，仅使用向量检索。
-
-## API
-
-### `GET /health`
-
-健康检查，无需认证。
-
-**响应**：`200 OK`，`{ status: "ok", service: "knowledge-server" }`
+Knowledge Server 是一个独立的知识检索微服务，为 XiangDi AI Agent 提供 BanvasGL 组件能力的知识检索。当 AI 需要知道"某个组件有哪些属性"或"怎么实现某种布局"时，就是向这个服务查询。
 
 ---
 
-### `POST /knowledge/search`
+## 它做什么
 
-语义检索知识库，返回与查询最相关的知识片段。
+Knowledge Server 存储和检索的是 **BanvasGL 的能力体系知识**——组件有哪些属性、怎么组合使用、视觉主题如何配置等。这些知识按引擎版本隔离，引擎升级时知识库可以平滑迁移。
 
-**请求体**（`application/json`）：
+检索流程是三阶段管线：
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `query` | `string` | 是 | 查询文本 |
-| `topK` | `number` | 否 | 返回条目数，默认 5，最大 10 |
-| `category` | `string` | 否 | 按类目过滤，如 `"schema"` |
-| `rerank` | `boolean` | 否 | 是否启用 Cross-Encoder 精排，默认 `true` |
-| `rerankFactor` | `number` | 否 | 精排扩展因子，默认 4（粗排取 topK×4 再精排）|
+1. **粗排**：向量检索（语义相似度）+ BM25 全文检索（关键词匹配），RRF 融合
+2. **精排**：Cross-Encoder 模型对粗排结果重新打分
+3. **返回 TopK**：取精排后的前 K 条结果
 
-**响应**：
-
-```json
-{
-  "chunks": [
-    {
-      "content": "知识内容",
-      "source": "schema/rect",
-      "score": 0.92
-    }
-  ],
-  "totalChunks": 1,
-  "query": "原始查询文本"
-}
-```
+所有推理都在本地完成（ONNX Runtime），不依赖外部 Embedding API，低延迟低成本。
 
 ---
 
-### `POST /knowledge/upsert`
+## 知识来源
 
-写入或更新知识条目（同 `id` 自动覆盖）。写入时自动完成向量化并重建 FTS 索引。
+知识数据由种子脚本写入，分三个层次：
 
-**请求体**（`application/json`）：
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `entries` | `KnowledgeEntry[]` | 是 | 知识条目数组 |
-
-`KnowledgeEntry` 结构：
-
-```json
-{
-  "id": "schema/rect",
-  "content": "知识文本内容",
-  "source": "schema",
-  "metadata": { "category": "schema", "nodeType": "rect" }
-}
-```
-
-**响应**：`{ "success": true, "count": 10 }`
+- **Schema 种子**：每种组件的能力认知（有哪些属性、类型、默认值）
+- **Composition 种子**：组件的常见组合模式（登录表单、数据表格、导航栏等）
+- **Theme 种子**：视觉主题配置（颜色、间距、字号的推荐值）
 
 ---
 
-### `POST /knowledge/embed`
+## 主要接口
 
-批量文本向量化，返回 384 维浮点向量数组。支持 `query` 和 `passage` 两种模式（遵循 E5 模型规范，自动添加对应前缀）。
+| 接口 | 用途 |
+|------|------|
+| `POST /knowledge/search` | 检索相关知识片段 |
+| `POST /knowledge/upsert` | 写入/更新知识条目 |
+| `POST /knowledge/embed` | 获取文本的向量表示 |
+| `DELETE /knowledge/entries` | 删除知识条目 |
+| `GET /knowledge/stats` | 查看知识库统计信息 |
+| `GET /health` | 健康检查 |
 
-**请求体**（`application/json`）：
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `texts` | `string[]` | 是 | 待向量化的文本数组，最多 32 条 |
-| `mode` | `string` | 否 | `"query"` 或 `"passage"`，默认 `"passage"` |
-
-**响应**：
-
-```json
-{ "embeddings": [[0.123, -0.456, ...], ...] }
-```
-
-每个元素为 384 维浮点数组。
+写操作需要 `X-Internal-Token` 认证，读操作开放。
 
 ---
-
-### `DELETE /knowledge/entries`
-
-按 `id` 数组批量删除知识条目。
-
-**请求体**：`{ "ids": ["schema/rect", "schema/text"] }`
-
-**响应**：`{ "success": true }`
-
----
-
-### `GET /knowledge/stats`
-
-返回当前知识库的统计信息。
-
-**响应**：
-
-```json
-{
-  "tableName": "knowledge_v0.3.1",
-  "totalEntries": 42
-}
-```
-
-## 知识种子
-
-知识种子由 `packages/xiangdi-agent/src/knowledge/seeds/` 提供，分三个层级：
-
-| 层级 | 目录 | 内容 | 维护方式 |
-|------|------|------|---------|
-| `schema` | `seeds/schema/` | AISchema 节点类型文档（rect/text/image/flex/group 等） | 脚本自动生成 |
-| `theme` | `seeds/theme/` | 设计主题与 token（颜色体系、字号/间距/圆角规范） | 人工维护 |
-| `composition` | `seeds/composition/` | UI 组合模式（登录表单、商品卡片、数据表格等） | LLM 生成 + 人工 review |
-
-```bash
-# 写入所有层级
-pnpm seed -- --layer all
-
-# 仅写入特定层级
-pnpm seed -- --layer schema
-pnpm seed -- --layer composition
-pnpm seed -- --layer theme
-```
-
-种子脚本（`scripts/seed-knowledge.ts`）读取 xiangdi-agent 的 seeds 目录，批量调用 `/knowledge/upsert` 写入，支持幂等执行（先删除旧条目，再写入新条目）。执行前需确保 knowledge-server 已启动。
-
-## 目录结构
-
-```
-apps/knowledge-server/
-├── src/
-│   ├── app.ts              # Koa 应用实例（中间件 + 路由注册）
-│   ├── server.ts           # 入口（监听端口）
-│   ├── middleware/
-│   │   ├── auth.ts         # 内部认证（X-Internal-Token 校验）
-│   │   ├── errorHandler.ts # 全局错误处理
-│   │   └── logger.ts       # 请求日志
-│   ├── routes/
-│   │   ├── health.ts       # GET /health
-│   │   └── knowledge.ts    # POST /knowledge/search|upsert|embed, DELETE /knowledge/entries, GET /knowledge/stats
-│   └── services/
-│       ├── EmbeddingService.ts   # 本地 ONNX 推理（Xenova/multilingual-e5-small，384 维，单例）
-│       ├── KnowledgeService.ts   # LanceDB 向量检索 + BM25 + RRF 混合检索 + Cross-Encoder 精排
-│       └── RerankerService.ts    # Cross-Encoder 精排（Xenova/ms-marco-MiniLM-L-6-v2，单例）
-└── scripts/
-    └── seed-knowledge.ts   # 知识种子写入脚本
-```
-
-## 技术栈
-
-| 技术 | 版本 | 用途 |
-|------|------|------|
-| Koa | ^2.15 | HTTP 框架 |
-| @koa/router | ^13.1 | 路由 |
-| @koa/cors | ^5.0 | 跨域支持 |
-| koa-body | ^6.0 | 请求体解析 |
-| @lancedb/lancedb | ^0.27.2 | 嵌入式向量数据库（本地文件，无需独立部署） |
-| @huggingface/transformers | ^4.2.0 | ONNX 本地推理（Xenova 模型） |
-| @banyuan/banvasgl | workspace:* | 仅读取 `version` 做表名隔离 |
-| tsx | ^4.19 | TypeScript 直接运行（开发模式） |
-| TypeScript | ~5.7 | 类型系统 |
-
-**模型说明**：
-
-- **EmbeddingService**：`Xenova/multilingual-e5-small`，384 维，支持中英文混合语义，首次运行自动从 HuggingFace Hub 下载并缓存。遵循 E5 规范，查询加 `"query: "` 前缀，文档加 `"passage: "` 前缀。
-- **RerankerService**：`Xenova/ms-marco-MiniLM-L-6-v2`，Cross-Encoder 架构，对 (query, passage) 对直接评分，精排效果显著优于向量余弦相似度。最多对 20 个候选逐对打分，单对推理 <100ms。
-
-## 环境变量
-
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `PORT` | 服务端口 | `3003` |
-| `KNOWLEDGE_INTERNAL_TOKEN` | 内部认证 token（未设置时开发模式跳过认证） | — |
-| `BANVASGL_VERSION` | BanvasGL 版本号（备选，通常从包自动读取） | — |
-| `KNOWLEDGE_URL` | 种子脚本连接的知识服务地址 | `http://localhost:3003` |
-
-## 内部认证
-
-除 `/health` 路由外，所有请求均需认证。认证方式为携带 `X-Internal-Token` 请求头，值为 `KNOWLEDGE_INTERNAL_TOKEN` 环境变量。
-
-认证行为：
-
-- **生产模式**（`NODE_ENV=production`）：未设置 `KNOWLEDGE_INTERNAL_TOKEN` 时，所有请求返回 503 Service Unavailable
-- **开发模式**（`NODE_ENV !== 'production'` 且未设置 `KNOWLEDGE_INTERNAL_TOKEN`）：跳过认证校验，打印警告日志
 
 ## 快速开始
 
-### 前置条件
-
-- Node.js ≥ 20
-- pnpm ≥ 10.10
-
-### 启动
-
-**推荐**：通过根目录命令一键启动完整平台（含知识服务）：
-
 ```bash
-# 在 monorepo 根目录
-pnpm dev:banyan
+# 开发模式
+pnpm dev
+
+# 生产构建
+pnpm build && pnpm start
 ```
 
-**单独启动**（仅调试知识服务本身时使用）：
+默认监听 `:3003`。通常不需要单独启动——`pnpm dev:banyan` 会一并启动。
 
-```bash
-# 先确保 BanvasGL 已构建（知识服务读取其 version）
-pnpm --filter @banyuan/banvasgl build
+首次启动时模型会自动从 HuggingFace Hub 下载并缓存到本地。
 
-# 启动知识服务
-pnpm --filter knowledge-server dev
+---
+
+## 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `PORT` | 3003 | 服务端口 |
+| `KNOWLEDGE_INTERNAL_TOKEN` | — | 写操作认证 token（生产必填） |
+| `BANVASGL_VERSION` | 自动读取 | 知识表版本隔离标识 |
+
+---
+
+## 技术选型
+
+- **LanceDB**：嵌入式向量数据库，数据持久化到本地磁盘，无需外部数据库服务
+- **multilingual-e5-small**：Embedding 模型（384 维），支持中英文混合语义
+- **ms-marco-MiniLM-L-6-v2**：Cross-Encoder 精排模型
+
+---
+
+## 在 Monorepo 中的位置
+
+```
+XiangDi Server(:3002) ──HTTP──▶ Knowledge Server(:3003)
 ```
 
-服务启动后监听 `http://localhost:3003`。ONNX 模型在首次请求时懒加载（约 2~5 秒），随后保持常驻内存（单例）。
+Knowledge Server 不访问 MongoDB，不引用 `@banyuan/xiangdi-agent` 的业务逻辑，是完全独立的知识服务。
 
-### 构建与生产启动
+---
 
-```bash
-# 构建
-pnpm --filter knowledge-server build
+## 许可证
 
-# 生产启动
-pnpm --filter knowledge-server start
-```
-
-### 写入知识种子
-
-```bash
-# 在 knowledge-server 目录或根目录执行
-pnpm --filter knowledge-server seed -- --layer all
-```
-
-## 与 Monorepo 其他包的关系
-
-- **@banyuan/banvasgl**（`packages/banvasgl`）：仅用于读取版本号，拼接表名 `knowledge_v{version}`，实现按版本隔离知识库
-- **@banyuan/xiangdi-agent**（`packages/xiangdi-agent`）：提供知识种子文件（`src/knowledge/seeds/`），知识服务的 `RemoteKnowledgeStore` 是 xiangdi-server 调用知识服务的 HTTP 客户端适配层
-- **banyan 后端**（`apps/banyan/backend`）：通过 `KNOWLEDGE_URL` 环境变量（默认 `http://localhost:3003`）调用知识服务，用途包括 ContextBuilder 语义检索和 `/knowledge/embed` 向量化代理
-- **xiangdi-server**（`apps/xiangdi-server`）：通过 `RemoteKnowledgeStore` 调用 `/knowledge/search`，为 `knowledge_search` 工具提供检索能力
-
-## 禁止事项
-
-- **禁止**在本服务中直接访问 MongoDB；持久化由 banyan 后端负责
-- **禁止**在本服务中直接引用 `@banyuan/xiangdi-agent` 的源码（种子脚本通过 HTTP API 写入，不直接 import）
-- **禁止**在生产环境中不设置 `KNOWLEDGE_INTERNAL_TOKEN`；未设置时所有请求将被拒绝
+[AGPL-3.0](../../LICENSE) / 商业授权
