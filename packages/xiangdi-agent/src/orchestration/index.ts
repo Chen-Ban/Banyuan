@@ -200,12 +200,3 @@ export type {
   OrchestratorSSECallback,
 } from './events.js'
 
-// ─── 旧类型（Legacy，供现有 masterGraph 编译通过，Phase 2 删除）──────────────
-
-export type {
-  SubAgentResult,
-  AssemblyPlan,
-  LegacyAuditResult,
-  AuditIssue,
-  AuditSeverity,
-} from './legacy.js'

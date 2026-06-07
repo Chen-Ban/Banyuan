@@ -11,12 +11,7 @@
  */
 
 // ─── 核心引擎 ─────────────────────────────────────────────────────────────────
-export {
-  ToolRegistry,
-  ConflictDetector,
-  DecisionLog,
-  DisambiguationHandler,
-} from "./core/index.js";
+export { ToolRegistry } from "./core/index.js";
 
 export type {
   // 消息协议
@@ -44,118 +39,22 @@ export type {
   ToolResultEvent,
   DoneEvent,
   ErrorEvent,
-  DisambiguationEvent,
-  DisambiguationPendingEvent,
   RoundSummaryEvent,
   MemoryUpdateEvent,
-  PlanningProgressStreamEvent,
-  ResumeClarificationStreamEvent,
   // LLM 客户端接口
   LLMClient,
   LLMResponse,
-  // 冲突检测
-  DisambiguationPending,
-  Decision,
-  DecisionScope,
-  DecisionSource,
-  ConflictType,
-  ConflictItem,
-  ConflictReport,
-  // 消歧处理
-  DisambiguationOption,
-  DisambiguationOptions,
 } from "./core/index.js";
-
-// ─── Graph Module (LangGraph) ────────────────────────────────────────────────
-export {
-  MasterStateAnnotation,
-  ExecuteStateAnnotation,
-  createMasterGraph,
-  createChatGraph,
-  ChatStateAnnotation,
-  buildSpecSystemPrompt,
-  loadSpecPrompt,
-  createExtractMemoryNode,
-  createIntentNode,
-  createRespondNode,
-  // Multi-Agent Planning (ADR-032/033/034)
-  PlanningOrchestrator,
-  runSubAgent,
-  runPMAgent,
-  runArchAgent,
-  runVisualAgent,
-  runTaskPlannerAgent,
-  buildPMContext,
-  buildArchContext,
-  buildVisualContext,
-  buildTaskContext,
-  buildContextSummary,
-  // Resume (ADR-034)
-  PLANNING_DAG,
-  getDownstream,
-  getDirectDownstream,
-  getValidArtifacts,
-  getResumeStartAgent,
-  getInvalidatedAgents,
-  classifyResumeIntent,
-  handleContinue,
-  handleRefine,
-  handleRestart,
-  handleClarify,
-} from "./graph/index.js";
-export type {
-  MasterState,
-  ExecuteState,
-  PlanTask,
-  PlanOutput,
-  IntentType,
-  IntentResult as LegacyIntentResult,
-  MasterGraphConfig,
-  ChatGraphConfig,
-  ChatState,
-  SpecNodeConfig,
-  ExtractMemoryConfig,
-  MemoryNodeState,
-  IntentNodeConfig,
-  RespondNodeConfig,
-  // Multi-Agent Planning types
-  PlanningOrchestratorConfig,
-  PlanningResult,
-  PlanningRunOptions,
-  SubAgentConfig,
-  SubAgentRunResult,
-  SubAgentLLMConfig,
-  SubAgentState,
-  PMAgentInput,
-  PMAgentConfig,
-  ArchAgentInput,
-  ArchAgentConfig,
-  VisualAgentInput,
-  VisualAgentConfig,
-  TaskPlannerInput,
-  TaskPlannerAgentConfig,
-  TokenBudget,
-  // Resume types
-  ResumeIntent,
-  ResumeClassification,
-  CompletedArtifactEntry,
-  CompletedArtifacts,
-  PartialAgentState,
-  PlanningSnapshot,
-  RefinementContext,
-  ResumeClassifierConfig,
-  ResumeClassifierInput,
-} from "./graph/index.js";
 
 // ─── Schema 层（AI Projection，ADR-027）─────────────────────────────────────
 export {
-toAIProjection,
-fromAIProjection,
-appJSONToProjection,
-projectionToAppJSON,
-// Patch Projection（ADR-041）
-patchProjection,
-patchProjectionViaAdapter,
+  toAIProjection,
+  fromAIProjection,
+  appJSONToProjection,
+  projectionToAppJSON,
+  // Patch Projection（ADR-041）
+  patchProjection,
+  patchProjectionViaAdapter,
 } from "./schema/index.js";
 
 export type {
@@ -186,217 +85,24 @@ export type {
   PatchProjectionResult,
 } from "./schema/index.js";
 
-// ─── 工具协议 ─────────────────────────────────────────────────────────────────
-export {
-  // Banvas 画布工具
-  BANVAS_TOOLS,
-  BANVAS_TOOL_DEFINITIONS,
-  // Banvas 工具 Handler 工厂
-  createBanvasToolRegistry,
-  // AI Projection 读写（ADR-027）
-  readProjection,
-  writeProjection,
-  // Web Search 内置工具
-  WEB_SEARCH_TOOL_NAME,
-  WEB_SEARCH_TOOL_DEFINITION,
-  createWebSearchHandler,
-  registerWebSearchTool,
-  // Knowledge Search 内置工具
-  KNOWLEDGE_SEARCH_TOOL_NAME,
-  KNOWLEDGE_SEARCH_TOOL_DEFINITION,
-  createKnowledgeSearchHandler,
-  registerKnowledgeSearchTool,
-  // Cloud Function 云函数工具
-  GENERATE_CLOUD_FUNCTION_TOOL_NAME,
-  GENERATE_CLOUD_FUNCTION_TOOL_DEFINITION,
-  UPDATE_CLOUD_FUNCTION_TOOL_NAME,
-  UPDATE_CLOUD_FUNCTION_TOOL_DEFINITION,
-  EXPLAIN_CLOUD_FUNCTION_TOOL_NAME,
-  EXPLAIN_CLOUD_FUNCTION_TOOL_DEFINITION,
-  createGenerateCloudFunctionHandler,
-  createUpdateCloudFunctionHandler,
-  createExplainCloudFunctionHandler,
-  registerCloudFunctionTools,
-  // Schema 工具
-  SCHEMA_GET_TOOL_NAME,
-  SCHEMA_GET_TOOL_DEFINITION,
-  SCHEMA_SET_COLLECTIONS_TOOL_NAME,
-  SCHEMA_SET_COLLECTIONS_TOOL_DEFINITION,
-  createSchemaGetHandler,
-  createSchemaSetCollectionsHandler,
-  registerSchemaTools,
-  // Material 物料工具
-  MATERIAL_SEARCH_TOOL_NAME,
-  MATERIAL_SEARCH_TOOL_DEFINITION,
-  MATERIAL_GET_DETAIL_TOOL_NAME,
-  MATERIAL_GET_DETAIL_TOOL_DEFINITION,
-  createMaterialSearchHandler,
-  createMaterialGetDetailHandler,
-  registerMaterialTools,
-} from "./tools/index.js";
-
-export type {
-  BanvasToolName,
-  GetAppStateInput,
-  CreatePageInput,
-  AddNodeInput,
-  UpdateNodeInput,
-  DeleteNodeInput,
-  MoveNodeInput,
-  ResizeNodeInput,
-  ApplyPatchInput,
-  // Banvas 工具 Handler 工厂类型
-  BanvasHostAdapter,
-  // Web Search 类型
-  SearchResult,
-  SearchResponse,
-  SearchProvider,
-  SearchOptions,
-  WebSearchInput,
-  WebSearchOutput,
-  // Knowledge Search 类型
-  KnowledgeSearchInput,
-  KnowledgeSearchOutput,
-  // Cloud Function 云函数工具类型
-  AppSchemaFieldDef,
-  AppSchemaCollectionDef,
-  GenerateCloudFunctionInput,
-  GenerateCloudFunctionOutput,
-  UpdateCloudFunctionInput,
-  UpdateCloudFunctionOutput,
-  ExplainCloudFunctionInput,
-  ExplainCloudFunctionOutput,
-  CloudFunctionToolsConfig,
-  // Schema 工具类型
-  SchemaFieldType,
-  SchemaFieldDef,
-  SchemaCollectionDef,
-  AppSchemaSnapshot,
-  SchemaWriter,
-  SchemaReader,
-  SchemaGetInput,
-  SchemaGetOutput,
-  SchemaSetCollectionsInput,
-  SchemaSetCollectionsOutput,
-  SchemaToolsConfig,
-  // Material 物料工具类型
-  MaterialStore,
-  MaterialSummary,
-  MaterialDetail,
-  MaterialSearchInput,
-  MaterialSearchOutput,
-  MaterialGetDetailInput,
-  MaterialGetDetailOutput,
-} from "./tools/index.js";
-
 // ─── 提示词 ───────────────────────────────────────────────────────────────────
 export {
   XIANGDI_SYSTEM_PROMPT,
   buildSystemPrompt,
-  generateAISchemaDoc,
   generateNodeSchemaDoc,
-  getAllFewshots,
-  flattenFewshots,
-  FEWSHOT_CREATE_LOGIN_PAGE,
-  // Multi-Agent Prompts
-  DEFAULT_AGENT_PROMPTS,
-  getAgentPrompt,
-  getAgentPromptVersions,
 } from "./prompts/index.js";
 
-export type { BuildSystemPromptOptions, AgentPromptEntry } from "./prompts/index.js";
+export type { BuildSystemPromptOptions } from "./prompts/index.js";
 
-// ─── Spec 层（SDD 两层规范）──────────────────────────────────────────────────
-export {
-  // ProjectSpec（项目级规范）
-  FileProjectSpecLoader,
-  InlineProjectSpecLoader,
-  parseProjectSpec,
-  DEFAULT_SPEC_FILE_CANDIDATES,
-  // ChangeSpec（变更级过程文件）
-  ChangeSpecBuilder,
-  MemoryChangeSpecStore,
-  // SpecPlanner（LLM 自动生成 ChangeSpec）
-  SpecPlanner,
-} from "./spec/index.js";
-
+// ─── 工具依赖注入接口 ─────────────────────────────────────────────────────────
 export type {
-  ProjectSpecRaw,
-  ProjectSpec,
-  ProjectSpecLoader,
-  AppSchemaField,
-  AppSchemaCollection,
-  ChangeStatus,
-  ChangeTask,
-  ChangeSpec,
-  ChangeSpecStore,
-  // SpecPlanner 类型
-  SpecPlannerConfig,
-  PlanResult,
-  // Multi-Agent Planning 类型 (ADR-032) — Legacy，Phase 2 删除
-  AgentRole,
-  FeatureDependency,
-  FeatureList,
-  ViewChange,
-  SchemaChange,
-  TechPlan,
-  PageVisualSpec,
-  DesignTokens,
-  ComponentChoice,
-  VisualSpec,
-  PlanningProgressEvent,
-} from "./spec/index.js";
+  MaterialStore,
+  MaterialSummary,
+  MaterialDetail,
+} from "./tools-types.js";
 
-// ─── Harness 层（约束 + 反馈回路）────────────────────────────────────────────
-export {
-  Guards,
-  Checkpoints,
-  specApproved,
-  hasAtLeastOneTask,
-  noProhibitedKeywords,
-  proposalComplete,
-  customGuard,
-  outputNotEmpty,
-  outputMatchesPattern,
-  allTasksDone,
-  outputMinLength,
-  customCheckpoint,
-} from "./harness/index.js";
-
+// ─── Knowledge 层（接口类型） ────────────────────────────────────────────────
 export type {
-  GuardResult,
-  GuardFn,
-  Guard,
-  CheckpointResult,
-  CheckpointFn,
-  Checkpoint,
-  HarnessContext,
-  HarnessPhase,
-  HarnessConfig,
-  HarnessRunResult,
-} from "./harness/index.js";
-
-// ─── Knowledge 层（RAG + GraphRAG + Embedding）──────────────────────────────
-export {
-  // 公共 Embedding 服务（本地 ONNX 推理，384 维）
-  EmbeddingService,
-  EMBEDDING_DIMENSIONS,
-  // 生产推荐：向量 + BM25 混合检索，本地持久化
-  LanceDBKnowledgeStore,
-  // 测试/小数据量：关键词匹配
-  MemoryKnowledgeStore,
-  // GraphRAG：关系推理、影响分析
-  GraphologyGraphStore,
-  // 检索路由器（GraphRAG 场景）
-  LLMRetrievalRouter,
-  RuleBasedRouter,
-  // 种子数据工具
-  seedToEntry,
-  seedsToEntries,
-} from "./knowledge/index.js";
-
-export type {
-  EmbeddingServiceConfig,
   KnowledgeChunk,
   KnowledgeStore,
   KnowledgeQueryOptions,
@@ -408,12 +114,7 @@ export type {
   GraphKnowledgeStore,
   GraphQueryOptions,
   ImpactAnalysisOptions,
-  LanceDBKnowledgeStoreConfig,
-  GraphologyGraphStoreConfig,
-  RetrievalRouterConfig,
-  SeedCategory,
-  SeedFile,
-} from "./knowledge/index.js";
+} from "./knowledge/types.js";
 
 // ─── LLM 层（DeepSeek + Kimi 客户端 + 智能路由）──────────────────────────────
 export { DeepSeekClient, KimiClient, LLMRouter } from "./llm/index.js";
@@ -428,39 +129,6 @@ export type {
   SuggestedAction,
   SignalListener,
 } from "./llm/index.js";
-
-// ─── Memory 层（中期记忆 + 长期记忆 + 命名空间）──────────────────────────────
-export {
-  LocalEpisodicMemory,
-  LocalSemanticMemory,
-  DefaultMemoryManager,
-  // 命名空间记忆 (ADR-033)
-  NamespacedMemoryManager,
-  createMemoryManager,
-  SharedMemoryWriter,
-} from "./memory/index.js";
-
-export type {
-  // 中期记忆
-  Episode,
-  EpisodeOutcome,
-  EpisodicMemory,
-  EpisodicRecallOptions,
-  ConsolidateOptions,
-  // 长期记忆
-  Fact,
-  FactCategory,
-  SemanticMemory,
-  SemanticRecallOptions,
-  // 管理器
-  MemoryManager,
-  LocalEpisodicMemoryConfig,
-  LocalSemanticMemoryConfig,
-  DefaultMemoryManagerConfig,
-  // 命名空间记忆 (ADR-033)
-  MemoryNamespace,
-  NamespacedMemoryManagerConfig,
-} from "./memory/index.js";
 
 // ─── 编排层（ADR-041: Orchestrator + 领域 SubAgent 统一管线）────────────────
 export {
