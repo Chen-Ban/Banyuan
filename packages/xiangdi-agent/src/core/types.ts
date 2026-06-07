@@ -95,13 +95,7 @@ export interface AgentConfig {
   systemPrompt?: string;
 }
 
-// ─── 流式事件 ─────────────────────────────────────────────────────────────────
-
-import type { ConflictReport } from "./ConflictDetector.js";
-import type { DisambiguationOptions } from "./DisambiguationHandler.js";
-import type { DisambiguationPending } from "./llmTypes.js";
-import type { PlanningProgressEvent } from "../spec/planningTypes.js";
-import type { ResumeClassification } from "../graph/resume/types.js";
+// ─── 流式事件（Legacy，仅保留基础类型供兼容）──────────────────────────────────
 
 export type StreamEventType =
   | "text_delta"
@@ -109,12 +103,8 @@ export type StreamEventType =
   | "tool_result"
   | "done"
   | "error"
-  | "disambiguation"
-  | "disambiguation_pending"
   | "round_summary"
-  | "memory_update"
-  | "planning_progress"
-  | "resume_clarification";
+  | "memory_update";
 
 export interface StreamEvent {
   type: StreamEventType;
@@ -146,18 +136,6 @@ export interface ErrorEvent extends StreamEvent {
   data: { error: Error };
 }
 
-/** 消歧选项事件（通知 UI 层展示选项） */
-export interface DisambiguationEvent extends StreamEvent {
-  type: "disambiguation";
-  data: { options: DisambiguationOptions; report: ConflictReport };
-}
-
-/** 消歧挂起事件（携带 resolve 回调，供外部恢复执行） */
-export interface DisambiguationPendingEvent extends StreamEvent {
-  type: "disambiguation_pending";
-  data: { pending: DisambiguationPending };
-}
-
 /** 轮次摘要事件（summarize 节点产出整轮摘要后发出） */
 export interface RoundSummaryEvent extends StreamEvent {
   type: "round_summary";
@@ -185,36 +163,13 @@ export interface MemoryUpdateEvent extends StreamEvent {
   };
 }
 
-/** 规划进度事件（PlanningOrchestrator 调度每个 Subagent 时发出） */
-export interface PlanningProgressStreamEvent extends StreamEvent {
-  type: "planning_progress";
-  data: PlanningProgressEvent;
-}
-
-/** 续接确认事件（ResumeClassifier 置信度低时发出，请求用户确认意图） */
-export interface ResumeClarificationStreamEvent extends StreamEvent {
-  type: "resume_clarification";
-  data: {
-    classification: ResumeClassification;
-    options: Array<{
-      intent: ResumeClassification["intent"];
-      label: string;
-      description: string;
-    }>;
-  };
-}
-
 export type TypedStreamEvent =
   | TextDeltaEvent
   | ToolCallEvent
   | ToolResultEvent
   | DoneEvent
   | ErrorEvent
-  | DisambiguationEvent
-  | DisambiguationPendingEvent
   | RoundSummaryEvent
-  | MemoryUpdateEvent
-  | PlanningProgressStreamEvent
-  | ResumeClarificationStreamEvent;
+  | MemoryUpdateEvent;
 
 export type StreamCallback = (event: TypedStreamEvent) => void;

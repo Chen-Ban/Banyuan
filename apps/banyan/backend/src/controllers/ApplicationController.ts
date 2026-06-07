@@ -1,10 +1,13 @@
 import { Context } from 'koa'
 import applicationService from '../services/ApplicationService'
 
+// ADR-042：本端点只更新应用「元信息」（name/description/thumbnail/tags）。
+// 画布内容 appJSON 是版本化内容（AppContent 表），不在此更新——
+// 它必须走 PUT /api/apps/:appId/app-content（经 runAutoConfirmedEdit 落库为新版本），
+// 故这里刻意不再声明 appJSON 字段，避免前端误以为能通过本接口保存画布。
 interface UpdateApplicationRequest {
   name?: string
   description?: string
-  appJSON?: string
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
@@ -55,23 +58,33 @@ class ApplicationController {
     try {
       const { id } = ctx.params
       const user = ctx.state.user!
-      const application = await applicationService.getApplicationById(id)
 
-      if (!application) {
+      // ADR-042：聚合返回 application + appJSON + collections + cloudFunctions
+      const result = await applicationService.getFullApplicationById(id)
+
+      if (!result) {
         ctx.status = 404
         ctx.body = { success: false, message: 'Application not found' }
         return
       }
 
       // 租户归属校验
-      if (application.tenantId !== user.tenantId) {
+      if (result.application.tenantId !== user.tenantId) {
         ctx.status = 403
         ctx.body = { success: false, message: '无权访问该应用' }
         return
       }
 
       ctx.status = 200
-      ctx.body = { success: true, data: application }
+      ctx.body = {
+        success: true,
+        data: {
+          ...result.application,
+          appJSON: result.appJSON,
+          collections: result.collections,
+          cloudFunctions: result.cloudFunctions,
+        },
+      }
     } catch (error: any) {
       ctx.status = 500
       ctx.body = { success: false, message: error.message || 'Failed to get application' }

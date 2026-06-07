@@ -13,7 +13,7 @@
  *
  * 检索算法：
  *   1. 对当前 prompt 调用知识服务获取 query vector
- *   2. 遍历 dialogues[]，计算 cosineSimilarity(query, dialogue.embedding)
+ *   2. 遍历 dialogues[]，计算 cosineSimilarity(query, dialogue.summary.embedding)
  *   3. 混合排序：score = α * semantic_score + (1-α) * recency_score
  *      - semantic_score: cosine similarity（0~1）
  *      - recency_score: 1 / (1 + time_decay_factor * days_ago)
@@ -34,7 +34,8 @@
  *   - 如果 dialogue 无 embedding（embedding 生成失败过），仅参与时间近因排序
  */
 
-import Conversation, { type IMessage, type IDialogue } from '../models/Conversation.js'
+import Dialogue, { type IDialogueDoc } from '../models/Dialogue.js'
+import type { IMessage } from '../models/types/index.js'
 import knowledgeClient from './KnowledgeClient.js'
 
 // ─── 模型上下文窗口配置 ──────────────────────────────────────────────────────────
@@ -216,7 +217,7 @@ export class ContextBudgetOverflowError extends Error {
 // ─── 内部类型 ──────────────────────────────────────────────────────────────────
 
 interface ScoredDialogue {
-  dialogue: IDialogue
+  dialogue: IDialogueDoc
   index: number // dialogues[] 中的位置
   semanticScore: number
   recencyScore: number
@@ -235,19 +236,27 @@ class ContextBuilder {
    * @returns 分层上下文对象
    */
   async build(appId: string, currentPrompt?: string, options?: ContextBuildOptions): Promise<LayeredContext> {
-    const conv = await Conversation.findOne({ appId }).select('dialogues')
+    // 从独立 Dialogue 集合查询已完成的对话（phase=done）
+    const dialogues = await Dialogue.find({
+      appId,
+      phase: 'done',
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean() as unknown as IDialogueDoc[]
 
-    if (!conv || !conv.dialogues || conv.dialogues.length === 0) {
+    if (!dialogues || dialogues.length === 0) {
       return {
         contextSummary: null,
         recentMessages: [],
       }
     }
 
-    const dialogues = conv.dialogues
+    // 按时间正序排列（最早在前）
+    dialogues.reverse()
 
     // 如果所有 dialogue 都没有 summary（旧数据或首轮对话），回退到时间窗口模式
-    const hasSummaries = dialogues.some(d => d.summary)
+    const hasSummaries = dialogues.some(d => d.summary?.text)
     if (!hasSummaries) {
       return this.buildFallback(dialogues, options)
     }
@@ -296,7 +305,7 @@ class ContextBuilder {
   // ─── V2：按需检索模式 ──────────────────────────────────────────────────────
 
   private async buildWithRetrieval(
-    dialogues: IDialogue[],
+    dialogues: IDialogueDoc[],
     currentPrompt?: string,
     options?: ContextBuildOptions
   ): Promise<LayeredContext> {
@@ -315,8 +324,9 @@ class ContextBuilder {
     const scoredDialogues: ScoredDialogue[] = dialogues.map((dialogue, index) => {
       // 语义分数
       let semanticScore = 0
-      if (queryEmbedding && dialogue.embedding) {
-        semanticScore = Math.max(0, cosineSimilarity(queryEmbedding, dialogue.embedding))
+      const dialogueEmbedding = dialogue.summary?.embedding ?? null
+      if (queryEmbedding && dialogueEmbedding) {
+        semanticScore = Math.max(0, cosineSimilarity(queryEmbedding, dialogueEmbedding))
       }
 
       // 时间近因分数：距今天数越少分数越高
@@ -324,7 +334,7 @@ class ContextBuilder {
       const recencyScore = 1 / (1 + TIME_DECAY_FACTOR * daysAgo)
 
       // 混合分数
-      const hasEmbedding = queryEmbedding !== null && dialogue.embedding != null
+      const hasEmbedding = queryEmbedding !== null && dialogueEmbedding != null
       const mixedScore = hasEmbedding
         ? SEMANTIC_WEIGHT * semanticScore + (1 - SEMANTIC_WEIGHT) * recencyScore
         : recencyScore // 无 embedding 时仅用时间近因
@@ -433,7 +443,7 @@ class ContextBuilder {
 
   // ─── V1 回退：暴力时间窗口模式 ─────────────────────────────────────────────
 
-  private buildFallback(dialogues: IDialogue[], options?: ContextBuildOptions): LayeredContext {
+  private buildFallback(dialogues: IDialogueDoc[], options?: ContextBuildOptions): LayeredContext {
     // 回退模式也使用动态预算（如果有 options），否则用保守估计
     const { recommendedBudget } = this.computeBudget(options)
     const tokenBudget = recommendedBudget > 0 ? recommendedBudget * FALLBACK_THRESHOLD_RATIO : 15000
@@ -498,8 +508,8 @@ class ContextBuilder {
     if (unselectedDialogues.length === 0) return null
 
     const summaries = unselectedDialogues
-      .filter((sd) => sd.dialogue.summary)
-      .map((sd) => sd.dialogue.summary!)
+      .filter((sd) => sd.dialogue.summary?.text)
+      .map((sd) => sd.dialogue.summary!.text)
 
     if (summaries.length === 0) return null
 

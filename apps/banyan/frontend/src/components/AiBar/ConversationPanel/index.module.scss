@@ -157,6 +157,12 @@
   flex-shrink: 0;
 }
 
+.toolIconError {
+  color: var(--color-error-text);
+  font-size: $text-xs;
+  flex-shrink: 0;
+}
+
 .toolText {
   flex: 1;
   word-break: break-word;
@@ -178,6 +184,7 @@
 
 .doneIcon  { color: var(--color-success-text); font-size: $text-sm; }
 .doneText  { color: var(--color-success-text); }
+.phaseText { color: var(--color-text-tertiary); font-style: italic; }
 
 .thinkingIcon { color: var(--color-brand-primary); font-size: $text-sm; }
 

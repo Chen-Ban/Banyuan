@@ -1,34 +1,18 @@
 /**
- * 对话会话服务（V2）
+ * 对话会话服务（V3 — ADR-041 轻量索引容器）
  *
- * 基于"1 App = 1 Conversation"模型，所有操作以 appId 为键。
+ * Conversation 退化为纯索引容器（appId + dialogueIds[]），
+ * 所有对话内容、状态机、快照由独立 Dialogue 集合承载。
  *
- * 核心变更（相对 V1）：
- *   - 操作单元从 message 变为 dialogue（对话）
- *   - 创建对话时指定类型（chat/task）和 threadId
- *   - 消息追加到当前活跃的 dialogue 内
- *   - threadId/threadStatus 挂载到 dialogue 级别
- *   - summary/embedding 是对整个对话的总结
- *
- * 核心职责：
- *   - 获取或创建会话（按 appId 自动创建）
- *   - 创建新对话（Dialogue）
- *   - 在对话内追加消息（用户消息 + AI 消息）
- *   - 更新对话状态（threadStatus）
- *   - 读取对话历史（用于前端展示和上下文构建）
- *   - 持久化对话摘要（summary + embedding）
+ * 本 Service 的职责：
+ *   - 获取或创建 Conversation（按 appId 唯一索引）
+ *   - 注册 dialogueId 到 Conversation（confirm 后挂载）
+ *   - 读取 Dialogue 列表（从独立集合查询，返回给前端）
  */
 
 import { Types } from 'mongoose'
-import Conversation, {
-  type IConversation,
-  type IDialogue,
-  type IMessage,
-  type IUserContent,
-  type IAssistantContent,
-  type DialogueType,
-  type ThreadStatus,
-} from '../models/Conversation.js'
+import Conversation, { type IConversationDoc } from '../models/Conversation.js'
+import Dialogue from '../models/Dialogue.js'
 
 // ─── ConversationService ──────────────────────────────────────────────────────
 
@@ -41,10 +25,10 @@ class ConversationService {
    * - 若不存在，原子性创建并返回新文档
    * - 即使两个请求同时到达，MongoDB 唯一索引确保只创建一个文档
    */
-  async getOrCreate(appId: string): Promise<IConversation> {
+  async getOrCreate(appId: string): Promise<IConversationDoc> {
     const conv = await Conversation.findOneAndUpdate(
       { appId },
-      { $setOnInsert: { appId, dialogues: [] } },
+      { $setOnInsert: { appId, dialogueIds: [] } },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     )
     if (!conv) throw new Error(`getOrCreate 返回 null（appId=${appId}）`)
@@ -54,290 +38,42 @@ class ConversationService {
   /**
    * 按 appId 获取会话
    */
-  async getByApp(appId: string): Promise<IConversation | null> {
+  async getByApp(appId: string): Promise<IConversationDoc | null> {
     return Conversation.findOne({ appId })
   }
 
-  // ─── 对话（Dialogue）操作 ──────────────────────────────────────────────────
+  // ─── Dialogue 引用管理 ────────────────────────────────────────────────────
 
   /**
-   * 创建新对话并追加第一条用户消息
+   * 将 dialogueId 注册到 Conversation.dialogueIds（幂等）
    *
-   * @param appId       应用 ID
-   * @param type        对话类型（chat/task）
-   * @param userContent 用户消息内容
-   * @returns 新创建的 dialogue（含 _id）和 user message（含 _id）
+   * 在 Dialogue 到达终态（done）后调用，将其 ID 追加到 Conversation 的引用列表。
+   * 使用 $addToSet 保证幂等（重复调用不会产生重复 ID）。
    */
-  async createDialogue(
-    appId: string,
-    type: DialogueType,
-    userContent: IUserContent
-  ): Promise<{ dialogueId: Types.ObjectId; messageId: Types.ObjectId }> {
-    const now = new Date()
-
-    const userMessage: IMessage = {
-      role: 'user',
-      userContent,
-      createdAt: now,
-    }
-
-    const dialogue: IDialogue = {
-      type,
-      messages: [userMessage],
-      createdAt: now,
-      updatedAt: now,
-    }
-
-    const result = await Conversation.findOneAndUpdate(
+  async registerDialogue(appId: string, dialogueId: Types.ObjectId): Promise<void> {
+    await Conversation.updateOne(
       { appId },
-      { $push: { dialogues: dialogue } },
-      { new: true, projection: { dialogues: { $slice: -1 } } }
-    )
-
-    if (!result || result.dialogues.length === 0) {
-      throw new Error(`Conversation for app ${appId} not found or dialogue creation failed`)
-    }
-
-    const createdDialogue = result.dialogues[0]
-    const createdMessage = createdDialogue.messages[0]
-
-    return {
-      dialogueId: createdDialogue._id!,
-      messageId: createdMessage._id!,
-    }
-  }
-
-  /**
-   * 创建新对话（指定 _id），用于 confirm 时将 pending 数据写入 DB
-   *
-   * @param appId       应用 ID
-   * @param dialogueId  预生成的对话 ID
-   * @param type        对话类型（chat/task）
-   * @param userContent 用户消息内容
-   */
-  async createDialogueWithId(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    type: DialogueType,
-    userContent: IUserContent
-  ): Promise<void> {
-    const now = new Date()
-
-    const userMessage: IMessage = {
-      role: 'user',
-      userContent,
-      createdAt: now,
-    }
-
-    const dialogue: IDialogue = {
-      _id: dialogueId,
-      type,
-      messages: [userMessage],
-      createdAt: now,
-      updatedAt: now,
-    }
-
-    await Conversation.findOneAndUpdate(
-      { appId },
-      { $push: { dialogues: dialogue } },
-      { new: true }
-    )
-  }
-
-  /**
-   * 在现有对话内追加用户消息（用于 interrupted 后用户回复）
-   *
-   * @param appId       应用 ID
-   * @param dialogueId  对话 ID
-   * @param userContent 用户消息内容
-   * @returns 新消息的 _id
-   */
-  async appendUserMessage(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    userContent: IUserContent
-  ): Promise<Types.ObjectId> {
-    const now = new Date()
-
-    const userMessage: IMessage = {
-      role: 'user',
-      userContent,
-      createdAt: now,
-    }
-
-    const result = await Conversation.findOneAndUpdate(
-      { appId, 'dialogues._id': dialogueId },
-      {
-        $push: { 'dialogues.$.messages': userMessage },
-        $set: { 'dialogues.$.updatedAt': now },
-      },
-      { new: true, projection: { 'dialogues.$': 1 } }
-    )
-
-    if (!result || result.dialogues.length === 0) {
-      throw new Error(`Dialogue ${dialogueId} not found in app ${appId}`)
-    }
-
-    const messages = result.dialogues[0].messages
-    const lastMessage = messages[messages.length - 1]
-    return lastMessage._id!
-  }
-
-  /**
-   * 在现有对话内追加助手消息
-   *
-   * @param appId            应用 ID
-   * @param dialogueId       对话 ID
-   * @param assistantContent 助手消息内容块列表
-   */
-  async appendAssistantMessage(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    assistantContent: IAssistantContent[]
-  ): Promise<void> {
-    if (!assistantContent || assistantContent.length === 0) return
-
-    const now = new Date()
-
-    const assistantMessage: IMessage = {
-      role: 'assistant',
-      assistantContent,
-      createdAt: now,
-    }
-
-    await Conversation.updateOne(
-      { appId, 'dialogues._id': dialogueId },
-      {
-        $push: { 'dialogues.$.messages': assistantMessage },
-        $set: { 'dialogues.$.updatedAt': now },
-      }
-    )
-  }
-
-  // ─── 对话状态管理 ──────────────────────────────────────────────────────────
-
-  /**
-   * 设置对话的 threadId 和执行状态
-   */
-  async setThreadInfo(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    threadId: string,
-    status: ThreadStatus
-  ): Promise<void> {
-    await Conversation.updateOne(
-      { appId, 'dialogues._id': dialogueId },
-      {
-        $set: {
-          'dialogues.$.threadId': threadId,
-          'dialogues.$.threadStatus': status,
-        },
-      }
-    )
-  }
-
-  /**
-   * 更新对话的执行状态
-   */
-  async updateThreadStatus(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    status: ThreadStatus
-  ): Promise<void> {
-    await Conversation.updateOne(
-      { appId, 'dialogues._id': dialogueId },
-      { $set: { 'dialogues.$.threadStatus': status } }
-    )
-  }
-
-  /**
-   * 查找最近一个未完成的对话（running 或 interrupted 状态）
-   */
-  async getLastPendingDialogue(
-    appId: string
-  ): Promise<{ dialogueId: Types.ObjectId; threadId: string; status: ThreadStatus } | null> {
-    const conv = await Conversation.findOne({ appId }).select('dialogues')
-    if (!conv || conv.dialogues.length === 0) return null
-
-    // 从最新的对话往前找
-    for (let i = conv.dialogues.length - 1; i >= 0; i--) {
-      const dialogue = conv.dialogues[i]
-      if (
-        dialogue.threadId &&
-        (dialogue.threadStatus === 'running' || dialogue.threadStatus === 'interrupted')
-      ) {
-        return {
-          dialogueId: dialogue._id!,
-          threadId: dialogue.threadId,
-          status: dialogue.threadStatus,
-        }
-      }
-    }
-    return null
-  }
-
-  // ─── 对话摘要 ──────────────────────────────────────────────────────────────
-
-  /**
-   * 持久化对话摘要和向量嵌入
-   */
-  async setSummary(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    summary: string,
-    embedding: number[] | null
-  ): Promise<void> {
-    await Conversation.updateOne(
-      { appId, 'dialogues._id': dialogueId },
-      {
-        $set: {
-          'dialogues.$.summary': summary,
-          'dialogues.$.embedding': embedding,
-        },
-      }
-    )
-  }
-
-  /**
-   * 设置对话关联的 PlanningArtifact ID（Multi-Agent 规划产物）
-   */
-  async setPlanningArtifactId(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    artifactId: Types.ObjectId
-  ): Promise<void> {
-    await Conversation.updateOne(
-      { appId, 'dialogues._id': dialogueId },
-      {
-        $set: {
-          'dialogues.$.planningArtifactId': artifactId,
-        },
-      }
+      { $addToSet: { dialogueIds: dialogueId } }
     )
   }
 
   // ─── 读取接口 ──────────────────────────────────────────────────────────────
 
   /**
-   * 获取应用的对话列表（用于前端展示）
+   * 获取应用的对话列表（从独立 Dialogue 集合查询）
    *
    * @param appId 应用 ID
    * @param limit 最多返回的对话数（从最新开始截取），默认 50
    */
-  async getDialogues(appId: string, limit = 50): Promise<Omit<IDialogue, 'embedding'>[]> {
-    const conv = await Conversation.findOne({ appId }).select('dialogues')
-    if (!conv || conv.dialogues.length === 0) return []
+  async getDialogues(appId: string, limit = 50) {
+    const dialogues = await Dialogue.find({ appId })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .select('-embedding')
+      .lean()
 
-    // 取最新的 limit 个对话，过滤掉 embedding 字段（高维向量不传给前端）
-    const dialogues = conv.dialogues.slice(-limit)
-    return dialogues.map(d => {
-      // Mongoose subdocument → plain object（兼容 lean 查询和普通查询）
-      const obj = (typeof (d as unknown as { toObject?: () => unknown }).toObject === 'function'
-        ? (d as unknown as { toObject: () => Record<string, unknown> }).toObject()
-        : d) as Record<string, unknown>
-      const { embedding: _embedding, ...rest } = obj
-      return rest as Omit<IDialogue, 'embedding'>
-    })
+    // 返回时按时间正序（旧→新），前端按顺序展示
+    return dialogues.reverse()
   }
 
   /**
@@ -345,34 +81,18 @@ class ConversationService {
    */
   async getDialogueSummaries(
     appId: string
-  ): Promise<Array<{ dialogueId: Types.ObjectId; summary: string; embedding: number[] | null; type: DialogueType; createdAt: Date }>> {
-    const conv = await Conversation.findOne({ appId }).select('dialogues')
-    if (!conv) return []
+  ): Promise<Array<{ dialogueId: Types.ObjectId; summary: string; embedding: number[] | null; type: string; createdAt: Date }>> {
+    const dialogues = await Dialogue.find(
+      { appId, 'summary.text': { $exists: true } }
+    ).select('summary type createdAt').lean()
 
-    return conv.dialogues
-      .filter((d) => d.summary)
-      .map((d) => ({
-        dialogueId: d._id!,
-        summary: d.summary!,
-        embedding: d.embedding ?? null,
-        type: d.type,
-        createdAt: d.createdAt,
-      }))
-  }
-
-  /**
-   * 获取指定对话的完整消息（用于 ContextBuilder 命中后回溯）
-   */
-  async getDialogueMessages(
-    appId: string,
-    dialogueId: Types.ObjectId
-  ): Promise<IMessage[]> {
-    const conv = await Conversation.findOne(
-      { appId, 'dialogues._id': dialogueId },
-      { 'dialogues.$': 1 }
-    )
-    if (!conv || conv.dialogues.length === 0) return []
-    return conv.dialogues[0].messages
+    return dialogues.map((d) => ({
+      dialogueId: d._id as Types.ObjectId,
+      summary: d.summary!.text,
+      embedding: d.summary!.embedding ?? null,
+      type: d.type,
+      createdAt: d.createdAt,
+    }))
   }
 
   /**
@@ -383,20 +103,24 @@ class ConversationService {
     appId: string,
     maxDialogues = 5
   ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
-    const conv = await Conversation.findOne({ appId }).select('dialogues')
-    if (!conv || conv.dialogues.length === 0) return []
+    const dialogues = await Dialogue.find({ appId })
+      .sort({ createdAt: -1 })
+      .limit(maxDialogues)
+      .select('messages')
+      .lean()
 
-    const recentDialogues = conv.dialogues.slice(-maxDialogues)
+    // 反转为时间正序
+    dialogues.reverse()
+
     const messages: Array<{ role: 'user' | 'assistant'; content: string }> = []
 
-    for (const dialogue of recentDialogues) {
+    for (const dialogue of dialogues) {
       for (const msg of dialogue.messages) {
         if (msg.role === 'user' && msg.userContent) {
           messages.push({ role: 'user', content: msg.userContent.prompt })
         } else if (msg.role === 'assistant' && msg.assistantContent) {
-          // 提取 assistant 消息中的文本内容
           const textParts = msg.assistantContent
-            .filter((c): c is { type: 'text'; text: string } & typeof c => c.type === 'text')
+            .filter((c) => c.type === 'text')
             .map((c) => (c as { type: 'text'; text: string }).text)
           if (textParts.length > 0) {
             messages.push({ role: 'assistant', content: textParts.join('') })

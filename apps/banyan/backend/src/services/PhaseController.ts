@@ -1,9 +1,9 @@
 /**
- * PhaseController — ADR-039 Phase 3 Dialogue Phase 权威推进器
+ * PhaseController — ADR-041 Dialogue Phase 权威推进器
  *
  * 职责：
  *   1. 持有当前 Dialogue 的 ID 和 phase 缓存（避免每次 DB 查询）
- *   2. 提供 transition(targetPhase) — 校验合法性 + DialogueService.setPhase + 发 SSE `phase` 事件
+ *   2. 提供 transition(targetPhase) — 校验合法性 + DialogueService.setPhase + 发 SSE `phase_change` 事件
  *   3. 集中管理 phase 变更通知，AiService 不再直接散调 dialogueService.setPhase
  *
  * 生命周期：
@@ -14,23 +14,23 @@
  *   - transition 失败只 console.warn，不抛异常阻断主流程
  *   - SSE 发送失败（连接已关闭）静默忽略
  *
- * SSE 事件格式：
- *   event: phase
- *   data: { "phase": "planning", "previousPhase": "start" }
+ * SSE 事件格式（与前端 AiPhaseChangeEvent 契约对齐）：
+ *   event: phase_change
+ *   data: { "from": "start", "to": "requirements", "timestamp": 1700000000000 }
  */
 
 import type { ServerResponse } from 'http'
 import type { Types } from 'mongoose'
 import dialogueService from './DialogueService.js'
-import type { DialoguePhase, DiscardReason } from '../models/Dialogue.js'
-import { PHASE_TRANSITIONS } from '../models/Dialogue.js'
+import type { DialoguePhase, DiscardReason } from '../models/types/index.js'
+import { PHASE_TRANSITIONS } from '../models/types/index.js'
 
 // ─── SSE 工具（复用 AiService 的 sseWrite 签名） ──────────────────────────────
 
-function sseWritePhase(res: ServerResponse, phase: DialoguePhase, previousPhase: DialoguePhase): void {
+function sseWritePhase(res: ServerResponse, to: DialoguePhase, from: DialoguePhase): void {
   if (res.writableEnded) return
-  const payload = JSON.stringify({ phase, previousPhase })
-  res.write(`event: phase\ndata: ${payload}\n\n`)
+  const payload = JSON.stringify({ from, to, timestamp: Date.now() })
+  res.write(`event: phase_change\ndata: ${payload}\n\n`)
 }
 
 // ─── 终态集合 ────────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ export class PhaseController {
    * 执行流程：
    *   1. 本地校验 PHASE_TRANSITIONS 合法性（快速失败，无 IO）
    *   2. 调用 DialogueService.setPhase（原子 DB 更新）
-   *   3. 向前端发送 SSE `phase` 事件
+   *   3. 向前端发送 SSE `phase_change` 事件
    *   4. 更新内存缓存
    *
    * 返回值表示是否成功转移。失败只 warn 不抛异常。

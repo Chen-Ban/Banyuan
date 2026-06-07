@@ -17,13 +17,8 @@
  *   - 维护惰性触发：recall 时检查距上次维护 > 7 天则异步执行
  */
 
-import AgentMemory, {
-  IAgentMemory,
-  IEpisode,
-  IFact,
-  EpisodeOutcome,
-  FactCategory,
-} from '../models/AgentMemory.js'
+import AgentMemory, { type IAgentMemoryDoc } from '../models/AgentMemory.js'
+import type { IEpisode, IFact, EpisodeOutcome, FactCategory } from '../models/types/index.js'
 import knowledgeClient from './KnowledgeClient.js'
 
 // ─── 输入类型（来自 SSE memory_update 事件）─────────────────────────────────────
@@ -121,7 +116,7 @@ class MemoryService {
    * Upsert 单条 fact：相似则合并，否则新增
    */
   private async upsertFact(
-    memory: IAgentMemory,
+    memory: IAgentMemoryDoc,
     input: { category: FactCategory; content: string; confidence: number },
     derivedFrom: string[]
   ): Promise<void> {
@@ -312,7 +307,7 @@ class MemoryService {
   /**
    * 惰性维护：距上次维护超过 7 天则异步触发
    */
-  private lazyMaintain(memory: IAgentMemory): void {
+  private lazyMaintain(memory: IAgentMemoryDoc): void {
     const daysSinceLastMaintain =
       (Date.now() - new Date(memory.lastMaintainedAt).getTime()) / 86400000
     if (daysSinceLastMaintain < MAINTAIN_INTERVAL_DAYS) return
@@ -328,7 +323,7 @@ class MemoryService {
   /**
    * 执行维护：episode 压缩 + fact 衰减
    */
-  private async maintain(memory: IAgentMemory): Promise<void> {
+  private async maintain(memory: IAgentMemoryDoc): Promise<void> {
     // Episode 压缩
     if (memory.episodes.length > CONSOLIDATE_KEEP_RECENT) {
       this.consolidateEpisodes(memory)
@@ -353,7 +348,7 @@ class MemoryService {
   /**
    * 压缩 episodes：保留最近 N 条 + 高重要度旧条目，淘汰其余
    */
-  private consolidateEpisodes(memory: IAgentMemory): void {
+  private consolidateEpisodes(memory: IAgentMemoryDoc): void {
     // 按创建时间排序（最新在前）
     const sorted = [...memory.episodes].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -377,7 +372,7 @@ class MemoryService {
   /**
    * 淘汰低价值 facts（超容量时移除最低 20%）
    */
-  private evictLowValueFacts(memory: IAgentMemory): void {
+  private evictLowValueFacts(memory: IAgentMemoryDoc): void {
     const evictCount = Math.ceil(memory.facts.length * 0.2)
 
     // 按价值排序：confidence × log2(referenceCount + 2)
@@ -398,7 +393,7 @@ class MemoryService {
   /**
    * 获取或创建 AgentMemory 文档
    */
-  private async getOrCreate(appId: string): Promise<IAgentMemory> {
+  private async getOrCreate(appId: string): Promise<IAgentMemoryDoc> {
     let memory = await AgentMemory.findOne({ appId })
     if (!memory) {
       memory = new AgentMemory({

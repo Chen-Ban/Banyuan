@@ -1,7 +1,7 @@
 /**
- * Multi-Agent Planning 路由
+ * Agent Prompt 配置路由
  *
- * 提供规划产物查询和 Agent Prompt 配置 CRUD 端点。
+ * 提供 Agent Prompt 配置 CRUD 端点。
  * 所有路由挂载在 /api/applications/:appId 下，需经过 JWT + appOwnership 中间件。
  */
 
@@ -10,22 +10,6 @@ import planningController from '../controllers/PlanningController.js'
 import { appOwnership } from '../middleware/appOwnership.js'
 
 const router = new Router({ prefix: '/api/applications' })
-
-// ─── 规划产物查询 ───────────────────────────────────────────────────────────────
-
-// 获取某对话关联的规划产物
-router.get(
-  '/:appId/planning/artifact/:dialogueId',
-  appOwnership,
-  planningController.getArtifactByDialogue.bind(planningController)
-)
-
-// 获取应用最近完成的规划产物
-router.get(
-  '/:appId/planning/artifact-latest',
-  appOwnership,
-  planningController.getLatestArtifact.bind(planningController)
-)
 
 // ─── Agent Prompt 配置 CRUD ─────────────────────────────────────────────────────
 

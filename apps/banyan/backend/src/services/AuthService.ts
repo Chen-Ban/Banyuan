@@ -1,7 +1,8 @@
 import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
 import { Tenant } from '../models/Tenant.js'
-import { User, IUser, UserRole } from '../models/User.js'
+import { User, type IUserDoc } from '../models/User.js'
+import type { IUser, UserRole } from '../models/types/index.js'
 import { RefreshToken } from '../models/RefreshToken.js'
 import { smsService } from './SmsService.js'
 import { tenantProvisionService } from './TenantProvisionService.js'
@@ -170,7 +171,7 @@ export class AuthService {
     return { accessToken, refreshToken }
   }
 
-  private _sanitizeUser(user: IUser): Omit<IUser, 'passwordHash'> {
+  private _sanitizeUser(user: IUserDoc): Omit<IUser, 'passwordHash'> {
     const obj = user.toObject()
     delete (obj as Record<string, unknown>).passwordHash
     return obj as Omit<IUser, 'passwordHash'>

@@ -1,16 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import type { IRefreshToken } from './types/index.js'
 
-export interface IRefreshToken extends Document {
-  tokenId: string
-  userId: string
-  tenantId: string
-  token: string
-  expiresAt: Date
-  revokedAt?: Date
-  createdAt: Date
-}
+type IRefreshTokenDoc = IRefreshToken & Document
 
-const RefreshTokenSchema = new Schema<IRefreshToken>(
+const RefreshTokenSchema = new Schema<IRefreshTokenDoc>(
   {
     tokenId: { type: String, required: true, unique: true, index: true },
     userId: { type: String, required: true, index: true },
@@ -25,4 +18,4 @@ const RefreshTokenSchema = new Schema<IRefreshToken>(
 // TTL 索引：过期后自动删除
 RefreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 })
 
-export const RefreshToken = mongoose.model<IRefreshToken>('RefreshToken', RefreshTokenSchema)
+export const RefreshToken = mongoose.model<IRefreshTokenDoc>('RefreshToken', RefreshTokenSchema)

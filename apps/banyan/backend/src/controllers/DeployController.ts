@@ -1,10 +1,14 @@
 import { Context } from 'koa'
 import crypto from 'crypto'
 import { Deployment } from '../models/Deployment.js'
-import { Application, CollectionSchemaModel, CloudFunction } from '../models/index.js'
+import { Application } from '../models/index.js'
 import { Tenant } from '../models/Tenant.js'
 import { agentGateway } from '../services/AgentGateway.js'
 import type { DeployRequest, CollectionDef, CloudFunctionDef } from '../services/AgentGateway.js'
+import appContentService from '../services/AppContentService.js'
+import { SchemaService } from '../services/SchemaService.js'
+import cloudFunctionService from '../services/CloudFunctionService.js'
+import dialogueService from '../services/DialogueService.js'
 
 // ─── 辅助 ─────────────────────────────────────────────────────────────────────
 
@@ -67,13 +71,21 @@ export class DeployController {
       await app.save()
     }
 
-    // 5. 查询数据模型（全栈模式所需）
+    // 5. 查询数据模型（版本号引用模型：部署最新已验收版本，以最新 done Dialogue 持有的三个版本号为准）
     let collections: CollectionDef[] | undefined
     let cloudFunctions: CloudFunctionDef[] | undefined
 
-    const collectionDoc = await CollectionSchemaModel.findOne({ appId: applicationId }).lean()
-    if (collectionDoc && collectionDoc.collections.length > 0) {
-      collections = collectionDoc.collections.map((c) => ({
+    const versions = await dialogueService.getLatestAcceptedVersions(applicationId)
+    const [schemaResult, cfGroup, contentResult] = await Promise.all([
+      SchemaService.getByVersion(applicationId, versions.schemaVersion),
+      cloudFunctionService.getByVersion(applicationId, versions.cloudFunctionVersion),
+      appContentService.getByVersion(applicationId, versions.appContentVersion),
+    ])
+    const cfList = cfGroup?.functions ?? []
+    const appJSON = contentResult?.appJSON ?? ''
+
+    if ((schemaResult?.collections.length ?? 0) > 0) {
+      collections = schemaResult!.collections.map((c) => ({
         name: c.name,
         displayName: c.displayName,
         fields: c.fields.map((f) => ({
@@ -88,9 +100,8 @@ export class DeployController {
       }))
     }
 
-    const cfDocs = await CloudFunction.find({ appId: applicationId }).lean()
-    if (cfDocs.length > 0) {
-      cloudFunctions = cfDocs.map((cf) => ({
+    if (cfList.length > 0) {
+      cloudFunctions = cfList.map((cf) => ({
         functionId: cf.functionId,
         name: cf.name,
         displayName: cf.displayName,
@@ -114,7 +125,7 @@ export class DeployController {
       status: 'pending',
       triggeredBy: userId,
       snapshot: {
-        appJSON: typeof app.appJSON === 'string' ? app.appJSON : JSON.stringify(app.appJSON),
+        appJSON,
         collections: collections?.map((c) => ({
           name: c.name,
           displayName: c.displayName,
@@ -137,12 +148,12 @@ export class DeployController {
       },
     })
 
-    // 8. 构建部署请求
+    // 8. 构建部署请求（ADR-042：使用版本化内容表的 appJSON）
     const deployRequest: DeployRequest = {
       requestId: deploymentId,
       appId: applicationId,
       appSlug: app.appSlug!,
-      appJSON: app.appJSON,
+      appJSON: appJSON as unknown as DeployRequest['appJSON'],
       tenantDomain: tenant.domain!,
       width: 375, // 默认移动端宽度，后续可从 appJSON 中提取
       height: 812,

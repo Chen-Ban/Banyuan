@@ -25,7 +25,7 @@ import useDesignBanvas from "@/hooks/useDesignBanvas";
 import { DesignContextMenu } from "@/components/DesignEditor/DesignContextMenu";
 import { App, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
-import { applicationApi } from "@/api";
+import { applicationApi, appContentApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import { appEvents } from "@/utils/appEvents";
 import { useAppLayoutCtx } from "@/layouts/ApplicationLayout/AppLayoutCtx";
@@ -169,7 +169,9 @@ const UIPage = () => {
     if (!application_id) return;
     const unsubscribe = appEvents.onSaveApp(async () => {
       const serialized = actions.app.getSerializedApp();
-      await applicationApi.updateApplication(application_id, { appJSON: serialized });
+      // ADR-042：画布内容是版本化内容，走独立的 app-content 端点（自动验收的 edit 对话），
+      // 而非 PUT /applications/:id（后者只更新元信息，会静默丢弃 appJSON）。
+      await appContentApi.saveAppContent(application_id, serialized);
     });
     return unsubscribe;
   }, [application_id, actions]);

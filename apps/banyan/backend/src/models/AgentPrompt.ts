@@ -8,35 +8,14 @@
  * 唯一约束：每个应用的每个角色最多一份配置。
  */
 
-import mongoose, { Schema, Document } from 'mongoose'
+import mongoose, { Schema, type Document } from 'mongoose'
+import type { IAgentPrompt } from './types/index.js'
 
-// ─── 枚举类型 ─────────────────────────────────────────────────────────────────
-
-/** Agent 角色（含 master） */
-export type FullAgentRole = 'master' | 'pm' | 'arch' | 'visual' | 'task'
-
-// ─── AgentPrompt 文档接口 ─────────────────────────────────────────────────────
-
-export interface IAgentPrompt extends Document {
-  /** 关联的应用 ID */
-  appId: string
-  /** 所属 Agent 角色 */
-  agent: FullAgentRole
-  /** 用户自定义的 prompt 内容 */
-  promptText: string
-  /** 是否被用户修改过 */
-  isCustomized: boolean
-  /** 对应的系统默认 prompt 版本号（便于检测系统升级） */
-  systemVersion: number
-  /** 创建时间 */
-  createdAt: Date
-  /** 更新时间 */
-  updatedAt: Date
-}
+type IAgentPromptDoc = IAgentPrompt & Document
 
 // ─── Schema 定义 ──────────────────────────────────────────────────────────────
 
-const AgentPromptSchema = new Schema<IAgentPrompt>(
+const AgentPromptSchema = new Schema<IAgentPromptDoc>(
   {
     appId: {
       type: String,
@@ -74,6 +53,6 @@ AgentPromptSchema.index({ appId: 1, agent: 1 }, { unique: true })
 
 // ─── 模型 ─────────────────────────────────────────────────────────────────────
 
-const AgentPrompt = mongoose.model<IAgentPrompt>('AgentPrompt', AgentPromptSchema)
+const AgentPrompt = mongoose.model<IAgentPromptDoc>('AgentPrompt', AgentPromptSchema)
 
 export default AgentPrompt

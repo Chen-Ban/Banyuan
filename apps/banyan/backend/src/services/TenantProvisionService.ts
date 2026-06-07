@@ -1,7 +1,7 @@
 import { EcsManager } from './EcsManager.js'
 import { DnsManager } from './DnsManager.js'
 import { Tenant } from '../models/Tenant.js'
-import type { ProvisionStatus } from '../models/Tenant.js'
+import type { ProvisionStatus } from '../models/types/index.js'
 
 export interface ProvisionResult {
   instanceId: string
