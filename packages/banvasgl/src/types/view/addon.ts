@@ -47,9 +47,9 @@ export enum AddonCapability {
 //  交互结果类型（addon.interact 返回值依赖）
 // ────────────────────────────────────────────
 
-// ExtraData 定义在 view.ts 中（依赖 Action 枚举和 Cursor），
-// addon 接口只引用其类型，通过 import type 延迟绑定。
-import type { ExtraData } from './view'
+// ExtraData 定义在 interaction.ts 中（叶子文件，不依赖 view/addon/animation），
+// 打断 view → animation → addon → view 的循环依赖。
+import type { ExtraData } from './interaction'
 
 // ────────────────────────────────────────────
 //  IAddonBase —— 所有管线 addon 的基础契约
