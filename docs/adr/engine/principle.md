@@ -1,0 +1,100 @@
+# 引擎 · 原则级决策
+
+> 遇到取舍时怎么选——引擎开发中的设计原则与权衡标准。
+
+---
+
+## 渲染正确性 > 极致性能
+
+**✅ 已实施**
+
+当正确性与性能发生冲突时，引擎优先保证渲染结果正确（像素级一致），在正确性满足后再做性能优化。
+
+**决策链：** 低代码产品的核心体验是"所见即所得" → 设计态与预览态的视觉偏差会直接破坏用户信任 → 性能可以逐步优化，但正确性问题一旦出现就是 Bug。
+
+**约束：**
+
+- 不因为渲染优化而跳过 dirty view 的重绘
+- 文本换行、对齐、溢出处理必须与产物（线上态）一致
+- DPR 缩放在渲染时精确应用，不做四舍五入近似
+
+---
+
+## 新布局能力以 layoutMode 扩展，不新增 ViewType
+
+**✅ 已实施**
+
+面对新布局需求时，通过在 CombinedView.layoutMode 枚举中新增值 + 对应 IXxxLayout 配置接口实现，而非创建新的 ViewType 子类。
+
+**决策链：** ViewType 膨胀 → AI 决策空间过大 → 布局是容器内子元素的排列策略，正交于容器本身的身份。
+
+**约束：**
+
+- 新增 layoutMode 需要同时实现对应的 layout 计算函数
+- AI Projection 转换器需同步更新以支持新 layoutMode
+- 现有代码中 FlexView 作为历史实现保留，新代码不得新增同类
+
+---
+
+## 引擎纯净原则：宿主环境依赖通过 hook/peerDep 隔离
+
+**✅ 已实施**
+
+`@banyuan/banvasgl` 和 `@banyuan/flow` 作为引擎核心包，不直接依赖 React/DOM 等宿主环境 API。宿主集成通过 React hook 层实现并声明为 peerDependency。
+
+**决策链：** 引擎可能在非 React 环境（如 Vue、纯 Node.js 测试）中运行 → 硬依赖宿主框架限制可移植性 → 通过接口注入或 hook 层桥接。
+
+**约束：**
+
+- packages/ 下的库包禁止 `import 'react'` 或 `import 'react-dom'`
+- Canvas DOM 元素由宿主通过 hook 创建后传递给 App/Renderer
+- flow 包在 Node.js 环境下直接运行（后端执行器），无 DOM 依赖
+
+---
+
+## FlowSchema 前后端一致性原则
+
+**✅ 已实施**
+
+同一份 FlowSchema JSON 在前后端的语义必须保持一致：节点图拓扑相同、变量传递规则相同，仅可用节点集合不同。
+
+**决策链：** 低代码产品中，用户在前端编辑的流程会部分在后端执行（云函数）→ 如果语义不一致会导致行为不可预测 → 统一核心执行语义，仅在节点注册表层面区分环境。
+
+**约束：**
+
+- FlowContext 的变量作用域规则前后端一致（scoped + global）
+- condition 节点的表达式求值逻辑一致
+- edge 的路由规则（default / conditional）一致
+- 前后端差异只体现在节点集合（client 节点 vs server 节点）
+
+---
+
+## 单向数据流：操作 → 事务 → 渲染
+
+**✅ 已实施**
+
+用户操作（鼠标/键盘/AI 指令）产生 mutation 请求 → TransactionManager 记录并应用 → 标记 dirty → 下一帧渲染。
+
+**决策链：** 双向绑定易导致循环触发和状态不一致 → 单向数据流便于推理和调试 → 事务化使得每步变更可追溯。
+
+**约束：**
+
+- 禁止直接修改 View 属性（必须通过 TransactionManager 或封装的 action）
+- 渲染是被动的——只在 dirty 时才触发重绘
+- 事务 commit 后触发 onChange 事件，订阅者可做持久化/同步
+
+---
+
+## 最小化 AI 决策空间
+
+**✅ 已实施**
+
+引擎设计优先让 AI 生成时的决策空间尽可能小：统一容器 + layoutMode（不让 AI 选 ViewType）、固定 13 个事件（不让 AI 定义事件名）、FlowSchema 节点集有限枚举。
+
+**决策链：** AI 生成准确率与选项数成反比 → 每减少一个可选维度，AI 生成的正确率就提升 → 引擎提供"刚好够用"的选项集，不提供灵活到 AI 无法把控的自由度。
+
+**约束：**
+
+- 新增 ViewType / Event / FlowNode kind 需要同时评估对 AI 生成准确率的影响
+- 优先复用已有抽象（如 layoutMode 值扩展），而非新增顶层概念
+- 复杂逻辑在 FlowSchema 内部组合（subFlow / condition / loop），不在 API 层暴露
