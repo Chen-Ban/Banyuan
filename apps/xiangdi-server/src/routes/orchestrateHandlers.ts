@@ -6,7 +6,7 @@
  * 与外部服务交互，由 Orchestrator Graph 注入 Worker SubAgent。
  */
 import type { ServerResponse } from 'http'
-import type { FrontendToolHandlers, BackendToolHandlers, AIProjectionScene } from '@banyuan/xiangdi-agent'
+import type { FrontendToolHandlers, BackendToolHandlers, AIProjectionScene, AIProjectionApp, AIAppLifetimes } from '@banyuan/xiangdi-agent'
 import { appJSONToProjection, patchProjection } from '@banyuan/xiangdi-agent'
 import type { BanyanClient, CloudFunctionInfo, SchemaCollectionInfo } from '../banyan/index.js'
 import type { RemoteKnowledgeStore } from '../knowledge/RemoteKnowledgeStore.js'
@@ -45,20 +45,20 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
     async readPages(input: { pageId?: string }) {
       if (!state.appJSON) return JSON.stringify({ pages: [], message: '应用尚无页面数据' })
 
-      const projection = appJSONToProjection(state.appJSON)
-      if (!projection || projection.length === 0) {
+      const appProjection = appJSONToProjection(state.appJSON)
+      if (!appProjection.scenes || appProjection.scenes.length === 0) {
         return JSON.stringify({ pages: [], message: '应用尚无页面数据' })
       }
 
       if (input.pageId) {
-        const page = projection.find(s => s.id === input.pageId)
+        const page = appProjection.scenes.find(s => s.id === input.pageId)
         if (!page) return JSON.stringify({ error: `页面 ${input.pageId} 不存在` })
         return JSON.stringify(page)
       }
 
-      // 返回摘要列表
-      const summary = projection.map(s => ({ id: s.id, name: s.name, nodeCount: s.children.length }))
-      return JSON.stringify({ pages: summary })
+      // 返回摘要列表（含 App lifetimes 信息）
+      const summary = appProjection.scenes.map(s => ({ id: s.id, name: s.name, nodeCount: s.children.length }))
+      return JSON.stringify({ pages: summary, lifetimes: appProjection.lifetimes })
     },
 
     async writePage(input: { pageId: string; scene: Record<string, unknown> }) {
