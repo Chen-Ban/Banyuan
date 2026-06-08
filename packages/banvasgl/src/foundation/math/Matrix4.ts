@@ -1,6 +1,6 @@
 import Point3 from "./Point3";
 import Vector3 from "./Vector3";
-import { MathUtils } from "./MathUtils";
+import { FLOAT_EPSILON } from "./epsilon";
 import { MathType } from '@/foundation/constants';
 import type { ISerializable } from '@/types';
 
@@ -496,7 +496,7 @@ export default class Matrix4 implements ISerializable {
    */
   inverse(): Matrix4 {
     const det = this.determinant;
-    if (Math.abs(det) < MathUtils.FLOAT_EPSILON) {
+    if (Math.abs(det) < FLOAT_EPSILON) {
       throw new Error("Matrix is singular (determinant is zero)");
     }
 

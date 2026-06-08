@@ -100,11 +100,22 @@ export interface AiDoneEvent {
   timestamp: number
 }
 
+/** 统一错误载荷类型（与后端 ErrorPayload 对齐） */
+export type ErrorCategory = 'validation' | 'auth' | 'upstream' | 'resource' | 'budget' | 'concurrency' | 'internal'
+
+export interface ErrorPayload {
+  code: string
+  category: ErrorCategory
+  message: string
+  retryable: boolean
+  details?: Record<string, unknown>
+}
+
 /** 错误事件 */
 export interface AiErrorEvent {
   type: 'error'
-  message: string
-  code?: string
+  /** 结构化错误载荷 */
+  error: ErrorPayload
 }
 
 /** 流开始事件 */
@@ -330,10 +341,16 @@ export async function aiChat(options: AiChatOptions): Promise<string> {
             break
           }
           case 'error': {
-            const errData = data as { message?: string; code?: string }
-            const message = errData.message ?? '未知错误'
-            onEvent({ type: 'error', message, code: errData.code })
-            settle(() => reject(new Error(message)))
+            const errData = data as Partial<ErrorPayload>
+            const payload: ErrorPayload = {
+              code: errData.code ?? 'UNKNOWN_ERROR',
+              category: errData.category ?? 'internal',
+              message: errData.message ?? '未知错误',
+              retryable: errData.retryable ?? false,
+              ...(errData.details ? { details: errData.details } : {}),
+            }
+            onEvent({ type: 'error', error: payload })
+            settle(() => reject(new Error(payload.message)))
             break
           }
           // 未知事件类型静默忽略

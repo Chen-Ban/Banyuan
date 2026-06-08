@@ -40,10 +40,14 @@ export interface PaginatedResponse<T> {
  */
 export class ApiError extends Error {
   status: number
-  constructor(message: string, status: number) {
+  /** 结构化错误载荷（如果后端返回了 ErrorPayload 格式） */
+  payload?: { code: string; category: string; message: string; retryable: boolean; details?: Record<string, unknown> }
+
+  constructor(message: string, status: number, payload?: ApiError['payload']) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.payload = payload
   }
 }
 
@@ -151,10 +155,10 @@ async function request<T>(
   const data = await response.json()
 
   if (!response.ok || !data.success) {
-    throw new ApiError(
-      data.message || `Request failed with status ${response.status}`,
-      response.status
-    )
+    // 优先提取新格式 { success: false, error: ErrorPayload }
+    const payload = data.error?.code ? data.error : undefined
+    const userMessage = payload?.message || data.message || `Request failed with status ${response.status}`
+    throw new ApiError(userMessage, response.status, payload)
   }
 
   return data as T
@@ -245,10 +249,23 @@ export async function stream(
 
   if (!response.ok) {
     const text = await response.text().catch(() => '')
-    throw new ApiError(
-      text || `Request failed with status ${response.status}`,
-      response.status
-    )
+    // 尝试解析后端结构化错误格式 { success: false, error: ErrorPayload }
+    let payload: ApiError['payload'] | undefined
+    let userMessage = `Request failed with status ${response.status}`
+    try {
+      const json = JSON.parse(text)
+      if (json.error && json.error.code) {
+        payload = json.error
+        userMessage = json.error.message || userMessage
+      } else if (json.message) {
+        // 兜底：旧格式 { success: false, message }
+        userMessage = json.message
+      }
+    } catch {
+      // 非 JSON 响应，使用原始 text
+      if (text) userMessage = text
+    }
+    throw new ApiError(userMessage, response.status, payload)
   }
 
   return response

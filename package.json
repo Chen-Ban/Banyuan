@@ -8,15 +8,18 @@
     "build:agent": "pnpm --filter @banyuan/xiangdi-agent build",
     "build:libs": "pnpm run build:banvasgl && pnpm run build:agent",
     "dev:banyan": "pnpm run build:libs && concurrently --kill-others -c \"magenta.bold,gray.bold,#ff9900.bold,#00cc99.bold,cyan.bold\" -n canvas,agent,xiangdi-srv,knowledge-srv,banyan \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter @banyuan/xiangdi-agent dev\" \"pnpm --filter xiangdi-server dev\" \"pnpm --filter knowledge-server dev\" \"pnpm --filter banyan dev\"",
-    "dev:lunlunglass": "pnpm run build:banvasgl && concurrently --kill-others -c \"magenta.bold,cyan.bold\" -n canvas,lunlunglass \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter lunlunglass dev\""
+    "dev:lunlunglass": "pnpm run build:banvasgl && concurrently --kill-others -c \"magenta.bold,cyan.bold\" -n canvas,lunlunglass \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter lunlunglass dev\"",
+    "knowledge:schema": "tsx scripts/knowledge/generate-schema-seeds.ts",
+    "migrations:tenant": "tsx scripts/migrations/migrate-tenant-data.ts"
   },
   "keywords": [],
   "author": "",
   "license": "AGPL-3.0",
   "packageManager": "pnpm@10.10.0",
   "devDependencies": {
-    "typescript": "~5.7.3",
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "tsx": "^4.19.0",
+    "typescript": "~5.7.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

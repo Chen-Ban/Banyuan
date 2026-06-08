@@ -58,6 +58,10 @@ export {
 } from "./schema/index.js";
 
 export type {
+  // App 级投影
+  AIProjectionApp,
+  AIAppLifetimes,
+  // Scene / Node 级投影
   AIProjectionScene,
   AIProjectionNode,
   AIProjectionNodeBase,
@@ -190,6 +194,7 @@ export {
   FlowSchemaZod,
   ClientFlowBindingSchema,
   AIProjectionSceneZod,
+  AIProjectionAppZod,
   PageArtifactSchema,
   FrontendArtifactsSchema,
   CollectionFieldSchema,

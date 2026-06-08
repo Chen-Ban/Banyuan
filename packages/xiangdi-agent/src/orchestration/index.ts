@@ -65,6 +65,7 @@ export {
   FlowSchemaZod,
   ClientFlowBindingSchema,
   AIProjectionSceneZod,
+  AIProjectionAppZod,
   PageArtifactSchema,
   FrontendArtifactsSchema,
   CollectionFieldSchema,

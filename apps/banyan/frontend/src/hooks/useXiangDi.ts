@@ -26,14 +26,21 @@
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { aiApi, conversationApi } from '@/api'
-import type { AiStreamEvent } from '@/api'
+import { aiApi, conversationApi, ApiError } from '@/api'
+import type { AiStreamEvent, ErrorPayload } from '@/api'
 import type { ConversationMessage, Dialogue, DialogueType, ImageItem } from '@/api'
 import { dialoguesToFlatMessages } from '@/api/conversations'
 
 // ─── 进度消息类型 ─────────────────────────────────────────────────────────────
 
 export type ProgressMessageType = 'text' | 'tool_activity' | 'agent_progress' | 'audit' | 'done' | 'error' | 'aborted' | 'phase_change'
+
+/** 重试上下文（仅 retryable 的 error 消息携带） */
+export interface RetryContext {
+  prompt: string
+  type?: DialogueType
+  images?: ImageItem[]
+}
 
 export interface ProgressMessage {
   id: string
@@ -48,6 +55,10 @@ export interface ProgressMessage {
   isError?: boolean
   /** 工具是否已完成 */
   completed?: boolean
+  /** 结构化错误信息（仅 type='error' 时有值） */
+  errorPayload?: ErrorPayload
+  /** 重试上下文（仅 retryable error 消息有值，点击重试可重发） */
+  retryContext?: RetryContext
   timestamp: number
 }
 
@@ -114,6 +125,8 @@ export interface UseXiangDiReturn {
   confirmTask: () => Promise<void>
   /** 撤销 task 对话：丢弃暂存数据，画布回滚 */
   discardTask: () => Promise<void>
+  /** 重试错误消息：移除该错误并重发原始 prompt */
+  retryError: (messageId: string) => void
 }
 
 let msgIdCounter = 0
@@ -143,6 +156,10 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   const allTextRef = useRef('')
   // 当前对话类型（用于 done 事件中判断是否需要 pending confirm）
   const currentTypeRef = useRef<DialogueType>('task')
+  // 标记 SSE error 事件已通过 handleEvent 处理（防止 catch 中重复追加错误消息）
+  const sseErrorHandledRef = useRef(false)
+  /** 记录最近一次发送的 prompt 上下文，供错误重试使用 */
+  const lastSendRef = useRef<RetryContext | null>(null)
 
   // ─── 兼容层：从 dialogues 派生扁平 history ──────────────────────────────────
 
@@ -352,10 +369,13 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       case 'error': {
         // 冻结之前的文字
         freezeCurrentText()
+        sseErrorHandledRef.current = true
         addMessage({
           type: 'error',
-          content: event.message,
+          content: event.error.message,
           isError: true,
+          errorPayload: event.error,
+          retryContext: event.error.retryable ? (lastSendRef.current ?? undefined) : undefined,
         })
         break
       }
@@ -367,6 +387,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     if (sendingRef.current) return
     sendingRef.current = true
     currentTypeRef.current = type
+    lastSendRef.current = { prompt, type, images }
 
     // 乐观追加 user 消息到 dialogues（创建一个临时 Dialogue）
     const tempDialogue: Dialogue = {
@@ -388,6 +409,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setCurrentText('')
     currentTextRef.current = ''
     allTextRef.current = ''
+    sseErrorHandledRef.current = false
     setAgentSteps([])
     setCurrentPhase(null)
 
@@ -416,8 +438,27 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       onDone?.(summary)
     } catch (err) {
       if ((err as Error).name === 'AbortError') return
+      // SSE error 事件已通过 handleEvent 追加了错误消息并 reject Promise。
+      // 此处仅在非 SSE 场景（fetch 失败、网络断开等）补充追加。
+      if (!sseErrorHandledRef.current) {
+        let payload: ErrorPayload
+        if (err instanceof ApiError && err.payload) {
+          // 后端返回了结构化 ErrorPayload
+          payload = err.payload as ErrorPayload
+        } else {
+          // 网络错误等兜底
+          const msg = err instanceof Error ? err.message : String(err)
+          payload = { code: 'NETWORK_ERROR', category: 'upstream', message: msg, retryable: true }
+        }
+        addMessage({
+          type: 'error',
+          content: payload.message,
+          isError: true,
+          errorPayload: payload,
+          retryContext: payload.retryable ? (lastSendRef.current ?? undefined) : undefined,
+        })
+      }
       const msg = err instanceof Error ? err.message : String(err)
-      addMessage({ type: 'error', content: msg, isError: true })
       onError?.(msg)
     } finally {
       setLoading(false)
@@ -504,6 +545,19 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setPendingDialogue(null)
   }, [])
 
+  // 重试错误消息：移除该错误消息，重新发送原始 prompt
+  const retryError = useCallback((messageId: string) => {
+    setMessages(prev => {
+      const target = prev.find(m => m.id === messageId)
+      if (!target?.retryContext) return prev
+      const { prompt, type, images } = target.retryContext
+      // 异步触发重发（避免在 setState 中发起副作用）
+      setTimeout(() => sendPrompt(prompt, type, images), 0)
+      // 移除该错误消息
+      return prev.filter(m => m.id !== messageId)
+    })
+  }, [sendPrompt])
+
   return {
     loading,
     historyLoading,
@@ -521,6 +575,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     newConversation,
     confirmTask,
     discardTask,
+    retryError,
   }
 }
 

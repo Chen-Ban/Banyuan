@@ -274,7 +274,7 @@ export function createOrchestratorGraph(config: OrchestratorGraphConfig) {
     .addNode("requirements", requirementsNode)
     .addNode("ui_design", uiDesignNode)
     .addNode("contract", contractNode)
-    .addNode("parallel_build", routeToParallelBuild as any) // Send 路由节点
+    .addNode("parallel_build", async (_state: OrchestratorState) => ({})) // pass-through 路由汇聚点
     .addNode("frontend", frontendNode)
     .addNode("backend", backendNode)
     .addNode("audit", auditNode)
@@ -304,6 +304,12 @@ export function createOrchestratorGraph(config: OrchestratorGraphConfig) {
     .addEdge("requirements", "ui_design")
     .addEdge("ui_design", "contract")
     .addEdge("contract", "parallel_build")
+
+    // parallel_build 出边：Send API 并行分发到 frontend + backend
+    .addConditionalEdges("parallel_build", routeToParallelBuild, [
+      "frontend",
+      "backend",
+    ])
 
     // 并行构建完成后汇聚到审计
     .addEdge("frontend", "audit")

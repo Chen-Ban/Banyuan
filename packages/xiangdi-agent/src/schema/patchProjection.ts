@@ -5,14 +5,16 @@
  * patchProjection 只更新指定的 Scene，保留未涉及的 Scene 和 App 级配置不变。
  */
 import type { SerializedData } from '@banyuan/banvasgl'
-import type { AIProjectionScene } from './projection.types.js'
+import type { AIProjectionScene, AIAppLifetimes } from './projection.types.js'
 import { fromAIProjection } from './projection.js'
 
 // ─── 输入类型 ─────────────────────────────────────────────────────────────────
 
 export interface PatchProjectionInput {
   /** 需要写入/更新的页面列表。id 已存在则替换，不存在则追加。 */
-  scenes: AIProjectionScene[]
+  scenes?: AIProjectionScene[]
+  /** App 生命周期覆写。传入时整体替换 App.lifetimes。 */
+  lifetimes?: AIAppLifetimes
 }
 
 export interface PatchProjectionResult {
@@ -22,6 +24,8 @@ export interface PatchProjectionResult {
   added: string[]
   /** 未被触及（保持原样）的页面 id 列表 */
   unchanged: string[]
+  /** App lifetimes 是否被更新 */
+  lifetimesUpdated: boolean
 }
 
 // ─── 核心实现 ─────────────────────────────────────────────────────────────────
@@ -53,42 +57,54 @@ export function patchProjection(
   }
 
   const existingScenes: Array<{ $type: string; $value: any }> = appData.scenes
-  const result: PatchProjectionResult = { updated: [], added: [], unchanged: [] }
+  const result: PatchProjectionResult = { updated: [], added: [], unchanged: [], lifetimesUpdated: false }
 
-  // 构建现有 scene 的 id → index 映射
-  const idToIndex = new Map<string, number>()
-  for (let i = 0; i < existingScenes.length; i++) {
-    const sceneValue = existingScenes[i].$value ?? existingScenes[i]
-    if (sceneValue.id) {
-      idToIndex.set(sceneValue.id, i)
+  // ── App lifetimes 覆写 ──
+  if (input.lifetimes !== undefined) {
+    appData.lifetimes = {
+      onLaunch: input.lifetimes.onLaunch ?? null,
+      onUnlaunch: input.lifetimes.onUnlaunch ?? null,
     }
+    result.lifetimesUpdated = true
   }
 
-  // 收集被触及的 scene id
-  const touchedIds = new Set<string>()
-
-  for (const scene of input.scenes) {
-    const sceneSerializedData = fromAIProjection(scene, version)
-    // fromAIProjection 返回 { type: "SCENE", version, data: { $type: "SCENE", $value: ... } }
-    const sceneWrapper = sceneSerializedData.data
-
-    const existingIndex = idToIndex.get(scene.id)
-    if (existingIndex !== undefined) {
-      // 替换已有 scene
-      existingScenes[existingIndex] = sceneWrapper
-      result.updated.push(scene.id)
-    } else {
-      // 追加新 scene
-      existingScenes.push(sceneWrapper)
-      result.added.push(scene.id)
+  // ── Scene Patch ──
+  if (input.scenes && input.scenes.length > 0) {
+    // 构建现有 scene 的 id → index 映射
+    const idToIndex = new Map<string, number>()
+    for (let i = 0; i < existingScenes.length; i++) {
+      const sceneValue = existingScenes[i].$value ?? existingScenes[i]
+      if (sceneValue.id) {
+        idToIndex.set(sceneValue.id, i)
+      }
     }
-    touchedIds.add(scene.id)
-  }
 
-  // 记录未被触及的 scene
-  for (const [id] of idToIndex) {
-    if (!touchedIds.has(id)) {
-      result.unchanged.push(id)
+    // 收集被触及的 scene id
+    const touchedIds = new Set<string>()
+
+    for (const scene of input.scenes) {
+      const sceneSerializedData = fromAIProjection(scene, version)
+      // fromAIProjection 返回 { type: "SCENE", version, data: { $type: "SCENE", $value: ... } }
+      const sceneWrapper = sceneSerializedData.data
+
+      const existingIndex = idToIndex.get(scene.id)
+      if (existingIndex !== undefined) {
+        // 替换已有 scene
+        existingScenes[existingIndex] = sceneWrapper
+        result.updated.push(scene.id)
+      } else {
+        // 追加新 scene
+        existingScenes.push(sceneWrapper)
+        result.added.push(scene.id)
+      }
+      touchedIds.add(scene.id)
+    }
+
+    // 记录未被触及的 scene
+    for (const [id] of idToIndex) {
+      if (!touchedIds.has(id)) {
+        result.unchanged.push(id)
+      }
     }
   }
 
