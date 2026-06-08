@@ -59,20 +59,42 @@ export type {
     FlowPageDataRefValue,
     FlowEventArgValue,
     FlowNodeRefValue,
+    // 共享节点
     FlowConditionNode,
     FlowDelayNode,
     FlowSetVariableNode,
     FlowCallFlowNode,
+    FlowSubFlowNode,
+    FlowReturnNode,
+    FlowForEachNode,
+    FlowParallelNode,
+    SharedFlowNode,
+    // 前端节点
     FlowSetDataNode,
     FlowNavigateNode,
     FlowAnimateNode,
     FlowSetVisibleNode,
+    ClientFlowNode,
+    // 后端节点
+    FlowDbQueryNode,
+    FlowDbInsertNode,
+    FlowDbUpdateNode,
+    FlowDbDeleteNode,
+    FlowHttpRequestNode,
+    FlowTransformNode,
+    FlowScriptNode,
+    ServerFlowNode,
+    // Schema 结构
+    FlowActionNode,
+    FlowValueNode,
     FlowVarNode,
     FlowPageVarNode,
     FlowEventParamNode,
     FlowNode,
     FlowEdge,
     FlowSchema,
+    // FlowContext
+    FlowContext,
     EventHandler,
     IViewEvents,
     IViewLifetimes,
@@ -132,6 +154,7 @@ export type {
 } from './view/view'
 
 export { AddonCapability, Cursor, Action, cursorMap } from './view/view'
+export { FLOW_SCHEMA_VERSION } from './view/view'
 
 // ── Camera 接口 ──
 export type {

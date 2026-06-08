@@ -7,7 +7,6 @@ export default defineConfig({
   entry: {
     index: "src/index.ts",
     react: "src/hook/index.ts",
-    "flow/index": "src/flow/index.ts",
     "flow/client": "src/flow/presets/client.ts",
     "flow/server": "src/flow/presets/server.ts",
   },

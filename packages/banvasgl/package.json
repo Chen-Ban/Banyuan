@@ -1,7 +1,7 @@
 {
   "name": "@banyuan/banvasgl",
   "version": "0.1.0",
-  "description": "Banyuan 自研 2D 图形引擎，提供图形基元、场景管理、动画系统、序列化及编辑态/运行态 React Hook",
+  "description": "Banyuan 自研面向声明式 UI 的 2D 图形运行时（含流程控制），提供图形基元、场景管理、FlowSchema 执行、动画系统、序列化及编辑态/运行态 React Hook",
   "exports": {
     ".": {
       "import": {
@@ -21,16 +21,6 @@
       "require": {
         "types": "./dist/react.d.ts",
         "default": "./dist/react.cjs"
-      }
-    },
-    "./flow": {
-      "import": {
-        "types": "./dist/flow/index.d.mts",
-        "default": "./dist/flow/index.mjs"
-      },
-      "require": {
-        "types": "./dist/flow/index.d.ts",
-        "default": "./dist/flow/index.cjs"
       }
     },
     "./flow/client": {
@@ -57,7 +47,6 @@
   "typesVersions": {
     "*": {
       "react": ["./dist/react.d.mts"],
-      "flow": ["./dist/flow/index.d.mts"],
       "flow/client": ["./dist/flow/client.d.mts"],
       "flow/server": ["./dist/flow/server.d.mts"]
     }

@@ -1,5 +1,5 @@
 /**
- * @banyuan/banvasgl — 核心 2D 图形引擎 · 公共 API
+ * @banyuan/banvasgl — 面向声明式 UI 的 2D 图形运行时（含流程控制）· 公共 API
  *
  * 本文件是唯一对外出口，显式列举所有公共符号。
  * 内部实现（CanvasContext、OperationStack、DiffApplier 等）不在此暴露。
@@ -54,20 +54,42 @@ export type {
     FlowPageDataRefValue,
     FlowEventArgValue,
     FlowNodeRefValue,
+    // 共享节点
     FlowConditionNode,
     FlowDelayNode,
     FlowSetVariableNode,
     FlowCallFlowNode,
+    FlowSubFlowNode,
+    FlowReturnNode,
+    FlowForEachNode,
+    FlowParallelNode,
+    SharedFlowNode,
+    // 前端节点
     FlowSetDataNode,
     FlowNavigateNode,
     FlowAnimateNode,
     FlowSetVisibleNode,
+    ClientFlowNode,
+    // 后端节点
+    FlowDbQueryNode,
+    FlowDbInsertNode,
+    FlowDbUpdateNode,
+    FlowDbDeleteNode,
+    FlowHttpRequestNode,
+    FlowTransformNode,
+    FlowScriptNode,
+    ServerFlowNode,
+    // Schema 结构
+    FlowActionNode,
+    FlowValueNode,
     FlowVarNode,
     FlowPageVarNode,
     FlowEventParamNode,
     FlowNode,
     FlowEdge,
     FlowSchema,
+    // FlowContext
+    FlowContext,
     EventHandler,
     IViewEvents,
     IViewLifetimes,
@@ -127,6 +149,7 @@ export type {
 } from './types'
 
 export { AddonCapability, Cursor, Action } from './types'
+export { FLOW_SCHEMA_VERSION } from './types'
 
 // ── Camera 接口 ──
 export type {
@@ -339,10 +362,6 @@ export { Renderer } from './engine'
 // ── Serializer（高级 API：自定义序列化场景） ──
 export { Serializer } from './engine'
 export type { SerializerOptions, SerializedData } from './engine'
-
-// ── Migrations（高级 API：数据版本迁移） ──
-export { MigrationRegistry, migrationRegistry } from './engine'
-export type { Migration } from './engine'
 
 // ── Operations（公共部分） ──
 export { TransactionManager } from './engine'
