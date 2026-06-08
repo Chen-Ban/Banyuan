@@ -2,7 +2,7 @@
 
 > BanvasGL —— 以 Canvas 为纸，以代码为笔。
 
-BanvasGL 是 Banyuan 平台的核心 2D 图形引擎。它提供完整的画布渲染、视图管理、动画系统和交互处理能力，是整个低代码平台的图形基础。
+BanvasGL 是 Banyuan 平台**面向声明式 UI 的 2D 图形运行时（含流程控制）**——*A 2D graphics runtime for declarative UI, with built-in flow control*。它提供完整的画布渲染、视图管理、动画系统、FlowSchema 执行和交互机制，是整个低代码平台的图形基础。作为运行时，它只提供机制（原子事件 / 几何变换 / FlowSchema 执行），高层交互策略由上层注入（定位详见 docs/adr/engine/architecture.md A0）。
 
 ---
 
@@ -36,11 +36,12 @@ BanvasGL 通过子路径导出提供不同能力：
 
 | 导入路径 | 用途 |
 |----------|------|
-| `@banyuan/banvasgl` | 核心图形引擎（App、Scene、View、Graph 等） |
+| `@banyuan/banvasgl` | 核心图形引擎 + Flow 类型（App、Scene、View、FlowSchema 等） |
 | `@banyuan/banvasgl/react` | React Hook 绑定（useBanvas） |
-| `@banyuan/banvasgl/flow` | 流程引擎核心（FlowSchema 类型和执行器） |
-| `@banyuan/banvasgl/flow/client` | 前端流程预装（animate/navigate/setData 等节点） |
-| `@banyuan/banvasgl/flow/server` | 后端流程预装（dbQuery/httpRequest/script 等节点） |
+| `@banyuan/banvasgl/flow/client` | 前端流程 Runner 工厂（`createClientFlowRunner()`） |
+| `@banyuan/banvasgl/flow/server` | 后端流程 Runner 工厂（`createServerFlowRunner()`） |
+
+Flow 的类型（FlowSchema、FlowNode、FlowEdge、FlowContext 等）统一从主入口导出，因为 View.events 的类型就是 FlowSchema，前端消费者天然需要。flow/client 和 flow/server 只提供预组装的 Runner 工厂函数，不暴露内部实现（FlowRunner 类、NodeExecutorRegistry、各执行器）。
 
 ---
 

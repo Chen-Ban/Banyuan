@@ -51,14 +51,14 @@ Banyuan 是一个 pnpm monorepo，由引擎层和应用层组成：
 │                                                                                  │
 │   ┌─────────────────────────┐  ┌──────────────────────┐                         │
 │   │ @banyuan/banvasgl       │  │ @banyuan/            │                         │
-│   │ 2D 图形引擎 + 流程引擎  │  │ xiangdi-agent        │                         │
+│   │ 图形运行时(含流程)      │  │ xiangdi-agent        │                         │
 │   │                         │  │ AI Agent 引擎         │                         │
 │   └─────────────────────────┘  └──────────────────────┘                         │
 │                                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### BanvasGL —— 2D 图形引擎（`@banyuan/banvasgl`）
+### BanvasGL —— 面向声明式 UI 的 2D 图形运行时（含流程控制，`@banyuan/banvasgl`）
 
 Banyuan 的渲染基础。基于 Canvas 2D 双缓冲，自带完整的场景图体系、视图系统、动画系统、事务化撤销/重做，以及内置的声明式流程引擎（FlowRunner）。一份渲染逻辑，浏览器和桌面端行为完全一致。
 
@@ -127,7 +127,7 @@ pnpm dev:banyan
 ```
 Banyuan/
 ├── packages/
-│   ├── banvasgl/            # 核心 2D 图形引擎 + 流程引擎
+│   ├── banvasgl/            # 面向声明式 UI 的 2D 图形运行时（含流程控制）
 │   └── xiangdi-agent/       # AI Agent 引擎
 ├── apps/
 │   ├── banyan/              # 低代码平台应用
@@ -159,7 +159,7 @@ Banyuan/
 
 | 文档 | 说明 |
 |------|------|
-| [BanvasGL](./packages/banvasgl/README.md) | 2D 图形引擎 + 流程引擎 |
+| [BanvasGL](./packages/banvasgl/README.md) | 面向声明式 UI 的 2D 图形运行时（含流程控制） |
 | [XiangDi Agent](./packages/xiangdi-agent/README.md) | AI Agent 引擎 |
 | [Banyan](./apps/banyan/README.md) | 低代码平台（前端 + 后端 + 桌面） |
 | [XiangDi Server](./apps/xiangdi-server/README.md) | AI Agent HTTP 服务 |
