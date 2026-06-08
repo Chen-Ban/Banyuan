@@ -1,0 +1,10 @@
+{
+  "id": "schema-edgeview",
+  "content": "# EDGEVIEW（流程图连线）\n\n## 描述\n\nEdgeView 表示流程图中两个 Port 之间的连线。通过 fromPortId 和 toPortId 关联起始和目标端口。\n\n## 特有属性\n\n继承 AIProjectionNodeBase 全部公共字段，额外有：\n\n- **type** — 固定为 \"EDGEVIEW\"\n- **fromPortId** (string | null) [必填] — 起始端口 ID\n- **toPortId** (string | null) [必填] — 目标端口 ID\n\n## 最小示例\n\n```json\n{\n  \"type\": \"EDGEVIEW\",\n  \"id\": \"edge-001\",\n  \"transform\": { \"x\": 0, \"y\": 0 },\n  \"size\": { \"width\": 0, \"height\": 0 },\n  \"fromPortId\": \"port-out-1\",\n  \"toPortId\": \"port-in-2\"\n}\n```\n\n## 使用场景\n\n- 连接两个 NodeView 的 PortView，表示数据流或控制流方向\n- fromPortId 通常指向上游节点的 output port\n- toPortId 通常指向下游节点的 input port",
+  "source": "auto-generated:knowledge-tool",
+  "metadata": {
+    "category": "schema",
+    "nodeType": "EDGEVIEW",
+    "version": "0.1.0"
+  }
+}
