@@ -57,15 +57,35 @@
 **约束：**
 
 - @banyuan/banvasgl 零外部 runtime dependencies（仅依赖 uuid），flow 子模块内嵌于包内
-- @banyuan/banvasgl/flow/server 子路径可独立于图形引擎被后端引用（tsup splitting）
+- @banyuan/banvasgl/flow/server 子路径可独立于图形运行时的渲染层被后端引用（tsup splitting）
 - @banyuan/xiangdi-agent 通过 optional peerDep 依赖 @banyuan/banvasgl
 - CI 可通过 pnpm why 或 depcheck 验证无循环依赖
 
 ---
 
+## 数据层原则
+
+### P3. 统一 MongoDB + 命名空间隔离
+
+**✅ 已实施**
+
+用户应用的业务数据与平台元数据统一存储在同一个 MongoDB 实例，通过 Collection 命名规则（`app_{appId}_{collectionName}`）实现应用级隔离。
+
+**为什么不引入新数据库：** 现有后端已基于 MongoDB + Mongoose，MongoDB 的 schemaless 特性对低代码场景天然友好——用户随时可以加字段，不需要 migration。每个应用独立命名空间天然隔离。代价是关联查询能力弱于 SQL，但低代码场景数据模型通常较简单，可接受。
+
+**决策链：** 低代码用户不理解 migration -> schemaless 友好 -> MongoDB 已在技术栈中 -> 不引入额外运维依赖 -> 命名空间隔离足够。
+
+**约束：**
+
+- 集合命名规则：`app_{appId}_{collectionName}`
+- 动态 ORM 基于 AppSchema 动态生成 Mongoose Model
+- 不适合场景：复杂多表 join（需在 UI 上明确告知限制）
+
+---
+
 ## 阶段性取舍
 
-### P3. 可观测性后置（MVP 阶段不建设）
+### P4. 可观测性后置（MVP 阶段不建设）
 
 **未实施** · 依赖 P1、P2
 

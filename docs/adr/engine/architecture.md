@@ -1,6 +1,6 @@
 # 引擎 · 架构级决策
 
-> 整体怎么组织——@banyuan/banvasgl（带流程控制的图形引擎）顶层架构。
+> 整体怎么组织——@banyuan/banvasgl（面向声明式 UI 的 2D 图形运行时，含流程控制）顶层架构。定位见 A0。
 
 ---
 
@@ -8,6 +8,11 @@
 
 ```
                      ┌──────────────────────────────────────────────┐
+                     │  A0 库定位：声明式 UI 图形运行时（含流程控制）│
+                     │     —— 机制/策略分离契约（根定位决策）        │
+                     └───────────────────────┬──────────────────────┘
+                                             │ refines
+                     ┌───────────────────────▼──────────────────────┐
                      │  A1 八层引擎架构（顶层组织决策）              │
                      └───────────────────────┬──────────────────────┘
                                              │ decomposes into
@@ -34,6 +39,7 @@
 
 关系说明：
 
+- A0 是根定位决策，确立「图形运行时」定位与机制/策略分离契约，A1 及其余所有 engine 决策均 refines A0
 - A1 是顶层组织决策，分解为七个子系统架构（A2~A8）
 - A2→A2a：Canvas 2D 渲染能力使相机模型成为可能
 - A3→A3a：交互状态机架构衍生出逐层激活策略
@@ -45,11 +51,67 @@
 
 ---
 
+## 库定位
+
+### A0. banvasgl 定位为「面向声明式 UI 的 2D 图形运行时（含流程控制）」
+
+**未实施** · 所有 engine 决策的上位根决策
+
+banvasgl 的定位从早期的「带流程控制的图形渲染库」**升级**为「面向声明式 UI 的 2D 图形运行时（含流程控制）」。
+
+> A 2D graphics runtime for declarative UI, with built-in flow control.
+
+**为什么是「运行时（runtime）」而非「渲染库（rendering library）」：** 渲染库只回答「怎么把图形画出来」，而 banvasgl 还回答「View 的事件/生命周期如何驱动 FlowSchema 执行」「编辑/预览/线上三态如何共享同一套内核」「应用数据如何序列化与版本迁移」——它承载的是一个声明式应用从加载到交互到流程执行的**完整运行闭环**。运行时在语义上**包含**渲染（`runtime ⊃ rendering`），因此用 runtime 定位既不丢失渲染能力的表达，又准确覆盖了流程控制与三态运行职责。
+
+**机制 / 策略分离契约（本定位的核心推论）：**
+
+banvasgl 作为运行时，只提供**机制（mechanism）**，不内置**策略（policy）**。机制是「如何做某件事的底层能力」，策略是「在什么场景下、以什么规则使用这些能力」。
+
+| 维度 | 机制（runtime 提供） | 策略（上层提供） |
+|------|---------------------|-----------------|
+| 输入 | 原子指针事件（pointerdown/move/up）、命中检测、几何变换 | 把原子事件解释成何种高层交互 |
+| 流程 | FlowSchema 执行（FlowRunner）、`flowEnabled` gate | 何时允许执行流程（三态语义） |
+| 交互 | resize/rotate/move 等几何操作原语 | 何时进入编辑状态机、把原子事件序列识别成何种高级交互 |
+
+这条契约自动收敛此前所有「某能力该归哪一层」的纠结，归属可直接从「它是机制还是策略」推导：
+
+- **归 banvasgl（机制）**：原子指针事件、命中检测、几何变换、FlowSchema 执行、`flowEnabled` gate、序列化/版本迁移。
+- **归 banyan（编辑策略）**：InteractionStateMachine（作者态 10 状态编辑状态机）——它是「把原子事件解释成编辑操作」的策略，只服务设计态。
+- **归 banvas-runtime（运行策略）**：高级交互识别器（InteractionRecognizer，把原子事件序列识别成 click/doubleclick/contextmenu/drag/hover/focus 等 `IViewEvents` 语义）+ `useRuntimeBanvas`（运行态画布组装）——它是「把原子事件解释成终端用户高级交互并派发到 View.events」的策略，服务预览/线上态。注意是「基于原子事件的高级交互识别」（桌面鼠标/键盘事件模型），非触摸手势。
+
+**未来演进路线（先 runtime、后按需抽 core）：** 当出现第三方纯图形需求时，可将运行时内部已分层的「渲染 + 几何 + 命中检测 + 原子事件」机制层抽取为通用 `banvas-core`，banvasgl 保留「FlowSchema + events + lifetimes」应用语义层并依赖 core。因为这些机制现在已在运行时内部分层存在，未来拆分是一次「抽取（extract）」而非「重写（rebuild）」，演进成本接近于零。反向时序（先做通用图形库、再往上叠应用语义）会逆向重构，故不采用。
+
+```
+现在：banvasgl（runtime）
+  └─ 内部已分层：渲染机制 / 几何机制 / 命中检测 / FlowSchema 执行 / 原子事件
+
+未来若有第三方纯图形需求（按需抽取，非现在）：
+  banvas-core（通用渲染）  ←── 抽取「渲染 + 几何 + 命中 + 原子事件」机制层
+  banvasgl（runtime）      ←── 保留「FlowSchema + events + lifetimes」应用语义层，依赖 core
+```
+
+**决策链：** View.events / View.lifetimes / Scene 生命周期的类型都是 FlowSchema | null，渲染与流程控制天然耦合 → 「渲染库」无法表达流程控制与三态运行职责 → 升级为「图形运行时」准确覆盖完整运行闭环 → 运行时只提供机制不内置策略，使三态/编辑交互/运行交互的分层归属可机械推导 → 机制层未来可按需抽取为通用 core。
+
+**约束：**
+
+- banvasgl 对外暴露机制原语（原子事件 InteractionInput=pointerdown/move/up + keydown/up、命中检测 hitTest、几何操作、FlowSchema 执行入口），不内置高级交互识别（click/drag/hover 等由上层策略解释）。
+- 高层交互的「策略」必须由上层注入：编辑策略由 banyan 提供，运行策略由 banvas-runtime 提供，二者均不下沉进 banvasgl 内核。
+- 运行时内部须保持「机制层（渲染/几何/命中/原子事件）」与「应用语义层（FlowSchema/events/lifetimes）」的内部分层，为未来抽取 banvas-core 预留边界。
+- 定位陈述（中英文）须与下游文档（AGENTS.md、README、package.json description、ADR README）保持一致（同步更新单独成轮）。
+
+**反例：**
+
+- 定位为「图形渲染库」——丢失流程控制与三态运行职责的语义表达，且与 View.events/lifetimes 依赖 FlowSchema 的事实不符。
+- 现在就拆出通用图形库再往上叠应用语义——逆向时序，需重写而非抽取，属过度设计。
+- 把高级交互策略（编辑状态机、运行态交互识别、useRuntimeBanvas）内置进 banvasgl——破坏机制/策略分离，使三态与第三方复用都受污染（参见 Konva/Fabric 内置高层交互的反例）。
+
+---
+
 ## 顶层组织
 
 ### A1. 八层引擎架构
 
-**✅ 已实施**
+**✅ 已实施** · refines A0
 
 BanvasGL 代码组织为八层，依赖方向严格自上而下：
 
@@ -71,7 +133,7 @@ types（纯接口契约，零实现）
 flow（独立子模块，子路径导出，被 engine 层引用）
 ```
 
-**决策链：** 引擎需要服务多种场景（前端渲染/后端流程执行/React 集成/独立测试）→ 分层隔离各职责 → 单一入口 index.ts 统一导出公共 API → 子路径导出服务特定场景。
+**决策链：** A0 确立图形运行时定位（runtime ⊃ rendering + 机制/策略分离）→ 八层划分是该运行时的内部结构，承载机制实现（types/foundation/graph/view/engine/flow）并把策略注入点收敛到 actions/hook 边界 → 引擎需要服务多种场景（前端渲染/后端流程执行/React 集成/独立测试）→ 分层隔离各职责 → 单一入口 index.ts 统一导出公共 API → 子路径导出服务特定场景。
 
 **约束：**
 
@@ -138,23 +200,27 @@ Canvas DOM 元素尺寸 = 外部容器尺寸（自适应）。Scene 使用 Ortho
 
 ### A3. 交互状态机架构（InteractionStateMachine + Delegate 模式）
 
-**✅ 已实施** · 属于 A1 引擎层
+**✅ 已实施** · refines A0 · 属于 A1 引擎层
 
 交互系统采用**纯逻辑状态机 + Delegate 注入**架构。InteractionStateMachine 是零 DOM、零 React 依赖的纯状态机，通过 InteractionDelegate 接口声明所有外部能力需求，由宿主注入实现。
 
-**决策链：** 交互逻辑复杂（拖拽/缩放/旋转/框选/文本选区/连线/顶点编辑）→ 状态机是管理复杂交互的最佳模式 → 但状态机不应依赖宿主环境 → Delegate 模式解耦。
+> **A0 机制/策略定位：** 按 A0 机制/策略分离契约，「把原子事件解释成何种高层交互」属于**策略**，InteractionStateMachine（作者态编辑状态机）是**编辑策略**，归属 banyan，不下沉进 banvasgl 内核；banvasgl 只提供该策略消费的**机制**——原子指针事件、命中检测、几何变换原语（resize/rotate/move）与 InteractionDelegate 机制接口（见 C9/C10）。本决策描述的是「策略如何用机制原语组织成状态机」这一通用结构，机制原语本身由 banvasgl 运行时提供。
+
+**决策链：** A0 确立机制/策略分离 → 交互编排（把原子事件解释成拖拽/缩放/旋转/框选/文本选区/连线/顶点编辑）属策略，由宿主注入 → 状态机是管理复杂交互策略的最佳模式 → 状态机只消费 banvasgl 暴露的几何/命中机制原语，通过 InteractionDelegate 接口解耦，零宿主环境依赖。
 
 **约束：**
 
 - 判别联合状态：idle → hover → moving/resizing/rotating/panning/box-selecting/text-selecting/editing-point/connecting
-- InteractionCapability 集合配置启用的交互能力（pan/move/resize/rotate/connect/box-select/text-selection/edit-point/drop）
+- InteractionCapability 集合配置启用的交互能力（pan/move/resize/rotate/connect/box-select/text-selection/edit-point/drop）；能力集是**策略取值**，由上层按运行态注入（见 C10）
 - 状态机纯逻辑，不持有 DOM 引用，不监听事件（事件由宿主转发）
-- 编辑态启用全部能力，预览态/线上态禁用所有编辑能力
+- 机制归属：原子事件/命中检测/几何变换原语归 banvasgl；状态机编排（编辑策略）归 banyan，运行态高级交互识别 + useRuntimeBanvas（运行策略）归 banvas-runtime（A0 归属推导）
+- 启用何种能力集是策略决策：编辑态启用全部能力，预览态/线上态禁用所有编辑能力——此差异由上层注入不同 Capability 集与 Delegate 实现达成，banvasgl 不内置该取值
 
 **反例：**
 
 - 事件监听散落在各 View 中——状态冲突难以管理，拖拽和框选互斥逻辑无法集中处理
 - React 状态管理交互——引擎内核不应依赖 React 渲染周期
+- 把编辑状态机或运行态高级交互识别内置进 banvasgl 内核——破坏 A0 机制/策略分离，污染三态复用与未来 banvas-core 抽取边界
 
 ---
 
@@ -377,3 +443,5 @@ React hook 层通过 2 个核心 hook 桥接引擎与宿主：`useCanvasInit`（
 
 - 独立 runtime 包——多包同步维护负担大，且从未实际创建
 - iframe 嵌入预览——BanvasGL 是自包含 Canvas 引擎，hook 切换零延迟，iframe 增加不必要通信开销
+
+**实施方案：** [三态统一引擎，hook 层区分行为](../../specs/engine/tristate-unified-engine.md)

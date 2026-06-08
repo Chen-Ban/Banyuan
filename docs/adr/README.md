@@ -28,7 +28,7 @@
 
 | 域 | 涵盖 | 判断标准 |
 |----|------|----------|
-| engine | @banyuan/banvasgl（含 flow 子模块） | 引擎核心运行时（渲染、视图、流程执行器） |
+| engine | @banyuan/banvasgl（含 flow 子模块） | 面向声明式 UI 的 2D 图形运行时（渲染、视图、流程执行器） |
 | agent | @banyuan/xiangdi-agent + knowledge-server | AI 智能体系统（编排、记忆、知识检索） |
 | app | banyan frontend/backend + xiangdi-server + electron | 应用层服务拓扑、前端架构、桌面平台 |
 | schema | 跨边界数据契约 | 序列化格式、AI Projection、版本化存储 |
@@ -40,7 +40,7 @@
 
 ### 引擎核心 `engine/`
 
-@banyuan/banvasgl 带流程控制的图形引擎。渲染架构、交互状态机、视图体系、布局系统、动画系统、FlowRunner、事务管理、序列化、物料系统。
+@banyuan/banvasgl 面向声明式 UI 的 2D 图形运行时（含流程控制，定位见 engine/architecture.md A0）。渲染架构、交互状态机、视图体系、布局系统、动画系统、FlowRunner、事务管理、序列化、物料系统。
 
 每个文件内的决策按逻辑分组排列，文件头部附 ASCII 决策依赖图标注 enables/refines/drives/complements 等关系。
 

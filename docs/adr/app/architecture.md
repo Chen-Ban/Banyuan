@@ -40,18 +40,25 @@
 
 xiangdi-server 不访问 MongoDB，不持有应用持久状态。pages 数据随请求传入、随 done 事件返回。持久化由 banyan 后端负责。
 
+**核心问题背景：** 早期 Banyan 后端直接 `import xiangdi` 在同一进程运行 AI Agent。这导致 API Key 管理混乱（业务服务不应持有 LLM 凭证）、进程耦合（AI 崩溃拖垮业务 CRUD）、无法独立扩缩容、违反包边界。同时 `packages/server` 与 `apps/banyan/backend` 端口冲突，说明两者本应是同一服务。因此做出两个决策：XiangDi 独立为 HTTP 服务 + 旧 packages/server 归并进 banyan 后端。
+
 **决策链：** AI Agent 执行是计算密集型 -> 需要水平扩展 -> 有状态服务难以扩展 -> 无状态 + 请求携带数据 -> 任意实例都可处理任意请求 -> banyan 后端作为有状态网关负责 MongoDB 读写。
+
+**为什么代理模式而非前端直连 XiangDi：** 如果前端直连 XiangDi 服务，前端需要知道 XiangDi 地址；banyan 后端无法做鉴权和限流；done 事件后 pages 写回 MongoDB 需要前端再发一次请求，时序复杂。代理模式让 banyan 后端成为唯一出口，鉴权/限流/写回 MongoDB 全部在代理层一站式解决。
 
 **约束：**
 
 - xiangdi-server 禁止 import mongoose 或任何 MongoDB 驱动
 - 请求体携带完整 pages JSON（Pull-based 架构）
 - 响应通过 SSE 流式返回增量变更，最终 done 事件携带完整更新后的 pages
+- API Key 只在 XiangDi 服务中管理，banyan 后端无需持有 LLM 凭证
+- XiangDi 服务可复用于其他消费方（未来的 CLI 工具、其他平台）
 
 **反例：**
 
 - xiangdi-server 直连 MongoDB——横向扩展时数据一致性复杂，与 banyan 产生双写
 - Push-based（banyan 推 pages 到 xiangdi）——banyan 需感知 xiangdi 执行时机，耦合加重
+- banyan 后端直接 import xiangdi（同进程）——API Key 泄漏风险、进程耦合、无法独立扩缩容
 
 ---
 
