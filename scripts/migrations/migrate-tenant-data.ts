@@ -7,8 +7,7 @@
  *   3. 将所有 tenantId 为空的 Application 文档更新为该租户和用户
  *
  * 运行方式：
- *   cd apps/banyan/backend
- *   npx tsx scripts/migrate-tenant-data.ts
+ *   pnpm run migrations:tenant
  *
  * 环境变量：
  *   MONGODB_URI — MongoDB 连接字符串（默认 mongodb://localhost:27017/banyan）

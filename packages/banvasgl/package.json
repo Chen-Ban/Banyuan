@@ -71,7 +71,6 @@
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts",
-    "postbuild": "tsx scripts/generate-knowledge.ts",
     "dev": "tsup --config tsup.config.ts --watch",
     "prepublishOnly": "npm run build"
   },

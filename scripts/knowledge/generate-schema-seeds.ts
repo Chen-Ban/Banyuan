@@ -1,38 +1,40 @@
 /**
- * generate-knowledge.ts
+ * generate-schema-seeds.ts
+ *
+ * [ui] Primitive 知识种子生成器
  *
  * 基于 AI Projection 类型体系自动生成 schema 层知识种子 JSON 文件。
  * 输出到 packages/xiangdi-agent/src/knowledge/seeds/schema/ 目录。
  *
- * 运行方式：npx tsx packages/banvasgl/scripts/generate-knowledge.ts
+ * 运行方式：npx tsx scripts/knowledge/generate-schema-seeds.ts
  *
- * 此脚本是 BanvasGL 的 postbuild 钩子，每次构建后自动运行，
- * 确保知识种子与 AI Projection 类型定义保持同步。
- *
- * 版本策略：
- *   - 种子 metadata.version 取自 banvasgl package.json 的 version 字段
- *   - knowledge-server 按版本隔离向量表（knowledge_v{version}）
- *   - 基础库升级时 postbuild 重新生成，写入新版本表
+ * 设计原则：
+ *   - 独立于 banvasgl 构建流程，按需执行
+ *   - 版本号从 banvasgl/package.json 读取
+ *   - 生成后尝试写入 knowledge-server（不可达时优雅降级）
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { upsertToKnowledgeServer } from "./utils/upsert.js";
 
-// ─── 路径解析 ─────────────────────────────────────────────────────────────────
+// ─── 路径解析（从仓库根 scripts/knowledge/ 出发） ──────────────────────────────
 
 const __scriptDir = typeof __dirname !== "undefined"
   ? __dirname
   : path.dirname(fileURLToPath(import.meta.url));
 
+const REPO_ROOT = path.resolve(__scriptDir, "../..");
+
 const BANVASGL_PKG = JSON.parse(
-  fs.readFileSync(path.resolve(__scriptDir, "../package.json"), "utf-8")
+  fs.readFileSync(path.resolve(REPO_ROOT, "packages/banvasgl/package.json"), "utf-8")
 );
 const VERSION: string = BANVASGL_PKG.version;
 
 const OUTPUT_DIR = path.resolve(
-  __scriptDir,
-  "../../../packages/xiangdi-agent/src/knowledge/seeds/schema"
+  REPO_ROOT,
+  "packages/xiangdi-agent/src/knowledge/seeds/schema"
 );
 
 // ─── 种子类型定义 ─────────────────────────────────────────────────────────────
@@ -721,7 +723,7 @@ PortView 是 NodeView 上的连接端口，EdgeView 通过关联 PortView 的 ID
 // ─── 主流程 ──────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  console.log(`🌱 generate-knowledge: 开始生成 Schema 层知识种子 (v${VERSION})...`);
+  console.log(`🌱 generate-schema-seeds: 开始生成 Schema 层知识种子 (v${VERSION})...`);
   console.log(`   基于 AI Projection 类型体系`);
   console.log("");
 
@@ -735,7 +737,7 @@ async function main(): Promise<void> {
     const seedFile: SeedFile = {
       id: seed.id,
       content: seed.content,
-      source: "auto-generated:banvasgl-postbuild",
+      source: "auto-generated:knowledge-tool",
       metadata: {
         category: "schema",
         nodeType: seed.nodeType,
@@ -750,102 +752,23 @@ async function main(): Promise<void> {
   }
 
   console.log("");
-  console.log(`🎉 generate-knowledge: 完成！共生成 ${generatedFiles.length} 个种子文件`);
+  console.log(`🎉 generate-schema-seeds: 完成！共生成 ${generatedFiles.length} 个种子文件`);
   console.log(`   版本: ${VERSION}`);
   console.log(`   输出: ${OUTPUT_DIR}/`);
 
   // ─── 自动 upsert 到 knowledge-server ────────────────────────────────────────
-  await upsertToKnowledgeServer(seeds);
-}
-
-// ─── Knowledge Server Upsert ─────────────────────────────────────────────────
-
-const KNOWLEDGE_URL = process.env.KNOWLEDGE_URL || "http://localhost:3003";
-const KNOWLEDGE_TOKEN = process.env.KNOWLEDGE_INTERNAL_TOKEN || "";
-
-interface UpsertEntry {
-  id: string;
-  content: string;
-  source: string;
-  metadata: Record<string, unknown>;
-}
-
-/**
- * 将生成的种子写入 knowledge-server 向量库。
- *
- * 策略：
- *   - 先探测 /health 确认服务可达
- *   - 可达时批量 POST /knowledge/upsert
- *   - 不可达时优雅降级（仅打印警告，不阻断构建）
- */
-async function upsertToKnowledgeServer(seeds: SeedConfig[]): Promise<void> {
-  console.log("");
-  console.log(`📡 尝试写入 knowledge-server (${KNOWLEDGE_URL})...`);
-
-  // 1. 健康检查
-  const reachable = await checkHealth();
-  if (!reachable) {
-    console.log(`   ⚠️  knowledge-server 不可达，跳过写入。种子文件已生成到本地，可后续手动写入。`);
-    return;
-  }
-
-  // 2. 构造 entries
-  const entries: UpsertEntry[] = seeds.map((seed) => ({
-    id: seed.id,
-    content: seed.content,
-    source: "auto-generated:banvasgl-postbuild",
-    metadata: {
-      category: "schema",
-      nodeType: seed.nodeType,
-      version: VERSION,
-    },
-  }));
-
-  // 3. 调用 upsert API
-  try {
-    const response = await fetch(`${KNOWLEDGE_URL}/knowledge/upsert`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(KNOWLEDGE_TOKEN ? { "X-Internal-Token": KNOWLEDGE_TOKEN } : {}),
+  await upsertToKnowledgeServer(
+    seeds.map((seed) => ({
+      id: seed.id,
+      content: seed.content,
+      source: "auto-generated:knowledge-tool",
+      metadata: {
+        category: "schema",
+        nodeType: seed.nodeType,
+        version: VERSION,
       },
-      body: JSON.stringify({ entries }),
-      signal: AbortSignal.timeout(30_000),
-    });
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => "");
-      console.log(`   ⚠️  upsert 失败 (HTTP ${response.status}): ${body}`);
-      console.log(`   种子文件已生成到本地，可后续手动写入。`);
-      return;
-    }
-
-    const result = await response.json() as { success: boolean; count?: number };
-    if (result.success) {
-      console.log(`   ✅ 成功写入 ${result.count ?? entries.length} 条知识到 knowledge_v${VERSION} 表`);
-    } else {
-      console.log(`   ⚠️  upsert 返回 success=false，种子文件已生成到本地。`);
-    }
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.log(`   ⚠️  upsert 请求异常: ${message}`);
-    console.log(`   种子文件已生成到本地，可后续手动写入。`);
-  }
-}
-
-/**
- * 探测 knowledge-server 健康状态
- */
-async function checkHealth(): Promise<boolean> {
-  try {
-    const response = await fetch(`${KNOWLEDGE_URL}/health`, {
-      method: "GET",
-      signal: AbortSignal.timeout(3_000),
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
+    }))
+  );
 }
 
 main();

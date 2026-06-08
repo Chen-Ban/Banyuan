@@ -14,6 +14,9 @@ importers:
       concurrently:
         specifier: ^9.2.1
         version: 9.2.1
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.2
       typescript:
         specifier: ~5.7.3
         version: 5.7.3
@@ -1612,7 +1615,6 @@ packages:
   '@lancedb/lancedb@0.27.2':
     resolution: {integrity: sha512-JQpZHV5KzUzDI3flYCjtZcfHlEbL8lM54E0NT+jrRYe29aKYegfavvPsAsuZp0VdcMwFMZcpMkaBhjQMo/fwvg==}
     engines: {node: '>= 18'}
-    cpu: [x64, arm64]
     os: [darwin, linux, win32]
     peerDependencies:
       apache-arrow: '>=15.0.0 <=18.1.0'
