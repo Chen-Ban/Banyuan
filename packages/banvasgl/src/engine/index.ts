@@ -34,16 +34,8 @@ export * from "./camera";
 export { Renderer, CanvasContext } from "./renderer/index";
 
 // ── Serialization ──
-export {
-  Serializer,
-  MigrationRegistry,
-  migrationRegistry,
-} from "./serialization";
-export type {
-  SerializerOptions,
-  SerializedData,
-  Migration,
-} from "./serialization";
+export { Serializer } from "./serialization";
+export type { SerializerOptions, SerializedData } from "./serialization";
 
 // ── Interaction ──
 export { InteractionStateMachine } from "./interaction/index.js";

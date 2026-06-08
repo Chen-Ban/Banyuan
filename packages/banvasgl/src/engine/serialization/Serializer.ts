@@ -1,7 +1,6 @@
 import { Scene } from '@/engine/scene/Scene'
 import { App } from '@/engine/App'
 import { version as BANVASGL_VERSION } from '@/version.js'
-import { migrationRegistry } from './MigrationRegistry'
 import Matrix4 from '@/foundation/math/Matrix4'
 import { Point3, Vector3 } from '@/foundation/math'
 import Style from '@/foundation/style/Style'
@@ -295,9 +294,6 @@ export class Serializer {
             if (!serializedData.type || !serializedData.data) {
                 throw new Error('Invalid serialized data format')
             }
-
-            // 数据格式迁移：将旧版本数据升级到当前引擎版本
-            serializedData = migrationRegistry.migrate(serializedData)
 
             return this.deserializeValue(serializedData.data, opts) as T
         }
