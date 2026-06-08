@@ -191,6 +191,19 @@ export const AIProjectionSceneZod = z.object({
   nodes: z.array(z.object({}).passthrough()),
 }).passthrough().describe('AIProjectionScene（页面完整视图结构）')
 
+/**
+ * AIProjectionApp 的 Zod 验证（App 级投影顶层结构）。
+ * lifetimes 为可选（省略表示全 null）。
+ */
+export const AIProjectionAppZod = z.object({
+  version: z.string(),
+  lifetimes: z.object({
+    onLaunch: z.unknown().optional(),
+    onUnlaunch: z.unknown().optional(),
+  }).optional(),
+  scenes: z.array(AIProjectionSceneZod),
+}).describe('AIProjectionApp（应用级完整投影结构）')
+
 export const PageArtifactSchema = z.object({
   pageId: z.string().describe('页面 ID（对应 UIDesignSpec.pages[].id / Scene ID）'),
   scene: AIProjectionSceneZod.describe('该页面的完整视图结构'),

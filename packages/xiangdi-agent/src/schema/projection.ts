@@ -13,6 +13,8 @@
 
 import type { SerializedData } from '@banyuan/banvasgl'
 import type {
+    AIProjectionApp,
+    AIAppLifetimes,
     AIProjectionScene,
     AIProjectionNode,
     AITransform,
@@ -95,47 +97,53 @@ export function fromAIProjection(projection: AIProjectionScene, version: string)
 }
 
 /**
- * 从 App 级别的 appJSON 字符串中提取并转换为 AIProjectionScene 数组。
+ * 从 App 级别的 appJSON 字符串中提取并转换为 AIProjectionApp。
  *
  * appJSON 格式：{ type: "APP", version, data: { lifetimes, scenes: [{ $type, $value }, ...] }, metadata }
  * 每个 scene 元素包装为 { $type: "SCENE", $value: sceneData }。
  */
-export function appJSONToProjection(appJSON: string): AIProjectionScene[] {
+export function appJSONToProjection(appJSON: string): AIProjectionApp {
     const appSerialized: SerializedData = JSON.parse(appJSON)
     const appData = appSerialized.data
-    if (!appData || !Array.isArray(appData.scenes)) {
-        return []
+
+    // App lifetimes 投影（省略全 null 的情况）
+    const lifetimes = projectAppLifetimes(appData?.lifetimes)
+
+    const scenes: AIProjectionScene[] = (appData && Array.isArray(appData.scenes))
+        ? appData.scenes.map((sceneWrapper: { $type: string; $value: any }) => {
+            const sceneSerializedData: SerializedData = {
+                type: 'SCENE',
+                version: appSerialized.version,
+                data: sceneWrapper,
+                metadata: appSerialized.metadata,
+            }
+            return toAIProjection(sceneSerializedData)
+        })
+        : []
+
+    const app: AIProjectionApp = {
+        version: appSerialized.version,
+        scenes,
     }
-    return appData.scenes.map((sceneWrapper: { $type: string; $value: any }) => {
-        // 每个 sceneWrapper 是 { $type: "SCENE", $value: sceneData }
-        // 构造一个 Scene 级别的 SerializedData，复用 toAIProjection
-        const sceneSerializedData: SerializedData = {
-            type: 'SCENE',
-            version: appSerialized.version,
-            data: sceneWrapper,
-            metadata: appSerialized.metadata,
-        }
-        return toAIProjection(sceneSerializedData)
-    })
+    if (lifetimes) app.lifetimes = lifetimes
+    return app
 }
 
 /**
- * 将 AIProjectionScene 数组转换回 App 级别的 appJSON 字符串。
+ * 将 AIProjectionApp 转换回 App 级别的 appJSON 字符串。
  *
  * 输出格式：{ type: "APP", version, data: { lifetimes, scenes: [{ $type, $value }, ...] }, metadata }
  */
-export function projectionToAppJSON(scenes: AIProjectionScene[], version: string): string {
-    const sceneWrappers = scenes.map((scene) => {
-        const sceneSerializedData = fromAIProjection(scene, version)
-        // fromAIProjection 返回 { type: "SCENE", version, data: { $type: "SCENE", $value: ... }, metadata }
-        // 我们取其 data 作为 App.scenes 数组的元素
+export function projectionToAppJSON(app: AIProjectionApp): string {
+    const sceneWrappers = app.scenes.map((scene) => {
+        const sceneSerializedData = fromAIProjection(scene, app.version)
         return sceneSerializedData.data
     })
     const appSerializedData: SerializedData = {
         type: 'APP',
-        version,
+        version: app.version,
         data: {
-            lifetimes: { onLaunch: null, onUnlaunch: null },
+            lifetimes: unprojectAppLifetimes(app.lifetimes),
             scenes: sceneWrappers,
         },
         metadata: {
@@ -144,6 +152,39 @@ export function projectionToAppJSON(scenes: AIProjectionScene[], version: string
         },
     }
     return JSON.stringify(appSerializedData)
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// App Lifetimes 投影
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const APP_LIFETIME_KEYS = ['onLaunch', 'onUnlaunch'] as const
+
+/**
+ * 将 App.lifetimes（{ onLaunch: FlowSchema|null, onUnlaunch: FlowSchema|null }）投影为
+ * AIAppLifetimes（省略全 null 的情况，省略单个 null 条目）。
+ */
+function projectAppLifetimes(rawLifetimes: any): AIAppLifetimes | undefined {
+    if (!rawLifetimes) return undefined
+    const lt: Record<string, unknown> = {}
+    let hasAny = false
+    for (const key of APP_LIFETIME_KEYS) {
+        if (rawLifetimes[key] != null) {
+            lt[key] = rawLifetimes[key]
+            hasAny = true
+        }
+    }
+    return hasAny ? (lt as AIAppLifetimes) : undefined
+}
+
+/**
+ * 将 AIAppLifetimes 反投影为原始 { onLaunch: FlowSchema|null, onUnlaunch: FlowSchema|null } 格式。
+ */
+function unprojectAppLifetimes(lifetimes?: AIAppLifetimes): { onLaunch: unknown; onUnlaunch: unknown } {
+    return {
+        onLaunch: lifetimes?.onLaunch ?? null,
+        onUnlaunch: lifetimes?.onUnlaunch ?? null,
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

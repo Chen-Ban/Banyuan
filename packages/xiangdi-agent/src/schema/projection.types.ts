@@ -322,6 +322,26 @@ export interface AIProjectionScene {
     children: AIProjectionNode[]
 }
 
+// ─── 应用级投影 ─────────────────────────────────────────────────────────────────
+
+/** 应用生命周期钩子映射（App 级别，只输出非 null 条目） */
+export interface AIAppLifetimes {
+    onLaunch?: FlowSchema
+    onUnlaunch?: FlowSchema
+}
+
+/** 应用（App）投影 — AI Projection 的顶层结构 */
+export interface AIProjectionApp {
+    /** BanvasGL 版本号 */
+    version: string
+    /** 应用生命周期 */
+    lifetimes?: AIAppLifetimes
+    /** 页面列表 */
+    scenes: AIProjectionScene[]
+}
+
+// ─── 物料引用 ─────────────────────────────────────────────────────────────────
+
 /** 物料引用节点（AI 可通过 $material 引用已有物料） */
 export interface AIMaterialRefNode {
     type: '$material'
