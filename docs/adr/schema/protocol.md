@@ -4,9 +4,34 @@
 
 ---
 
-## Full JSON 序列化格式协议
+## 决策依赖图
 
-**✅ 已实施**
+```
+┌───────────────────────────────────────┐
+│  C1 Full JSON 序列化格式协议           │
+└───────────────────┬───────────────────┘
+                    │ enables
+┌───────────────────▼───────────────────┐
+│  C2 AI Projection 投影格式协议         │
+└───────────────────────────────────────┘
+
+┌───────────────────────────────────────┐
+│  C3 版本化表三表各自独立版本号         │
+└───────────────────────────────────────┘
+```
+
+关系说明：
+
+- C1→C2：Full JSON 格式协议定义了完整字段集合和命名规范，AI Projection 格式协议在此基础上定义投影规则（哪些字段省略、如何重命名、如何扁平化）。C1 使 C2 成为可能。
+- C3 独立存在：版本号协议关注的是数据存储层的版本化策略，与序列化格式正交。
+
+---
+
+## 序列化格式
+
+### C1. Full JSON 序列化格式协议
+
+**✅ 已实施** · 细化 A1（全量 JSON 基座的具体格式规范）
 
 Full JSON 是 Scene 级别的完整序列化输出。顶层结构为 { pages: Page[], theme?, globalData? }，每个 Page 包含视图树（嵌套的 View JSON）和页面级配置。每个 View JSON 包含所有属性（含默认值）、addon 状态、data 字段、events/lifetimes 的 FlowSchema 引用。
 
@@ -21,9 +46,9 @@ Full JSON 是 Scene 级别的完整序列化输出。顶层结构为 { pages: Pa
 
 ---
 
-## AI Projection 投影格式协议
+### C2. AI Projection 投影格式协议
 
-**✅ 已实施**
+**✅ 已实施** · 依赖 C1
 
 AI Projection 是 Full JSON 面向 AI 的精简投影。规则：省略等于默认值的字段、扁平化嵌套样式对象（如 boxDecoration.backgroundColor -> backgroundColor）、重命名为语义化 key（如 children -> views）、ID 使用语义化短标识。
 
@@ -37,9 +62,11 @@ AI Projection 是 Full JSON 面向 AI 的精简投影。规则：省略等于默
 
 ---
 
-## 版本化表三表各自独立版本号
+## 版本号协议
 
-**✅ 已实施**
+### C3. 版本化表三表各自独立版本号
+
+**✅ 已实施** · 细化 A2（三表存储的版本号管理规范）
 
 AppContent、CollectionSchemaVersion、CloudFunctionBundle 各自维护独立递增的版本号。Application 文档通过三个引用字段（currentAppContentId、currentSchemaVersionId、currentFunctionBundleId）指向当前活跃版本。
 
