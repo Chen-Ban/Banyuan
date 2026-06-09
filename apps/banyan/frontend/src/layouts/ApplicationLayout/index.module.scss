@@ -51,6 +51,43 @@
   flex: 1;
 }
 
+// 机型选择器按钮
+.devicePicker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-md);
+  background: var(--color-bg-base);
+  cursor: pointer;
+  font-size: $text-sm;
+  color: var(--color-text-secondary);
+  transition: all var(--duration-normal);
+  white-space: nowrap;
+  margin-left: 8px;
+
+  &:hover {
+    border-color: var(--color-border-strong);
+    color: var(--color-text-primary);
+  }
+}
+
+.deviceLabel {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.deviceArrow {
+  font-size: 9px;
+  color: var(--color-text-quaternary);
+  transition: transform var(--duration-normal), color var(--duration-normal);
+}
+
+.deviceArrowOpen {
+  transform: rotate(180deg);
+}
+
 // ── 胶囊基础样式（共用）──────────────────────────────────────────────────────
 
 %capsule-base {
@@ -61,6 +98,51 @@
 
 .tabCapsule {
   @extend %capsule-base;
+  gap: 2px;
+}
+
+// 画布区域的 Segmented 控件（预览 | 编辑）
+.canvasSegmented {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px;
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-muted);
+}
+
+.segBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border-radius: calc(var(--radius-lg) - 2px);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: $text-sm;
+  color: var(--color-text-tertiary);
+  transition: all var(--duration-normal);
+
+  &:hover {
+    color: var(--color-text-secondary);
+  }
+}
+
+.segBtnActive {
+  color: var(--color-text-primary) !important;
+  background: var(--color-bg-base) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+// Tab 分隔线
+.tabDivider {
+  width: 1px;
+  height: 16px;
+  background: var(--color-border-md);
+  flex-shrink: 0;
+  margin: 0 2px;
 }
 
 .tabBtn {
@@ -135,12 +217,6 @@
   }
 }
 
-// 预览按钮激活态
-.actionBtnActive {
-  color: var(--color-success-text) !important;
-  background: var(--color-success-subtle) !important;
-}
-
 // 生成应用按钮：品牌色高亮
 .actionBtnPrimary {
   color: var(--color-brand-text);
@@ -165,6 +241,66 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+// ── 构建下拉菜单产物列表样式 ──────────────────────────────────────────────────
+
+.artifactItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 180px;
+  padding: 1px 0;
+}
+
+.artifactIcon {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.artifactPlatform {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.artifactStatus {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.artifactStatusLabel {
+  font-size: 11px;
+}
+
+.artifactDownload {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--color-info-text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--duration-normal);
+
+  &:hover {
+    background: var(--color-info-subtle);
+  }
+}
+
+.artifactEmpty {
+  font-size: 12px;
+  color: var(--color-text-disabled);
 }
 
 // ── 内容区 ────────────────────────────────────────────────────────────────────
