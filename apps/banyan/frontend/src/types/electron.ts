@@ -23,9 +23,15 @@ export interface PreviewServerInfo {
   error?: string;
 }
 
+export interface HotUpdatePatch {
+  collections?: unknown[];
+  cloudFunctions?: unknown[];
+}
+
 export interface ElectronPreviewAPI {
   start: (input: PreviewServerInput) => Promise<PreviewServerInfo>;
   stop: (appId: string) => Promise<void>;
+  hotUpdate: (appId: string, patch: HotUpdatePatch) => Promise<void>;
   getStatus: (appId: string) => Promise<PreviewServerInfo | null>;
   listAll: () => Promise<PreviewServerInfo[]>;
 }

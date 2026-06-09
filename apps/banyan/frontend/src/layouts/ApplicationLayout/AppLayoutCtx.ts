@@ -11,11 +11,21 @@
  * - ApplicationLayout 加载元数据后写入 appName
  * - Sidebar 的 AppBreadcrumb 子组件读取 appName 展示
  *
+ * ── 应用设计尺寸（ApplicationLayout ↔ UIPage）────────────────────────────────
+ * - UIPage 注册 setDesignSize 回调给 Layout
+ * - ApplicationLayout 的机型选择器调用 onDesignSizeChange 变更尺寸
+ * - designSize 展示当前生效的设计尺寸
+ *
  * 注：AiBar 单例已提升到 RootLayout 层，相关接口（registerAiCallbacks /
  * aiBarHandle）由 RootLayoutCtx 提供，不再经过此 Context。
  */
 
 import { createContext, useContext } from 'react'
+
+export interface DesignSize {
+  width: number
+  height: number
+}
 
 export interface AppLayoutCtxValue {
   /** UIPage 调用此方法，将 getSerializedApp 注册到 Layout */
@@ -26,6 +36,14 @@ export interface AppLayoutCtxValue {
   appName: string
   /** 修改应用名称（会触发 auto-save，同时更新顶部 bar） */
   onAppRename: (name: string) => void
+  /** 当前应用设计尺寸 */
+  designSize: DesignSize
+  /** 变更设计尺寸（由 Layout 机型选择器调用，最终通过 UIPage 注册的回调写入 App） */
+  onDesignSizeChange: (size: DesignSize) => void
+  /** UIPage 注册 setDesignSize 回调 */
+  registerDesignSizeHandler: (fn: (size: DesignSize) => void) => void
+  /** UIPage 注册当前 designSize 同步（mount 时） */
+  syncDesignSize: (size: DesignSize) => void
 }
 
 export const AppLayoutCtx = createContext<AppLayoutCtxValue>({
@@ -33,6 +51,10 @@ export const AppLayoutCtx = createContext<AppLayoutCtxValue>({
   unregisterGetApp: () => {},
   appName: '',
   onAppRename: () => {},
+  designSize: { width: 1280, height: 800 },
+  onDesignSizeChange: () => {},
+  registerDesignSizeHandler: () => {},
+  syncDesignSize: () => {},
 })
 
 export const useAppLayoutCtx = () => useContext(AppLayoutCtx)
