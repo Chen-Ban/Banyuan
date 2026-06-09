@@ -1,0 +1,102 @@
+// DataBrowserPage — 只读数据浏览页面样式
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
+
+.page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  overflow: hidden;
+  background: var(--color-bg-content);
+}
+
+.loadingWrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// ── 左侧列表 ─────────────────────────────────────────────────────────────────
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-sidebar);
+  overflow: hidden;
+}
+
+.sidebarHeader {
+  display: flex;
+  align-items: center;
+  padding: 16px 16px 8px;
+  flex-shrink: 0;
+}
+
+.sidebarTitle {
+  font-size: $text-sm;
+  font-weight: $font-semibold;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sidebarList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 8px 16px;
+}
+
+.emptyHint {
+  font-size: $text-xs;
+  color: var(--color-text-quaternary);
+  text-align: center;
+  padding: 24px 8px;
+}
+
+// ── 右侧内容 ─────────────────────────────────────────────────────────────────
+
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px 24px;
+}
+
+.tableHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.tableTitle {
+  font-size: $text-lg;
+  font-weight: $font-semibold;
+  color: var(--color-text-primary);
+}
+
+.tableCount {
+  font-size: $text-sm;
+  color: var(--color-text-tertiary);
+}
+
+.tableWrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.emptyContent {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

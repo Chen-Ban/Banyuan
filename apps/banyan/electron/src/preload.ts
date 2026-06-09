@@ -25,6 +25,11 @@ export interface PreviewServerInfo {
   error?: string;
 }
 
+export interface HotUpdatePatch {
+  collections?: unknown[];
+  cloudFunctions?: unknown[];
+}
+
 /**
  * 暴露给 Renderer 的 API 定义
  */
@@ -38,6 +43,10 @@ const electronAPI = {
     /** 停止某 appId 的 Preview Server */
     stop: (appId: string): Promise<void> =>
       ipcRenderer.invoke('preview:stop', appId),
+
+    /** 热更新：collections/cloudFunctions 变更后调用 */
+    hotUpdate: (appId: string, patch: HotUpdatePatch): Promise<void> =>
+      ipcRenderer.invoke('preview:hotUpdate', appId, patch),
 
     /** 获取某 appId 的 Preview Server 状态 */
     getStatus: (appId: string): Promise<PreviewServerInfo | null> =>

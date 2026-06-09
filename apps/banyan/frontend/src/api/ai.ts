@@ -206,6 +206,14 @@ export async function confirmDialogue(appId: string): Promise<{ dialogueId: stri
 }
 
 /**
+ * 中止对话：用户主动停止正在执行的 AI 对话。
+ * 调用后端 /api/ai/:appId/stop，将 Dialogue phase 转为 discarded。
+ */
+export async function stopDialogue(appId: string): Promise<void> {
+  await post<{ success: boolean }>(`/ai/${appId}/stop`, { reason: 'user_aborted' })
+}
+
+/**
  * 撤销对话：丢弃 pending 暂存数据。
  */
 export async function discardDialogue(appId: string): Promise<void> {

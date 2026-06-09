@@ -518,11 +518,13 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   const abort = useCallback(() => {
     if (!abortControllerRef.current) return
     abortControllerRef.current.abort()
+    // 通知后端将 Dialogue 转为 discarded，释放编辑锁
+    aiApi.stopDialogue(appId).catch(() => { /* 静默失败 */ })
     addMessage({ type: 'aborted', content: '已停止' })
     setLoading(false)
     sendingRef.current = false
     abortControllerRef.current = null
-  }, [addMessage])
+  }, [appId, addMessage])
 
   const clearMessages = useCallback(() => {
     setMessages([])

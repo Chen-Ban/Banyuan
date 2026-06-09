@@ -4,6 +4,7 @@ import { SchemaService } from '../services/SchemaService.js'
 import dialogueService from '../services/DialogueService.js'
 import conversationService from '../services/ConversationService.js'
 import type { ICollectionDef, IFieldDef } from '../models/types/index.js'
+import { validateIdentifier } from '../utils/nameValidation.js'
 
 /**
  * SchemaController — 数据表结构的直接编辑入口（方向 B）
@@ -57,7 +58,12 @@ export class SchemaController {
 
     if (!body.name || typeof body.name !== 'string') {
       ctx.status = 400
-      ctx.body = { success: false, message: 'Collection name is required' }
+      ctx.body = { success: false, message: '表名不能为空' }
+      return
+    }
+    try { validateIdentifier(body.name, '表名') } catch (e: any) {
+      ctx.status = 400
+      ctx.body = { success: false, message: e.message }
       return
     }
     if (!body.displayName || typeof body.displayName !== 'string') {
@@ -112,7 +118,12 @@ export class SchemaController {
 
     if (!body.name || typeof body.name !== 'string') {
       ctx.status = 400
-      ctx.body = { success: false, message: 'Field name is required' }
+      ctx.body = { success: false, message: '字段名不能为空' }
+      return
+    }
+    try { validateIdentifier(body.name, '字段名') } catch (e: any) {
+      ctx.status = 400
+      ctx.body = { success: false, message: e.message }
       return
     }
     if (!body.type) {

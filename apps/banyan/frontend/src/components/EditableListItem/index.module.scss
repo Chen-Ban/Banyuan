@@ -1,0 +1,96 @@
+// EditableListItem — 通用可编辑列表项样式
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--duration-normal);
+  position: relative;
+
+  &:hover {
+    background: var(--color-bg-hover-md);
+
+    .deleteBtn { opacity: 1; }
+  }
+}
+
+.itemActive {
+  background: var(--eli-active-bg, var(--color-brand-subtle));
+
+  .displayName { color: var(--eli-active-text, var(--color-brand-primary)); }
+  .name        { color: var(--eli-active-text-dim, var(--color-brand-text-dim-50)); }
+  .icon        { color: var(--eli-active-text, var(--color-brand-primary)); }
+}
+
+.itemEditing {
+  background: var(--color-bg-hover-md);
+  cursor: default;
+}
+
+.icon {
+  font-size: $text-md;
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.displayName {
+  font-size: $text-base;
+  font-weight: $font-medium;
+  color: var(--color-text-secondary);
+  @include truncate;
+}
+
+.name {
+  font-size: $text-xs;
+  color: var(--color-text-tertiary);
+  @include text-mono;
+  @include truncate;
+}
+
+.deleteBtn {
+  opacity: 0;
+  font-size: $text-sm;
+  color: var(--color-text-disabled);
+  flex-shrink: 0;
+  transition: opacity var(--duration-normal), color var(--duration-normal);
+  padding: 2px;
+  border-radius: var(--radius-xs);
+
+  &:hover {
+    color: var(--color-error-text);
+    background: var(--color-error-subtle);
+  }
+}
+
+// ── 编辑态 ──
+
+.editInputs {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editInput {
+  font-size: $text-xs;
+}
+
+.editInputMono {
+  @include text-mono;
+}

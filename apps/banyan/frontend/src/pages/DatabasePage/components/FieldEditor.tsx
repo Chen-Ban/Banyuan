@@ -6,12 +6,10 @@ import {
   Select,
   Checkbox,
   Popconfirm,
-  Empty,
 } from 'antd'
 import {
   PlusOutlined,
   DeleteOutlined,
-  TableOutlined,
 } from '@ant-design/icons'
 import { schemaApi } from '@/api'
 import type { CollectionDef, FieldDef, FieldType } from '@/api'
@@ -151,24 +149,6 @@ const FieldEditor = forwardRef<FieldEditorHandle, FieldEditorProps>(({
 
   return (
     <div className={styles.fieldEditor}>
-      {/* 表头信息 */}
-      <div className={styles.fieldEditorHeader}>
-        <div className={styles.fieldEditorTitle}>
-          <TableOutlined className={styles.fieldEditorTitleIcon} />
-          <span className={styles.fieldEditorTitleDisplay}>{collection.displayName}</span>
-          <span className={styles.fieldEditorTitleName}>{collection.name}</span>
-        </div>
-        <div className={styles.fieldEditorActions}>
-          <Button
-            size="small"
-            icon={<PlusOutlined />}
-            onClick={handleAddField}
-          >
-            添加字段
-          </Button>
-        </div>
-      </div>
-
       {/* 字段表格 */}
       <div className={styles.fieldTable}>
         {/* 表头行 */}
@@ -261,11 +241,18 @@ const FieldEditor = forwardRef<FieldEditorHandle, FieldEditorProps>(({
           </div>
         ))}
 
-        {localFields.length === 0 && (
-          <div className={styles.fieldEmpty}>
-            <Empty description="暂无字段，点击「添加字段」开始定义" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-          </div>
-        )}
+        {/* 添加字段行（单列居中） */}
+        <div className={styles.addFieldRow}>
+          <Button
+            type="text"
+            size="small"
+            icon={<PlusOutlined />}
+            onClick={handleAddField}
+            className={styles.addFieldBtn}
+          >
+            添加字段
+          </Button>
+        </div>
       </div>
     </div>
   )

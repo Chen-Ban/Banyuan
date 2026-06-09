@@ -10,6 +10,7 @@ import { App, Button, Spin, Empty, Modal } from "antd";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
 import { appEvents } from "@/utils/appEvents";
+import { usePreviewServerCtx } from "@/layouts/ApplicationLayout/PreviewServerCtx";
 import FunctionList from "./components/FunctionList";
 import FlowEditor from "./components/FlowEditor";
 import type { FlowEditorHandle } from "./components/FlowEditor";
@@ -20,6 +21,7 @@ const FunctionsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   void navigate; // layout 负责导航
+  const { hotUpdate } = usePreviewServerCtx();
 
   const [functions, setFunctions] = useState<CloudFunctionDef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,20 +83,37 @@ const FunctionsPage: React.FC = () => {
       displayName,
     });
     if (res.data) {
-      setFunctions((prev) => [res.data!, ...prev]);
+      const next = [res.data!, ...functions];
+      setFunctions(next);
       setSelectedId(res.data.functionId);
       setAdding(false);
+      // 新增函数后通知 Preview Server 热更新
+      hotUpdate({ cloudFunctions: next });
     }
   };
 
   const handleDeleteFunction = async (functionId: string) => {
     await cloudFunctionApi.deleteFunction(id!, functionId);
-    setFunctions((prev) => prev.filter((f) => f.functionId !== functionId));
+    const next = functions.filter((f) => f.functionId !== functionId);
+    setFunctions(next);
     setSelectedId((prev) => {
       if (prev !== functionId) return prev;
-      const remaining = functions.filter((f) => f.functionId !== functionId);
-      return remaining.length > 0 ? remaining[0].functionId : null;
+      return next.length > 0 ? next[0].functionId : null;
     });
+    // 删除函数后通知 Preview Server 热更新
+    hotUpdate({ cloudFunctions: next });
+  };
+
+  const handleRenameFunction = async (functionId: string, newName: string, newDisplayName: string) => {
+    const res = await cloudFunctionApi.updateFunction(id!, functionId, {
+      name: newName,
+      displayName: newDisplayName,
+    });
+    if (res.data) {
+      setFunctions((prev) =>
+        prev.map((f) => (f.functionId === functionId ? res.data! : f)),
+      );
+    }
   };
 
   // ── 切换函数时检查 dirty ─────────────────────────────────────────────────
@@ -126,10 +145,13 @@ const FunctionsPage: React.FC = () => {
   };
 
   const handleSaved = useCallback((updated: CloudFunctionDef) => {
-    setFunctions((prev) =>
-      prev.map((f) => (f.functionId === updated.functionId ? updated : f)),
-    );
-  }, []);
+    setFunctions((prev) => {
+      const next = prev.map((f) => (f.functionId === updated.functionId ? updated : f));
+      // 保存成功后通知 Preview Server 热更新云函数
+      hotUpdate({ cloudFunctions: next });
+      return next;
+    });
+  }, [hotUpdate]);
 
   const selectedFunction = useMemo(
     () => functions.find((f) => f.functionId === selectedId) ?? null,
@@ -164,6 +186,7 @@ const FunctionsPage: React.FC = () => {
             onConfirmAdd={handleConfirmAdd}
             onSelect={handleSelectFunction}
             onDelete={handleDeleteFunction}
+            onRename={handleRenameFunction}
           />
 
           <div className={styles.flowEditorWrapper}>

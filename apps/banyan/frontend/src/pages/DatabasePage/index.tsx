@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { App, Button, Spin, Empty, Modal } from 'antd'
-import { TableOutlined } from '@ant-design/icons'
 import { schemaApi } from '@/api'
 import type { CollectionDef } from '@/api'
 import { appEvents } from '@/utils/appEvents'
+import { usePreviewServerCtx } from '@/layouts/ApplicationLayout/PreviewServerCtx'
 import CollectionList from './components/CollectionList'
 import FieldEditor from './components/FieldEditor'
 import type { FieldEditorHandle } from './components/FieldEditor'
@@ -17,6 +17,7 @@ const DatabasePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   void navigate // layout 负责导航，此处保留以备不时之需
+  const { hotUpdate } = usePreviewServerCtx()
 
   const [collections, setCollections] = useState<CollectionDef[]>([])
   const [loading, setLoading] = useState(true)
@@ -77,22 +78,35 @@ const DatabasePage: React.FC = () => {
 
   const handleConfirmAdd = async (name: string, displayName: string) => {
     const res = await schemaApi.addCollection(id!, { name, displayName })
-    const added = res.data?.collections.find((c) => c.name === name)
+    const added = res.data
     if (added) {
-      setCollections((prev) => [...prev, added])
+      const next = [...collections, added]
+      setCollections(next)
       setSelectedName(added.name)
       setAdding(false)
+      // 新增表后通知 Preview Server 热更新
+      hotUpdate({ collections: next })
     }
   }
 
   const handleDeleteCollection = async (name: string) => {
     await schemaApi.deleteCollection(id!, name)
-    setCollections((prev) => prev.filter((c) => c.name !== name))
+    const next = collections.filter((c) => c.name !== name)
+    setCollections(next)
     setSelectedName((prev) => {
       if (prev !== name) return prev
-      const remaining = collections.filter((c) => c.name !== name)
-      return remaining.length > 0 ? remaining[0].name : null
+      return next.length > 0 ? next[0].name : null
     })
+    // 删除表后通知 Preview Server 热更新
+    hotUpdate({ collections: next })
+  }
+
+  const handleRenameCollection = async (name: string, newDisplayName: string) => {
+    const res = await schemaApi.updateCollection(id!, name, { displayName: newDisplayName })
+    const updated = res.data
+    if (updated) {
+      setCollections((prev) => prev.map((c) => (c.name === name ? updated : c)))
+    }
   }
 
   // ── 切换表时检查 dirty ───────────────────────────────────────────────────
@@ -124,10 +138,13 @@ const DatabasePage: React.FC = () => {
   // ── 字段保存回调 ─────────────────────────────────────────────────────────
 
   const handleSaved = useCallback((updated: CollectionDef) => {
-    setCollections((prev) =>
-      prev.map((c) => (c.name === updated.name ? updated : c)),
-    )
-  }, [])
+    setCollections((prev) => {
+      const next = prev.map((c) => (c.name === updated.name ? updated : c))
+      // 保存成功后通知 Preview Server 热更新 schema
+      hotUpdate({ collections: next })
+      return next
+    })
+  }, [hotUpdate])
 
   const selectedCollection = useMemo(
     () => collections.find((c) => c.name === selectedName) ?? null,
@@ -163,6 +180,7 @@ const DatabasePage: React.FC = () => {
             onConfirmAdd={handleConfirmAdd}
             onSelect={handleSelectCollection}
             onDelete={handleDeleteCollection}
+            onRename={handleRenameCollection}
           />
 
           {/* 右侧：字段编辑器 */}
@@ -178,16 +196,8 @@ const DatabasePage: React.FC = () => {
                 onDirtyChange={handleDirtyChange}
               />
             ) : adding ? (
-              <div className={styles.fieldEditor}>
-                <div className={styles.fieldEditorHeader}>
-                  <div className={styles.fieldEditorTitle}>
-                    <TableOutlined className={styles.fieldEditorTitleIcon} />
-                    <span className={styles.fieldEditorTitleDisplay}>新建数据表</span>
-                  </div>
-                </div>
-                <div className={styles.newCollectionHint}>
-                  <Empty description="请在左侧输入表名并创建，即可在此编辑字段" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-                </div>
+              <div className={styles.noSelection}>
+                <Empty description="请在左侧输入表名并创建，即可在此编辑字段" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               </div>
             ) : (
               <div className={styles.noSelection}>

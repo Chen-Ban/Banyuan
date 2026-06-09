@@ -4,6 +4,7 @@ import cloudFunctionService, { CloudFunctionService } from '../services/CloudFun
 import dialogueService from '../services/DialogueService.js'
 import conversationService from '../services/ConversationService.js'
 import type { ICloudFunctionDef } from '../models/types/versioned-content.js'
+import { validateIdentifier } from '../utils/nameValidation.js'
 
 /**
  * CloudFunctionController — 云函数的直接编辑入口（方向 B）
@@ -98,7 +99,12 @@ class CloudFunctionController {
 
     if (!body.name?.trim()) {
       ctx.status = 400
-      ctx.body = { success: false, message: 'name is required' }
+      ctx.body = { success: false, message: '函数名不能为空' }
+      return
+    }
+    try { validateIdentifier(body.name, '函数名') } catch (e: any) {
+      ctx.status = 400
+      ctx.body = { success: false, message: e.message }
       return
     }
 

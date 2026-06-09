@@ -1,5 +1,3 @@
-export { default as DesignMaterialPalette } from './DesignMaterialPalette'
-export type { DesignMaterialPaletteProps } from './DesignMaterialPalette'
 export { DesignContextMenu } from './DesignContextMenu'
 export type { DesignContextMenuProps } from './DesignContextMenu'
 export { PropertyPanel } from './PropertyPanel'

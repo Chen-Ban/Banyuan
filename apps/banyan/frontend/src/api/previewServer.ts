@@ -4,10 +4,12 @@
  * 通过 Electron IPC 与主进程通信，编排本地 Preview Server。
  * 仅在 Electron 环境中可用（window.electronAPI 存在时）。
  *
- * 用途：预览态进入时 start，退出时 stop，获取本地后端端点地址。
+ * 用途：
+ *   ApplicationLayout mount 时 start，unmount 时 stop。
+ *   子页面保存成功后通过 hotUpdate 热更新 collections/functions。
  */
 
-import type { PreviewServerInput, PreviewServerInfo } from '../types/electron.js';
+import type { PreviewServerInput, PreviewServerInfo, HotUpdatePatch } from '../types/electron.js';
 
 /** 是否运行在 Electron 环境中 */
 export function isElectron(): boolean {
@@ -35,6 +37,17 @@ export async function stopPreviewServer(appId: string): Promise<void> {
 }
 
 /**
+ * 热更新本地 Preview Server（collections/cloudFunctions 变更时调用）
+ *
+ * - collections 变更：写 schema.json + 重启进程
+ * - cloudFunctions 变更：写 functions.json（无需重启）
+ */
+export async function hotUpdatePreviewServer(appId: string, patch: HotUpdatePatch): Promise<void> {
+  if (!isElectron()) return;
+  return window.electronAPI!.preview.hotUpdate(appId, patch);
+}
+
+/**
  * 获取本地 Preview Server 状态
  */
 export async function getPreviewServerStatus(appId: string): Promise<PreviewServerInfo | null> {
@@ -50,4 +63,4 @@ export async function listPreviewServers(): Promise<PreviewServerInfo[]> {
   return window.electronAPI!.preview.listAll();
 }
 
-export type { PreviewServerInput, PreviewServerInfo };
+export type { PreviewServerInput, PreviewServerInfo, HotUpdatePatch };

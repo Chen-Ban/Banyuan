@@ -1,6 +1,7 @@
 import { Scene } from "@/engine/scene/Scene";
 import { Serializer } from "@/engine/serialization/Serializer";
 import { Renderer } from "@/engine/renderer/Renderer";
+import { OrthographicCamera } from "@/engine/camera/OrthographicCamera.js";
 import {
   IAppOptions,
   IAppLifetimes,
@@ -57,6 +58,19 @@ export class App implements ISerializable {
    * - 编辑态 / 未设置：callFlow 为 undefined，节点静默跳过
    */
   public backendEndpoint: string | undefined = undefined;
+
+  /**
+   * 应用设计尺寸（目标设备逻辑分辨率）
+   *
+   * 表达「这个应用为什么尺寸的设备设计」，是全局级属性，对所有 Scene 生效。
+   * 持久化到 appJSON，构建时直接读取。
+   *
+   * - 编辑态 / 预览态：useCanvasInit 读取此值设置 canvas 物理像素 + camera bounds
+   * - 构建态：scaffold 读取此值设置窗口 / viewport 尺寸
+   *
+   * 默认值 1280×800（标准 PC 横屏）
+   */
+  private _designSize: { width: number; height: number } = { width: 1280, height: 800 };
 
   // 私有属性
   private _currentScene: Scene | null = null;
@@ -659,6 +673,46 @@ export class App implements ISerializable {
     return this;
   }
 
+  // ── designSize（应用设计尺寸）──────────────────────────────────────────────
+
+  /** 获取当前应用设计尺寸 */
+  public getDesignSize(): { width: number; height: number } {
+    return { ...this._designSize };
+  }
+
+  /**
+   * 设置应用设计尺寸，并同步更新 Renderer 物理像素 + 当前 Scene Camera bounds。
+   *
+   * @param width  目标设备逻辑宽度（px）
+   * @param height 目标设备逻辑高度（px）
+   * @param dpr    设备像素比（可选，默认不变）
+   */
+  public setDesignSize(width: number, height: number, dpr?: number): App {
+    this._designSize = { width, height };
+
+    // 同步 canvas 物理像素
+    const effectiveDpr = dpr ?? this.renderer.getDPR();
+    this.renderer.resize(width * effectiveDpr, height * effectiveDpr);
+    if (dpr !== undefined) {
+      this.renderer.setDPR(dpr);
+    }
+
+    // 同步当前 Scene 的 Camera bounds
+    const scene = this.getCurrentScene();
+    if (scene) {
+      if (scene.camera instanceof OrthographicCamera) {
+        scene.camera.setBounds(0, width, height, 0);
+      }
+      scene.markDirty();
+    }
+
+    // 通知 React 订阅层（useSyncExternalStore）状态变更，
+    // 驱动 canvasStyle 重计算 + resize effect 重触发
+    this.notify();
+
+    return this;
+  }
+
   // 销毁应用
   public destroy(): App {
     this.unlaunch();
@@ -734,7 +788,12 @@ export class App implements ISerializable {
    */
   public initFromSerialized(json: string): App {
     const serializer = Serializer.getInstance();
-    const appData = serializer.deserialize<{ lifetimes: IAppLifetimes; scenes: Scene[] }>(json);
+    const appData = serializer.deserialize<{ designSize?: { width: number; height: number }; lifetimes: IAppLifetimes; scenes: Scene[] }>(json);
+
+    // 恢复 designSize
+    if (appData.designSize) {
+      this._designSize = appData.designSize;
+    }
 
     // 恢复 lifetimes
     this.lifetimes = {
@@ -768,6 +827,7 @@ export class App implements ISerializable {
    */
   public toJSON(): any {
     return {
+      designSize: this._designSize,
       lifetimes: this.lifetimes,
       scenes: this.scenes.map((scene) => ({
         $type: scene.type,
@@ -785,8 +845,9 @@ export class App implements ISerializable {
    * 此方法返回的是一个部分初始化的结构对象（不含 renderer），
    * Serializer 内部使用。消费方应使用 app.initFromSerialized(json)。
    */
-  static fromJSON(data: any): { lifetimes: IAppLifetimes; scenes: Scene[] } {
+  static fromJSON(data: any): { designSize?: { width: number; height: number }; lifetimes: IAppLifetimes; scenes: Scene[] } {
     return {
+      designSize: data.designSize ?? undefined,
       lifetimes: {
         onLaunch: data.lifetimes?.onLaunch ?? null,
         onUnlaunch: data.lifetimes?.onUnlaunch ?? null,

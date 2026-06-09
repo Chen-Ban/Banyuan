@@ -234,15 +234,24 @@ class DialogueService {
     })
     await dialogue.save()
 
-    // 原地修改三表草稿记录
-    const result = await params.mutate(versions)
+    try {
+      // 原地修改三表草稿记录
+      const result = await params.mutate(versions)
 
-    // 自动验收：start → committing → done
-    await this.setPhase(dialogueId, 'committing')
-    await this.setRoundSummary(dialogueId, params.summary)
-    await this.setPhase(dialogueId, 'done')
+      // 自动验收：start → committing → done
+      await this.setPhase(dialogueId, 'committing')
+      await this.setRoundSummary(dialogueId, params.summary)
+      await this.setPhase(dialogueId, 'done')
 
-    return result
+      return result
+    } catch (err) {
+      // mutate 或 setPhase 失败时，将对话标记为 failed 终态，防止阻塞后续编辑
+      await Dialogue.updateOne(
+        { _id: dialogueId },
+        { $set: { phase: 'failed' } },
+      ).catch(() => { /* 静默，不覆盖原始错误 */ })
+      throw err
+    }
   }
 
   // ─── Phase 转移 ──────────────────────────────────────────────────────────────

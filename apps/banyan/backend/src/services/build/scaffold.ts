@@ -27,8 +27,10 @@ export interface ScaffoldOptions {
   appJson: string      // App 级别序列化 JSON（SerializedData 格式，包含 lifetimes + scenes）
   appName: string      // 应用名称，用于 package.json name 和 HTML title
   outputDir: string    // 生成项目的目标目录（绝对路径）
-  width: number        // 画布宽度（px）
-  height: number       // 画布高度（px）
+  /** 设计尺寸宽度（px），仅供 Electron 窗口初始大小参考，应用内容运行时自适应容器 */
+  width?: number
+  /** 设计尺寸高度（px） */
+  height?: number
   /** @banyuan/banvasgl 版本号（由前端传入，确保与用户运行时一致） */
   canvasVersion: string
   /** @banyuan/banvas-runtime-web 版本号 */
@@ -47,7 +49,7 @@ function toKebabCase(name: string): string {
 }
 
 export async function scaffold(options: ScaffoldOptions): Promise<void> {
-  const { appJson, appName, outputDir, width, height, canvasVersion, runtimeVersion, distDir = 'dist' } = options
+  const { appJson, appName, outputDir, canvasVersion, runtimeVersion, distDir = 'dist' } = options
 
   // 1. 创建目录
   fs.mkdirSync(outputDir, { recursive: true })
@@ -73,7 +75,8 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
     <title>${appName}</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+      html, body, #root { width: 100%; height: 100%; overflow: hidden; }
+      body { background: #000; }
     </style>
   </head>
   <body>
@@ -168,13 +171,36 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   const appDataJson = JSON.stringify(JSON.parse(appJson))
   fs.writeFileSync(path.join(outputDir, 'public', 'app.json'), appDataJson, 'utf-8')
 
-  // 9. src/App.tsx — 异步加载 app.json，不再内联大体积 JSON
-  const appTsx = `import { useState, useEffect } from 'react'
+  // 9. src/App.tsx — 运行时动态获取容器尺寸，应用自适应填充
+  const appTsx = `import { useState, useEffect, useRef } from 'react'
 import { useRuntimeBanvas } from '@banyuan/banvas-runtime-web'
+
+/** 动态获取容器尺寸，监听 resize 自适应 */
+function useContainerSize() {
+  const ref = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ width: window.innerWidth, height: window.innerHeight })
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const update = () => {
+      setSize({ width: el.clientWidth, height: el.clientHeight })
+    }
+    update()
+
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  return { ref, size }
+}
 
 export default function App() {
   const [appData, setAppData] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const { ref: containerRef, size } = useContainerSize()
 
   useEffect(() => {
     fetch('/app.json')
@@ -187,8 +213,8 @@ export default function App() {
   }, [])
 
   const { Banvas } = useRuntimeBanvas(appData, {
-    width: ${width},
-    height: ${height},
+    width: size.width,
+    height: size.height,
   })
 
   if (error) {
@@ -203,7 +229,11 @@ export default function App() {
     return null // 加载中，静默等待
   }
 
-  return <>{Banvas}</>
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
+      {Banvas}
+    </div>
+  )
 }
 `
   fs.writeFileSync(path.join(outputDir, 'src', 'App.tsx'), appTsx, 'utf-8')

@@ -206,7 +206,7 @@ export function useCanvasInit(
   const fixedHeight = options.height;
 
   // Effect 2: 从 appJSON 恢复应用状态
-  // 固定模式：相机锁定为 options.width × options.height
+  // 固定模式：相机锁定为 App.designSize
   // 自适应模式：初始相机在首次 resize 时由 syncCameraToContainer 设置
   useEffect(() => {
     if (!app || !actions) return;
@@ -214,9 +214,13 @@ export function useCanvasInit(
     if (appJSON) {
       app.initFromSerialized(appJSON);
     } else {
-      // 空应用：创建默认空白页
+      // 空应用：创建默认空白页，designSize 来自 options 或使用 App 默认值
       const w = fixedWidth ?? 800;
       const h = fixedHeight ?? 600;
+      // 设置 App designSize（空应用时以 options 为准）
+      if (fixedWidth != null && fixedHeight != null) {
+        app.setDesignSize(fixedWidth, fixedHeight, dprRef.current);
+      }
       const camera = new OrthographicCamera({
         left: 0,
         right: w,
@@ -228,13 +232,20 @@ export function useCanvasInit(
       app.navigateTo(scene);
     }
 
-    // 固定模式：初始化时立刻设置 canvas 物理尺寸
-    if (fixedWidth != null && fixedHeight != null) {
+    // 固定模式：初始化时立刻用 designSize 设置 canvas 物理尺寸 + camera
+    if (isFixedMode) {
+      const { width: dw, height: dh } = app.getDesignSize();
       app.handleResize(
-        fixedWidth * dprRef.current,
-        fixedHeight * dprRef.current,
+        dw * dprRef.current,
+        dh * dprRef.current,
         dprRef.current,
       );
+      // 确保当前 scene 的 camera bounds 与 designSize 同步
+      const scene = app.getCurrentScene();
+      if (scene && scene.camera instanceof OrthographicCamera) {
+        scene.camera.setBounds(0, dw, dh, 0);
+        scene.markDirty();
+      }
     }
 
     actions.app.notify();
@@ -272,7 +283,7 @@ export function useCanvasInit(
   }, [app, version]);
 
   const selectedViewPos = useMemo((): SelectedViewPos | null => {
-    if (!actions || !selectedViewId || !canvasNode) return null;
+    if (!actions || !selectedViewId || !canvasNode || !app) return null;
     const view = actions.view.getViewInstance(selectedViewId);
     if (!view) return null;
 
@@ -283,10 +294,11 @@ export function useCanvasInit(
     const h = (view.style?.height as number | undefined) ?? 0;
 
     // 世界坐标 → viewport CSS 坐标
-    // 逻辑画布尺寸：固定模式用设计尺寸，自适应模式用容器 CSS 尺寸
+    // 逻辑画布尺寸：固定模式用 designSize，自适应模式用容器 CSS 尺寸
     const rect = canvasNode.getBoundingClientRect();
-    const logicalW = fixedWidth ?? rect.width;
-    const logicalH = fixedHeight ?? rect.height;
+    const designSize = app.getDesignSize();
+    const logicalW = isFixedMode ? designSize.width : rect.width;
+    const logicalH = isFixedMode ? designSize.height : rect.height;
     const scaleX = rect.width / logicalW;
     const scaleY = rect.height / logicalH;
 
@@ -296,7 +308,7 @@ export function useCanvasInit(
       width: w * scaleX,
       height: h * scaleY,
     };
-  }, [actions, selectedViewId, canvasNode, version, fixedWidth, fixedHeight]);
+  }, [actions, app, selectedViewId, canvasNode, version, isFixedMode]);
 
   // ── 相机驱动的无限画布交互（仅自适应模式） ──
   const { syncCameraToContainer } = useCanvasCamera({
@@ -306,17 +318,18 @@ export function useCanvasInit(
   });
 
   // ── 容器 resize 时同步 ──
-  // 固定模式：仅在 dpr 变化时更新物理像素，camera 不动
+  // 固定模式：用 App.designSize 更新物理像素（dpr 可能变化），camera 不动
   // 自适应模式：更新 canvas 物理像素 + camera bounds
   useEffect(() => {
     if (!app || containerSize.width <= 0 || containerSize.height <= 0) return;
 
-    if (isFixedMode && fixedWidth != null && fixedHeight != null) {
+    if (isFixedMode) {
       // 固定模式：dpr 可能变化（如拖到外接屏），需更新物理像素
+      const { width: dw, height: dh } = app.getDesignSize();
       const currentDpr = window.devicePixelRatio ?? 1;
       app.handleResize(
-        fixedWidth * currentDpr,
-        fixedHeight * currentDpr,
+        dw * currentDpr,
+        dh * currentDpr,
         currentDpr,
       );
       const scene = app.getCurrentScene();
@@ -333,8 +346,7 @@ export function useCanvasInit(
     containerSize,
     syncCameraToContainer,
     isFixedMode,
-    fixedWidth,
-    fixedHeight,
+    version, // designSize 变更后 version 递增，触发此 effect 重新同步
   ]);
 
   // ── 容器 callback ref：挂载时测量 + ResizeObserver 持续监听 ──
@@ -383,17 +395,19 @@ export function useCanvasInit(
   }, []);
 
   // ── Canvas 样式计算 ──
+  // 固定模式下从 app.getDesignSize() 读取宽高比（通过 version 响应变化）
   const canvasStyle: React.CSSProperties = useMemo(() => {
-    if (!isFixedMode || fixedWidth == null || fixedHeight == null) {
+    if (!isFixedMode) {
       // 自适应模式：铺满容器
       return { display: "block", width: "100%", height: "100%" };
     }
-    // 固定模式：按页面比例在容器内做长边适配（contain fit）
+    // 固定模式：按 designSize 比例在容器内做长边适配（contain fit）
+    const designSize = app?.getDesignSize() ?? { width: fixedWidth ?? 1280, height: fixedHeight ?? 800 };
     if (containerSize.width <= 0 || containerSize.height <= 0) {
       // 容器尚未测量，先给一个占位样式
       return { display: "block", width: "100%", height: "100%" };
     }
-    const pageAspect = fixedWidth / fixedHeight;
+    const pageAspect = designSize.width / designSize.height;
     const containerAspect = containerSize.width / containerSize.height;
 
     let styleWidth: number;
@@ -413,7 +427,7 @@ export function useCanvasInit(
       width: `${styleWidth}px`,
       height: `${styleHeight}px`,
     };
-  }, [isFixedMode, fixedWidth, fixedHeight, containerSize]);
+  }, [isFixedMode, app, fixedWidth, fixedHeight, containerSize, version]);
 
   // ── 容器样式：固定模式居中，自适应模式铺满 ──
   const containerStyle: React.CSSProperties = useMemo(() => {

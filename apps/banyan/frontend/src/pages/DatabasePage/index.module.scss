@@ -93,72 +93,11 @@
   @include scrollbar-dark;
 }
 
-.collectionItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background var(--duration-normal);
-  position: relative;
-
-  &:hover {
-    background: var(--color-bg-hover-md);
-
-    .collectionDeleteBtn { opacity: 1; }
-  }
-
-  &.collectionItemActive {
-    background: var(--color-db-active-bg);
-
-    .collectionItemDisplay { color: var(--color-db-active-text); }
-    .collectionItemName    { color: var(--color-db-active-text-dim); }
-    .collectionItemIcon    { color: var(--color-db-active-text); }
-  }
-}
-
-.collectionItemIcon {
-  font-size: $text-md;
-  color: var(--color-text-tertiary);
-  flex-shrink: 0;
-}
-
-.collectionItemInfo {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.collectionItemDisplay {
-  font-size: $text-base;
-  font-weight: $font-medium;
-  color: var(--color-text-secondary);
-  @include truncate;
-}
-
-.collectionItemName {
-  font-size: $text-xs;
-  color: var(--color-text-tertiary);
-  @include text-mono;
-  @include truncate;
-}
-
-.collectionDeleteBtn {
-  opacity: 0;
-  font-size: $text-sm;
-  color: var(--color-text-disabled);
-  flex-shrink: 0;
-  transition: opacity var(--duration-normal), color var(--duration-normal);
-  padding: 2px;
-  border-radius: var(--radius-xs);
-
-  &:hover {
-    color: var(--color-error-text);
-    background: var(--color-error-subtle);
-  }
+// EditableListItem 数据库主题色覆盖（通过 CSS 变量）
+.collectionItemOverride {
+  --eli-active-bg: var(--color-db-active-bg);
+  --eli-active-text: var(--color-db-active-text);
+  --eli-active-text-dim: var(--color-db-active-text-dim);
 }
 
 .collectionEmpty {
@@ -169,13 +108,14 @@
 }
 
 .addCollectionForm {
+  margin: 0 8px 4px;
   padding: 8px;
-  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
   gap: 6px;
   flex-shrink: 0;
-  background: var(--color-bg-hover);
+  background: var(--color-bg-hover-md);
 }
 
 .newCollectionHint {
@@ -213,46 +153,6 @@
   flex-direction: column;
   overflow: hidden;
   padding: 24px 32px;
-}
-
-.fieldEditorHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  flex-shrink: 0;
-}
-
-.fieldEditorActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.fieldEditorTitle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.fieldEditorTitleIcon {
-  font-size: $text-xl;
-  color: var(--color-db-active-text);
-}
-
-.fieldEditorTitleDisplay {
-  font-size: $text-xl;
-  font-weight: $font-semibold;
-  color: var(--color-text-primary);
-}
-
-.fieldEditorTitleName {
-  font-size: $text-base;
-  color: var(--color-text-tertiary);
-  @include text-mono;
-  background: var(--color-bg-hover-md);
-  padding: 2px 8px;
-  border-radius: var(--radius-sm);
 }
 
 // ── 字段表格 ──────────────────────────────────────────────────────────────────
@@ -307,13 +207,10 @@ $col-actions:       1fr;
 }
 
 .addFieldRow {
-  display: grid;
-  grid-template-columns: $col-field-name $col-display-name $col-type $col-required $col-actions;
-  padding: 8px 16px;
-  align-items: center;
+  display: flex;
+  justify-content: center;
+  padding: 10px 16px;
   border-top: 1px dashed var(--color-divider-dashed);
-  gap: 12px;
-  background: var(--color-bg-hover);
 }
 
 .colFieldName   { min-width: 0; }
@@ -360,5 +257,3 @@ $col-actions:       1fr;
 }
 
 .fieldInput { width: 100%; }
-
-.fieldEmpty { padding: 40px 0; }
