@@ -1,0 +1,103 @@
+// FlowEditorPanel — 右侧全高流程编辑面板样式
+@use '../../../styles/tokens/typography' as *;
+@use '../../../styles/mixins' as *;
+
+// ── 面板 Header ──────────────────────────────────────────────────────────────
+
+.panelHeader {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--color-border) !important;
+  flex-shrink: 0;
+}
+
+.titleBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.titleText {
+  font-size: $text-sm;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-family: $font-mono;
+  flex: 1;
+  @include truncate;
+}
+
+.titleActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+// ── 面板 Body ────────────────────────────────────────────────────────────────
+
+.panelBody {
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+// ── 画布容器 ─────────────────────────────────────────────────────────────────
+
+.canvasContainer {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--color-bg-canvas, #fff);
+}
+
+// ── 物料面板触发按钮 ──────────────────────────────────────────────────────────
+
+.paletteToggleBtn {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 1001;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg-base);
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: left var(--duration-drawer) var(--easing-default),
+              background var(--duration-normal),
+              border-color var(--duration-normal),
+              color var(--duration-normal),
+              transform var(--duration-fast);
+
+  &:hover {
+    background: var(--color-info-subtle-hover);
+    border-color: var(--color-info-border);
+    color: var(--color-info-text);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+.paletteToggleBtnOpen {
+  left: 260px;
+}
+
+// ── 物料 Drawer 内容区 ────────────────────────────────────────────────────────
+
+.drawerBody {
+  padding: 0 !important;
+  background: var(--color-bg-base);
+  overflow: hidden;
+  border-radius: 10px;
+}
