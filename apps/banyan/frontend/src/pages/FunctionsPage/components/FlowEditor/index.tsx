@@ -1,16 +1,35 @@
+/**
+ * FlowEditor — 云函数流程编辑器
+ *
+ * 布局（Phase 2-3 重构后）：
+ *   ┌──────────────────────────────────┐
+ *   │  全屏画布（canvasArea 填满）       │
+ *   │  ┌─┐                             │
+ *   │  │◎│ ← 物料触发按钮（左上浮层）     │
+ *   │  └─┘                             │
+ *   │  ← Drawer（UnifiedMaterialPanel） │
+ *   └──────────────────────────────────┘
+ *
+ * 职责：
+ *   - 加载并编辑 FlowSchema（流程图画布）
+ *   - 通过 Drawer + UnifiedMaterialPanel 提供节点物料拖拽
+ *   - 暴露 save handle 给父组件（序列化 schema 并保存）
+ *   - 函数名/显示名的编辑已移至 FunctionList（EditableListItem），此处不再管理
+ */
+
 import {
   forwardRef,
   useCallback,
-  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
 } from "react";
-import { App, Input, Space } from "antd";
+import { App, Drawer, Tooltip } from "antd";
+import { AppstoreOutlined } from "@ant-design/icons";
 import type { FlowSchema } from "@banyuan/banvasgl";
 import useFlowBanvas from "@/hooks/useFlowBanvas";
 import { FlowContextMenu } from "@/components/FlowEditor/FlowContextMenu";
-import { FlowMaterialPalette } from "@/components/FlowEditor";
+import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
 import styles from "./index.module.scss";
@@ -35,12 +54,13 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
   onDirtyChange,
 }, ref) => {
   const { message } = App.useApp();
-  // 逻辑尺寸固定，容器适配由 hook 内部自测量
-  const CANVAS_WIDTH = 1200;
-  const CANVAS_HEIGHT = 720;
-  const [localName, setLocalName] = useState(fn.name);
-  const [localDisplayName, setLocalDisplayName] = useState(fn.displayName);
   const [_saving, setSaving] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
+
+  const containerRef = useCallback((el: HTMLDivElement | null) => {
+    setContainerEl(el);
+  }, []);
 
   const initialSchema = useMemo<FlowSchema>(
     () => (fn.schema as FlowSchema) ?? { nodes: [], edges: [] },
@@ -53,33 +73,19 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
     contextMenuState,
   } = useFlowBanvas(
     {
-      width: CANVAS_WIDTH,
-      height: CANVAS_HEIGHT,
+      // 自适应模式：不传 width/height，画布跟随外部容器尺寸自动调整
       backgroundColor: "transparent",
     },
     initialSchema,
   );
 
-  // dirty 检测（仅元信息部分）
-  const metaDirty =
-    localName !== fn.name || localDisplayName !== fn.displayName;
-
-  useEffect(() => {
-    onDirtyChange(metaDirty);
-  }, [metaDirty, onDirtyChange]);
-
   const handleSave = async () => {
-    if (!localName.trim()) {
-      message.error("函数名不能为空");
-      return;
-    }
-
     setSaving(true);
     try {
       const schema = getSchema();
       const res = await cloudFunctionApi.updateFunction(appId, fn.functionId, {
-        name: localName.trim(),
-        displayName: localDisplayName.trim() || localName.trim(),
+        name: fn.name,
+        displayName: fn.displayName,
         description: fn.description,
         schema: schema as { nodes: unknown[]; edges: unknown[] },
       });
@@ -100,39 +106,58 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(({
   useImperativeHandle(ref, () => ({ save: handleSave }));
 
   return (
-    <div className={styles.flowEditor}>
-      {/* 头部：函数信息 + 保存按钮 */}
-      <div className={styles.flowEditorHeader}>
-        <div className={styles.flowEditorMeta}>
-          <Space.Compact size="small" className={styles.metaNameInput}>
-            <Input style={{ width: 60, flexShrink: 0 }} defaultValue="name" readOnly />
-            <Input
-              value={localName}
-              onChange={(e) => setLocalName(e.target.value)}
-              placeholder="函数名（英文）"
-            />
-          </Space.Compact>
-          <Space.Compact size="small" className={styles.metaDisplayInput}>
-            <Input style={{ width: 60, flexShrink: 0 }} defaultValue="显示名" readOnly />
-            <Input
-              value={localDisplayName}
-              onChange={(e) => setLocalDisplayName(e.target.value)}
-              placeholder="显示名"
-            />
-          </Space.Compact>
-        </div>
+    // 外层：12px 内边距，让画布与页面边缘保持间距
+    <div className={styles.flowEditorOuter}>
+      {/* 内层：画布自适应填满 padding 后的剩余空间 */}
+      <div className={styles.flowEditor} ref={containerRef}>
+        {/* 流程画布（自适应容器尺寸） */}
+        {Canvas}
+
+        {/* 物料面板触发按钮（浮层左上角） */}
+        <Tooltip title={paletteOpen ? '收起物料' : '节点物料'} placement="right">
+          <button
+            className={`${styles.paletteToggleBtn}${paletteOpen ? ` ${styles.paletteToggleBtnOpen}` : ''}`}
+            onClick={() => setPaletteOpen((v) => !v)}
+            aria-label="打开物料面板"
+          >
+            <AppstoreOutlined />
+          </button>
+        </Tooltip>
+
+        {/* 物料抽屉（挂载在内层容器，从左侧弹出，不占画布空间） */}
+        <Drawer
+          open={paletteOpen}
+          onClose={() => setPaletteOpen(false)}
+          placement="left"
+          width={260}
+          mask={false}
+          closable={false}
+          classNames={{ body: styles.drawerBody }}
+          getContainer={containerEl ?? false}
+          rootStyle={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, height: '100%' }}
+          styles={{
+            wrapper: {
+              top: 12,
+              bottom: 12,
+              left: 12,
+              height: 'calc(100% - 24px)',
+              borderRadius: 12,
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
+            },
+            section: {
+              borderRadius: 12,
+              overflow: 'hidden',
+            },
+          }}
+        >
+          <UnifiedMaterialPanel mode="server-flow" />
+        </Drawer>
+
+        {/* 右键菜单 */}
+        <FlowContextMenu state={contextMenuState} />
       </div>
-
-      {/* 节点物料面板（自含组件，内部获取物料） */}
-      <div className={styles.paletteArea}>
-        <FlowMaterialPalette mode="server" />
-      </div>
-
-      {/* 流程画布 */}
-      <div className={styles.canvasArea}>{Canvas}</div>
-
-      {/* 右键菜单 */}
-      <FlowContextMenu state={contextMenuState} />
     </div>
   );
 });

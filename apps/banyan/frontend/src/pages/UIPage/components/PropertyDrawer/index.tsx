@@ -1,7 +1,7 @@
 import React from "react";
 import { Drawer, Tooltip } from "antd";
 import { PropertyPanel } from "@/components/DesignEditor/PropertyPanel";
-import { FlowEditorModal } from "@/components/FlowEditor/FlowEditorModal";
+import { FlowEditorPanel } from "@/components/FlowEditor/FlowEditorPanel";
 import { SettingOutlined } from "@ant-design/icons";
 import type useDesignBanvas from "@/hooks/useDesignBanvas";
 import styles from "./index.module.scss";
@@ -15,8 +15,6 @@ export interface PropertyDrawerProps {
   selectedViewId: string;
   actions: DesignBanvasReturn["actions"];
   currentPageId: string;
-  canvasSize: { width: number; height: number };
-  onCanvasSizeChange: (width: number, height: number) => void;
   appId?: string;
 }
 
@@ -27,8 +25,6 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
   selectedViewId,
   actions,
   currentPageId,
-  canvasSize,
-  onCanvasSizeChange,
   appId,
 }) => {
   return (
@@ -80,9 +76,7 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
           selectedViewId={selectedViewId}
           actions={actions}
           currentPageId={currentPageId}
-          canvasSize={canvasSize}
-          onCanvasSizeChange={onCanvasSizeChange}
-          FlowEditorModal={FlowEditorModal}
+          FlowEditorModal={FlowEditorPanel}
           appId={appId}
         />
       </Drawer>

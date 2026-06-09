@@ -19,8 +19,16 @@ import type { FlowContextMenuState } from '../components/FlowEditor/FlowContextM
 // ── 公共配置类型 ──
 
 export interface UseFlowBanvasOptions {
-    width: number
-    height: number
+    /**
+     * 画布固定宽度（像素）。
+     * 不传时进入自适应模式：画布跟随外部容器 ResizeObserver 动态调整。
+     */
+    width?: number
+    /**
+     * 画布固定高度（像素）。
+     * 不传时进入自适应模式：画布跟随外部容器 ResizeObserver 动态调整。
+     */
+    height?: number
     backgroundColor?: string
 }
 
@@ -76,13 +84,22 @@ export default function useFlowBanvas(
     const { width, height, backgroundColor } = options
 
     // ── 初始化：App + 容器 DOM + 相机交互 ──
-    const { actions, elements, derived } = useCanvasInit('', {
-        width,
-        height,
-        rendererOptions: backgroundColor
-            ? { backgroundColor, clearColor: backgroundColor }
-            : undefined,
-    })
+    // width/height 均传入时为固定模式，否则为自适应模式（ResizeObserver）
+    const canvasInitOptions = (width !== undefined && height !== undefined)
+        ? {
+            width,
+            height,
+            rendererOptions: backgroundColor
+                ? { backgroundColor, clearColor: backgroundColor }
+                : undefined,
+          }
+        : {
+            rendererOptions: backgroundColor
+                ? { backgroundColor, clearColor: backgroundColor }
+                : undefined,
+          }
+
+    const { actions, elements, derived } = useCanvasInit('', canvasInitOptions)
 
     const { selectedViewId, selectedViewPos, canvas } = derived
 

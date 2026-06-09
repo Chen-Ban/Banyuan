@@ -37,6 +37,11 @@ export interface BuildStatusResponse {
     task: BuildTaskInfo
 }
 
+export interface BuildTaskListResponse {
+    success: boolean
+    tasks: BuildTaskInfo[]
+}
+
 /**
  * 提交生成应用任务
  */
@@ -49,6 +54,13 @@ export function submitBuild(params: SubmitBuildParams): Promise<SubmitBuildRespo
  */
 export function getBuildStatus(taskId: string): Promise<BuildStatusResponse> {
     return get<BuildStatusResponse>(`/v1/build/status/${taskId}`)
+}
+
+/**
+ * 查询应用的所有构建任务列表
+ */
+export function getBuildTasks(appId: string): Promise<BuildTaskListResponse> {
+    return get<BuildTaskListResponse>(`/v1/build/tasks?appId=${encodeURIComponent(appId)}`)
 }
 
 /**
