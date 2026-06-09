@@ -113,6 +113,10 @@ importers:
         version: 5.7.3
 
   apps/banyan/electron:
+    dependencies:
+      '@banyuan/deploy-agent':
+        specifier: workspace:*
+        version: link:../../../packages/deploy-agent
     devDependencies:
       '@banyuan/banvasgl':
         specifier: workspace:*
@@ -605,6 +609,21 @@ importers:
       vite:
         specifier: ^6.3.1
         version: 6.4.2(@types/node@25.9.0)(sass@1.99.0)(tsx@4.22.2)
+
+  packages/banvas-runtime:
+    devDependencies:
+      '@banyuan/banvasgl':
+        specifier: workspace:*
+        version: link:../banvasgl
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.14
+      react:
+        specifier: ^19.0.0
+        version: 19.2.6
+      tsup:
+        specifier: ^8.4.0
+        version: 8.5.1(postcss@8.5.14)(tsx@4.22.2)(typescript@5.7.3)
 
   packages/banvasgl:
     dependencies:

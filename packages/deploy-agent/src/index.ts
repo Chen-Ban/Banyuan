@@ -3,6 +3,8 @@
  */
 
 export { DeployAgent } from './DeployAgent.js';
+export { scaffoldProject, scaffoldServer } from './scaffold.js';
+export type { ScaffoldServerOptions } from './scaffold.js';
 export type {
   AgentConfig,
   AgentMessage,
