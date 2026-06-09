@@ -137,6 +137,10 @@ export interface IApp {
     // 事件
     handleResize(width: number, height: number): IApp
 
+    // 设计尺寸
+    getDesignSize(): { width: number; height: number }
+    setDesignSize(width: number, height: number, dpr?: number): IApp
+
     // 销毁
     destroy(): IApp
 }

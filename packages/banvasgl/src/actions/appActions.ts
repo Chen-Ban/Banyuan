@@ -55,6 +55,19 @@ export function createAppActions(
             return getApp()?.backendEndpoint
         },
 
+        getDesignSize(): { width: number; height: number } {
+            const app = getApp()
+            if (!app) return { width: 1280, height: 800 }
+            return app.getDesignSize()
+        },
+
+        setDesignSize(width: number, height: number): void {
+            const app = getApp()
+            if (!app) return
+            app.setDesignSize(width, height)
+            notify()
+        },
+
         notify(): void {
             notify()
         },

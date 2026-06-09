@@ -408,6 +408,17 @@ export interface IAppActions {
     /** 获取当前后端端点地址 */
     getBackendEndpoint(): string | undefined
     /**
+     * 获取应用设计尺寸（目标设备逻辑分辨率）
+     */
+    getDesignSize(): { width: number; height: number }
+    /**
+     * 设置应用设计尺寸，并同步更新 canvas 物理像素 + camera bounds。
+     *
+     * @param width  目标设备逻辑宽度（px）
+     * @param height 目标设备逻辑高度（px）
+     */
+    setDesignSize(width: number, height: number): void
+    /**
      * 通知 React 外部同步订阅者（useSyncExternalStore）状态已变更。
      * 当业务层在 actions 体系之外直接修改了 App/Scene 状态后调用此方法触发 re-render。
      */
