@@ -15,6 +15,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   InteractionStateMachine,
   resolveActivationTarget,
+} from "@/canvas/interaction";
+import type {
+  InteractionState,
+  InteractionOutput,
+  InteractionDelegate,
+  InteractionCapability,
+  HoverTarget,
+} from "@/canvas/interaction/types";
+import {
   Point3,
   Vector3,
   Matrix4,
@@ -31,11 +40,6 @@ import {
   ViewType,
 } from "@banyuan/banvasgl";
 import type {
-  InteractionState,
-  InteractionOutput,
-  InteractionDelegate,
-  InteractionCapability,
-  HoverTarget,
   IBanvasActions,
   IGraph,
   IViewAddon,
@@ -322,18 +326,8 @@ export function useInteraction({
       panStart(clientX: number, clientY: number): boolean {
         return actions.page.panStart(clientX, clientY);
       },
-      panMove(
-        clientX: number,
-        clientY: number,
-        canvasWidth: number,
-        canvasHeight: number,
-      ): boolean {
-        return actions.page.panMove(
-          clientX,
-          clientY,
-          canvasWidth,
-          canvasHeight,
-        );
+      panMove(clientX: number, clientY: number): boolean {
+        return actions.page.panMove(clientX, clientY);
       },
       panEnd(): boolean {
         return actions.page.panEnd();
@@ -343,6 +337,14 @@ export function useInteraction({
       },
       setSpaceHeld(held: boolean) {
         actions.page.setSpaceHeld(held);
+      },
+
+      // ── 画布环境上下文 ──
+      getCanvasSize(): { width: number; height: number } {
+        return {
+          width: canvas?.clientWidth ?? 0,
+          height: canvas?.clientHeight ?? 0,
+        };
       },
 
       // ── 事务 ──
@@ -363,7 +365,7 @@ export function useInteraction({
     };
 
     return new InteractionStateMachine(delegate, { capabilities });
-  }, [actions, mode]);
+  }, [actions, mode, canvas]);
 
   // ── 处理状态机输出 ──
   const applyOutput = useCallback(
@@ -388,10 +390,6 @@ export function useInteraction({
     if (!canvas || !actions || !machine) return;
 
     const onMouseDown = (e: MouseEvent) => {
-      const multiSelect = navigator.platform.startsWith("Mac")
-        ? e.metaKey
-        : e.ctrlKey;
-
       const worldPoint = actions.view.screenToWorld(e);
       const output = machine.handle({
         type: "pointerdown",
@@ -399,7 +397,9 @@ export function useInteraction({
         clientX: e.clientX,
         clientY: e.clientY,
         button: e.button,
-        multiSelect,
+        // G1：PC 编辑态恒为 mouse，pointerId 取 1（单指针）
+        pointerId: 1,
+        pointerType: 'mouse',
       });
       applyOutput(output);
     };
@@ -411,9 +411,9 @@ export function useInteraction({
         worldPoint,
         clientX: e.clientX,
         clientY: e.clientY,
-        canvasWidth: canvas.clientWidth,
-        canvasHeight: canvas.clientHeight,
-        ctrlKey: e.ctrlKey,
+        // G1：PC 编辑态恒为 mouse
+        pointerId: 1,
+        pointerType: 'mouse',
       });
       applyOutput(output);
     };
@@ -425,6 +425,9 @@ export function useInteraction({
         worldPoint,
         clientX: e.clientX,
         clientY: e.clientY,
+        // G1：PC 编辑态恒为 mouse
+        pointerId: 1,
+        pointerType: 'mouse',
       });
       applyOutput(output);
     };
@@ -452,10 +455,7 @@ export function useInteraction({
         }
 
         if (hitView) {
-          const isMultiSelect = navigator.platform.startsWith("Mac")
-            ? e.metaKey
-            : e.ctrlKey;
-          actions.view.select(hitView.id, isMultiSelect);
+          actions.view.select(hitView.id, machine.multiSelect);
         } else {
           actions.view.deselect();
         }
@@ -465,12 +465,18 @@ export function useInteraction({
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      // Space → pan
-      if (
-        e.code === "Space" &&
-        !e.repeat &&
-        (!e.target || (e.target as HTMLElement).tagName === "CANVAS")
-      ) {
+      // 修饰键和 Space 都派发给状态机（G3：放开 Space-only 过滤）
+      const isModifierOrSpace =
+        e.code === "Space" ||
+        e.code === "ControlLeft" || e.code === "ControlRight" ||
+        e.code === "MetaLeft" || e.code === "MetaRight" ||
+        e.code === "ShiftLeft" || e.code === "ShiftRight";
+
+      if (isModifierOrSpace) {
+        // Space 保留原有过滤：只在非 repeat 且焦点在 canvas 时派发
+        if (e.code === "Space") {
+          if (e.repeat || (e.target && (e.target as HTMLElement).tagName !== "CANVAS")) return;
+        }
         const output = machine.handle({
           type: "keydown",
           code: e.code,
@@ -517,7 +523,14 @@ export function useInteraction({
     };
 
     const onKeyUp = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
+      // 修饰键和 Space 都派发给状态机（G3：放开 Space-only 过滤）
+      const isModifierOrSpace =
+        e.code === "Space" ||
+        e.code === "ControlLeft" || e.code === "ControlRight" ||
+        e.code === "MetaLeft" || e.code === "MetaRight" ||
+        e.code === "ShiftLeft" || e.code === "ShiftRight";
+
+      if (isModifierOrSpace) {
         const output = machine.handle({
           type: "keyup",
           code: e.code,
@@ -638,6 +651,16 @@ export function useInteraction({
     canvas.addEventListener("drop", onDrop);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+
+    // G3：幽灵态复位——窗口失焦或不可见时清空修饰键状态
+    const onBlurOrHidden = () => {
+      machine.resetModifiers();
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) onBlurOrHidden();
+    };
+    window.addEventListener("blur", onBlurOrHidden);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     // ── Design 模式：文本编辑 input 事件绑定 ──
     const inputEl = mode === "design" ? (inputElement ?? null) : null;
@@ -797,6 +820,8 @@ export function useInteraction({
       canvas.removeEventListener("drop", onDrop);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlurOrHidden);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       if (inputEl) {
         inputEl.removeEventListener("input", onInputEvent);
         inputEl.removeEventListener("compositionstart", onCompositionStart);

@@ -12,8 +12,9 @@ export default function useDesignBanvas(
   _options: UseCanvasOptions,
 ): IUseBanvasResult<React.ReactElement> {
   // ── 初始化：App + 容器 DOM + 相机交互 + version 订阅 + textInput ──
+  // flowEnabled: false — 编辑态禁止 FlowSchema 执行（显式传值，不依赖隐式约定）
   const { actions, elements, derived } =
-    useCanvasInit(appJSON, { ..._options, textInput: true });
+    useCanvasInit(appJSON, { ..._options, appOptions: { ..._options.appOptions, flowEnabled: false }, textInput: true });
 
   // ── 右键菜单 ──
   const { contextMenu, onContextMenuHit } = useDesignContextMenu(actions);

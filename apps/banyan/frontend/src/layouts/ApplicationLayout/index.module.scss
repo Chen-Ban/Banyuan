@@ -135,6 +135,12 @@
   }
 }
 
+// 预览按钮激活态
+.actionBtnActive {
+  color: var(--color-success-text) !important;
+  background: var(--color-success-subtle) !important;
+}
+
 // 生成应用按钮：品牌色高亮
 .actionBtnPrimary {
   color: var(--color-brand-text);
