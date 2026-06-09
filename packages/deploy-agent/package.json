@@ -3,6 +3,14 @@
   "version": "0.1.0",
   "description": "Banyuan 部署代理 - 运行在租户 ECS 上，接收并执行部署指令",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
     "deploy-agent": "./dist/cli.js"
   },

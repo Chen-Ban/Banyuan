@@ -1,0 +1,40 @@
+{
+  "name": "@banyuan/banvas-runtime",
+  "version": "0.1.0",
+  "description": "BanvasGL 运行策略层：高级交互识别 + useRuntimeBanvas hook，进入用户 ECS 产物",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "dev": "tsup --config tsup.config.ts --watch"
+  },
+  "license": "AGPL-3.0",
+  "packageManager": "pnpm@10.10.0",
+  "peerDependencies": {
+    "@banyuan/banvasgl": "workspace:*",
+    "react": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@banyuan/banvasgl": "workspace:*",
+    "@types/react": "^19.0.0",
+    "tsup": "^8.4.0",
+    "react": "^19.0.0"
+  }
+}

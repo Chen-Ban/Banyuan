@@ -40,6 +40,7 @@ function generatePackageJson(appJSON: AppJSON): string {
       react: '^19.0.0',
       'react-dom': '^19.0.0',
       '@banyuan/banvasgl': 'latest',
+      '@banyuan/banvas-runtime': 'latest',
     },
     devDependencies: {
       '@types/react': '^19.0.0',
@@ -114,33 +115,37 @@ root.render(<App />);
 }
 
 function generateAppTsx(appJSON: AppJSON): string {
-  return `import { useEffect, useRef } from 'react';
+  // 获取首页尺寸作为画布 fixed mode 参数
+  const firstPage = appJSON.pages?.[0] as { width?: number; height?: number } | undefined;
+  const width = firstPage?.width ?? 375;
+  const height = firstPage?.height ?? 812;
+
+  return `import { useState, useEffect } from 'react';
+import { useRuntimeBanvas } from '@banyuan/banvas-runtime';
 
 export function App() {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [appJSONStr, setAppJSONStr] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
-
-    // 加载应用 JSON 并初始化 BanvasGL 画布
     fetch('/app.json')
-      .then(res => res.json())
-      .then(appData => {
-        console.log('[Banyuan App] Loaded:', appData.name);
-        // BanvasGL 初始化逻辑在此处注入
-      })
-      .catch(err => {
-        console.error('[Banyuan App] Failed to load app.json:', err);
-      });
+      .then(res => res.text())
+      .then(setAppJSONStr)
+      .catch(err => console.error('[Banyuan App] Failed to load app.json:', err));
   }, []);
 
-  return (
-    <div
-      ref={containerRef}
-      style={{ width: '100%', height: '100%' }}
-      data-app-id="${appJSON.appId}"
-    />
-  );
+  if (!appJSONStr) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>Loading...</div>;
+
+  return <BanvasCanvas appJSON={appJSONStr} />;
+}
+
+function BanvasCanvas({ appJSON }: { appJSON: string }) {
+  const { Banvas } = useRuntimeBanvas(appJSON, {
+    width: ${width},
+    height: ${height},
+    appOptions: { flowEnabled: true },
+  });
+
+  return Banvas;
 }
 `;
 }

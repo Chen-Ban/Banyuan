@@ -24,18 +24,23 @@
  *   idle            idle (commit transaction)
  */
 
-import { Point3 } from "@/foundation/math";
-import Vector3 from "@/foundation/math/Vector3";
-import { Action, Cursor } from "@/types/view/view";
-import type View from "@/view/View/View";
-import { isTextView, isSelectBoxView, isGraphType, isContainerView } from "@/types/guards";
-import { GraphType } from "@/foundation/constants";
-import { Rectangle } from "@/graph";
-import Bounds from "@/graph/base/Bounds";
+import {
+  Point3,
+  Vector3,
+  Cursor,
+  Rectangle,
+  Bounds,
+  isTextView,
+  isSelectBoxView,
+  isGraphType,
+  isContainerView,
+  GraphType,
+  Action,
+} from "@banyuan/banvasgl";
+import type { View } from "@banyuan/banvasgl";
 
 import type {
   InteractionState,
-  InteractionInput,
   InteractionOutput,
   InteractionDelegate,
   InteractionStateMachineConfig,
@@ -44,14 +49,22 @@ import type {
   PointerDownInput,
   PointerMoveInput,
   PointerUpInput,
+  PointerCancelInput,
   KeyDownInput,
   KeyUpInput,
-} from "@/types/interaction";
+  InteractionInput,
+} from "./types";
 
 export class InteractionStateMachine {
   private _state: InteractionState = { mode: "idle" };
   private _config: InteractionStateMachineConfig;
   private _delegate: InteractionDelegate;
+
+  // ── 修饰键状态（G3：下沉自维护，不再从原子事件字段传入） ──
+  private _modifiers = { ctrl: false, meta: false, shift: false };
+
+  // ── G1：多指不串扰，追踪 primary pointer ──
+  private _primaryPointerId: number = -1;
 
   constructor(
     delegate: InteractionDelegate,
@@ -80,13 +93,28 @@ export class InteractionStateMachine {
 
   /** 处理输入事件，驱动状态转移 */
   handle(input: InteractionInput): InteractionOutput {
+    // 多指不串扰保护（G1 最小要求）：非 primary pointer 暂不驱动编辑态状态
+    if ('pointerId' in input && input.pointerId !== this._primaryPointerId) {
+      // 如果是 pointerdown 且当前已有 primary，忽略此次按下
+      if (input.type === 'pointerdown' && this._primaryPointerId !== -1) {
+        return { stateChanged: false };
+      }
+      // 如果当前无 primary（idle），则接管为 primary
+      if (input.type === 'pointerdown') {
+        this._primaryPointerId = input.pointerId;
+      }
+    }
+
     switch (input.type) {
       case "pointerdown":
+        this._primaryPointerId = input.pointerId;
         return this.onPointerDown(input);
       case "pointermove":
         return this.onPointerMove(input);
       case "pointerup":
         return this.onPointerUp(input);
+      case "pointercancel":
+        return this.onPointerCancel(input);
       case "keydown":
         return this.onKeyDown(input);
       case "keyup":
@@ -118,6 +146,8 @@ export class InteractionStateMachine {
     }
 
     this._state = { mode: "idle" };
+    this._primaryPointerId = -1;
+    this.resetModifiers();
     return {
       stateChanged: prevMode !== "idle",
       cursor: Cursor.Default,
@@ -125,10 +155,27 @@ export class InteractionStateMachine {
     };
   }
 
+  /** 清空修饰键状态（用于 blur/visibilitychange 幽灵态复位） */
+  resetModifiers(): void {
+    this._modifiers.ctrl = false;
+    this._modifiers.meta = false;
+    this._modifiers.shift = false;
+  }
+
+  /** 是否处于多选修饰键状态（ctrl 或 meta 任一） */
+  get multiSelect(): boolean {
+    return this._modifiers.ctrl || this._modifiers.meta;
+  }
+
+  /** 是否处于等比缩放修饰键状态 */
+  get keepAspect(): boolean {
+    return this._modifiers.ctrl;
+  }
+
   // ── 私有状态转移处理 ──
 
   private onPointerDown(input: PointerDownInput): InteractionOutput {
-    const { worldPoint, clientX, clientY, button, multiSelect } = input;
+    const { worldPoint, clientX, clientY, button } = input;
 
     // Pan 拦截：中键 或 Space 按住
     if (
@@ -180,7 +227,7 @@ export class InteractionStateMachine {
       // 如果未激活，先选中
       if (!view.actived) {
         const resolved = this._delegate.resolveActivationTarget(view);
-        this._delegate.select(resolved.id, multiSelect);
+        this._delegate.select(resolved.id, this.multiSelect);
       }
 
       // 开启事务
@@ -260,8 +307,7 @@ export class InteractionStateMachine {
   }
 
   private onPointerMove(input: PointerMoveInput): InteractionOutput {
-    const { worldPoint, clientX, clientY, canvasWidth, canvasHeight, ctrlKey } =
-      input;
+    const { worldPoint, clientX, clientY } = input;
 
     switch (this._state.mode) {
       case "idle":
@@ -269,13 +315,13 @@ export class InteractionStateMachine {
         return this.handleHover(worldPoint);
 
       case "panning":
-        return this.handlePanMove(clientX, clientY, canvasWidth, canvasHeight);
+        return this.handlePanMove(clientX, clientY);
 
       case "moving":
         return this.handleMoving(worldPoint);
 
       case "resizing":
-        return this.handleResizing(worldPoint, ctrlKey);
+        return this.handleResizing(worldPoint);
 
       case "rotating":
         return this.handleRotating(worldPoint);
@@ -300,6 +346,7 @@ export class InteractionStateMachine {
   private onPointerUp(input: PointerUpInput): InteractionOutput {
     const { worldPoint } = input;
     const prevMode = this._state.mode;
+    this._primaryPointerId = -1;
 
     switch (prevMode) {
       case "panning": {
@@ -362,7 +409,70 @@ export class InteractionStateMachine {
     }
   }
 
+  /**
+   * G2：系统取消事件处理 —— 语义同「非正常结束的 pointerup」。
+   *
+   * 安全收尾当前进行中的交互状态（拖拽/缩放/旋转/框选/连线/文本选择等），
+   * 回到 idle，但不产生 click/drop/finishConnect 这类「正常完成」语义。
+   */
+  private onPointerCancel(_input: PointerCancelInput): InteractionOutput {
+    const prevMode = this._state.mode;
+    this._primaryPointerId = -1;
+
+    switch (prevMode) {
+      case "panning": {
+        this._delegate.panEnd();
+        this._state = { mode: "idle" };
+        return { stateChanged: true, cursor: Cursor.Default, shouldNotify: false };
+      }
+
+      case "moving":
+      case "resizing":
+      case "rotating":
+      case "editing-point": {
+        // 收尾事务但不 commit（非正常结束应回滚以避免半成品状态）
+        this._delegate.snapAlignEnd();
+        this._delegate.commitTransaction();
+        this._state = { mode: "idle" };
+        return { stateChanged: true, cursor: Cursor.Default, shouldNotify: true };
+      }
+
+      case "box-selecting": {
+        const s = this._state;
+        if (s.mode === "box-selecting") {
+          this._delegate.removeTempChild(s.selectBox as unknown as View);
+        }
+        this._delegate.commitTransaction();
+        this._state = { mode: "idle" };
+        return { stateChanged: true, cursor: Cursor.Default, shouldNotify: true };
+      }
+
+      case "connecting": {
+        const s = this._state;
+        if (s.mode === "connecting") {
+          // 取消连线：移除临时连线，不调用 finishConnect
+          this._delegate.removeTempChild(s.tempEdge as unknown as View);
+        }
+        this._state = { mode: "idle" };
+        return { stateChanged: true, cursor: Cursor.Default, shouldNotify: true };
+      }
+
+      case "text-selecting": {
+        this._state = { mode: "idle" };
+        return { stateChanged: true, shouldNotify: true };
+      }
+
+      default:
+        // idle/hover: 无进行中状态，无需收尾
+        this._state = { mode: "idle" };
+        return { stateChanged: prevMode !== "idle", cursor: Cursor.Default };
+    }
+  }
+
   private onKeyDown(input: KeyDownInput): InteractionOutput {
+    // 修饰键状态维护（G3）
+    this.updateModifier(input.code, true);
+
     if (input.code === "Space" && !input.repeat && this.hasCapability("pan")) {
       this._delegate.setSpaceHeld(true);
       return { stateChanged: false, cursor: Cursor.Grab };
@@ -371,6 +481,9 @@ export class InteractionStateMachine {
   }
 
   private onKeyUp(input: KeyUpInput): InteractionOutput {
+    // 修饰键状态维护（G3）
+    this.updateModifier(input.code, false);
+
     if (input.code === "Space" && this.hasCapability("pan")) {
       this._delegate.setSpaceHeld(false);
       // 如果正在 pan 则结束
@@ -382,6 +495,13 @@ export class InteractionStateMachine {
       return { stateChanged: false, cursor: Cursor.Default };
     }
     return { stateChanged: false };
+  }
+
+  /** 更新修饰键状态 */
+  private updateModifier(code: string, pressed: boolean): void {
+    if (code === "ControlLeft" || code === "ControlRight") this._modifiers.ctrl = pressed;
+    else if (code === "MetaLeft" || code === "MetaRight") this._modifiers.meta = pressed;
+    else if (code === "ShiftLeft" || code === "ShiftRight") this._modifiers.shift = pressed;
   }
 
   // ── 各模式的 Move 处理 ──
@@ -402,10 +522,8 @@ export class InteractionStateMachine {
   private handlePanMove(
     clientX: number,
     clientY: number,
-    canvasWidth: number,
-    canvasHeight: number,
   ): InteractionOutput {
-    this._delegate.panMove(clientX, clientY, canvasWidth, canvasHeight);
+    this._delegate.panMove(clientX, clientY);
     // 更新 startClient 已在 delegate.panMove 内完成
     return { stateChanged: false, cursor: Cursor.Grabbing };
   }
@@ -430,7 +548,6 @@ export class InteractionStateMachine {
 
   private handleResizing(
     worldPoint: Point3,
-    ctrlKey: boolean,
   ): InteractionOutput {
     if (this._state.mode !== "resizing") return { stateChanged: false };
     const s = this._state;
@@ -448,7 +565,7 @@ export class InteractionStateMachine {
       const dynamicPoint =
         view.boundingBox.handles[s.dynamicIndex]?.getCenter();
       if (!fixedPoint || !dynamicPoint) continue;
-      this._delegate.resize(view, fixedPoint, dynamicPoint, vector, ctrlKey);
+      this._delegate.resize(view, fixedPoint, dynamicPoint, vector, this.keepAspect);
     }
 
     s.lastPoint = worldPoint;

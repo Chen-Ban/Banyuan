@@ -39,6 +39,8 @@ export interface IAppLifetimes {
 export interface IAppOptions {
     enablePageStack?: boolean
     maxPageStackSize?: number
+    /** 是否允许 FlowSchema 执行。编辑态传 false，运行态传 true（默认 true）。 */
+    flowEnabled?: boolean
     /** App 生命周期钩子 */
     lifetimes?: Partial<IAppLifetimes>
 }

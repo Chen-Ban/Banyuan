@@ -324,6 +324,7 @@ export class Scene implements ISerializable {
     eventArgs: unknown[] = [],
   ): void {
     if (!schema) return
+    if (this._app?.flowEnabled === false) return // 编辑态统一短路
     const runner = this._app?.flowRunner
     if (!runner) {
       console.warn('[Scene] triggerSchema: App 未绑定或 flowRunner 不可用')
@@ -389,7 +390,22 @@ export class Scene implements ISerializable {
         playAnimation(viewId: string, animationId: string): void {
           scene.playAnimation(viewId, animationId)
         },
-        callFlow: undefined, // 由宿主（banyan 前端）按需覆盖
+        callFlow: scene._app?.backendEndpoint
+          ? async (flowId: string, input: Record<string, unknown>) => {
+              const endpoint = scene._app!.backendEndpoint
+              const res = await fetch(`${endpoint}/api/functions/${flowId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(input),
+              })
+              if (!res.ok) {
+                const text = await res.text().catch(() => 'Unknown error')
+                throw new Error(`[callFlow] ${flowId} failed (${res.status}): ${text}`)
+              }
+              const json = await res.json()
+              return json.data ?? json
+            }
+          : undefined,
       },
     }
 

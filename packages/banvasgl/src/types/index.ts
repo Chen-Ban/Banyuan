@@ -255,32 +255,40 @@ export type {
     ConflictGroup,
 } from './view/property'
 
-// ── 交互状态机接口 ──
+// ── 原子事件输入类型 ──
 export type {
-    InteractionCapability,
-    HoverTarget,
-    IdleState,
-    HoverState,
-    PanningState,
-    MovingState,
-    ResizingState,
-    RotatingState,
-    ConnectingState,
-    BoxSelectingState,
-    TextSelectingState,
-    EditingPointState,
-    InteractionState,
-    StateOfMode,
+    // 指针事件
+    PointerInputBase,
     PointerDownInput,
     PointerMoveInput,
     PointerUpInput,
+    PointerCancelInput,
+    PointerEnterInput,
+    PointerLeaveInput,
+    PointerInput,
+    // 键盘事件
     KeyDownInput,
     KeyUpInput,
+    KeyboardInput,
+    // 滚轮事件
+    WheelInput,
+    // 焦点事件
+    FocusInput,
+    BlurInput,
+    // 拖拽事件（引擎内语义）
+    DragInputBase,
+    DragStartInput,
+    DragMoveInput,
+    DragEndInput,
+    DragInput,
+    // IME 组合事件
+    CompositionStartInput,
+    CompositionUpdateInput,
+    CompositionEndInput,
+    CompositionInput,
+    // 全量联合
     InteractionInput,
-    InteractionOutput,
-    InteractionDelegate,
-    InteractionStateMachineConfig,
-} from './interaction'
+} from './foundation/event'
 
 // ── 统一类型守卫 ──
 export {

@@ -8,6 +8,9 @@
     "build": "tsc",
     "dev": "concurrently -c \"green.bold,cyan.bold\" -n main,electron \"tsc --watch\" \"wait-on http://localhost:5174 && electron .\""
   },
+  "dependencies": {
+    "@banyuan/deploy-agent": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^22.10.2",
     "@banyuan/banvasgl": "workspace:*",

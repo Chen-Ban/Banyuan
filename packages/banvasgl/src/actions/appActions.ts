@@ -45,6 +45,16 @@ export function createAppActions(
             return app.toDataURL(type, quality)
         },
 
+        setBackendEndpoint(endpoint: string | undefined): void {
+            const app = getApp()
+            if (!app) return
+            app.backendEndpoint = endpoint
+        },
+
+        getBackendEndpoint(): string | undefined {
+            return getApp()?.backendEndpoint
+        },
+
         notify(): void {
             notify()
         },

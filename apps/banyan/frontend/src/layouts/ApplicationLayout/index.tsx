@@ -36,6 +36,8 @@ import {
   DesktopOutlined,
   AppleOutlined,
   AndroidOutlined,
+  PlayCircleOutlined,
+  EditOutlined,
 } from '@ant-design/icons'
 import { version as canvasVersion } from '@banyuan/banvasgl'
 import { applicationApi, buildApi } from '@/api'
@@ -46,6 +48,7 @@ import BuildTaskModal from '@/components/BuildTaskModal'
 import UIPage from '@/pages/UIPage'
 import DatabasePage from '@/pages/DatabasePage'
 import FunctionsPage from '@/pages/FunctionsPage'
+import PreviewPage from '@/pages/PreviewPage'
 import { AppLayoutCtx } from './AppLayoutCtx'
 import { useRootLayoutCtx } from '@/layouts/RootLayout/RootLayoutCtx'
 import styles from './index.module.scss'
@@ -63,6 +66,9 @@ const ApplicationLayout: React.FC = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { message } = App.useApp()
+
+  // ── 预览模式 ────────────────────────────────────────────────────────────
+  const [previewMode, setPreviewMode] = useState(false)
 
   // ── 应用元数据 ────────────────────────────────────────────────────────────
   const [applicationName, setApplicationName] = useState('')
@@ -256,8 +262,17 @@ const ApplicationLayout: React.FC = () => {
           {/* 右侧弹性占位 */}
           <div className={styles.headerSpacer} />
 
-          {/* 胶囊二：操作（保存 / 生成应用） */}
+          {/* 胶囊二：操作（预览 / 保存 / 生成应用） */}
           <div className={styles.actionCapsule}>
+            <Tooltip title={previewMode ? '返回编辑' : '预览应用'}>
+              <button
+                className={`${styles.actionBtn} ${previewMode ? styles.actionBtnActive : ''}`}
+                onClick={() => setPreviewMode((v) => !v)}
+              >
+                {previewMode ? <EditOutlined /> : <PlayCircleOutlined />}
+              </button>
+            </Tooltip>
+            <div className={styles.capsuleDivider} />
             <Tooltip title="保存应用">
               <button
                 className={styles.actionBtn}
@@ -283,14 +298,21 @@ const ApplicationLayout: React.FC = () => {
           </div>
         </div>
 
+        {/* ── 预览态（覆盖所有子页面） ── */}
+        {previewMode && (
+          <div className={styles.content} style={{ display: 'flex' }}>
+            <PreviewPage />
+          </div>
+        )}
+
         {/* ── 子页面内容（KeepAlive：同时渲染，display 切换） ── */}
-        <div className={styles.content} style={{ display: activeTabKey === 'ui' ? 'flex' : 'none' }}>
+        <div className={styles.content} style={{ display: !previewMode && activeTabKey === 'ui' ? 'flex' : 'none' }}>
           <UIPage />
         </div>
-        <div className={styles.content} style={{ display: activeTabKey === 'database' ? 'flex' : 'none' }}>
+        <div className={styles.content} style={{ display: !previewMode && activeTabKey === 'database' ? 'flex' : 'none' }}>
           <DatabasePage />
         </div>
-        <div className={styles.content} style={{ display: activeTabKey === 'functions' ? 'flex' : 'none' }}>
+        <div className={styles.content} style={{ display: !previewMode && activeTabKey === 'functions' ? 'flex' : 'none' }}>
           <FunctionsPage />
         </div>
 

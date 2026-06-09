@@ -31,12 +31,32 @@ export class App implements ISerializable {
   public readonly flowRunner: FlowRunner = createClientFlowRunner();
 
   /**
+   * 是否允许 FlowSchema 执行。
+   *
+   * 编辑态传 false，运行态传 true。
+   * gate 在 Scene.triggerSchema 与 App 生命周期触发处统一拦截。
+   */
+  public readonly flowEnabled: boolean;
+
+  /**
    * 应用 ID（可选）
    *
    * 由消费方（如 banyan 前端）设置，用于 FlowRunner 中 callFlow 节点
    * 调用后端 API 时标识应用。通过 Scene.triggerSchema 注入到 FlowContext.env。
    */
   public appId: string | undefined = undefined;
+
+  /**
+   * 后端端点地址（可选）
+   *
+   * 设置后，Scene.triggerSchema 会自动注入 env.callFlow 实现，
+   * callFlow 节点将发起 HTTP POST 到 `${backendEndpoint}/api/functions/${flowId}`。
+   *
+   * - 预览态：指向本地 Preview Server（如 http://localhost:9100）
+   * - 线上运行态：指向 ECS 部署的后端服务
+   * - 编辑态 / 未设置：callFlow 为 undefined，节点静默跳过
+   */
+  public backendEndpoint: string | undefined = undefined;
 
   // 私有属性
   private _currentScene: Scene | null = null;
@@ -71,13 +91,13 @@ export class App implements ISerializable {
     this.renderer = renderer;
     this._enablePageStack = options.enablePageStack !== false;
     this._maxPageStackSize = options.maxPageStackSize || 50;
+    this.flowEnabled = options.flowEnabled !== false; // 默认 true
 
     // 初始化 lifetimes（FlowSchema）
     this.lifetimes = {
       onLaunch: options.lifetimes?.onLaunch ?? null,
       onUnlaunch: options.lifetimes?.onUnlaunch ?? null,
     };
-
   }
 
   // 内置生命周期方法
@@ -91,7 +111,7 @@ export class App implements ISerializable {
     console.log("App已启动，自动开始循环渲染");
 
     // 调用 lifetimes.onLaunch（FlowSchema）
-    if (this.lifetimes.onLaunch) {
+    if (this.flowEnabled && this.lifetimes.onLaunch) {
       try {
         const ctx = this._buildAppFlowContext(
           Array.isArray(params) ? params : [params],
@@ -126,7 +146,7 @@ export class App implements ISerializable {
     this._pageStackHistory.clear();
 
     // 调用 lifetimes.onUnlaunch（FlowSchema）
-    if (this.lifetimes.onUnlaunch) {
+    if (this.flowEnabled && this.lifetimes.onUnlaunch) {
       try {
         const ctx = this._buildAppFlowContext([]);
         this.flowRunner.run(this.lifetimes.onUnlaunch, ctx)
