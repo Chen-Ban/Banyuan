@@ -6,7 +6,6 @@ import buildRouter from './build.js'
 import previewRouter from './preview.js'
 import schemaRouter from './schema.js'
 import appContentRouter from './appContent.js'
-import dataRouter from './data.js'
 import cloudFunctionsRouter from './cloudFunctions.js'
 import { uploadRouter } from './upload.js'
 import knowledgeRouter from './knowledge.js'
@@ -44,7 +43,6 @@ router.use(buildRouter.routes(), buildRouter.allowedMethods())
 
 // Phase 1：后端能力体系
 router.use(schemaRouter.routes(), schemaRouter.allowedMethods())
-router.use(dataRouter.routes(), dataRouter.allowedMethods())
 
 // 画布 appJSON 直接编辑（手动保存，自动验收的 edit 对话）
 router.use(appContentRouter.routes(), appContentRouter.allowedMethods())
