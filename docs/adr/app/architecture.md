@@ -23,12 +23,18 @@
 │  A4 Monorepo 回归                  │
 │  （LunlunGlass 不拆仓）            │
 └───────────────────────────────────┘
+
+┌───────────────────────────────────┐
+│  A5 预览态后端复用 deploy-agent   │
+│     本地化（前后端异源混合态）   │
+└───────────────────────────────────┘
 ```
 
 关系说明：
 
 - A1→A2：XiangDi 无状态设计确立了「服务职责单一、可独立扩缩容」的拓扑基调，知识服务独立部署是这一思路在重资源服务上的延伸
 - A3→A4：Electron 壳 + Web 核心策略要求业务代码平台无关，monorepo 统一管理保证联动构建和类型检查，进一步驱动了示例项目不拆仓的决策
+- A5 独立：预览态服务拓扑决策，复用 M4 去中心化构建的 deploy-agent scaffoldServer 能力在本地起后端服务，取代 M2 原「预览 = Vite dev server」的纯前端实现，与 engine/A8a 三态统一引擎在预览态后端侧对齐
 
 ---
 
@@ -124,3 +130,41 @@ LunlunGlass 示例项目保留在 Banyuan monorepo 的 examples/ 目录内，不
 
 - 拆为独立仓 + git submodule——submodule 版本同步繁琐，开发体验差
 - 拆为独立仓 + 发 npm——引擎未发版时示例无法使用最新改动，联调效率低
+
+---
+
+## 预览态服务拓扑
+
+### A5. 预览态后端复用 deploy-agent 本地化——前后端异源混合态
+
+**未实施** · 复用 M4 / C4 的 deploy-agent 能力，修订 M2
+
+预览态是一个**前后端异源的混合态**：**前端与编辑态同源**——同一前端工程、同一 @banyuan/banvasgl 运行时、同一份 appJSON 数据源（编辑器内运行，不打包部署第二套前端工程、不使用 iframe），具体落地为 banyan 前端工程内一个独立的预览页面（PreviewPage），用 `useRuntimeBanvas` 加载与编辑态同一份 appJSON；**后端与线上态同源**——复用 deploy-agent 的 `scaffoldServer` 能力（仅后端工程生成，不复用前端工程生成）在开发者本地跑起真实 Koa+FlowRunner、连本地 Mongo，为 FlowSchema 的后端节点（callFlow/dbQuery 等）提供真实执行端点。
+
+> **「前端与编辑态同源」的口径澄清：** 同源指的是「同一前端工程 + 同一运行时包 + 同一 appJSON 数据源」，**不要求预览与编辑共用同一个页面组件**。预览态可以是 banyan 前端工程内一个独立的 PreviewPage（独立路由 `/application/:id/preview`），与编辑态的 UIPage 平级——二者同处一个 React 应用、同 import `@banyuan/banvasgl`、加载同一份落库 appJSON，区别仅在 PreviewPage 用 `useRuntimeBanvas`（真跑 FlowSchema、无物料/属性/右键编辑装备），UIPage 用 `useDesignBanvas`（编辑装备齐全、FlowSchema 不执行）。禁止的是「用 deploy-agent `scaffoldProject` 打包出第二套前端工程再部署/再用 iframe 嵌入」，而非「禁止新建预览页面」。
+
+**为什么预览态「只需提供后端服务」：** 预览要验证的核心是「FlowSchema 跑得对不对、后端节点接不接得通、动态数据回流正不正常」，这些全在后端；而前端渲染逻辑编辑态已经在跑，再单独打包部署一份前端工程纯属浪费。
+
+**为什么复用 deploy-agent 而非另造一套：** 预览态后端与线上态后端在语义上同源（都是 appJSON+CollectionSchema+CloudFunctions → scaffoldServer → 真实 Koa+FlowRunner），仅部署目标（本地 vs ECS）与数据库（本地 Mongo vs 真实业务库）不同。复用同一套 scaffoldServer 保证预览与线上 build/deploy 流水线一致，不为预览另造一套后端工程。
+
+**决策链：** 产品需要设计→预览→发布完整链路 -> 预览要能验证 FlowSchema 后端逻辑，需真实后端而非 mock -> 后端起服务的能力 deploy-agent scaffoldServer 已具备（M4/C4）-> 复用它在本地起服务 + 本地 Mongo，与线上后端同源 -> 前端仍用编辑器内 useRuntimeBanvas，不重复部署。
+
+**约束：**
+
+- 预览态前端在 banyan 前端工程内用 `useRuntimeBanvas` 渲染（可以是独立的 PreviewPage 页面/路由），不调用 deploy-agent 的前端工程生成（`scaffoldProject`），不使用 iframe
+- 预览态后端复用 `scaffoldServer` 在开发者本地起服务，连本地 Mongo（非真实业务库）
+- 预览态运行时 hook 的后端节点端点指向本地 Preview Server，非 ECS
+- 本地 Preview Server 的进程生命周期管理与热更新机制是落地细节，本 ADR 只定性拓扑，机制单列后续 spec
+
+**覆盖边界（预览通过 ≠ 可上线）：**
+
+- 不覆盖前端构建产物：验的是编辑器内 `useRuntimeBanvas` 运行行为，非 `scaffoldProject` 产出的前端工程行为，二者若漂移预览照不出
+- 不覆盖部署正确性与数据真实性：本地后端省掉了容器化/nginx 反代/真实业务库/网络拓扑，只验逻辑正确性
+
+**反例：**
+
+- 预览态同时部署前后端工程到本地——前端编辑态已在跑，重复打包部署浪费且引入编辑器与预览两套前端运行时的一致性负担
+- 预览态后端用 mock / 内存假数据——无法验证 FlowSchema 后端节点真实执行，预览失去意义
+- 预览态复用 ECS 远端部署（C4 原模式）——每次预览走远程 WebSocket+容器构建，延迟高且依赖租户 ECS，不适合高频预览（ECS 沙箱预览仅作为未来多人协作/企业版的升级选项）
+
+**实施方案：** `docs/specs/app/preview-local-backend.md`（预览态本地后端编排：scaffoldServer 本地起服务、本地 Mongo 接入、运行时端点指向、进程管理与热更新）。预览态**前端渲染机制**（`useRuntimeBanvas` 同源运行策略 + `flowEnabled` gate）由 engine/A8a 及 `docs/specs/engine/tristate-unified-engine.md` 承载；预览态**前端交互形态**（默认预览态、UIPage/PreviewPage 拆分、顶部 switch、独立预览路由、切预览前自动保存）由 `docs/specs/app/preview-default-mode-switch.md` 承载，其产品依据见 [P5 80/20 哲学下默认预览态](./principle.md#p5-8020-哲学下默认预览态)。

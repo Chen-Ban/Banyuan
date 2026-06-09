@@ -61,15 +61,17 @@
 
 ### M2. 构建与预览服务
 
-**✅ 已实施**
+**✅ 已实施**（预览部分由 app/A5 取代）
 
 banyan 后端提供 build 和 preview 服务：preview 启动临时 Vite dev server 渲染应用，build 执行完整构建流程生成可部署产物。
 
 **决策链：** 低代码平台需要实时预览 -> Vite dev server 提供 HMR -> 构建需要完整打包 + Electron 包装 -> 两个场景共享应用数据但执行流程不同 -> 分为 preview service 和 build service。
 
+> **预览部分被 app/A5 取代：** 「preview 启动临时 Vite dev server 渲染应用」这一前端独立进程的实现已被 app/A5 取代——预览态前端不再起独立 Vite 进程，而是在 banyan 编辑器内用 `useRuntimeBanvas` 就地渲染（前端与编辑态同源），预览态后端改为复用 deploy-agent `scaffoldServer` 在本地起真实服务。本条 M2 的 build 服务部分仍有效。
+
 **约束：**
 
-- preview 是临时进程，关闭预览即销毁
+- ~~preview 是临时进程，关闭预览即销毁~~（预览态形态已由 app/A5 重定义，不再是独立 Vite 进程）
 - build 产物输出到用户指定目录
 - 两者共享应用 pages JSON 作为数据源
 
