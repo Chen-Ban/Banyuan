@@ -1,8 +1,10 @@
 import electron from "electron";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { PreviewServerOrchestrator } from "./preview/PreviewServerOrchestrator.js";
+import type { PreviewServerInput } from "./preview/PreviewServerOrchestrator.js";
 
-const { app, BrowserWindow, Menu } = electron;
+const { app, BrowserWindow, Menu, ipcMain } = electron;
 type BrowserWindow = InstanceType<typeof electron.BrowserWindow>;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,6 +13,31 @@ const __dirname = path.dirname(__filename);
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
 let mainWindow: BrowserWindow | null = null;
+
+// ─── Preview Server 编排器（单例） ────────────────────────────────────────────
+const previewOrchestrator = new PreviewServerOrchestrator();
+
+// ─── IPC Handlers 注册 ────────────────────────────────────────────────────────
+
+function registerIpcHandlers() {
+  ipcMain.handle("preview:start", async (_event, input: PreviewServerInput) => {
+    return previewOrchestrator.start(input);
+  });
+
+  ipcMain.handle("preview:stop", async (_event, appId: string) => {
+    await previewOrchestrator.stop(appId);
+  });
+
+  ipcMain.handle("preview:status", async (_event, appId: string) => {
+    return previewOrchestrator.getStatus(appId) || null;
+  });
+
+  ipcMain.handle("preview:list", async () => {
+    return previewOrchestrator.listAll();
+  });
+}
+
+// ─── 菜单 ─────────────────────────────────────────────────────────────────────
 
 function createMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
@@ -117,6 +144,8 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// ─── 窗口创建 ──────────────────────────────────────────────────────────────────
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -126,6 +155,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
@@ -151,9 +181,12 @@ function createWindow() {
   });
 }
 
+// ─── App 生命周期 ──────────────────────────────────────────────────────────────
+
 app.on("ready", () => {
   console.log("🌳 Banyan desktop app ready");
 
+  registerIpcHandlers();
   createMenu();
   createWindow();
 
@@ -166,6 +199,13 @@ app.on("ready", () => {
 
 app.on("window-all-closed", () => {
   app.quit();
+});
+
+// 退出前清理所有 Preview Server 进程
+app.on("before-quit", () => {
+  previewOrchestrator.stopAll().catch((err) => {
+    console.error("[PreviewServer] stopAll failed on quit:", err);
+  });
 });
 
 app.on("web-contents-created", (_, contents) => {
