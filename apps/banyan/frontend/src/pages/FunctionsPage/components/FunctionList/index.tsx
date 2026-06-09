@@ -36,6 +36,10 @@ const FunctionList: React.FC<FunctionListProps> = ({
   const handleAdd = async () => {
     const trimmed = newName.trim();
     if (!trimmed) return;
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmed)) {
+      message.error('函数名只允许英文字母、数字、下划线，且必须以字母开头')
+      return
+    }
     setSaving(true);
     try {
       await onConfirmAdd(trimmed, newDisplayName.trim() || trimmed);

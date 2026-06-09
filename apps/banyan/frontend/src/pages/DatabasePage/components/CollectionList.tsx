@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Button, Input, Tooltip } from 'antd'
+import { App, Button, Input, Tooltip } from 'antd'
 import { PlusOutlined, TableOutlined } from '@ant-design/icons'
 import type { CollectionDef } from '@/api'
 import EditableListItem from '@/components/EditableListItem'
@@ -28,6 +28,7 @@ const CollectionList: React.FC<CollectionListProps> = ({
   onDelete,
   onRename,
 }) => {
+  const { message } = App.useApp()
   const [newName, setNewName] = useState('')
   const [newDisplayName, setNewDisplayName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -35,6 +36,10 @@ const CollectionList: React.FC<CollectionListProps> = ({
   const handleAdd = async () => {
     const trimmed = newName.trim()
     if (!trimmed) return
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmed)) {
+      message.error('表名只允许英文字母、数字、下划线，且必须以字母开头')
+      return
+    }
     setSaving(true)
     try {
       await onConfirmAdd(trimmed, newDisplayName.trim() || trimmed)

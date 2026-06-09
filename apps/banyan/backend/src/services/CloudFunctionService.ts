@@ -14,6 +14,7 @@ import crypto from 'node:crypto'
 import type { Types } from 'mongoose'
 import { CloudFunction } from '../models/index.js'
 import type { ICloudFunctionDef, ICloudFunctionGroup } from '../models/types/versioned-content.js'
+import { validateIdentifier } from '../utils/nameValidation.js'
 
 export interface ICloudFunctionListResult {
   functions: ICloudFunctionDef[]
@@ -237,7 +238,7 @@ export class CloudFunctionService {
     functions: ICloudFunctionDef[],
     data: ICreateCloudFunctionData,
   ): { functions: ICloudFunctionDef[]; created: ICloudFunctionDef } {
-    const trimmedName = data.name.trim()
+    const trimmedName = validateIdentifier(data.name, '函数名')
     if (functions.some((fn) => fn.name === trimmedName)) {
       throw Object.assign(new Error(`Cloud function "${trimmedName}" already exists`), { status: 409 })
     }
@@ -269,7 +270,7 @@ export class CloudFunctionService {
     const fn: ICloudFunctionDef = { ...functions[idx] }
 
     if (data.name !== undefined) {
-      const trimmedName = data.name.trim()
+      const trimmedName = validateIdentifier(data.name, '函数名')
       if (trimmedName !== fn.name) {
         const dup = functions.find((f) => f.name === trimmedName && f.functionId !== functionId)
         if (dup) {

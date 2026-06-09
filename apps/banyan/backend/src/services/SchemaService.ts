@@ -15,6 +15,7 @@ import mongoose from 'mongoose'
 import type { Types } from 'mongoose'
 import CollectionSchemaModel from '../models/CollectionSchema.js'
 import type { ICollectionDef, IFieldDef } from '../models/types/index.js'
+import { validateIdentifier } from '../utils/nameValidation.js'
 
 // ── 动态 Model 缓存 ───────────────────────────────────────────────────────────
 // key: `${appId}__${collectionName}`
@@ -407,6 +408,7 @@ export class SchemaService {
 
   /** 计算新增 Collection 后的数组（重复则抛 409） */
   static computeAddCollection(collections: ICollectionDef[], collection: ICollectionDef): ICollectionDef[] {
+    validateIdentifier(collection.name, '表名')
     if (collections.some((c) => c.name === collection.name)) {
       throw Object.assign(new Error(`Collection "${collection.name}" already exists`), { status: 409 })
     }
@@ -441,6 +443,7 @@ export class SchemaService {
 
   /** 计算新增字段后的数组（集合不存在 404 / 字段重复 409） */
   static computeAddField(collections: ICollectionDef[], collectionName: string, field: IFieldDef): ICollectionDef[] {
+    validateIdentifier(field.name, '字段名')
     const idx = collections.findIndex((c) => c.name === collectionName)
     if (idx === -1) {
       throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })
