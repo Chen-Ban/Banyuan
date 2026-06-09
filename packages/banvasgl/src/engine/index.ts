@@ -36,6 +36,3 @@ export { Renderer, CanvasContext } from "./renderer/index";
 // ── Serialization ──
 export { Serializer } from "./serialization";
 export type { SerializerOptions, SerializedData } from "./serialization";
-
-// ── Interaction ──
-export { InteractionStateMachine } from "./interaction/index.js";

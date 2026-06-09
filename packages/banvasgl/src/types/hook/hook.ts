@@ -118,6 +118,20 @@ select(viewId: string, multiple?: boolean): void
     /** 回滚属性编辑事务（按 Esc 时调用） */
     rollbackPropertyEdit(): void
 
+    // ── 事件触发（运行态使用） ──
+
+    /**
+     * 触发 View 上绑定的事件 FlowSchema
+     *
+     * 运行态识别器识别出高级交互后，通过此方法派发到对应 View 的 events。
+     * 内部调用 Scene.triggerSchema，受 flowEnabled gate 控制。
+     *
+     * @param viewId    目标视图 ID
+     * @param eventKey  IViewEvents 中的事件键（如 'onClick'）
+     * @param eventArgs 事件参数列表
+     */
+    triggerEvent(viewId: string, eventKey: keyof IViewEvents, eventArgs?: unknown[]): void
+
     // ── 命中检测 ──
 
     /**
@@ -340,15 +354,13 @@ export interface IPageActions {
      * 平移中
      *
      * 根据鼠标移动 delta 计算世界坐标偏移并驱动 camera.pan()。
-     * 需要传入 canvas 逻辑尺寸以完成 屏幕像素→世界坐标 换算。
+     * 画布尺寸由内部持有（通过 canvas 引用获取），不再从外部传入。
      *
      * @param clientX 当前 clientX
      * @param clientY 当前 clientY
-     * @param canvasClientWidth canvas 的 CSS 宽度（clientWidth）
-     * @param canvasClientHeight canvas 的 CSS 高度（clientHeight）
      * @returns true 表示消费了该事件
      */
-    panMove(clientX: number, clientY: number, canvasClientWidth: number, canvasClientHeight: number): boolean
+    panMove(clientX: number, clientY: number): boolean
     /**
      * 结束平移
      *
@@ -383,6 +395,18 @@ export interface IAppActions {
      * @returns DataURL 字符串，若引擎未初始化则返回 null
      */
     exportImage(type?: string, quality?: number): string | null
+    /**
+     * 设置后端端点地址
+     *
+     * 设置后 callFlow 节点会将请求发到 `${endpoint}/api/functions/${flowId}`。
+     * 传 undefined 则清除（callFlow 节点静默跳过）。
+     *
+     * - 预览态：设为本地 Preview Server 地址
+     * - 退出预览态：设为 undefined
+     */
+    setBackendEndpoint(endpoint: string | undefined): void
+    /** 获取当前后端端点地址 */
+    getBackendEndpoint(): string | undefined
     /**
      * 通知 React 外部同步订阅者（useSyncExternalStore）状态已变更。
      * 当业务层在 actions 体系之外直接修改了 App/Scene 状态后调用此方法触发 re-render。

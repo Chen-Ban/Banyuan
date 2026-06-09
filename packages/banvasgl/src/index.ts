@@ -379,24 +379,42 @@ export { createBanvasActions } from './actions'
 export { getClipboard } from './actions/viewActions.js'
 
 // ╔══════════════════════════════════════════════════════════════════╗
-// ║  interaction — 交互状态机                                          ║
+// ║  event — 原子事件输入类型契约                                         ║
 // ╚══════════════════════════════════════════════════════════════════╝
 
-export { InteractionStateMachine, resolveActivationTarget } from './engine/interaction'
 export type {
-InteractionState,
-    InteractionInput,
-    InteractionOutput,
-    InteractionDelegate,
-    InteractionStateMachineConfig,
-    InteractionCapability,
-    HoverTarget,
-    PointerDownInput,
-    PointerMoveInput,
-    PointerUpInput,
-    KeyDownInput,
-    KeyUpInput,
-} from './engine/interaction'
+  // 指针事件
+  PointerInputBase,
+  PointerDownInput,
+  PointerMoveInput,
+  PointerUpInput,
+  PointerCancelInput,
+  PointerEnterInput,
+  PointerLeaveInput,
+  PointerInput,
+  // 键盘事件
+  KeyDownInput,
+  KeyUpInput,
+  KeyboardInput,
+  // 滚轮事件
+  WheelInput,
+  // 焦点事件
+  FocusInput,
+  BlurInput,
+  // 拖拽事件（引擎内语义）
+  DragInputBase,
+  DragStartInput,
+  DragMoveInput,
+  DragEndInput,
+  DragInput,
+  // IME 组合事件
+  CompositionStartInput,
+  CompositionUpdateInput,
+  CompositionEndInput,
+  CompositionInput,
+  // 全量联合
+  InteractionInput,
+} from './types/foundation/event'
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  version                                                          ║

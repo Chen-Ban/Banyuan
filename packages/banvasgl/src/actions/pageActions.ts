@@ -243,8 +243,6 @@ export function createPageActions(getApp: () => App | null): IPageActions {
     panMove(
       clientX: number,
       clientY: number,
-      canvasClientWidth: number,
-      canvasClientHeight: number,
     ): boolean {
       if (!_isPanning || !_panStart) return false;
       const app = getApp();
@@ -256,6 +254,12 @@ export function createPageActions(getApp: () => App | null): IPageActions {
       const dx = clientX - _panStart.x;
       const dy = clientY - _panStart.y;
       _panStart = { x: clientX, y: clientY };
+
+      // 画布逻辑尺寸（canvasWidth 外移：由内部获取，不再从原子事件传入）
+      const physicalSize = app.renderer.getSize();
+      const dpr = app.renderer.getDPR();
+      const canvasClientWidth = physicalSize.width / dpr;
+      const canvasClientHeight = physicalSize.height / dpr;
 
       // 屏幕像素差 → 世界坐标差
       const worldPerPixelX = (camera.right - camera.left) / canvasClientWidth;

@@ -443,6 +443,15 @@ export function createViewActions(getApp: () => App | null): IViewActions {
       scene.rollbackTransaction();
     },
 
+    triggerEvent(viewId: string, eventKey: keyof IViewEvents, eventArgs: unknown[] = []): void {
+      const scene = getScene();
+      if (!scene) return;
+      const view = scene.findViewById(viewId);
+      if (!view) return;
+      const schema = view.events[eventKey];
+      scene.triggerSchema(view, schema, eventArgs);
+    },
+
     hitTest(point: Point3): IInteractResult {
       const app = getApp();
       const scene = getScene();
