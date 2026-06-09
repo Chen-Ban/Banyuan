@@ -23,10 +23,10 @@ export interface ElectronBuildOptions {
   appName: string
   /** 目标平台 */
   platform: Platform
-  /** 画布宽度（px），用于设置窗口初始尺寸 */
-  width: number
-  /** 画布高度（px） */
-  height: number
+  /** 窗口初始宽度（px），默认 1280 */
+  width?: number
+  /** 窗口初始高度（px），默认 800 */
+  height?: number
 }
 
 /** 平台 → electron-builder CLI 参数映射 */
@@ -37,7 +37,7 @@ const PLATFORM_FLAG: Record<Platform, string> = {
 }
 
 export async function buildElectron(options: ElectronBuildOptions): Promise<void> {
-  const { distDir, outputDir, appName, platform, width, height } = options
+  const { distDir, outputDir, appName, platform, width = 1280, height = 800 } = options
 
   // 1. 在 distDir 同级创建 electron 主进程入口
   const electronDir = path.join(path.dirname(distDir), 'electron')
@@ -50,7 +50,8 @@ function createWindow() {
   const win = new BrowserWindow({
     width: ${width},
     height: ${height},
-    resizable: false,
+    minWidth: 360,
+    minHeight: 480,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

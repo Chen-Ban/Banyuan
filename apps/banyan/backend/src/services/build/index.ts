@@ -113,8 +113,10 @@ export interface StartBuildOptions {
   appJson: string
   appName: string
   platform: Platform
-  width: number
-  height: number
+  /** 设计尺寸宽度，仅供 Electron 窗口初始大小参考 */
+  width?: number
+  /** 设计尺寸高度 */
+  height?: number
   /** 画布运行时版本号，由前端传入 */
   canvasVersion: string
 }
@@ -164,7 +166,7 @@ async function runBuild(taskId: string, options: StartBuildOptions): Promise<voi
   try {
     await update({ status: 'running' })
     console.log(`[Build ${taskId}] step 1/3 scaffold ...`)
-    await scaffold({ appJson, appName, outputDir: projectDir, width, height, canvasVersion })
+    await scaffold({ appJson, appName, outputDir: projectDir, canvasVersion })
 
     console.log(`[Build ${taskId}] step 2/3 bundle ...`)
     await bundle({ projectDir, outputDir: distDir })
