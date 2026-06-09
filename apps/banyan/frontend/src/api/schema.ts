@@ -48,8 +48,8 @@ export function fetchSchema(appId: string): Promise<ApiResponse<AppSchema>> {
 export function addCollection(
   appId: string,
   collection: Pick<CollectionDef, 'name' | 'displayName'> & { fields?: FieldDef[] },
-): Promise<ApiResponse<AppSchema>> {
-  return post<ApiResponse<AppSchema>>(`/apps/${appId}/schema/collections`, collection)
+): Promise<ApiResponse<CollectionDef>> {
+  return post<ApiResponse<CollectionDef>>(`/apps/${appId}/schema/collections`, collection)
 }
 
 /** 更新 Collection（displayName 或 fields 整体替换） */
@@ -57,8 +57,8 @@ export function updateCollection(
   appId: string,
   collectionName: string,
   updates: Partial<Pick<CollectionDef, 'displayName' | 'fields'>>,
-): Promise<ApiResponse<AppSchema>> {
-  return put<ApiResponse<AppSchema>>(`/apps/${appId}/schema/collections/${collectionName}`, updates)
+): Promise<ApiResponse<CollectionDef>> {
+  return put<ApiResponse<CollectionDef>>(`/apps/${appId}/schema/collections/${collectionName}`, updates)
 }
 
 /** 删除 Collection */

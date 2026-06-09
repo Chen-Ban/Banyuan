@@ -78,7 +78,7 @@ const DatabasePage: React.FC = () => {
 
   const handleConfirmAdd = async (name: string, displayName: string) => {
     const res = await schemaApi.addCollection(id!, { name, displayName })
-    const added = res.data?.collections.find((c) => c.name === name)
+    const added = res.data
     if (added) {
       const next = [...collections, added]
       setCollections(next)
@@ -103,7 +103,7 @@ const DatabasePage: React.FC = () => {
 
   const handleRenameCollection = async (name: string, newDisplayName: string) => {
     const res = await schemaApi.updateCollection(id!, name, { displayName: newDisplayName })
-    const updated = res.data?.collections.find((c) => c.name === name)
+    const updated = res.data
     if (updated) {
       setCollections((prev) => prev.map((c) => (c.name === name ? updated : c)))
     }
