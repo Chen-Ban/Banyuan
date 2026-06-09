@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { Button, Input, Popconfirm, Tooltip } from 'antd'
-import { PlusOutlined, DeleteOutlined, TableOutlined } from '@ant-design/icons'
+import { Button, Input, Tooltip } from 'antd'
+import { PlusOutlined, TableOutlined } from '@ant-design/icons'
 import type { CollectionDef } from '@/api'
+import EditableListItem from '@/components/EditableListItem'
 import styles from '../index.module.scss'
 
 export interface CollectionListProps {
@@ -13,6 +14,7 @@ export interface CollectionListProps {
   onConfirmAdd: (name: string, displayName: string) => Promise<void>
   onSelect: (name: string) => void
   onDelete: (name: string) => Promise<void>
+  onRename: (name: string, displayName: string) => Promise<void>
 }
 
 const CollectionList: React.FC<CollectionListProps> = ({
@@ -24,6 +26,7 @@ const CollectionList: React.FC<CollectionListProps> = ({
   onConfirmAdd,
   onSelect,
   onDelete,
+  onRename,
 }) => {
   const [newName, setNewName] = useState('')
   const [newDisplayName, setNewDisplayName] = useState('')
@@ -98,32 +101,21 @@ const CollectionList: React.FC<CollectionListProps> = ({
 
       <div className={styles.collectionItems}>
         {collections.map((col) => (
-          <div
+          <EditableListItem
             key={col.name}
-            className={`${styles.collectionItem} ${selectedName === col.name ? styles.collectionItemActive : ''}`}
-            onClick={() => onSelect(col.name)}
-          >
-            <TableOutlined className={styles.collectionItemIcon} />
-            <div className={styles.collectionItemInfo}>
-              <span className={styles.collectionItemDisplay}>{col.displayName}</span>
-              <span className={styles.collectionItemName}>{col.name}</span>
-            </div>
-            <Popconfirm
-              title={`删除表 "${col.name}"？`}
-              description="此操作不可恢复，表中所有数据将丢失。"
-              onConfirm={(e) => { e?.stopPropagation(); onDelete(col.name) }}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <span
-                className={styles.collectionDeleteBtn}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <DeleteOutlined />
-              </span>
-            </Popconfirm>
-          </div>
+            icon={<TableOutlined />}
+            name={col.name}
+            displayName={col.displayName}
+            selected={selectedName === col.name}
+            editable
+            nameEditable={false}
+            onSelect={() => onSelect(col.name)}
+            onRename={(_name, newDisplayName) => onRename(col.name, newDisplayName)}
+            onDelete={() => onDelete(col.name)}
+            deleteTitle={`删除表 "${col.name}"？`}
+            deleteDescription="此操作不可恢复，表中所有数据将丢失。"
+            className={styles.collectionItemOverride}
+          />
         ))}
 
         {collections.length === 0 && !adding && (

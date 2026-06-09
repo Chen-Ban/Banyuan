@@ -3,7 +3,7 @@
  *
  * 布局：
  *   ┌──────────────────────────────┐
- *   │  上段：物料面板（ComponentPalette）│
+ *   │  上段：物料面板（UnifiedMaterialPanel）│
  *   ├──────────────────────────────┤
  *   │  中段：画布（Banvas）          │
  *   ├──────────────────────────────┤
@@ -20,53 +20,26 @@
  */
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import useDesignBanvas from "@/hooks/useDesignBanvas";
 import { DesignContextMenu } from "@/components/DesignEditor/DesignContextMenu";
-import { App, Tooltip } from "antd";
+import { App, Drawer, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
 import { applicationApi, appContentApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import { appEvents } from "@/utils/appEvents";
 import { useAppLayoutCtx } from "@/layouts/ApplicationLayout/AppLayoutCtx";
 import { useRootLayoutCtx } from "@/layouts/RootLayout/RootLayoutCtx";
-import ComponentPalette from "./components/ComponentPalette";
+import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
 import PropertyDrawer from "./components/PropertyDrawer";
 import SaveMaterialModal from "@/components/SaveMaterialModal";
-import MaterialPanel from "@/components/MaterialPanel";
 import styles from "./index.module.scss";
 
 const UIPage = () => {
   const { message } = App.useApp();
   const { id: application_id } = useParams<{ id: string }>();
-  const location = useLocation();
-  const { registerGetApp, unregisterGetApp } = useAppLayoutCtx();
+  const { registerGetApp, unregisterGetApp, registerDesignSizeHandler, syncDesignSize } = useAppLayoutCtx();
   const { registerAiCallbacks, unregisterAiCallbacks, aiBarHandle } = useRootLayoutCtx();
-
-  // 首页跳转时携带的初始 prompt，画布加载完成后自动发送。
-  // 优先从 sessionStorage 读取（跨 ProtectedRoute 重挂载 / StrictMode 双挂载稳定存活），
-  // location.state 仅作兜底。
-  // 注意：此处只「读」不「删」。StrictMode 在 dev 下会卸载并重挂载组件（产生全新实例与
-  // 全新 ref），若在 ref 初始化阶段就 removeItem，throwaway 挂载会把值删掉而其 ref 被丢弃，
-  // 真正的挂载将读不到。因此删除动作推迟到「确实派发 sendPrompt 之后」执行。
-  const sessionKey = application_id ? `banyan:initialPrompt:${application_id}` : null;
-  const initialPromptRef = useRef<string | null>(
-    (() => {
-      let stored: string | null = null;
-      if (sessionKey) {
-        try {
-          stored = sessionStorage.getItem(sessionKey);
-        } catch {
-          /* 忽略 storage 访问异常 */
-        }
-      }
-      const fromState =
-        (location.state as { initialPrompt?: string } | null)?.initialPrompt ?? null;
-      return stored ?? fromState;
-    })(),
-  );
-  // 标记是否已真正派发，保证只发送一次（不提前置空 initialPromptRef，避免误消费）
-  const promptSentRef = useRef(false);
 
   const [appJSON, setAppJSON] = useState<string>('');
   const [loaded, setLoaded] = useState(false);
@@ -95,7 +68,6 @@ const UIPage = () => {
       });
   }, [application_id]);
 
-  const [canvasSize, setCanvasSize] = useState({ width: 1280, height: 800 });
   const [rightOpen, setRightOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const prevSelectedViewIdRef = useRef<string>("");
@@ -104,17 +76,11 @@ const UIPage = () => {
   const [saveMaterialOpen, setSaveMaterialOpen] = useState(false);
   const [saveMaterialViewId, setSaveMaterialViewId] = useState("");
 
-  const handleCanvasSizeChange = useCallback(
-    (width: number, height: number) => {
-      setCanvasSize({ width, height });
-    },
-    [],
-  );
-
+  // banvasOptions 使用默认设计尺寸（初始化后由 App.setDesignSize 动态更新）
   const banvasOptions = useMemo(
     () => ({
-      width: canvasSize.width,
-      height: canvasSize.height,
+      width: 1280,
+      height: 800,
       appOptions: {
         enablePageStack: true,
         maxPageStackSize: 50,
@@ -123,7 +89,7 @@ const UIPage = () => {
         clearColor: "#fff",
       },
     }),
-    [canvasSize.width, canvasSize.height],
+    [],
   );
 
   const {
@@ -163,6 +129,19 @@ const UIPage = () => {
     return () => unregisterGetApp();
   }, [registerGetApp, unregisterGetApp, actions]);
 
+  // ── designSize：注册 handler + 同步初始值到 Layout ────────────────────────
+  useEffect(() => {
+    // actions.app 尚未就绪时（appJSON 未加载）跳过
+    if (!actions?.app) return;
+    // Layout 机型选择器变更时，通过此回调写入引擎
+    registerDesignSizeHandler((size) => {
+      actions.app.setDesignSize(size.width, size.height);
+    });
+    // appJSON 加载后同步引擎当前 designSize 到 Layout
+    const ds = actions.app.getDesignSize();
+    syncDesignSize({ width: ds.width, height: ds.height });
+  }, [registerDesignSizeHandler, syncDesignSize, actions]);
+
   // ── 订阅 saveApp 事件：序列化 appJSON 并调用 API 保存 ───────────────────────
   // 发布方：ApplicationLayout 保存按钮 / AiBar onBeforeSend
   useEffect(() => {
@@ -195,36 +174,17 @@ const UIPage = () => {
   }, [selectedViewId]);
 
   // ── 首页跳转后自动发送 initialPrompt ─────────────────────────────────────
-  // 触发条件：loaded 为 true（appJSON 已就绪）且 aiBarHandle 已绑定（AiBar 已挂载）。
-  //
-  // 这两个就绪信号来自相互独立的子树：
-  //   - loaded   ← UIPage 自己 fetchApplication 完成
-  //   - aiBarHandle ← RootLayout 渲染 AiBar 后经 handleAiBarRef 异步回填的 context
-  // 二者谁先到达不确定，因此用 effect 依赖 [loaded, aiBarHandle] 等两者皆就绪时再发送。
-  //
-  // 关键改动（修复「必须刷新才自动发送」）：
-  //   1. 不再用 requestAnimationFrame：rAF 回调会在 effect cleanup（依赖变化 / StrictMode
-  //      双挂载）时被 cancelAnimationFrame 取消，而此前已把 prompt 置空，导致 prompt 被
-  //      「消费却未发送」，只能靠刷新（重新读 location.state）恢复 —— 这正是 bug 根因。
-  //   2. 改为同步派发，并用独立的 promptSentRef 作为「已发送」标记，只有真正调用
-  //      sendPrompt 之后才置位，绝不提前清空 initialPromptRef。
+  // 通过事件总线的 buffered 模式解决时序问题：
+  //   - HomePage emit 时若 UIPage 尚未 mount → 事件暂存在 buffer 中
+  //   - UIPage mount + AiBar 就绪后注册消费者 → 自动 flush pending prompt
+  //   - 无需 sessionStorage / location.state / 双 ref 守卫
   useEffect(() => {
-    if (promptSentRef.current) return; // 已发送过，幂等
-    if (!loaded) return;
-    if (!aiBarHandle) return; // handle 尚未绑定，等待下一次依赖变化重跑
-    const prompt = initialPromptRef.current;
-    if (!prompt) return;
-    promptSentRef.current = true; // 先置位，保证同步派发只发一次
-    aiBarHandle.sendPrompt(prompt);
-    // 派发成功后再清除 sessionStorage 暂存，避免刷新时重复自动发送
-    if (sessionKey) {
-      try {
-        sessionStorage.removeItem(sessionKey);
-      } catch {
-        /* 忽略 storage 访问异常 */
-      }
-    }
-  }, [loaded, aiBarHandle, sessionKey]);
+    if (!application_id || !aiBarHandle) return;
+    const unsubscribe = appEvents.onInitialPrompt(application_id, (prompt) => {
+      aiBarHandle.sendPrompt(prompt);
+    });
+    return unsubscribe;
+  }, [application_id, aiBarHandle]);
 
   // ── 自动生成缩略图 ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -267,11 +227,35 @@ const UIPage = () => {
           </Tooltip>
 
           {/* 物料抽屉（挂载在 canvasSection，从左侧弹出，不占画布空间） */}
-          <ComponentPalette
+          <Drawer
             open={paletteOpen}
             onClose={() => setPaletteOpen(false)}
-            container={canvasSectionEl}
-          />
+            placement="left"
+            width={260}
+            mask={false}
+            closable={false}
+            classNames={{ body: styles.drawerBody }}
+            getContainer={canvasSectionEl ?? false}
+            rootStyle={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, height: '100%' }}
+            styles={{
+              wrapper: {
+                top: 12,
+                bottom: 12,
+                left: 12,
+                height: 'calc(100% - 24px)',
+                borderRadius: 12,
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                overflow: 'hidden',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
+              },
+              section: {
+                borderRadius: 12,
+                overflow: 'hidden',
+              },
+            }}
+          >
+            <UnifiedMaterialPanel mode="render" />
+          </Drawer>
 
           {/* 属性面板（挂载在 canvasSection，从右侧弹出，不占画布空间） */}
           <PropertyDrawer
@@ -281,8 +265,6 @@ const UIPage = () => {
             selectedViewId={selectedViewId}
             actions={actions}
             currentPageId={currentPageId || ""}
-            canvasSize={canvasSize}
-            onCanvasSizeChange={handleCanvasSizeChange}
             appId={application_id}
           />
         </div>

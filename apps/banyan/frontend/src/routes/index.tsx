@@ -1,10 +1,15 @@
-import { createBrowserRouter, RouteObject } from 'react-router-dom'
+import { createBrowserRouter, Navigate, RouteObject } from 'react-router-dom'
 import RootLayout from '@/layouts/RootLayout'
 import HomePage from '@/pages/HomePage'
 import ApplicationListPage from '@/pages/ApplicationListPage'
 import SettingsPage from '@/pages/SettingsPage'
 import ApplicationLayout from '@/layouts/ApplicationLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
+import UIPage from '@/pages/UIPage'
+import DatabasePage from '@/pages/DatabasePage'
+import DataBrowserPage from '@/pages/DataBrowserPage'
+import FunctionsPage from '@/pages/FunctionsPage'
+import PreviewPage from '@/pages/PreviewPage'
 
 const routes: RouteObject[] = [
   {
@@ -19,10 +24,19 @@ const routes: RouteObject[] = [
         children: [
           { path: 'applications', element: <ApplicationListPage /> },
           { path: 'settings', element: <SettingsPage /> },
-          // 应用详情：KeepAlive 模式，ApplicationLayout 内部直接渲染三个子页面
+          // 应用详情：Outlet 嵌套路由模式
           {
-            path: 'application/:id/*',
+            path: 'application/:id',
             element: <ApplicationLayout />,
+            children: [
+              // 默认进入预览态
+              { index: true, element: <Navigate to="preview" replace /> },
+              { path: 'preview', element: <PreviewPage /> },
+              { path: 'ui', element: <UIPage /> },
+              { path: 'database', element: <DatabasePage /> },
+              { path: 'data-browser', element: <DataBrowserPage /> },
+              { path: 'functions', element: <FunctionsPage /> },
+            ],
           },
         ],
       },

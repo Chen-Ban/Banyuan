@@ -1,0 +1,136 @@
+// UnifiedMaterialPanel — 统一物料面板样式
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.searchArea {
+  padding: 12px 12px 8px;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  font-size: $text-xs;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+  @include scrollbar-dark;
+}
+
+.placeholder {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: $text-sm;
+  color: var(--color-text-disabled);
+}
+
+// ── 分组 ──
+
+.group {
+  margin-bottom: 16px;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.groupTitle {
+  @include label-section;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+
+// ── 栅格卡片 ──
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-hover);
+  border: 1px solid transparent;
+  cursor: grab;
+  transition: background var(--duration-normal), border-color var(--duration-normal);
+  user-select: none;
+
+  &:hover {
+    background: var(--color-bg-hover-md);
+    border-color: var(--color-border);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+// 折叠态隐藏超出 3×3 的卡片
+.cardHidden {
+  display: none;
+}
+
+.cardIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-secondary);
+}
+
+.cardLabel {
+  font-size: $text-2xs;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  @include truncate;
+  width: 100%;
+}
+
+// ── 展开/收起按钮 ──
+
+.expandBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 0;
+  font-size: $text-2xs;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border: none;
+  background: none;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-normal), background var(--duration-normal);
+
+  &:hover {
+    color: var(--color-info-text);
+    background: var(--color-bg-hover);
+  }
+}
+
+// ── 物料市场占位 ──
+
+.marketPlaceholder {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: $text-xs;
+  color: var(--color-text-disabled);
+  background: var(--color-bg-hover);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border);
+}

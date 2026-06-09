@@ -69,3 +69,13 @@
 .paletteToggleBtnOpen {
   left: 282px;
 }
+
+// ── Drawer 内容区域 ──────────────────────────────────────────────────────────
+
+.drawerBody {
+  padding: 0 !important;
+  background: var(--color-bg-glass);
+  backdrop-filter: blur(16px);
+  border-radius: 12px;
+  overflow: hidden;
+}

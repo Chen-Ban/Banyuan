@@ -1,11 +1,8 @@
 import React, { useState } from "react";
-import { App, Button, Input, Popconfirm, Tooltip, Empty } from "antd";
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  ThunderboltOutlined,
-} from "@ant-design/icons";
+import { App, Button, Input, Tooltip, Empty } from "antd";
+import { PlusOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import type { CloudFunctionDef } from "@/api";
+import EditableListItem from "@/components/EditableListItem";
 import styles from "./index.module.scss";
 
 export interface FunctionListProps {
@@ -17,6 +14,7 @@ export interface FunctionListProps {
   onConfirmAdd: (name: string, displayName: string) => Promise<void>;
   onSelect: (functionId: string) => void;
   onDelete: (functionId: string) => Promise<void>;
+  onRename: (functionId: string, name: string, displayName: string) => Promise<void>;
 }
 
 const FunctionList: React.FC<FunctionListProps> = ({
@@ -28,6 +26,7 @@ const FunctionList: React.FC<FunctionListProps> = ({
   onConfirmAdd,
   onSelect,
   onDelete,
+  onRename,
 }) => {
   const { message } = App.useApp();
   const [newName, setNewName] = useState("");
@@ -115,37 +114,20 @@ const FunctionList: React.FC<FunctionListProps> = ({
 
       <div className={styles.functionItems}>
         {functions.map((fn) => (
-          <div
+          <EditableListItem
             key={fn.functionId}
-            className={`${styles.functionItem} ${selectedId === fn.functionId ? styles.functionItemActive : ""}`}
-            onClick={() => onSelect(fn.functionId)}
-          >
-            <ThunderboltOutlined className={styles.functionItemIcon} />
-            <div className={styles.functionItemInfo}>
-              <span className={styles.functionItemDisplay}>
-                {fn.displayName}
-              </span>
-              <span className={styles.functionItemName}>{fn.name}</span>
-            </div>
-            <Popconfirm
-              title={`删除云函数 "${fn.displayName}"？`}
-              description="此操作不可恢复。"
-              onConfirm={(e) => {
-                e?.stopPropagation();
-                onDelete(fn.functionId);
-              }}
-              okText="删除"
-              cancelText="取消"
-              okButtonProps={{ danger: true }}
-            >
-              <span
-                className={styles.functionDeleteBtn}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <DeleteOutlined />
-              </span>
-            </Popconfirm>
-          </div>
+            icon={<ThunderboltOutlined />}
+            name={fn.name}
+            displayName={fn.displayName}
+            selected={selectedId === fn.functionId}
+            editable
+            nameEditable
+            onSelect={() => onSelect(fn.functionId)}
+            onRename={(newName, newDisplayName) => onRename(fn.functionId, newName, newDisplayName)}
+            onDelete={() => onDelete(fn.functionId)}
+            deleteTitle={`删除云函数 "${fn.displayName}"？`}
+            deleteDescription="此操作不可恢复。"
+          />
         ))}
 
         {functions.length === 0 && !adding && (
