@@ -1,6 +1,11 @@
 import crypto from 'node:crypto'
 import { Material } from '../models/index.js'
-import type { IMaterial, MaterialSource, MaterialStatus, MaterialKind, IMaterialTemplate } from '../models/types/index.js'
+import type {
+  IMaterialDocument,
+  MaterialSource,
+  MaterialKind,
+  IMaterialTemplate,
+} from '../models/types/index.js'
 
 // ─── Query 接口 ──────────────────────────────────────────────────────────────
 
@@ -9,20 +14,16 @@ export interface IMaterialQuery {
   keyword?: string
   /** 按标签筛选 */
   tags?: string[]
-  /** 按种类筛选（render 渲染物料 / flow 流程节点物料） */
+  /** 按种类筛选（render / client-flow / server-flow） */
   kind?: MaterialKind
   /** 按来源筛选 */
   source?: MaterialSource
-  /** 按状态筛选 */
-  status?: MaterialStatus
-  /** 创建者 */
-  createdBy?: string
-  /** 租户 ID */
-  tenantId?: string
+  /** 归属应用 ID */
+  applicationId?: string
 }
 
 export interface IMaterialListResult {
-  materials: Partial<IMaterial>[]
+  materials: Partial<IMaterialDocument>[]
   total: number
   page: number
   pageSize: number
@@ -38,8 +39,8 @@ export interface ICreateMaterialData {
   version?: string
   minEngineVersion?: string
   template: IMaterialTemplate
-  tenantId?: string
-  createdBy?: string
+  applicationId?: string
+  creatorId?: string
 }
 
 export interface IUpdateMaterialData {
@@ -47,10 +48,8 @@ export interface IUpdateMaterialData {
   description?: string
   tags?: string[]
   thumbnail?: string
-  status?: MaterialStatus
   version?: string
   template?: IMaterialTemplate
-  updatedBy?: string
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -64,44 +63,28 @@ class MaterialService {
     page: number = 1,
     pageSize: number = 20,
   ): Promise<IMaterialListResult> {
-    const filter: any = {}
+    const filter: Record<string, unknown> = {}
 
     if (query.keyword) {
       filter.$text = { $search: query.keyword }
     }
     if (query.tags && query.tags.length > 0) {
-      filter.tags = { $in: query.tags }
+      filter['meta.tags'] = { $in: query.tags }
     }
     if (query.kind) {
       filter.kind = query.kind
     }
     if (query.source) {
-      filter.source = query.source
+      filter['meta.source'] = query.source
     }
-    if (query.status) {
-      filter.status = query.status
-    } else {
-      // 默认不显示已废弃的物料
-      filter.status = { $ne: 'deprecated' }
-    }
-    // builtin 物料对所有用户可见，不受 tenant/owner 限制
+    // builtin 物料对所有用户可见，不受 application 限制
     if (query.source === 'builtin') {
-      // 不加 tenant/owner 过滤
-    } else if (query.tenantId && query.createdBy) {
-      // 非 builtin 查询：限定为当前租户 + 当前用户 或 builtin
+      // 不加 application 过滤
+    } else if (query.applicationId) {
+      // 非 builtin 查询：限定为当前应用 或 builtin
       filter.$or = [
-        { tenantId: query.tenantId, createdBy: query.createdBy },
-        { source: 'builtin' },
-      ]
-    } else if (query.tenantId) {
-      filter.$or = [
-        { tenantId: query.tenantId },
-        { source: 'builtin' },
-      ]
-    } else if (query.createdBy) {
-      filter.$or = [
-        { createdBy: query.createdBy },
-        { source: 'builtin' },
+        { applicationId: query.applicationId },
+        { 'meta.source': 'builtin' },
       ]
     }
 
@@ -110,10 +93,11 @@ class MaterialService {
     const [materials, total] = await Promise.all([
       Material.find(filter)
         .select('-template.root -__v')
-        .sort({ createdAt: -1 })
+        .sort({ 'meta.createdAt': -1 })
         .skip(skip)
         .limit(pageSize)
-        .lean() as unknown as Promise<Partial<IMaterial>[]>,
+        .lean<Partial<IMaterialDocument>[]>()
+        .exec(),
       Material.countDocuments(filter),
     ])
 
@@ -121,89 +105,84 @@ class MaterialService {
   }
 
   /**
-   * 根据业务 ID 获取物料详情（含完整模板）
+   * 根据物料 ID 获取物料详情（含完整模板）
    */
-  async getMaterialById(materialId: string): Promise<IMaterial | null> {
-    return Material.findOne({ material_id: materialId }).lean() as unknown as IMaterial | null
+  async getMaterialById(materialId: string): Promise<IMaterialDocument | null> {
+    return Material.findOne({ 'meta.id': materialId }).lean<IMaterialDocument | null>().exec()
   }
 
   /**
    * 创建物料
    */
-  async createMaterial(data: ICreateMaterialData): Promise<IMaterial> {
+  async createMaterial(data: ICreateMaterialData): Promise<IMaterialDocument> {
     const materialId = `mat_${crypto.randomUUID()}`
+    const now = new Date().toISOString()
 
     const material = new Material({
-      material_id: materialId,
-      name: data.name,
-      description: data.description ?? '',
-      tags: data.tags ?? [],
-      kind: data.kind ?? 'render',
-      thumbnail: data.thumbnail ?? '',
-      source: data.source ?? 'user',
-      status: 'active',
-      version: data.version ?? '1.0.0',
-      minEngineVersion: data.minEngineVersion ?? '',
+      meta: {
+        id: materialId,
+        name: data.name,
+        description: data.description ?? '',
+        tags: data.tags ?? [],
+        thumbnail: data.thumbnail ?? '',
+        source: data.source ?? 'user',
+        creatorId: data.creatorId ?? '',
+        createdAt: now,
+        updatedAt: now,
+        version: data.version ?? '1.0.0',
+        minEngineVersion: data.minEngineVersion ?? '',
+      },
       template: data.template,
-      tenantId: data.tenantId ?? '',
-      createdBy: data.createdBy ?? '',
-      updatedBy: data.createdBy ?? '',
+      kind: data.kind ?? 'render',
+      applicationId: data.applicationId ?? '',
     })
 
     await material.save()
-    return material.toObject()
+    return material.toObject<IMaterialDocument>()
   }
 
   /**
    * 更新物料
    */
-  async updateMaterial(materialId: string, data: IUpdateMaterialData): Promise<IMaterial | null> {
-    const updateData: any = { ...data }
-    if (data.updatedBy) {
-      updateData.updatedBy = data.updatedBy
+  async updateMaterial(materialId: string, data: IUpdateMaterialData): Promise<IMaterialDocument | null> {
+    const set: Record<string, unknown> = {
+      'meta.updatedAt': new Date().toISOString(),
     }
+    if (data.name !== undefined) set['meta.name'] = data.name
+    if (data.description !== undefined) set['meta.description'] = data.description
+    if (data.tags !== undefined) set['meta.tags'] = data.tags
+    if (data.thumbnail !== undefined) set['meta.thumbnail'] = data.thumbnail
+    if (data.version !== undefined) set['meta.version'] = data.version
+    if (data.template !== undefined) set.template = data.template
 
     return Material.findOneAndUpdate(
-      { material_id: materialId },
-      { $set: updateData },
-      { new: true, lean: true },
-    ) as unknown as IMaterial | null
+      { 'meta.id': materialId },
+      { $set: set },
+      { new: true },
+    ).lean<IMaterialDocument | null>().exec()
   }
 
   /**
-   * 废弃物料（软删除）
-   */
-  async deprecateMaterial(materialId: string, updatedBy: string): Promise<IMaterial | null> {
-    return Material.findOneAndUpdate(
-      { material_id: materialId },
-      { $set: { status: 'deprecated', updatedBy } },
-      { new: true, lean: true },
-    ) as unknown as IMaterial | null
-  }
-
-  /**
-   * 硬删除物料（仅限草稿状态）
+   * 硬删除物料
    */
   async deleteMaterial(materialId: string): Promise<boolean> {
-    const result = await Material.deleteOne({
-      material_id: materialId,
-      status: 'draft',
-    })
+    const result = await Material.deleteOne({ 'meta.id': materialId })
     return result.deletedCount > 0
   }
 
   /**
    * 搜索物料（用于 AI 工具调用）
    */
-  async searchMaterials(keyword: string, limit: number = 10): Promise<Partial<IMaterial>[]> {
+  async searchMaterials(keyword: string, limit: number = 10): Promise<Partial<IMaterialDocument>[]> {
     return Material.find(
-      { $text: { $search: keyword }, status: 'active' },
+      { $text: { $search: keyword } },
       { score: { $meta: 'textScore' } },
     )
-      .select('material_id name description tags kind thumbnail template.parameters template.assets')
+      .select('meta kind template.parameters template.assets')
       .sort({ score: { $meta: 'textScore' } })
       .limit(limit)
-      .lean() as unknown as Partial<IMaterial>[]
+      .lean<Partial<IMaterialDocument>[]>()
+      .exec()
   }
 }
 

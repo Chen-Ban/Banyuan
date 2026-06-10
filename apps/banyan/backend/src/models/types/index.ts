@@ -51,14 +51,15 @@ export type { FullAgentRole, IAgentPrompt } from './agent-prompt.js'
 
 export type {
   MaterialSource,
-  MaterialStatus,
   MaterialKind,
   MaterialParameterType,
   IMaterialParameter,
   IMaterialAsset,
   IInternalIdRef,
   IMaterialTemplate,
+  IMaterialMeta,
   IMaterial,
+  IMaterialDocument,
 } from './material.js'
 
 export type { PackagePlatform, PackageStatus, IPackageTask } from './package-task.js'
