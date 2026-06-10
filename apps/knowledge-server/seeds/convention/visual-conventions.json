@@ -1,0 +1,12 @@
+{
+  "id": "convention-ui-visual",
+  "content": "# 惯例约定：视觉规范\n\n## 目的\n\n约束 AI 生成 UI 时的视觉默认值，保证多页面应用风格统一、观感专业。无明确要求时一律采用本约定。\n\n## 间距（8 倍数体系）\n\n所有 padding/gap/margin 取 8 的倍数：4 / 8 / 12 / 16 / 20 / 24 / 32。页面级左右边距默认 16，卡片内边距 8~12，区块间距 12~16。\n\n## 圆角\n\n- 卡片/输入框：6 ~ 8\n- 按钮：8（胶囊按钮用高度的一半，如 height 48 → radius 24）\n- 图片缩略图：6；头像：宽高一半（圆形）\n\n## 字号与字重\n\n- 页面大标题：24 ~ 28，bold\n- 区块标题：16 ~ 18，bold\n- 正文：14 ~ 15，normal\n- 辅助/说明文字：12 ~ 13，color 灰\n\n## 颜色\n\n- 主色（按钮/链接/强调）：#1677ff\n- 主文字：#1a1a1a；次要文字：#666666；占位/禁用：#bfbfbf\n- 页面背景：#f5f5f5；卡片背景：#ffffff\n- 价格/危险：#ff4d4f；成功：#52c41a\n- 分割线：#e0e0e0 / #d9d9d9\n\n## 阴影\n\n卡片轻阴影：`{ color: \"#0000000f\", blur: 6, offsetX: 0, offsetY: 2 }`；导航栏：`{ color: \"#00000014\", blur: 4, offsetY: 2 }`。避免过重阴影。\n\n## 尺寸基准\n\n移动端画布宽度默认 375。按钮高度 44 ~ 48。导航栏高度 56。列表卡片高度 88 ~ 96。\n\n## 布局优先级\n\n优先用 CombinedView 的 flex 布局（layoutMode=flex）而非绝对定位摆放，保证自适应。仅在确需精确叠放时用 absolute。",
+  "source": "manual",
+  "metadata": {
+    "category": "convention",
+    "domain": "ui",
+    "topic": "visual",
+    "description": "视觉默认值：间距/圆角/字号/配色/阴影/尺寸",
+    "version": "0.1.0"
+  }
+}

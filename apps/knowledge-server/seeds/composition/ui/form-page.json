@@ -1,0 +1,13 @@
+{
+  "id": "composition-ui-form-page",
+  "content": "# 组合模式：表单页\n\n## 适用场景\n\n新建/编辑数据的表单页面，如新增商品、编辑资料、提交工单。由若干「字段行」纵向排列，底部一个提交按钮。\n\n## 组合方式\n\n外层 CombinedView（layoutMode=flex, direction=column）。每个字段行是一个 CombinedView（direction=column）：标签 TextView + 输入框（TextView 配 decoration 边框模拟输入框，或专用输入视图）。底部提交按钮 TextView 绑定 onClick FlowSchema。\n\n## AI Projection 示例\n\n```json\n{\n  \"type\": \"COMBINEDVIEW\",\n  \"id\": \"form-page\",\n  \"transform\": { \"x\": 0, \"y\": 0 },\n  \"size\": { \"width\": 375, \"height\": 500 },\n  \"layoutMode\": \"flex\",\n  \"flexLayout\": { \"direction\": \"column\", \"crossAxisAlignment\": \"stretch\", \"gap\": 16, \"padding\": [20, 20, 20, 20] },\n  \"children\": [\n    {\n      \"type\": \"COMBINEDVIEW\",\n      \"id\": \"field-name\",\n      \"transform\": { \"x\": 0, \"y\": 0 },\n      \"size\": { \"width\": 335, \"height\": 64 },\n      \"layoutMode\": \"flex\",\n      \"flexLayout\": { \"direction\": \"column\", \"gap\": 6, \"crossAxisAlignment\": \"start\" },\n      \"children\": [\n        { \"type\": \"TEXTVIEW\", \"id\": \"label-name\", \"transform\": { \"x\": 0, \"y\": 0 }, \"size\": { \"width\": 335, \"height\": 20 }, \"content\": { \"paragraphs\": [ { \"elements\": [ { \"text\": \"名称\", \"style\": { \"fontSize\": 14, \"color\": \"#666666\" } } ] } ] } },\n        { \"type\": \"TEXTVIEW\", \"id\": \"input-name\", \"transform\": { \"x\": 0, \"y\": 0 }, \"size\": { \"width\": 335, \"height\": 38 }, \"decoration\": { \"fill\": { \"color\": \"#f5f5f5\" }, \"radius\": 6, \"border\": { \"color\": \"#d9d9d9\", \"width\": 1 } }, \"content\": { \"paragraphs\": [ { \"elements\": [ { \"text\": \"请输入名称\", \"style\": { \"fontSize\": 14, \"color\": \"#bfbfbf\" } } ] } ] } }\n      ]\n    },\n    {\n      \"type\": \"TEXTVIEW\",\n      \"id\": \"submit-btn\",\n      \"transform\": { \"x\": 0, \"y\": 0 },\n      \"size\": { \"width\": 335, \"height\": 44 },\n      \"decoration\": { \"fill\": { \"color\": \"#1677ff\" }, \"radius\": 8 },\n      \"content\": { \"paragraphs\": [ { \"elements\": [ { \"text\": \"提交\", \"style\": { \"fontSize\": 16, \"color\": \"#ffffff\", \"fontWeight\": \"bold\" } } ], \"align\": \"center\" } ] },\n      \"events\": { \"onClick\": null }\n    }\n  ]\n}\n```\n\n## 依赖的 Primitive\n\nprimitive-ui-combinedview, primitive-ui-textview\n\n## 说明\n\n- 提交按钮的 `events.onClick` 在此处为 null 占位，实际生成时绑定一个 FlowSchema（见 bindflow 组合模式 composition-bindflow-form-submit）。\n- 输入框当前用带边框 TextView 模拟；若运行时提供专用输入视图类型，应优先使用。",
+  "source": "composition",
+  "metadata": {
+    "category": "composition",
+    "domain": "ui",
+    "pattern": "form-page",
+    "description": "纵向字段表单页，底部提交按钮",
+    "dependencies": ["primitive-ui-combinedview", "primitive-ui-textview"],
+    "version": "0.1.0"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "composition-bindflow-form-submit",
+  "content": "# 跨域组合：表单提交\n\n## 适用场景\n\n用户填完表单点提交，校验输入后调用写入类云函数（新增/更新），成功后跳转或提示。\n\n## 绑定方式\n\n在提交按钮 View 的 `events.onClick` 挂前端 FlowSchema。流程：condition 校验必填 → callFlow 调用写入云函数 → navigate 跳转 / setData 提示。\n\n## FlowSchema 示例（绑定在提交按钮 events.onClick）\n\n```json\n{\n  \"nodes\": [\n    {\n      \"id\": \"check-1\",\n      \"kind\": \"condition\",\n      \"condition\": {\n        \"left\": { \"kind\": \"dataRef\", \"viewId\": \"input-name\", \"key\": \"value\" },\n        \"op\": \"!=\",\n        \"right\": { \"kind\": \"literal\", \"value\": \"\" }\n      }\n    },\n    {\n      \"id\": \"submit-1\",\n      \"kind\": \"callFlow\",\n      \"functionId\": \"f1a2b3c4-0000-0000-0000-000000000003\",\n      \"params\": {\n        \"name\": { \"kind\": \"dataRef\", \"viewId\": \"input-name\", \"key\": \"value\" }\n      }\n    },\n    {\n      \"id\": \"go-1\",\n      \"kind\": \"navigate\",\n      \"target\": \"list-scene\",\n      \"mode\": \"redirectTo\"\n    },\n    {\n      \"id\": \"warn-1\",\n      \"kind\": \"setData\",\n      \"viewId\": \"error-tip\",\n      \"key\": \"text\",\n      \"value\": { \"kind\": \"literal\", \"value\": \"名称不能为空\" }\n    }\n  ],\n  \"edges\": [\n    { \"id\": \"e1\", \"from\": \"check-1\", \"to\": \"submit-1\", \"branch\": \"true\" },\n    { \"id\": \"e2\", \"from\": \"check-1\", \"to\": \"warn-1\", \"branch\": \"false\" },\n    { \"id\": \"e3\", \"from\": \"submit-1\", \"to\": \"go-1\" }\n  ]\n}\n```\n\n## 关键约定\n\n- 前端先做轻量校验（condition），重校验/唯一性由后端云函数兜底。\n- 写入失败从 submit-1 引 `branch: \"error\"` 边到提示节点。\n- navigate.mode 取值见 primitive-flow-client-nodes（navigateTo/redirectTo/navigateBack 等）。\n\n## 依赖\n\nprimitive-flow-common, primitive-flow-shared-nodes（condition/callFlow）, primitive-flow-client-nodes（navigate/setData）, primitive-data-cloud-function, composition-ui-form-page",
+  "source": "composition",
+  "metadata": {
+    "category": "composition",
+    "domain": "bindflow",
+    "pattern": "form-submit",
+    "description": "提交按钮 onClick → 校验 → callFlow 写入 → 跳转/提示",
+    "dependencies": ["primitive-flow-common", "primitive-flow-shared-nodes", "primitive-flow-client-nodes", "primitive-data-cloud-function", "composition-ui-form-page"],
+    "version": "0.1.0"
+  }
+}

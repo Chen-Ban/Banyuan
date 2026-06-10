@@ -1,9 +1,10 @@
 {
-  "id": "schema-common",
+  "id": "primitive-ui-common",
   "content": "# 公共字段与样式类型\n\n## 描述\n\n所有 AI Projection 节点共享的基础字段和样式类型定义。创建或修改任何节点时都需要遵循这些规范。\n\n## 公共基础字段（AIProjectionNodeBase）\n\n所有节点都包含以下字段：\n\n- **type** (string) [必填] — 视图类型标识，如 \"GRAPHVIEW\"、\"TEXTVIEW\" 等\n- **id** (string) [必填] — 唯一标识符\n- **transform** (AITransform) [必填] — 语义化坐标：{ x: number, y: number, rotation?: number(默认0), scaleX?: number(默认1), scaleY?: number(默认1) }\n- **size** (AISize) [必填] — 尺寸：{ width: number, height: number }，单位 px\n- **visible** (boolean) [可选] — 可见性，省略表示 true\n- **freezed** (boolean) [可选] — 冻结状态（不可编辑），省略表示 false\n- **decoration** (AIDecoration) [可选] — 装饰样式，省略表示无装饰\n- **events** (AIEvents) [可选] — 事件处理器，省略表示无事件\n- **lifetimes** (AILifetimes) [可选] — 生命周期钩子，省略表示无钩子\n- **data** (AIDataModel) [可选] — 数据模型，省略表示无数据绑定\n- **flexLayout** (AIFlexLayout) [可选] — 子元素级 flex 参数（仅含 flex/alignSelf），当父容器为 flex 模式时生效\n\n## 坐标系\n\n- 原点在页面左上角，X 轴向右，Y 轴向下\n- 所有尺寸单位为逻辑像素（px）\n- 移动端默认页面尺寸：375 × 812 px\n\n## 装饰类型（AIDecoration）\n\n```json\n{\n  \"fill\": { \"color\": \"#ffffff\", \"opacity\": 1 },\n  \"stroke\": { \"color\": \"#000000\", \"width\": 1, \"style\": \"solid\", \"opacity\": 1 },\n  \"shadow\": { \"color\": \"#00000033\", \"blur\": 4, \"offsetX\": 0, \"offsetY\": 2 },\n  \"cornerRadius\": 8,\n  \"overflow\": \"hidden\"\n}\n```\n\n各字段说明：\n- **fill.color** — 颜色值：hex 字符串（如 \"#FF5733\"）或渐变对象 { type: \"linear\"|\"radial\"|\"conic\", stops: [{ offset: 0-1, color: \"#hex\" }], params?: {} }\n- **fill.opacity** — 填充透明度 0-1\n- **stroke.style** — \"solid\" | \"dashed\" | \"dotted\"\n- **cornerRadius** — 圆角半径，number 或 [左上, 右上, 右下, 左下] 四值元组\n- **overflow** — \"visible\" | \"hidden\" | \"scroll\"\n\n## 事件处理器（AIEvents）\n\n支持 12 种事件，值为 FlowSchema（流程图声明式定义）或 null：\nonClick, onDoubleClick, onLongPress, onMouseEnter, onMouseLeave, onMouseDown, onMouseUp, onMouseMove, onFocus, onBlur, onChange, onScroll\n\n## 生命周期钩子（AILifetimes）\n\n- **onCreated** — 视图创建时\n- **onAttach** — 视图挂载到场景时\n- **onDestroy** — 视图销毁时\n\n## 数据模型（AIDataModel）\n\n键值对格式，每个字段：{ type: string, defaultValue?: unknown, label?: string }\n\n```json\n{\n  \"title\": { \"type\": \"string\", \"defaultValue\": \"标题\", \"label\": \"标题\" },\n  \"count\": { \"type\": \"number\", \"defaultValue\": 0 }\n}\n```",
-  "source": "auto-generated:knowledge-tool",
+  "source": "manual",
   "metadata": {
-    "category": "schema",
+    "category": "primitive",
+    "domain": "ui",
     "nodeType": "Common",
     "version": "0.1.0"
   }

@@ -1,0 +1,13 @@
+{
+  "id": "composition-bindflow-page-init-load-data",
+  "content": "# 跨域组合：页面加载初始化数据\n\n## 适用场景\n\n页面打开时自动拉取列表/详情数据并渲染。列表页、详情页进入即展示数据是最常见需求。\n\n## 绑定方式\n\n在 Scene 的 `lifetimes.onLoad`（或入口容器 View 的 `lifetimes.onCreated`）挂一个前端 FlowSchema。该 FlowSchema 用 `callFlow` 调用查询类云函数，再用 `setData` 把结果写入承载列表/详情的 View。\n\n## FlowSchema 示例（绑定在 Scene.lifetimes.onLoad）\n\n```json\n{\n  \"nodes\": [\n    {\n      \"id\": \"load-1\",\n      \"kind\": \"callFlow\",\n      \"functionId\": \"f1a2b3c4-0000-0000-0000-000000000002\",\n      \"params\": {}\n    },\n    {\n      \"id\": \"render-1\",\n      \"kind\": \"setData\",\n      \"viewId\": \"card-list\",\n      \"key\": \"items\",\n      \"value\": { \"kind\": \"nodeRef\", \"nodeId\": \"load-1\" }\n    }\n  ],\n  \"edges\": [\n    { \"id\": \"e1\", \"from\": \"load-1\", \"to\": \"render-1\" }\n  ]\n}\n```\n\n## 关键约定\n\n- 初始化数据应放在 Scene.onLoad 或入口容器 onCreated，而非用户交互事件里。\n- 若详情页需要根据上个页面传入的 id 查询，params 用 `pageDataRef`/`eventArg` 取参数传给 callFlow。\n- 加载态可在 callFlow 前用 setData 设置 loading=true，完成后置 false（见 convention-flow-error-handling 中的加载态约定）。\n\n## 依赖\n\nprimitive-flow-common, primitive-flow-shared-nodes（callFlow）, primitive-flow-client-nodes（setData）, primitive-ui-scene, primitive-data-cloud-function",
+  "source": "composition",
+  "metadata": {
+    "category": "composition",
+    "domain": "bindflow",
+    "pattern": "page-init-load-data",
+    "description": "Scene.onLoad → callFlow 查询 → setData 渲染列表/详情",
+    "dependencies": ["primitive-flow-common", "primitive-flow-shared-nodes", "primitive-flow-client-nodes", "primitive-ui-scene", "primitive-data-cloud-function"],
+    "version": "0.1.0"
+  }
+}

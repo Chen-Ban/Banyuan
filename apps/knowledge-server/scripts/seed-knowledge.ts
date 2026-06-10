@@ -6,10 +6,10 @@
  * 知识服务负责向量化和 LanceDB 持久化。
  *
  * 用法：
- *   tsx scripts/seed-knowledge.ts --layer all       # 写入所有层级
- *   tsx scripts/seed-knowledge.ts --layer schema    # 仅写入 schema 层
- *   tsx scripts/seed-knowledge.ts --layer composition # 仅写入 composition 层
- *   tsx scripts/seed-knowledge.ts --layer theme     # 仅写入 theme 层
+ *   tsx scripts/seed-knowledge.ts --layer all         # 写入所有层级
+ *   tsx scripts/seed-knowledge.ts --layer primitive   # 仅写入 primitive 层（原子能力）
+ *   tsx scripts/seed-knowledge.ts --layer composition # 仅写入 composition 层（组合模式）
+ *   tsx scripts/seed-knowledge.ts --layer convention  # 仅写入 convention 层（惯例约定）
  *
  * 前置条件：knowledge-server 需先启动（默认 http://localhost:3003）
  *
@@ -23,26 +23,29 @@ import http from 'http'
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
 
-type SeedCategory = 'schema' | 'composition' | 'theme'
+type SeedCategory = 'primitive' | 'composition' | 'convention'
 
 const VALID_LAYERS: ReadonlyArray<SeedCategory | 'all'> = [
-  'schema',
+  'primitive',
   'composition',
-  'theme',
+  'convention',
   'all',
 ]
 
 const KNOWLEDGE_BASE_URL = process.env.KNOWLEDGE_URL ?? 'http://localhost:3003'
 
 /**
- * seeds 目录路径（相对于 monorepo 中 XiangDi 包的位置）
+ * seeds 目录路径（与本脚本同处 knowledge-server 包内）
+ *
+ * 知识归属于 knowledge-server（系统级公共知识），因此种子与写入脚本就近放置。
+ * 目录结构按 C7 三层 × 领域组织：
+ *   seeds/primitive/{ui,flow,data}/*.json
+ *   seeds/composition/{ui,bindflow,fullstack}/*.json
+ *   seeds/convention/*.json
  */
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-const SEEDS_BASE_DIR = path.resolve(
-  __dirname,
-  '../../packages/xiangdi-agent/src/knowledge/seeds'
-)
+const SEEDS_BASE_DIR = path.resolve(__dirname, '../seeds')
 
 // ─── 类型 ──────────────────────────────────────────────────────────────────────
 
@@ -165,7 +168,23 @@ function parseArgs(): SeedCategory | 'all' {
 }
 
 /**
- * 从指定目录读取所有 JSON 种子文件
+ * 递归收集目录下所有 .json 文件路径（支持 primitive/ui、composition/bindflow 等子目录）
+ */
+function collectJsonFiles(dir: string): string[] {
+  const result: string[] = []
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      result.push(...collectJsonFiles(full))
+    } else if (entry.isFile() && entry.name.endsWith('.json')) {
+      result.push(full)
+    }
+  }
+  return result
+}
+
+/**
+ * 从指定层级目录（含子目录）递归读取所有 JSON 种子文件
  */
 function loadSeedFiles(category: SeedCategory): SeedFile[] {
   const dir = path.join(SEEDS_BASE_DIR, category)
@@ -175,18 +194,23 @@ function loadSeedFiles(category: SeedCategory): SeedFile[] {
     return []
   }
 
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.json'))
   const seeds: SeedFile[] = []
 
-  for (const file of files) {
-    const filePath = path.join(dir, file)
+  for (const filePath of collectJsonFiles(dir)) {
     const raw = fs.readFileSync(filePath, 'utf-8')
     const parsed = JSON.parse(raw) as SeedFile
 
     // 基本校验
     if (!parsed.id || !parsed.content || !parsed.source || !parsed.metadata?.category) {
-      console.warn(`⚠️  跳过格式不合法的文件: ${file}`)
+      console.warn(`⚠️  跳过格式不合法的文件: ${path.relative(dir, filePath)}`)
       continue
+    }
+
+    // 一致性校验：metadata.category 应与所在层级一致
+    if (parsed.metadata.category !== category) {
+      console.warn(
+        `⚠️  category 不一致（文件声明 "${parsed.metadata.category}"，所在目录 "${category}"）: ${parsed.id}`
+      )
     }
 
     seeds.push(parsed)
@@ -263,7 +287,7 @@ async function main(): Promise<void> {
   }
 
   const categories: SeedCategory[] =
-    layer === 'all' ? ['schema', 'composition', 'theme'] : [layer]
+    layer === 'all' ? ['primitive', 'composition', 'convention'] : [layer]
 
   let total = 0
   for (const cat of categories) {

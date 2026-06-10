@@ -1,0 +1,13 @@
+{
+  "id": "composition-ui-navbar",
+  "content": "# 组合模式：顶部导航栏\n\n## 适用场景\n\n页面顶部的标题栏/导航栏，左侧标题或返回按钮，右侧操作按钮。是几乎所有页面的标配。\n\n## 组合方式\n\nCombinedView（layoutMode=flex, direction=row, mainAxisAlignment=space-between）+ 左右两个子元素（TextView 标题 + GraphView/TextView 操作）。\n\n## AI Projection 示例\n\n```json\n{\n  \"type\": \"COMBINEDVIEW\",\n  \"id\": \"navbar\",\n  \"transform\": { \"x\": 0, \"y\": 0 },\n  \"size\": { \"width\": 375, \"height\": 56 },\n  \"layoutMode\": \"flex\",\n  \"decoration\": { \"fill\": { \"color\": \"#ffffff\" }, \"shadow\": { \"color\": \"#00000014\", \"blur\": 4, \"offsetX\": 0, \"offsetY\": 2 } },\n  \"flexLayout\": {\n    \"direction\": \"row\",\n    \"mainAxisAlignment\": \"space-between\",\n    \"crossAxisAlignment\": \"center\",\n    \"padding\": [0, 16, 0, 16]\n  },\n  \"children\": [\n    {\n      \"type\": \"TEXTVIEW\",\n      \"id\": \"nav-title\",\n      \"transform\": { \"x\": 0, \"y\": 0 },\n      \"size\": { \"width\": 200, \"height\": 28 },\n      \"content\": { \"paragraphs\": [ { \"elements\": [ { \"text\": \"首页\", \"style\": { \"fontSize\": 18, \"fontWeight\": \"bold\", \"color\": \"#1a1a1a\" } } ] } ] }\n    },\n    {\n      \"type\": \"TEXTVIEW\",\n      \"id\": \"nav-action\",\n      \"transform\": { \"x\": 0, \"y\": 0 },\n      \"size\": { \"width\": 60, \"height\": 28 },\n      \"content\": { \"paragraphs\": [ { \"elements\": [ { \"text\": \"设置\", \"style\": { \"fontSize\": 14, \"color\": \"#1677ff\" } } ], \"align\": \"right\" } ] }\n    }\n  ]\n}\n```\n\n## 依赖的 Primitive\n\nprimitive-ui-combinedview, primitive-ui-textview\n\n## 变体\n\n- 带返回按钮：左侧 children 第一个换成箭头 GraphView/图标\n- 居中标题：mainAxisAlignment=center，单 TextView 子元素\n- 多操作按钮：右侧嵌套一个 row 方向的 CombinedView 容纳多个操作",
+  "source": "composition",
+  "metadata": {
+    "category": "composition",
+    "domain": "ui",
+    "pattern": "navbar",
+    "description": "顶部导航栏：左标题右操作",
+    "dependencies": ["primitive-ui-combinedview", "primitive-ui-textview"],
+    "version": "0.1.0"
+  }
+}

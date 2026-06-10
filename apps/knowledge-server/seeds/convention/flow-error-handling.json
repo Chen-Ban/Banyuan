@@ -1,0 +1,12 @@
+{
+  "id": "convention-flow-error-handling",
+  "content": "# 惯例约定：流程错误处理与加载态\n\n## 目的\n\n约束 FlowSchema 在异步、可失败场景下的健壮性写法，避免「点了没反应」「失败后无提示」「卡在加载中」。\n\n## error 分支\n\n任何可能抛异常的节点（callFlow / dbQuery / dbInsert / httpRequest 等）都应引一条 `branch: \"error\"` 边到错误处理节点。前端用 setData 把错误提示写入提示 View；后端用 return 返回结构化错误。\n\n```json\n{ \"id\": \"e-err\", \"from\": \"call-1\", \"to\": \"toast-err\", \"branch\": \"error\" }\n```\n\n## 加载态约定\n\n调用耗时操作（callFlow/httpRequest）前后置加载标志：\n\n1. 调用前：setData viewId=loading-target key=loading value=literal:true\n2. 调用成功/失败后：setData ... value=literal:false（成功边与 error 边都要复位）\n\n## 提交防抖\n\n表单/按钮触发写操作时，进入流程即把按钮置 disabled（setData key=disabled value=true），流程结束（成功或失败）再复位，避免重复提交。\n\n## 校验前置\n\n写操作前用 condition 节点做必填/格式校验，false 分支直接提示并终止，不进入 callFlow。重校验由后端兜底。\n\n## 成功反馈\n\n写操作成功后必须给用户反馈：navigate 跳转、setData 提示「成功」、或刷新列表。不要静默成功。\n\n## 前后端隔离再强调\n\n错误处理节点也受隔离约束：前端 error 分支只能用 setData/navigate；后端 error 分支只能用 return/transform/script。",
+  "source": "manual",
+  "metadata": {
+    "category": "convention",
+    "domain": "flow",
+    "topic": "error-handling",
+    "description": "error 分支/加载态/防抖/校验前置/成功反馈",
+    "version": "0.1.0"
+  }
+}
