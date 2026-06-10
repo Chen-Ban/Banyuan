@@ -11,7 +11,7 @@ import { SaveOutlined, UndoOutlined } from '@ant-design/icons'
 import { useParams } from 'react-router-dom'
 import { planningApi } from '@/api'
 import type { AgentPromptConfig } from '@/api'
-import type { FullAgentRole } from '@/api/planning'
+import type { FullAgentRole } from '@/api/ai/planning'
 import styles from './index.module.scss'
 
 const { Title, Text } = Typography

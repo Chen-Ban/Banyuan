@@ -1,5 +1,5 @@
-import { get, put } from './client'
-import type { ApiResponse } from './client'
+import { get, put } from '../client'
+import type { ApiResponse } from '../client'
 
 /**
  * 画布内容（appJSON）API

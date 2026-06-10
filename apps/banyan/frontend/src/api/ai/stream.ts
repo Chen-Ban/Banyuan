@@ -10,8 +10,8 @@
  *   text_delta / done / error
  */
 
-import { get, post, stream } from './client'
-import type { ApiResponse } from './client'
+import { get, post, stream } from '../client'
+import type { ApiResponse } from '../client'
 
 // ─── 模型管理类型 ──────────────────────────────────────────────────────────────
 

@@ -8,8 +8,8 @@
  * 设计决策来源：docs/adr/app/protocol.md C5 + docs/specs/app/metadata-dataflow.md 步骤 2
  */
 
-import type { CollectionDef } from '@/api/schema'
-import type { CloudFunctionDef } from '@/api/cloudFunctions'
+import type { CollectionDef } from '@/api/backend/schema'
+import type { CloudFunctionDef } from '@/api/backend/cloudFunctions'
 import { useApplicationStore } from '@/stores/applicationStore'
 
 /**

@@ -4,8 +4,8 @@
  * 提供 Agent Prompt 配置 CRUD。
  */
 
-import { get, put, del } from './client'
-import type { ApiResponse } from './client'
+import { get, put, del } from '../client'
+import type { ApiResponse } from '../client'
 
 // ─── 类型定义 ──────────────────────────────────────────────────────────────────
 

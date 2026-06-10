@@ -2,8 +2,8 @@
  * 物料 API
  */
 
-import { get, post, put, del } from './client'
-import type { ApiResponse } from './client'
+import { get, post, put, del } from '../client'
+import type { ApiResponse } from '../client'
 import type { IMaterial } from '@banyuan/banvasgl'
 
 /** 物料种类：render 渲染物料 / flow 流程节点物料 */

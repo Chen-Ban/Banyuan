@@ -9,7 +9,7 @@
  *   子页面保存成功后通过 hotUpdate 热更新 collections/functions。
  */
 
-import type { PreviewServerInput, PreviewServerInfo, HotUpdatePatch } from '../types/electron.js';
+import type { PreviewServerInput, PreviewServerInfo, HotUpdatePatch } from '../../types/electron.js';
 
 /** 是否运行在 Electron 环境中 */
 export function isElectron(): boolean {

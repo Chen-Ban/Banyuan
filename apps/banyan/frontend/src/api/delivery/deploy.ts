@@ -2,8 +2,8 @@
  * 部署 API（ADR-028）
  */
 
-import { get, post } from './client'
-import type { ApiResponse } from './client'
+import { get, post } from '../client'
+import type { ApiResponse } from '../client'
 
 // ─── 类型 ─────────────────────────────────────────────────────────────────────
 

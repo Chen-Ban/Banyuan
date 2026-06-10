@@ -2,7 +2,7 @@
  * 构建应用 API
  */
 
-import { post, get } from './client'
+import { post, get } from '../client'
 
 export type Platform = 'mac' | 'win' | 'linux' | 'web' | 'ios' | 'android'
 export type BuildStatus = 'pending' | 'running' | 'success' | 'failed'

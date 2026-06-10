@@ -7,10 +7,10 @@
  * 对应后端路由：/api/apps/:appId/save-all 和 /api/apps/:appId/full-state
  */
 
-import { get, put } from './client'
-import type { ApiResponse } from './client'
-import type { CollectionDef } from './schema'
-import type { CloudFunctionDef } from './cloudFunctions'
+import { get, put } from '../client'
+import type { ApiResponse } from '../client'
+import type { CollectionDef } from '../backend/schema'
+import type { CloudFunctionDef } from '../backend/cloudFunctions'
 
 export interface FullStateData {
   appJSON: string

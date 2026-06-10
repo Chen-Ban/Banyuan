@@ -10,7 +10,7 @@
  *   - AssistantContent：助手消息的内容块，与 SSE 事件类型一一对应
  */
 
-import { get } from './client'
+import { get } from '../client'
 
 // ─── 类型定义 ─────────────────────────────────────────────────────────────────
 

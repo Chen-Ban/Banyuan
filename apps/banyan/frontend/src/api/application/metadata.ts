@@ -1,5 +1,5 @@
-import { get, post, put, del } from './client'
-import type { ApiResponse } from './client'
+import { get, post, put, del } from '../client'
+import type { ApiResponse } from '../client'
 
 /**
  * 应用信息
