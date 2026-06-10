@@ -20,8 +20,8 @@ Banyan 覆盖应用构建的完整链路：
 
 | 子应用 | 技术栈 | 职责 |
 |--------|--------|------|
-| frontend | React 19 + Vite + Ant Design 6 | UI 编辑器、属性面板、AI 对话、流程编辑器 |
-| backend | Koa + MongoDB (Mongoose) | 应用数据持久化、动态 ORM、AI 请求代理、构建任务 |
+| frontend | React 19 + Vite + Ant Design 6 + zustand | UI 编辑器、属性面板、AI 对话、流程编辑器、预览与数据浏览 |
+| backend | Koa + MongoDB (Mongoose) | 应用数据持久化（SchemaService 动态集合）、物料系统、AI 代理、构建/预览、部署（AgentGateway → ECS deploy-agent） |
 | electron | Electron 36 | 桌面壳，将 Web 应用打包为原生安装包 |
 
 ---
@@ -32,10 +32,13 @@ Banyan 覆盖应用构建的完整链路：
 |------|------|
 | `/` | 首页（创建/打开应用） |
 | `/applications` | 应用列表 |
-| `/application/:id` | 画布编辑器（拖拽设计 + AI 对话） |
+| `/settings` | 应用设置 |
+| `/application/:id` | 应用详情（默认重定向到 `preview`） |
+| `/application/:id/preview` | 预览态 |
+| `/application/:id/ui` | UI 画布编辑器（拖拽设计 + AI 对话） |
 | `/application/:id/database` | 数据库 Schema 设计器 |
+| `/application/:id/data-browser` | 数据浏览器 |
 | `/application/:id/functions` | 云函数流程编辑器 |
-| `/application/:id/settings` | 应用设置 |
 
 ---
 
@@ -69,11 +72,12 @@ pnpm dev:banyan
 
 ```
 Banyan frontend  ──依赖──▶  @banyuan/banvasgl（画布渲染）
-Banyan backend   ──依赖──▶  @banyuan/banvasgl/flow/server（云函数执行）
-Banyan backend   ──HTTP──▶  XiangDi Server(:3002)（AI 代理）
+Banyan backend   ──依赖──▶  @banyuan/banvasgl/flow/server（FlowSchema 类型/存储）
+Banyan backend   ──HTTP SSE─▶  XiangDi Server(:3002)（AI 代理）
+Banyan backend   ── ws ───▶  租户 ECS deploy-agent（部署）
 ```
 
-Banyan 后端不直接引用 `@banyuan/xiangdi-agent`，AI 能力通过 HTTP 调用 XiangDi Server 获得。
+Banyan 后端不直接引用 `@banyuan/xiangdi-agent`，AI 能力通过 HTTP 调用 XiangDi Server 获得；云函数的 FlowSchema 执行也不在 Banyan 后端，而是在租户 ECS 的 deploy-agent 产物中。
 
 ---
 

@@ -22,12 +22,13 @@ XiangDi Server 是一个**无状态**的 AI 服务：
 ```
 Banyan 后端(:3001)
     │
-    │ POST /ai/orchestrate（用户消息 + appJSON）
+    │ POST /ai/run（用户消息 + appId，mode: task | chat）
     ▼
 XiangDi Server(:3002)
     │
-    │ 执行 OrchestratorGraph
-    │ 按需拉取物料/知识
+    │ 执行 OrchestratorGraph（LangGraph StateGraph）
+    │ Pull-based 拉取 pages/collections/cloudFunctions
+    │ 按需拉取物料（RemoteMaterialStore）/知识
     ▼
 SSE 流式返回（进度事件 + 最终产物）
 ```
@@ -38,11 +39,11 @@ SSE 流式返回（进度事件 + 最终产物）
 
 | 接口 | 用途 |
 |------|------|
-| `POST /ai/orchestrate` | 执行 AI 生成（SSE 流式响应） |
+| `POST /ai/run` | 执行 AI 生成（SSE 流式响应），支持 `mode: task`（构建）与 `mode: chat`（对话） |
 | `GET /ai/models` | 查看可用 LLM 模型 |
 | `POST /ai/models/switch` | 切换当前使用的模型 |
 
-SSE 事件类型包括：阶段切换（phase_change）、SubAgent 进度（agent_progress）、工具调用活动（tool_activity）、文本增量（text_delta）、完成（done）。
+SSE 事件类型包括：阶段切换（phase_change）、SubAgent 进度（agent_progress）、工具调用活动（tool_activity）、审计进度（audit_progress）、文本增量（text_delta）、完成（done）。
 
 ---
 
