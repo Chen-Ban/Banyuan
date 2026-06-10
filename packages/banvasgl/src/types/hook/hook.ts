@@ -9,7 +9,8 @@
 
 import type View from '@/view/View/View'
 import type { Point3 } from '@/foundation'
-import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes, IInteractResult, Cursor, ViewTypeMap } from '../view/view'
+import type { Cursor } from '@/foundation/constants'
+import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes, IInteractResult, ViewTypeMap } from '../view/view'
 import type { ISceneLifetimes } from '../engine/scene'
 import type { IAppLifetimes } from '../engine/app'
 import type { IMaterialActions } from '../material/material.js'

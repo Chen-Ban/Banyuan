@@ -8,7 +8,7 @@ import { useCallback, useState } from 'react'
 import { NodeView, EdgeView } from '@banyuan/banvasgl'
 import type { IBanvasActions } from '@banyuan/banvasgl'
 import type { FlowContextMenuEvent } from './useInteraction'
-import type { FlowContextMenuItem, FlowContextMenuState } from '../components/FlowEditor/FlowContextMenu'
+import type { FlowContextMenuItem, FlowContextMenuState } from '../components/FlowKit/FlowContextMenu'
 
 // ── 菜单项生成 ──
 

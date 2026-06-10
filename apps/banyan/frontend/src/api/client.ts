@@ -7,11 +7,14 @@
  * - 刷新成功后重试原请求（对调用方透明）
  * - 刷新失败（refresh token 也过期）时才清除登录态
  * - 并发请求共享同一个刷新 Promise，避免重复刷新
+ *
+ * Token 读写统一通过 authStore 管理，避免多处直接操作 localStorage。
  */
+
+import { useAuthStore } from '@/stores/authStore'
 
 const BASE_URL = '/api'
 
-const TOKEN_KEY = 'banyan_access_token'
 const REFRESH_TOKEN_KEY = 'banyan_refresh_token'
 
 /**
@@ -58,7 +61,7 @@ let refreshingPromise: Promise<boolean> | null = null
 
 /**
  * 尝试用 refresh token 获取新的 token 对。
- * 返回 true 表示刷新成功（localStorage 已更新），false 表示刷新失败。
+ * 返回 true 表示刷新成功，false 表示刷新失败。
  * 并发调用会共享同一个 Promise。
  */
 function tryRefreshToken(): Promise<boolean> {
@@ -80,9 +83,8 @@ function tryRefreshToken(): Promise<boolean> {
       const result = await response.json()
       if (!result.success || !result.data) return false
 
-      // 写入新 token 对
-      localStorage.setItem(TOKEN_KEY, result.data.accessToken)
-      localStorage.setItem(REFRESH_TOKEN_KEY, result.data.refreshToken)
+      // 通过 authStore 统一回写 token
+      useAuthStore.getState().setTokens(result.data)
       return true
     } catch {
       return false
@@ -98,8 +100,7 @@ function tryRefreshToken(): Promise<boolean> {
  * 清除本地登录态
  */
 function clearTokens() {
-  localStorage.removeItem(TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  useAuthStore.getState().clearAuth()
 }
 
 // ─── 请求方法 ──────────────────────────────────────────────────────────────────
@@ -112,7 +113,7 @@ function buildHeaders(options: RequestInit): Record<string, string> {
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
   }
-  const accessToken = localStorage.getItem(TOKEN_KEY)
+  const accessToken = useAuthStore.getState().getAccessToken()
   if (accessToken) {
     headers['Authorization'] = `Bearer ${accessToken}`
   }
@@ -223,7 +224,7 @@ export async function stream(
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
-    const accessToken = localStorage.getItem(TOKEN_KEY)
+    const accessToken = useAuthStore.getState().getAccessToken()
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`
     }

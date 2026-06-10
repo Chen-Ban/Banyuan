@@ -30,7 +30,7 @@ import {
   SwapOutlined,
   GithubOutlined,
 } from "@ant-design/icons";
-import { useAuth } from "@/hooks/authContext";
+import { useAuthStore } from "@/stores/authStore";
 import { applicationApi } from "@/api";
 import type { Application } from "@/api";
 import { useApplicationStore } from "@/stores/applicationStore";
@@ -54,7 +54,10 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
   const navigate = useNavigate();
-  const { user, loading: authLoading, logout, openLoginModal } = useAuth();
+  const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.loading);
+  const logout = useAuthStore((s) => s.logout);
+  const openLoginModal = useAuthStore((s) => s.openLoginModal);
 
   // 是否为首页/列表页模式
   const isNavMode = mode === "nav";

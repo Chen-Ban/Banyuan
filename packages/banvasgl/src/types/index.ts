@@ -153,8 +153,11 @@ export type {
     IEdgeView,
 } from './view/view'
 
-export { AddonCapability, Cursor, Action, cursorMap } from './view/view'
-export { FLOW_SCHEMA_VERSION } from './view/view'
+// 注：AddonCapability / Cursor / Action / cursorMap 枚举值已迁移至 foundation/constants，
+// FLOW_SCHEMA_VERSION 由 @/flow/types/schema 提供，DiffType / Operation 由 @/engine/scene 提供，
+// SnapAxis 枚举值由 foundation/constants 提供。本 barrel 仅导出类型（pure-type barrel），
+// 不再携带任何运行时值，从而被 Rollup 抹除、彻底消除 chunk 级循环依赖告警。
+// 这些值的公开 API 由 src/index.ts 直接从各自归属模块统一导出。
 
 // ── Camera 接口 ──
 export type {
@@ -186,10 +189,10 @@ export type {
     ApplyDirection,
 } from './engine/scene'
 
-export { DiffType, Operation } from './engine/scene'
+// DiffType / Operation 为值，归属 @/engine/scene，由 src/index.ts 直接导出。
 
 // ── Snap 接口 ──
-export { SnapAxis } from './engine/snap'
+// SnapAxis 为枚举值，归属 foundation/constants，由 src/index.ts 直接导出。
 export type { AxisSnap, SnapResult } from './engine/snap'
 
 // ── App 接口 ──
@@ -291,22 +294,5 @@ export type {
 } from './foundation/event'
 
 // ── 统一类型守卫 ──
-export {
-    isGraphType,
-    isViewType,
-    isView,
-    isCombinedGraph,
-    isAnalyticGraph,
-    isMediaElement,
-    isTextView,
-    isSelectBoxView,
-    isCombinedView,
-    isContainerView,
-    isBoundingBoxAddon,
-    isVertexAddon,
-    isBoxDecorationAddon,
-    // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
-    isPortView,
-    isNodeView,
-    isEdgeView,
-} from './guards'
+// 守卫是“值”（函数），已迁移至 foundation/guards（打破 barrel 携带值导致的循环依赖）。
+// 公开 API 由 src/index.ts 直接从 @/foundation/guards 导出。

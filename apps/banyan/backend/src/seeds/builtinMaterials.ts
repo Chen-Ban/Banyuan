@@ -1,47 +1,47 @@
 /**
  * 内置物料 Seed 脚本
  *
- * 将 12 个内置物料 JSON 数据 upsert 到 MongoDB 中。
- * 每次后端启动时自动执行，基于 material_id 做幂等写入。
+ * 将内置物料数据写入 MongoDB。物料采用嵌套结构（meta + template），
+ * 与基础库 @banyuan/banvasgl 的 IMaterial 一致，后端附加 kind / applicationId。
+ *
+ * kind 三值：render（渲染物料）/ client-flow（客户端流程节点）/ server-flow（服务端流程节点）。
+ * 流程节点的 action/value 区分仍由 tags 承担（面板按 tags.includes('value') 分组）。
+ *
+ * 由于物料结构调整且不做向后兼容，seed 时整体重建内置物料集合。
  *
  * 使用方式：在 startServer() 中 connectDatabase 之后调用 seedBuiltinMaterials()
  */
 
 import { Material } from '../models/index.js'
+import type { MaterialKind, IMaterialTemplate } from '../models/types/index.js'
 
 // ─── 内置物料数据（从 @banyuan/banvasgl 生成脚本产出，迁移到此处） ──────────────
+//
+// 此处以扁平结构书写便于阅读，seed 时由 toMaterialDocument() 包装为嵌套结构。
 
 interface BuiltinMaterialSeed {
-  material_id: string
+  id: string
   name: string
   description: string
   tags: string[]
-  /** 物料种类：render 渲染物料 / flow 流程节点物料 */
-  kind: 'render' | 'flow'
+  /** 物料种类：render / client-flow / server-flow */
+  kind: MaterialKind
   /** 缩略图（内置物料为 data:image/svg+xml Data URL，用 <img> 渲染） */
   thumbnail?: string
-  source: 'builtin'
   version: string
-  template: {
-    root: Record<string, unknown>
-    idCount: number
-    internalIdRefs: Array<{ path: string; placeholder: string }>
-    parameters: Array<Record<string, unknown>>
-    assets: Array<Record<string, unknown>>
-  }
+  template: IMaterialTemplate
 }
 
 const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
   // ── 圆角矩形 ──
   {
-    material_id: 'builtin.rounded-rect',
+    id: 'builtin.rounded-rect',
     name: '圆角矩形',
     description: '矩形',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20x%3D%223%22%20y%3D%225%22%20width%3D%2218%22%20height%3D%2214%22%20rx%3D%224%22%20ry%3D%224%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -70,14 +70,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 圆形 ──
   {
-    material_id: 'builtin.circle',
+    id: 'builtin.circle',
     name: '圆形',
     description: '圆形',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -106,14 +105,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 三角形 ──
   {
-    material_id: 'builtin.triangle',
+    id: 'builtin.triangle',
     name: '三角形',
     description: '等边三角形',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpolygon%20points%3D%2212%2C4%2021%2C20%203%2C20%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -142,14 +140,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 正多边形 ──
   {
-    material_id: 'builtin.regular-polygon',
+    id: 'builtin.regular-polygon',
     name: '正多边形',
     description: '正六边形（可调边数）',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpolygon%20points%3D%2212%2C3%2020.5%2C7.5%2020.5%2C16.5%2012%2C21%203.5%2C16.5%203.5%2C7.5%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -178,14 +175,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 直线 ──
   {
-    material_id: 'builtin.line',
+    id: 'builtin.line',
     name: '直线',
     description: '直线',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cline%20x1%3D%224%22%20y1%3D%2220%22%20x2%3D%2220%22%20y2%3D%224%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -214,14 +210,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 弧线 ──
   {
-    material_id: 'builtin.arc',
+    id: 'builtin.arc',
     name: '弧线',
     description: '椭圆弧线',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M4%2018%20A10%2010%200%200%201%2020%2018%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -250,14 +245,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 二次贝塞尔 ──
   {
-    material_id: 'builtin.quadratic-bezier',
+    id: 'builtin.quadratic-bezier',
     name: '二次贝塞尔',
     description: '二次贝塞尔曲线（3 个控制点，弧形）',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M3%2018%20Q12%202%2C%2021%2018%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -286,14 +280,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 三次贝塞尔 ──
   {
-    material_id: 'builtin.cubic-bezier',
+    id: 'builtin.cubic-bezier',
     name: '三次贝塞尔',
     description: '三次贝塞尔曲线（4 个控制点，S 形）',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M3%2018%20C7%204%2C%2011%204%2C%2012%2012%20S17%2020%2C%2021%206%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -322,14 +315,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 文本 ──
   {
-    material_id: 'builtin.text',
+    id: 'builtin.text',
     name: '文本',
     description: '文本',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ctext%20x%3D%2212%22%20y%3D%2217%22%20text-anchor%3D%22middle%22%20font-size%3D%2214%22%20fill%3D%22%23c9ccd4%22%20font-weight%3D%22bold%22%20font-family%3D%22sans-serif%22%3ET%3C%2Ftext%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -377,14 +369,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 图片 ──
   {
-    material_id: 'builtin.image',
+    id: 'builtin.image',
     name: '图片',
     description: '图片',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20x%3D%223%22%20y%3D%225%22%20width%3D%2218%22%20height%3D%2214%22%20rx%3D%221%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%2F%3E%3Ccircle%20cx%3D%228%22%20cy%3D%2210%22%20r%3D%222%22%20fill%3D%22%23c9ccd4%22%2F%3E%3Cpolyline%20points%3D%223%2C16%209%2C12%2014%2C15%2018%2C11%2021%2C14%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%221.5%22%20fill%3D%22none%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -413,14 +404,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 视频 ──
   {
-    material_id: 'builtin.video',
+    id: 'builtin.video',
     name: '视频',
     description: '视频播放组件',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20x%3D%222%22%20y%3D%225%22%20width%3D%2215%22%20height%3D%2214%22%20rx%3D%222%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20fill%3D%22none%22%2F%3E%3Cpolyline%20points%3D%2217%2C9%2022%2C6%2022%2C18%2017%2C15%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20stroke-linejoin%3D%22round%22%20fill%3D%22none%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -449,14 +439,13 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 弹性容器 ──
   {
-    material_id: 'builtin.flex',
+    id: 'builtin.flex',
     name: '弹性容器',
     description: '弹性布局容器，子元素自动排列',
     tags: ['builtin'],
     kind: 'render',
     thumbnail:
       'data:image/svg+xml,%3Csvg%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20x%3D%222%22%20y%3D%224%22%20width%3D%2220%22%20height%3D%2216%22%20rx%3D%222%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%222%22%20fill%3D%22none%22%2F%3E%3Cline%20x1%3D%229%22%20y1%3D%224%22%20x2%3D%229%22%20y2%3D%2220%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%221.5%22%2F%3E%3Cline%20x1%3D%2216%22%20y1%3D%224%22%20x2%3D%2216%22%20y2%3D%2220%22%20stroke%3D%22%23c9ccd4%22%20stroke-width%3D%221.5%22%2F%3E%3C%2Fsvg%3E',
-    source: 'builtin',
     version: '1.0.0',
     template: {
       root: {
@@ -492,12 +481,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 前端事件流程节点 ──
   {
-    material_id: 'builtin.flow.setData',
+    id: 'builtin.flow.setData',
     name: '设置数据',
     description: '修改某个 View 的 data 字段值',
-    tags: ['flow', 'client', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'setData', viewId: 'self', key: '', value: { kind: 'literal', value: '' } } } },
@@ -508,12 +496,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.setVisible',
+    id: 'builtin.flow.setVisible',
     name: '显隐控制',
     description: '设置某个 View 的可见性',
-    tags: ['flow', 'client', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'setVisible', viewId: 'self', visible: true } } },
@@ -524,12 +511,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.navigate',
+    id: 'builtin.flow.navigate',
     name: '跳转页面',
     description: '导航到另一个页面',
-    tags: ['flow', 'client', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'navigate', pageId: '' } } },
@@ -540,12 +526,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.animate',
+    id: 'builtin.flow.animate',
     name: '播放动画',
     description: '触发某个 View 的预定义动画',
-    tags: ['flow', 'client', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'animate', viewId: 'self', animationId: '' } } },
@@ -556,12 +541,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.condition',
+    id: 'builtin.flow.condition',
     name: '条件分支',
     description: '根据条件选择 true / false 分支',
-    tags: ['flow', 'client', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'condition', condition: { left: { kind: 'literal', value: '' }, op: '==', right: { kind: 'literal', value: '' } } } } },
@@ -572,12 +556,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.delay',
+    id: 'builtin.flow.delay',
     name: '延迟等待',
     description: '等待指定毫秒后继续执行',
-    tags: ['flow', 'client', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'delay', ms: 500 } } },
@@ -588,12 +571,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.subFlow',
+    id: 'builtin.flow.subFlow',
     name: '子流程',
     description: '可复用的子流程，内部包含一组节点和连线',
-    tags: ['flow', 'client', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'subFlow', name: '子流程', body: { nodes: [], edges: [] }, inputs: [], outputs: [] } } },
@@ -604,12 +586,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.variable',
+    id: 'builtin.flow.variable',
     name: 'View 变量',
     description: '引用某个 View 的 data 字段值',
-    tags: ['flow', 'client', 'value'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'value'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'variable', viewId: 'self', key: '' } } },
@@ -620,12 +601,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.pageVar',
+    id: 'builtin.flow.pageVar',
     name: '页面变量',
     description: '引用当前页面的 data 字段值',
-    tags: ['flow', 'client', 'value'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'value'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'pageVar', key: '' } } },
@@ -636,12 +616,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.eventParam',
+    id: 'builtin.flow.eventParam',
     name: '事件参数',
     description: '引用触发事件时传入的原始参数',
-    tags: ['flow', 'client', 'value'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'value'],
+    kind: 'client-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'eventParam', index: 0 } } },
@@ -654,12 +633,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 
   // ── 后端云函数流程节点 ──
   {
-    material_id: 'builtin.flow.dbQuery',
+    id: 'builtin.flow.dbQuery',
     name: '数据库查询',
     description: '从数据库查询数据',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'dbQuery', collection: '', filter: {}, outputVariable: 'queryResult' } } },
@@ -670,12 +648,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.dbInsert',
+    id: 'builtin.flow.dbInsert',
     name: '数据库插入',
     description: '向数据库插入数据',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'dbInsert', collection: '', document: {}, outputVariable: 'insertedId' } } },
@@ -686,12 +663,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.dbUpdate',
+    id: 'builtin.flow.dbUpdate',
     name: '数据库更新',
     description: '更新数据库中的数据',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'dbUpdate', collection: '', filter: {}, update: {}, outputVariable: 'modifiedCount' } } },
@@ -702,12 +678,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.dbDelete',
+    id: 'builtin.flow.dbDelete',
     name: '数据库删除',
     description: '删除数据库中的数据',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'dbDelete', collection: '', filter: {}, outputVariable: 'deletedCount' } } },
@@ -718,12 +693,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.httpRequest',
+    id: 'builtin.flow.httpRequest',
     name: 'HTTP 请求',
     description: '发送 HTTP 请求到外部接口',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'httpRequest', url: { kind: 'literal', value: '' }, method: 'GET', outputVariable: 'response' } } },
@@ -734,12 +708,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.transform',
+    id: 'builtin.flow.transform',
     name: '数据转换',
     description: '对数据进行格式转换或映射',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'transform', expression: '', variables: {}, outputVariable: 'result' } } },
@@ -750,12 +723,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.script',
+    id: 'builtin.flow.script',
     name: '自定义脚本',
     description: '执行自定义 JavaScript 脚本',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'script', code: '', inputBindings: {}, outputBindings: {} } } },
@@ -766,12 +738,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.condition.server',
+    id: 'builtin.flow.condition.server',
     name: '条件分支',
     description: '根据条件选择 true / false 分支',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'condition', condition: { left: { kind: 'literal', value: '' }, op: '==', right: { kind: 'literal', value: '' } } } } },
@@ -782,12 +753,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.delay.server',
+    id: 'builtin.flow.delay.server',
     name: '延迟等待',
     description: '等待指定毫秒后继续执行',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'delay', ms: 500 } } },
@@ -798,12 +768,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.setVariable',
+    id: 'builtin.flow.setVariable',
     name: '设置变量',
     description: '设置流程局部变量或输出变量',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'setVariable', scope: 'local', key: '', value: { kind: 'literal', value: '' } } } },
@@ -814,12 +783,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.subFlow.server',
+    id: 'builtin.flow.subFlow.server',
     name: '子流程',
     description: '可复用的子流程，内部包含一组节点和连线',
-    tags: ['flow', 'server', 'action'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'action'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'subFlow', name: '子流程', body: { nodes: [], edges: [] }, inputs: [], outputs: [] } } },
@@ -830,12 +798,11 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
     },
   },
   {
-    material_id: 'builtin.flow.eventParam.server',
+    id: 'builtin.flow.eventParam.server',
     name: '事件参数',
     description: '引用触发云函数时传入的请求参数',
-    tags: ['flow', 'server', 'value'],
-    kind: 'flow',
-    source: 'builtin',
+    tags: ['flow', 'value'],
+    kind: 'server-flow',
     version: '1.0.0',
     template: {
       root: { $type: 'NODEVIEW', $value: { schema: { kind: 'eventParam', index: 0 } } },
@@ -850,39 +817,45 @@ const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [
 // ─── Seed 执行函数 ──────────────────────────────────────────────────────────────
 
 /**
- * 将内置物料 upsert 到数据库中
+ * 将扁平 seed 数据包装为嵌套物料文档（meta + template + kind + applicationId）
+ */
+function toMaterialDocument(seed: BuiltinMaterialSeed, now: string) {
+  return {
+    meta: {
+      id: seed.id,
+      name: seed.name,
+      description: seed.description,
+      tags: seed.tags,
+      thumbnail: seed.thumbnail ?? '',
+      source: 'builtin' as const,
+      creatorId: 'system',
+      createdAt: now,
+      updatedAt: now,
+      version: seed.version,
+    },
+    template: seed.template,
+    kind: seed.kind,
+    // 内置物料不归属任何应用
+    applicationId: '',
+  }
+}
+
+/**
+ * 重建内置物料集合
  *
- * 幂等逻辑：基于 material_id 做 upsert
- * - 如果 material_id 已存在，更新 template + name + description + version
- * - 如果不存在，创建新文档
+ * 物料结构调整后不做向后兼容：先删除所有 builtin 物料，再整体插入。
+ * 用户物料（source !== 'builtin'）不受影响。
  *
- * @returns 写入/更新的物料数量
+ * @returns 写入的物料数量
  */
 export async function seedBuiltinMaterials(): Promise<number> {
-  let count = 0
+  const now = new Date().toISOString()
 
-  for (const seed of BUILTIN_MATERIALS) {
-    await Material.findOneAndUpdate(
-      { material_id: seed.material_id },
-      {
-        $set: {
-          name: seed.name,
-          description: seed.description,
-          tags: seed.tags,
-          kind: seed.kind,
-          thumbnail: seed.thumbnail ?? '',
-          source: seed.source,
-          status: 'active',
-          version: seed.version,
-          template: seed.template,
-          createdBy: 'system',
-          updatedBy: 'system',
-        },
-      },
-      { upsert: true },
-    )
-    count++
-  }
+  // 删除旧的内置物料（含旧扁平结构数据）
+  await Material.deleteMany({ 'meta.source': 'builtin' })
 
-  return count
+  const docs = BUILTIN_MATERIALS.map((seed) => toMaterialDocument(seed, now))
+  await Material.insertMany(docs)
+
+  return docs.length
 }

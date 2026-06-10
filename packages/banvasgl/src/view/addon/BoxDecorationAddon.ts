@@ -23,7 +23,7 @@
 import type Bounds from '@/graph/base/Bounds.js'
 import { Rectangle } from '@/graph/combined/Polygon/index.js'
 import { AddonType } from '@/foundation/constants.js'
-import { AddonCapability } from '@/types/index.js'
+import { AddonCapability } from '@/foundation/constants.js'
 import type {
     IBoxDecorationAddon,
     IBoxDecorationOptions,

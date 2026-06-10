@@ -1,14 +1,9 @@
 import View from "@/view/View/View";
 import type { IAddonBase, IGraphViewOptions } from "@/types";
 import { Graph, Line } from "@/graph";
-import {
-  isAnalyticGraph,
-  isCombinedGraph,
-  IGraphView,
-  ISerializable,
-  AddonCapability,
-} from "@/types";
-import { ViewType, GraphType } from "@/foundation/constants";
+import type { IGraphView, ISerializable } from "@/types";
+import { isAnalyticGraph, isCombinedGraph } from "@/foundation/guards";
+import { ViewType, GraphType, AddonCapability } from "@/foundation/constants";
 import { generateId, generateName } from "@/foundation/utils";
 import { Point3, Vector3 } from "@/foundation/math";
 import { VertexAddon } from "@/view/addon";

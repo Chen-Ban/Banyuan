@@ -12,7 +12,7 @@ async function startServer() {
     await connectDatabase()
     console.log('✅ MongoDB connected')
 
-    // Seed 内置物料（幂等，基于 material_id upsert）
+    // Seed 内置物料（重建内置物料集合，不做向后兼容）
     const seeded = await seedBuiltinMaterials()
     console.log(`✅ Builtin materials seeded (${seeded} items)`)
 

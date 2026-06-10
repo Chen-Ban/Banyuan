@@ -3,7 +3,8 @@ import Style from "@/foundation/style/Style";
 import { Point3, Vector3, Matrix4 } from "@/foundation/math";
 import CombinedGraph from "@/graph/combined/CombinedGraph";
 import Line from "@/graph/analytic/Line";
-import { isGraphType, IPolygon, ISerializable } from '@/types';
+import { isGraphType } from '@/foundation/guards'
+import type { IPolygon, ISerializable } from '@/types';
 import { generateId } from '@/foundation/utils';
 
 /**

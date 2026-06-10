@@ -10,6 +10,7 @@ import { Modal, Input, Tag, App } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { materialApi } from '@/api'
 import type { IBanvasActions } from '@banyuan/banvasgl'
+import { useApplicationStore } from '@/stores/applicationStore'
 import { getErrorMessage } from '@/utils/error'
 import styles from './index.module.scss'
 
@@ -29,6 +30,7 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
   actions,
 }) => {
   const { message } = App.useApp()
+  const appId = useApplicationStore((s) => s.appId)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState<string[]>([])
@@ -61,6 +63,11 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
       return
     }
 
+    if (!appId) {
+      message.error('未找到当前应用，无法保存物料')
+      return
+    }
+
     setLoading(true)
     try {
       // 调用 BanvasGL view.serializeMaterial 生成模板
@@ -74,12 +81,14 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
         return
       }
 
-      // 发布到后端
+      // 发布到后端（UI 编辑器保存的均为渲染物料）
       await materialApi.createMaterial({
         name: name.trim(),
         description: description.trim() || undefined,
         tags: tags.length > 0 ? tags : undefined,
+        kind: 'render',
         source: 'user',
+        applicationId: appId,
         template,
       })
 
@@ -91,7 +100,7 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
     } finally {
       setLoading(false)
     }
-  }, [name, description, tags, viewId, actions, onSuccess, handleClose, message])
+  }, [name, description, tags, viewId, actions, appId, onSuccess, handleClose, message])
 
   return (
     <Modal

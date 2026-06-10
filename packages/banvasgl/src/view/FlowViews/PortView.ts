@@ -1,8 +1,4 @@
-import {
-    Action,
-    Cursor,
-} from '@/types/index.js'
-import { ViewType } from '@/foundation/constants.js'
+import { Action, Cursor, ViewType } from '@/foundation/constants.js'
 import View from '@/view/View/View.js'
 import Circle from '@/graph/analytic/Circle.js'
 import Point3 from '@/foundation/math/Point3.js'

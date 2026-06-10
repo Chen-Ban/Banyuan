@@ -8,7 +8,8 @@ import Bounds from "@/graph/base/Bounds";
 import { Rectangle } from "@/graph/combined";
 import TextElement from "./TextElement";
 import TextOptions from "./TextOptions";
-import { ITextFields, ISerializable, isGraphType } from "@/types";
+import { isGraphType } from '@/foundation/guards'
+import type { ITextFields, ISerializable } from '@/types';
 import { generateId } from "@/foundation/utils";
 
 //文本选区三元组： 段落号，字序号，字前｜字后

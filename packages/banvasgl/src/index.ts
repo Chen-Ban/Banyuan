@@ -148,8 +148,9 @@ export type {
     IEdgeView,
 } from './types'
 
-export { AddonCapability, Cursor, Action } from './types'
-export { FLOW_SCHEMA_VERSION } from './types'
+// 枚举值 —— 从各自归属模块直接导出（不再通过类型 barrel 透传，防止 chunk 级循环依赖）
+export { AddonCapability, Cursor, Action } from './foundation/constants'
+export { FLOW_SCHEMA_VERSION } from './flow/types/schema.js'
 
 // ── Camera 接口 ──
 export type {
@@ -181,7 +182,8 @@ export type {
     ApplyDirection,
 } from './types'
 
-export { DiffType, Operation } from './types'
+// DiffType / Operation 为运行时值，归属 @/engine/scene，直接导出。
+export { DiffType, Operation } from './engine/scene'
 
 // ── App 接口 ──
 export type {
@@ -241,6 +243,7 @@ export type {
 } from './types'
 
 // ── 类型守卫 ──
+// 守卫是“值”（函数），归属 foundation/guards（不再通过类型 barrel 透传）。
 export {
     isGraphType,
     isViewType,
@@ -248,6 +251,7 @@ export {
     isCombinedGraph,
     isAnalyticGraph,
     isMediaElement,
+    isTextElement,
     isTextView,
     isSelectBoxView,
     isCombinedView,
@@ -259,7 +263,7 @@ export {
     isPortView,
     isNodeView,
     isEdgeView,
-} from './types'
+} from './foundation/guards'
 
 // ╔══════════════════════════════════════════════════════════════════╗
 // ║  foundation — 零依赖原子模块                                      ║

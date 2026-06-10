@@ -246,7 +246,8 @@ export function createPageActions(getApp: () => App | null): IPageActions {
     ): boolean {
       if (!_isPanning || !_panStart) return false;
       const app = getApp();
-      const scene = app?.getCurrentScene();
+      if (!app) return false;
+      const scene = app.getCurrentScene();
       if (!scene) return false;
       const camera = scene.camera;
       if (!(camera instanceof OrthographicCamera)) return false;

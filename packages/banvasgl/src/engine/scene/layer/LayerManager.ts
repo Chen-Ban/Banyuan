@@ -1,6 +1,6 @@
 import type View from '@/view/View/View'
 import type { ReorderChange } from '../transaction/OperationStack'
-import { isContainerView } from '@/types'
+import { isContainerView } from '@/foundation/guards'
 
 /**
  * 层级管理器（基于数组位置）

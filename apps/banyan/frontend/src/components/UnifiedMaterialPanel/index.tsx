@@ -13,8 +13,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Input, Tooltip } from 'antd'
 import { SearchOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
-import type { IMaterial, IMaterialTemplate } from '@banyuan/banvasgl'
+import type { IMaterial } from '@banyuan/banvasgl'
 import { materialApi } from '@/api'
+import { useApplicationStore } from '@/stores/applicationStore'
 import MaterialThumbnail from './MaterialThumbnail'
 import styles from './index.module.scss'
 
@@ -34,37 +35,18 @@ interface MaterialGroup {
   materials: IMaterial[]
 }
 
-/**
- * 后端物料记录（扁平 DTO）
- *
- * 后端 `/materials` 接口返回的是扁平的物料文档（material_id/name/template 等顶层字段），
- * 与 banvasgl 的 IMaterial（meta + template 嵌套结构）不同。此处按后端真实返回结构声明，
- * 用于在 API 边界处替代 any。
- */
-interface MaterialRecord {
-  material_id: string
-  name: string
-  description?: string
-  tags?: string[]
-  thumbnail?: string
-  source: IMaterial['meta']['source']
-  version: string
-  template: IMaterialTemplate
-}
-
 const MAX_VISIBLE = 9 // 3×3
 
 // ── 辅助函数 ──
 
+/**
+ * 面板模式 → 后端查询参数
+ *
+ * 三个模式直接映射为后端的 kind 三值（render / client-flow / server-flow），
+ * 不再依赖 tags 区分客户端/服务端。
+ */
 function getMaterialParams(mode: MaterialMode) {
-  switch (mode) {
-    case 'render':
-      return { source: 'builtin' as const, kind: 'render' as const, tags: undefined }
-    case 'client-flow':
-      return { source: 'builtin' as const, kind: 'flow' as const, tags: ['flow', 'client'] }
-    case 'server-flow':
-      return { source: 'builtin' as const, kind: 'flow' as const, tags: ['flow', 'server'] }
-  }
+  return { source: 'builtin' as const, kind: mode }
 }
 
 function isFlowMode(mode: MaterialMode): boolean {
@@ -129,6 +111,7 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
   className,
   style,
 }) => {
+  const appId = useApplicationStore((s) => s.appId)
   const [builtinMaterials, setBuiltinMaterials] = useState<IMaterial[]>([])
   const [customMaterials, setCustomMaterials] = useState<IMaterial[]>([])
   const [keyword, setKeyword] = useState('')
@@ -144,36 +127,20 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
       .fetchMaterials({
         source: params.source,
         kind: params.kind,
-        tags: params.tags,
-        status: 'active',
         pageSize: 100,
       })
       .then((res) => {
         if (cancelled) return
-        const records = res.data.materials as unknown as MaterialRecord[]
+        // 列表项不含 template.root，需逐个拉取完整物料用于拖拽实例化
         return Promise.all(
-          records.map((m) =>
-            materialApi
-              .fetchMaterial(m.material_id)
-              .then((detail) => detail.data as unknown as MaterialRecord),
-          ),
+          res.data.materials
+            .filter((m): m is typeof m & { meta: { id: string } } => !!m.meta?.id)
+            .map((m) => materialApi.fetchMaterial(m.meta!.id).then((detail) => detail.data)),
         )
       })
       .then((fullMaterials) => {
         if (cancelled || !fullMaterials) return
-        const mapped: IMaterial[] = fullMaterials.map((m) => ({
-          meta: {
-            id: m.material_id,
-            name: m.name,
-            description: m.description,
-            tags: m.tags,
-            thumbnail: m.thumbnail,
-            source: m.source,
-            version: m.version,
-          },
-          template: m.template,
-        }))
-        setBuiltinMaterials(mapped)
+        setBuiltinMaterials(fullMaterials.filter((m): m is NonNullable<typeof m> => !!m))
         setLoading(false)
       })
       .catch(() => {
@@ -186,41 +153,30 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
   // ── 获取自定义物料 ──
   useEffect(() => {
     let cancelled = false
+    if (!appId) {
+      setCustomMaterials([])
+      return
+    }
 
-    const kind = mode === 'render' ? 'render' : 'flow'
     materialApi
-      .fetchMaterials({ source: 'user', kind, status: 'active', pageSize: 100 })
+      .fetchMaterials({ source: 'user', kind: mode, applicationId: appId, pageSize: 100 })
       .then((res) => {
         if (cancelled) return
-        const records = res.data.materials as unknown as MaterialRecord[]
+        // 列表项不含 template.root，需逐个拉取完整物料用于拖拽实例化
         return Promise.all(
-          records.map((m) =>
-            materialApi
-              .fetchMaterial(m.material_id)
-              .then((detail) => detail.data as unknown as MaterialRecord),
-          ),
+          res.data.materials
+            .filter((m): m is typeof m & { meta: { id: string } } => !!m.meta?.id)
+            .map((m) => materialApi.fetchMaterial(m.meta!.id).then((detail) => detail.data)),
         )
       })
       .then((fullMaterials) => {
         if (cancelled || !fullMaterials) return
-        const mapped: IMaterial[] = fullMaterials.map((m) => ({
-          meta: {
-            id: m.material_id,
-            name: m.name,
-            description: m.description,
-            tags: m.tags,
-            thumbnail: m.thumbnail,
-            source: m.source,
-            version: m.version,
-          },
-          template: m.template,
-        }))
-        setCustomMaterials(mapped)
+        setCustomMaterials(fullMaterials.filter((m): m is NonNullable<typeof m> => !!m))
       })
       .catch(() => {})
 
     return () => { cancelled = true }
-  }, [mode])
+  }, [mode, appId])
 
   // ── 搜索过滤 ──
   const filterMaterials = useCallback((materials: IMaterial[]) => {

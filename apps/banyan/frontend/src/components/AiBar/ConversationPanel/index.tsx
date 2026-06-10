@@ -50,7 +50,7 @@ export interface ConversationPanelProps {
   loading: boolean;
   /** SubAgent 执行进度（ADR-041 agent_progress 驱动） */
   agentSteps: AgentStep[];
-  /** 是否有待确认的 task 对话（V4 事务化） */
+  /** 是否有待确认的 task 对话 */
   hasPendingTask: boolean;
   /** 确认 task 对话 */
   onConfirmTask: () => void;

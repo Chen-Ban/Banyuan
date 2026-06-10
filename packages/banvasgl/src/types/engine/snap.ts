@@ -1,8 +1,6 @@
-/** 吸附方向 */
-export const enum SnapAxis {
-  X = 0,
-  Y = 1,
-}
+// SnapAxis 枚举值定义已迁移至 foundation/constants（打破 barrel 循环依赖），
+// 此处仅作为类型引用。
+import type { SnapAxis } from '@/foundation/constants'
 
 /** 单轴吸附结果 */
 export interface AxisSnap {

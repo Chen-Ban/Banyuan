@@ -1,6 +1,20 @@
 import { Context } from 'koa'
 import materialService from '../services/MaterialService.js'
-import type { MaterialSource, MaterialKind } from '../models/types/index.js'
+import type { MaterialSource, MaterialKind, IMaterialTemplate } from '../models/types/index.js'
+
+/** POST/PUT /api/materials 请求体 */
+interface MaterialRequestBody {
+  name?: string
+  description?: string
+  tags?: string[]
+  kind?: MaterialKind
+  thumbnail?: string
+  source?: MaterialSource
+  version?: string
+  minEngineVersion?: string
+  template?: IMaterialTemplate
+  applicationId?: string
+}
 
 class MaterialController {
   /**
@@ -8,17 +22,14 @@ class MaterialController {
    */
   async getMaterialList(ctx: Context) {
     try {
-      const { keyword, tags, kind, source, status, page = '1', pageSize = '20' } = ctx.query
-      const user = ctx.state.user!
+      const { keyword, tags, kind, source, applicationId, page = '1', pageSize = '20' } = ctx.query
 
       const query: {
         keyword?: string
         tags?: string[]
         kind?: MaterialKind
         source?: MaterialSource
-        status?: any
-        tenantId?: string
-        createdBy?: string
+        applicationId?: string
       } = {
         keyword: keyword as string | undefined,
         tags: tags
@@ -28,16 +39,11 @@ class MaterialController {
           : undefined,
         kind: kind as MaterialKind | undefined,
         source: source as MaterialSource | undefined,
-        status: status as any,
       }
 
-      // builtin 物料对所有人可见，不需要 tenantId/createdBy 过滤
-      if (source !== 'builtin') {
-        query.tenantId = user.tenantId
-        // 成员只看自己创建的 + builtin
-        if (user.role === 'member') {
-          query.createdBy = user.userId
-        }
+      // builtin 物料对所有人可见，不需要 application 过滤
+      if (source !== 'builtin' && typeof applicationId === 'string' && applicationId) {
+        query.applicationId = applicationId
       }
 
       const result = await materialService.getMaterialList(
@@ -81,12 +87,17 @@ class MaterialController {
    */
   async createMaterial(ctx: Context) {
     try {
-      const body = ctx.request.body as any
+      const body = ctx.request.body as MaterialRequestBody
       const user = ctx.state.user!
 
       if (!body.name || !body.template) {
         ctx.status = 400
         ctx.body = { success: false, message: 'name and template are required' }
+        return
+      }
+      if (!body.applicationId) {
+        ctx.status = 400
+        ctx.body = { success: false, message: 'applicationId is required' }
         return
       }
 
@@ -100,8 +111,8 @@ class MaterialController {
         version: body.version,
         minEngineVersion: body.minEngineVersion,
         template: body.template,
-        tenantId: user.tenantId,
-        createdBy: user.userId,
+        applicationId: body.applicationId,
+        creatorId: user.userId,
       })
 
       ctx.status = 201
@@ -118,7 +129,7 @@ class MaterialController {
   async updateMaterial(ctx: Context) {
     try {
       const { id } = ctx.params
-      const body = ctx.request.body as any
+      const body = ctx.request.body as MaterialRequestBody
       const user = ctx.state.user!
 
       // 校验物料是否存在
@@ -129,11 +140,19 @@ class MaterialController {
         return
       }
 
-      // 仅创建者或管理员可修改
-      if (existing.createdBy !== user.userId && user.role === 'member') {
+      // 仅归属应用或管理员可修改；builtin 物料不可改
+      if (existing.meta.source === 'builtin') {
         ctx.status = 403
-        ctx.body = { success: false, message: '无权修改该物料' }
+        ctx.body = { success: false, message: '内置物料不可修改' }
         return
+      }
+      // member 必须传入与物料归属一致的 applicationId 才可修改；管理员不受限
+      if (user.role === 'member') {
+        if (!body.applicationId || existing.applicationId !== body.applicationId) {
+          ctx.status = 403
+          ctx.body = { success: false, message: '无权修改该物料' }
+          return
+        }
       }
 
       const material = await materialService.updateMaterial(id, {
@@ -141,10 +160,8 @@ class MaterialController {
         description: body.description,
         tags: body.tags,
         thumbnail: body.thumbnail,
-        status: body.status,
         version: body.version,
         template: body.template,
-        updatedBy: user.userId,
       })
 
       ctx.status = 200
@@ -156,13 +173,13 @@ class MaterialController {
   }
 
   /**
-   * DELETE /api/materials/:id — 废弃或删除物料
+   * DELETE /api/materials/:id — 删除物料（硬删除）
    */
   async deleteMaterial(ctx: Context) {
     try {
       const { id } = ctx.params
       const user = ctx.state.user!
-      const { force } = ctx.query
+      const applicationId = typeof ctx.query.applicationId === 'string' ? ctx.query.applicationId : undefined
 
       const existing = await materialService.getMaterialById(id)
       if (!existing) {
@@ -171,24 +188,24 @@ class MaterialController {
         return
       }
 
-      // 仅创建者或管理员可操作
-      if (existing.createdBy !== user.userId && user.role === 'member') {
+      // 内置物料不可删除
+      if (existing.meta.source === 'builtin') {
         ctx.status = 403
-        ctx.body = { success: false, message: '无权删除该物料' }
+        ctx.body = { success: false, message: '内置物料不可删除' }
         return
       }
-
-      if (force === 'true' && existing.status === 'draft') {
-        // 硬删除草稿
-        await materialService.deleteMaterial(id)
-        ctx.status = 200
-        ctx.body = { success: true, message: 'Material deleted permanently' }
-      } else {
-        // 软删除（标记为 deprecated）
-        const material = await materialService.deprecateMaterial(id, user.userId)
-        ctx.status = 200
-        ctx.body = { success: true, data: material }
+      // member 必须传入与物料归属一致的 applicationId 才可删除；管理员不受限
+      if (user.role === 'member') {
+        if (!applicationId || existing.applicationId !== applicationId) {
+          ctx.status = 403
+          ctx.body = { success: false, message: '无权删除该物料' }
+          return
+        }
       }
+
+      await materialService.deleteMaterial(id)
+      ctx.status = 200
+      ctx.body = { success: true, message: 'Material deleted' }
     } catch (error: any) {
       ctx.status = 500
       ctx.body = { success: false, message: error.message || 'Failed to delete material' }

@@ -17,10 +17,9 @@ import type { IAnimationDescriptor } from './animation'
 //  操作栈相关类型（re-export）
 // ────────────────────────────────────────────
 
-export {
-  DiffType,
-  Operation,
-} from '@/engine/scene'
+// DiffType / Operation 为运行时值，归属 @/engine/scene。此处不再做值 re-export，
+// 避免 types → engine 的反向值依赖造成 chunk 级循环依赖告警；公开 API 由
+// src/index.ts 直接从 @/engine/scene 导出。
 
 export type {
   Diff,

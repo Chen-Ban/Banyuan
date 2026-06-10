@@ -294,3 +294,115 @@ export enum FontWeight {
     WEIGHT_800 = '800',
     WEIGHT_900 = '900',
 }
+
+/**
+ * Addon 职责标识
+ *
+ * 每个 addon 通过 capabilities 声明自己参与哪些管线：
+ * - RENDER：参与渲染管线（renderPlugins 阶段调用 render()）
+ * - INTERACT：参与交互管线（interactPlugins 阶段调用 interact()）
+ * - LOGIC：参与逻辑计算（如 BoundingBox 在多选 resize 时提供几何数据，
+ *   但不渲染也不交互）
+ *
+ * 一个 addon 可以同时声明多个职责，管线根据 capabilities 决定是否调用对应方法。
+ */
+export enum AddonCapability {
+    /** 参与渲染管线 —— renderPlugins 阶段调用 render() */
+    RENDER = 'RENDER',
+    /** 参与交互管线 —— interactPlugins 阶段调用 interact() */
+    INTERACT = 'INTERACT',
+    /** 参与逻辑计算 —— 不渲染不交互，仅提供数据/计算能力 */
+    LOGIC = 'LOGIC',
+}
+
+/**
+ * 光标样式枚举
+ *
+ * 对应 CSS cursor 属性值，用于交互过程中设置鼠标光标外观。
+ */
+export enum Cursor {
+    // 基本值
+    Auto = 'auto',
+    Default = 'default',
+    None = 'none',
+
+    // 链接和状态指示
+    ContextMenu = 'context-menu',
+    Help = 'help',
+    Pointer = 'pointer',
+    Progress = 'progress',
+    Wait = 'wait',
+
+    // 选择
+    Cell = 'cell',
+    Crosshair = 'crosshair',
+    Text = 'text',
+    VerticalText = 'vertical-text',
+
+    // 拖拽
+    Alias = 'alias',
+    Copy = 'copy',
+    Move = 'move',
+    NoDrop = 'no-drop',
+    NotAllowed = 'not-allowed',
+    Grab = 'grab',
+    Grabbing = 'grabbing',
+
+    // 滚动
+    AllScroll = 'all-scroll',
+
+    // 调整大小
+    ColResize = 'col-resize',
+    RowResize = 'row-resize',
+    NResize = 'n-resize',
+    EResize = 'e-resize',
+    SResize = 's-resize',
+    WResize = 'w-resize',
+    NeResize = 'ne-resize',
+    NwResize = 'nw-resize',
+    SeResize = 'se-resize',
+    SwResize = 'sw-resize',
+    EwResize = 'ew-resize',
+    NsResize = 'ns-resize',
+    NeswResize = 'nesw-resize',
+    NwseResize = 'nwse-resize',
+
+    // 缩放
+    ZoomIn = 'zoom-in',
+    ZoomOut = 'zoom-out',
+}
+
+/** BoundingBox 8 个缩放手柄索引 → 光标样式映射 */
+export const cursorMap: Record<number, Cursor> = {
+    0: Cursor.NwResize, // 西北
+    1: Cursor.NResize, // 北
+    2: Cursor.NeResize, // 东北
+    3: Cursor.EResize, // 东
+    4: Cursor.SeResize, // 东南
+    5: Cursor.SResize, // 南
+    6: Cursor.SwResize, // 西南
+    7: Cursor.WResize, // 西
+}
+
+/**
+ * 交互动作枚举
+ *
+ * 标识 View 交互结果（ExtraData）的动作类型，用于判别联合收窄。
+ */
+export enum Action {
+    MOVE,
+    RESIZE,
+    ROTATE,
+    EDIT_POINT,
+    EDIT_VIEWPORT,
+    SELECT,
+    TEXT_SELECTION,
+    CONNECT,   // 端口连线
+    NONE,
+}
+
+/** 吸附方向 */
+export const enum SnapAxis {
+    X = 0,
+    Y = 1,
+}

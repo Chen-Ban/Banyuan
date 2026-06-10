@@ -1,9 +1,13 @@
 import mongoose, { Schema, type Document } from 'mongoose'
-import type { IMaterial } from './types/index.js'
+import type { IMaterialDocument } from './types/index.js'
 
 // ─── Material Schema ───────────────────────────────────────────────────────────
+//
+// 物料文档采用嵌套结构，与基础库 @banyuan/banvasgl 的 IMaterial 一致：
+//   { meta: IMaterialMeta, template: IMaterialTemplate }
+// 后端在此之上附加 kind（render / client-flow / server-flow）与 applicationId 两个维度。
 
-type IMaterialDoc = IMaterial & Document
+type IMaterialDoc = IMaterialDocument & Document
 
 const MaterialParameterSchema = new Schema(
   {
@@ -49,98 +53,67 @@ const MaterialTemplateSchema = new Schema(
   { _id: false }
 )
 
-const MaterialSchema = new Schema<IMaterialDoc>(
+const MaterialMetaSchema = new Schema(
   {
-    material_id: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 200,
-    },
-    description: {
-      type: String,
-      default: '',
-      trim: true,
-      maxlength: 2000,
-    },
-    tags: {
-      type: [String],
-      default: [],
-    },
-    kind: {
-      type: String,
-      required: true,
-      enum: ['render', 'flow'],
-      default: 'render',
-    },
-    thumbnail: {
-      type: String,
-      default: '',
-      trim: true,
-    },
+    id: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true, maxlength: 200 },
+    description: { type: String, trim: true, maxlength: 2000 },
+    tags: { type: [String], default: [] },
+    thumbnail: { type: String, trim: true },
     source: {
       type: String,
       required: true,
       enum: ['builtin', 'user', 'team', 'marketplace'],
       default: 'user',
     },
-    status: {
-      type: String,
+    creatorId: { type: String, trim: true },
+    // createdAt / updatedAt 以 ISO 字符串存储，与基础库 IMaterialMeta 一致
+    createdAt: { type: String },
+    updatedAt: { type: String },
+    version: { type: String, default: '1.0.0', trim: true },
+    minEngineVersion: { type: String, trim: true },
+  },
+  { _id: false }
+)
+
+const MaterialSchema = new Schema<IMaterialDoc>(
+  {
+    meta: {
+      type: MaterialMetaSchema,
       required: true,
-      enum: ['active', 'deprecated', 'draft'],
-      default: 'active',
-    },
-    version: {
-      type: String,
-      default: '1.0.0',
-      trim: true,
-    },
-    minEngineVersion: {
-      type: String,
-      default: '',
-      trim: true,
     },
     template: {
       type: MaterialTemplateSchema,
       required: true,
     },
-    tenantId: {
+    kind: {
       type: String,
-      default: '',
-      trim: true,
+      required: true,
+      enum: ['render', 'client-flow', 'server-flow'],
+      default: 'render',
     },
-    createdBy: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    updatedBy: {
+    applicationId: {
       type: String,
       default: '',
       trim: true,
     },
   },
   {
-    timestamps: true,
+    // 时间戳由 service 层写入 meta.createdAt / meta.updatedAt（ISO 字符串），
+    // 不使用 Mongoose 顶层 timestamps，避免与嵌套 meta 重复。
+    timestamps: false,
   }
 )
 
 // 创建索引
-MaterialSchema.index({ material_id: 1 }, { unique: true })
-MaterialSchema.index({ name: 'text', description: 'text', tags: 'text' })
-MaterialSchema.index({ tags: 1 })
-MaterialSchema.index({ source: 1 })
-MaterialSchema.index({ source: 1, kind: 1 })
-MaterialSchema.index({ status: 1 })
-MaterialSchema.index({ createdBy: 1 })
-MaterialSchema.index({ tenantId: 1, createdBy: 1 })
-MaterialSchema.index({ createdAt: -1 })
+MaterialSchema.index({ 'meta.id': 1 }, { unique: true })
+MaterialSchema.index({ 'meta.name': 'text', 'meta.description': 'text', 'meta.tags': 'text' })
+MaterialSchema.index({ 'meta.tags': 1 })
+MaterialSchema.index({ 'meta.source': 1 })
+MaterialSchema.index({ 'meta.source': 1, kind: 1 })
+MaterialSchema.index({ applicationId: 1 })
+MaterialSchema.index({ applicationId: 1, kind: 1 })
+MaterialSchema.index({ 'meta.createdAt': -1 })
 
 const Material = mongoose.model<IMaterialDoc>('Material', MaterialSchema)
 

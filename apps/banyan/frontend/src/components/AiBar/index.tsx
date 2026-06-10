@@ -15,9 +15,9 @@
  *   │  └───────────────────────────────────────┘  │
  *   └─────────────────────────────────────────────┘
  *
- * 重构后：
- *   - onBeforeSend 改为 requestFlush() + save()（刷回 store 后持久化）
- *   - initialPrompt 由 store 消费（不再通过 ref + imperative handle）
+ * 数据流：
+ *   - 发送前：requestFlush() + save() 刷回 store 并持久化
+ *   - initialPrompt 由 store 消费
  *   - onDone 回调调用 refreshFromBackend() 从后端拉取最新数据
  */
 

@@ -1,6 +1,7 @@
 import View from "@/view/View/View";
 import CombinedView from "@/view/CombinedViews";
-import { isTextView, isCombinedView, isContainerView, type ISceneNode, type IView, type IContainerView } from "@/types";
+import type { ISceneNode, IView, IContainerView } from "@/types";
+import { isTextView, isCombinedView, isContainerView } from "@/foundation/guards";
 
 /**
  * 视图树节点：可以是 Scene（ISceneNode）或容器视图（IContainerView）或普通 View。

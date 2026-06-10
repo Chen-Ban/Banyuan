@@ -146,7 +146,7 @@ const HomePage = () => {
         {/* DecryptedText subtitle */}
         <div className={styles.subtitleWrap}>
           <DecryptedText
-            text="以画布为山石  以组件为草木  以数据为活水  以 AI 为匠心"
+            text="会想，就会做"
             speed={100}
             maxIterations={20}
             sequential={true}

@@ -36,11 +36,17 @@ export class DeployController {
    * Body: { applicationId, deployType? }
    */
   async publish(ctx: Context): Promise<void> {
+    const user = ctx.state.user
+    if (!user) {
+      ctx.status = 401
+      ctx.body = { success: false, message: '未认证' }
+      return
+    }
+    const { tenantId, userId } = user
     const { applicationId, deployType = 'static' } = ctx.request.body as {
       applicationId: string
       deployType?: 'static' | 'fullstack'
     }
-    const { tenantId, userId } = ctx.state.user
 
     // 1. 查找应用
     const app = await Application.findOne({ application_id: applicationId, tenantId })
@@ -153,7 +159,7 @@ export class DeployController {
       requestId: deploymentId,
       appId: applicationId,
       appSlug: app.appSlug!,
-      appJSON: appJSON as unknown as DeployRequest['appJSON'],
+      appJSON,
       tenantDomain: tenant.domain!,
       width: 375, // 默认移动端宽度，后续可从 appJSON 中提取
       height: 812,
@@ -188,8 +194,14 @@ export class DeployController {
    * 本质上就是「用历史快照重新做一次 publish」。
    */
   async rollback(ctx: Context): Promise<void> {
+    const user = ctx.state.user
+    if (!user) {
+      ctx.status = 401
+      ctx.body = { success: false, message: '未认证' }
+      return
+    }
+    const { tenantId, userId } = user
     const { deploymentId: targetDeploymentId } = ctx.request.body as { deploymentId: string }
-    const { tenantId, userId } = ctx.state.user
 
     // 1. 查找目标部署记录
     const targetDeployment = await Deployment.findOne({ deploymentId: targetDeploymentId, tenantId }).lean()
@@ -256,7 +268,7 @@ export class DeployController {
       requestId: rollbackDeploymentId,
       appId: targetDeployment.applicationId,
       appSlug: app.appSlug!,
-      appJSON: appJSON as unknown as DeployRequest['appJSON'],
+      appJSON,
       tenantDomain: tenant.domain!,
       width: 375,
       height: 812,
@@ -289,8 +301,14 @@ export class DeployController {
    * 查询部署状态
    */
   async getStatus(ctx: Context): Promise<void> {
+    const user = ctx.state.user
+    if (!user) {
+      ctx.status = 401
+      ctx.body = { success: false, message: '未认证' }
+      return
+    }
     const { deploymentId } = ctx.params
-    const { tenantId } = ctx.state.user
+    const { tenantId } = user
 
     const deployment = await Deployment.findOne({ deploymentId, tenantId }).lean()
     if (!deployment) {
@@ -307,8 +325,14 @@ export class DeployController {
    * 查询应用的部署历史
    */
   async getHistory(ctx: Context): Promise<void> {
+    const user = ctx.state.user
+    if (!user) {
+      ctx.status = 401
+      ctx.body = { success: false, message: '未认证' }
+      return
+    }
     const { applicationId } = ctx.params
-    const { tenantId } = ctx.state.user
+    const { tenantId } = user
     const limit = Math.min(parseInt(ctx.query.limit as string) || 20, 50)
 
     const deployments = await Deployment.find({ applicationId, tenantId })
@@ -324,7 +348,13 @@ export class DeployController {
    * 查询当前租户 agent 在线状态
    */
   async getAgentStatus(ctx: Context): Promise<void> {
-    const { tenantId } = ctx.state.user
+    const user = ctx.state.user
+    if (!user) {
+      ctx.status = 401
+      ctx.body = { success: false, message: '未认证' }
+      return
+    }
+    const { tenantId } = user
     const tenant = await Tenant.findOne({ tenantId }).lean()
 
     ctx.body = {
