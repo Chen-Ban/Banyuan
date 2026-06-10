@@ -7,6 +7,7 @@ import previewRouter from './preview.js'
 import schemaRouter from './schema.js'
 import appContentRouter from './appContent.js'
 import cloudFunctionsRouter from './cloudFunctions.js'
+import fullStateRouter from './fullState.js'
 import { uploadRouter } from './upload.js'
 import knowledgeRouter from './knowledge.js'
 import materialRouter from './materials.js'
@@ -49,6 +50,9 @@ router.use(appContentRouter.routes(), appContentRouter.allowedMethods())
 
 // 云函数 CRUD（仅定义存储；执行宿主已迁往用户 ECS 产物，banyan 不再执行 FlowSchema）
 router.use(cloudFunctionsRouter.routes(), cloudFunctionsRouter.allowedMethods())
+
+// 全量状态聚合端点（save-all / full-state，M6 数据流）
+router.use(fullStateRouter.routes(), fullStateRouter.allowedMethods())
 
 // 文件上传（缩略图 → OSS）
 router.use(uploadRouter.routes(), uploadRouter.allowedMethods())
