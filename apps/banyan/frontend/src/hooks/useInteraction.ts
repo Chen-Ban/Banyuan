@@ -32,22 +32,19 @@ import {
   SelectBoxView,
   EdgeView,
   NodeView,
-  PortView,
   isPortView,
   isEdgeView,
   isNodeView,
   isTextView,
+  isContainerView,
   ViewType,
 } from "@banyuan/banvasgl";
 import type {
   IBanvasActions,
-  IGraph,
-  IViewAddon,
   IMaterialTemplate,
   IPortView,
   ITextView,
   ITextElement,
-  IContainerView,
   TextIndex,
 } from "@banyuan/banvasgl";
 // ────────────────────────────────────────────
@@ -218,11 +215,11 @@ export function useInteraction({
       ) {
         return view.interact(point, bufferCtx);
       },
-      element2Index(view: View, content: IGraph | IViewAddon, point: Point3): TextIndex {
-        return (view as unknown as ITextView).element2Index(content as unknown as ITextElement, point);
+      element2Index(view: ITextView, content: ITextElement, point: Point3): TextIndex {
+        return view.element2Index(content, point);
       },
-      setSelection(view: View, fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined) {
-        (view as unknown as ITextView).setSelection(fixedIndex, dynamicIndex);
+      setSelection(view: ITextView, fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined) {
+        view.setSelection(fixedIndex, dynamicIndex);
       },
 
       // ── 框选 ──
@@ -244,7 +241,7 @@ export function useInteraction({
       // ── 连线 ──
       createTempEdge(fromPortId: string): EdgeView {
         const edge = new EdgeView({ fromPortId });
-        actions.view.addTempChild(edge as unknown as View);
+        actions.view.addTempChild(edge);
         return edge;
       },
       setTempTarget(edge: EdgeView, point: Point3) {
@@ -261,8 +258,8 @@ export function useInteraction({
           // Flow 模式：严格的端口方向校验 + 同节点禁连 + maxConnections
           let fromPort: IPortView | null = null;
           outer: for (const v of children) {
-            if ("children" in v) {
-              for (const child of (v as unknown as IContainerView).children) {
+            if (isContainerView(v)) {
+              for (const child of v.children) {
                 if (isPortView(child) && child.id === edge.fromPortId) {
                   fromPort = child;
                   break outer;
@@ -287,18 +284,17 @@ export function useInteraction({
             const toNodeId = hit.id.replace(/_[^_]+$/, "");
             if (fromNodeId && fromNodeId === toNodeId) continue;
 
-            // maxConnections 校验
-            const targetPortView = hit as unknown as PortView;
+            // maxConnections 校验（hit 已由 isPortView 收窄为 IPortView）
             if (
-              targetPortView.maxConnections != null &&
-              targetPortView.maxConnections !== Infinity
+              hit.maxConnections != null &&
+              hit.maxConnections !== Infinity
             ) {
               const existingCount = children.filter(
                 (v) =>
-                  v instanceof EdgeView &&
+                  isEdgeView(v) &&
                   (v.toPortId === hit.id || v.fromPortId === hit.id),
               ).length;
-              if (existingCount >= targetPortView.maxConnections) continue;
+              if (existingCount >= hit.maxConnections) continue;
             }
 
             targetPortId = hit.id;
@@ -315,13 +311,12 @@ export function useInteraction({
           }
         }
 
-        const edgeAsView = edge as unknown as View;
         if (targetPortId && edge.fromPortId) {
-          actions.view.removeTempChild(edgeAsView);
+          actions.view.removeTempChild(edge);
           edge.connect(edge.fromPortId, targetPortId);
-          actions.view.addTempChild(edgeAsView);
+          actions.view.addTempChild(edge);
         } else {
-          actions.view.removeTempChild(edgeAsView);
+          actions.view.removeTempChild(edge);
         }
       },
 
@@ -499,7 +494,7 @@ export function useInteraction({
         const children = actions.page.getTopLevelViews();
         for (const view of [...actived]) {
           if (isEdgeView(view)) {
-            actions.view.removeTempChild(view as unknown as View);
+            actions.view.removeTempChild(view);
             changed = true;
           } else if (isNodeView(view)) {
             const nodeId = view.id;
@@ -512,9 +507,9 @@ export function useInteraction({
                 ),
             );
             for (const edge of relatedEdges) {
-              actions.view.removeTempChild(edge as unknown as View);
+              actions.view.removeTempChild(edge);
             }
-            actions.view.removeTempChild(view as unknown as View);
+            actions.view.removeTempChild(view);
             changed = true;
           }
         }

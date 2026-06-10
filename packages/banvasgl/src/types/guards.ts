@@ -11,7 +11,7 @@
  */
 
 import { GraphType, ViewType, AddonType } from '@/foundation/constants'
-import type { IGraph, GraphTypeMap } from './graph/graph'
+import type { IGraph, GraphTypeMap, ITextElement } from './graph/graph'
 import type { IView, ISceneNode, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IBoxDecorationAddon, IPortView, INodeView, IEdgeView } from './view/view'
 
 // ────────────────────────────────────────────
@@ -101,6 +101,18 @@ export function isAnalyticGraph(graph: IGraph): graph is GraphTypeMap[GraphType.
 /** 快捷判断：是否为 MediaElement（Image 或 Video） */
 export function isMediaElement(graph: IGraph): graph is GraphTypeMap[GraphType.IMAGE] | GraphTypeMap[GraphType.VIDEO] {
     return graph.type === GraphType.IMAGE || graph.type === GraphType.VIDEO
+}
+
+/** 快捷判断：是否为 TextElement（可打印 / 不可打印文本元素，均继承 ITextElement） */
+export function isTextElement(
+    graph: IGraph | IViewAddon | null | undefined,
+): graph is ITextElement {
+    return (
+        !!graph &&
+        (graph.type === GraphType.TEXTELEMENT ||
+            graph.type === GraphType.PRINTABLE_TEXTELEMENT ||
+            graph.type === GraphType.NONPRINTABLE_TEXTELEMENT)
+    )
 }
 
 /** 快捷判断：是否为 TextView */

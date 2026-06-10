@@ -13,6 +13,8 @@ import type {
   View,
   IGraph,
   IViewAddon,
+  ITextView,
+  ITextElement,
   ExtraData,
   Cursor,
   SelectBoxView,
@@ -235,11 +237,11 @@ export interface InteractionDelegate {
     bufferCtx: CanvasRenderingContext2D,
   ): { content: IGraph | IViewAddon | null };
   element2Index(
-    view: View,
-    content: IGraph | IViewAddon,
+    view: ITextView,
+    content: ITextElement,
     point: Point3,
   ): TextIndex;
-  setSelection(view: View, fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void;
+  setSelection(view: ITextView, fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void;
 
   // ── 框选 ──
   createSelectBox(startPoint: Point3): SelectBoxView;

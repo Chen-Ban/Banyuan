@@ -33,7 +33,7 @@ import {
   isTextView,
   isSelectBoxView,
   isContainerView,
-  GraphType,
+  isTextElement,
   Action,
   SelectBoxView,
   EdgeView,
@@ -49,7 +49,6 @@ import type {
   PointerDownInput,
   PointerMoveInput,
   PointerUpInput,
-  PointerCancelInput,
   KeyDownInput,
   KeyUpInput,
   InteractionInput,
@@ -114,7 +113,7 @@ export class InteractionStateMachine {
       case "pointerup":
         return this.onPointerUp(input);
       case "pointercancel":
-        return this.onPointerCancel(input);
+        return this.onPointerCancel();
       case "keydown":
         return this.onKeyDown(input);
       case "keyup":
@@ -132,11 +131,11 @@ export class InteractionStateMachine {
     // 清理当前状态的资源
     if (prevMode === "box-selecting") {
       const s = this._state as { selectBox: SelectBoxView };
-      this._delegate.removeTempChild(s.selectBox as unknown as View);
+      this._delegate.removeTempChild(s.selectBox);
     }
     if (prevMode === "connecting") {
       const s = this._state as { tempEdge: EdgeView };
-      this._delegate.removeTempChild(s.tempEdge as unknown as View);
+      this._delegate.removeTempChild(s.tempEdge);
     }
     if (
       prevMode === "moving" ||
@@ -201,7 +200,7 @@ export class InteractionStateMachine {
       // 空白区域按下 → 框选
       if (this.hasCapability("box-select")) {
         const selectBox = this._delegate.createSelectBox(worldPoint);
-        this._delegate.addTempChild(selectBox as unknown as View);
+        this._delegate.addTempChild(selectBox);
         this._state = {
           mode: "box-selecting",
           startPoint: worldPoint,
@@ -378,7 +377,7 @@ export class InteractionStateMachine {
       case "box-selecting": {
         const s = this._state;
         if (s.mode === "box-selecting") {
-          this._delegate.removeTempChild(s.selectBox as unknown as View);
+          this._delegate.removeTempChild(s.selectBox);
         }
         this._delegate.commitTransaction();
         this._state = { mode: "idle" };
@@ -418,8 +417,7 @@ export class InteractionStateMachine {
    * 安全收尾当前进行中的交互状态（拖拽/缩放/旋转/框选/连线/文本选择等），
    * 回到 idle，但不产生 click/drop/finishConnect 这类「正常完成」语义。
    */
-  private onPointerCancel(input: PointerCancelInput): InteractionOutput {
-    void input; // consumed to satisfy type-checked call signature
+  private onPointerCancel(): InteractionOutput {
     const prevMode = this._state.mode;
     this._primaryPointerId = -1;
 
@@ -444,7 +442,7 @@ export class InteractionStateMachine {
       case "box-selecting": {
         const s = this._state;
         if (s.mode === "box-selecting") {
-          this._delegate.removeTempChild(s.selectBox as unknown as View);
+          this._delegate.removeTempChild(s.selectBox);
         }
         this._delegate.commitTransaction();
         this._state = { mode: "idle" };
@@ -455,7 +453,7 @@ export class InteractionStateMachine {
         const s = this._state;
         if (s.mode === "connecting") {
           // 取消连线：移除临时连线，不调用 finishConnect
-          this._delegate.removeTempChild(s.tempEdge as unknown as View);
+          this._delegate.removeTempChild(s.tempEdge);
         }
         this._state = { mode: "idle" };
         return { stateChanged: true, cursor: Cursor.Default, shouldNotify: true };
@@ -663,12 +661,14 @@ export class InteractionStateMachine {
 
     if (!view.actived) {
       this._delegate.select(view.id);
-      const fixedIndex = this._delegate.element2Index(
-        view,
-        s.indicateContent,
-        worldPoint,
-      );
-      this._delegate.setSelection(view, fixedIndex, fixedIndex);
+      if (isTextElement(s.indicateContent)) {
+        const fixedIndex = this._delegate.element2Index(
+          view,
+          s.indicateContent,
+          worldPoint,
+        );
+        this._delegate.setSelection(view, fixedIndex, fixedIndex);
+      }
       return { stateChanged: false };
     }
 
@@ -684,10 +684,7 @@ export class InteractionStateMachine {
     let targetContent = content;
     let targetPoint = worldPoint;
 
-    if (
-      content?.type !== GraphType.PRINTABLE_TEXTELEMENT &&
-      content?.type !== GraphType.NONPRINTABLE_TEXTELEMENT
-    ) {
+    if (!isTextElement(content)) {
       const relativePoint = view.getMVPMatrix().inverse().multiply(worldPoint);
       const constrainedRelative = view.constraintPoint(relativePoint);
       targetPoint = view.getMVPMatrix().multiply(constrainedRelative);
@@ -695,13 +692,10 @@ export class InteractionStateMachine {
       targetContent = result.content;
     }
 
-    if (
-      targetContent?.type === GraphType.PRINTABLE_TEXTELEMENT ||
-      targetContent?.type === GraphType.NONPRINTABLE_TEXTELEMENT
-    ) {
+    if (isTextElement(targetContent)) {
       const dynamicIndex = this._delegate.element2Index(
         view,
-        targetContent!,
+        targetContent,
         targetPoint,
       );
       this._delegate.setSelection(

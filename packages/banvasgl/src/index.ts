@@ -248,6 +248,7 @@ export {
     isCombinedGraph,
     isAnalyticGraph,
     isMediaElement,
+    isTextElement,
     isTextView,
     isSelectBoxView,
     isCombinedView,

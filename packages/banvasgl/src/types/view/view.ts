@@ -458,6 +458,8 @@ export type PortDirection = 'input' | 'output' | 'bidirectional'
 /** PortView 接口 */
 export interface IPortView extends IView {
     portDirection: PortDirection
+    /** 该端口允许的最大连线数（默认 1，Infinity 表示无限制） */
+    maxConnections: number
     /** 获取端口世界坐标中心点 */
     getWorldCenter(): Point3
 }
