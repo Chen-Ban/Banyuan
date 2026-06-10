@@ -30,7 +30,7 @@ import styles from "./index.module.scss";
 const PreviewPage: React.FC = () => {
   const { message } = App.useApp();
   const { id: applicationId } = useParams<{ id: string }>();
-  const { registerDesignSizeHandler, unregisterDesignSizeHandler, setDesignSize, designSize } = useApplicationStore();
+  const { registerActions, setDesignSize, designSize } = useApplicationStore();
   const { serverInfo, status: serverStatus } = usePreviewServerCtx();
 
   // ── 状态 ───────────────────────────────────────────────────────────────────
@@ -53,7 +53,7 @@ const PreviewPage: React.FC = () => {
         message.error(getErrorMessage(err));
         setLoaded(true);
       });
-  }, [applicationId]);
+  }, [applicationId, message]);
 
   // ── 画布初始化（运行态：flowEnabled = true） ────────────────────────────────
   const canvasOptions: UseCanvasOptions = useMemo(
@@ -68,18 +68,15 @@ const PreviewPage: React.FC = () => {
 
   const { elements, actions } = useCanvasInit(loaded ? appJSON : "", canvasOptions);
 
-  // ── designSize：注册 handler + 同步初始值到 store ──────────────────────────
+  // ── 挂载画布引擎实例到 store + 同步初始 designSize ────────────────────
   useEffect(() => {
     if (!actions?.app) return;
-    // Layout 机型选择器变更时，通过此回调写入引擎
-    registerDesignSizeHandler((size) => {
-      actions.app.setDesignSize(size.width, size.height);
-    });
+    const unregister = registerActions(actions);
     // appJSON 加载后同步引擎当前 designSize 到 store
     const ds = actions.app.getDesignSize();
     setDesignSize({ width: ds.width, height: ds.height });
-    return () => unregisterDesignSizeHandler();
-  }, [registerDesignSizeHandler, unregisterDesignSizeHandler, setDesignSize, actions]);
+    return unregister;
+  }, [registerActions, setDesignSize, actions]);
 
   // ── 设置 backendEndpoint（指向 Preview Server） ─────────────────────────────
   useEffect(() => {

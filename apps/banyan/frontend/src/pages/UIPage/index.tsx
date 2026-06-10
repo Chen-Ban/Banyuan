@@ -60,11 +60,8 @@ const UIPage = () => {
 
   // ── ApplicationStore ────────────────────────────────────────────────────────
   const {
-    registerGetSerializedApp,
-    unregisterGetSerializedApp,
-    registerDesignSizeHandler,
-    unregisterDesignSizeHandler,
     setDesignSize,
+    registerActions,
     registerFlushHandler,
     flushAppJSON,
     consumeInitialPrompt,
@@ -131,7 +128,7 @@ const UIPage = () => {
           setLoaded(true);
         });
     }
-  }, [application_id]);
+  }, [application_id, message]);
 
   // ── 订阅 store.appJSON 变化（AI done 后 refreshFromBackend 更新） ─────────
   useEffect(() => {
@@ -202,24 +199,15 @@ const UIPage = () => {
     }
   }, [rawContextMenu]);
 
-  // ── 注册 getSerializedApp（供 ApplicationLayout handleBuild 使用） ──────────
-  useEffect(() => {
-    registerGetSerializedApp(() => actions.app.getSerializedApp());
-    return () => unregisterGetSerializedApp();
-  }, [registerGetSerializedApp, unregisterGetSerializedApp, actions]);
-
-  // ── designSize：注册 handler + 同步初始值到 store ──────────────────────────
+  // ── 挂载画布引擎实例到 store（供 Layout build / 机型切换 / 外部消费） ────────
   useEffect(() => {
     if (!actions?.app) return;
-    // Layout 机型选择器变更时，通过此回调写入引擎
-    registerDesignSizeHandler((size) => {
-      actions.app.setDesignSize(size.width, size.height);
-    });
+    const unregister = registerActions(actions);
     // appJSON 加载后同步引擎当前 designSize 到 store
     const ds = actions.app.getDesignSize();
     setDesignSize({ width: ds.width, height: ds.height });
-    return () => unregisterDesignSizeHandler();
-  }, [registerDesignSizeHandler, unregisterDesignSizeHandler, setDesignSize, actions]);
+    return unregister;
+  }, [registerActions, setDesignSize, actions]);
 
   // ── 注册 flushHandler：将画布实时态 flush 到 store ───────────────────────────
   useEffect(() => {

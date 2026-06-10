@@ -1,21 +1,27 @@
 /**
  * ApplicationStore — 应用编辑态全局状态（zustand）
  *
- * Phase 1（metadata-dataflow spec）重设计：
- *   - 持有业务数据：appJSON（string）/ collections / cloudFunctions
+ * 持有业务数据：appJSON（string）/ collections / cloudFunctions
  *   - save()：调用聚合端点 PUT /apps/:appId/save-all 持久化后推送 PreviewServer
  *   - refreshFromBackend()：AI done 后拉取最新数据并推送 PreviewServer
- *   - flushAppJSON()：UIPage 将 ref 实时态 flush 到 store
+ *   - flushAppJSON()：将画布/编辑器实时态写回 store.appJSON
  *   - load()：初始化加载全量数据
  *
- * 保留原有的 UI 编辑态注册机制：
- *   - getSerializedApp / designSizeHandler / flushHandler / initialPrompt
+ * 画布引擎实例（actions）直接挂载到 store：
+ *   - 当前活跃画布页（UIPage / PreviewPage）将 IBanvasActions 实例挂载到 store
+ *   - store 内部可直接调用引擎能力：序列化、设计尺寸读写
+ *   - 外部消费方也可通过 store.actions 直接操作画布内容
+ *
+ * Flush 总线（registerFlushHandler）：
+ *   - UIPage（画布）/ DatabasePage（FieldEditor）/ FunctionsPage（FlowEditor）
+ *     各自注册 handler，将本地实时态/dirty 态刷回 store
+ *   - 保存 / AI 发送前调用 requestFlush() 广播触发
  *
  * 消费方：
- *   - ApplicationLayout：写入 appName、触发 save、build
- *   - UIPage：注册 getSerializedApp / designSizeHandler，flush appJSON
- *   - PreviewPage：读 designSize
- *   - DatabasePage / FunctionsPage：CRUD 后更新 store collections/cloudFunctions
+ *   - ApplicationLayout：写入 appName、触发 save、build、机型切换
+ *   - UIPage：挂载 actions，注册 flush handler，同步引擎 designSize 到 store
+ *   - PreviewPage：挂载 actions，读 designSize
+ *   - DatabasePage / FunctionsPage：注册 flush handler，CRUD 后更新 store
  *   - AiBar：onBeforeSend 调用 requestFlush + save，done 后调用 refreshFromBackend
  *   - Sidebar：读 appName
  *   - HomePage：写 initialPrompt
@@ -24,9 +30,10 @@
  */
 
 import { create } from 'zustand'
-import * as fullStateApi from '@/api/fullState'
-import type { CollectionDef } from '@/api/schema'
-import type { CloudFunctionDef } from '@/api/cloudFunctions'
+import type { IBanvasActions } from '@banyuan/banvasgl'
+import * as fullStateApi from '@/api/application/fullState'
+import type { CollectionDef } from '@/api/backend/schema'
+import type { CloudFunctionDef } from '@/api/backend/cloudFunctions'
 import { hotUpdatePreview } from '@/utils/previewBridge'
 
 // ── 类型定义 ─────────────────────────────────────────────────────────────────────
@@ -37,7 +44,7 @@ export interface DesignSize {
 }
 
 export interface ApplicationState {
-  // ── 业务数据（M6 新增） ─────────────────────────────────────────────────────
+  // ── 业务数据 ─────────────────────────────────────────────────────────────────
   /** 当前应用 ID */
   appId: string | null
   /** App.serialize() 产出的完整 JSON 字符串 */
@@ -61,13 +68,13 @@ export interface ApplicationState {
   /** 当前应用设计尺寸 */
   designSize: DesignSize
 
-  // ── 画布序列化（UIPage 注册） ──────────────────────────────────────────────
-  /** UIPage 注册的序列化函数，供 handleBuild / handleSave 调用 */
-  getSerializedApp: (() => string) | null
-
-  // ── designSize 写入引擎的回调（UIPage / PreviewPage 注册） ─────────────────
-  /** 当前活跃页面注册的 setDesignSize 回调 */
-  designSizeHandler: ((size: DesignSize) => void) | null
+  // ── 画布引擎实例 ────────────────────────────────────────────────────────────
+  /**
+   * 当前活跃画布页挂载的引擎操作集（IBanvasActions）。
+   * 挂载后 store 可直接调用引擎能力（序列化 / 设计尺寸），
+   * 外部也可通过 store.actions 直接操作画布内容。
+   */
+  actions: IBanvasActions | null
 
   // ── initialPrompt ──────────────────────────────────────────────────────────
   /**
@@ -75,23 +82,17 @@ export interface ApplicationState {
    * key: appId, value: prompt
    */
   initialPrompt: Map<string, string>
-
-  // ── AI 回调 ────────────────────────────────────────────────────────────────
-  /** AI 流式推送 appJSON 快照 */
-  onAppSnapshot: ((appJSON: string) => void) | null
-  /** AI 完成后回调 */
-  onDone: ((appJSON: string) => void) | null
 }
 
 export interface ApplicationActions {
-  // ── 业务数据操作（M6 新增） ─────────────────────────────────────────────────
+  // ── 业务数据操作 ─────────────────────────────────────────────────────────────
   /** 初始化加载：拉取全量数据并推送 PreviewServer */
   load: (appId: string) => Promise<void>
-  /** 全量保存：flush → HTTP save-all → 推送 PreviewServer */
+  /** 全量保存：HTTP save-all → 推送 PreviewServer */
   save: () => Promise<void>
   /** AI done 后拉取最新数据并推送 PreviewServer */
   refreshFromBackend: () => Promise<void>
-  /** UIPage 将 ref 实时态 flush 到 store（仅更新 appJSON，不触发 hotUpdate） */
+  /** 将实时态写回 store.appJSON（仅更新 appJSON，不触发 hotUpdate） */
   flushAppJSON: (serialized: string) => void
   /** 更新 collections（CRUD 后调用） */
   setCollections: (collections: CollectionDef[]) => void
@@ -103,26 +104,24 @@ export interface ApplicationActions {
 
   // ── 设计尺寸 ───────────────────────────────────────────────────────────────
   setDesignSize: (size: DesignSize) => void
-  /** Layout 机型选择器调用：更新 store 状态 + 通知引擎 */
+  /** Layout 机型选择器调用：更新 store 状态 + 通过 actions 通知画布引擎 */
   changeDesignSize: (size: DesignSize) => void
 
-  // ── 画布序列化注册 ─────────────────────────────────────────────────────────
-  registerGetSerializedApp: (fn: () => string) => void
-  unregisterGetSerializedApp: () => void
+  // ── 画布引擎实例挂载 ────────────────────────────────────────────────────────
+  /** 活跃画布页挂载引擎实例。返回卸载函数。 */
+  registerActions: (actions: IBanvasActions) => () => void
+  /** 取当前画布最新序列化结果（画布未挂载时返回 store.appJSON 兜底） */
+  getSerializedApp: () => string
 
-  // ── designSize handler 注册 ────────────────────────────────────────────────
-  registerDesignSizeHandler: (fn: (size: DesignSize) => void) => void
-  unregisterDesignSizeHandler: () => void
-
-  // ── Flush 事件（子页面注册 handler 将本地态刷回 store） ─────────────────────
+  // ── Flush 总线（子页面注册 handler 将本地态刷回 store） ─────────────────────
   /**
-   * 请求 flush（触发 UIPage 等注册的 handler 将 ref 数据 flush 到 store）。
+   * 请求 flush（触发已注册的 handler 将本地态刷回 store）。
    * 返回 Promise 在全部 flush 完成后 resolve。
    */
   requestFlush: () => Promise<void>
   /**
    * 子页面注册 flush 处理器。返回取消注册函数。
-   * UIPage 注册时执行 ref → store 的 flush。
+   * UIPage（画布）/ DatabasePage（FieldEditor）/ FunctionsPage（FlowEditor）使用。
    */
   registerFlushHandler: (handler: () => Promise<void>) => () => void
 
@@ -130,10 +129,6 @@ export interface ApplicationActions {
   setInitialPrompt: (appId: string, prompt: string) => void
   consumeInitialPrompt: (appId: string) => string | undefined
   clearInitialPrompt: (appId: string) => void
-
-  // ── AI 回调注册 ────────────────────────────────────────────────────────────
-  registerAiCallbacks: (cbs: { onAppSnapshot?: (json: string) => void; onDone?: (json: string) => void }) => void
-  unregisterAiCallbacks: () => void
 
   // ── 重置 ──────────────────────────────────────────────────────────────────
   reset: () => void
@@ -154,11 +149,8 @@ const initialState: ApplicationState = {
   isSaving: false,
   appName: '',
   designSize: { width: 1280, height: 800 },
-  getSerializedApp: null,
-  designSizeHandler: null,
+  actions: null,
   initialPrompt: new Map(),
-  onAppSnapshot: null,
-  onDone: null,
 }
 
 export const useApplicationStore = create<ApplicationState & ApplicationActions>()((set, get) => ({
@@ -233,19 +225,25 @@ export const useApplicationStore = create<ApplicationState & ApplicationActions>
   setDesignSize: (size) => set({ designSize: size }),
   changeDesignSize: (size) => {
     set({ designSize: size })
-    const handler = get().designSizeHandler
-    if (handler) handler(size)
+    // 直接通知画布引擎
+    get().actions?.app.setDesignSize(size.width, size.height)
   },
 
-  // ── 画布序列化注册 ─────────────────────────────────────────────────────────
-  registerGetSerializedApp: (fn) => set({ getSerializedApp: fn }),
-  unregisterGetSerializedApp: () => set({ getSerializedApp: null }),
+  // ── 画布引擎实例挂载 ────────────────────────────────────────────────────────
+  registerActions: (actions) => {
+    set({ actions })
+    return () => {
+      // 仅当卸载的是当前实例时才清空，避免快速切换页面时误清新实例
+      if (get().actions === actions) set({ actions: null })
+    }
+  },
 
-  // ── designSize handler 注册 ────────────────────────────────────────────────
-  registerDesignSizeHandler: (fn) => set({ designSizeHandler: fn }),
-  unregisterDesignSizeHandler: () => set({ designSizeHandler: null }),
+  getSerializedApp: () => {
+    const actions = get().actions
+    return actions ? actions.app.getSerializedApp() : get().appJSON
+  },
 
-  // ── Flush 事件 ──────────────────────────────────────────────────────────────
+  // ── Flush 总线 ──────────────────────────────────────────────────────────────
   requestFlush: () => {
     if (flushHandlers.size === 0) {
       return Promise.resolve()
@@ -287,17 +285,9 @@ export const useApplicationStore = create<ApplicationState & ApplicationActions>
     })
   },
 
-  // ── AI 回调注册 ────────────────────────────────────────────────────────────
-  registerAiCallbacks: (cbs) => set({
-    onAppSnapshot: cbs.onAppSnapshot ?? null,
-    onDone: cbs.onDone ?? null,
-  }),
-  unregisterAiCallbacks: () => set({ onAppSnapshot: null, onDone: null }),
-
   // ── 重置 ──────────────────────────────────────────────────────────────────
   reset: () => {
     flushHandlers.clear()
     set({ ...initialState, initialPrompt: new Map() })
   },
 }))
-
