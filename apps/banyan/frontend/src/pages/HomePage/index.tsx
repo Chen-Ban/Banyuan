@@ -14,10 +14,10 @@ import { SendOutlined } from "@ant-design/icons";
 import { applicationApi, aiApi } from "@/api";
 import type { ProviderInfo } from "@/api";
 import { getErrorMessage } from "@/utils/error";
-import { appEvents } from "@/utils/appEvents";
-import Grainient from "@/components/reactbits/Grainient";
-import TextPressure from "@/components/reactbits/TextPressure";
-import DecryptedText from "@/components/reactbits/DecryptedText";
+import { useApplicationStore } from "@/stores/applicationStore";
+import Grainient from "./components/reactbits/Grainient";
+import TextPressure from "./components/reactbits/TextPressure";
+import DecryptedText from "./components/reactbits/DecryptedText";
 import styles from "./index.module.scss";
 
 // -- Example prompts --
@@ -79,8 +79,8 @@ const HomePage = () => {
     try {
       const res = await applicationApi.createApplication();
       const app = res.data!;
-      // 通过事件总线传递初始 prompt（带缓冲：UIPage 尚未 mount 时暂存，mount 后自动 flush）
-      appEvents.emitInitialPrompt(app.application_id, text);
+      // 通过 store 传递初始 prompt（带缓冲：UIPage 尚未 mount 时暂存，mount 后读取并清除）
+      useApplicationStore.getState().setInitialPrompt(app.application_id, text);
       navigate(`/application/${app.application_id}/ui`);
     } catch (err) {
       message.error(getErrorMessage(err));

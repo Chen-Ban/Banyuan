@@ -23,14 +23,14 @@ import { useCanvasInit } from "@banyuan/banvasgl/react";
 import type { UseCanvasOptions } from "@banyuan/banvasgl/react";
 import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
-import { useAppLayoutCtx } from "@/layouts/ApplicationLayout/AppLayoutCtx";
+import { useApplicationStore } from "@/stores/applicationStore";
 import { usePreviewServerCtx } from "@/layouts/ApplicationLayout/PreviewServerCtx";
 import styles from "./index.module.scss";
 
 const PreviewPage: React.FC = () => {
   const { message } = App.useApp();
   const { id: applicationId } = useParams<{ id: string }>();
-  const { registerDesignSizeHandler, syncDesignSize, designSize } = useAppLayoutCtx();
+  const { registerDesignSizeHandler, unregisterDesignSizeHandler, setDesignSize, designSize } = useApplicationStore();
   const { serverInfo, status: serverStatus } = usePreviewServerCtx();
 
   // ── 状态 ───────────────────────────────────────────────────────────────────
@@ -68,17 +68,18 @@ const PreviewPage: React.FC = () => {
 
   const { elements, actions } = useCanvasInit(loaded ? appJSON : "", canvasOptions);
 
-  // ── designSize：注册 handler + 同步初始值到 Layout ────────────────────────
+  // ── designSize：注册 handler + 同步初始值到 store ──────────────────────────
   useEffect(() => {
     if (!actions?.app) return;
     // Layout 机型选择器变更时，通过此回调写入引擎
     registerDesignSizeHandler((size) => {
       actions.app.setDesignSize(size.width, size.height);
     });
-    // appJSON 加载后同步引擎当前 designSize 到 Layout
+    // appJSON 加载后同步引擎当前 designSize 到 store
     const ds = actions.app.getDesignSize();
-    syncDesignSize({ width: ds.width, height: ds.height });
-  }, [registerDesignSizeHandler, syncDesignSize, actions]);
+    setDesignSize({ width: ds.width, height: ds.height });
+    return () => unregisterDesignSizeHandler();
+  }, [registerDesignSizeHandler, unregisterDesignSizeHandler, setDesignSize, actions]);
 
   // ── 设置 backendEndpoint（指向 Preview Server） ─────────────────────────────
   useEffect(() => {
