@@ -14,9 +14,14 @@
  *   │  │  模型选择           [发送 / 停止 按钮]  │  │
  *   │  └───────────────────────────────────────┘  │
  *   └─────────────────────────────────────────────┘
+ *
+ * 重构后：
+ *   - onBeforeSend 改为 requestFlush() + save()（刷回 store 后持久化）
+ *   - initialPrompt 由 store 消费（不再通过 ref + imperative handle）
+ *   - onDone 回调调用 refreshFromBackend() 从后端拉取最新数据
  */
 
-import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { Image, Select, Tooltip, message as antdMessage } from "antd";
 import {
   CloseOutlined,
@@ -29,32 +34,14 @@ import {
 import { useXiangDi } from "@/hooks/useXiangDi";
 import { aiApi } from "@/api";
 import type { ProviderInfo, ImageItem } from "@/api";
+import { useApplicationStore } from "@/stores/applicationStore";
 import ConversationPanel from "./ConversationPanel";
 import styles from "./index.module.scss";
-
-// ─── Imperative handle ────────────────────────────────────────────────────────
-
-export interface AiBarHandle {
-  /** 外部触发发送，供首页跳转后自动起始对话使用 */
-  sendPrompt: (prompt: string) => void;
-}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface AiBarProps {
   appId: string;
-  /**
-   * 发送前保存当前应用状态的回调（可选）。
-   * AiBar 在发送请求前先 await 此函数，确保 DB 是最新快照，
-   * 后端 XiangDi 通过内部 API 按需拉取，无需随请求体传入。
-   */
-  onBeforeSend?: () => Promise<void>;
-  /** AI 完成后回调，携带 done 事件的 summary */
-  onDone?: (summary: string) => void;
-  /** task 确认成功后回调（可用于重新加载 appJSON） */
-  onConfirmed?: (dialogueId: string) => void;
-  /** task 撤销后回调（前端应回滚画布到对话前的状态） */
-  onDiscarded?: () => void;
 }
 
 // ─── 粘贴图片类型 ─────────────────────────────────────────────────────────────
@@ -67,16 +54,13 @@ interface PastedImage {
 
 // ─── AiBar ────────────────────────────────────────────────────────────────────
 
-const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
-  appId,
-  onBeforeSend,
-  onDone,
-  onConfirmed,
-  onDiscarded,
-}, ref) {
+const AiBar: React.FC<AiBarProps> = ({ appId }) => {
   const [inputValue, setInputValue] = useState("");
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // ── ApplicationStore ────────────────────────────────────────────────────────
+  const { requestFlush, consumeInitialPrompt, refreshFromBackend } = useApplicationStore()
 
   // ─── 模型选择 ──────────────────────────────────────────────────────────────
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -100,6 +84,17 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
   // ─── 对话模式切换（编辑 = task / 对话 = chat） ────────────────────────────
   const [dialogueMode, setDialogueMode] = useState<'task' | 'chat'>('task');
 
+  // onDone 回调：banyan 后端已在 done 事件后写库（M1 不变），前端拉取最新数据
+  const handleDone = useCallback(async (_summary: string) => {
+    await refreshFromBackend()
+  }, [refreshFromBackend])
+
+  // onBeforeSend：先 flush ref → store，再 save 到后端，保证 AI 看到最新数据
+  const handleBeforeSend = useCallback(async () => {
+    await requestFlush()
+    await useApplicationStore.getState().save()
+  }, [requestFlush])
+
   const {
     loading,
     historyLoading,
@@ -115,14 +110,34 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
     retryError,
   } = useXiangDi({
     appId,
-    onBeforeSend,
-    onDone,
-    onConfirmed,
-    onDiscarded,
+    onBeforeSend: handleBeforeSend,
+    onDone: handleDone,
   });
 
-  // 暴露 sendPrompt 给父组件（首页跳转后自动触发）
-  useImperativeHandle(ref, () => ({ sendPrompt }), [sendPrompt]);
+  // ── 消费 initialPrompt（首页跳转后自动发送） ────────────────────────────────
+  const initialPromptConsumed = useRef(false)
+  useEffect(() => {
+    if (initialPromptConsumed.current) return
+    const prompt = consumeInitialPrompt(appId)
+    if (prompt) {
+      initialPromptConsumed.current = true
+      sendPrompt(prompt)
+    }
+  }, [appId, consumeInitialPrompt, sendPrompt])
+
+  // 监听 store.initialPrompt 变化（处理 UIPage mount 后再写入的情况）
+  useEffect(() => {
+    const unsub = useApplicationStore.subscribe((state) => {
+      if (initialPromptConsumed.current) return
+      const prompt = state.initialPrompt.get(appId)
+      if (prompt) {
+        initialPromptConsumed.current = true
+        state.consumeInitialPrompt(appId)
+        sendPrompt(prompt)
+      }
+    })
+    return unsub
+  }, [appId, sendPrompt])
 
   // ─── 输入框逻辑 ────────────────────────────────────────────────────────────
 
@@ -360,6 +375,6 @@ const AiBar = forwardRef<AiBarHandle, AiBarProps>(function AiBar({
       </div>
     </div>
   );
-});
+};
 
 export default AiBar;

@@ -12,13 +12,14 @@
  *   └──────────────────────────────────────────────────────────────────┘
  *
  * 职责：
- *   - 加载并管理应用元数据（名称、描述），写入 RootLayoutCtx 供 Sidebar 面包屑读取
+ *   - 加载并管理应用元数据（名称、描述），写入 applicationStore 供各处读取
  *   - 提供保存（handleSave）和生成应用（handleBuild）操作
  *   - Tab 导航通过 React Router navigate 切换子路由
  *   - 画布位置是 Segmented（预览 | 编辑），对应 /preview 和 /ui 两个子路由
  *   - 数据库和云函数是独立子路由（/database、/functions）
+ *   - 管理 PreviewServer 生命周期（应用级）
  *
- * 注：AiBar 单例已提升到 RootLayout 层，本组件不再持有任何 AiBar 相关逻辑。
+ * 重构后不再提供 AppLayoutCtx。所有共享状态走 useApplicationStore。
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
@@ -50,16 +51,12 @@ import { version as canvasVersion } from '@banyuan/banvasgl'
 import { applicationApi, buildApi } from '@/api'
 import type { Platform, BuildTaskInfo, BuildStatus } from '@/api'
 import { getErrorMessage } from '@/utils/error'
-import { appEvents } from '@/utils/appEvents'
+import { useApplicationStore } from '@/stores/applicationStore'
 import BuildTaskModal from '@/components/BuildTaskModal'
-import { AppLayoutCtx } from './AppLayoutCtx'
-import type { DesignSize } from './AppLayoutCtx'
 import { PreviewServerCtx, usePreviewServer } from './PreviewServerCtx'
-import { useRootLayoutCtx } from '@/layouts/RootLayout/RootLayoutCtx'
 import { DEVICE_GROUPS, ALL_DEVICE_PRESETS } from './devicePresets'
 import styles from './index.module.scss'
 
-const AUTO_SAVE_DELAY = 800
 
 const ApplicationLayout: React.FC = () => {
   const { id: application_id } = useParams<{ id: string }>()
@@ -70,8 +67,19 @@ const ApplicationLayout: React.FC = () => {
   // ── Preview Server 生命周期管理（应用级） ─────────────────────────────────
   const previewServer = usePreviewServer(application_id)
 
-  // ── 应用元数据 ────────────────────────────────────────────────────────────
-  const [applicationName, setApplicationName] = useState('')
+  // ── ApplicationStore ────────────────────────────────────────────────────────
+  const {
+    appName: applicationName,
+    setAppName,
+    designSize,
+    changeDesignSize,
+    getSerializedApp,
+    requestFlush,
+    reset: resetStore,
+    load: loadStore,
+  } = useApplicationStore()
+
+  // ── 应用元数据（本地 description 状态，不进 store） ─────────────────────────
   const [applicationDescription, setApplicationDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const nameRef = useRef(applicationName)
@@ -119,50 +127,22 @@ const ApplicationLayout: React.FC = () => {
     failed: { label: '失败', icon: <CloseCircleOutlined style={{ color: 'var(--color-error-text)' }} />, color: 'var(--color-error-text)' },
   }
 
-  // ── getApp 回调注册（由 UIPage 注册，供 handleBuild 序列化） ─────────────
-  const getAppRef = useRef<(() => string) | null>(null)
-
-  const registerGetApp = useCallback((fn: () => string) => {
-    getAppRef.current = fn
-  }, [])
-
-  const unregisterGetApp = useCallback(() => {
-    getAppRef.current = null
-  }, [])
-
-  // ── designSize 管理 ────────────────────────────────────────────────────────
-  const [designSize, setDesignSize] = useState<DesignSize>({ width: 1280, height: 800 })
-  const designSizeHandlerRef = useRef<((size: DesignSize) => void) | null>(null)
-
-  const registerDesignSizeHandler = useCallback((fn: (size: DesignSize) => void) => {
-    designSizeHandlerRef.current = fn
-  }, [])
-
-  const syncDesignSize = useCallback((size: DesignSize) => {
-    setDesignSize(size)
-  }, [])
-
-  const onDesignSizeChange = useCallback((size: DesignSize) => {
-    setDesignSize(size)
-    // 通知 UIPage 通过 actions.app.setDesignSize 写入引擎
-    if (designSizeHandlerRef.current) {
-      designSizeHandlerRef.current(size)
-    }
-  }, [])
-
-  // ── 同步应用名称到 RootLayoutCtx（供 Sidebar 面包屑读取） ──────────────────
-  const { setAppName: setRootAppName } = useRootLayoutCtx()
-
-  // ── 加载应用元数据 ────────────────────────────────────────────────────────
+  // ── 加载应用元数据 + 业务数据 ─────────────────────────────────────────────
   useEffect(() => {
     if (!application_id) return
+    // 切换应用时重置 store
+    resetStore()
+
+    // 加载应用元数据（名称/描述）
     applicationApi.fetchApplication(application_id).then((res) => {
       const app = res.data!
-      setApplicationName(app.name)
+      setAppName(app.name)
       setApplicationDescription(app.description || '')
-      setRootAppName(app.name)
     }).catch(() => {})
-  }, [application_id, setRootAppName])
+
+    // 加载业务数据（appJSON/collections/cloudFunctions）到 store
+    loadStore(application_id)
+  }, [application_id, setAppName, resetStore, loadStore])
 
   // ── 当前路由推导激活状态 ─────────────────────────────────────────────────
   const getActiveTab = (): 'preview' | 'ui' | 'database' | 'data-browser' | 'functions' => {
@@ -190,37 +170,10 @@ const ApplicationLayout: React.FC = () => {
     }
   }, [navigate, application_id])
 
-  // ── 自动保存名称/描述（debounce） ─────────────────────────────────────────
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const triggerAutoSaveMeta = useCallback(() => {
-    if (!application_id) return
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-    autoSaveTimer.current = setTimeout(async () => {
-      try {
-        await applicationApi.updateApplication(application_id, {
-          name: nameRef.current,
-          description: descRef.current,
-        })
-      } catch {
-        // 静默失败
-      }
-    }, AUTO_SAVE_DELAY)
-  }, [application_id])
-
-  useEffect(() => () => {
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
-  }, [])
-
-  const handleNameChange = useCallback((value: string) => {
-    setApplicationName(value)
-    setRootAppName(value)
-    triggerAutoSaveMeta()
-  }, [triggerAutoSaveMeta, setRootAppName])
-
   // ── 保存应用 ──────────────────────────────────────────────────────────────
-  // 发布 saveApp 事件 → 当前 mounted 的子页面订阅后执行各自保存逻辑
-  // 同时保存元数据
+  // 1. requestFlush() — 通知画布将最新 appJSON 刷回 store
+  // 2. store.save() — 将 store 中 appJSON/collections/cloudFunctions 通过聚合端点持久化
+  // 3. 同时保存元数据（名称/描述）
   const handleSave = useCallback(async () => {
     if (!applicationName.trim()) {
       message.warning('请输入应用名称')
@@ -229,10 +182,11 @@ const ApplicationLayout: React.FC = () => {
     if (!application_id) return
     setSaving(true)
     try {
+      // 先将画布最新状态刷回 store（必须 await 以确保 appJSON 已写入 store）
+      await requestFlush()
+      // 然后并行执行：持久化业务数据 + 保存元数据
       await Promise.all([
-        // 通知当前子页面保存（谁订阅了谁响应）
-        appEvents.emitSaveApp(),
-        // 保存元数据
+        useApplicationStore.getState().save(),
         applicationApi.updateApplication(application_id, {
           name: nameRef.current,
           description: descRef.current,
@@ -244,7 +198,7 @@ const ApplicationLayout: React.FC = () => {
     } finally {
       setSaving(false)
     }
-  }, [applicationName, application_id])
+  }, [applicationName, application_id, requestFlush])
 
   // ── 构建任务轮询 ──────────────────────────────────────────────────────────
   // 对所有 pending/running 的任务轮询状态更新
@@ -294,15 +248,11 @@ const ApplicationLayout: React.FC = () => {
   // 计算角标状态
   const unviewedTasks = buildTasks.filter(t => !viewedTaskIds.has(t.taskId))
   const activeTasks = buildTasks.filter(t => t.status === 'pending' || t.status === 'running')
-  // 角标逻辑：
-  //   - 只有一个未查看且是活跃状态 → 进度角标（processing dot）
-  //   - 其他有未查看 → 数量角标
-  //   - 全部已查看 → 无角标
   const badgeCount = unviewedTasks.length
   const showProcessingDot = badgeCount === 1 && activeTasks.length === 1 && unviewedTasks[0]?.status !== 'success' && unviewedTasks[0]?.status !== 'failed'
 
   // ── 生成应用 ──────────────────────────────────────────────────────────────
-  // 优先用 UIPage 注册的 getApp（画布在线时），否则从后端拉最新 appJSON
+  // 优先用 store 的 getSerializedApp（画布在线时），否则从后端拉最新 appJSON
   const handleBuild = useCallback(async (platform: Platform) => {
     if (!applicationName.trim()) {
       message.warning('请先输入应用名称')
@@ -312,9 +262,9 @@ const ApplicationLayout: React.FC = () => {
     setBuildSubmitting(true)
     try {
       let appJson: string
-      if (getAppRef.current) {
+      if (getSerializedApp) {
         // UIPage 在线，直接取最新画布态
-        appJson = getAppRef.current()
+        appJson = getSerializedApp()
       } else {
         // UIPage 不在线（用户在数据库/云函数页），从后端拉已保存的 appJSON
         const res = await applicationApi.fetchApplication(application_id)
@@ -346,7 +296,7 @@ const ApplicationLayout: React.FC = () => {
     } finally {
       setBuildSubmitting(false)
     }
-  }, [applicationName, application_id, designSize])
+  }, [applicationName, application_id, designSize, getSerializedApp])
 
   // ── 生成应用下拉菜单 ────────────────────────────────────────────────────────
   // 产物列表菜单项
@@ -400,7 +350,7 @@ const ApplicationLayout: React.FC = () => {
       key: preset.key,
       icon: group.icon,
       label: `${preset.label}（${preset.width}×${preset.height}）`,
-      onClick: () => onDesignSizeChange({ width: preset.width, height: preset.height }),
+      onClick: () => changeDesignSize({ width: preset.width, height: preset.height }),
     })),
   ])
 
@@ -411,19 +361,10 @@ const ApplicationLayout: React.FC = () => {
 
   // 判断当前是否在画布区域（预览或编辑）
   const isCanvasArea = activeTab === 'preview' || activeTab === 'ui'
+  void isCanvasArea // 保留供后续使用
 
   return (
     <PreviewServerCtx.Provider value={previewServer}>
-    <AppLayoutCtx.Provider value={{
-      registerGetApp,
-      unregisterGetApp,
-      appName: applicationName,
-      onAppRename: handleNameChange,
-      designSize,
-      onDesignSizeChange,
-      registerDesignSizeHandler,
-      syncDesignSize,
-    }}>
       <div className={styles.layout}>
 
         {/* ── AppHeader：应用级工具栏 ── */}
@@ -589,7 +530,6 @@ const ApplicationLayout: React.FC = () => {
         onClose={() => setBuildModalOpen(false)}
         taskId={buildTaskId}
       />
-    </AppLayoutCtx.Provider>
     </PreviewServerCtx.Provider>
   )
 }

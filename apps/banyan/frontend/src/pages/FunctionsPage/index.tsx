@@ -9,8 +9,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { App, Button, Spin, Empty, Modal } from "antd";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
-import { appEvents } from "@/utils/appEvents";
-import { usePreviewServerCtx } from "@/layouts/ApplicationLayout/PreviewServerCtx";
+import { useApplicationStore } from "@/stores/applicationStore";
 import FunctionList from "./components/FunctionList";
 import FlowEditor from "./components/FlowEditor";
 import type { FlowEditorHandle } from "./components/FlowEditor";
@@ -21,7 +20,7 @@ const FunctionsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   void navigate; // layout 负责导航
-  const { hotUpdate } = usePreviewServerCtx();
+  const { registerFlushHandler, setCloudFunctions: syncCloudFunctions } = useApplicationStore();
 
   const [functions, setFunctions] = useState<CloudFunctionDef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,14 +32,15 @@ const FunctionsPage: React.FC = () => {
 
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), []);
 
-  // ── 订阅全局保存事件（ApplicationLayout 保存按钮触发） ─────────────────
+  // ── 注册 flushHandler（ApplicationLayout 保存按钮触发） ──────────────────
   useEffect(() => {
-    return appEvents.onSaveApp(async () => {
+    const unsubscribe = registerFlushHandler(async () => {
       if (flowEditorRef.current && dirty) {
         await flowEditorRef.current.save();
       }
     });
-  }, [dirty]);
+    return unsubscribe;
+  }, [dirty, registerFlushHandler]);
 
   // ── 加载云函数列表 ───────────────────────────────────────────────────────
 
@@ -85,10 +85,9 @@ const FunctionsPage: React.FC = () => {
     if (res.data) {
       const next = [res.data!, ...functions];
       setFunctions(next);
+      syncCloudFunctions(next);
       setSelectedId(res.data.functionId);
       setAdding(false);
-      // 新增函数后通知 Preview Server 热更新
-      hotUpdate({ cloudFunctions: next });
     }
   };
 
@@ -96,12 +95,11 @@ const FunctionsPage: React.FC = () => {
     await cloudFunctionApi.deleteFunction(id!, functionId);
     const next = functions.filter((f) => f.functionId !== functionId);
     setFunctions(next);
+    syncCloudFunctions(next);
     setSelectedId((prev) => {
       if (prev !== functionId) return prev;
       return next.length > 0 ? next[0].functionId : null;
     });
-    // 删除函数后通知 Preview Server 热更新
-    hotUpdate({ cloudFunctions: next });
   };
 
   const handleRenameFunction = async (functionId: string, newName: string, newDisplayName: string) => {
@@ -110,9 +108,9 @@ const FunctionsPage: React.FC = () => {
       displayName: newDisplayName,
     });
     if (res.data) {
-      setFunctions((prev) =>
-        prev.map((f) => (f.functionId === functionId ? res.data! : f)),
-      );
+      const next = functions.map((f) => (f.functionId === functionId ? res.data! : f));
+      setFunctions(next);
+      syncCloudFunctions(next);
     }
   };
 
@@ -147,11 +145,10 @@ const FunctionsPage: React.FC = () => {
   const handleSaved = useCallback((updated: CloudFunctionDef) => {
     setFunctions((prev) => {
       const next = prev.map((f) => (f.functionId === updated.functionId ? updated : f));
-      // 保存成功后通知 Preview Server 热更新云函数
-      hotUpdate({ cloudFunctions: next });
+      syncCloudFunctions(next);
       return next;
     });
-  }, [hotUpdate]);
+  }, [syncCloudFunctions]);
 
   const selectedFunction = useMemo(
     () => functions.find((f) => f.functionId === selectedId) ?? null,
