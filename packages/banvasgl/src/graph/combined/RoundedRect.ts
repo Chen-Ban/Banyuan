@@ -4,7 +4,8 @@ import { Point3, Vector3 } from "@/foundation/math";
 import CombinedGraph from "@/graph/combined/CombinedGraph";
 import Line from "@/graph/analytic/Line";
 import Arc from "@/graph/analytic/Arc";
-import { IRoundedRect, ISerializable } from "@/types";
+import type { IRoundedRect } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from "@/foundation/utils";
 
 /**

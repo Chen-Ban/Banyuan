@@ -2,7 +2,8 @@ import { GraphType } from "@/foundation/constants";
 import Style from "@/foundation/style/Style";
 import { MathUtils, Matrix4, Point3, Vector3 } from "@/foundation/math";
 import Bounds from "./Bounds";
-import { IGraph, ISerializable } from "@/types";
+import type { IGraph } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 图形抽象基类

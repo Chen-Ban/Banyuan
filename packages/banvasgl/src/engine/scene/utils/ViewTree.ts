@@ -1,6 +1,6 @@
 import View from "@/view/View/View";
 import CombinedView from "@/view/CombinedViews";
-import type { ISceneNode, IView, IContainerView } from "@/types";
+import type { ISceneNode, IView, IContainerView } from '@/types/view/view'
 import { isTextView, isCombinedView, isContainerView } from "@/foundation/guards";
 
 /**

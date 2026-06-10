@@ -1,6 +1,6 @@
 import Color from '../Color.js'
 import { StyleType } from '@/foundation/constants'
-import type { ISerializable } from '@/types'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 export type GradientStop = {
   color: Color

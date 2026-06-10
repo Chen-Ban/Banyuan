@@ -3,7 +3,8 @@ import Style from "@/foundation/style/Style";
 import { Point3 } from "@/foundation/math";
 import Polygon from "./Polygon";
 import Bounds from "@/graph/base/Bounds";
-import { IRectangle, ISerializable } from "@/types";
+import type { IRectangle } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from "@/foundation/utils";
 
 /**

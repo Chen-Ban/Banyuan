@@ -2,13 +2,13 @@ import { Scene } from "@/engine/scene/Scene";
 import { Serializer } from "@/engine/serialization/Serializer";
 import { Renderer } from "@/engine/renderer/Renderer";
 import { OrthographicCamera } from "@/engine/camera/OrthographicCamera.js";
-import {
+import type {
   IAppOptions,
   IAppLifetimes,
   INavigationOptions,
-  IRendererOptions,
-  ISerializable,
-} from "@/types";
+} from "@/types/engine/app.js";
+import type { IRendererOptions } from "@/types/engine/renderer.js";
+import type { ISerializable } from "@/types/foundation/serializable.js";
 import { AppType } from "@/foundation/constants";
 import { createClientFlowRunner } from "@/flow/presets/client.js";
 import type { FlowRunner } from "@/flow/runtime/FlowRunner.js";

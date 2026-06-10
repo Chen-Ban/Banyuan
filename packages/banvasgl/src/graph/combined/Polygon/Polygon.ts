@@ -4,7 +4,8 @@ import { Point3, Vector3, Matrix4 } from "@/foundation/math";
 import CombinedGraph from "@/graph/combined/CombinedGraph";
 import Line from "@/graph/analytic/Line";
 import { isGraphType } from '@/foundation/guards'
-import type { IPolygon, ISerializable } from '@/types';
+import type { IPolygon } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from '@/foundation/utils';
 
 /**

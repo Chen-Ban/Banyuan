@@ -5,7 +5,8 @@ import Graph from '@/graph/base/Graph'
 import { MathUtils, Point3, Vector3, Matrix4 } from '@/foundation/math'
 import Bounds from '@/graph/base/Bounds'
 import { Rectangle } from '@/graph/combined'
-import { ITextElement, IPrintableTextElement, INonPrintableTextElement, ISerializable } from '@/types'
+import type { ITextElement, IPrintableTextElement, INonPrintableTextElement } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from '@/foundation/utils'
 
 /**

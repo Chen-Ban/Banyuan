@@ -26,7 +26,7 @@ export interface VideoSize {
 }
 
 import { StyleType } from '@/foundation/constants'
-import type { ISerializable } from '@/types'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 视频图案填充样式

@@ -2,7 +2,8 @@ import { GraphType } from "@/foundation/constants";
 import Style from "@/foundation/style/Style";
 import { MathUtils, Point3, GeometryUtils } from "@/foundation/math";
 import Polygon from "./Polygon";
-import { ITriangle, ISerializable } from '@/types';
+import type { ITriangle } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 三角形 —— 由三个顶点构成的最简多边形。

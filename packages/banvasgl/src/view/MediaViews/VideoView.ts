@@ -1,8 +1,9 @@
 import View from '@/view/View/View'
 import { VideoElement } from '@/graph/media'
 import { ViewType } from '@/foundation/constants'
-import { IVideoView, ISerializable } from '@/types'
-import type { IVideoViewOptions } from '@/types'
+import type { IVideoView } from '@/types/view/view'
+import type { ISerializable } from '@/types/foundation/serializable'
+import type { IVideoViewOptions } from '@/types/view/view'
 import { generateId, generateName } from '@/foundation/utils'
 
 /**

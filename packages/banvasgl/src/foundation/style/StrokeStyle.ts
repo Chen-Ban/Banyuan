@@ -2,7 +2,7 @@ import Color from './Color'
 import { LinearGradient, RadialGradient, ConicGradient } from './gradient/index'
 import Image from './Image'
 import { StyleType } from '@/foundation/constants'
-import type { ISerializable } from '@/types'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /** 描边类型枚举：纯色、三种渐变、图片图案 */
 export type StrokeType = 'color' | 'linearGradient' | 'radialGradient' | 'conicGradient' | 'image'

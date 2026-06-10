@@ -1,8 +1,9 @@
 import View from '@/view/View/View'
 import { ImageElement } from '@/graph/media'
 import { ViewType } from '@/foundation/constants'
-import { IImageView, ISerializable } from '@/types'
-import type { IImageViewOptions } from '@/types'
+import type { IImageView } from '@/types/view/view'
+import type { ISerializable } from '@/types/foundation/serializable'
+import type { IImageViewOptions } from '@/types/view/view'
 import { generateId, generateName } from '@/foundation/utils'
 
 /**

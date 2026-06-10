@@ -5,8 +5,8 @@ import { Style } from "@/foundation/style";
 import Bounds from "@/graph/base/Bounds";
 import Graph from "@/graph/base/Graph";
 import { intersect } from "@/graph/algorithm/IntersectionUtils";
-import { ILine } from "@/types";
-import type { ISerializable } from "@/types";
+import type { ILine } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from "@/foundation/utils";
 
 /**

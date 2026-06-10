@@ -1,6 +1,6 @@
 import AnimationExecutor, { type InterpolationHints } from './AnimationExecutor'
 import type AnimationDescriptor from './AnimationDescriptor'
-import type { KeyframeProps } from '@/types'
+import type { KeyframeProps } from '@/types/engine/animation'
 
 let _instance: AnimationManager | null = null
 

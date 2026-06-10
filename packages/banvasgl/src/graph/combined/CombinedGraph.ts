@@ -9,10 +9,8 @@ import {
 } from "@/foundation/math";
 import Graph from "@/graph/base/Graph";
 import Bounds from "@/graph/base/Bounds";
-import {
-  ICombinedGraph,
-} from "@/types";
-import type { ISerializable } from "@/types";
+import type { ICombinedGraph } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from "@/foundation/utils";
 
 /**

@@ -10,7 +10,7 @@
  * 子元素高度保持原始值，行高取该行最大子元素高度。
  */
 
-import type { IGridLayout } from '@/types'
+import type { IGridLayout } from '@/types/view/view'
 import type { ILayoutStrategy, ILayoutContext } from './ILayoutStrategy.js'
 import type View from '@/view/View/View.js'
 import Matrix4 from '@/foundation/math/Matrix4.js'

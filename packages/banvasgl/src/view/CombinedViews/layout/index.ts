@@ -10,7 +10,7 @@ export { flexLayoutStrategy } from './FlexLayoutStrategy.js'
 export { listLayoutStrategy } from './ListLayoutStrategy.js'
 export { gridLayoutStrategy } from './GridLayoutStrategy.js'
 
-import type { LayoutMode } from '@/types'
+import type { LayoutMode } from '@/types/view/view'
 import type { ILayoutStrategy } from './ILayoutStrategy.js'
 import { flexLayoutStrategy } from './FlexLayoutStrategy.js'
 import { listLayoutStrategy } from './ListLayoutStrategy.js'

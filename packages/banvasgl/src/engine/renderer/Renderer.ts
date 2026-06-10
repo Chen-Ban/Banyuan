@@ -1,6 +1,6 @@
 import { Scene } from "@/engine/scene/Scene";
 import { CanvasContext, createCanvasContext } from "./CanvasContext";
-import { IRendererOptions } from '@/types'
+import type { IRendererOptions } from '@/types/engine/renderer'
 
 export class Renderer {
   // 渲染状态

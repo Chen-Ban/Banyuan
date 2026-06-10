@@ -55,7 +55,7 @@ import { OrthographicCamera } from '@/engine/camera/OrthographicCamera'
 import { PerspectiveCamera } from '@/engine/camera/PerspectiveCamera'
 
 // ISerializable
-import type { ISerializable, ISerializableClass } from '@/types'
+import type { ISerializable, ISerializableClass } from '@/types/foundation/serializable'
 import { AppType, MathType, StyleType, GraphType, ViewType, SceneType, CameraType } from '@/foundation/constants'
 
 /**

@@ -1,6 +1,6 @@
 import Color from "./Color";
 import { StyleType } from "@/foundation/constants";
-import type { ISerializable } from "@/types";
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 阴影样式

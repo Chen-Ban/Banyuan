@@ -9,7 +9,7 @@
  * 适用场景：简单的垂直/水平列表排列。
  */
 
-import type { IListLayout } from '@/types'
+import type { IListLayout } from '@/types/view/view'
 import type { ILayoutStrategy, ILayoutContext } from './ILayoutStrategy.js'
 import type View from '@/view/View/View.js'
 import Matrix4 from '@/foundation/math/Matrix4.js'

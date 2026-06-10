@@ -13,7 +13,7 @@
 
 import type View from '@/view/View/View'
 import type Matrix4 from '@/foundation/math/Matrix4'
-import type { PropertyAdapter, PropertyCategory } from '@/types'
+import type { PropertyAdapter, PropertyCategory } from '@/types/view/property'
 import { spatialAdapters } from './spatialAdapters'
 import { sizeAdapters } from './sizeAdapters'
 

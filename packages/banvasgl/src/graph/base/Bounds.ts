@@ -1,6 +1,6 @@
 import Point3 from "@/foundation/math/Point3";
 import { MathType } from "@/foundation/constants";
-import type { ISerializable } from "@/types";
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 轴对齐边界框类（Axis-Aligned Bounding Box）

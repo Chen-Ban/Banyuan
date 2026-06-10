@@ -4,8 +4,9 @@ import { MathUtils, Point3, Vector3, Matrix4 } from "@/foundation/math";
 import Style from "@/foundation/style/Style";
 import Bounds from "@/graph/base/Bounds";
 import { Line } from "@/graph/analytic";
-import { IDenseTrajectory, ISerializable } from "@/types";
-import type { ITransferable, TransferableData } from "@/types";
+import type { IDenseTrajectory } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
+import type { ITransferable, TransferableData } from '@/types/foundation/transferable'
 import { generateId } from "@/foundation/utils";
 
 /**

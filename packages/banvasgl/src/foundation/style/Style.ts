@@ -3,7 +3,7 @@ import FillStyle from "./FillStyle";
 import StrokeStyle from "./StrokeStyle";
 import ShadowStyle from "./ShadowStyle";
 import { StyleType } from "@/foundation/constants";
-import type { ISerializable } from "@/types";
+import type { ISerializable } from '@/types/foundation/serializable';
 
 /**
  * 综合样式容器

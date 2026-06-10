@@ -6,7 +6,7 @@ import type {
     KeyframeProps,
     EasingFunction,
     IAnimationDescriptor,
-} from '@/types'
+} from '@/types/engine/animation'
 
 /**
  * 属性插值策略映射（由外部传入）

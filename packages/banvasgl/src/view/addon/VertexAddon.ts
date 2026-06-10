@@ -1,5 +1,6 @@
 import { Point3 } from "@/foundation/math";
-import type { ExtraData, IVertexAddon } from "@/types";
+import type { ExtraData } from '@/types/view/interaction'
+import type { IVertexAddon } from '@/types/view/addon'
 import { AddonType, Action, AddonCapability, Cursor } from "@/foundation/constants";
 
 /**

@@ -1,7 +1,7 @@
 import { GraphType } from "@/foundation/constants";
 import Graph from "@/graph/base/Graph";
 import type { Point3 } from '@/foundation/math';
-import { IAnalyticGraph } from '@/types';
+import type { IAnalyticGraph } from '@/types/graph/graph'
 
 /**
  * 解析式图形基类

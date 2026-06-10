@@ -1,5 +1,5 @@
 import { StyleType } from '@/foundation/constants'
-import type { ISerializable } from '@/types'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * RGBA 颜色

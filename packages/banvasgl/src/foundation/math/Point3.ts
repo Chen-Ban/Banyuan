@@ -1,7 +1,7 @@
 import MathUtils from "./MathUtils";
 import Vector3 from "./Vector3";
 import { MathType } from "@/foundation/constants";
-import type { ISerializable } from "@/types";
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 三维空间点

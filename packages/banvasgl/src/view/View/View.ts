@@ -1,25 +1,12 @@
 import { ViewType, Action, AddonCapability, Cursor } from "@/foundation/constants";
 import Matrix4 from "@/foundation/math/Matrix4";
 import { CanvasContext } from "@/engine/renderer/CanvasContext";
-import type {
-  ISceneNode,
-  IView,
-  IViewStyle,
-  IFieldSchemaMap,
-  ISerializable,
-  IGraph,
-} from "@/types";
-import type {
-  IAddonBase,
-  IBoundingBoxAddon,
-  IBoxDecorationAddon,
-  IViewEvents,
-  IViewLifetimes,
-  IInteractResult,
-  IViewOptions,
-  IAnimationAddon,
-  AnimatableValue,
-} from "@/types";
+import type { ISceneNode, IView, IFieldSchemaMap, IInteractResult, IViewOptions, IViewEvents, IViewLifetimes } from '@/types/view/view'
+import type { IViewStyle } from '@/types/foundation/style'
+import type { ISerializable } from '@/types/foundation/serializable'
+import type { IGraph } from '@/types/graph/graph'
+import type { IAddonBase, IBoundingBoxAddon, IBoxDecorationAddon } from '@/types/view/addon'
+import type { IAnimationAddon, AnimatableValue } from '@/types/engine/animation'
 
 import { Line } from "@/graph";
 import { getDefaultStyle } from "@/graph/DefaultStyleRegistry";

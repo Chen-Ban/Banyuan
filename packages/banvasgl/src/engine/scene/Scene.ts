@@ -11,7 +11,9 @@ import {
   groupViews,
   ungroupView,
 } from "./utils";
-import type { ISerializable, ISceneLifetimes, IView, FlowSchema } from "@/types";
+import type { ISerializable } from '@/types/foundation/serializable'
+import type { ISceneLifetimes } from '@/types/engine/scene'
+import type { IView, FlowSchema } from '@/types/view/view'
 import { isCombinedView, isContainerView } from "@/foundation/guards";
 import type { FlowContext } from "@/flow/runtime/context.js";
 import { AnimationDescriptor, AnimationManager } from "@/foundation/animation";
