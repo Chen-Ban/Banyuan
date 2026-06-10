@@ -23,7 +23,9 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "canvas"
+      "canvas",
+      "electron",
+      "sharp"
     ],
     "overrides": {
       "generator-function": "^1.0.0"
