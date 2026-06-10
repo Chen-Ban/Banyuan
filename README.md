@@ -5,7 +5,12 @@
 <h1 align="center">班园 Banyuan</h1>
 
 <p align="center">
-  <em>虽由人作，宛自天开 —— 以画布为山石，以组件为草木，以数据为活水，以 AI 为匠心，造一方数字园林。</em>
+  <em>会想，就会做</em>
+</p>
+
+<p align="center">
+  像做 PPT 一样做应用，像聊天一样改需求。<br/>
+  从生成到上线，一气呵成 —— 可视化编辑，一键发布到多个平台。
 </p>
 
 <p align="center">
@@ -178,5 +183,5 @@ Banyuan 采用**双重授权**模式：
 ---
 
 <p align="center">
-  <em>虽由人作，宛自天开。</em>
+  <em>会想，就会做。</em>
 </p>

@@ -1,7 +1,7 @@
 {
   "name": "banyuan",
   "version": "0.0.1",
-  "description": "虽由人作，宛自天开 —— 以画布为山石，以组件为草木，以数据为活水，以 AI 为匠心，造一方数字园林。BanvasGL 自研 2D 引擎 + XiangDi AI Agent（SDD + Harness）+ Banyan 低代码平台。",
+  "description": "会想，就会做 —— 像做 PPT 一样做应用，像聊天一样改需求；从生成到上线，一气呵成，可视化编辑，一键发布到多个平台。BanvasGL 自研 2D 引擎 + XiangDi AI Agent（SDD + Harness）+ Banyan 低代码平台。",
   "main": "index.js",
   "scripts": {
     "build:banvasgl": "pnpm --filter @banyuan/banvasgl build",
