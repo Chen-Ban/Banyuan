@@ -96,7 +96,7 @@ export class PreviewServerOrchestrator {
     // 已有运行中实例 → 热更新
     const existing = this.instances.get(appId);
     if (existing && (existing.status === 'running' || existing.status === 'starting')) {
-      await this.hotUpdate(existing, input);
+      await this.applyHotUpdate(existing, input);
       this.resetIdleTimer(appId);
       return this.toInfo(existing);
     }
@@ -324,11 +324,34 @@ export class PreviewServerOrchestrator {
   }
 
   /**
-   * 热更新策略：
+   * 外部 IPC handler 调用的 public hotUpdate 入口。
+   * 按 appId 查找实例，合并 patch 到 lastInput 后调用内部热更新逻辑。
+   *
+   * 设计决策来源：docs/adr/app/protocol.md C5 + docs/specs/app/metadata-dataflow.md 步骤 5
+   */
+  public async hotUpdate(appId: string, patch: { collections?: unknown[]; cloudFunctions?: unknown[] }): Promise<void> {
+    const instance = this.instances.get(appId);
+    if (!instance || instance.status !== 'running') {
+      // PreviewServer 未运行，静默跳过
+      return;
+    }
+
+    const merged: PreviewServerInput = {
+      ...instance.lastInput,
+      collectionSchemas: (patch.collections ?? instance.lastInput.collectionSchemas) as CollectionDef[],
+      cloudFunctions: (patch.cloudFunctions ?? instance.lastInput.cloudFunctions) as CloudFunctionDef[],
+    };
+
+    await this.applyHotUpdate(instance, merged);
+    this.resetIdleTimer(appId);
+  }
+
+  /**
+   * 热更新策略（内部实现）：
    *   - CloudFunctions 变更：写 functions.json 即可（FlowRunner 每次调用时从文件读取）
    *   - CollectionSchema 变更：写 schema.json + 重启进程（Mongoose 模型在启动时初始化）
    */
-  private async hotUpdate(instance: PreviewServerInstance, input: PreviewServerInput): Promise<void> {
+  private async applyHotUpdate(instance: PreviewServerInstance, input: PreviewServerInput): Promise<void> {
     const { collectionSchemas, cloudFunctions } = input;
     const { lastInput } = instance;
 

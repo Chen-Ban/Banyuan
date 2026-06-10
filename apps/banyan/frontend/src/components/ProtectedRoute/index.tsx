@@ -7,7 +7,7 @@
  * - 已登录：正常渲染子路由
  */
 
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/hooks/authContext'
 import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
 

@@ -27,6 +27,11 @@
 │  M5 实时协作方向（CRDT/Yjs）       │
 └───────────────────────────────────┘
 
+┌───────────────────────────────────┐
+│  M6 前端 Store 统一状态管理     │
+│    + PreviewServer 下推同步      │
+└───────────────────────────────────┘
+
         M1 ←complements→ M2
         M2 → M4（构建产物标准化后的分布式部署）
         M2 ←complements→ M3
@@ -38,6 +43,7 @@
 - M2→M4：M2 定义了构建产物标准化（dist/ 目录），M4 在此基础上将构建执行去中心化到租户端
 - M2⇄M3：构建预览产出桌面产物，Bridge 抽象解决产物在不同平台运行时的能力适配，二者互补覆盖从构建到运行的全链路
 - M5 独立：实时协作是面向未来的方向性锁定，当前不与其他机制产生依赖
+- M6 独立：前端 Store 统一状态管理是前端架构重构，不修订 M1（done 后写库保持不变），与 A6（PreviewServer 职责边界）配合实现下推同步
 
 ---
 
@@ -153,3 +159,51 @@ banyan 后端提供 build 和 preview 服务：preview 启动临时 Vite dev ser
 - 协作方向锁定 CRDT（Yjs），不做 OT
 - 引入时新增 `banvas-collab` 包，不修改 banvasgl 核心现有代码
 - AI Agent（XiangDi）的操作天然可接入同一协作通道，AI 与人类协同编辑是长期方向
+
+---
+
+## 元数据管理机制
+
+### M6. 前端 Store 统一状态管理 + PreviewServer 下推同步
+
+**未实施** · 配合 app/A6，不修订 M1
+
+定义前端 applicationStore 的状态管理机制，以及 banyan 后端持久化成功后如何将 collections + cloudFunctions 下推给 PreviewServer 做 hotUpdate。核心原则：store 持有业务数据本身（非回调），单一 `save()` 方法触发持久化到 banyan 后端（保持 M1 原有的 append-only 写库行为不变），持久化成功后通过 IPC 下推 PreviewServer 刷新预览执行环境。
+
+**核心问题背景：** 当前前端使用 register-style 回调模式（registerSaveHandler / registerBuildHandler）管理保存与构建——store 不持有数据本身，只保存「保存时该调谁」。这导致 store 沦为事件总线代替品，各模块保存逻辑分散、无法统一管理。同时 AI 对话产出通过 banyan 后端 done 事件写入 MongoDB（append-only），前端需要在写库成功后获知变更内容以更新 store 和通知 PreviewServer。
+
+**决策链：** store 应持有真实业务数据 → 保存时 store 已有完整状态，一个 `save()` 即可序列化并 HTTP PUT 到 banyan 后端 → banyan 后端保持原有 append-only 写库 → 写库成功后前端更新 store → 同时将 collections + cloudFunctions 通过 IPC 下推 PreviewServer 做 hotUpdate → AI 产出由 banyan 后端在 done 事件后写库（现有机制不变），前端收到 done 事件后拉取最新数据更新 store + 下推 PreviewServer。
+
+**三种元数据的同步策略差异：**
+
+- **appJSON（页面数据）：** 高频编辑（拖拽/属性调整），使用「编辑时 useRef + 切页/保存/构建时同步 store」策略。UIPage 内部用 ref 保持实时画布状态，避免每次拖拽触发全局 re-render，仅在离开页面或保存时 flush 到 store。appJSON 不推送给 PreviewServer（A6 约束）。
+- **collections（数据集合 schema）：** 低频 CRUD，每次操作即时持久化到 banyan 后端，成功后更新 store + 下推 PreviewServer hotUpdate。
+- **cloudFunctions（云函数 FlowSchema）：** 同 collections，低频 CRUD，即时持久化到 banyan 后端，成功后下推 PreviewServer。
+
+**AI 产出的数据流（保持 M1 现有机制）：**
+
+- banyan 后端在 done 事件后写入 MongoDB（append-only，保持不变）
+- 前端收到 done 事件（含 summary）后，从 banyan 后端拉取最新 appJSON / collections / cloudFunctions 更新到 store
+- store 更新后，将 collections + cloudFunctions 通过 IPC 下推 PreviewServer 做 hotUpdate
+
+**为什么不修订 M1（done 后写库保持不变）：** 应用数据是 append-only 的，对话 phase（building → awaiting_confirm → committed）本身提供暂存语义。banyan 后端在 done 事件后写库保证了跨设备可恢复性——用户在 A 电脑对话产出的数据已落库，在 B 电脑打开即可恢复。这一机制不应因前端状态管理重构而改变。
+
+**约束：**
+
+- store 持有三类元数据的实际值（appJSON: string、collections: CollectionDef[]、cloudFunctions: CloudFunctionDef[]），不持有回调。appJSON 是 BanvasGL `app.serialize()` 产出的完整 JSON 字符串（包含 designSize + lifetimes + scenes），不是结构化数组
+- 保存操作为单一 `save()` 方法，调用 banyan 后端聚合端点 `PUT /apps/:appId/save-all`（后端内部复用现有 appContent / schema / cloudFunctions 三套 service）
+- 拉取最新数据使用聚合端点 `GET /apps/:appId/full-state`（后端内部并行查三张表，返回 { appJSON, collections, cloudFunctions }）
+- banyan 后端 done 事件后写库机制保持不变（M1 不修订）
+- 前端在 done 事件后主动拉取最新数据更新 store（通过 `refreshFromBackend` 调用 full-state 聚合端点）
+- PreviewServer 只接收 collections + cloudFunctions 的下推，不接收 appJSON
+- 持久化操作（save / CRUD）成功后才下推 PreviewServer，保证 PreviewServer 的可执行态与落库数据一致
+- 前端 hotUpdatePreview 辅助函数不需要调用方传 appId（从 store 自取当前 appId），IPC 层内部仍传 appId 做路由（main 进程单例 Orchestrator 管理多实例）
+
+**反例：**
+
+- store 只存回调、不存数据——保存时需要遍历回调收集数据，无法统一管理状态
+- 每次拖拽都同步 store——高频渲染导致性能瓶颈（appJSON 结构复杂，JSON 序列化开销大）
+- 由 PreviewServer 承担持久化代理——本地状态丢失导致 AI 产出不可恢复，打破 append-only 跨设备保证
+- done 事件不写库改为前端决定——换电脑后 AI 产出丢失
+
+**实施方案：** `docs/specs/app/metadata-dataflow.md`（应用元数据数据流完整方案）

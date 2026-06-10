@@ -29,7 +29,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { aiApi, conversationApi, ApiError } from '@/api'
 import type { AiStreamEvent, ErrorPayload } from '@/api'
 import type { ConversationMessage, Dialogue, DialogueType, ImageItem } from '@/api'
-import { dialoguesToFlatMessages } from '@/api/conversations'
+import { dialoguesToFlatMessages } from '@/api/ai/conversations'
 
 // ─── 进度消息类型 ─────────────────────────────────────────────────────────────
 
@@ -393,6 +393,7 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     const tempDialogue: Dialogue = {
       _id: `temp_${Date.now()}`,
       type,
+      phase: 'idle',
       messages: [{
         role: 'user',
         userContent: { prompt, images },

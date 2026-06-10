@@ -35,6 +35,10 @@ function registerIpcHandlers() {
   ipcMain.handle("preview:list", async () => {
     return previewOrchestrator.listAll();
   });
+
+  ipcMain.handle("preview:hotUpdate", async (_event, appId: string, patch: { collections?: unknown[]; cloudFunctions?: unknown[] }) => {
+    await previewOrchestrator.hotUpdate(appId, patch);
+  });
 }
 
 // ─── 菜单 ─────────────────────────────────────────────────────────────────────

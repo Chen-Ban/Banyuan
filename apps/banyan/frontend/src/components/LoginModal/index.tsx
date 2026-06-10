@@ -12,7 +12,7 @@ import { useState, useCallback, useRef } from 'react'
 import { App, Modal, Input, Button } from 'antd'
 import { MobileOutlined, SafetyOutlined } from '@ant-design/icons'
 import { authApi } from '@/api'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth } from '@/hooks/authContext'
 import { getErrorMessage } from '@/utils/error'
 import styles from './index.module.scss'
 
@@ -102,7 +102,7 @@ const LoginModal = () => {
     } finally {
       setSendingCode(false)
     }
-  }, [phone, startCountdown, login])
+  }, [phone, startCountdown, login, message])
 
   // 重新发送
   const handleResend = useCallback(async () => {
@@ -117,7 +117,7 @@ const LoginModal = () => {
     } finally {
       setSendingCode(false)
     }
-  }, [phone, countdown, startCountdown])
+  }, [phone, countdown, startCountdown, message])
 
   // 登录
   const handleLogin = useCallback(async () => {
@@ -138,7 +138,7 @@ const LoginModal = () => {
     } finally {
       setLoggingIn(false)
     }
-  }, [phone, code, login])
+  }, [phone, code, login, message])
 
   return (
     <Modal

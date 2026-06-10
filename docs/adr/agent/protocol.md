@@ -319,9 +319,9 @@ ContextProvider 接口是 SubAgent 消费上下文的统一入口，SubAgent 声
 
 **✅ 已实施**
 
-每个知识种子是一个 JSON 文件，结构为 { id, content, source, metadata }。content 为 Markdown 格式的知识描述，metadata 包含 category（层级）、domain（领域）、version（包版本号）等分类信息。
+每个知识种子是一个 JSON 文件，结构为 { id, content, source, metadata }。content 为 Markdown 格式的知识描述，metadata 包含 category（层级）、domain（领域）、version（包版本号）等分类信息。其中格式维度部分承载的是基础库序列化模块产出的**全量快照**，Agent 消费时须经投影收敛（详见 schema 域 M4）。
 
-**决策链：** 知识需要结构化存储以支持分类检索 -> JSON 是自然选择 -> content 用 Markdown 因为 LLM 对 Markdown 的理解最好 -> metadata 支撑检索过滤和影响分析。
+**决策链：** 知识需要结构化存储以支持分类检索 -> JSON 是自然选择 -> content 用 Markdown 因为 LLM 对 Markdown 的理解最好 -> metadata 支撑检索过滤和影响分析 -> 格式维度存全量快照（投影工具仅在 Agent 侧，知识服务无投影能力，见 M4）。
 
 **约束：**
 
@@ -330,6 +330,7 @@ ContextProvider 接口是 SubAgent 消费上下文的统一入口，SubAgent 声
 - Composition Seeds 的 metadata 必须包含 dependencies 字段（声明依赖的 Primitive ID 列表）
 - category 枚举：primitive / composition / convention
 - domain 枚举：ui / flow / data / bindflow / fullstack
+- 格式维度 content 为序列化全量快照；正确性验证 = `fromAIProjection()` 反序列化成功；消费侧投影边界见 schema 域 M4
 
 ---
 
@@ -364,13 +365,14 @@ knowledge-server 暴露 5 个 HTTP 端点，核心为混合检索接口。
 
 **📋 已规划** · 依赖 C8
 
-CI 中 knowledge-guard job 执行两个检查：check-knowledge-freshness（重新生成 Primitive Seeds 并 diff，有差异则 fail）和 check-knowledge-impact（分析变更的 Primitive 影响哪些 Composition Seeds，输出 PR comment）。
+CI 中 knowledge-guard job 执行两个检查：check-knowledge-freshness（重新生成格式维度快照并 diff，有差异则 fail）和 check-knowledge-impact（分析变更的 Primitive 影响哪些 Composition Seeds，输出 PR comment）。语义维度不走自动 diff——由人工审批门把关（见 M8/P5）。
 
-**决策链：** 开发者可能忘了提交种子更新 -> CI 自动检测是最后防线 -> Primitive 过期是 blocking（直接影响 AI 生成正确性）-> Composition 影响是 non-blocking（需要人工判断是否需要更新）。
+**决策链：** 开发者可能忘了提交种子更新 -> CI 自动检测是最后防线 -> 格式维度可机器 diff（序列化快照确定性产出），语义维度不可机器判断"选型是否合理" -> 格式维度过期是 blocking（直接影响 AI 生成正确性）-> Composition 影响是 non-blocking（需要人工判断是否需要更新）-> 语义维度质量由人工审批门承担，不进 CI diff。
 
 **约束：**
 
-- freshness 检查：重新执行所有 Primitive 生成器 -> 输出到临时目录 -> diff 与 seeds/ 目录 -> 有差异则 exit 1
+- freshness 检查仅针对格式维度：重新执行序列化快照生成器 -> 输出到临时目录 -> diff 与 seeds/ 目录的格式维度 -> 有差异则 exit 1
+- 语义维度不参与 freshness diff，其质量门为 M8 的人工审批环节
 - impact 检查：读取所有 Composition Seeds 的 metadata.dependencies -> 匹配变更的 Primitive ID -> 输出影响列表到 PR comment
 - 两个检查独立执行，freshness 失败会 block PR，impact 永远 non-blocking
 

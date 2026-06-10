@@ -2,48 +2,80 @@
  * UIPage — 画布子页面
  *
  * 布局：
- *   ┌──────────────────────────────┐
- *   │  上段：物料面板（UnifiedMaterialPanel）│
- *   ├──────────────────────────────┤
- *   │  中段：画布（Banvas）          │
- *   ├──────────────────────────────┤
- *   │  （PropertyDrawer 浮层）       │
- *   └──────────────────────────────┘
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │  mainContent (flex row)                                   │
+ *   │  ┌───────────────────────────┬────────────────────────┐  │
+ *   │  │  canvasSection (flex: 1)  │  FlowEditorPanel       │  │
+ *   │  │  ┌─────────────────────┐  │  (width: 560px,        │  │
+ *   │  │  │  画布 + 浮层抽屉     │  │   条件渲染, 挤压画布)   │  │
+ *   │  │  └─────────────────────┘  │                        │  │
+ *   │  └───────────────────────────┴────────────────────────┘  │
+ *   └──────────────────────────────────────────────────────────┘
  *
  * 职责：
- *   - 加载应用的初始 appJSON 数据，初始化 useDesignBanvas
+ *   - 从 applicationStore 加载 appJSON 初始化 useDesignBanvas
  *   - 渲染物料面板、画布、PropertyDrawer
- *   - 通过 AppLayoutCtx.registerGetApp 向 ApplicationLayout 注册序列化函数（供 handleBuild 使用）
- *   - 订阅 appEvents.saveApp 事件：序列化当前 appJSON 并调用 API 保存
- *   - 通过 RootLayoutCtx.registerAiCallbacks 向 AiBar 注册 onDone / onAppSnapshot
- *   - 通过 RootLayoutCtx.aiBarHandle 触发 sendPrompt（首页跳转后自动起始对话）
+ *   - 管理 FlowEditorPanel 状态（从 EventsTab 提升）
+ *   - 注册 flushHandler：路由离开或保存前将 ref 实时态 flush 到 store
+ *   - 订阅 store.appJSON 变化（AI done / refreshFromBackend 后画布重载）
+ *
+ * 设计决策来源：docs/specs/app/metadata-dataflow.md 步骤 7
  */
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import useDesignBanvas from "@/hooks/useDesignBanvas";
-import { DesignContextMenu } from "@/components/DesignEditor/DesignContextMenu";
+import { DesignContextMenu } from "./components/DesignEditor/DesignContextMenu";
 import { App, Drawer, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
-import { applicationApi, appContentApi } from "@/api";
+import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
-import { appEvents } from "@/utils/appEvents";
-import { useAppLayoutCtx } from "@/layouts/ApplicationLayout/AppLayoutCtx";
-import { useRootLayoutCtx } from "@/layouts/RootLayout/RootLayoutCtx";
+import { useApplicationStore } from "@/stores/applicationStore";
 import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
+import { FlowEditorPanel } from "@/components/FlowEditor/FlowEditorPanel";
+import type { FlowEditorOpenRequest } from "./components/DesignEditor/PropertyPanel/EventsTab";
+import type { FlowSchema } from "@banyuan/banvasgl";
 import PropertyDrawer from "./components/PropertyDrawer";
 import SaveMaterialModal from "@/components/SaveMaterialModal";
 import styles from "./index.module.scss";
 
+/** FlowEditorPanel 的状态 */
+interface FlowEditorState {
+  open: boolean;
+  title: string;
+  initialSchema: FlowSchema;
+  onSave: (schema: FlowSchema) => void;
+}
+
+const CLOSED_FLOW_EDITOR: FlowEditorState = {
+  open: false,
+  title: '',
+  initialSchema: { nodes: [], edges: [] },
+  onSave: () => {},
+};
+
 const UIPage = () => {
   const { message } = App.useApp();
   const { id: application_id } = useParams<{ id: string }>();
-  const { registerGetApp, unregisterGetApp, registerDesignSizeHandler, syncDesignSize } = useAppLayoutCtx();
-  const { registerAiCallbacks, unregisterAiCallbacks, aiBarHandle } = useRootLayoutCtx();
 
-  const [appJSON, setAppJSON] = useState<string>('');
+  // ── ApplicationStore ────────────────────────────────────────────────────────
+  const {
+    setDesignSize,
+    registerActions,
+    registerFlushHandler,
+    flushAppJSON,
+    consumeInitialPrompt,
+  } = useApplicationStore()
+
+  // ── 画布初始化用的 appJSON（仅在以下情况更新以避免不必要的画布重初始化）：
+  //    1. 首次加载
+  //    2. AI done 后 refreshFromBackend 更新了 store.appJSON
+  const [canvasAppJSON, setCanvasAppJSON] = useState<string>('');
   const [loaded, setLoaded] = useState(false);
   const needsThumbnailRef = useRef(false);
+
+  // 跟踪是否为本组件自己 flush 导致的 store appJSON 变化（避免循环更新）
+  const selfFlushRef = useRef(false);
 
   // canvasSection 容器，作为两个抽屉的挂载容器（仅覆盖画布区域）
   const [canvasSectionEl, setCanvasSectionEl] = useState<HTMLDivElement | null>(null);
@@ -51,22 +83,66 @@ const UIPage = () => {
     setCanvasSectionEl(el);
   }, []);
 
-  // ── 加载应用初始 appJSON ────────────────────────────────────────────────────
+  // ── 流程编辑面板状态（从 EventsTab 提升） ────────────────────────────────────
+  const [flowEditor, setFlowEditor] = useState<FlowEditorState>(CLOSED_FLOW_EDITOR);
+
+  const handleOpenFlowEditor = useCallback((request: FlowEditorOpenRequest) => {
+    setFlowEditor({
+      open: true,
+      title: request.title,
+      initialSchema: request.initialSchema,
+      onSave: request.onSave,
+    });
+    // 唤出流程面板时关闭属性抽屉，避免视觉拥挤
+    setRightOpen(false);
+  }, []);
+
+  const handleCloseFlowEditor = useCallback(() => {
+    setFlowEditor(CLOSED_FLOW_EDITOR);
+  }, []);
+
+  // ── 加载应用数据（从 store 获取 appJSON） ──────────────────────────────────
   useEffect(() => {
     if (!application_id) return;
-    applicationApi
-      .fetchApplication(application_id)
-      .then((res) => {
-        const application = res.data!;
-        setAppJSON(application.appJSON || '');
-        needsThumbnailRef.current = !application.thumbnail;
-        setLoaded(true);
-      })
-      .catch((err: unknown) => {
-        message.error(getErrorMessage(err));
-        setLoaded(true);
-      });
-  }, [application_id]);
+    // store.load 在 ApplicationLayout 中已调用，这里只需从 store 读取
+    // 但为安全起见，如果 store 未加载（appId 不匹配），fallback 加载
+    const state = useApplicationStore.getState();
+    if (state.appId === application_id && state.appJSON !== undefined) {
+      setCanvasAppJSON(state.appJSON);
+      setLoaded(true);
+      // 检测是否需要缩略图
+      applicationApi.fetchApplication(application_id).then((res) => {
+        needsThumbnailRef.current = !res.data?.thumbnail;
+      }).catch(() => {});
+    } else {
+      applicationApi
+        .fetchApplication(application_id)
+        .then((res) => {
+          const application = res.data!;
+          setCanvasAppJSON(application.appJSON || '');
+          needsThumbnailRef.current = !application.thumbnail;
+          setLoaded(true);
+        })
+        .catch((err: unknown) => {
+          message.error(getErrorMessage(err));
+          setLoaded(true);
+        });
+    }
+  }, [application_id, message]);
+
+  // ── 订阅 store.appJSON 变化（AI done 后 refreshFromBackend 更新） ─────────
+  useEffect(() => {
+    const unsub = useApplicationStore.subscribe((state, prevState) => {
+      if (state.appJSON === prevState.appJSON) return;
+      // appJSON 发生变化：若是自己 flush 导致的则消费 flag 并跳过，否则更新画布
+      if (selfFlushRef.current) {
+        selfFlushRef.current = false;
+      } else {
+        setCanvasAppJSON(state.appJSON);
+      }
+    });
+    return unsub;
+  }, []);
 
   const [rightOpen, setRightOpen] = useState(true);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -98,7 +174,7 @@ const UIPage = () => {
     selectedViewId,
     actions,
     contextMenu: rawContextMenu,
-  } = useDesignBanvas(loaded ? appJSON : '', banvasOptions);
+  } = useDesignBanvas(loaded ? canvasAppJSON : '', banvasOptions);
 
   // ── 扩展右键菜单：为视图添加"保存为物料"选项 ─────────────────────────────────
   const contextMenu = useMemo(() => {
@@ -123,46 +199,40 @@ const UIPage = () => {
     }
   }, [rawContextMenu]);
 
-  // ── 向 ApplicationLayout 注册 getApp（供 handleBuild 序列化） ───────────
+  // ── 挂载画布引擎实例到 store（供 Layout build / 机型切换 / 外部消费） ────────
   useEffect(() => {
-    registerGetApp(() => actions.app.getSerializedApp());
-    return () => unregisterGetApp();
-  }, [registerGetApp, unregisterGetApp, actions]);
-
-  // ── designSize：注册 handler + 同步初始值到 Layout ────────────────────────
-  useEffect(() => {
-    // actions.app 尚未就绪时（appJSON 未加载）跳过
     if (!actions?.app) return;
-    // Layout 机型选择器变更时，通过此回调写入引擎
-    registerDesignSizeHandler((size) => {
-      actions.app.setDesignSize(size.width, size.height);
-    });
-    // appJSON 加载后同步引擎当前 designSize 到 Layout
+    const unregister = registerActions(actions);
+    // appJSON 加载后同步引擎当前 designSize 到 store
     const ds = actions.app.getDesignSize();
-    syncDesignSize({ width: ds.width, height: ds.height });
-  }, [registerDesignSizeHandler, syncDesignSize, actions]);
+    setDesignSize({ width: ds.width, height: ds.height });
+    return unregister;
+  }, [registerActions, setDesignSize, actions]);
 
-  // ── 订阅 saveApp 事件：序列化 appJSON 并调用 API 保存 ───────────────────────
-  // 发布方：ApplicationLayout 保存按钮 / AiBar onBeforeSend
+  // ── 注册 flushHandler：将画布实时态 flush 到 store ───────────────────────────
   useEffect(() => {
     if (!application_id) return;
-    const unsubscribe = appEvents.onSaveApp(async () => {
+    const unsubscribe = registerFlushHandler(async () => {
       const serialized = actions.app.getSerializedApp();
-      // ADR-042：画布内容是版本化内容，走独立的 app-content 端点（自动验收的 edit 对话），
-      // 而非 PUT /applications/:id（后者只更新元信息，会静默丢弃 appJSON）。
-      await appContentApi.saveAppContent(application_id, serialized);
+      selfFlushRef.current = true;
+      flushAppJSON(serialized);
     });
     return unsubscribe;
-  }, [application_id, actions]);
+  }, [application_id, actions, registerFlushHandler, flushAppJSON]);
 
-  // ── 向 AiBar 注册画布回调（onDone / onAppSnapshot） ────────────────────
+  // ── 路由离开时自动 flush ──────────────────────────────────────────────────
   useEffect(() => {
-    registerAiCallbacks({
-      onDone: (json) => setAppJSON(json),
-      onAppSnapshot: (json) => setAppJSON(json),
-    });
-    return () => unregisterAiCallbacks();
-  }, [registerAiCallbacks, unregisterAiCallbacks]);
+    return () => {
+      // unmount 时将当前画布状态 flush 到 store
+      try {
+        const serialized = actions.app.getSerializedApp();
+        selfFlushRef.current = true;
+        useApplicationStore.getState().flushAppJSON(serialized);
+      } catch {
+        // actions 可能已销毁，静默忽略
+      }
+    };
+  }, [actions]);
 
   useEffect(() => {
     if (selectedViewId !== "") {
@@ -174,22 +244,18 @@ const UIPage = () => {
   }, [selectedViewId]);
 
   // ── 首页跳转后自动发送 initialPrompt ─────────────────────────────────────
-  // 通过事件总线的 buffered 模式解决时序问题：
-  //   - HomePage emit 时若 UIPage 尚未 mount → 事件暂存在 buffer 中
-  //   - UIPage mount + AiBar 就绪后注册消费者 → 自动 flush pending prompt
-  //   - 无需 sessionStorage / location.state / 双 ref 守卫
   useEffect(() => {
-    if (!application_id || !aiBarHandle) return;
-    const unsubscribe = appEvents.onInitialPrompt(application_id, (prompt) => {
-      aiBarHandle.sendPrompt(prompt);
-    });
-    return unsubscribe;
-  }, [application_id, aiBarHandle]);
+    if (!application_id) return;
+    const prompt = consumeInitialPrompt(application_id);
+    if (prompt) {
+      useApplicationStore.getState().setInitialPrompt(application_id, prompt);
+    }
+  }, [application_id, consumeInitialPrompt]);
 
   // ── 自动生成缩略图 ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!loaded || !application_id || !needsThumbnailRef.current) return;
-    if (!appJSON) return;
+    if (!canvasAppJSON) return;
     const timer = setTimeout(() => {
       if (!needsThumbnailRef.current) return;
       needsThumbnailRef.current = false;
@@ -201,7 +267,7 @@ const UIPage = () => {
         .catch(() => {});
     }, 500);
     return () => clearTimeout(timer);
-  }, [loaded, application_id, actions, appJSON]);
+  }, [loaded, application_id, actions, canvasAppJSON]);
 
   if (!loaded) {
     return <div style={{ padding: 40, textAlign: "center" }}>加载中...</div>;
@@ -209,7 +275,7 @@ const UIPage = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── 画布区域：物料 + 画布 + PropertyDrawer ── */}
+      {/* ── 画布区域：物料 + 画布 + PropertyDrawer + FlowEditorPanel ── */}
       <div className={styles.mainContent}>
         <div className={styles.canvasSection} ref={canvasSectionRef}>
           {/* 画布（Banvas 内部已有 div 包裹） */}
@@ -266,8 +332,18 @@ const UIPage = () => {
             actions={actions}
             currentPageId={currentPageId || ""}
             appId={application_id}
+            onOpenFlowEditor={handleOpenFlowEditor}
           />
         </div>
+
+        {/* 流程编辑面板（flex item，打开时挤压左侧画布区域） */}
+        <FlowEditorPanel
+          open={flowEditor.open}
+          title={flowEditor.title}
+          initialSchema={flowEditor.initialSchema}
+          onSave={flowEditor.onSave}
+          onClose={handleCloseFlowEditor}
+        />
       </div>
 
       <DesignContextMenu state={contextMenu} />

@@ -15,7 +15,7 @@ import { Input, Tooltip } from 'antd'
 import { SearchOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import type { IMaterial, IMaterialTemplate } from '@banyuan/banvasgl'
 import { materialApi } from '@/api'
-import MaterialThumbnail from '@/components/MaterialThumbnail'
+import MaterialThumbnail from './MaterialThumbnail'
 import styles from './index.module.scss'
 
 // ── 类型定义 ──
@@ -32,6 +32,24 @@ interface MaterialGroup {
   key: string
   title: string
   materials: IMaterial[]
+}
+
+/**
+ * 后端物料记录（扁平 DTO）
+ *
+ * 后端 `/materials` 接口返回的是扁平的物料文档（material_id/name/template 等顶层字段），
+ * 与 banvasgl 的 IMaterial（meta + template 嵌套结构）不同。此处按后端真实返回结构声明，
+ * 用于在 API 边界处替代 any。
+ */
+interface MaterialRecord {
+  material_id: string
+  name: string
+  description?: string
+  tags?: string[]
+  thumbnail?: string
+  source: IMaterial['meta']['source']
+  version: string
+  template: IMaterialTemplate
 }
 
 const MAX_VISIBLE = 9 // 3×3
@@ -132,15 +150,18 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
       })
       .then((res) => {
         if (cancelled) return
+        const records = res.data.materials as unknown as MaterialRecord[]
         return Promise.all(
-          res.data.materials.map((m: any) =>
-            materialApi.fetchMaterial(m.material_id!).then((detail) => detail.data),
+          records.map((m) =>
+            materialApi
+              .fetchMaterial(m.material_id)
+              .then((detail) => detail.data as unknown as MaterialRecord),
           ),
         )
       })
       .then((fullMaterials) => {
         if (cancelled || !fullMaterials) return
-        const mapped: IMaterial[] = fullMaterials.map((m: any) => ({
+        const mapped: IMaterial[] = fullMaterials.map((m) => ({
           meta: {
             id: m.material_id,
             name: m.name,
@@ -150,7 +171,7 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
             source: m.source,
             version: m.version,
           },
-          template: m.template as IMaterialTemplate,
+          template: m.template,
         }))
         setBuiltinMaterials(mapped)
         setLoading(false)
@@ -171,15 +192,18 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
       .fetchMaterials({ source: 'user', kind, status: 'active', pageSize: 100 })
       .then((res) => {
         if (cancelled) return
+        const records = res.data.materials as unknown as MaterialRecord[]
         return Promise.all(
-          res.data.materials.map((m: any) =>
-            materialApi.fetchMaterial(m.material_id!).then((detail) => detail.data),
+          records.map((m) =>
+            materialApi
+              .fetchMaterial(m.material_id)
+              .then((detail) => detail.data as unknown as MaterialRecord),
           ),
         )
       })
       .then((fullMaterials) => {
         if (cancelled || !fullMaterials) return
-        const mapped: IMaterial[] = fullMaterials.map((m: any) => ({
+        const mapped: IMaterial[] = fullMaterials.map((m) => ({
           meta: {
             id: m.material_id,
             name: m.name,
@@ -189,7 +213,7 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
             source: m.source,
             version: m.version,
           },
-          template: m.template as IMaterialTemplate,
+          template: m.template,
         }))
         setCustomMaterials(mapped)
       })

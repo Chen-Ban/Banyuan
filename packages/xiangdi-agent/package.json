@@ -18,8 +18,7 @@
   "scripts": {
     "build": "tsup --config tsup.config.ts",
     "dev": "tsup --config tsup.config.ts --watch",
-    "prepublishOnly": "npm run build",
-    "validate-seeds": "tsx scripts/generate-composition-seeds.ts"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "ai",

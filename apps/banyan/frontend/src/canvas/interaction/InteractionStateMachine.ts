@@ -32,10 +32,11 @@ import {
   Bounds,
   isTextView,
   isSelectBoxView,
-  isGraphType,
   isContainerView,
   GraphType,
   Action,
+  SelectBoxView,
+  EdgeView,
 } from "@banyuan/banvasgl";
 import type { View } from "@banyuan/banvasgl";
 
@@ -45,7 +46,6 @@ import type {
   InteractionDelegate,
   InteractionStateMachineConfig,
   InteractionCapability,
-  HoverTarget,
   PointerDownInput,
   PointerMoveInput,
   PointerUpInput,
@@ -119,6 +119,9 @@ export class InteractionStateMachine {
         return this.onKeyDown(input);
       case "keyup":
         return this.onKeyUp(input);
+      default:
+        // 其他输入类型（如 wheel）不参与编辑态状态转移
+        return { stateChanged: false };
     }
   }
 
@@ -128,12 +131,12 @@ export class InteractionStateMachine {
 
     // 清理当前状态的资源
     if (prevMode === "box-selecting") {
-      const s = this._state as { selectBox: any };
-      this._delegate.removeTempChild(s.selectBox);
+      const s = this._state as { selectBox: SelectBoxView };
+      this._delegate.removeTempChild(s.selectBox as unknown as View);
     }
     if (prevMode === "connecting") {
-      const s = this._state as { tempEdge: any };
-      this._delegate.removeTempChild(s.tempEdge);
+      const s = this._state as { tempEdge: EdgeView };
+      this._delegate.removeTempChild(s.tempEdge as unknown as View);
     }
     if (
       prevMode === "moving" ||
@@ -415,7 +418,8 @@ export class InteractionStateMachine {
    * 安全收尾当前进行中的交互状态（拖拽/缩放/旋转/框选/连线/文本选择等），
    * 回到 idle，但不产生 click/drop/finishConnect 这类「正常完成」语义。
    */
-  private onPointerCancel(_input: PointerCancelInput): InteractionOutput {
+  private onPointerCancel(input: PointerCancelInput): InteractionOutput {
+    void input; // consumed to satisfy type-checked call signature
     const prevMode = this._state.mode;
     this._primaryPointerId = -1;
 
@@ -681,8 +685,8 @@ export class InteractionStateMachine {
     let targetPoint = worldPoint;
 
     if (
-      !isGraphType(content as any, GraphType.PRINTABLE_TEXTELEMENT) &&
-      !isGraphType(content as any, GraphType.NONPRINTABLE_TEXTELEMENT)
+      content?.type !== GraphType.PRINTABLE_TEXTELEMENT &&
+      content?.type !== GraphType.NONPRINTABLE_TEXTELEMENT
     ) {
       const relativePoint = view.getMVPMatrix().inverse().multiply(worldPoint);
       const constrainedRelative = view.constraintPoint(relativePoint);
@@ -692,8 +696,8 @@ export class InteractionStateMachine {
     }
 
     if (
-      isGraphType(targetContent as any, GraphType.PRINTABLE_TEXTELEMENT) ||
-      isGraphType(targetContent as any, GraphType.NONPRINTABLE_TEXTELEMENT)
+      targetContent?.type === GraphType.PRINTABLE_TEXTELEMENT ||
+      targetContent?.type === GraphType.NONPRINTABLE_TEXTELEMENT
     ) {
       const dynamicIndex = this._delegate.element2Index(
         view,

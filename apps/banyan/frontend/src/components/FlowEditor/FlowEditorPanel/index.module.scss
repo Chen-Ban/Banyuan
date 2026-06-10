@@ -1,21 +1,89 @@
-// FlowEditorPanel — 右侧全高流程编辑面板样式
+// FlowEditorPanel — 右侧流程编辑面板样式
+// flex item + 渐入动画 + 圆角卡片
 @use '../../../styles/tokens/typography' as *;
 @use '../../../styles/mixins' as *;
+
+// ── 外层包裹（控制宽度动画，避免突兀挤压画布） ────────────────────────────────
+
+.panelWrapper {
+  width: 0;
+  flex-shrink: 0;
+  height: 100%;
+  overflow: hidden;
+  padding: 12px;
+  box-sizing: content-box;
+  position: relative;
+  z-index: 1010; // 高于属性面板抽屉，避免抽屉关闭动画遮挡
+  background: var(--color-bg-canvas); // 背景色遮挡，防止抽屉动画透过内边距区域
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.panelWrapperOpen {
+  width: 560px;
+}
+
+// ── 面板主体（圆角卡片） ──────────────────────────────────────────────────────
+
+.panel {
+  width: 560px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-base);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  // 从右侧滑入
+  transform: translateX(20px);
+  opacity: 0;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  .panelWrapperOpen & {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
 
 // ── 面板 Header ──────────────────────────────────────────────────────────────
 
 .panelHeader {
-  padding: 12px 16px !important;
-  border-bottom: 1px solid var(--color-border) !important;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
 .titleBar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   width: 100%;
-  gap: 12px;
+  gap: 10px;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--duration-normal), color var(--duration-normal);
+
+  &:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text-primary);
+  }
+
+  &:active {
+    background: var(--color-bg-active);
+  }
 }
 
 .titleText {
@@ -34,16 +102,6 @@
   flex-shrink: 0;
 }
 
-// ── 面板 Body ────────────────────────────────────────────────────────────────
-
-.panelBody {
-  padding: 0 !important;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  height: 100%;
-}
-
 // ── 画布容器 ─────────────────────────────────────────────────────────────────
 
 .canvasContainer {
@@ -51,6 +109,7 @@
   position: relative;
   overflow: hidden;
   background: var(--color-bg-canvas, #fff);
+  border-radius: 0 0 12px 12px;
 }
 
 // ── 物料面板触发按钮 ──────────────────────────────────────────────────────────

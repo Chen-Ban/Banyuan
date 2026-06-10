@@ -1,0 +1,13 @@
+{
+  "id": "composition-bindflow-button-call-cloud-function",
+  "content": "# 跨域组合：按钮点击触发云函数\n\n## 适用场景\n\n用户点击一个按钮（View），触发一段流程：调用后端云函数，拿到结果后更新前端展示。这是「UI 事件 → Flow 编排 → 后端能力」的最典型绑定模式。\n\n## 绑定方式\n\n在按钮 View 的 `events.onClick` 字段挂一个前端 FlowSchema。该 FlowSchema 用 `callFlow`（共享节点）调用云函数（通过 functionId 指向后端实现），再用 `setData`（前端节点）把返回值写回某个 View 的 data。\n\n## FlowSchema 示例（绑定在按钮 events.onClick）\n\n```json\n{\n  \"nodes\": [\n    {\n      \"id\": \"call-1\",\n      \"kind\": \"callFlow\",\n      \"functionId\": \"f1a2b3c4-0000-0000-0000-000000000001\",\n      \"params\": {\n        \"keyword\": { \"kind\": \"dataRef\", \"viewId\": \"search-input\", \"key\": \"value\" }\n      }\n    },\n    {\n      \"id\": \"set-1\",\n      \"kind\": \"setData\",\n      \"viewId\": \"result-list\",\n      \"key\": \"items\",\n      \"value\": { \"kind\": \"nodeRef\", \"nodeId\": \"call-1\" }\n    }\n  ],\n  \"edges\": [\n    { \"id\": \"e1\", \"from\": \"call-1\", \"to\": \"set-1\" }\n  ]\n}\n```\n\n## 关键约定\n\n- `callFlow.functionId` 必须是已声明云函数的 UUID，前后端通过它对齐（见 primitive-data-cloud-function）。\n- callFlow 的返回值通过 `nodeRef` 在后续节点引用。\n- 前端 FlowSchema 不能直接出现 dbQuery 等后端节点；访问数据库必须经由 callFlow。\n- 失败处理：可从 call-1 引一条 `branch: \"error\"` 边到一个提示节点（见 convention-flow-error-handling）。\n\n## 依赖\n\nprimitive-flow-common, primitive-flow-shared-nodes（callFlow）, primitive-flow-client-nodes（setData）, primitive-data-cloud-function",
+  "source": "composition",
+  "metadata": {
+    "category": "composition",
+    "domain": "bindflow",
+    "pattern": "button-call-cloud-function",
+    "description": "按钮 onClick → callFlow 云函数 → setData 回写",
+    "dependencies": ["primitive-flow-common", "primitive-flow-shared-nodes", "primitive-flow-client-nodes", "primitive-data-cloud-function"],
+    "version": "0.1.0"
+  }
+}

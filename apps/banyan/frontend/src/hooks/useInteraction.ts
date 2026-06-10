@@ -46,6 +46,9 @@ import type {
   IMaterialTemplate,
   IPortView,
   ITextView,
+  ITextElement,
+  IContainerView,
+  TextIndex,
 } from "@banyuan/banvasgl";
 // ────────────────────────────────────────────
 //  公共类型导出
@@ -215,11 +218,11 @@ export function useInteraction({
       ) {
         return view.interact(point, bufferCtx);
       },
-      element2Index(view: View, content: IGraph | IViewAddon, point: Point3) {
-        return (view as any).element2Index(content, point);
+      element2Index(view: View, content: IGraph | IViewAddon, point: Point3): TextIndex {
+        return (view as unknown as ITextView).element2Index(content as unknown as ITextElement, point);
       },
-      setSelection(view: View, fixedIndex: any, dynamicIndex: any) {
-        (view as any).setSelection(fixedIndex, dynamicIndex);
+      setSelection(view: View, fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined) {
+        (view as unknown as ITextView).setSelection(fixedIndex, dynamicIndex);
       },
 
       // ── 框选 ──
@@ -259,7 +262,7 @@ export function useInteraction({
           let fromPort: IPortView | null = null;
           outer: for (const v of children) {
             if ("children" in v) {
-              for (const child of (v as any).children) {
+              for (const child of (v as unknown as IContainerView).children) {
                 if (isPortView(child) && child.id === edge.fromPortId) {
                   fromPort = child;
                   break outer;
@@ -621,7 +624,7 @@ export function useInteraction({
         const y = worldPoint.y;
 
         if (parsed.materialId) {
-          import("@/api/materials").then(({ fetchMaterial }) => {
+          import("@/api/backend/materials").then(({ fetchMaterial }) => {
             fetchMaterial(parsed.materialId!)
               .then((res) => {
                 if (res.data) {
@@ -830,7 +833,7 @@ export function useInteraction({
         inputEl.removeEventListener("keydown", onInputKeyDown);
       }
     };
-  }, [canvas, actions, machine, mode, applyOutput]);
+  }, [canvas, actions, machine, mode, applyOutput, inputElement]);
 
   return {
     /** 当前交互状态（只读） */

@@ -46,7 +46,7 @@ const ApplicationListPage = () => {
         message.error(getErrorMessage(err))
       }
     },
-    [],
+    [message],
   )
 
   return (

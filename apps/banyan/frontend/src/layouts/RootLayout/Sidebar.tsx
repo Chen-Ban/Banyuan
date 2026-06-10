@@ -11,7 +11,7 @@
  * 下方根据 mode 渲染不同的内容：
  *   - nav：导航菜单（首页/列表/设置）
  *   - settings：设置项列表
- *   - app：AiBar 单例（由 AppLayoutCtx.aiBarNode 提供，ApplicationLayout 持有）
+ *   - app：AiBar（直接渲染，appId 从路由参数取）
  */
 
 import { useCallback, useState } from "react";
@@ -30,10 +30,12 @@ import {
   SwapOutlined,
   GithubOutlined,
 } from "@ant-design/icons";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/authContext";
 import { applicationApi } from "@/api";
 import type { Application } from "@/api";
-import { useRootLayoutCtx, type SidebarMode } from "./RootLayoutCtx";
+import { useApplicationStore } from "@/stores/applicationStore";
+import AiBar from "@/components/AiBar";
+import { type SidebarMode } from "./RootLayoutCtx";
 import styles from "./Sidebar.module.scss";
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────────
@@ -189,7 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
     if (mode === "settings") {
       return <SettingsNav />;
     }
-    // app 模式：直接渲染 ApplicationLayout 持有的 AiBar 单例节点
+    // app 模式：直接渲染 AiBar
     return <AppAiBar />;
   };
 
@@ -282,9 +284,9 @@ const AppBreadcrumb: React.FC = () => {
   const params = useParams<{ id: string }>();
   const currentAppId = params.id ?? "";
 
-  // 从 RootLayoutCtx 读取应用名（ApplicationLayout 写入）
-  const { appName: rootAppName, setAppName } = useRootLayoutCtx();
-  const appName = rootAppName || "未命名应用";
+  // 从 applicationStore 读取应用名
+  const { appName: storeAppName, setAppName } = useApplicationStore();
+  const appName = storeAppName || "未命名应用";
 
   // ── 重命名弹窗 ──
   const [renameOpen, setRenameOpen] = useState(false);
@@ -309,7 +311,7 @@ const AppBreadcrumb: React.FC = () => {
     } catch {
       message.error("重命名失败");
     }
-  }, [renameValue, currentAppId, setAppName]);
+  }, [renameValue, currentAppId, setAppName, message]);
 
   // ── 删除应用 ──
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -336,7 +338,7 @@ const AppBreadcrumb: React.FC = () => {
     } finally {
       setDeleting(false);
     }
-  }, [deleteConfirmMatch, currentAppId, navigate]);
+  }, [deleteConfirmMatch, currentAppId, navigate, message]);
 
   // ── 切换应用子菜单 ──
   const [appList, setAppList] = useState<Application[]>([]);
@@ -448,11 +450,12 @@ const AppBreadcrumb: React.FC = () => {
   );
 };
 
-// ─── 子组件：app 模式 AiBar 容器（从 RootLayoutCtx 取单例节点） ──────────────────
+// ─── 子组件：app 模式 AiBar 容器（直接渲染 AiBar 组件） ──────────────────────────
 
 const AppAiBar: React.FC = () => {
-  const { aiBarNode } = useRootLayoutCtx();
-  return <>{aiBarNode}</>;
+  const { id: appId } = useParams<{ id: string }>();
+  if (!appId) return null;
+  return <AiBar appId={appId} />;
 };
 
 export default Sidebar;

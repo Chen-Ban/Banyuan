@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { App, Button, Spin, Empty, Modal } from 'antd'
 import { schemaApi } from '@/api'
 import type { CollectionDef } from '@/api'
-import { appEvents } from '@/utils/appEvents'
-import { usePreviewServerCtx } from '@/layouts/ApplicationLayout/PreviewServerCtx'
+import { useApplicationStore } from '@/stores/applicationStore'
 import CollectionList from './components/CollectionList'
 import FieldEditor from './components/FieldEditor'
 import type { FieldEditorHandle } from './components/FieldEditor'
@@ -17,7 +16,7 @@ const DatabasePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   void navigate // layout 负责导航，此处保留以备不时之需
-  const { hotUpdate } = usePreviewServerCtx()
+  const { registerFlushHandler, setCollections: syncCollections } = useApplicationStore()
 
   const [collections, setCollections] = useState<CollectionDef[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,14 +29,15 @@ const DatabasePage: React.FC = () => {
   // 稳定回调引用，避免 FieldEditor 无限渲染
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), [])
 
-  // ── 订阅全局保存事件（ApplicationLayout 保存按钮触发） ─────────────────
+  // ── 注册 flushHandler（ApplicationLayout 保存按钮触发） ──────────────────
   useEffect(() => {
-    return appEvents.onSaveApp(async () => {
+    const unsubscribe = registerFlushHandler(async () => {
       if (fieldEditorRef.current && dirty) {
         await fieldEditorRef.current.save()
       }
     })
-  }, [dirty])
+    return unsubscribe
+  }, [dirty, registerFlushHandler])
 
   // ── 加载 Schema ──────────────────────────────────────────────────────────
 
@@ -82,10 +82,9 @@ const DatabasePage: React.FC = () => {
     if (added) {
       const next = [...collections, added]
       setCollections(next)
+      syncCollections(next)
       setSelectedName(added.name)
       setAdding(false)
-      // 新增表后通知 Preview Server 热更新
-      hotUpdate({ collections: next })
     }
   }
 
@@ -93,19 +92,20 @@ const DatabasePage: React.FC = () => {
     await schemaApi.deleteCollection(id!, name)
     const next = collections.filter((c) => c.name !== name)
     setCollections(next)
+    syncCollections(next)
     setSelectedName((prev) => {
       if (prev !== name) return prev
       return next.length > 0 ? next[0].name : null
     })
-    // 删除表后通知 Preview Server 热更新
-    hotUpdate({ collections: next })
   }
 
   const handleRenameCollection = async (name: string, newDisplayName: string) => {
     const res = await schemaApi.updateCollection(id!, name, { displayName: newDisplayName })
     const updated = res.data
     if (updated) {
-      setCollections((prev) => prev.map((c) => (c.name === name ? updated : c)))
+      const next = collections.map((c) => (c.name === name ? updated : c))
+      setCollections(next)
+      syncCollections(next)
     }
   }
 
@@ -140,11 +140,10 @@ const DatabasePage: React.FC = () => {
   const handleSaved = useCallback((updated: CollectionDef) => {
     setCollections((prev) => {
       const next = prev.map((c) => (c.name === updated.name ? updated : c))
-      // 保存成功后通知 Preview Server 热更新 schema
-      hotUpdate({ collections: next })
+      syncCollections(next)
       return next
     })
-  }, [hotUpdate])
+  }, [syncCollections])
 
   const selectedCollection = useMemo(
     () => collections.find((c) => c.name === selectedName) ?? null,

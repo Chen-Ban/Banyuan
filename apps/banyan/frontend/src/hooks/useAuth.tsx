@@ -1,5 +1,5 @@
 /**
- * useAuth — 全局认证状态 hook
+ * AuthProvider — 全局认证状态 Provider
  *
  * 提供：
  * - user: 当前登录用户信息（null 表示未登录）
@@ -8,39 +8,18 @@
  * - logout: 清除 token + 重置 user
  * - openLoginModal / closeLoginModal: 控制登录弹窗
  * - loginModalOpen: 弹窗是否打开
+ *
+ * Context 对象与 useAuth hook 见 ./authContext。
  */
 
-import { useState, useEffect, useCallback, createContext, useContext } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { authApi } from '@/api'
 import type { AuthUser, TokenPair } from '@/api/auth'
+import { AuthContext } from './authContext'
 
 const TOKEN_KEY = 'banyan_access_token'
 const REFRESH_TOKEN_KEY = 'banyan_refresh_token'
-
-// ─── Context ──────────────────────────────────────────────────────────────────
-
-interface AuthContextValue {
-  user: AuthUser | null
-  loading: boolean
-  loginModalOpen: boolean
-  login: (user: AuthUser, tokens: TokenPair) => void
-  logout: () => void
-  openLoginModal: () => void
-  closeLoginModal: () => void
-}
-
-export const AuthContext = createContext<AuthContextValue>({
-  user: null,
-  loading: true,
-  loginModalOpen: false,
-  login: () => {},
-  logout: () => {},
-  openLoginModal: () => {},
-  closeLoginModal: () => {},
-})
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -124,10 +103,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-export function useAuth() {
-  return useContext(AuthContext)
 }

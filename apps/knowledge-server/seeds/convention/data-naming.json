@@ -1,0 +1,12 @@
+{
+  "id": "convention-data-naming",
+  "content": "# 惯例约定：数据命名规范\n\n## 目的\n\n约束集合名、字段名、云函数名的命名风格，保证前后端契约对齐时不出现拼写/风格不一致导致的悬空引用。\n\n## 集合（Collection）\n\n- name 用小写单数英文名词，camelCase：`product`、`order`、`userProfile`。\n- displayName 用中文展示名：`商品`、`订单`。\n- 实际物理表名由后端按 `app_{appId}_{collectionName}` 拼接，AI 只需给逻辑 name。\n\n## 字段（Field）\n\n- name 用 camelCase 英文：`name`、`price`、`createdAt`、`coverUrl`。\n- 布尔字段用 is/has 前缀：`isActive`、`hasPaid`。\n- 时间字段用 At 后缀：`createdAt`、`updatedAt`，type=date。\n- 引用字段用目标集合名 + Id：`userId`、`productId`，type=ref。\n- displayName 给中文。\n\n## 云函数（CloudFunction）\n\n- name 用 动词 + 名词 camelCase：`createProduct`、`listOrders`、`updateUser`、`deleteItem`。\n- 查询列表用 list 前缀，查单条用 get，新增 create，更新 update，删除 delete。\n\n## 对齐铁律（跨产物一致性）\n\n同一个字段在四处必须同名同义：CollectionDefinition.fields[].name = 云函数 params[].name = FlowSchema dbInsert/dbUpdate 的 doc 字段名 = UI 输入框 View 的 data key。任何一处不一致都会导致运行时悬空引用。\n\n## functionId 规范\n\nfunctionId 是 UUID，由系统生成、全局唯一。云函数声明、后端实现宿主、前端 callFlow 三处引用同一 functionId。AI 生成时为每个云函数分配一个 UUID 并在三处复用，禁止用 name 代替 functionId 做引用。",
+  "source": "manual",
+  "metadata": {
+    "category": "convention",
+    "domain": "data",
+    "topic": "naming",
+    "description": "集合/字段/云函数命名规范与跨产物对齐铁律",
+    "version": "0.1.0"
+  }
+}

@@ -1,9 +1,9 @@
 import React from "react";
 import { Drawer, Tooltip } from "antd";
-import { PropertyPanel } from "@/components/DesignEditor/PropertyPanel";
-import { FlowEditorPanel } from "@/components/FlowEditor/FlowEditorPanel";
+import { PropertyPanel } from "../DesignEditor/PropertyPanel";
 import { SettingOutlined } from "@ant-design/icons";
 import type useDesignBanvas from "@/hooks/useDesignBanvas";
+import type { FlowEditorOpenRequest } from "../DesignEditor/PropertyPanel/EventsTab";
 import styles from "./index.module.scss";
 
 type DesignBanvasReturn = ReturnType<typeof useDesignBanvas>;
@@ -16,6 +16,8 @@ export interface PropertyDrawerProps {
   actions: DesignBanvasReturn["actions"];
   currentPageId: string;
   appId?: string;
+  /** 请求打开流程编辑面板（状态提升到 UIPage） */
+  onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void;
 }
 
 const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
@@ -26,6 +28,7 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
   actions,
   currentPageId,
   appId,
+  onOpenFlowEditor,
 }) => {
   return (
     <>
@@ -76,8 +79,8 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
           selectedViewId={selectedViewId}
           actions={actions}
           currentPageId={currentPageId}
-          FlowEditorModal={FlowEditorPanel}
           appId={appId}
+          onOpenFlowEditor={onOpenFlowEditor}
         />
       </Drawer>
     </>

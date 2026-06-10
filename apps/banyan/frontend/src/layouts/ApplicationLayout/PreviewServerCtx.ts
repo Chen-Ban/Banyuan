@@ -25,7 +25,7 @@ import {
   stopPreviewServer,
   hotUpdatePreviewServer,
   isElectron,
-} from '@/api/previewServer'
+} from '@/api/runtime/previewServer'
 import { schemaApi, cloudFunctionApi, applicationApi } from '@/api'
 
 // ── 类型定义 ────────────────────────────────────────────────────────────────────

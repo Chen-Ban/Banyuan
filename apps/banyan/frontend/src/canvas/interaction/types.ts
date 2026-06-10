@@ -17,12 +17,7 @@ import type {
   Cursor,
   SelectBoxView,
   EdgeView,
-  PointerDownInput,
-  PointerMoveInput,
-  PointerUpInput,
-  PointerCancelInput,
-  KeyDownInput,
-  KeyUpInput,
+  TextIndex,
 } from "@banyuan/banvasgl";
 
 // ────────────────────────────────────────────
@@ -243,8 +238,8 @@ export interface InteractionDelegate {
     view: View,
     content: IGraph | IViewAddon,
     point: Point3,
-  ): any;
-  setSelection(view: View, fixedIndex: any, dynamicIndex: any): void;
+  ): TextIndex;
+  setSelection(view: View, fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void;
 
   // ── 框选 ──
   createSelectBox(startPoint: Point3): SelectBoxView;
