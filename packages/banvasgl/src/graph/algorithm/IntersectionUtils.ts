@@ -1,7 +1,7 @@
 import { Point3, GeometryUtils } from "@/foundation/math";
 import MathUtils from "@/foundation/math/MathUtils";
 import { GraphType } from "@/foundation/constants";
-import type { IAnalyticGraph, ILine, IArc, ICircle, IQuadraticBezier, ICubicBezier } from "@/types";
+import type { IAnalyticGraph, ILine, IArc, ICircle, IQuadraticBezier, ICubicBezier } from '@/types/graph/graph'
 
 /**
  * 相交处理函数类型

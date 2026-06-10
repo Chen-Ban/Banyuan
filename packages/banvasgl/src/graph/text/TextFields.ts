@@ -9,7 +9,8 @@ import { Rectangle } from "@/graph/combined";
 import TextElement from "./TextElement";
 import TextOptions from "./TextOptions";
 import { isGraphType } from '@/foundation/guards'
-import type { ITextFields, ISerializable } from '@/types';
+import type { ITextFields } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from "@/foundation/utils";
 
 //文本选区三元组： 段落号，字序号，字前｜字后

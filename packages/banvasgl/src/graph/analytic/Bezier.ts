@@ -5,7 +5,7 @@ import { Style } from "@/foundation/style";
 import Bounds from "@/graph/base/Bounds";
 import Graph from "@/graph/base/Graph";
 import { intersect } from "@/graph/algorithm/IntersectionUtils";
-import { IBezier } from '@/types';
+import type { IBezier } from '@/types/graph/graph'
 
 /**
  * 贝塞尔曲线抽象基类

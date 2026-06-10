@@ -12,7 +12,7 @@
  */
 
 import type View from '@/view/View/View'
-import type { PropertyAdapter } from '@/types'
+import type { PropertyAdapter } from '@/types/view/property'
 
 export const widthAdapter: PropertyAdapter = {
     category: 'size',

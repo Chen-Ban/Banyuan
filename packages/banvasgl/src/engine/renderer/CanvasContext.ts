@@ -1,4 +1,4 @@
-import { ICanvasContextOptions } from '@/types'
+import type { ICanvasContextOptions } from '@/types/engine/renderer'
 
 class CanvasContext {
   // 画布上下文

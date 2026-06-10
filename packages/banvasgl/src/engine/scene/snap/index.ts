@@ -5,9 +5,9 @@ import Bounds from '@/graph/base/Bounds'
 import { SnapCache } from './SnapCache'
 import { SnapSolver } from './SnapSolver'
 import { SnapOverlay } from './SnapOverlay'
-import type { SnapResult } from '@/types'
+import type { SnapResult } from '@/types/engine/snap'
 
-export type { SnapResult } from '@/types'
+export type { SnapResult } from '@/types/engine/snap'
 export { SnapOverlay } from './SnapOverlay'
 
 /**

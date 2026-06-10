@@ -1,7 +1,8 @@
 import { GraphType } from '@/foundation/constants'
 import MediaElement from './MediaElement'
 import { Style } from '@/foundation/style'
-import { IImageElement, ISerializable } from '@/types'
+import type { IImageElement } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from '@/foundation/utils'
 
 /**

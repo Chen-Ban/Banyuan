@@ -2,8 +2,8 @@ import { GraphType } from "@/foundation/constants";
 import Arc from "./Arc";
 import { MathUtils, Point3, Vector3 } from "@/foundation/math";
 import { Style } from "@/foundation/style";
-import { ICircle } from '@/types';
-import type { ISerializable } from '@/types';
+import type { ICircle } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 圆形图形

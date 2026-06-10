@@ -33,7 +33,7 @@ interface PendingTransaction {
   beforeSnapshots: Map<string, ViewSnapshot>
 }
 
-import type { SceneAccessor } from '@/types'
+import type { SceneAccessor } from '@/types/engine/scene'
 
 // ============ 快照工具函数 ============
 

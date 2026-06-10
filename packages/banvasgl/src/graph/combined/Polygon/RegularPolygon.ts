@@ -2,7 +2,8 @@ import { GraphType } from "@/foundation/constants";
 import Style from "@/foundation/style/Style";
 import { Point3 } from "@/foundation/math";
 import Polygon from "./Polygon";
-import { IRegularPolygon, ISerializable } from "@/types";
+import type { IRegularPolygon } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 正多边形 —— 所有顶点等距于中心点的多边形。

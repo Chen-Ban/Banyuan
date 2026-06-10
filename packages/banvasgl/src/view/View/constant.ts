@@ -5,7 +5,8 @@
  * 保持 View.ts 聚焦于类逻辑本身。
  */
 
-import type { IViewEvents, IViewLifetimes, IViewStyle } from '@/types'
+import type { IViewEvents, IViewLifetimes } from '@/types/view/view'
+import type { IViewStyle } from '@/types/foundation/style'
 
 // ── 默认事件与生命周期 ────────────────────────────────────────────────────────
 

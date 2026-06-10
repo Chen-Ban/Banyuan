@@ -11,7 +11,7 @@
  * 从 CombinedView 中抽取的布局算法，策略模式无状态单例。
  */
 
-import type { IFlexLayout } from '@/types'
+import type { IFlexLayout } from '@/types/view/view'
 import type { ILayoutStrategy, ILayoutContext } from './ILayoutStrategy.js'
 import type View from '@/view/View/View.js'
 import Matrix4 from '@/foundation/math/Matrix4.js'

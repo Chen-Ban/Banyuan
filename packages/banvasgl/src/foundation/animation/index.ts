@@ -17,4 +17,4 @@ export type {
     KeyframeDefinition,
     AnimationOptions,
     Interpolator,
-} from '@/types'
+} from '@/types/engine/animation'

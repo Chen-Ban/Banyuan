@@ -7,8 +7,8 @@
  */
 
 import type Matrix4 from '@/foundation/math/Matrix4'
-import type View from '@/view/View/View'
 import type Bounds from '@/graph/base/Bounds'
+import type { IView } from '../view/view'
 import { AddonType } from '@/foundation/constants'
 import type { IAddonBase } from '../view/addon'
 
@@ -120,7 +120,7 @@ export interface AnimationOptions {
      * // 绝对定位：在父 View 坐标系下移到 x=200
      * view.animate({ to: { x: 200 } }, { duration: 1000, referenceFrame: parentView })
      */
-    referenceFrame?: View
+    referenceFrame?: IView
 
     /** 动画开始回调 */
     onStart?: () => void

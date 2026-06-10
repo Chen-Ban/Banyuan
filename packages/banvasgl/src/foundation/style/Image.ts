@@ -26,7 +26,7 @@ export interface PatternSize {
 }
 
 import { StyleType } from '@/foundation/constants'
-import type { ISerializable } from '@/types'
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 图片图案填充样式

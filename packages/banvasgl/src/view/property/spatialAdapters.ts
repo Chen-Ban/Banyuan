@@ -13,8 +13,8 @@
 import type View from '@/view/View/View'
 import type Matrix4 from '@/foundation/math/Matrix4'
 import { Matrix4 as Matrix4Class } from '@/foundation/math'
-import type { TransformOrigin } from '@/types'
-import type { PropertyAdapter } from '@/types'
+import type { TransformOrigin } from '@/types/view/view'
+import type { PropertyAdapter } from '@/types/view/property'
 
 /**
  * 根据 style.transformOrigin 和 viewport 解析出实际的变换中心坐标

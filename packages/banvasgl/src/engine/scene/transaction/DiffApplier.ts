@@ -1,6 +1,6 @@
 import type { Diff, ApplyDirection } from './OperationStack'
 import { DiffType, Operation } from './OperationStack'
-import type { SceneAccessor } from '@/types'
+import type { SceneAccessor } from '@/types/engine/scene'
 import { Matrix4 } from '@/foundation/math'
 import Bounds from '@/graph/base/Bounds'
 import { isContainerView } from '@/foundation/guards'

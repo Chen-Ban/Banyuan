@@ -20,7 +20,7 @@
  */
 
 import View from '@/view/View/View.js'
-import type { IContainerView, IFieldSchemaMap, IContainerViewOptions, IInteractResult } from '@/types'
+import type { IContainerView, IFieldSchemaMap, IContainerViewOptions, IInteractResult } from '@/types/view/view'
 import { Rectangle } from '@/graph/combined/Polygon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
 import type Matrix4 from '@/foundation/math/Matrix4.js'

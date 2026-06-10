@@ -4,8 +4,8 @@ import { ViewType } from "@/foundation/constants";
 import { generateId, generateName } from "@/foundation/utils";
 import { Point3 } from "@/foundation/math";
 import { Color, FillStyle, StrokeStyle, Style } from "@/foundation/style";
-import { ISelectBoxView } from "@/types";
-import type { ISelectBoxViewOptions } from "@/types";
+import type { ISelectBoxView } from '@/types/view/view'
+import type { ISelectBoxViewOptions } from '@/types/view/view'
 /**
  * 框选视图 - 专门用于矩形框选操作
  * 继承自 GraphView，但具有特殊的类型标识，不参与交互

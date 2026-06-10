@@ -2,7 +2,8 @@ import Bounds from "@/graph/base/Bounds";
 import Rectangle from "@/graph/combined/Polygon/Rectangle";
 import Style from "@/foundation/style/Style";
 import { Point3, Vector3 } from "@/foundation/math";
-import type { ExtraData, IBoundingBoxAddon } from "@/types";
+import type { ExtraData } from '@/types/view/interaction'
+import type { IBoundingBoxAddon } from '@/types/view/addon'
 import { AddonType, Action, AddonCapability, Cursor, cursorMap } from "@/foundation/constants";
 import { Circle, Line } from "@/graph";
 import { Color, FillStyle, StrokeStyle } from "@/foundation/style";

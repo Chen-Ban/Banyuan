@@ -2,7 +2,7 @@ import Point3 from "./Point3";
 import Vector3 from "./Vector3";
 import { FLOAT_EPSILON } from "./epsilon";
 import { MathType } from '@/foundation/constants';
-import type { ISerializable } from '@/types';
+import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
  * 4×4 仿射变换矩阵（行主序）

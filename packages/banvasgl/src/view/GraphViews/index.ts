@@ -1,7 +1,9 @@
 import View from "@/view/View/View";
-import type { IAddonBase, IGraphViewOptions } from "@/types";
+import type { IGraphViewOptions } from '@/types/view/view'
+import type { IAddonBase } from '@/types/view/addon'
 import { Graph, Line } from "@/graph";
-import type { IGraphView, ISerializable } from "@/types";
+import type { IGraphView } from '@/types/view/view'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { isAnalyticGraph, isCombinedGraph } from "@/foundation/guards";
 import { ViewType, GraphType, AddonCapability } from "@/foundation/constants";
 import { generateId, generateName } from "@/foundation/utils";

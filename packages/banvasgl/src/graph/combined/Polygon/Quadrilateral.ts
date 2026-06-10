@@ -2,7 +2,8 @@ import { GraphType } from '@/foundation/constants'
 import Style from '@/foundation/style/Style'
 import { Point3, MathUtils } from '@/foundation/math'
 import Polygon from './Polygon'
-import { IQuadrilateral, ISerializable } from '@/types'
+import type { IQuadrilateral } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from '@/foundation/utils'
 
 /**

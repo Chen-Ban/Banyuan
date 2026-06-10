@@ -2,8 +2,8 @@ import { GraphType } from "@/foundation/constants";
 import Bezier from "./Bezier";
 import { MathUtils, Point3, Vector3 } from "@/foundation/math";
 import { Style } from "@/foundation/style";
-import { ICubicBezier } from "@/types";
-import type { ISerializable } from "@/types";
+import type { ICubicBezier } from '@/types/graph/graph'
+import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId } from "@/foundation/utils";
 
 /**

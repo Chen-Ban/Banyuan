@@ -15,9 +15,9 @@ import type {
   AnimatableValue,
   IAnimationDescriptor,
   IAnimationAddon,
-  IView,
-  ExtraData,
-} from '@/types'
+} from '@/types/engine/animation'
+import type { IView } from '@/types/view/view'
+import type { ExtraData } from '@/types/view/interaction'
 import type View from '@/view/View/View'
 
 /**

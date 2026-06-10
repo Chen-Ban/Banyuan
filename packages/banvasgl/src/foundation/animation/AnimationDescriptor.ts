@@ -6,8 +6,8 @@ import type {
     FillMode,
     PlaybackDirection,
     EasingFunction,
-} from '@/types'
-import type { Keyframe } from '@/types'
+    Keyframe,
+} from '@/types/engine/animation'
 import { MathUtils } from '@/foundation/math'
 
 /**
