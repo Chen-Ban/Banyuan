@@ -1,6 +1,6 @@
 import { Rectangle } from '@/graph'
-import { AddonCapability, ExtraData, ITextSelectionAddon } from '@/types'
-import { AddonType } from '@/foundation/constants'
+import type { ExtraData, ITextSelectionAddon } from '@/types'
+import { AddonType, AddonCapability } from '@/foundation/constants'
 import type { Point3 } from '@/foundation/math'
 import type { TextIndex } from '@/types'
 import type { IAnimationDescriptor } from '@/types'

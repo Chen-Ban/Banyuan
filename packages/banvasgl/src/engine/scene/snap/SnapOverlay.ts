@@ -1,4 +1,5 @@
-import { SnapAxis, type AxisSnap, type SnapResult } from '@/types'
+import { SnapAxis } from '@/foundation/constants'
+import type { AxisSnap, SnapResult } from '@/types'
 import { Point3 } from '@/foundation/math'
 import type Matrix4 from '@/foundation/math/Matrix4'
 

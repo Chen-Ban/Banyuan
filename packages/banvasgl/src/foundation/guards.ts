@@ -8,11 +8,29 @@
  * 原理：
  *   const enum 值在编译时内联，守卫函数只依赖 `type` 字段与枚举值的 === 比较，
  *   不引入任何具体 class，因此不会产生循环依赖。
+ *
+ * 归属说明：
+ *   守卫是“值”（函数），不应混入纯类型 barrel（types/index.ts），否则会导致
+ *   barrel 携带运行时值而无法被 Rollup tree-shaking 抹除，进而引发 chunk 级
+ *   循环依赖告警。因此守卫定义在 foundation 层，类型契约通过 `import type`
+ *   从 @/types 引入。
  */
 
 import { GraphType, ViewType, AddonType } from '@/foundation/constants'
-import type { IGraph, GraphTypeMap, ITextElement } from './graph/graph'
-import type { IView, ISceneNode, IContainerView, ViewTypeMap, IViewAddon, IBoundingBoxAddon, IVertexAddon, IBoxDecorationAddon, IPortView, INodeView, IEdgeView } from './view/view'
+import type { IGraph, GraphTypeMap, ITextElement } from '@/types/graph/graph'
+import type {
+    IView,
+    ISceneNode,
+    IContainerView,
+    ViewTypeMap,
+    IViewAddon,
+    IBoundingBoxAddon,
+    IVertexAddon,
+    IBoxDecorationAddon,
+    IPortView,
+    INodeView,
+    IEdgeView,
+} from '@/types/view/view'
 
 // ────────────────────────────────────────────
 //  Graph 类型守卫
@@ -159,7 +177,7 @@ export function isBoxDecorationAddon(addon: IViewAddon | null | undefined): addo
 }
 
 // ────────────────────────────────────────────
-//  流程编辑器 View 守卫（Phase 1.4 将移至 banvas-flow-editor）
+//  流程编辑器 View 守卫
 // ────────────────────────────────────────────
 
 /** 快捷判断：是否为 PortView */
@@ -176,4 +194,3 @@ export function isNodeView(view: IView | null | undefined): view is INodeView {
 export function isEdgeView(view: IView | null | undefined): view is IEdgeView {
     return !!view && view.type === 'EDGEVIEW'
 }
-

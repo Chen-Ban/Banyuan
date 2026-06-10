@@ -6,90 +6,9 @@
  */
 
 import type { Point3 } from '@/foundation/math'
-
-// ────────────────────────────────────────────
-//  Cursor 枚举
-// ────────────────────────────────────────────
-
-export enum Cursor {
-    // 基本值
-    Auto = 'auto',
-    Default = 'default',
-    None = 'none',
-
-    // 链接和状态指示
-    ContextMenu = 'context-menu',
-    Help = 'help',
-    Pointer = 'pointer',
-    Progress = 'progress',
-    Wait = 'wait',
-
-    // 选择
-    Cell = 'cell',
-    Crosshair = 'crosshair',
-    Text = 'text',
-    VerticalText = 'vertical-text',
-
-    // 拖拽
-    Alias = 'alias',
-    Copy = 'copy',
-    Move = 'move',
-    NoDrop = 'no-drop',
-    NotAllowed = 'not-allowed',
-    Grab = 'grab',
-    Grabbing = 'grabbing',
-
-    // 滚动
-    AllScroll = 'all-scroll',
-
-    // 调整大小
-    ColResize = 'col-resize',
-    RowResize = 'row-resize',
-    NResize = 'n-resize',
-    EResize = 'e-resize',
-    SResize = 's-resize',
-    WResize = 'w-resize',
-    NeResize = 'ne-resize',
-    NwResize = 'nw-resize',
-    SeResize = 'se-resize',
-    SwResize = 'sw-resize',
-    EwResize = 'ew-resize',
-    NsResize = 'ns-resize',
-    NeswResize = 'nesw-resize',
-    NwseResize = 'nwse-resize',
-
-    // 缩放
-    ZoomIn = 'zoom-in',
-    ZoomOut = 'zoom-out',
-}
-
-/** BoundingBox 8 个缩放手柄索引 → 光标样式映射 */
-export const cursorMap: Record<number, Cursor> = {
-    0: Cursor.NwResize, // 西北
-    1: Cursor.NResize, // 北
-    2: Cursor.NeResize, // 东北
-    3: Cursor.EResize, // 东
-    4: Cursor.SeResize, // 东南
-    5: Cursor.SResize, // 南
-    6: Cursor.SwResize, // 西南
-    7: Cursor.WResize, // 西
-}
-
-// ────────────────────────────────────────────
-//  Action 枚举
-// ────────────────────────────────────────────
-
-export enum Action {
-    MOVE,
-    RESIZE,
-    ROTATE,
-    EDIT_POINT,
-    EDIT_VIEWPORT,
-    SELECT,
-    TEXT_SELECTION,
-    CONNECT,   // 端口连线
-    NONE,
-}
+// Cursor / Action 枚举值定义已迁移至 foundation/constants（打破 barrel 循环依赖），
+// 此处仅作为类型引用使用判别联合。
+import type { Cursor, Action } from '@/foundation/constants'
 
 // ────────────────────────────────────────────
 //  ExtraData 判别联合

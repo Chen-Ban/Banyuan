@@ -102,7 +102,7 @@ export type {
     FlowSchema,
 } from '@/flow/types/index.js'
 
-export { FLOW_SCHEMA_VERSION } from '@/flow/types/schema.js'
+// FLOW_SCHEMA_VERSION 为值，归属 @/flow/types/schema，由 src/index.ts 直接导出（不再通过类型 barrel 透传）。
 
 // FlowContext —— 外部消费者构造 runner.run(schema, ctx) 的 ctx 类型
 export type { FlowContext } from '@/flow/runtime/context.js'
@@ -299,9 +299,7 @@ export interface ISceneNode {
 // ────────────────────────────────────────────
 //  Addon 接口 —— 定义在 ./addon.ts，此处 re-export
 // ────────────────────────────────────────────
-export {
-    AddonCapability,
-} from './addon'
+// AddonCapability 为枚举值，归属 foundation/constants，由 src/index.ts 直接导出。
 
 export type {
     IAddonBase,
@@ -316,12 +314,11 @@ export type {
 
 // 文件内使用（IView 等引用 addon 接口）
 import type { IBoundingBoxAddon, IVertexAddon, IBoxDecorationAddon, IBoxDecorationOptions, IViewAddon, ITextSelection } from './addon'
-import { AddonCapability } from './addon'
 
 // ────────────────────────────────────────────
 //  交互类型（定义在 ./interaction.ts，此处 re-export）
 // ────────────────────────────────────────────
-export { Cursor, cursorMap, Action } from './interaction'
+// Cursor / cursorMap / Action 为值，归属 foundation/constants，由 src/index.ts 直接导出。
 export type {
     MoveData,
     ResizeData,

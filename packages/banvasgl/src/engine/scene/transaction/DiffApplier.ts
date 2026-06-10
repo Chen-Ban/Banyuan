@@ -3,7 +3,7 @@ import { DiffType, Operation } from './OperationStack'
 import type { SceneAccessor } from '@/types'
 import { Matrix4 } from '@/foundation/math'
 import Bounds from '@/graph/base/Bounds'
-import { isContainerView } from '@/types'
+import { isContainerView } from '@/foundation/guards'
 import { Serializer } from '@/engine/serialization/Serializer'
 
 /**

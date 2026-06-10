@@ -18,8 +18,7 @@ import type {
   IInteractResult,
   ViewTypeMap,
 } from "@/types/view/view";
-import { Cursor } from "@/types/view/view";
-import { Point3, ViewType } from "@/foundation";
+import { Point3, ViewType, Cursor } from "@/foundation";
 import type { App } from "@/engine/App";
 import {
   screenToWorld as _screenToWorld,

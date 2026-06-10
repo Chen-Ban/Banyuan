@@ -6,7 +6,8 @@ import { NonPrintableTextElement, PrintableTextElement } from './TextElement'
 import ParagraphOptions from './ParagraphOptions'
 import Bounds from '@/graph/base/Bounds'
 import TextOptions from './TextOptions'
-import { ITextParagraph, ISerializable, isGraphType } from '@/types'
+import { isGraphType } from '@/foundation/guards'
+import type { ITextParagraph, ISerializable } from '@/types'
 import { generateId } from '@/foundation/utils'
 
 export type TextParagraphContent = [

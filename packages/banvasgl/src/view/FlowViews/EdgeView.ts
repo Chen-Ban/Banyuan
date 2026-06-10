@@ -1,12 +1,8 @@
-import {
-    Action,
-    Cursor,
-} from '@/types/index.js'
-import { ViewType } from '@/foundation/constants.js'
+import { Action, Cursor, ViewType } from '@/foundation/constants.js'
+import { isPortView } from '@/foundation/guards.js'
 import View from '@/view/View/View.js'
 import Point3 from '@/foundation/math/Point3.js'
 import Bounds from '@/graph/base/Bounds.js'
-import { isPortView } from '@/types/index.js'
 import type {
     IEdgeView,
     IInteractResult,

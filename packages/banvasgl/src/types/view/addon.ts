@@ -10,38 +10,15 @@
  * - IViewAddon 判别联合通过 type 字段收窄具体类型
  */
 
-import { AddonType } from '@/foundation/constants'
+import type { AddonType, AddonCapability } from '@/foundation/constants'
 import type { Point3 } from '@/foundation/math'
 import type Bounds from '@/graph/base/Bounds'
 import type { Line, Rectangle, Circle } from '@/graph'
 import type { ITextFields, TextIndex } from '../graph/graph'
 import type { IComputedStyle, IViewStyle } from '../foundation/style'
 
-// ────────────────────────────────────────────
-//  AddonCapability 枚举
-// ────────────────────────────────────────────
-
-/**
- * Addon 职责标识
- *
- * 每个 addon 通过 capabilities 声明自己参与哪些管线：
- * - RENDER：参与渲染管线（renderPlugins 阶段调用 render()）
- * - INTERACT：参与交互管线（interactPlugins 阶段调用 interact()）
- * - LOGIC：参与逻辑计算（如 BoundingBox 在多选 resize 时提供几何数据，
- *   但不渲染也不交互）
- *
- * 一个 addon 可以同时声明多个职责，管线根据 capabilities 决定是否调用对应方法。
- * 这避免了管线空跑（调用 render/interact 后 early return）的性能浪费，
- * 也让 addon 的设计意图在代码层面自文档化。
- */
-export enum AddonCapability {
-    /** 参与渲染管线 —— renderPlugins 阶段调用 render() */
-    RENDER = 'RENDER',
-    /** 参与交互管线 —— interactPlugins 阶段调用 interact() */
-    INTERACT = 'INTERACT',
-    /** 参与逻辑计算 —— 不渲染不交互，仅提供数据/计算能力 */
-    LOGIC = 'LOGIC',
-}
+// AddonCapability 枚举值定义已迁移至 foundation/constants（打破 barrel 循环依赖），
+// 此处仅作为类型引用。
 
 // ────────────────────────────────────────────
 //  交互结果类型（addon.interact 返回值依赖）

@@ -1,12 +1,6 @@
 import { Point3 } from "@/foundation/math";
-import {
-  Action,
-  AddonCapability,
-  Cursor,
-  ExtraData,
-  IVertexAddon,
-} from "@/types";
-import { AddonType } from "@/foundation/constants";
+import type { ExtraData, IVertexAddon } from "@/types";
+import { AddonType, Action, AddonCapability, Cursor } from "@/foundation/constants";
 
 /**
  * 顶点样式主题（PPT 风格）

@@ -1,10 +1,7 @@
-import { ViewType } from "@/foundation/constants";
+import { ViewType, Action, AddonCapability, Cursor } from "@/foundation/constants";
 import Matrix4 from "@/foundation/math/Matrix4";
 import { CanvasContext } from "@/engine/renderer/CanvasContext";
-import {
-  Action,
-  AddonCapability,
-  Cursor,
+import type {
   ISceneNode,
   IView,
   IViewStyle,
