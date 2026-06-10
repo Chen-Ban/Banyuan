@@ -9,12 +9,12 @@ import type { SelectedViewPos } from '@banyuan/banvasgl/react'
 import type { FlowSchema, FlowNode } from '@banyuan/banvasgl'
 import { useInteraction } from './useInteraction'
 import { useFlowContextMenu } from './useFlowContextMenu'
-import { extractSchema } from '../components/FlowEditor/extractSchema'
+import { extractSchema } from '../components/FlowKit/extractSchema'
 import {
     NodeView,
     EdgeView,
 } from '@banyuan/banvasgl'
-import type { FlowContextMenuState } from '../components/FlowEditor/FlowContextMenu'
+import type { FlowContextMenuState } from '../components/FlowKit/FlowContextMenu'
 
 // ── 公共配置类型 ──
 

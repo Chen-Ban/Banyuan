@@ -32,7 +32,7 @@ import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import { useApplicationStore } from "@/stores/applicationStore";
 import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
-import { FlowEditorPanel } from "@/components/FlowEditor/FlowEditorPanel";
+import { FlowEditorPanel } from "@/components/FlowKit/FlowEditorPanel";
 import type { FlowEditorOpenRequest } from "./components/DesignEditor/PropertyPanel/EventsTab";
 import type { FlowSchema } from "@banyuan/banvasgl";
 import PropertyDrawer from "./components/PropertyDrawer";

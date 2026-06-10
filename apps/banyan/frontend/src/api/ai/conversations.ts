@@ -1,8 +1,8 @@
 /**
- * 对话会话 API（V2）
+ * 对话会话 API
  *
- * 基于"1 App = 1 Conversation"模型，以 appId 为唯一标识。
- * V2 变更：返回 Dialogue[] 而非扁平 Message[]。
+ * 基于“1 App = 1 Conversation”模型，以 appId 为唯一标识。
+ * 返回 Dialogue[] 列表。
  *
  * 核心概念：
  *   - Dialogue（对话）：一次完整的用户-AI 交互单元
@@ -63,7 +63,7 @@ export interface Dialogue {
   updatedAt: string
 }
 
-/** 兼容旧接口的扁平消息格式（用于渐进迁移） */
+/** 扁平消息格式（供 ConversationPanel 历史消息渲染使用） */
 export interface ConversationMessage {
   role: 'user' | 'assistant'
   content: string | unknown[]
@@ -92,9 +92,9 @@ export async function getDialogues(appId: string, limit = 50): Promise<Dialogue[
 }
 
 /**
- * 兼容旧接口：将 Dialogue[] 转换为扁平 ConversationMessage[]
+ * 将 Dialogue[] 转换为扁平 ConversationMessage[]
  *
- * 用于渐进迁移期间，让旧组件仍能正常工作。
+ * 供 ConversationPanel 历史消息气泡渲染使用。
  */
 export function dialoguesToFlatMessages(dialogues: Dialogue[]): ConversationMessage[] {
   const messages: ConversationMessage[] = []

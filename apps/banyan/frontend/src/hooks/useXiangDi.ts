@@ -1,5 +1,5 @@
 /**
- * useXiangDi Hook（V5 — ADR-041 Orchestrator）
+ * useXiangDi Hook
  *
  * 封装与后端 XiangDi AI 服务的 SSE 通信逻辑。
  * 提供：
@@ -11,15 +11,9 @@
  * - 中止请求（abort）
  * - 确认/撤销 task 模式对话结果（confirmTask / discardTask）
  *
- * V5 变更（ADR-041 Orchestrator 统一管线）：
- *   - SSE 事件协议全面更新：
- *     started / phase_change / agent_progress / tool_activity
- *     audit_progress / text_delta / done / error
- *   - 移除旧事件：tool_call/tool_result/app_snapshot/disambiguation/interrupt/planning_progress
- *   - 移除 resumeApproval / respondToDisambiguation（无 checkpoint/resume）
- *   - 移除 PlanApprovalState / PlanningStep 旧模型
- *   - 新增 AgentStep 模型（agent_progress 驱动）
- *   - 新增 phase 状态跟踪
+ * SSE 事件协议（ADR-041 Orchestrator）：
+ *   started / phase_change / agent_progress / tool_activity
+ *   audit_progress / text_delta / done / error
  *
  * 会话模型：1 App = 1 Conversation，以 appId 为唯一标识，
  * 前端无需管理 conversationId。

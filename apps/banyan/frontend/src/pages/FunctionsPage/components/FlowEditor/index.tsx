@@ -1,7 +1,7 @@
 /**
  * FlowEditor — 云函数流程编辑器
  *
- * 布局（Phase 2-3 重构后）：
+ * 布局：
  *   ┌──────────────────────────────────┐
  *   │  全屏画布（canvasArea 填满）       │
  *   │  ┌─┐                             │
@@ -28,7 +28,7 @@ import { App, Drawer, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
 import type { FlowSchema } from "@banyuan/banvasgl";
 import useFlowBanvas from "@/hooks/useFlowBanvas";
-import { FlowContextMenu } from "@/components/FlowEditor/FlowContextMenu";
+import { FlowContextMenu } from "@/components/FlowKit/FlowContextMenu";
 import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
