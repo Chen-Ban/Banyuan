@@ -17,17 +17,19 @@
 ┌──▼────────────────┐  │  ┌────────────────────▼──┐
 │ M1 AI Projection  │  │  │ M2 数据迁移外置到      │
 │ 双向转换机制       │  │  │    CI/CD              │
-└───────────────────┘  │  └────────────────────────┘
-                       │
-            ┌──────────▼────────────────┐
-            │ M3 物料序列化与反序列化     │
-            └────────────────────────────┘
+└─────────┬─────────┘  │  └────────────────────────┘
+          │ 依赖（投影能力）         │
+┌─────────▼──────────────────┐  ┌──▼─────────────────────────┐
+│ M4 格式维度知识的投影边界   │  │ M3 物料序列化与反序列化     │
+│（快照入库，Agent 侧投影）   │  └────────────────────────────┘
+└────────────────────────────┘
 ```
 
 关系说明：
 
 - M1、M2、M3 分别服务于不同的数据生命周期阶段：M1 处理 AI↔引擎的格式桥接，M2 处理跨版本的格式升级，M3 处理用户级别的片段复用。
 - 机制归属：M1/M3 经 A1 承接 banvasgl 序列化机制（A0），M2 直接细化 A0 的版本迁移机制——三者均建立在 A0「序列化/版本迁移归 banvasgl 运行时机制」契约之上，只处理各自机制对应的投影/策略维度。
+- M4 依赖 M1：格式维度知识以序列化全量快照入库，消费时必须经 M1 的 toAIProjection 收敛、产出经 fromAIProjection 还原——M4 把「投影/反投影是 LLM 与引擎之间的必经隔离层」这一边界，从单次转换扩展到「知识生产 → 存储 → 消费」的完整链路。
 
 ---
 
@@ -98,3 +100,46 @@ toAIProjection(scene) 将 Full JSON 转换为 AI 可读的精简结构；fromAIP
 - 物料不存储绝对位置（注入时由用户指定放置位置）
 - 物料可跨应用使用（通过物料市场共享）
 - 物料版本化：引擎升级后旧物料通过 Migration 机制兼容
+
+---
+
+## 知识投影
+
+### M4. 格式维度知识的投影边界
+
+**📋 已规划** · 依赖 M1（投影能力归属决定边界位置）· 服务 agent 域 P5/M8、C7
+
+知识库中的**格式维度**存储的是 BanvasGL 序列化模块产出的**全量快照**（`toJSON()` 形态），不是 AI Projection 形态。Agent 消费时必须经 `toAIProjection` 收敛成精简结构再喂给 LLM；LLM 产出的 AI Projection JSON 必须经 `fromAIProjection` 反投影还原成引擎内部格式后才能被消费。投影/反投影是 LLM 与引擎之间的双向隔离层。
+
+完整链路：
+
+```
+基础库序列化模块 ──产出──> 全量快照（格式维度知识，入库）
+                                   │
+                          knowledge-server 存储（不投影）
+                                   │ Agent 检索
+                                   ▼
+            全量快照 ──toAIProjection──> AI Projection（喂 LLM）
+                                   │ LLM 产出
+                                   ▼
+       AI Projection ──fromAIProjection──> 引擎内部格式（被消费）
+```
+
+**核心设计思想——投影边界的位置由投影工具的归属决定：** `toAIProjection` / `fromAIProjection` 属于 xiangdi-agent 的 schema 层（`packages/xiangdi-agent/src/schema/projection.ts`），它依赖 `@banyuan/banvasgl` 的引擎类型。而 knowledge-server 是独立微服务（见 app 域 A2），**不依赖 xiangdi-agent，没有投影能力**；知识生产侧（基础库 CI/CD）同样不持有投影工具。因此投影只能发生在唯一持有投影工具的消费侧（Agent）——这不是性能取舍，而是包依赖方向（`xiangdi-agent → @banyuan/banvasgl`，`knowledge-server` 仅读 version 做表名隔离）的必然结果。「库里存快照而非 Projection」由此被锁死。
+
+**决策链：** 投影工具只在 Agent schema 层 → 知识服务和生产侧都拿不到 → 入库只能存序列化全量快照 → 但全量快照含大量内部字段（实例 ID、运行时状态、深层嵌套），直接喂 LLM 会污染输入、引发幻觉 → 消费侧必须先投影收敛 → LLM 产出的 Projection 也必须反投影才能被引擎接受 → 投影/反投影成为 LLM 与引擎之间的必经隔离层。
+
+**约束：**
+
+- 格式维度知识以序列化全量快照入库，knowledge-server 不做任何投影（保持对 xiangdi-agent 零依赖，遵守 app 域 A2 隔离）
+- Agent 消费格式维度知识前，必须经 `toAIProjection` 收敛后再交给 LLM
+- LLM 产出必须经 `fromAIProjection` 验证/反投影后才能进入引擎（沿用 M1 的"安检门"语义）
+- 投影边界只能落在 Agent 侧——投影工具属 xiangdi-agent schema 层，知识服务与生产侧均无此能力
+- AI Projection schema 变更属 breaking change（沿用 M1），需同步重新生成格式维度快照知识
+
+**反例：**
+
+- 直接拿全量快照喂 LLM——内部字段污染输入，LLM 照着写必然产出非法结构
+- 让 LLM 直接产出引擎内部格式——LLM 写不对深层嵌套与内部字段，绕过了 fromAIProjection 安检门
+- 试图在 knowledge-server 里做投影——违反 app 域 A2 隔离，且引入对 xiangdi-agent 的非法依赖
+- 入库前先投影成 Projection 再存——生产侧/存储侧根本没有投影工具，是伪命题

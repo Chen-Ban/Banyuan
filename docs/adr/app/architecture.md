@@ -27,6 +27,11 @@
 ┌───────────────────────────────────┐
 │  A5 预览态后端复用 deploy-agent   │
 │     本地化（前后端异源混合态）   │
+└────────────────┬──────────────────┘
+                 │ clarifies
+┌────────────────▼──────────────────┐
+│  A6 PreviewServer 职责边界         │
+│  （纯后端运行时，非元数据代理）    │
 └───────────────────────────────────┘
 ```
 
@@ -34,7 +39,7 @@
 
 - A1→A2：XiangDi 无状态设计确立了「服务职责单一、可独立扩缩容」的拓扑基调，知识服务独立部署是这一思路在重资源服务上的延伸
 - A3→A4：Electron 壳 + Web 核心策略要求业务代码平台无关，monorepo 统一管理保证联动构建和类型检查，进一步驱动了示例项目不拆仓的决策
-- A5 独立：预览态服务拓扑决策，复用 M4 去中心化构建的 deploy-agent scaffoldServer 能力在本地起后端服务，取代 M2 原「预览 = Vite dev server」的纯前端实现，与 engine/A8a 三态统一引擎在预览态后端侧对齐
+- A5→A6：A5 确立了 PreviewServer 作为本地后端运行时的定位，A6 进一步明确其职责边界——只消费 collections + cloudFunctions 提供预览执行环境，不参与元数据持久化链路，不持有 appJSON
 
 ---
 
@@ -168,3 +173,35 @@ LunlunGlass 示例项目保留在 Banyuan monorepo 的 examples/ 目录内，不
 - 预览态复用 ECS 远端部署（C4 原模式）——每次预览走远程 WebSocket+容器构建，延迟高且依赖租户 ECS，不适合高频预览（ECS 沙箱预览仅作为未来多人协作/企业版的升级选项）
 
 **实施方案：** `docs/specs/app/preview-local-backend.md`（预览态本地后端编排：scaffoldServer 本地起服务、本地 Mongo 接入、运行时端点指向、进程管理与热更新）。预览态**前端渲染机制**（`useRuntimeBanvas` 同源运行策略 + `flowEnabled` gate）由 engine/A8a 及 `docs/specs/engine/tristate-unified-engine.md` 承载；预览态**前端交互形态**（默认预览态、UIPage/PreviewPage 拆分、顶部 switch、独立预览路由、切预览前自动保存）由 `docs/specs/app/preview-default-mode-switch.md` 承载，其产品依据见 [P5 80/20 哲学下默认预览态](./principle.md#p5-8020-哲学下默认预览态)。
+
+---
+
+### A6. PreviewServer 职责边界——纯后端运行时，非元数据代理
+
+**未实施** · 明确 A5 的职责上界
+
+PreviewServer（Electron 主进程中的本地后端服务）的定位是**预览态后端执行环境的只读消费者**——它接收上游推送的 collections（动态数据表 schema）和 cloudFunctions（云函数 FlowSchema 定义），注册 mongoose model 和 ServerFlowRunner，为前端 `callFlow` 节点提供真实执行端点。它**不参与元数据持久化链路、不持有 appJSON、不做元数据代理**。
+
+**核心问题背景：** A5 确立了 PreviewServer 复用 deploy-agent scaffoldServer 在本地起真实后端的定位，但未明确其职责上界。曾考虑将 PreviewServer 升级为「前端唯一元数据通道」（元数据代理层），由其统一负责持久化到 banyan 后端——但这忽略了一个关键事实：应用数据是 append-only 的，对话 phase 本身提供了暂存语义（building → awaiting_confirm → committed），banyan 后端在 done 事件后写库保证了**跨设备可恢复性**。若将持久化时机移交给本地 PreviewServer，用户换一台电脑就会丢失 AI 产出。
+
+**决策链：** PreviewServer 需要执行云函数 → 需要 collections + cloudFunctions → 但不需要 appJSON（appJSON 只是前端渲染用，PreviewServer 的 FlowRunner 不读它）→ 数据推送方向为单向下推（上游 → PreviewServer）→ PreviewServer 不发起任何写操作 → 持久化链路保持 banyan 后端原有的 append-only 机制不变。
+
+**为什么 PreviewServer 不持有 appJSON：** 前端 PreviewPage 用 `useRuntimeBanvas` 在 renderer 进程内渲染画布、触发客户端 FlowSchema。整个前端渲染和客户端 Flow 执行都在 renderer 进程完成，只有碰到 `callFlow` 节点才会发 HTTP 请求到 PreviewServer。因此 PreviewServer 只需要服务端 FlowRunner 能执行的数据（collections + cloudFunctions），appJSON 对它无意义。
+
+**为什么不做元数据代理：** 应用数据的持久化遵循 append-only 语义（ADR-042 版本化），banyan 后端在 AI 对话的 done 事件后写库，对话 phase 隐含了版本和暂存概念。这一机制保证了跨设备数据一致性——用户在 A 电脑对话产出的中间态已落库，在 B 电脑打开时可恢复。如果让本地 PreviewServer 作为代理「决定何时写库」，就打破了这一保证，且 PreviewServer 承担了超出其定位的职责。
+
+**约束：**
+
+- PreviewServer 只接收 collections + cloudFunctions 的下推，不接收 appJSON
+- PreviewServer 不发起任何向 banyan 后端的写操作（不做持久化代理）
+- PreviewServer 不维护 savedSnapshot / workingState 等版本化状态，只维护「当前可执行态」
+- 数据推送时机：banyan 后端 done 事件写库成功后，前端通过 IPC 将最新 collections + cloudFunctions 推送给 PreviewServer 做 hotUpdate
+- 前端元数据持久化链路保持现有模式：前端 → banyan 后端（HTTP）→ MongoDB（append-only）
+
+**反例：**
+
+- PreviewServer 作为元数据代理层承担持久化职责——本地状态丢失（换电脑/重启）导致 AI 产出不可恢复，打破 append-only 跨设备保证
+- PreviewServer 持有 appJSON——无意义，服务端 FlowRunner 不读页面布局数据，增加无用的同步负担
+- PreviewServer 参与确认/拒绝流——对话 phase 语义由 banyan 后端 + xiangdi 管理，PreviewServer 不应了解对话状态
+
+**实施方案：** `docs/specs/app/metadata-dataflow.md`（应用元数据数据流：PreviewServer 作为下游只读消费者的 hotUpdate 机制、前端 store 设计、持久化链路）
