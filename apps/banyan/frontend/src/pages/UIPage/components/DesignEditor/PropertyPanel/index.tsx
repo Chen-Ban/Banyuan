@@ -6,23 +6,24 @@ import { PropertiesTab } from "./PropertiesTab"
 import { StyleTab } from "./StyleTab"
 import { DataTab } from "./DataTab"
 import { EventsTab } from "./EventsTab"
-import type { FlowEditorModalSlotProps } from "./EventsTab"
+import type { FlowEditorOpenRequest } from "./EventsTab"
 import styles from "./index.module.scss"
 
 export interface PropertyPanelProps {
   selectedViewId: string
   actions: IBanvasActions
   currentPageId: string | null
-  FlowEditorModal?: React.ComponentType<FlowEditorModalSlotProps>
   appId?: string
+  /** 请求打开流程编辑面板（状态提升到 UIPage） */
+  onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }
 
 export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   selectedViewId,
   actions,
   currentPageId,
-  FlowEditorModal: FlowEditorModalSlot,
   appId,
+  onOpenFlowEditor,
 }) => {
   const view = selectedViewId
     ? actions.view.getViewInstance(selectedViewId)
@@ -94,8 +95,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
         mode="page"
         pageId={currentPageId}
         actions={actions}
-        FlowEditorModal={FlowEditorModalSlot}
         appId={appId}
+        onOpenFlowEditor={onOpenFlowEditor}
       />
     ) : null
 
@@ -160,8 +161,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           mode="view"
           selectedViewId={selectedViewId}
           actions={actions}
-          FlowEditorModal={FlowEditorModalSlot}
           appId={appId}
+          onOpenFlowEditor={onOpenFlowEditor}
         />
       ),
     },

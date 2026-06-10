@@ -15,7 +15,7 @@ import { Input, Tooltip } from 'antd'
 import { SearchOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
 import type { IMaterial, IMaterialTemplate } from '@banyuan/banvasgl'
 import { materialApi } from '@/api'
-import MaterialThumbnail from '@/components/MaterialThumbnail'
+import MaterialThumbnail from './MaterialThumbnail'
 import styles from './index.module.scss'
 
 // ── 类型定义 ──

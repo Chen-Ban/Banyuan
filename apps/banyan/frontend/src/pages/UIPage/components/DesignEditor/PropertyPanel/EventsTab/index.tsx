@@ -3,13 +3,11 @@ import { Button, Select } from 'antd'
 import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, IAppLifetimes, EventHandler, FlowSchema } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
 
-/** FlowEditorModal 插槽 Props */
-export interface FlowEditorModalSlotProps {
-    open: boolean
+/** 流程编辑器打开请求参数 */
+export interface FlowEditorOpenRequest {
     title: string
     initialSchema: FlowSchema
     onSave: (schema: FlowSchema) => void
-    onClose: () => void
 }
 
 /** View 模式 Props */
@@ -17,8 +15,9 @@ interface ViewEventsTabProps {
     mode: 'view'
     selectedViewId: string
     actions: IBanvasActions
-    FlowEditorModal?: React.ComponentType<FlowEditorModalSlotProps>
     appId?: string
+    /** 请求打开流程编辑面板 */
+    onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }
 
 /** Page 模式 Props */
@@ -26,16 +25,18 @@ interface PageEventsTabProps {
     mode: 'page'
     pageId: string
     actions: IBanvasActions
-    FlowEditorModal?: React.ComponentType<FlowEditorModalSlotProps>
     appId?: string
+    /** 请求打开流程编辑面板 */
+    onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }
 
 /** App 模式 Props */
 interface AppEventsTabProps {
     mode: 'app'
     actions: IBanvasActions
-    FlowEditorModal?: React.ComponentType<FlowEditorModalSlotProps>
     appId?: string
+    /** 请求打开流程编辑面板 */
+    onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }
 
 export type EventsTabProps = ViewEventsTabProps | PageEventsTabProps | AppEventsTabProps
@@ -85,20 +86,6 @@ function toFlowSchema(handler: EventHandler): FlowSchema {
     return handler as FlowSchema
 }
 
-interface ModalState {
-    open: boolean
-    title: string
-    initialSchema: FlowSchema
-    onSave: (schema: FlowSchema) => void
-}
-
-const CLOSED_MODAL: ModalState = {
-    open: false,
-    title: '',
-    initialSchema: { nodes: [], edges: [] },
-    onSave: () => {},
-}
-
 interface EventRowItemProps {
     label: string
     handler: EventHandler
@@ -140,18 +127,11 @@ const LifetimeRowItem: React.FC<LifetimeRowItemProps> = ({ label, handler, onDel
 }
 
 export const EventsTab: React.FC<EventsTabProps> = (props) => {
-    const { actions, FlowEditorModal: FlowEditorModalSlot } = props
-    const [modal, setModal] = useState<ModalState>(CLOSED_MODAL)
+    const { actions, onOpenFlowEditor } = props
     const [addingEvent, setAddingEvent] = useState<keyof IViewEvents | ''>('')
 
-    const openModal = (title: string, initialSchema: FlowSchema, onSave: (s: FlowSchema) => void) => {
-        setModal({ open: true, title, initialSchema, onSave })
-    }
-
-    const closeModal = () => setModal(CLOSED_MODAL)
-
-    const handleSave = (schema: FlowSchema) => {
-        modal.onSave(schema)
+    const openEditor = (title: string, initialSchema: FlowSchema, onSave: (s: FlowSchema) => void) => {
+        onOpenFlowEditor?.({ title, initialSchema, onSave })
     }
 
     // ── App 模式 ──
@@ -169,7 +149,7 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
                             handler={lifetimes[key] ?? null}
                             onDelete={() => actions.app.deleteAppLifetime(key)}
                             onEdit={() =>
-                                openModal(
+                                openEditor(
                                     label,
                                     toFlowSchema(lifetimes[key] ?? null),
                                     (schema) => actions.app.setAppLifetime(key, schema),
@@ -178,16 +158,6 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
                         />
                     ))}
                 </section>
-
-                {FlowEditorModalSlot && (
-                    <FlowEditorModalSlot
-                        open={modal.open}
-                        title={modal.title}
-                        initialSchema={modal.initialSchema}
-                        onSave={handleSave}
-                        onClose={closeModal}
-                    />
-                )}
             </div>
         )
     }
@@ -207,7 +177,7 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
                             handler={lifetimes[key]}
                             onDelete={() => actions.page.deletePageLifetime(props.pageId, key)}
                             onEdit={() =>
-                                openModal(
+                                openEditor(
                                     label,
                                     toFlowSchema(lifetimes[key]),
                                     (schema) => actions.page.setPageLifetime(props.pageId, key, schema),
@@ -216,16 +186,6 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
                         />
                     ))}
                 </section>
-
-                {FlowEditorModalSlot && (
-                    <FlowEditorModalSlot
-                        open={modal.open}
-                        title={modal.title}
-                        initialSchema={modal.initialSchema}
-                        onSave={handleSave}
-                        onClose={closeModal}
-                    />
-                )}
             </div>
         )
     }
@@ -255,7 +215,7 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
                         handler={lifetimes[key]}
                         onDelete={() => actions.view.deleteViewLifetime(selectedViewId, key)}
                         onEdit={() =>
-                            openModal(
+                            openEditor(
                                 label,
                                 toFlowSchema(lifetimes[key]),
                                 (schema) => actions.view.setViewLifetime(selectedViewId, key, schema),
@@ -274,7 +234,7 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
                         handler={events[key]}
                         onDelete={() => actions.view.deleteViewEvent(selectedViewId, key)}
                         onEdit={() =>
-                            openModal(
+                            openEditor(
                                 label,
                                 toFlowSchema(events[key]),
                                 (schema) => actions.view.setViewEvent(selectedViewId, key, schema),
@@ -305,16 +265,6 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
                     </div>
                 )}
             </section>
-
-            {FlowEditorModalSlot && (
-                <FlowEditorModalSlot
-                    open={modal.open}
-                    title={modal.title}
-                    initialSchema={modal.initialSchema}
-                    onSave={handleSave}
-                    onClose={closeModal}
-                />
-            )}
         </div>
     )
 }
