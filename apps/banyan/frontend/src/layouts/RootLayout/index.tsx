@@ -12,7 +12,7 @@
  *   - settings：设置页 → 面包屑 + 用户信息 + 设置项列表
  *   - app：应用编辑态 → 面包屑 + 用户信息 + AiBar
  *
- * 重构后：应用相关状态（appName、AI 回调等）全部迁移到 applicationStore，
+ * 应用相关状态（appName、AI 回调等）由 applicationStore 管理，
  * 此组件仅负责 Layout 壳 + sidebarMode 判断。
  */
 

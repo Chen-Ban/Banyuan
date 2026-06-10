@@ -7,12 +7,14 @@
  * - 已登录：正常渲染子路由
  */
 
-import { useAuth } from '@/hooks/authContext'
 import { useEffect } from 'react'
 import { Outlet } from 'react-router-dom'
+import { useAuthStore } from '@/stores/authStore'
 
 export default function ProtectedRoute() {
-  const { user, loading, openLoginModal } = useAuth()
+  const user = useAuthStore((s) => s.user)
+  const loading = useAuthStore((s) => s.loading)
+  const openLoginModal = useAuthStore((s) => s.openLoginModal)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -25,7 +27,7 @@ export default function ProtectedRoute() {
   }
 
   if (!user) {
-    // 未登录时显示空白，LoginModal 由 AuthProvider 全局渲染
+    // 未登录时显示空白，LoginModal 由根组件全局渲染
     return null
   }
 

@@ -5,14 +5,14 @@
  * 1. 输入手机号 → 点击「获取验证码」
  * 2. 输入 6 位验证码 → 点击「登录」
  *
- * 登录成功后调用 useAuth().login() 保存 token 并关闭弹窗。
+ * 登录成功后调用 authStore.login() 保存 token 并关闭弹窗。
  */
 
 import { useState, useCallback, useRef } from 'react'
 import { App, Modal, Input, Button } from 'antd'
 import { MobileOutlined, SafetyOutlined } from '@ant-design/icons'
 import { authApi } from '@/api'
-import { useAuth } from '@/hooks/authContext'
+import { useAuthStore } from '@/stores/authStore'
 import { getErrorMessage } from '@/utils/error'
 import styles from './index.module.scss'
 
@@ -26,7 +26,9 @@ function isValidPhone(phone: string): boolean {
 
 const LoginModal = () => {
   const { message } = App.useApp()
-  const { loginModalOpen, closeLoginModal, login } = useAuth()
+  const loginModalOpen = useAuthStore((s) => s.loginModalOpen)
+  const closeLoginModal = useAuthStore((s) => s.closeLoginModal)
+  const login = useAuthStore((s) => s.login)
 
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')

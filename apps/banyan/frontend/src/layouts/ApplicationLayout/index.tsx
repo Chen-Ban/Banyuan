@@ -19,7 +19,7 @@
  *   - 数据库和云函数是独立子路由（/database、/functions）
  *   - 管理 PreviewServer 生命周期（应用级）
  *
- * 重构后不再提供 AppLayoutCtx。所有共享状态走 useApplicationStore。
+ * 所有共享状态通过 useApplicationStore 读写。
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
