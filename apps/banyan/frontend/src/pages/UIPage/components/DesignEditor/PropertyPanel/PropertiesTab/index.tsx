@@ -1,7 +1,7 @@
 import React from 'react'
 import { Input, Tooltip } from 'antd'
 import type { IBanvasActions } from '@banyuan/banvasgl'
-import { GraphType, View } from '@banyuan/banvasgl'
+import { GraphType, View, isGraphType } from '@banyuan/banvasgl'
 import { NumberInput } from '../NumberInput'
 import styles from './index.module.scss'
 
@@ -34,9 +34,13 @@ export const PropertiesTab: React.FC<PropertiesTabProps> = ({
     const width = view.viewport.width
     const height = view.viewport.height
 
-    const content = view.content as any
-    const isRoundedRect = content && content.type === GraphType.ROUNDED_RECT
-    const radii: [number, number, number, number] = isRoundedRect ? content.radii : [0, 0, 0, 0]
+    const content = view.content
+    const roundedRect =
+      content && isGraphType(content, GraphType.ROUNDED_RECT) ? content : null
+    const isRoundedRect = roundedRect !== null
+    const radii: [number, number, number, number] = roundedRect
+      ? roundedRect.radii
+      : [0, 0, 0, 0]
 
     const isLocked = view.freezed
     const isVisible = view.visible

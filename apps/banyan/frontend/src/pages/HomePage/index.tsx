@@ -86,7 +86,7 @@ const HomePage = () => {
       message.error(getErrorMessage(err));
       setSubmitting(false);
     }
-  }, [prompt, submitting, navigate]);
+  }, [prompt, submitting, navigate, message]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

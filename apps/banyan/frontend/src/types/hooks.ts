@@ -6,6 +6,7 @@
  */
 
 import type { IBanvasActions } from '@banyuan/banvasgl'
+import type React from 'react'
 import type { IContextMenuState } from './contextMenu'
 
 /**
@@ -18,7 +19,7 @@ import type { IContextMenuState } from './contextMenu'
  */
 export interface IDragProps {
     draggable: true
-    onDragStart: (e: any) => void
+    onDragStart: (e: React.DragEvent) => void
 }
 
 /**

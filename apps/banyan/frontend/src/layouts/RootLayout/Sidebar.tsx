@@ -30,7 +30,7 @@ import {
   SwapOutlined,
   GithubOutlined,
 } from "@ant-design/icons";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/authContext";
 import { applicationApi } from "@/api";
 import type { Application } from "@/api";
 import { useApplicationStore } from "@/stores/applicationStore";
@@ -311,7 +311,7 @@ const AppBreadcrumb: React.FC = () => {
     } catch {
       message.error("重命名失败");
     }
-  }, [renameValue, currentAppId, setAppName]);
+  }, [renameValue, currentAppId, setAppName, message]);
 
   // ── 删除应用 ──
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -338,7 +338,7 @@ const AppBreadcrumb: React.FC = () => {
     } finally {
       setDeleting(false);
     }
-  }, [deleteConfirmMatch, currentAppId, navigate]);
+  }, [deleteConfirmMatch, currentAppId, navigate, message]);
 
   // ── 切换应用子菜单 ──
   const [appList, setAppList] = useState<Application[]>([]);

@@ -47,6 +47,14 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
     setTags((prev) => prev.filter((t) => t !== tag))
   }, [])
 
+  const handleClose = useCallback(() => {
+    setName('')
+    setDescription('')
+    setTags([])
+    setTagInput('')
+    onClose()
+  }, [onClose])
+
   const handleOk = useCallback(async () => {
     if (!name.trim()) {
       message.warning('请输入物料名称')
@@ -61,6 +69,10 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
         description: description.trim() || undefined,
         parameterBindings: [],
       })
+      if (!template) {
+        message.error('物料序列化失败，请重试')
+        return
+      }
 
       // 发布到后端
       await materialApi.createMaterial({
@@ -79,15 +91,7 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
     } finally {
       setLoading(false)
     }
-  }, [name, description, tags, viewId, actions, onSuccess])
-
-  const handleClose = useCallback(() => {
-    setName('')
-    setDescription('')
-    setTags([])
-    setTagInput('')
-    onClose()
-  }, [onClose])
+  }, [name, description, tags, viewId, actions, onSuccess, handleClose, message])
 
   return (
     <Modal

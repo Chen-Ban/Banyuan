@@ -47,9 +47,8 @@ export interface FlowEditorHandle {
 }
 
 const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(
-  ({ fn, appId, onSaved, dirty: _dirty, onDirtyChange }, ref) => {
+  ({ fn, appId, onSaved, onDirtyChange }, ref) => {
     const { message } = App.useApp();
-    const [_saving, setSaving] = useState(false);
     const [paletteOpen, setPaletteOpen] = useState(false);
     const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null);
 
@@ -71,7 +70,6 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(
     );
 
     const handleSave = async () => {
-      setSaving(true);
       try {
         const schema = getSchema();
         const res = await cloudFunctionApi.updateFunction(
@@ -91,13 +89,10 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(
         }
       } catch (err: unknown) {
         message.error(err instanceof Error ? err.message : "保存失败");
-      } finally {
-        setSaving(false);
       }
     };
 
     // ── 暴露 save 给父组件（供 appEvents.onSaveApp 调用） ──
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useImperativeHandle(ref, () => ({ save: handleSave }));
 
     return (

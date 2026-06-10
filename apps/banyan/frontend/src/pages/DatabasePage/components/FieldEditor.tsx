@@ -57,13 +57,11 @@ const FieldEditor = forwardRef<FieldEditorHandle, FieldEditorProps>(({
   collection,
   appId,
   onSaved,
-  dirty: _dirty,
   onDirtyChange,
 }, ref) => {
   const { message } = App.useApp()
   // 本地字段列表（编辑态）
   const [localFields, setLocalFields] = useState<FieldDef[]>(collection.fields)
-  const [_saving, setSaving] = useState(false)
 
   // 当外部 collection 变化时同步（例如切换表）
   useEffect(() => {
@@ -125,12 +123,11 @@ const FieldEditor = forwardRef<FieldEditorHandle, FieldEditorProps>(({
       displayName: f.displayName.trim() || f.name.trim(),
     }))
 
-    setSaving(true)
     try {
       const res = await schemaApi.updateCollection(appId, collection.name, {
         fields: normalizedFields,
       })
-      const updated = res.data?.collections.find((c) => c.name === collection.name)
+      const updated = res.data
       if (updated) {
         onSaved(updated)
         setLocalFields(updated.fields)
@@ -138,13 +135,10 @@ const FieldEditor = forwardRef<FieldEditorHandle, FieldEditorProps>(({
       }
     } catch (err: unknown) {
       message.error(err instanceof Error ? err.message : '保存失败')
-    } finally {
-      setSaving(false)
     }
   }
 
   // ── 暴露 save 给父组件（供 appEvents.onSaveApp 调用） ──────────────────────
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useImperativeHandle(ref, () => ({ save: handleSave }))
 
   return (

@@ -85,7 +85,8 @@ const AiBar: React.FC<AiBarProps> = ({ appId }) => {
   const [dialogueMode, setDialogueMode] = useState<'task' | 'chat'>('task');
 
   // onDone 回调：banyan 后端已在 done 事件后写库（M1 不变），前端拉取最新数据
-  const handleDone = useCallback(async (_summary: string) => {
+  // （done 事件的 summary 此处用不到，省略参数）
+  const handleDone = useCallback(async () => {
     await refreshFromBackend()
   }, [refreshFromBackend])
 

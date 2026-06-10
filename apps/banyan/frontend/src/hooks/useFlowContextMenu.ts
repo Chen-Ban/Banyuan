@@ -26,8 +26,8 @@ function createNodeContextMenuItems(
                 const children = actions.page.getTopLevelViews()
                 const relatedEdges = children.filter(
                     (v): v is EdgeView => v instanceof EdgeView &&
-                        (v.fromPortId?.startsWith(targetId + '_') ||
-                         v.toPortId?.startsWith(targetId + '_'))
+                        ((v.fromPortId?.startsWith(targetId + '_') ?? false) ||
+                         (v.toPortId?.startsWith(targetId + '_') ?? false))
                 )
                 for (const edge of relatedEdges) {
                     actions.view.delete(edge.id)
