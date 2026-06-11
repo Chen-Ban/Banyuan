@@ -42,6 +42,7 @@ import { ServiceUnavailableError } from '../errors.js'
 import { createRequestLogger } from '../logger.js'
 import { buildFrontendToolHandlers, buildBackendToolHandlers } from './orchestrateHandlers.js'
 import type { AppRuntimeState } from './orchestrateHandlers.js'
+import { getStore } from '../checkpoint/index.js'
 
 const router = new Router({ prefix: '/ai' })
 
@@ -208,7 +209,10 @@ router.post('/run', async (ctx) => {
       initialMessages.push(new HumanMessage(prompt))
     }
 
-    // 6. 创建 Orchestrator Graph
+    // 6. 创建 Orchestrator Graph。
+    //    注入 checkpointer 启用断点持久化：同一 threadId 的多次请求会恢复
+    //    上次 state.artifacts，intent 节点据此判断从哪个阶段续跑/回退。
+    const checkpointStore = getStore()
     const sseCallback = createOrchestratorSSEBridge(res)
     const graph = createOrchestratorGraph({
       llm,
@@ -216,9 +220,12 @@ router.post('/run', async (ctx) => {
       banvasVersion: version,
       frontendToolHandlers,
       backendToolHandlers,
+      checkpointer: checkpointStore.getCheckpointer(),
     })
 
     // 7. 执行 Orchestrator Graph
+    //    configurable.thread_id 是 Checkpoint 的恢复键，LangGraph 据此加载/保存 state。
+    checkpointStore.recordActivity(threadId, 'running')
     const systemPrompt = buildSystemPrompt()
     await graph.invoke({
       mode: (mode ?? 'task') as OrchestratorMode,
@@ -230,7 +237,9 @@ router.post('/run', async (ctx) => {
     }, {
       recursionLimit: 100,
       signal: abortController.signal,
+      configurable: { thread_id: threadId },
     })
+    checkpointStore.recordActivity(threadId, 'completed')
 
     // 8. done 事件已由 summarizeNode 通过 sseCallback 推送
     //    额外推送最终 appJSON（banyan 后端需要写回 MongoDB）
@@ -241,6 +250,8 @@ router.post('/run', async (ctx) => {
     })
 
   } catch (err) {
+    // 异常/中断：标记 thread 为 interrupted，交由 TTL 清理策略按 interruptedTTL 处理。
+    try { getStore().recordActivity(threadId, 'interrupted') } catch { /* 不阻塞错误处理 */ }
     if (abortController.signal.aborted) {
       // 客户端主动断开，静默处理
       reqLogger.info('Client disconnected, aborting')

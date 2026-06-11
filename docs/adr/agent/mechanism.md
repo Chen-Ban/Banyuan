@@ -109,27 +109,24 @@ AgentMemory 统一层管理中期经验和长期偏好，通过 OrchestratorStat
 
 **✅ 已实施** · 补充 M5
 
-利用 LangGraph Checkpointer 实现流程断点持久化，支持审计回退后从中间状态精确恢复，以及 awaiting_confirm 暂停等待用户操作后恢复执行。
+**概念定义：** Checkpoint 是流程进度的状态快照（OrchestratorState，核心是 artifacts 五槽：requirements/uiDesign/contract/frontend/backend），按 thread_id 持久化。它记录的是「流程走到哪了、各阶段产出了什么」，**不是上下文**——应用状态（appJSON/schema/cloudFunctions）每次请求动态拉取，对话历史由 banyan 后端通过 previousMessages 传入，二者均不依赖 Checkpoint。
 
-**实现：** `apps/xiangdi-server/src/checkpoint/`（SqliteCheckpointStore / MemoryCheckpointStore / 工厂入口）
+**接入方式（方案核心，非实现细节）：** Checkpoint 必须在图的 **compile 层**注入（`compile({ checkpointer })`），恢复键由 **invoke 时的 `configurable.thread_id`** 提供。LangGraph 据此在每个节点执行后自动保存、下次同 thread_id invoke 时自动恢复 state.artifacts。节点本身**不感知 Checkpoint**——intent 只是被动消费已恢复的 `state.artifacts` 来判断续跑/回退起点。
 
-- SQLite 后端（默认）：单文件 `./data/checkpoints.db`，含 TTL 清理定时任务
-- Memory 后端（开发用）：纯内存，服务重启丢失
-- 后端选择通过 `CHECKPOINT_BACKEND` 环境变量
-- 全局单例，服务启动时初始化，Graceful Shutdown 时清理
+**决策链：** 扁平管线中审计失败需要精确回退到某个节点重跑，且需保留已完成节点的工件；同一会话多轮迭代时 intent 需要知道「上次流程进度」才能判断从哪个阶段续接。LangGraph Checkpointer 天然支持「节点执行后自动持久化 + 按 thread_id 恢复」，因此把进度持久化交给 compile 层的 checkpointer，而非在节点内手动读写——后者会让每个节点都耦合持久化逻辑，违背机制/策略分离。
 
-**决策链：** 扁平管线中审计失败需要精确回退到某个节点重跑，且需保留已完成节点的工件。LangGraph Checkpointer 天然支持每个节点执行后自动持久化状态快照，回退时只需从目标节点的 checkpoint 恢复。同时支持 awaiting_confirm 场景（暂停等待用户操作后恢复执行）。
+**约束（概念层）：**
 
-**约束：**
+- 接入点唯一：compile 注入 checkpointer + invoke 传 thread_id，不在任何节点内手动读取 checkpoint
+- artifacts 是「流程进度」而非「上下文」，二者来源相互独立
+- Checkpoint 是技术基础设施——可随时清除而不影响业务数据正确性（应用数据由 banyan 后端持有）
+- thread_id 需在跨请求间保持稳定（由用户侧/banyan 后端持久化），否则无法命中上次进度
 
-- 每个节点执行后 LangGraph 自动 checkpoint
-- 回退时通过 rollbackResult.target 确定目标节点，清空目标及下游工件后从该节点重新执行
-- awaiting_confirm 状态下 checkpoint 持久化，用户确认/拒绝后恢复
-- Checkpoint 是技术基础设施——可随时清除而不影响业务数据正确性
+**正例：** 同一 thread_id 第二次请求 → LangGraph 恢复上次 artifacts → intent 看到 requirements/uiDesign 已存在 → 判定从 contract 续跑，跳过已完成阶段。
 
-**反例：**
+**反例 1（错误接入点）：** 在 intent 节点内手动 `store.get(threadId)` 读取并过滤 checkpoint——错。节点不应感知持久化，这会让续跑逻辑与存储实现耦合，且 compile 未注入 checkpointer 时 artifacts 永远为空、续跑逻辑沦为死代码（接入前的真实状态）。
 
-- 中断恢复意图分类 + 失效传播策略（ResumeClassifier + 失效传播决定重跑阶段）——被"打断即新对话"模型取代：用户打断不恢复旧对话，而是开启新 Dialogue，intent 节点判断从哪个节点续接。彻底消除了复杂的中断恢复状态机
+**反例 2（已废弃的设计）：** 中断恢复意图分类 + 失效传播策略（ResumeClassifier + 失效传播决定重跑阶段）——被"打断即新对话"模型取代：用户打断不恢复旧对话，而是开启新 Dialogue，intent 节点判断从哪个节点续接。彻底消除了复杂的中断恢复状态机。
 
 ---
 

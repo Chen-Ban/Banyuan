@@ -175,6 +175,7 @@ START → intent(LLM) → chat → respond(LLM+只读工具) → 总结 → END
 - 前后端 Worker 并行通过 Send API 实现，各自拥有独立 state 和 checkpoint
 - 回退是图拓扑的显式边（audit->rollback->目标节点），LangGraph checkpoint 完整记录回退历史
 - 状态管理通过 Annotation reducer 模式（artifactsReducer 支持增量写入和回退清空）
+- Checkpointer 在 compile 层注入、恢复键用 invoke 的 thread_id，断点持久化对节点透明（节点不感知存储，详见 M3）
 
 **反例：**
 

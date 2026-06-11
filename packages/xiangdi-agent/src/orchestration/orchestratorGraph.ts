@@ -18,6 +18,7 @@
  *   - rollback 可退回任意规划/构建节点
  */
 import { Annotation, StateGraph, START, END, Send } from "@langchain/langgraph";
+import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { LLMClient } from "../core/index.js";
 import type { DialoguePhase } from "./phases.js";
@@ -160,6 +161,13 @@ export interface OrchestratorGraphConfig {
   workerModel?: string;
   /** Worker 最大循环次数（默认 15） */
   workerMaxIterations?: number;
+  /**
+   * LangGraph Checkpointer（由 xiangdi-server 注入）。
+   * 传入后图在 compile 层启用断点持久化：以 invoke 时的 thread_id 为键，
+   * 自动保存/恢复 OrchestratorState（含 artifacts）。
+   * 不传则图为无状态执行，每次 invoke 从空 state 起跑。
+   */
+  checkpointer?: BaseCheckpointSaver;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -333,5 +341,7 @@ export function createOrchestratorGraph(config: OrchestratorGraphConfig) {
     .addEdge("commit", "summarize")
     .addEdge("summarize", END);
 
-  return graph.compile();
+  // checkpointer 存在时启用断点持久化：LangGraph 按 invoke 的 thread_id
+  // 自动恢复上次 state.artifacts，intent 节点据此判断续跑/回退。
+  return graph.compile({ checkpointer: config.checkpointer });
 }

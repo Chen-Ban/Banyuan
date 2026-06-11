@@ -11,12 +11,13 @@
  *   └────────────────────────┴────────┴────────────────────┘
  */
 
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Drawer, Tooltip } from 'antd'
 import { AppstoreOutlined, CloseOutlined } from '@ant-design/icons'
 import type { FlowSchema } from '@banyuan/banvasgl'
 import useFlowBanvas from '../../../hooks/useFlowBanvas'
 import { FlowContextMenu } from '../FlowContextMenu'
+import FlowNodePropertyPanel from '../FlowNodePropertyPanel'
 import UnifiedMaterialPanel from '../../UnifiedMaterialPanel'
 import styles from './index.module.scss'
 
@@ -45,6 +46,8 @@ export const FlowEditorPanel: React.FC<FlowEditorPanelProps> = ({
   const {
     Canvas,
     getSchema,
+    selectedNode,
+    updateNodeSchema,
     contextMenuState,
   } = useFlowBanvas(
     {
@@ -53,6 +56,18 @@ export const FlowEditorPanel: React.FC<FlowEditorPanelProps> = ({
     },
     initialSchema,
   )
+
+  // ── 属性面板状态 ──
+  const [panelDismissed, setPanelDismissed] = useState(false)
+  const prevNodeIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const nodeId = selectedNode?.id ?? null
+    if (nodeId !== prevNodeIdRef.current) {
+      prevNodeIdRef.current = nodeId
+      if (nodeId) setPanelDismissed(false)
+    }
+  }, [selectedNode])
 
   const handleSave = useCallback(() => {
     onSave(getSchema())
@@ -130,6 +145,15 @@ export const FlowEditorPanel: React.FC<FlowEditorPanelProps> = ({
 
           {/* 右键菜单 */}
           <FlowContextMenu state={contextMenuState} />
+
+          {/* 节点属性面板 */}
+          {selectedNode && !panelDismissed && (
+            <FlowNodePropertyPanel
+              node={selectedNode}
+              onChange={updateNodeSchema}
+              onClose={() => setPanelDismissed(true)}
+            />
+          )}
         </div>
       </div>
     </div>

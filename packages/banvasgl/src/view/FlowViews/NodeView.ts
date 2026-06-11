@@ -10,6 +10,8 @@ import type {
     IInteractResult,
     IContainerViewOptions,
     FlowNode,
+    FlowValue,
+    FlowCondition,
 } from '@/types/index.js'
 
 // 节点默认尺寸
@@ -190,6 +192,68 @@ function deriveTitleFromSchema(schema: FlowNode): string {
     }
 }
 
+// ── 摘要行推导 ──
+
+/** 将 FlowValue 转为简短可读字符串（供摘要行显示） */
+function flowValueToString(value: FlowValue): string {
+    switch (value.kind) {
+        case 'literal': {
+            const v = value.value
+            if (v === null) return 'null'
+            if (typeof v === 'string') return v.length > 12 ? `"${v.slice(0, 12)}…"` : `"${v}"`
+            if (typeof v === 'object') return '{…}'
+            return String(v)
+        }
+        case 'dataRef': return `${value.viewId}.${value.key}`
+        case 'pageDataRef': return `page.${value.key}`
+        case 'eventArg': return `event[${value.index}]`
+        case 'nodeRef': return `node:${value.nodeId.slice(0, 6)}`
+        default: return '?'
+    }
+}
+
+/** 将 FlowCondition 转为简短可读字符串 */
+function conditionToString(cond: FlowCondition): string {
+    return `${flowValueToString(cond.left)} ${cond.op} ${flowValueToString(cond.right)}`
+}
+
+/**
+ * 从 FlowNode schema 推导摘要行文本。
+ * 返回 null 表示该 kind 不需要摘要行（如值节点）。
+ */
+function deriveSummaryFromSchema(schema: FlowNode): string | null {
+    switch (schema.kind) {
+        case 'setVariable': return `${schema.scope}.${schema.key} = ${flowValueToString(schema.value)}`
+        case 'setData': return `${schema.viewId}.${schema.key} = ${flowValueToString(schema.value)}`
+        case 'navigate': return `→ ${schema.pageId || '未设置'}`
+        case 'callFlow': return `📞 ${schema.flowId || '未设置'}`
+        case 'condition': return `${conditionToString(schema.condition)} ?`
+        case 'dbQuery': return `${schema.collection || '?'} → ${schema.outputVariable}`
+        case 'dbInsert': return `${schema.collection || '?'} ← insert`
+        case 'dbUpdate': return `${schema.collection || '?'} ← update`
+        case 'dbDelete': return `${schema.collection || '?'} ← delete`
+        case 'httpRequest': {
+            const url = flowValueToString(schema.url)
+            return `${schema.method} ${url}`
+        }
+        case 'transform': return schema.expression.length > 20 ? `${schema.expression.slice(0, 20)}…` : schema.expression
+        case 'script': return '⚡ 自定义脚本'
+        case 'delay': return `${schema.ms}ms`
+        case 'setVisible': return `${schema.viewId}.visible = ${schema.visible}`
+        case 'animate': return `${schema.viewId} ▶ ${schema.animationId || '?'}`
+        case 'forEach': return `∀ ${schema.itemVariable} in ${flowValueToString(schema.collection)}`
+        case 'parallel': return `${schema.branches.length} 分支 (${schema.joinMode})`
+        case 'subFlow': return `${schema.inputs.length} 入 / ${schema.outputs.length} 出`
+        case 'return': return schema.outputValue ? flowValueToString(schema.outputValue) : null
+        // 值节点不需要摘要
+        case 'variable':
+        case 'pageVar':
+        case 'eventParam':
+            return null
+        default: return null
+    }
+}
+
 /**
  * NodeView —— 流程图节点
  *
@@ -366,15 +430,21 @@ export default class NodeView extends ContainerView implements INodeView {
         ctx.fillRect(0, 0, accentW, h)
         ctx.restore()
 
+        // 获取摘要行
+        const summary = deriveSummaryFromSchema(this.schema)
+        const hasSummary = summary !== null && summary.length > 0
+
+        // 标题 y 位置：有摘要时上移，无摘要时垂直居中
+        const titleY = hasSummary ? h / 2 - 8 : h / 2
+
         // 图标
         const icon = this.appearance.icon
         const iconX = accentW + 10
-        const iconY = h / 2
         ctx.fillStyle = this.appearance.accentColor
         ctx.font = '14px sans-serif'
         ctx.textAlign = 'left'
         ctx.textBaseline = 'middle'
-        ctx.fillText(icon, iconX, iconY)
+        ctx.fillText(icon, iconX, titleY)
 
         // 标题文字
         const textX = accentW + 28
@@ -383,7 +453,16 @@ export default class NodeView extends ContainerView implements INodeView {
         ctx.font = '12px sans-serif'
         ctx.textAlign = 'left'
         ctx.textBaseline = 'middle'
-        ctx.fillText(this.nodeTitle, textX, iconY, maxTextW)
+        ctx.fillText(this.nodeTitle, textX, titleY, maxTextW)
+
+        // 摘要行
+        if (hasSummary) {
+            const summaryY = titleY + 18
+            ctx.fillStyle = '#9ca3af'
+            ctx.font = '10px sans-serif'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(summary, textX, summaryY, maxTextW)
+        }
 
         ctx.restore()
     }
@@ -420,18 +499,32 @@ export default class NodeView extends ContainerView implements INodeView {
         ctx.lineWidth = isActive ? 2 : 1.5
         ctx.stroke()
 
-        // 图标（上半部分居中）
+        // 获取摘要行
+        const summary = deriveSummaryFromSchema(this.schema)
+        const hasSummary = summary !== null && summary.length > 0
+
+        // 图标（上部）
+        const iconY = hasSummary ? cy - 12 : cy - 8
         ctx.fillStyle = '#d97706'
         ctx.font = 'bold 13px sans-serif'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
-        ctx.fillText('?', cx, cy - 8)
+        ctx.fillText('?', cx, iconY)
 
-        // 标题文字（下半部分居中）
+        // 标题文字
+        const titleY = hasSummary ? cy + 4 : cy + 9
         ctx.fillStyle = isActive ? '#92400e' : '#374151'
         ctx.font = '11px sans-serif'
         ctx.textBaseline = 'middle'
-        ctx.fillText(this.nodeTitle, cx, cy + 9, w * 0.65)
+        ctx.fillText(this.nodeTitle, cx, titleY, w * 0.65)
+
+        // 摘要行
+        if (hasSummary) {
+            ctx.fillStyle = '#9ca3af'
+            ctx.font = '9px sans-serif'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(summary, cx, cy + 18, w * 0.6)
+        }
 
         ctx.restore()
     }
