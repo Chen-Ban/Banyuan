@@ -57,6 +57,11 @@ export interface UseFlowBanvasResult {
      */
     selectedNode: FlowNode | null
     /**
+     * 更新当前选中节点的 FlowNode schema，触发画布重绘。
+     * 仅当 selectedNode 非 null 时有效。
+     */
+    updateNodeSchema: (updated: FlowNode) => void
+    /**
      * 右键菜单状态
      *
      * 业务方将此状态传给 `<FlowContextMenu state={contextMenuState} />` 即可渲染右键菜单。
@@ -156,6 +161,16 @@ export default function useFlowBanvas(
         return null
     }, [actions, selectedViewId])
 
+    // ── 更新选中节点 schema ──
+    const updateNodeSchema = useCallback((updated: FlowNode) => {
+        if (!actions || !selectedViewId) return
+        const view = actions.view.getViewInstance(selectedViewId)
+        if (view instanceof NodeView) {
+            view.schema = updated
+            actions.app.notify()
+        }
+    }, [actions, selectedViewId])
+
     // ── 右键菜单 ──
     const { contextMenuState, handleContextMenu } = useFlowContextMenu(actions)
 
@@ -173,6 +188,7 @@ export default function useFlowBanvas(
         selectedViewId,
         selectedViewPos,
         selectedNode,
+        updateNodeSchema,
         contextMenuState,
     }
 }

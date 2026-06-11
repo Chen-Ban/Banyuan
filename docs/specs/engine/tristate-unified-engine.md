@@ -5,7 +5,7 @@
 - **域 / 粒度 / 标题**：engine / architecture / **A8a. 三态统一引擎，hook 层区分行为**
 - **上位定位**：**A0. banvasgl 定位为「面向声明式 UI 的 2D 图形运行时（含流程控制）」** —— 本方案是 A0「机制/策略分离契约」在三态场景下的直接落地。
 - **决策链回顾**：产品需要"设计 → 预览 → 发布"完整链路 → 曾尝试独立 runtime 包但从未落地 → 核心洞察：三态差异仅在「交互策略」与「FlowSchema 是否执行」，二者都不是引擎机制本身 → banvasgl 作为运行时只提供机制（原子事件 / 命中检测 / 几何变换 / FlowSchema 执行 / `flowEnabled` gate），三态差异由上层注入不同策略表达。
-- **上游依赖**：A0（根定位 / 机制策略契约）、A8（宿主集成层 / hook）、A3（InteractionStateMachine + Delegate）、A5a（前后端执行器隔离，提供 `createClientFlowRunner`）
+- **上游依赖**：A0（根定位 / 机制策略契约）、A8（宿主集成层 / hook）、A3（InteractionStateMachine + Delegate）、A5b（前后端执行器隔离，提供 `createClientFlowRunner`）
 
 ---
 

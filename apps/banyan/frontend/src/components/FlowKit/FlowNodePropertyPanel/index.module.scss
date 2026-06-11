@@ -1,0 +1,158 @@
+/**
+ * FlowNodePropertyPanel 样式
+ */
+
+.propertyPanel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 280px;
+  max-height: calc(100% - 24px);
+  background: var(--color-bg-elevated, #fff);
+  border-radius: 12px;
+  border: 1px solid var(--color-border-md, #e5e7eb);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+  animation: slideInRight 0.2s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 0;
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kindBadge {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text, #1f2937);
+  white-space: nowrap;
+}
+
+.nodeId {
+  font-size: 10px;
+  color: var(--color-text-tertiary, #9ca3af);
+  font-family: monospace;
+}
+
+.closeBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--color-text-secondary, #6b7280);
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: var(--color-fill-hover, #f3f4f6);
+    color: var(--color-text, #1f2937);
+  }
+}
+
+.headerDivider {
+  margin: 8px 0 0;
+}
+
+.panelBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// ── 表单字段 ──
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 11px;
+  color: var(--color-text-secondary, #6b7280);
+  font-weight: 500;
+}
+
+.fieldControl {
+  // 控件区域无需额外样式
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+// ── FlowValueEditor ──
+
+.flowValueEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sourceSegmented {
+  // 让 Segmented 组件在紧凑空间中自适应
+  :global(.ant-segmented-item) {
+    padding: 0 6px;
+    font-size: 10px;
+  }
+}
+
+.valueInputArea {
+  // 值输入区域
+}
+
+.hStack {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.selectHalf {
+  width: 50%;
+  flex-shrink: 0;
+}
+
+.inputHalf {
+  flex: 1;
+  min-width: 0;
+}
+
+// ── 其他 ──
+
+.infoText {
+  font-size: 11px;
+  color: var(--color-text-tertiary, #9ca3af);
+  padding: 4px 0;
+}

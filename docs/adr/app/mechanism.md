@@ -32,6 +32,11 @@
 │    + PreviewServer 下推同步      │
 └───────────────────────────────────┘
 
+┌───────────────────────────────────┐
+│  M7 流程节点属性面板              │
+│   （engine:M19 Phase 1 过渡）     │
+└───────────────────────────────────┘
+
         M1 ←complements→ M2
         M2 → M4（构建产物标准化后的分布式部署）
         M2 ←complements→ M3
@@ -44,6 +49,7 @@
 - M2⇄M3：构建预览产出桌面产物，Bridge 抽象解决产物在不同平台运行时的能力适配，二者互补覆盖从构建到运行的全链路
 - M5 独立：实时协作是面向未来的方向性锁定，当前不与其他机制产生依赖
 - M6 独立：前端 Store 统一状态管理是前端架构重构，不修订 M1（done 后写库保持不变），与 A6（PreviewServer 职责边界）配合实现下推同步
+- M7 独立：流程节点属性面板是 engine:M19 的 Phase 1 前端过渡方案，复用 UI 设计态 PropertyPanel 模式
 
 ---
 
@@ -207,3 +213,31 @@ banyan 后端提供 build 和 preview 服务：preview 启动临时 Vite dev ser
 - done 事件不写库改为前端决定——换电脑后 AI 产出丢失
 
 **实施方案：** `docs/specs/app/metadata-dataflow.md`（应用元数据数据流完整方案）
+
+---
+
+## 流程编辑机制
+
+### M7. 流程节点属性面板（Phase 1 过渡方案）
+
+**未实施** · 配合 engine:M19 Phase 1 · 复用 UI 设计态 PropertyPanel 模式
+
+流程编辑器中选中节点后，在画布右侧渲染 DOM 属性面板，按 node.kind 动态渲染对应参数编辑表单。这是 engine:M19 终极目标（Blender 式内嵌编辑）的过渡方案——在 Canvas-native 控件体系成熟之前，用 DOM 层 Ant Design 表单组件提供完整编辑能力。
+
+**决策链：** 当前流程节点无法编辑参数（engine:M19 背景）→ Canvas-native 控件体系需要较长建设周期 → 需要一个立即可用的过渡方案 → UI 设计态已有成熟的 PropertyPanel 模式（Ant Design Tabs + 编辑事务）→ 流程编辑器复用同一模式 → `useFlowBanvas` 已暴露 `selectedNode` + `selectedViewPos`，DOM 面板可直接消费。
+
+**约束：**
+
+- 面板固定在流程编辑器右侧（与 UI 设计态 PropertyPanel 位置一致），不跟随节点浮动
+- 根据 `selectedNode.kind` 动态渲染对应表单，核心复用组件为 `FlowValueEditor`（FlowValue 五种来源的统一编辑器）
+- 编辑事务复用 UI 设计态的 `beginPropertyEdit` / `commitPropertyEdit` 约定
+- 属性面板是过渡方案，engine:M19 Phase 3 实现后降级为重型编辑场景入口（如 script code）
+- FlowSchema 允许不完整状态存在（运行时执行器做容错），表单校验仅提示不阻断
+
+**反例：**
+
+- 浮层面板跟随节点——拖拽时跟随抖动、多节点密集时遮挡
+- 模态对话框编辑——打断流程图编辑上下文
+- 每种 kind 独立开发完整面板——FlowValueEditor 无法复用
+
+**实施方案：** `docs/specs/engine/flow-node-inline-edit.md`（Phase 1 部分）

@@ -20,8 +20,10 @@
 import {
   forwardRef,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { App, Drawer, Tooltip } from "antd";
@@ -29,6 +31,7 @@ import { AppstoreOutlined } from "@ant-design/icons";
 import type { FlowSchema } from "@banyuan/banvasgl";
 import useFlowBanvas from "@/hooks/useFlowBanvas";
 import { FlowContextMenu } from "@/components/FlowKit/FlowContextMenu";
+import FlowNodePropertyPanel from "@/components/FlowKit/FlowNodePropertyPanel";
 import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
 import { cloudFunctionApi } from "@/api";
 import type { CloudFunctionDef } from "@/api";
@@ -61,13 +64,26 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(
       [fn],
     );
 
-    const { Canvas, getSchema, contextMenuState } = useFlowBanvas(
+    const { Canvas, getSchema, selectedNode, updateNodeSchema, contextMenuState } = useFlowBanvas(
       {
         // 自适应模式：不传 width/height，画布跟随外部容器尺寸自动调整
         backgroundColor: "white",
       },
       initialSchema,
     );
+
+    // ── 属性面板状态 ──
+    const [panelDismissed, setPanelDismissed] = useState(false);
+    const prevNodeIdRef = useRef<string | null>(null);
+
+    // 选中新节点时自动重新展示面板
+    useEffect(() => {
+      const nodeId = selectedNode?.id ?? null;
+      if (nodeId !== prevNodeIdRef.current) {
+        prevNodeIdRef.current = nodeId;
+        if (nodeId) setPanelDismissed(false);
+      }
+    }, [selectedNode]);
 
     const handleSave = async () => {
       try {
@@ -157,6 +173,15 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(
 
           {/* 右键菜单 */}
           <FlowContextMenu state={contextMenuState} />
+
+          {/* 节点属性面板 */}
+          {selectedNode && !panelDismissed && (
+            <FlowNodePropertyPanel
+              node={selectedNode}
+              onChange={updateNodeSchema}
+              onClose={() => setPanelDismissed(true)}
+            />
+          )}
         </div>
       </div>
     );
