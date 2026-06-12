@@ -1,69 +1,63 @@
 /**
- * NodeExecutorRegistry —— 节点执行器注册表（操作语义表）
+ * NodeExecutorRegistry —— 节点执行器注册表
  *
- * ═══════════════════════════════════════════════════════════════════
- * 设计定位：Registry 是 Flow 解释器的「语义表」。
- * ═══════════════════════════════════════════════════════════════════
- *
- * 类比编译原理中的「语义函数」映射：
- *   kind（节点类型名） → executor（该类型的操作语义）
- *
- * 这张表决定了「流程图中每种节点在运行时具体做什么」。
- * 策略模式（Strategy Pattern）使得：
- *   - 扩展性：新增节点类型只需 registry.register(kind, fn)
- *   - 职责分离：前后端注册不同的执行器集合（client preset vs server preset）
- *   - 可测试性：单元测试可以 mock 任意 kind 的执行器
- *
- * 链式 API 设计使得 preset 工厂函数可以一行完成全量注册。
+ * 每个 kind 对应一个 NodeExecutor，定义了该节点在运行时的操作语义。
+ * 前后端通过不同的预组装 presets 注册不同的执行器集合。
  */
 
 import type { FlowNode } from '../types/schema.js'
-import type { FlowValue } from '../types/values.js'
-import type { FlowContext } from '../runtime/context.js'
 
-/**
- * 节点执行器返回值类型
- *
- * - 'true'/'false'：condition 分支结果
- * - '__return__'：提前终止流程（return 节点）
- * - void：正常执行完毕，继续下一个节点
- */
-export type NodeExecutorResult = 'true' | 'false' | '__return__' | void
+/** 执行器执行结果 */
+export interface NodeExecResult {
+  /** 命名输出端口 → 值。key = 端口名（如 "rows", "count", "value", "result"） */
+  outputs?: Record<string, unknown>
+  /** condition 命中分支的 label */
+  branch?: string
+  /** 执行失败时的错误对象 */
+  error?: Error
+}
 
-/**
- * 节点执行器函数签名
- *
- * @param node - 当前节点数据
- * @param ctx - 执行上下文
- * @param resolve - 值解析器（FlowValue → 实际值）
- * @returns condition 节点返回 'true'/'false'，return 节点返回 '__return__'，其他返回 void
- */
-export type NodeExecutor = (
-  node: FlowNode,
-  ctx: FlowContext,
-  resolve: (val: FlowValue) => unknown,
-) => Promise<NodeExecutorResult>
+/** 节点执行器接口 */
+export interface NodeExecutor<T extends FlowNode = FlowNode> {
+  /** 节点 kind */
+  readonly kind: string
+  /** 该节点暴露的输出端口名列表 */
+  readonly outputPorts: string[]
 
+  /**
+   * 执行节点
+   * @param node - 节点数据
+   * @param resolvedInputs - 已解析的输入插槽值（key = 插槽名）
+   * @param ctxIn - 入参（只读）
+   * @param ctxState - 分层状态（可读写）
+   * @param ctxCap - 能力句柄（仅 action 可见）
+   */
+  execute(
+    node: T,
+    resolvedInputs: Record<string, unknown>,
+    ctxIn: Readonly<Record<string, unknown>>,
+    ctxState: { view: Record<string, Record<string, unknown>>; page: Record<string, unknown>; app: Record<string, unknown>; flow: Record<string, unknown> },
+    ctxCap: Record<string, unknown>,
+  ): Promise<NodeExecResult>
+}
+
+/** 节点执行器注册表 */
 export class NodeExecutorRegistry {
   private executors = new Map<string, NodeExecutor>()
 
-  /** 注册一个节点执行器（链式调用） */
-  register(kind: string, executor: NodeExecutor): this {
-    this.executors.set(kind, executor)
+  register(executor: NodeExecutor): this {
+    this.executors.set(executor.kind, executor)
     return this
   }
 
-  /** 获取节点执行器 */
   get(kind: string): NodeExecutor | undefined {
     return this.executors.get(kind)
   }
 
-  /** 检查是否已注册 */
   has(kind: string): boolean {
     return this.executors.has(kind)
   }
 
-  /** 获取所有已注册的 kind 列表 */
   kinds(): string[] {
     return [...this.executors.keys()]
   }

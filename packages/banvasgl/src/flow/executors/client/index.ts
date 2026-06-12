@@ -1,4 +1,2 @@
-export { setDataExecutor } from './setData.js'
-export { navigateExecutor } from './navigate.js'
-export { animateExecutor } from './animate.js'
-export { setVisibleExecutor } from './setVisible.js'
+﻿// Re-exports from consolidated executor files (v2.0.0)
+export { setVariableExecutor, navigateExecutor, callFlowExecutor } from "../action-client.js"
