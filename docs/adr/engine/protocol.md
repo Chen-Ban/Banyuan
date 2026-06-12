@@ -1,4 +1,4 @@
-# 引擎 · 协议级决策
+﻿# 引擎 · 协议级决策
 
 > 模块间怎么通信——引擎内部模块及引擎与外部系统之间的接口契约。
 
@@ -90,9 +90,9 @@
 - **C9/C10（交互协议族）refines engine:A0**——InteractionDelegate 是 banvasgl 暴露的**机制接口**，InteractionCapability 取值是上层注入的**策略**，这组协议是 A0 机制/策略分离契约在协议层的落地
 - C1→C2/C3：App/Scene/View 通信协议是事务提交和序列化的基础
 - C3→C4：View 序列化依赖类型注册协议实现多态反序列化
-- **C15 refines architecture:A5**——A5 定义 FlowSchema「是什么」（有向图形态的过程式 AST），C15 定义这张图「长什么样」（node 分类 / 统一一种边 + entry/exit 双指针（SESE）/ 参数插槽混合模型）；C15 是流程执行协议族（C5/C6/C7）的**结构基础**，执行环境、执行器、值解析都消费 C15 固化的图形状
+- **C15 refines architecture:A5**——A5 定义 FlowSchema「是什么」（有向图形态的过程式 AST + Push-Pull 调度），C15 定义这张图「长什么样」（node 分类 / ControlEdge+DataEdge 二分边 / 顶层开放 DAG + 可调用子图 / 参数插槽混合模型）；C15 是流程执行协议族（C5/C6/C7）的**结构基础**，执行环境、执行器、值解析都消费 C15 固化的图形状
 - **C16 refines protocol:C15**——C15 把值节点的取值源收敛为「按 `path` 从注入上下文取值」却留下「上下文长什么样」的指针；C16 补齐这一面：用单一维度**资源来向**把上下文封闭三分为 `in / state / cap`，并约定每个**挂载点**（View.events / View.lifetimes / Scene 生命周期 / 云函数入口）静态推导出的 context 形状。C16 既 defines C5 执行环境消费的 context 形状，也界定值节点可见的只读子集 `{in, state}`（cap 仅副作用节点执行器可见）
-- **C17 refines protocol:C15**——C15 固化了图的「形状」（节点怎么分类、边只有一种且拓扑即顺序、参数怎么承载），C17 在其上固化**语句层节点的语义**：以「会不会产生副作用」为唯一判据，把语句层节点显式两分为**控制流节点**（只改变「往哪走/怎么组织」，无副作用）与**动作节点**（产生副作用），并给出目标态的**节点全集**；同时把 `condition` 的判据外置为沿入边求值的 boolean（消除内联 condition 字段）、新增 `while`、把错误处理收进节点内嵌的 `onError` 子图（子图入口即 handler，作为块级子作用域、其 `in` 静态叠 `error` 字段——见 C16 约束四）、废除 `transform`/`script`/`setData`/`setVisible` 四个节点。C17 与 C16 正交——C16 管「数据从哪来」，C17 管「语句怎么走、谁有副作用」
+- **C17 refines protocol:C15**——C15 固化了图的「形状」（节点分类、ControlEdge+DataEdge 二分边、参数插槽混合），C17 在其上固化**语句层节点的语义**：以「会不会产生副作用」为唯一判据，把语句层节点显式两分为**控制流节点**（只改变「往哪走/怎么组织」，无副作用）与**动作节点**（产生副作用），并给出目标态的**节点全集**；同时把 `condition` 的判据外置为沿入边求值的 boolean（消除内联 condition 字段）、新增 `while`、把错误处理收进节点内嵌的 `onError` 子图（子图入口即 handler，作为块级子作用域、其 `in` 静态叠 `error` 字段——见 C16 约束四）、废除 `transform`/`script`/`setData`/`setVisible` 四个节点。C17 与 C16 正交——C16 管「数据从哪来」，C17 管「语句怎么走、谁有副作用」
 - C5→C6→C7：FlowContext 定义执行环境 → NodeExecutor 在此环境中执行 → resolveValue 解析节点输入值
 - C9→C10：Delegate 接口定义能力需求（机制），Capability 配置决定启用哪些能力（策略）
 - C11→C12：Hook 层通信依赖外部订阅协议实现状态同步
@@ -212,13 +212,13 @@ FlowRunner 通过 `registerNode(kind, executor)` 注册节点执行器。`kind` 
 
 ### C7. 值解析协议（resolveValue）
 
-**✅ 已实施（1.0.0）· 🔜 随 C15 演进至 2.0.0** · 依赖 C6 · refines protocol:C15
+**✅ 已实施** · 依赖 C6 · refines protocol:C15
 
 FlowNode 的输入参数通过 `resolveValue()` 统一解析。**当前 `1.0.0` 实现**按 `valueType` 分发五种值来源；**C15 落地后（`2.0.0`）值来源收敛为「源节点 + 计算节点 + 插槽连边」三条路径**，下表给出当前态与目标态的对照。
 
-**决策链：** 节点输入可能来自字面量、数据绑定、事件参数、上游节点输出等多种来源 → 需要统一的值解析协议 → resolveValue 根据来源分发 → C15 将值节点收敛为两亚种后，五种 `valueType` 折叠为「源节点（literal / context-path）+ 计算节点输出 + 插槽内联默认」，引用类来源统一为「从单一注入上下文对象按 path 取值」。
+**决策链：** 节点输入可能来自字面量、上下文取值、上游节点输出等多种来源 → 需要统一的值解析协议 → 值由三种路径获取：源节点直接出值、计算节点对输入求值后产出、插槽内联默认字面量。引用类来源统一为「按 path 从单一注入上下文对象取值」。Pull 调度下，resolveSlot 沿数据边反向递归完成求值。
 
-**约束（1.0.0 当前态 ⇒ 2.0.0 目标态）：**
+**约束：**
 
 - `literal`（直接使用字面量值）⇒ **源节点 `from:'literal'`**：单一 `value` 字段承载任意 JSON 值，或作为插槽内联默认
 - `dataRef`（引用 View 数据属性，viewId + path）⇒ **源节点 `from:'context'`**，path 形如 `state.view.<id>.<...>`（视图级状态，C16 约束一）
@@ -230,67 +230,68 @@ FlowNode 的输入参数通过 `resolveValue()` 统一解析。**当前 `1.0.0` 
 
 ---
 
-### C15. FlowSchema 图结构契约（节点分类 + 统一一种边 + entry/exit 双指针（SESE）+ 插槽混合模型）
+### C15. FlowSchema 图结构契约（节点分类 + 二分边 + 插槽混合模型）
 
 **🔜 待实施** · refines architecture:A5 · 流程执行协议族的结构基础
 
-A5 确立了 FlowSchema「是有向图形态的过程式 AST」这一本质，本协议固化这张图的**具体形状契约**：节点如何分类、边只有一种且拓扑即顺序、图怎么锁定入/出口（SESE）、节点参数如何承载取值。外壳层（NodeView/EdgeView/PortView + 画布）、执行器（C6）、值解析（C7）、序列化都以本契约为准。
+A5 确立了 FlowSchema「是有向图形态的过程式 AST」这一本质，本协议固化这张图的**具体形状契约**：节点如何分类、控制边和数据边各自承担什么职责、节点参数如何承载取值。外壳层、执行器（C6）、值解析（C7）、序列化都以本契约为准。
 
-**决策链：** A5 定义 FlowSchema 是过程式 AST（节点=语句/表达式，边=控制流/数据流）→ 需要把这个抽象落成可序列化的字段结构 → 三个设计问题待定：值节点如何收敛、边要不要区分控制/数据、参数取值放节点内还是连边 → 取「用户友好优先」的混合方案（对标 Blender 着色器的 socket 默认字面量模型）：值节点收敛为「源节点 + 计算节点」两亚种、边统一为一种（拓扑即执行顺序、值沿边流动）、参数用插槽统一内联与连边、循环/递归/并发/错误处理均封进复合节点内嵌的 SESE 子图 → 四者共同将 FlowSchema 收敛为一张语义自洽、外壳可逆、执行无歧义、永远无环的有向图。
+**图结构：顶层开放 DAG，子图为可调用闭包。** Blender GN 强制 SESE——适合纯数据流图，但对事件驱动的过程式程序过于约束。Houdini VOP 顶层完全开放，用 Block Begin/End 标记局部控制流——额外引入了标记节点复杂度。Banyuan 取两者之间：顶层开放 DAG（出度 0 即结束，汇合可选），子图是可调用闭包（显式 subEntry/subExit 定义参数注入和产出收集）。
 
-**约束一 · 节点分两类，值节点收敛为「源节点 + 计算节点」两亚种：**
+**决策链：** A5 定义 FlowSchema 是过程式 AST → 三个设计问题：值节点收敛、边要不要区分控制/数据、参数取值模型 → 值节点收敛为 source + compute 两亚种 → 边显式拆分为 ControlEdge 和 DataEdge（Blueprints exec+data 是业界唯一大规模验证的混合图方案）→ 参数用插槽混合模型（内联默认 + 数据边覆盖）。
 
-节点沿用 A5 的两分法——动作节点（statement）与值节点（expression）。值节点彻底收敛为**两个亚种**，取代旧的三种纯引用节点（`variable` / `pageVar` / `eventParam`）+ 字面量的分散设计：
+**约束一 · 节点分四类，值节点收敛为 source + compute：**
 
-- **源节点（SourceNode）**：纯数据源，无输入、单输出，自身无副作用。它合并「字面量」与「取值」两个维度，用一个 `from` 判别字段区分：
-  - `{ from: 'literal'; value }`——内联一个任意 JSON 值（string / number / boolean / null / array / object）。**字面量无需按类型拆分多种节点**：单一 `value` 字段承载所有类型，具体类型的输入控件是外壳层（M19）的职责，schema 不感知。
-  - `{ from: 'context'; path }`——从**注入的上下文对象**中按 `path` 取值（如 `page.user.name`、`event.0`、`view.btn1.text`）。上下文是**一个对象**，作用域只是 `path` 的首段，不需要额外的 `scope` 字段或 ScopeRef 包装。
-- **计算节点（ComputeNode）**：接受若干输入、产出一个值，自身无副作用（如 `math`、`concat`、`format`、`compare`、`logic` 等），可彼此级联组成表达式子图——对标 Blender 着色器的 Math/Mix 节点。引入计算节点的目的是**用户友好**：复杂表达式（如「单价 × 数量 × (1 - 折扣)」）可在画布上可视化拼装，而非埋进某个参数的内联字面量里难以编辑。
+- **source**：纯数据源，`from: 'literal'` 或 `from: 'context'`。输出端口名为 `"value"`。
+- **compute**：纯变换（math/compare/logic/concat/format/get），可级联。输出端口名为 `"value"`。
+- **action**：有副作用，可暴露多个命名输出端口（如 dbQuery 的 `"rows"` 和 `"count"`）。
+- **control**：选路（condition/while/forEach/parallel/subFlow）。
 
-源节点与计算节点的输出都通过一条边（`fromPort`→`toPort`）接入下游动作节点的参数插槽，或接入另一个计算节点的输入插槽。
+**约束二 · 边分两种：ControlEdge + DataEdge：**
 
-> **上下文从哪来？** 源节点只负责「按 `path` 从注入对象取值」，**不关心上下文如何产生**——上下文由 FlowSchema 的**挂载位置**静态确定其形状、运行时确定其值（同一套「挂载点 ⇒ 上下文」派生机制的两面：静态注入形状、运行时注入值，无需独立的作用域注入协议）。各挂载位置（如 `View.events.onClick` / `Scene.onLoad` / 云函数）分别提供哪些上下文内容，由 **C16（挂载点 ⇒ 上下文契约）** 约定：上下文按资源来向封闭三分为 `in / state / cap`，值节点 `path` 首段限定为 `in` / `state`（详见 protocol:C16）。
+```ts
+interface FlowControlEdge {
+  id: string;
+  from: string;       // 源节点 ID
+  to: string;         // 目标节点 ID
+  branch?: string;    // condition 分支标签（匹配 case.label 或 "default"）
+}
 
-**约束二 · 统一一种边（拓扑即顺序，边上流值；不分型）：**
+interface FlowDataEdge {
+  id: string;
+  fromNode: string;   // 源节点 ID
+  fromPort: string;   // 源节点的输出端口名
+  toNode: string;     // 目标节点 ID
+  toSlot: string;     // 目标节点的输入插槽名
+}
+```
 
-边保持**单一 `FlowEdge`**——`{ id, from, to, fromPort?, toPort?, branch? }`，不拆成 ControlEdge/DataEdge/ErrorEdge 判别联合。前提是 FlowSchema 升级为**显式 `entry` + `exit` 的单入口单出口（SESE）结构**（C17 约束七）：执行路径由拓扑唯一确定，一种边即可同时承载执行顺序与流动的值。
+**分工：**
+- ControlEdge 串起整个流程的执行顺序，不携带业务数据。Push 沿它遍历，编辑时校验有向无环。
+- DataEdge 连接输出端口到输入插槽，承载值依赖。Pull 沿它反向递归求值，编辑时校验 forward-reference（fromNode 在控制序上先于 toNode）。
+- 同一对节点可同时有 ControlEdge 和 DataEdge（如 dbQuery ─Control→ condition，dbQuery.result ─Data→ condition.caseSlot）。这是 Blueprints exec+data 双线的标准模式。
 
-- **拓扑即执行顺序**：FlowRunner 从 `entry` 沿 `from→to` 线性遍历到 `exit`，边本身就表达「先执行 from 再执行 to」，无需 `edgeKind:'control'` 标记「这是执行边」。
-- **边上流值**：`from` 节点的输出经 `fromPort` 流到 `to` 节点的 `toPort` 指向的输入插槽——求值依赖即沿边流动的值，无需独立的 `DataEdge`。纯控制推进（无值流动）时 `fromPort`/`toPort` 皆省略。
-- **多出口靠 `branch`**：`condition` 的多个 case 出口用边的 `branch` 字段区分（命中 case 的 label / `default`），单出口节点省略 `branch`。
-- **不再有 `ErrorEdge` / 跨节点循环回边**：错误处理是节点内嵌的 `onError: FlowSubSchema` 补偿子图、循环体是 `while`/`forEach` 的 `body: FlowSubSchema`、递归是 `subFlow` 的子图（C15 第 5 节）；主链路上无跨节点 error 边、无回流到循环头的环边，每张（子）图都是 entry→exit 的有向无环线性路径。错误消费语义（onError 子图为块级子作用域、其 `in` 静态叠 `error` 字段、不另设 catch 节点）由 protocol:C17 约束四界定。
+**为什么不用统一一种边：** 旧 SESE 架构下"拓扑即顺序"使统一边成为可能——一条边同时表达执行顺序和值依赖。Push-Pull + 开放 DAG 下控制边和数据边的职责、调度行为、校验规则都不相同，隐式靠字段推断（有无 fromPort/toPort）增加运行时代码和外壳渲染层的歧义。显式二分消除这种歧义——类型即语义。
 
-**约束三 · 参数采用插槽混合模型（Blender 式 socket 默认字面量 + 连边覆盖，互斥）：**
+**约束三 · 参数采用插槽混合模型（Blender 式 socket 默认字面量 + 数据边覆盖，互斥）：**
 
-动作节点与计算节点的每个输入参数都是一个**插槽（slot）**，取值遵循统一互斥规则：
+- 插槽默认内联 JSON 字面量（`FlowSlot = unknown`）。
+- 有 DataEdge（toSlot 指向该插槽）连入时，边获胜——忽略内联值，Pull 该数据边。
+- 内联与连边互斥。内联用于简单默认，连边用于复用/计算/动态。
 
-- 插槽默认持有一个**内联 JSON 字面量**（`FlowSlot = unknown`），即「socket 上写死的默认值」——多数简单场景无需连线，直接在节点内填值，保持画布清爽（旧 `FlowValue` 的引用类 kind 已上移为源节点 + 一条边，C17）
-- 当有一条边（`toPort` 指向该插槽）连入时，**边获胜**：内联值被忽略，运行时取该边上游节点经 `fromPort` 的输出
-- 二者**互斥**，不存在「既有内联值又有连线」的并存歧义——内联用于简单默认（便捷），连边用于复用/计算/动态（一个源节点可多路连出、计算节点可级联），二者互补而非二选一的两套等价机制
-- 插槽内联字面量与「字面量源节点」**共存且不矛盾**：内联是插槽上的便捷默认值（单点、不可复用）；源节点是图上的一等公民（可被多条数据边连出、可参与计算）。简单场景写内联，需要复用时升格为源节点
-
-**约束四 · 节点不携带空间坐标（对齐 A5）：**
-
-延续 A5「职责回归」——`FlowNode` 不含 `x`/`y`。节点的画布摆放由图形化外壳层独立持久化，FlowSchema 的序列化/反序列化不读写坐标。本契约描述的是**语义图**，不是**布局图**。
-
-**可逆性要求：**
-
-外壳层从 FlowSchema 派生端口与连线、用户在画布上的操作回写 schema，必须**双向无损**：统一边据是否携带 fromPort/toPort 还原为执行连线（无 port，纯推进）或参数连线（有 port，值流动）、插槽内联值还原为节点内输入框、计算节点还原为可级联的运算节点。任何一类语义都不得在外壳⇄schema 往返中丢失（这是 A5 约束第 4 条「语义自洽性与图形化形态可逆」在字段层面的落地）。本契约的外壳侧实现见机制级 M19（NodeView 内联参数编辑，插槽控件↔连边的就地切换）与 M19a（NodeKindDescriptor，`derivePorts()` 把插槽/边投影为端口/连线）。
+**约束四 · 节点不携带空间坐标：** `FlowNode` 不含 `x`/`y`。画布摆放归外壳层。
 
 **反例：**
 
-- 边继续用单一类型 + 可选字段隐式区分控制/数据——外壳与执行器被迫靠「有没有 branch/有没有 toParam」推断边的性质，数据边易被当作控制边丢弃（旧 P0 缺陷）。
-- 参数允许「内联值与数据边并存」——产生两个事实源，运行时需要规则裁决谁优先，且 UI 难以表达这种叠加态。
-- 把计算能力塞进动作节点参数的内联表达式字符串（如 `"{{price * qty}}"`）——表达式不可视化、不可复用、解析成本高，违背「用户友好」初衷；计算应是一等的值节点。
-- 给计算节点或源节点赋予副作用（修改变量、触发导航）——值节点必须纯，副作用归动作节点，否则数据流与控制流边界崩塌。
-- 为「字面量」按类型拆出多种节点（StringNode / NumberNode / BooleanNode…）——类型差异是外壳层输入控件的事，schema 层一个 `value` 字段即可承载，拆分徒增节点种类。
-- 为「取值」再包一层 ScopeRef / 显式 `scope` 字段——上下文已是单一注入对象，`path` 首段即作用域，额外包装是冗余。
+- 用统一一种边——控制流和数据流职责不同，隐式推断增加歧义。
+- 在顶层图强制 SESE——出度 0 即自然结束。
+- 参数允许内联值与数据边并存。
+- 把计算能力塞进参数的内联表达式字符串。
+- 给 source/compute 节点赋予副作用。
 
-**承接契约：** 源节点 `from:'context'` 依赖一份**挂载点 ⇒ 上下文契约**——约定每个 FlowSchema 挂载位置（`View.events.*` / `View.lifetimes.*` / `Scene.onLoad` 等生命周期 / 云函数入口）分别提供哪些上下文内容、形状如何静态推导。该契约已落地为 **C16（挂载点 ⇒ 上下文契约）**：用单一维度**资源来向**把上下文封闭三分为 `in / state / cap`，并界定值节点只能看到只读子集 `{in, state}`（`path` 首段即三分之一）。详见 protocol:C16。
+**承接契约：** source `from:'context'` 依赖 **C16（挂载点 ⇒ 上下文契约）**。
 
-**实施方案：** [FlowSchema 图结构契约 — 类型重构/迁移/外壳适配](../../specs/engine/flow-graph-structure.md)
-
----
+**实施方案：** [FlowSchema 图结构契约](../../specs/engine/flow-graph-structure.md)
 
 ### C16. 挂载点 ⇒ 上下文契约（资源来向三分 · 挂载点描述符）
 
@@ -458,24 +459,27 @@ C15 固化了图的**形状**（节点怎么分类、边只有一种且拓扑即
 | `script` | 在 FlowSchema 已能完备表达流程控制的前提下，注入任意脚本有悖「可视化、可审计」产品哲学；其定位其实对标 `subFlow`（组织可复用逻辑）而非计算 | → `subFlow`（可复用流程片段，进物料系统） |
 | `setData` | 与 `setVariable` 职责重叠（都是「设置」） | → `setVariable`（写 `state.view.*`） |
 | `setVisible` | 同上，是「设置可见性」的特例 | → `setVariable`（写视图的 visible 状态字段） |
-| `return` | 每张图是 SESE、靠边的流向推进，「结束」天然就是走到本（子）图的 `exit` 节点；`return` 把命令式函数的「提前返回」塞进图，是和命令式解释器搞混的伪需求（见约束七） | → 无需迁移目标：删除节点、原 return 点连一条边到所在（子）图的 `exit`；若在 subFlow 中携带返回值，该值沿边流入 exit（C15 第 6 节） |
+| `return` | 顶层出度 0 即结束、子图走到 subExit 即结束，`return` 把命令式函数的「提前返回」塞进图是伪需求（见约束七） | → 无需迁移目标：删除节点；若在 subFlow 中携带返回值，该值沿边流入 subExit |
 | `delay` | 时间流逝是宿主运行时能力（同 setTimeout/sleep），不是顶层 DAG AST 的可编排控制流原语；把宿主特性硬塞进与语言无关的图抽象（见约束九） | → 无等价图节点：纯时序等待落到下游副作用节点执行器内部时序属性（如重试退避）、或云函数实现内（无法自动转换，人工迁移项） |
 | `animate` | 它是对前端渲染能力的封装，保留会让动作节点跟着「前端有什么 API」无限膨胀（toast/弹窗/滚动/聚焦…），把渲染层能力往流程层泄漏（见约束九） | → `setVariable`：把动画/表现改写为写 `state.view.*` 的样式/意图变量，由渲染层下一帧消费呈现 |
 
-**约束七（每张图单入口单出口 SESE；流程结束 = 走到 `exit`，不设 `return` 节点）：** A5 已定义 FlowSchema 是「有向图」，流程靠边的流向推进，不是命令式代码块。把每张（子）图固化为**单入口单出口（SESE）**——顶层 `entry: string` 标起点、`exit: string` 标终点，复合节点内嵌的子图同样各带自己的 entry/exit（C15 第 5 节 `FlowSubSchema`）。由此：
+**约束七（顶层开放 DAG + 子图为可调用闭包；流程结束 = 出度 0 即自然结束，不设 `return` 节点）：** A5 已定义 FlowSchema 是「有向图」，流程靠边的流向推进，不是命令式代码块。顶层 FlowSchema 有显式 `entry: string` 标起点，不设 `exit`——出度 0 即自然结束，多分支可按需分别结束或汇合（多边汇入同一节点）。复合节点内嵌的子图（`FlowSubSchema`：subFlow body、while body、forEach body、onError）是可调用闭包，显式 `subEntry: string` + `subExit: string` 定义参数注入点和产出收集点。由此：
 
-- **流程结束的唯一含义是「走到本（子）图的 `exit` 节点」。** 不再有「多个出度为 0 的拓扑终点各自收尾」——condition 各分支最终都汇流到同一 `exit`，循环体/补偿子图各自在其内嵌子图里走到子图的 `exit`。每张（子）图都是从 entry 到 exit 的有向无环线性路径，结束位置唯一确定。
-- **不设 `return` 节点**：命令式语言的 `return` 表达「提前结束函数并回传值」，但在 SESE 图里「结束」就是「连一条边到 `exit`」——某节点想结束，只要连边到所在（子）图的 exit 即可，拓扑本身表达了这件事。强行引入 `return` 等于把命令式解释器的控制语义偷塞进数据流图，与 A5 的图本质冲突。
-- **subFlow 的「返回值」走纯数据流**：子流程的输出不靠 `return` 携带，而是**沿连入子图 `exit` 的边流入 exit 的值**即为 subFlow 输出（C15 第 6 节），回到调用方后下游经一条边（fromPort）取用。
+- **顶层图：出度 0 即自然结束。** condition 各分支可按需分别结束（各自到达出度为 0 的节点）或汇合（多边汇入同一节点）。不再强制所有分支汇流到唯一 `exit`。**子图：走到 `subExit` 即结束。** 循环体/补偿子图/子流程各自在其内嵌子图里走到 `subExit`（产出经连入 subExit 的边收集），回到母图当前节点沿出边继续。
+- **不设 `return` 节点**：命令式语言的 `return` 表达「提前结束函数并回传值」，但在图里——顶层图中「结束」就是到达出度 0 的节点；子图中「结束」就是连一条边到 `subExit`。拓扑本身表达了结束，强行引入 `return` 等于把命令式解释器的控制语义偷塞进数据流图，与 A5 的图本质冲突。
+- **subFlow 的「返回值」走纯数据流**：子流程的输出不靠 `return` 携带，而是沿连入子图 `subExit` 的 DataEdge 收集——每条连入 subExit 的 DataEdge 定义了一个输出端口（`fromPort` 为端口名），其值为上游节点的对应输出。
+- **`navigate` 必须是终点节点**：navigate 切换 Scene 后当前 flow 的 context 失效，编辑时校验 navigate 的控制边出度必须为 0。跨页面通信（如等待目标页面返回回调）属 App 层路由模型迭代，不在 FlowSchema 调度范围内。
+- **`onError` 执行后流程终止**：onError 是补偿（cleanup）非恢复（recovery）。补偿子图注入 `{ error, partialOutputs }`，执行完毕后流程终止——下游不应消费已失败节点的无效输出。
+- **`subFlow` 是函数隔离闭包**：不穿透读取外层 state，所有依赖显式通过 inputs 传入。保持可复用性。
 
-**约束八（执行调度模型 — entry→exit 线性遍历 / 复合节点递归下钻 / parallel 子图 / error 子图双层兜底）：** 约束一～七固化图的静态形状（节点全集、两分判据、错误消费、SESE 起止），约束八固化运行期 FlowRunner 怎么沿图推进：
+**约束八（执行调度模型 — Push-Pull 混合调度）：** 约束一～七固化图的静态形状，约束八固化运行期 FlowRunner 怎么沿两种边推进：
 
-- **entry→exit 线性遍历（起止皆由指针唯一确定）：** FlowSchema 顶层 `entry`/`exit` 双指针，挂载点触发时 FlowRunner 对该（子）图执行 `runSubgraph(sub, frame)`：从 `sub.entry` 沿边走，直到抵达 `sub.exit` 结束。起止都唯一确定故都用显式指针（不再是「入口对称、出口靠拓扑耗尽」的不对称模型）——SESE 让执行路径由拓扑唯一确定，无需「就绪队列 + 统一选边」拼出顺序。与复合节点内嵌的 `FlowSubSchema` 完全同构：整张图是一棵嵌套树，每张（子）图都是一段 SESE 区间。
-- **复合节点 = 递归下钻其内嵌子图：** 遍历到复合节点（while/forEach/parallel/subFlow）时，不是「选哪条出边」，而是**栈式递归执行其内嵌子图**——`while`/`forEach` 反复 / 逐项对 `body: FlowSubSchema` 调 `runSubgraph`，`parallel` 对 `branches: FlowSubSchema[]` 并发各跑一次 `runSubgraph`，`subFlow` 对被调流程的子图下钻；子图走到自己的 `exit` 即回到母图当前节点、再沿其唯一出边继续。循环、并发、递归全封进复合节点内部，主链路上无环边、无跨节点 error 边。
-- **沿边走的两种情形：** 单出口节点（动作节点 / 纯控制推进）执行后沿其**唯一出边**走下一个，无需选边；多出口节点（`condition`）执行后按 `NodeExecResult.branch`（命中 case 的标签）匹配出边的 `branch` 字段走对应分支，各分支最终汇流到 condition 块的子图 exit。选边只发生在 condition 这一处，不再是「对所有节点统一的调度层选边」。
-- **parallel 是 `branches: FlowSubSchema[]` 的并发汇聚单节点：** 每个分支是一张独立 SESE 子图，并发各跑一次 `runSubgraph`，「何时汇聚、之后往哪走」由 `mode` 裁决，对标 Promise 四个汇聚静态方法——`all`（等所有，任一错→onError）/ `allSettled`（等所有，收集成败）/ `race`（首个结束）/ `any`（首个成功，全错→onError）；汇聚结果作为 parallel 节点输出沿唯一出边流给下游。
+- **Push 主循环（沿控制边）：** 从 `entry` 出发，沿 ControlEdge 遍历节点。`category` 分流：control 节点 → 决定走向（匹配 `branch` 选出边或下钻内嵌子图）；action 节点 → 先 Pull 所有输入插槽 → 执行副作用 → 沿控制边继续。控制边出度 0 即该条路径结束。多条控制边汇入同一节点即 OR 汇合。
+- **Pull 求值（沿数据边）：** action 执行前、control 判据求值前，检查各输入插槽。插槽有 DataEdge（`toSlot` 指向该插槽）→ 沿该 DataEdge 递归 Pull 上游节点的 `fromPort` 输出。source 直接出值，compute 递归 Pull 其输入后计算，已执行 action 取 `storedOutputs[fromPort]`。插槽无 DataEdge → 取内联默认值。
+- **复合节点 = 递归下钻其内嵌子图（闭包调用）：** 遍历到复合节点（while/forEach/parallel/subFlow）时，栈式递归执行其内嵌的 `FlowSubSchema`。每次下钻压入新作用域帧（forEach 注入 item/index，subFlow 绑定形参，onError 注入 error+partialOutputs）。子图走到 `subExit` 即弹帧、回母图沿控制边继续。
+- **parallel 帧快照 + Promise 汇聚：** `all`/`allSettled` 模式下每个分支拍独立帧快照，互不干扰。`race`/`any` 模式下共享帧，胜出后其余分支广播取消信号后丢弃。汇聚结果（由 mode 决定产出协议：all→数组/allSettled→含状态数组/race→首个值/any→首个成功值）作为 parallel 节点输出，下游经数据边取用。parallel 执行完沿控制边继续。
 - **协作式取消（cooperative cancellation，非 parallel 私有职责）：** `race`/`any` 命中后，parallel 只负责**向未命中分支子图广播取消信号**；**「收到取消信号后怎么停」是节点内部实现**（动画可停、HTTP 可 abort、已落库的 dbInsert 不可逆）——parallel 不负责落实取消，更非事务回滚（与 C16/帧栈「无事务语义」一致）。取消信号传递是通用中断机制，未来超时等场景可复用。
-- **error 走节点内嵌 onError 子图 + FlowRunner 双层兜底：** 错误通道不再是图上的独立边，而是**节点可选的 `onError: FlowSubSchema` 内嵌补偿子图**（C15 第 5 节）。executor 统一 try-catch，出错时——有 `onError` 子图则下钻该补偿子图（块级子作用域、其 `in` 在外层基础上静态叠 `error` 字段，约束四；正向产出的 partialOutputs 沿子图入口流给补偿节点），无 onError 则走全局默认错误处理（终止/记录/冒泡到挂载点）。外壳渲染层（M19）只为副作用动作节点提供「挂 onError 子图」的入口，控制流节点纯、出错是引擎级异常。
+- **error 走节点内嵌 onError 子图 + FlowRunner 双层兜底：** 节点可选的 `onError: FlowSubSchema` 内嵌补偿子图。executor 统一 try-catch，出错时——有 onError 子图则下钻补偿（子作用域注入 `{ error, partialOutputs }`，partialOutputs 为该节点已产出的部分输出，供补偿子图做回滚操作），补偿执行完毕后流程终止。无 onError 则走全局默认错误处理。控制流节点纯、出错是引擎级异常。
 
 **约束九（图层不耦合宿主运行时能力；前端副作用只保留跨边界能力）：** 这是贯穿节点全集收敛的一条总原则——**执行器对用户透明，用户只能用图提供的能力；凡是「宿主运行时/执行宿主保证」的东西，都不进图，留给执行器/宿主**。据此做三处收敛：
 
@@ -483,7 +487,7 @@ C15 固化了图的**形状**（节点怎么分类、边只有一种且拓扑即
 - **事务不进图（原子性由用户补偿编排表达，Saga 风格）：** 事务是**业务语义**不是**编排语义**——「这几步要么全成要么全不成」是用户对自己业务的诉求，图无资格也无能力替用户假定哪几个节点构成一个原子单元。而且「云函数 = 一个原子事务」从物理上就不成立：云函数里一旦掺入 `httpRequest` 等外部副作用，DB 可回滚而打出去的外部请求回滚不了，DB 事务边界包不住外部世界。所以图层/引擎层**不提供任何事务语义**——要原子性，由用户用**编排**显式表达：正向节点出错下钻其 `onError: FlowSubSchema` 内嵌一段逆操作（补偿）子图，正向产出的数据（如 dbInsert 出的 id）随 `partialOutputs` 沿补偿子图入口流给补偿节点去撤销。这与约束八「取消是协作式的、副作用不可逆、parallel 不做事务回滚」、与「帧栈无事务语义」三处自洽：引擎一以贯之地不承诺事务，原子性是用户编排出来的、不是图隐含的。云函数内部若恰好只碰自己的 DB 而用了 DB 事务，那是云函数实现私事，对图透明、图不感知不承诺。故**图层无事务控制流节点、`dbXxx` 无事务字段**。
 - **前端副作用只保留跨边界能力（删 `animate` 及一切页面内表现型动作）：** 前端动作节点只保留「跨渲染边界 / 跨页面 / 跨会话」的能力（`navigate` 跨页面 + 持久化跨会话），**页面内的一切表现（toast/弹窗/滚动/聚焦/动画…）一律通过 `setVariable` 写 `state` 驱动，由渲染层在下一个渲染循环消费状态变化自然呈现**（toast 即写 `state.*.toastVisible=true`，动画即写目标样式变量让渲染层做过渡）。理由：`animate` 这类节点本质是对渲染能力的封装，保留会让动作节点跟着「前端有什么 API」无限膨胀、把渲染层能力往流程层泄漏；用「写 state + 渲染层响应」兜住后，前端副作用节点集就**封闭**了，只剩导航与持久化两类真正跨边界的副作用。
 
-> **同一条原则的四次吻合：** 约束七（结束=走到 SESE 的 exit，不设 return）、约束九的时间/等待（不进图）、约束九的事务（原子性由用户补偿编排表达、图不提供事务语义）、约束九的前端表现（写 state 驱动）——本质都是「图是语言无关、宿主无关的纯编排抽象，凡运行时/宿主/渲染层能保证的语义都不下沉进图节点种类，业务语义（如事务原子性）由用户用编排自己表达」。这条原则同时防止了节点全集随宿主能力无限膨胀。
+> **同一条原则的四次吻合：** 约束七（顶层出度 0 即结束/子图走到 subExit，不设 return）、约束九的时间/等待（不进图）、约束九的事务（原子性由用户补偿编排表达、图不提供事务语义）、约束九的前端表现（写 state 驱动）——本质都是「图是语言无关、宿主无关的纯编排抽象，凡运行时/宿主/渲染层能保证的语义都不下沉进图节点种类，业务语义（如事务原子性）由用户用编排自己表达」。这条原则同时防止了节点全集随宿主能力无限膨胀。
 
 **反例（不符合本契约）：**
 
@@ -493,8 +497,8 @@ C15 固化了图的**形状**（节点怎么分类、边只有一种且拓扑即
 - 让 `setVariable` 之外的动作节点直接写 `state`，或让任何节点写 `in`/`cap`——破坏「唯一写状态口」与「信封形状不可变」。
 - 在前端流程里直接用 `httpRequest`/`dbQuery`——前端 `cap` 无此能力，一切对外须经 `callFlow` 调云函数（约束二）。
 - 保留 `transform`/`script` 做计算——计算是值节点的事，副作用动作不该承担表达式求值（违背约束一与 C15 值/动作分离）。
-- 引入 `return` 节点表达「提前结束流程」或「回传子流程返回值」——把命令式 return 塞进图，与 A5 图本质冲突；结束靠连边到（子）图 exit、子流程输出靠沿边流入 exit 的值（约束七）。
-- 让某张（子）图有多个出度为 0 的拓扑终点、或顶层只设 `entry` 不设 `exit`——每张图必须是 SESE 单入口单出口，各分支汇流到唯一 exit，否则执行路径不由拓扑唯一确定（约束七/八）。
+- 引入 `return` 节点表达「提前结束流程」或「回传子流程返回值」——把命令式 return 塞进图，与 A5 图本质冲突；顶层出度 0 即结束、子流程走到 subExit（约束七）。
+- 子图无显式 subEntry/subExit——子图是独立作用域（闭包），必须显式入口/出口来绑定参数、注入作用域、收集产出（约束七/八）。
 - 让 parallel 负责「取消其余分支并回滚已发生的副作用」——取消的落实是节点内部实现、副作用不可逆，parallel 只发协作式取消信号、不做事务回滚（约束八）。
 - 用图上的独立 error 边/跨节点 error 通道做错误处理——错误处理是节点内嵌的 `onError: FlowSubSchema` 补偿子图，主链路上无跨节点 error 边；控制流节点纯、出错走全局默认兜底（约束八）。
 - 新增 `delay`/`sleep`/`await`/`waitFor` 节点表达「等一段时间」或「挂起等外部信号」——时间与等待是宿主运行时能力，收进副作用节点执行器或云函数实现，不进图（约束九）。

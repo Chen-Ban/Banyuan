@@ -1,4 +1,4 @@
-# ADR 索引
+﻿# ADR 索引
 
 架构决策记录（Architecture Decision Records）按架构层域分目录存放。每个域的决策按四个粒度组织为独立文件：
 
@@ -46,7 +46,7 @@
 
 | 粒度 | 文件 | 分组概述 |
 |------|------|---------|
-| 架构级 | [`architecture.md`](./engine/architecture.md) | 顶层组织（A1 八层架构）→ 渲染（A2→A2a）→ 交互（A3→A3a）→ 视图（A4→A4a）→ Flow（A5 顶层定义→A5a 物理隔离→A5b 执行器隔离）→ 序列化（A6→A6a）→ 物料（A7→A7a）→ 宿主集成（A8→A8a） |
+| 架构级 | [`architecture.md`](./engine/architecture.md) | 顶层组织（A1 八层架构）→ 渲染（A2→A2a）→ 交互（A3→A3a）→ 视图（A4→A4a）→ Flow（A5 内置子系统定义→A5a 物理隔离→A5b 执行器隔离）→ 序列化（A6→A6a）→ 物料（A7→A7a）→ 宿主集成（A8→A8a） |
 | 机制级 | [`mechanism.md`](./engine/mechanism.md) | 渲染管线（M1→M2→M3）→ 数据管理（M4→M5→M6）→ 布局系统（M7→M8）→ 交互与对齐（M9⇄M10）→ 动画系统（M11→M12→M13）→ 流程执行（M14→M15/M16）→ 外部订阅（M17→M18）→ 流程节点内联编辑（M19） |
 | 原则级 | [`principle.md`](./engine/principle.md) | 设计哲学（P1→P2/P3/P4）→ 渲染层（P5→P5a）→ 数据管理（P6→P6a）→ 架构边界（P7→P7a）→ 交互设计（P8） |
 | 协议级 | [`protocol.md`](./engine/protocol.md) | 视图树通信（C1→C2/C3→C4）→ 流程执行（C15 图结构契约→C5→C6→C7）→ 渲染（C8）→ 交互（C9→C10）→ 宿主集成（C11→C12）→ 属性适配（C13）→ Addon 管线（C14） |

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @banyuan/banvasgl — 面向声明式 UI 的 2D 图形运行时（含流程控制）· 公共 API
  *
  * 本文件是唯一对外出口，显式列举所有公共符号。
@@ -53,41 +53,6 @@ export type {
     FlowDataRefValue,
     FlowPageDataRefValue,
     FlowEventArgValue,
-    FlowNodeRefValue,
-    // 共享节点
-    FlowConditionNode,
-    FlowDelayNode,
-    FlowSetVariableNode,
-    FlowCallFlowNode,
-    FlowSubFlowNode,
-    FlowReturnNode,
-    FlowForEachNode,
-    FlowParallelNode,
-    SharedFlowNode,
-    // 前端节点
-    FlowSetDataNode,
-    FlowNavigateNode,
-    FlowAnimateNode,
-    FlowSetVisibleNode,
-    ClientFlowNode,
-    // 后端节点
-    FlowDbQueryNode,
-    FlowDbInsertNode,
-    FlowDbUpdateNode,
-    FlowDbDeleteNode,
-    FlowHttpRequestNode,
-    FlowTransformNode,
-    FlowScriptNode,
-    ServerFlowNode,
-    // Schema 结构
-    FlowActionNode,
-    FlowValueNode,
-    FlowVarNode,
-    FlowPageVarNode,
-    FlowEventParamNode,
-    FlowNode,
-    FlowEdge,
-    FlowSchema,
     // FlowContext
     FlowContext,
     EventHandler,
@@ -152,6 +117,38 @@ export type {
 export { AddonCapability, Cursor, Action } from './foundation/constants'
 export { FLOW_SCHEMA_VERSION } from './flow/types/schema.js'
 
+    // Flow v2.0.0
+    FlowConditionNode,
+    FlowWhileNode,
+    FlowForEachNode,
+    FlowParallelNode,
+    FlowSubFlowNode,
+    FlowControlNode,
+    FlowSetVariableNode,
+    FlowNavigateNode,
+    FlowCallFlowNode,
+    FlowHttpRequestNode,
+    FlowDbQueryNode,
+    FlowDbInsertNode,
+    FlowDbUpdateNode,
+    FlowDbDeleteNode,
+    FlowActionNode,
+    FlowLiteralSourceNode,
+    FlowContextSourceNode,
+    FlowSourceNode,
+    FlowMathNode,
+    FlowCompareNode,
+    FlowLogicNode,
+    FlowConcatNode,
+    FlowFormatNode,
+    FlowGetNode,
+    FlowComputeNode,
+    FlowNode,
+    FlowControlEdge,
+    FlowDataEdge,
+    FlowSchema,
+    FlowSubSchema,
+    NodeCategory,
 // ── Camera 接口 ──
 export type {
     ICamera,
