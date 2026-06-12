@@ -1,4 +1,4 @@
-# 引擎 · 机制级决策
+﻿# 引擎 · 机制级决策
 
 > 某个机制怎么工作——引擎内部各子系统的运行机理。
 
@@ -404,24 +404,39 @@ banvasgl 通过 `InteractionInput`（`packages/banvasgl/src/types/interaction.ts
 
 ## 流程执行
 
-### M15. FlowSchema 节点图执行机制
+### M15. FlowSchema Push-Pull 混合调度机制
 
 **✅ 已实施**
 
-FlowSchema 由 `nodes`（节点数组）和 `edges`（连线数组）构成有向图，FlowRunner 按拓扑序执行节点。每个节点有 `kind` 对应一个 `NodeExecutor`，执行结果通过 edge 传递给下游。
+FlowRunner 采用 **Push-Pull 混合调度**：Push 沿**控制边**推进 control/action 节点，Pull 沿**数据边**反向递归拉取 source/compute 子树求值。两种边分工明确——控制边串起整个流程的执行顺序且不携带业务数据，数据边连接输出端口到输入插槽。
 
-**决策链：** 低代码流程需要可视化编辑 → 节点图是自然的可视化表达 → 运行时需要拓扑遍历和条件分支。
+**决策链：** 流程图中控制流和数据流是两个不同的关注面 → Push 解决「谁在什么时候执行」（控制流），Pull 解决「值是多少」（数据流）→ Blueprints 的 exec + data 双线模型已验证 Push-Pull 的工程可行性 → Banyuan 显式拆分为 ControlEdge 和 DataEdge，消除运行时字段推断的歧义。
+
+**调度算法（语义层面）：**
+
+1. **Push 主循环（沿控制边）**：从 `entry` 出发，沿控制边遍历节点。control 节点决定走向（匹配 `branch` 选出边或下钻子图），action 节点先 Pull 输入再执行副作用再沿控制边继续。控制边出度 0 即该条路径结束。
+2. **Pull 求值（沿数据边）**：action 节点执行前、control 节点判据求值前，检查各输入插槽。插槽有数据边连入 → 沿该数据边递归 Pull 上游节点的对应输出端口；无 → 取插槽内联默认值。
+3. **子图下钻（闭包调用）**：遍历到复合节点时，栈式递归执行其内嵌子图（`runSubgraph`），压入新作用域帧。子图走到 `subExit` 即弹帧、回母图继续。
+4. **parallel 帧快照**：`all`/`allSettled` 模式下每个分支拍独立帧快照，互不干扰。`race`/`any` 模式下共享帧，胜出后其余分支广播取消信号后丢弃。
+5. **错误处理**：executor 统一 try-catch。有 `onError` 子图则下钻补偿（注入 `{ error, partialOutputs }`），补偿执行完毕后流程终止。无 onError 则走全局默认错误处理。
+
+**三个不变量：**
+
+- **控制路径无环**：编辑时 DFS 校验控制边拓扑，子图内部同样保证。
+- **数据边 forward-reference**：数据边的 `fromNode` 在控制序上必须先于 `toNode`（source/compute 天然通过）。
+- **Pull 不遇未执行 action**：forward-reference 的推论——被数据边引用的 action 一定已 Push 执行过。
 
 **约束：**
 
-- 每个 NodeExecutor 接收 `FlowContext`（包含 variables、trigger source、app 实例引用等）
-- condition 节点基于表达式返回 true/false 决定走哪条 edge
-- delay 节点通过 setTimeout 暂停执行流
-- subFlow 节点可递归调用另一个 FlowSchema
-- 循环检测：FlowRunner 内置 MAX_STEPS=1000 安全阀
-- 值解析器 resolveValue 支持：literal / dataRef / pageDataRef / eventArg / nodeRef 五种来源（当前 `1.0.0`；C15 落地后收敛为「源节点 from:'literal'/'context' + 计算节点 + 数据边」，见协议级 C7/C15）
+- MAX_STEPS=1000，顶层和子图各独立计数。
+- `resolveSlot(name)` 沿数据边递归 Pull。
+- NodeExecutor 接口不变，调度逻辑在 FlowRunner 层。
+- `navigate` 控制边出度必须为 0（编辑时校验）。
 
----
+**反例：**
+
+- 统一一种边——控制流和数据流职责不同，隐式靠字段推断增加歧义。
+- 强制 SESE 顶层图——出度 0 即结束，汇合可选。
 
 ### M16. Scene 生命周期绑定 FlowSchema
 
