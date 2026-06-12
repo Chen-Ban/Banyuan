@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 接口层 barrel 导出
  *
  * 所有图形和视图的接口、类型映射、统一类型守卫从这里统一导出。
@@ -61,29 +61,19 @@ export type {
     FlowNodeRefValue,
     // 共享节点
     FlowConditionNode,
-    FlowDelayNode,
     FlowSetVariableNode,
     FlowCallFlowNode,
     FlowSubFlowNode,
-    FlowReturnNode,
     FlowForEachNode,
     FlowParallelNode,
-    SharedFlowNode,
     // 前端节点
-    FlowSetDataNode,
     FlowNavigateNode,
-    FlowAnimateNode,
-    FlowSetVisibleNode,
-    ClientFlowNode,
     // 后端节点
     FlowDbQueryNode,
     FlowDbInsertNode,
     FlowDbUpdateNode,
     FlowDbDeleteNode,
     FlowHttpRequestNode,
-    FlowTransformNode,
-    FlowScriptNode,
-    ServerFlowNode,
     // Schema 结构
     FlowActionNode,
     FlowValueNode,

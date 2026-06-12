@@ -1,4 +1,4 @@
-/**
+﻿/**
  * View 接口层 —— 零循环依赖
  *
  * 所有 View 子类的公共接口定义。
@@ -68,29 +68,19 @@ export type {
     FlowNodeRefValue,
     // 共享节点
     FlowConditionNode,
-    FlowDelayNode,
     FlowSetVariableNode,
     FlowCallFlowNode,
     FlowSubFlowNode,
-    FlowReturnNode,
     FlowForEachNode,
     FlowParallelNode,
-    SharedFlowNode,
     // 前端节点
-    FlowSetDataNode,
     FlowNavigateNode,
-    FlowAnimateNode,
-    FlowSetVisibleNode,
-    ClientFlowNode,
     // 后端节点
     FlowDbQueryNode,
     FlowDbInsertNode,
     FlowDbUpdateNode,
     FlowDbDeleteNode,
     FlowHttpRequestNode,
-    FlowTransformNode,
-    FlowScriptNode,
-    ServerFlowNode,
     // Schema 结构
     FlowActionNode,
     FlowValueNode,
