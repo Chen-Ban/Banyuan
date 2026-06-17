@@ -127,6 +127,8 @@ dist_electron/
 .local
 
 # AI tools config (may contain appkey/secrets)
+.reasonix/
+reasonix.toml
 .cursor/
 .cursorignore
 .cursorrules

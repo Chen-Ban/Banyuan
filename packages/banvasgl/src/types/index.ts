@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 接口层 barrel 导出
  *
  * 所有图形和视图的接口、类型映射、统一类型守卫从这里统一导出。
@@ -52,21 +52,17 @@ export type {
     IFieldSchema,
     IFieldSchemaMap,
     // Flow 类型（从内部 flow 模块统一透传）
-    FlowValue,
-    FlowCondition,
-    FlowLiteralValue,
-    FlowDataRefValue,
-    FlowPageDataRefValue,
-    FlowEventArgValue,
-    FlowNodeRefValue,
     // 共享节点
     FlowConditionNode,
-    FlowSetVariableNode,
-    FlowCallFlowNode,
-    FlowSubFlowNode,
-    FlowForEachNode,
+    FlowControlNode,
+    FlowLoopNode,
     FlowParallelNode,
-    // 前端节点
+    FlowFunctionNode,
+    FlowLocalFunctionNode,
+    FlowCloudFunctionNode,
+    FlowForEachNode,
+    // 前端 Action 节点
+    FlowSetVariableNode,
     FlowNavigateNode,
     // 后端节点
     FlowDbQueryNode,
@@ -76,15 +72,9 @@ export type {
     FlowHttpRequestNode,
     // Schema 结构
     FlowActionNode,
-    FlowValueNode,
-    FlowVarNode,
-    FlowPageVarNode,
-    FlowEventParamNode,
     FlowNode,
-    FlowEdge,
     FlowSchema,
     // FlowContext
-    FlowContext,
     EventHandler,
     IViewEvents,
     IViewLifetimes,
@@ -144,7 +134,7 @@ export type {
 } from './view/view'
 
 // 注：AddonCapability / Cursor / Action / cursorMap 枚举值已迁移至 foundation/constants，
-// FLOW_SCHEMA_VERSION 由 @/flow/types/schema 提供，DiffType / Operation 由 @/engine/scene 提供，
+// FLOW_SCHEMA_VERSION 由 @/foundation/flow/types/schema 提供，DiffType / Operation 由 @/engine/scene 提供，
 // SnapAxis 枚举值由 foundation/constants 提供。本 barrel 仅导出类型（pure-type barrel），
 // 不再携带任何运行时值，从而被 Rollup 抹除、彻底消除 chunk 级循环依赖告警。
 // 这些值的公开 API 由 src/index.ts 直接从各自归属模块统一导出。
@@ -213,6 +203,9 @@ export type {
 
 // ── 序列化接口 ──
 export type { ISerializable, ISerializableClass } from './foundation/serializable'
+
+// ── Flow 接口 ──
+export * from './foundation/flow/index.js'
 
 // ── Worker 传输接口 ──
 export type { ITransferable, TransferableData } from './foundation/transferable'

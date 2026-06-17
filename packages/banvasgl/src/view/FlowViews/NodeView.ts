@@ -44,15 +44,20 @@ function deriveAppearance(category: string, kind: string): NodeAppearance {
                 case 'while':     return { shape: 'rect', accentColor: '#a855f7', icon: '⟳' }
                 case 'forEach':   return { shape: 'rect', accentColor: '#a855f7', icon: '↻' }
                 case 'parallel':  return { shape: 'rect', accentColor: '#06b6d4', icon: '⫘' }
-                case 'subFlow':   return { shape: 'rect', accentColor: '#6366f1', icon: '⊞' }
                 default:          return { shape: 'rect', accentColor: '#6b7280', icon: '◆' }
+            }
+        }
+        case 'function': {
+            switch (kind) {
+                case 'localFunction':  return { shape: 'rect', accentColor: '#6366f1', icon: '⊞' }
+                case 'cloudFunction':  return { shape: 'rect', accentColor: '#6366f1', icon: '⎇' }
+                default:               return { shape: 'rect', accentColor: '#6366f1', icon: '◆' }
             }
         }
         case 'action': {
             switch (kind) {
                 case 'setVariable': return { shape: 'rect', accentColor: '#6b7280', icon: '≔' }
                 case 'navigate':    return { shape: 'rect', accentColor: '#3b82f6', icon: '→' }
-                case 'callFlow':    return { shape: 'rect', accentColor: '#6366f1', icon: '⎇' }
                 case 'httpRequest': return { shape: 'rect', accentColor: '#f97316', icon: '⇄' }
                 case 'dbQuery':     return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
                 case 'dbInsert':    return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
@@ -88,8 +93,8 @@ function derivePortsFromSchema(schema: FlowNode): PortDefinition[] {
         return ports
     }
 
-    // subFlow: 根据 inputs 动态推导
-    if (kind === 'subFlow') {
+    // localFunction / cloudFunction: 根据 inputs 动态推导
+    if (kind === 'localFunction' || kind === 'cloudFunction') {
         const sf = schema as any
         ports.push({ id: `${schema.id}_in`, direction: 'input' })
         if (sf.inputs) {
@@ -134,11 +139,11 @@ function deriveTitleFromSchema(schema: FlowNode): string {
         case 'while':     return '循环'
         case 'forEach':   return '遍历列表'
         case 'parallel':  return '并行执行'
-        case 'subFlow':   return (schema as any).name || '子流程'
+        case 'localFunction': return (schema as any).name || '本地函数'
         // action
         case 'setVariable': return '设置变量'
         case 'navigate':    return '跳转页面'
-        case 'callFlow':    return '调用云函数'
+        case 'cloudFunction': return '云函数'
         case 'httpRequest': return 'HTTP 请求'
         case 'dbQuery':     return '数据库查询'
         case 'dbInsert':    return '数据库插入'
@@ -162,7 +167,7 @@ function deriveTitleFromSchema(schema: FlowNode): string {
 
 // ── 摘要行推导 ──
 
-/** 将 FlowSlot 转为可读字符串 */
+/** 将 SlotValue 转为可读字符串 */
 function slotToString(slot: unknown): string {
     if (slot === null || slot === undefined) return 'null'
     if (typeof slot === 'string') return slot.length > 12 ? `"${slot.slice(0, 12)}…"` : `"${slot}"`
@@ -196,7 +201,7 @@ function deriveSummaryFromSchema(schema: FlowNode): string | null {
     switch (kind) {
         case 'setVariable': return `${(schema as any).target} = ${slotToString((schema as any).value)}`
         case 'navigate':    return `→ ${slotToString((schema as any).target)}`
-        case 'callFlow':    return `📞 ${(schema as any).functionId || '?'}`
+        case 'cloudFunction': return `📞 ${(schema as any).functionId || '?'}`
         case 'httpRequest': return `${(schema as any).method ?? 'GET'} ${slotToString((schema as any).url)}`
         case 'dbQuery':     return `${(schema as any).collection || '?'} → rows`
         case 'dbInsert':    return `${(schema as any).collection || '?'} ← insert`
@@ -206,7 +211,7 @@ function deriveSummaryFromSchema(schema: FlowNode): string | null {
         case 'while':       return 'while (…)'
         case 'forEach':     return `∀ ${(schema as any).itemVar ?? 'item'} in ${slotToString((schema as any).collection)}`
         case 'parallel':    return `${(schema as any).branches?.length ?? 0} 分支 (${(schema as any).mode})`
-        case 'subFlow':     return null // 无摘要
+        case 'localFunction': return null // 无摘要
         default:            return null
     }
 }

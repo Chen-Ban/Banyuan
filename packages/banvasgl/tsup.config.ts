@@ -1,4 +1,4 @@
-import { defineConfig } from "tsup";
+﻿import { defineConfig } from "tsup";
 import { readFileSync } from "fs";
 
 const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
@@ -7,8 +7,8 @@ export default defineConfig({
   entry: {
     index: "src/index.ts",
     react: "src/hook/index.ts",
-    "flow/client": "src/flow/presets/client.ts",
-    "flow/server": "src/flow/presets/server.ts",
+    "flow/client": "src/foundation/flow/presets/client.ts",
+    "flow/server": "src/foundation/flow/presets/server.ts",
   },
   dts: true,
   format: ["esm", "cjs"],

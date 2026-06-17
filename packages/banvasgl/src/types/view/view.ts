@@ -1,4 +1,4 @@
-﻿/**
+/**
  * View 接口层 —— 零循环依赖
  *
  * 所有 View 子类的公共接口定义。
@@ -54,51 +54,54 @@ export interface IFieldSchema {
 export type IFieldSchemaMap = Record<string, IFieldSchema>
 
 // ────────────────────────────────────────────
-//  Flow 类型 —— 从内部 flow 模块统一重导出
+// ────────────────────────────────────────────
+//  Flow 类型 —— 从内部 flow 模块统一重导出（v2.0.0）
 // ────────────────────────────────────────────
 
 export type {
-    // 值类型
-    FlowValue,
-    FlowCondition,
-    FlowLiteralValue,
-    FlowDataRefValue,
-    FlowPageDataRefValue,
-    FlowEventArgValue,
-    FlowNodeRefValue,
-    // 共享节点
+    // source
+    FlowSourceNode,
+    FlowLiteralSourceNode,
+    FlowContextSourceNode,
+    // compute
+    FlowComputeNode,
+    FlowMathNode,
+    FlowCompareNode,
+    FlowLogicNode,
+    FlowConcatNode,
+    FlowFormatNode,
+    FlowGetNode,
+    // control
+    FlowControlNode,
     FlowConditionNode,
-    FlowSetVariableNode,
-    FlowCallFlowNode,
-    FlowSubFlowNode,
-    FlowForEachNode,
+    FlowLoopNode,
     FlowParallelNode,
-    // 前端节点
+    // function
+    FlowFunctionNode,
+    FlowLocalFunctionNode,
+    FlowCloudFunctionNode,
+    // action
+    FlowActionNode,
+    FlowSetVariableNode,
     FlowNavigateNode,
-    // 后端节点
+    FlowHttpRequestNode,
     FlowDbQueryNode,
     FlowDbInsertNode,
     FlowDbUpdateNode,
     FlowDbDeleteNode,
-    FlowHttpRequestNode,
-    // Schema 结构
-    FlowActionNode,
-    FlowValueNode,
+    // Schema
     FlowNode,
-    FlowVarNode,
-    FlowPageVarNode,
-    FlowEventParamNode,
-    FlowEdge,
     FlowSchema,
-} from '@/flow/types/index.js'
+    FlowSchema,
+    DataRef,
+    NodeCategory,
+} from '@/types/foundation/flow/index.js'
 
-// FLOW_SCHEMA_VERSION 为值，归属 @/flow/types/schema，由 src/index.ts 直接导出（不再通过类型 barrel 透传）。
-
-// FlowContext —— 外部消费者构造 runner.run(schema, ctx) 的 ctx 类型
-export type { FlowContext } from '@/flow/runtime/context.js'
+// FLOW_SCHEMA_VERSION / FlowEnv —— 从 types 模块导出
+export type { FlowEnv } from '@/types/foundation/flow/context.js'
 
 // 文件内使用（EventHandler 等需要引用 FlowSchema）
-import type { FlowSchema } from '@/flow/types/schema.js'
+import type { FlowSchema } from '@/types/foundation/flow/index.js'
 
 // ────────────────────────────────────────────
 //  IViewEvents / IViewLifetimes —— 事件与生命周期

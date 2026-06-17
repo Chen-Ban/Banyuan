@@ -15,7 +15,7 @@ import type { ISerializable } from '@/types/foundation/serializable'
 import type { ISceneLifetimes } from '@/types/engine/scene'
 import type { IView, FlowSchema } from '@/types/view/view'
 import { isCombinedView, isContainerView } from "@/foundation/guards";
-import type { FlowContext } from "@/flow/runtime/context.js";
+import type { FlowRunner } from "@/foundation/flow/FlowRunner/index.js";
 import { AnimationDescriptor, AnimationManager } from "@/foundation/animation";
 import AnimationAddon from "@/view/addon/AnimationAddon";
 import { SceneType } from "@/foundation/constants";
@@ -335,7 +335,7 @@ export class Scene implements ISerializable {
     }
 
     const scene = this
-    const ctx: FlowContext = {
+    const ctx: Record<string, any> = {
       getVariable(scope: string, key: string): unknown {
         // scope = viewId → 从该 view.data 中读取
         const targetView = scene.findViewById(scope)
@@ -393,6 +393,7 @@ export class Scene implements ISerializable {
         playAnimation(viewId: string, animationId: string): void {
           scene.playAnimation(viewId, animationId)
         },
+        // @deprecated callFlow: cloudFunction 改用 FlowRunner.loadFunctionBody
         callFlow: scene._app?.backendEndpoint
           ? async (flowId: string, input: Record<string, unknown>) => {
               const endpoint = scene._app!.backendEndpoint
