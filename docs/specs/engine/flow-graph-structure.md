@@ -3,307 +3,254 @@
 ## 关联决策
 
 - **engine:A5** — FlowSchema 是 BanvasGL 的内置流程控制子系统（过程式 AST + Push-Pull 调度）
-- **engine:C15** — 图结构契约（节点分类 + ControlEdge/DataEdge 二分边 + 开放 DAG + 可调用子图 + 插槽混合模型）
+- **engine:C15** — 图结构契约（节点分类 + 边消解为节点内嵌引用 + 开放 DAG + 可调用子图 + 插槽混合模型）
 - **engine:C16** — 挂载点 ⇒ 上下文契约（资源来向三分 `in / state / cap`）
 - **engine:C17** — 语句层节点契约（控制流/动作两分 · 节点全集 · 错误消费 · 语义边界）
 - **engine:M15** — Push-Pull 混合调度机制
 
 ---
 
-## 一、节点与边
+## 一、核心设计：边消解为节点内嵌引用
 
-### 1.1 顶层 Schema
+v2.0.0 最初将边分为 ControlEdge / DataEdge 两种独立实体存储在顶层数组中。但边的本质是**节点之间的关系**，不是独立存在的事物——控制边是"A 执行完后去 B"这一语义在 A 身上的属性，数据边是"B 的输入来自 A 的输出"这一语义在 B 身上的属性。
+
+因此 v2.0.0 终稿将边消解为节点内部的引用字段：
+
+| 原边类型 | 消解为 | 所在位置 |
+|----------|--------|----------|
+| `FlowControlEdge` | `next: Record<string, string>` | control / action 节点 |
+| `FlowDataEdge` | `FlowSlot = unknown \| DataRef` | 所有节点的输入插槽 |
+
+**设计优势**：端口和引用统一——`DataRef.port` 就是原来的 `fromPort`，`next` 的 key 就是原来的 `branch`，不需要在边数组和节点之间维护引用完整性。FlowRunner 正向遍历时直接读 `node.next`，无需扫描边数组。
+
+---
+
+## 二、顶层 Schema
 
 ```ts
 interface FlowSchema {
-  version: "2.0.0";
-  entry: string;
-  nodes: Record<string, FlowNode>;
-  controlEdges: FlowControlEdge[];
-  dataEdges: FlowDataEdge[];
+  version: "2.0.0"
+  entry: string
+  nodes: Record<string, FlowNode>
+  // ★ controlEdges / dataEdges 已移除 —— 边消解在节点内部
 }
 
 interface FlowSubSchema {
-  subEntry: string;
-  subExit: string;
-  nodes: Record<string, FlowNode>;
-  controlEdges: FlowControlEdge[];
-  dataEdges: FlowDataEdge[];
-  params?: { name: string; type: "string"|"number"|"boolean"|"object"|"array" }[];
+  subEntry: string
+  subExit: string
+  nodes: Record<string, FlowNode>
+  params?: { name: string; type: "string"|"number"|"boolean"|"object"|"array" }[]
+  // ★ controlEdges / dataEdges 已移除 —— 子图同样消解
 }
 ```
 
-### 1.2 边
+`FlowSchema` 现在只有两个字段：`entry` + `nodes`。图的全部信息（拓扑 + 数据依赖）都在节点自身内部。
+
+---
+
+## 三、DataRef 与 FlowSlot
 
 ```ts
-interface FlowControlEdge {
-  id: string;
-  from: string;
-  to: string;
-  branch?: string;    // condition 分支标签
+/** 跨节点数据引用 —— 指向上游节点的某个输出端口 */
+interface DataRef {
+  nodeId: string
+  port: string            // 上游节点的输出端口名
 }
 
-interface FlowDataEdge {
-  id: string;
-  fromNode: string;
-  fromPort: string;   // 源节点输出端口名
-  toNode: string;
-  toSlot: string;     // 目标节点输入插槽名
+/** 判断一个 slot 值是否为 DataRef */
+function isDataRef(v: unknown): v is DataRef {
+  return typeof v === 'object' && v !== null && 'nodeId' in v && 'port' in v
 }
+
+/**
+ * 插槽值：内联字面量 或 跨节点数据引用（互斥，DataRef 优先）。
+ * 运行时 resolveSlot 先检查是否为 DataRef，是则 Pull，否则直接使用内联值。
+ */
+type FlowSlot = unknown | DataRef
 ```
 
-ControlEdge 只管执行顺序，不携带业务数据。DataEdge 只连端口到插槽。同一对节点可同时有两条边——ControlEdge 串执行，DataEdge 传值。Blueprints 的 exec + data 双线已验证此模式二十年。
+**插槽混合模型（C15 约束三）**：每个输入参数都是 `FlowSlot`。取值规则——有 DataRef 时 Pull 该引用，否则取内联值。DataRef 天然编码了"谁连到我"，不需要在顶层维护 DataEdge 数组。
 
-### 1.3 节点
+---
+
+## 四、节点
+
+### 4.1 next 统一控制流
+
+所有 control 和 action 节点内嵌 `next` 字段，替代原来的 ControlEdge 数组：
+
+```ts
+/**
+ * next: branch → targetNodeId
+ *
+ * - 单出口节点: { "": "nextNodeId" }
+ * - condition:   { "matched": "A", "else": "B" }
+ * - navigate:    {}（终点节点，控制流到此终止）
+ * - while/forEach/parallel: { "": "afterLoop" }
+ *
+ * {} 或缺失 = 控制流终止（对应原 ControlEdge 出度 0）
+ */
+type Next = Record<string, string>
+```
+
+多分支（condition）和单出口统一为同一结构——key 就是原来的 `branch`，value 就是原来的 `to`。
+
+### 4.2 节点分类
 
 ```ts
 type FlowNode = { id: string } & (
   FlowControlNode | FlowActionNode | FlowSourceNode | FlowComputeNode
-);
+)
 ```
 
-| category | 控制边入 | 控制边出 | 数据边入 | 数据边出 | 副作用 | 调度 |
+| category | 控制入 | 控制出 next | 数据入 slot | 数据出 port | 副作用 | 调度 |
 |----------|:---:|:---:|:---:|:---:|:---:|------|
-| control | >=0 | >=1(多分支) | >=0 | 0 | ❌ | Push |
-| action | >=0 | <=1(navigate=0) | >=0 | >=0 | ✅ | Push |
-| source | 0 | 0 | 0 | >=0 | ❌ | Pull |
-| compute | 0 | 0 | >=0 | >=0 | ❌ | Pull |
+| control | - | >=1 键（多分支） | >=0 | 0 | ❌ | Push |
+| action | - | <=1 键（navigate = {}） | >=0 | >=0 | ✅ | Push |
+| source | - | - | 0 | "value" | ❌ | Pull |
+| compute | - | - | >=0 | "value" | ❌ | Pull |
 
-输出端口约定: source/compute 统一为 `"value"`。action 由执行器定义命名端口(如 dbQuery 的 `"rows"`/`"count"`)。
+source/compute 无 `next`（不在控制路径上，只被 Pull）。
 
-#### control 节点
+### 4.3 control 节点
 
 ```ts
+/** 条件分支 —— cases + default + ControlEdge.branch 三合一 */
 interface FlowConditionNode {
-  category: "control"; kind: "condition";
-  cases: { slot: FlowSlot; label: string }[];
-  default?: string;
-  onError?: FlowSubSchema;
+  category: "control"; kind: "condition"
+  /** key = branch label，value = { 判据 DataRef, 分支后继 nodeId } */
+  branches: Record<string, { condition: FlowSlot; next: string }>
+  onError?: FlowSubSchema
 }
 
 interface FlowWhileNode {
-  category: "control"; kind: "while";
-  condition: FlowSlot;     // 判据插槽
-  body: FlowSubSchema;
-  onError?: FlowSubSchema;
+  category: "control"; kind: "while"
+  condition: FlowSlot
+  body: FlowSubSchema
+  next: Next                    // ★ 循环结束后的后继
+  onError?: FlowSubSchema
 }
 
 interface FlowForEachNode {
-  category: "control"; kind: "forEach";
-  collection: FlowSlot;
-  itemVar?: string;        // 默认 "item"
-  indexVar?: string;       // 默认 "index"
-  body: FlowSubSchema;
-  onError?: FlowSubSchema;
+  category: "control"; kind: "forEach"
+  collection: FlowSlot
+  itemVar?: string
+  indexVar?: string
+  body: FlowSubSchema
+  next: Next                    // ★ 遍历结束后的后继
+  onError?: FlowSubSchema
 }
 
 interface FlowParallelNode {
-  category: "control"; kind: "parallel";
-  branches: FlowSubSchema[];
-  mode: "all"|"allSettled"|"race"|"any";
-  onError?: FlowSubSchema;
+  category: "control"; kind: "parallel"
+  branches: { body: FlowSubSchema; next?: Next }[]
+  mode: "all"|"allSettled"|"race"|"any"
+  onError?: FlowSubSchema
   // 输出端口: "result"
 }
 
 interface FlowSubFlowNode {
-  category: "control"; kind: "subFlow";
-  subFlowId: string;
-  inputs: Record<string, FlowSlot>;
-  onError?: FlowSubSchema;
-  // 输出端口: 由被调子图连入 subExit 的 DataEdge.fromPort 定义
+  category: "control"; kind: "subFlow"
+  subFlowId: string
+  inputs: Record<string, FlowSlot>
+  next: Next                    // ★ 子流程返回后的后继
+  onError?: FlowSubSchema
 }
 ```
 
-#### action 节点
+### 4.4 action 节点
+
+所有 action 节点新增 `next`：
 
 ```ts
 interface FlowSetVariableNode {
-  category: "action"; kind: "setVariable";
-  target: string;    // "state.view.<id>.<prop>"|"state.page.<key>"|"state.app.<key>"|"state.flow.<key>"
-  value: FlowSlot;
-  onError?: FlowSubSchema;
+  category: "action"; kind: "setVariable"
+  target: string; value: FlowSlot
+  next?: Next
+  onError?: FlowSubSchema
 }
 
 interface FlowNavigateNode {
-  category: "action"; kind: "navigate";
-  target: FlowSlot;
-  // 约束: 控制边出度必须为 0
+  category: "action"; kind: "navigate"
+  target: FlowSlot
+  next?: Next         // ★ 编辑时校验必须为 {}（终点）
 }
 
 interface FlowCallFlowNode {
-  category: "action"; kind: "callFlow";
-  functionId: string;
-  args: Record<string, FlowSlot>;
-  onError?: FlowSubSchema;
+  category: "action"; kind: "callFlow"
+  functionId: string; args: Record<string, FlowSlot>
+  next?: Next
+  onError?: FlowSubSchema
   // 输出端口: "result"
 }
 
 interface FlowHttpRequestNode {
-  category: "action"; kind: "httpRequest";
-  method: "GET"|"POST"|"PUT"|"DELETE";
-  url: FlowSlot;
-  headers?: Record<string, FlowSlot>;
-  body?: FlowSlot;
-  onError?: FlowSubSchema;
+  category: "action"; kind: "httpRequest"
+  method: "GET"|"POST"|"PUT"|"DELETE"
+  url: FlowSlot; headers?: Record<string, FlowSlot>; body?: FlowSlot
+  next?: Next
+  onError?: FlowSubSchema
   // 输出端口: "status","body","headers"
 }
 
-interface FlowDbQueryNode {
-  category: "action"; kind: "dbQuery";
-  collection: string; filter: FlowSlot;
-  onError?: FlowSubSchema;
-  // 输出端口: "rows","count"
-}
-
-interface FlowDbInsertNode {
-  category: "action"; kind: "dbInsert";
-  collection: string; document: FlowSlot;
-  onError?: FlowSubSchema;
-  // 输出端口: "id"
-}
-
-interface FlowDbUpdateNode {
-  category: "action"; kind: "dbUpdate";
-  collection: string; filter: FlowSlot; update: FlowSlot;
-  onError?: FlowSubSchema;
-  // 输出端口: "matchedCount","modifiedCount"
-}
-
-interface FlowDbDeleteNode {
-  category: "action"; kind: "dbDelete";
-  collection: string; filter: FlowSlot;
-  onError?: FlowSubSchema;
-  // 输出端口: "deletedCount"
-}
+// dbQuery / dbInsert / dbUpdate / dbDelete 同样加 next
 ```
 
-#### source 节点
+### 4.5 source 节点（不变）
 
 ```ts
 interface FlowLiteralSourceNode {
-  category: "source"; kind: "source"; from: "literal";
-  value: unknown;
+  category: "source"; kind: "source"; from: "literal"
+  value: unknown              // 输出端口 "value"
 }
-
 interface FlowContextSourceNode {
-  category: "source"; kind: "source"; from: "context";
-  path: string;        // 首段限定 "in"|"state"
+  category: "source"; kind: "source"; from: "context"
+  path: string                // 输出端口 "value"
 }
 ```
 
-#### compute 节点
+### 4.6 compute 节点（不变）
 
 ```ts
-interface FlowMathNode     { category:"compute"; kind:"math";     op:"add"|"sub"|"mul"|"div"|"mod"|"pow"|"min"|"max"; a:FlowSlot; b:FlowSlot; }
-interface FlowCompareNode  { category:"compute"; kind:"compare";  op:"eq"|"neq"|"gt"|"gte"|"lt"|"lte"; a:FlowSlot; b:FlowSlot; }
-interface FlowLogicNode    { category:"compute"; kind:"logic";    op:"and"|"or"|"not"; operands:FlowSlot[]; }
-interface FlowConcatNode   { category:"compute"; kind:"concat";   parts:FlowSlot[]; separator?:string; }
-interface FlowFormatNode   { category:"compute"; kind:"format";   template:string; values:Record<string,FlowSlot>; }
-interface FlowGetNode      { category:"compute"; kind:"get";      object:FlowSlot; path:string; }
-```
-
-### 1.4 FlowSlot
-
-```ts
-type FlowSlot = unknown;
-// 取值规则(互斥): DataEdge(toSlot指向该slot)存在→Pull该数据边; 否则→取内联值
+// 所有 compute 节点的输入插槽均为 FlowSlot（可内联值或 DataRef）
+interface FlowMathNode     { category:"compute"; kind:"math";     op:"add"|"sub"|"mul"|"div"|"mod"|"pow"|"min"|"max"; a:FlowSlot; b:FlowSlot }
+interface FlowCompareNode  { category:"compute"; kind:"compare";  op:"eq"|"neq"|"gt"|"gte"|"lt"|"lte"; a:FlowSlot; b:FlowSlot }
+interface FlowLogicNode    { category:"compute"; kind:"logic";    op:"and"|"or"|"not"; operands:FlowSlot[] }
+interface FlowConcatNode   { category:"compute"; kind:"concat";   parts:FlowSlot[]; separator?:string }
+interface FlowFormatNode   { category:"compute"; kind:"format";   template:string; values:Record<string,FlowSlot> }
+interface FlowGetNode      { category:"compute"; kind:"get";      object:FlowSlot; path:string }
+// 输出端口统一为 "value"
 ```
 
 ---
 
-## 二、上下文
+---
 
-### 2.1 设计原则
+## 五、上下文（不变）
 
-调度架构从 SESE 改为 Push-Pull + 开放 DAG，不影响上下文模型。C16 的三分模型（`in`/`state`/`cap`）与调度方式正交——上下文回答"节点执行时能看见什么数据"，与 Push-Pull 如何遍历节点无关。
-
-### 2.2 ContextFrame
+与调度方式正交，C16 三分模型保持不变。详见引擎决策文档 engine:C16。
 
 ```ts
 interface ContextFrame {
-  in:   Readonly<Record<string, unknown>>;
-  state: StateProxy;
-  cap:  CapProxy;
-
-  pushScope(extraIn: Record<string, unknown>): ContextFrame;
-  pushIsolatedScope(opts: { in: Record<string, unknown>; state: Partial<StateProxy> }): ContextFrame;
-  snapshot(): ContextFrame;  // 深拷贝 state，用于 parallel all/allSettled
+  in:   Readonly<Record<string, unknown>>
+  state: StateProxy
+  cap:  CapProxy
+  pushScope(extraIn: Record<string, unknown>): ContextFrame
+  pushIsolatedScope(opts: { in: Record<string, unknown>; state: Partial<StateProxy> }): ContextFrame
+  snapshot(): ContextFrame
 }
-```
-
-### 2.3 StateProxy
-
-```ts
-interface StateProxy {
-  view: Record<string, Record<string, unknown>>;  // state.view.<viewId>.<prop>
-  page: Record<string, unknown>;                   // state.page.<key>
-  app:  Record<string, unknown>;                   // state.app.<key>
-  flow: Record<string, unknown>;                   // state.flow.<key>
-}
-```
-
-setVariable 只能写 `state.*`，值节点只能读 `{in, state}`。
-
-### 2.4 CapProxy
-
-```ts
-// 前端
-interface CapProxy {
-  navigate(target: string, params?: Record<string, unknown>): Promise<void>;
-  callFlow(functionId: string, args: Record<string, unknown>): Promise<unknown>;
-  persist(key: string, value: unknown): Promise<void>;
-}
-
-// 后端
-interface CapProxy {
-  db: {
-    query(coll: string, filter: object): Promise<{rows:unknown[]; count:number}>;
-    insert(coll: string, doc: object): Promise<{id:string}>;
-    update(coll: string, filter: object, update: object): Promise<{matched:number; modified:number}>;
-    delete(coll: string, filter: object): Promise<{deleted:number}>;
-  };
-  httpClient: {
-    request(method:string, url:string, headers?:object, body?:unknown): Promise<{status:number; body:unknown; headers:object}>;
-  };
-}
-```
-
-cap 仅 action 节点执行器可见。source/compute 看不见 cap（C16 约束三）。
-
-### 2.5 挂载点描述符（C16，不变）
-
-| 挂载点 | `in` | `state` 可达层次 | `cap` |
-|--------|------|-----------------|------|
-| `View.events.*` | 事件对象 `{x,y,target,...}` | view/page/app | 前端 |
-| `View.lifetimes.*` | 空 | view/page/app | 前端 |
-| `Scene.lifetimes.*` | onLoad: navigate params; 其余空 | page/app | 前端 |
-| 云函数入口 | 调用 args | flow | 后端 |
-
-### 2.6 作用域帧管理
-
-```
-pushScope(extraIn):
-  → 新帧: { in: {...parent.in, ...extraIn}, state: parent.state, cap: parent.cap }
-  → forEach body / while body / onError 使用
-
-pushIsolatedScope({in, state}):
-  → 新帧: { in: opts.in, state: opts.state, cap: parent.cap }
-  → subFlow 专有: 不继承外层 in/state
-
-snapshot():
-  → 深拷贝 state，用于 parallel all/allSettled 分支隔离
 ```
 
 ---
 
-## 三、执行器
+## 六、执行器
 
-### 3.1 NodeExecutor
+### 6.1 NodeExecutor（branch 字段移除）
 
 ```ts
 interface NodeExecutor<T extends FlowNode = FlowNode> {
-  readonly kind: string;
-  readonly outputPorts: string[];
+  readonly kind: string
+  readonly outputPorts: string[]
 
   execute(
     node: T,
@@ -311,122 +258,34 @@ interface NodeExecutor<T extends FlowNode = FlowNode> {
     ctxIn: Readonly<Record<string, unknown>>,
     ctxState: StateProxy,
     ctxCap: CapProxy
-  ): Promise<NodeExecResult>;
+  ): Promise<NodeExecResult>
 }
 
 interface NodeExecResult {
-  outputs?: Record<string, unknown>;
-  branch?: string;     // condition 命中分支
-  error?: Error;
+  outputs?: Record<string, unknown>
+  // ★ branch 字段移除 —— condition 分支走向由 FlowConditionNode.branches[label].next 决定
+  error?: Error
 }
 ```
 
-异步约定: 执行器内部处理所有异步。FlowRunner 只看到 Promise，不区分同步/异步节点——不需要 latent/suspend/resume 机制。
-
-### 3.2 source 执行器
-
-```ts
-const sourceExecutor: NodeExecutor<FlowSourceNode> = {
-  kind: "source", outputPorts: ["value"],
-  async execute(node, _inputs, ctxIn, ctxState) {
-    if (node.from === "literal") return { outputs: { value: node.value } };
-    return { outputs: { value: contextGet(node.path, ctxIn, ctxState) } };
-  }
-};
-
-function contextGet(path: string, in_: Record<string,unknown>, state: StateProxy): unknown {
-  const [root, ...rest] = path.split(".");
-  if (root === "in")  return deepGet(in_, rest);
-  if (root === "state") {
-    const [layer, ...rest2] = rest;
-    return deepGet((state as any)[layer], rest2);
-  }
-  throw new Error(`Invalid context path: ${path}`);
-}
-```
-
-### 3.3 compute 执行器（math 为例）
-
-```ts
-const mathExecutor: NodeExecutor<FlowMathNode> = {
-  kind: "math", outputPorts: ["value"],
-  async execute(node, inputs) {
-    const a = inputs.a as number, b = inputs.b as number;
-    const ops: Record<string,(a:number,b:number)=>number> = {
-      add:(a,b)=>a+b, sub:(a,b)=>a-b, mul:(a,b)=>a*b, div:(a,b)=>a/b,
-      mod:(a,b)=>a%b, pow:(a,b)=>a**b, min:Math.min, max:Math.max
-    };
-    return { outputs: { value: ops[node.op](a,b) } };
-  }
-};
-```
-
-### 3.4 action 执行器（dbQuery 为例）
-
-```ts
-const dbQueryExecutor: NodeExecutor<FlowDbQueryNode> = {
-  kind: "dbQuery", outputPorts: ["rows","count"],
-  async execute(node, inputs, _in, _state, cap) {
-    const result = await cap.db.query(node.collection, inputs.filter as object);
-    return { outputs: { rows: result.rows, count: result.count } };
-  }
-};
-```
-
-### 3.5 注册与预组装
+### 6.2 注册与预组装（不变）
 
 ```ts
 class NodeExecutorRegistry {
-  private executors = new Map<string, NodeExecutor>();
-  register(ex: NodeExecutor): void { this.executors.set(ex.kind, ex); }
-  get(kind: string): NodeExecutor {
-    const ex = this.executors.get(kind);
-    if (!ex) throw new UnknownNodeKindError(kind);
-    return ex;
-  }
+  private executors = new Map<string, NodeExecutor>()
+  register(ex: NodeExecutor): void { this.executors.set(ex.kind, ex) }
+  get(kind: string): NodeExecutor { ... }
 }
 
-// 前端
-function createClientFlowRunner(): FlowRunner {
-  const reg = new NodeExecutorRegistry();
-  for (const ex of [sourceExecutor, mathExecutor, compareExecutor, logicExecutor,
-    concatExecutor, formatExecutor, getExecutor, setVariableExecutor,
-    navigateExecutor, callFlowExecutor]) { reg.register(ex); }
-  return new FlowRunner(reg);
-}
-
-// 后端
-function createServerFlowRunner(): FlowRunner {
-  const reg = new NodeExecutorRegistry();
-  for (const ex of [sourceExecutor, mathExecutor, compareExecutor, logicExecutor,
-    concatExecutor, formatExecutor, getExecutor, setVariableExecutor,
-    httpRequestExecutor, dbQueryExecutor, dbInsertExecutor,
-    dbUpdateExecutor, dbDeleteExecutor]) { reg.register(ex); }
-  return new FlowRunner(reg);
-}
+function createClientFlowRunner(): FlowRunner { ... }  // 注册前端执行器
+function createServerFlowRunner(): FlowRunner { ... }  // 注册后端执行器
 ```
 
 ---
 
-## 四、FlowRunner 调度器
+## 七、FlowRunner 调度器
 
-### 4.1 核心类型
-
-```ts
-class FlowRunner {
-  private registry: NodeExecutorRegistry;
-  private static MAX_STEPS = 1000;
-
-  constructor(registry: NodeExecutorRegistry) { this.registry = registry; }
-
-  async run(graph: FlowSchema, mountCtx: MountContext): Promise<void> {
-    const frame = ContextFrame.fromMount(mountCtx);
-    await this.runGraph(graph, frame);
-  }
-}
-```
-
-### 4.2 runGraph（顶层 + 子图共用）
+### 7.1 runGraph
 
 ```
 runGraph(graph, frame):
@@ -436,222 +295,201 @@ runGraph(graph, frame):
 
     node = graph.nodes[entryId]
     steps = 0
-    outputCache = new Map<string, Record<string, unknown>>()
+    outputCache = new Map()
 
     while node != null:
-        if ++steps > MAX_STEPS: throw MaxStepsExceeded
+        if ++steps > MAX_STEPS: throw
 
         switch node.category:
             case "control":
-                node = executeControl(node, graph, frame, outputCache)
+                node = executeControl(node, graph.nodes, frame)
             case "action":
-                executeAction(node, graph, frame, outputCache)
-                node = nextByControlEdge(node, graph)
+                executeAction(node, graph.nodes, frame)
+                node = nextNode(node)
             default:
-                throw UnexpectedCategory  // source/compute 不应被 Push
+                throw
 
         if isSubgraph && node?.id == exitId:
-            return collectExitOutputs(graph, outputCache)
+            return collectExitOutputs()
         if !isSubgraph && node == null:
             return {}
 
-    return {}
+function nextNode(node): FlowNode | null:
+    next = node.next ?? {}
+    return next[""] ? nodes[next[""]] : null
 ```
 
-### 4.3 executeControl
+### 7.2 executeControl
 
 ```
-executeControl(node, graph, frame, cache):
+executeControl(node, nodes, frame, cache):
     switch node.kind:
         case "condition":
-            for case in node.cases:
-                if resolveSlot(case.slot) == true:
-                    return followControlEdge(node, graph, case.label)
-            return followControlEdge(node, graph, node.default ?? "default")
+            for [label, { condition, next }] of node.branches:
+                if resolveSlot(condition, nodes, cache) == true:
+                    return nodes[next]         // ★ 直接读 branches[label].next
+            throw NoMatch
 
         case "while":
-            while resolveSlot(node.condition) == true:
+            while resolveSlot(node.condition, nodes, cache) == true:
                 runGraph(node.body, frame.pushScope({}))
-            return followControlEdge(node, graph)
+            return nodes[node.next[""]]        // ★ 直接读 node.next
 
         case "forEach":
-            items = resolveSlot(node.collection) as any[]
-            for (item, idx) in enumerate(items ?? []):
-                scope = { [node.itemVar ?? "item"]: item }
-                if node.indexVar: scope[node.indexVar] = idx
+            items = resolveSlot(node.collection, nodes, cache) as any[]
+            for (item, idx) of items ?? []:
+                scope = { [itemVar]: item }
                 runGraph(node.body, frame.pushScope(scope))
-            return followControlEdge(node, graph)
+            return nodes[node.next[""]]
 
         case "parallel":
-            results = executeParallel(node, graph, frame, cache)
+            results = executeParallel(node, nodes, frame, cache)
             cache.set(node.id, { result: results })
-            return followControlEdge(node, graph)
+            // 各分支汇入各自的 branch.next
+            return nodes[node.next[""]]
 
         case "subFlow":
             subSchema = loadSubFlow(node.subFlowId)
-            inputs = resolveSlots(node.inputs)
-            subFrame = frame.pushIsolatedScope({
-                in: inputs, state: { view:{}, page:{}, app:{}, flow:{} }
-            })
+            inputs = resolveSlots(node.inputs, nodes, cache)
+            subFrame = frame.pushIsolatedScope({ in: inputs, state: {...} })
             outputs = runGraph(subSchema, subFrame)
             cache.set(node.id, outputs)
-            return followControlEdge(node, graph)
+            return nodes[node.next[""]]
 ```
 
-### 4.4 executeAction
+### 7.3 executeAction
 
 ```
-executeAction(node, graph, frame, cache):
+executeAction(node, nodes, frame):
     executor = registry.get(node.kind)
-    inputs = resolveSlots(node.inputSlots)
-
+    inputs = resolveSlots(getInputSlots(node), nodes, frame)
     result = await executor.execute(node, inputs, frame.in, frame.state, frame.cap)
 
     if result.error:
         if node.onError:
-            errFrame = frame.pushScope({
-                in: { error: result.error, partialOutputs: result.outputs ?? {} }
-            })
+            errFrame = frame.pushScope({ in: { error, partialOutputs } })
             runGraph(node.onError, errFrame)
         else:
             throw result.error
-        return  // onError 是补偿，流程终止
-
-    cache.set(node.id, result.outputs)
+        return
 ```
 
-### 4.5 executeParallel
+### 7.4 resolveSlot（Pull 核心 —— 重写）
 
 ```
-executeParallel(node, graph, frame, cache):
-    makeFrame = (mode == "all" || mode == "allSettled")
-        ? () => frame.snapshot()
-        : () => frame
+resolveSlot(slot, nodes, cache):
+    // ★ 不再扫描 dataEdges 数组 —— 直接判断 slot 本身
+    if !isDataRef(slot):
+        return slot                  // 内联字面量
 
-    tasks = branches.map(b => runGraph(b, makeFrame()))
-
-    switch mode:
-        case "all":       return Promise.all(tasks)
-        case "allSettled": return (await Promise.allSettled(tasks)).map(...)
-        case "race":      return Promise.race(tasks)
-        case "any":       return Promise.any(tasks)
-```
-
-### 4.6 resolveSlot（Pull 核心）
-
-```
-resolveSlot(slot, graph, cache, caller):
-    if !caller: return slot  // 顶层传入的纯内联值
-
-    dataEdge = graph.dataEdges.find(e =>
-        e.toNode == caller.nodeId && e.toSlot == caller.slotName
-    )
-    if !dataEdge: return slot  // 无数据边 → 取内联值
-
-    upstream = graph.nodes[dataEdge.fromNode]
+    upstream = nodes[slot.nodeId]
     switch upstream.category:
         case "source":
             if upstream.from == "literal": return upstream.value
             return contextGet(upstream.path, frame.in, frame.state)
 
         case "compute":
-            if cache.has(upstream.id): return cache.get(upstream.id)["value"]
-            return executeCompute(upstream, graph, cache)
+            return executeCompute(upstream, nodes, frame)
 
         case "action":
-            outputs = cache.get(upstream.id)
-            if !outputs: throw ActionNotExecuted
-            return outputs[dataEdge.fromPort]
+            // ★ 惰性执行（不跟 next，只取输出）
+            executeActionForPull(upstream, nodes, frame)
+            return getNodeOutput(upstream)[slot.port]
 ```
 
-### 4.7 executeCompute
+### 7.5 executeCompute（不变）
 
 ```
-executeCompute(node, graph, cache):
-    if cache.has(node.id): return cache.get(node.id)["value"]
-
+executeCompute(node, nodes, frame):
     executor = registry.get(node.kind)
-    inputs = resolveSlots(node.inputSlots)
+    inputs = resolveSlots(getInputSlots(node), nodes, frame)
     result = await executor.execute(node, inputs, {}, {}, {})
-    // compute 节点不可见 in/state/cap —— 输入完全来自 DataEdge 或内联值
+    // compute 不可见 in/state/cap
 
     if result.error: throw result.error
-    cache.set(node.id, result.outputs ?? {})
     return result.outputs?.["value"]
 ```
 
-### 4.8 collectExitOutputs
+### 7.6 executeActionForPull（Pull 触发的懒惰执行）
 
 ```
-collectExitOutputs(sub, cache):
+executeActionForPull(node, nodes, frame):
+    executor = registry.get(node.kind)
+    inputs = resolveSlots(getInputSlots(node), nodes, frame)
+    result = await executor.execute(node, inputs, frame.in, frame.state, frame.cap)
+
+    if result.error:
+        if node.onError:
+            errFrame = frame.pushScope({ in: { error: result.error, partialOutputs: result.outputs ?? {} } })
+            runGraph(node.onError, errFrame)
+        else:
+            throw result.error
+        return
+
+    // ★ 不沿 next 推进——Pull 只取数据
+```
+
+### 7.7 collectExitOutputs
+
+```
+collectExitOutputs(subExit):
     outputs = {}
-    for edge in sub.dataEdges:
-        if edge.toNode == sub.subExit:
-            upstreamOut = cache.get(edge.fromNode)
-            if upstreamOut && edge.fromPort in upstreamOut:
-                outputs[edge.fromPort] = upstreamOut[edge.fromPort]
+    // 子图产出由 runGraph 返回值承载
     return outputs
 ```
 
-### 4.9 三个不变量
+### 7.8 执行保证
 
-| 不变量 | 保证方式 |
-|--------|----------|
-| 控制路径无环 | 编辑时 DFS 校验 ControlEdge 拓扑 |
-| 数据边 forward-reference | 编辑时: DataEdge.fromNode 控制序 <= toNode |
-| Pull 不遇未执行 action | forward-reference 推论——被引用 action 必已 Push 执行 |
+**Push 沿控制链推进**：entry 出发，沿 node.next 逐节点执行。source/compute 不在控制路径上，永不被 Push。
+
+**Pull 惰性递归求值**：沿 DataRef 反向递归，遇到 source/compute/action 直接执行（含 action——未执行则执行，不跟 next）。Pull 不推进控制流，只取数据。
+
+**设计约束**：多前序分支必须通过 parallel 包裹。不包裹时，Pull 可能在另一条控制链尚未执行的状态下触发 action——副作用时序由用户负责。
+
+| 保证 | 说明 |
+|------|------|
+| 控制路径无环 | 编辑时 DFS node.next 引用链 |
+| Pull 惰性求值 | source/compute/action 均参与，沿 DataRef 递归执行，不跟 next |
+| 多前序用 parallel | parallel 保证所有分支执行后才收敛，跨分支 DataRef 安全 |
 
 ---
 
-## 五、编辑时校验
+## 八、编辑时校验
 
 | 校验项 | 规则 |
 |--------|------|
-| 控制路径无环 | entry DFS ControlEdge。子图 subEntry 独立校验 |
-| 数据边 forward-reference | fromNode 拓扑序 <= toNode(source/compute 天然通过) |
+| 控制路径无环 | entry DFS node.next 引用链。子图 subEntry 独立校验 |
+
 | entry 约束 | 必须是 control 或 action |
-| navigate 终点 | 控制边出度必须为 0 |
-| 子图完整性 | subEntry+subExit; subEntry 控制入度0; subExit 控制出度0 |
-| 引用完整性 | callFlow/subFlow ID存在; path 首段 in/state; branch 匹配 case; fromPort 匹配输出端口 |
-| category 约束 | source/compute 无控制边; action<=1 控制出边; control 出边匹配 kind |
+| navigate 终点 | `next` 必须为 `{}` |
+| condition 完整性 | branches 含判据 + next；若缺默认分支，须至少一个 cases 必真 |
+| 子图完整性 | subEntry + subExit；subEntry 不被任何 next 指向；subExit next 为 {} |
+| 引用完整性 | subFlowId 存在；path 首段 in/state；DataRef.nodeId 存在；DataRef.port 匹配上游 outputPorts |
+| category 约束 | source/compute 无 next；action next 键数 ≤ 1；control next 键数匹配 kind |
+| next 键约束 | 单出口用 `""`；condition 键匹配 branches 的 key；parallel 键为 `""` |
 
 ---
 
-## 六、语义边界
+## 九、语义边界
 
-| 边界 | 定义 |
-|------|------|
-| navigate=终点 | 切换 Scene 后 context 失效，控制边出度 0 |
-| onError=补偿 | 注入 {error, partialOutputs}，执行后终止 |
-| subFlow=隔离 | 不穿透外层 state，显式 inputs |
-| flow 间正交 | 独立执行，不通信不等事件 |
+保持不变：navigate=终点、onError=补偿、subFlow=隔离、flow 间正交。
 
 ---
 
-## 七、数据迁移（1.0.0 → 2.0.0）
-
-1. 顶层 `exit` 移除——控制边出度 0 即终点
-2. `FlowValueNode` → `FlowSourceNode(from:"context")`
-3. `FlowValue.literal` → `FlowSourceNode(from:"literal")` 或插槽内联
-4. `FlowValue.dataRef/pageDataRef/eventArg` → `FlowSourceNode(from:"context")` + path
-5. `FlowValue.nodeRef` → 显式 DataEdge（fromPort/toSlot）
-6. `FlowEdge` 拆分：`branch`/`toParam` 判断 → 无 port → ControlEdge；有 port → DataEdge
-7. `FlowEdge.branch: "error"` → action 的 `onError: FlowSubSchema`
-8. 七个废除节点按 C17 约束六迁移
-9. 节点移除 `x`/`y`，增加 `category`
-
----
-
-## 八、关键决策取舍
+## 十、关键决策取舍
 
 | 决策 | 取舍 |
 |------|------|
-| **二分边** | ControlEdge 不携带数据，DataEdge 不决定执行顺序。Blueprints exec+data 二十年验证。统一边是旧 SESE 遗留 |
-| **异步在执行器内** | FlowRunner 只看到 Promise，不需要 latent/suspend/resume。牺牲多链并发，换极简主循环 |
-| **source/compute Pull时求值** | 不在控制路径的节点永不被 Push。cache 防重复计算 |
-| **parallel 帧快照** | all/allSettled 分支 snapshot 隔离，race/any 共享帧。不限制重叠写入——编排问题 |
+| **边消解为节点内嵌引用** | 边不是独立实体——控制流是"A 之后去 B"（A 的属性），数据流是"B 的输入来自 A"（B 的属性）。两层边数组消失，O(n) 扫描变为 O(1) 直接读取。代价：删除节点需扫描所有节点的 next 和 DataRef 做级联清理 |
+| **next: Record<string, string>** | 统一单出口、多分支、终点。空 Record = 终止，`""` 键 = 默认后继。condition 的 cases + default + ControlEdge.branch 三合一为 `branches` |
+| **DataRef { nodeId, port }** | 端口名天然跟随引用。resolveSlot 不需 fromPort 参数——DataRef 自带 |
+| **异步在执行器内** | FlowRunner 只看到 Promise，不需要 latent/suspend/resume |
+| **Pull 可递归执行 action** | DataRef 指向未缓存 action 时，Pull 递归执行它并写 cache。不跟 next——控制流推进是 Push 的专属职责。多前序场景下 Pull 可能触发另一条控制链上的懒惰执行，副作用时序由用户负责 |
+| **parallel 帧快照** | all/allSettled snapshot 隔离，race/any 共享帧 |
 | **onError=补偿** | 注入 partialOutputs 供回滚，执行后终止。Saga 模式 |
-| **navigate=终点** | context 失效，出度强制 0。跨页面通信属 App 层迭代 |
+| **navigate** | 切换 Scene 后 context 失效，但不强制 next 为空——用户自行判断后续节点是否在有效上下文中运行 |
 | **上下文三分** | 与调度正交。cap 仅 action 可见，值节点只读 {in,state} |
-| **compute 不可见 in/state/cap** | 纯函数——输入完全来自 DataEdge 或内联值 |
-| **cache 按节点 ID** | 简单有效。compute 幂等缓存。action 不重复执行 |
+| **compute 不可见 in/state/cap** | 纯函数——输入完全来自 DataRef 或内联值 |
+| **NodeExecResult 无 branch** | condition 分支走向由 FlowConditionNode.branches[label].next 决定，执行器只需产出 outputs |
+
+---
