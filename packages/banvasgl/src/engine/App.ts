@@ -10,9 +10,8 @@ import type {
 import type { IRendererOptions } from "@/types/engine/renderer.js";
 import type { ISerializable } from "@/types/foundation/serializable.js";
 import { AppType } from "@/foundation/constants";
-import { createClientFlowRunner } from "@/flow/presets/client.js";
-import type { FlowRunner } from "@/flow/runtime/FlowRunner.js";
-import type { FlowContext } from "@/flow/runtime/context.js";
+import { createClientFlowRunner } from "@/foundation/flow/presets/client.js";
+import type { FlowRunner } from "@/foundation/flow/FlowRunner/index.js";
 import { AnimationManager } from "@/foundation/animation";
 import { flattenViewTree } from "@/engine/scene/utils";
 import type View from "@/view/View/View";
@@ -42,20 +41,15 @@ export class App implements ISerializable {
   /**
    * 应用 ID（可选）
    *
-   * 由消费方（如 banyan 前端）设置，用于 FlowRunner 中 callFlow 节点
-   * 调用后端 API 时标识应用。通过 Scene.triggerSchema 注入到 FlowContext.env。
+   * 由消费方（如 banyan 前端）设置，用于 cloudFunction 节点标识应用。
    */
   public appId: string | undefined = undefined;
 
   /**
    * 后端端点地址（可选）
    *
-   * 设置后，Scene.triggerSchema 会自动注入 env.callFlow 实现，
-   * callFlow 节点将发起 HTTP POST 到 `${backendEndpoint}/api/functions/${flowId}`。
-   *
-   * - 预览态：指向本地 Preview Server（如 http://localhost:9100）
-   * - 线上运行态：指向 ECS 部署的后端服务
-   * - 编辑态 / 未设置：callFlow 为 undefined，节点静默跳过
+   * 用于 cloudFunction 加载远端函数体。
+   * 未设置时 cloudFunction 使用 FlowRunner.loadFunctionBody 默认实现。
    */
   public backendEndpoint: string | undefined = undefined;
 
@@ -130,7 +124,7 @@ export class App implements ISerializable {
         const ctx = this._buildAppFlowContext(
           Array.isArray(params) ? params : [params],
         );
-        this.flowRunner.run(this.lifetimes.onLaunch, ctx)
+        this.flowRunner!.run(this.lifetimes.onLaunch, ctx as any)
           .catch((err: unknown) => console.error('[App] onLaunch schema 执行出错:', err));
       } catch (error) {
         console.error("lifetimes.onLaunch 执行失败:", error);
@@ -163,7 +157,7 @@ export class App implements ISerializable {
     if (this.flowEnabled && this.lifetimes.onUnlaunch) {
       try {
         const ctx = this._buildAppFlowContext([]);
-        this.flowRunner.run(this.lifetimes.onUnlaunch, ctx)
+        this.flowRunner!.run(this.lifetimes.onUnlaunch, ctx as any)
           .catch((err: unknown) => console.error('[App] onUnlaunch schema 执行出错:', err));
       } catch (error) {
         console.error("lifetimes.onUnlaunch 执行失败:", error);
@@ -896,7 +890,7 @@ export class App implements ISerializable {
    *
    * 与 Scene.triggerSchema 不同，这里的 scope 解析基于当前页面（如果存在）。
    */
-  private _buildAppFlowContext(eventArgs: unknown[]): FlowContext {
+  private _buildAppFlowContext(eventArgs: unknown[]): Record<string, any> {
     const app = this;
     const scene = this.getCurrentScene();
     return {

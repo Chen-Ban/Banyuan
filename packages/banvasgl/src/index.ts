@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @banyuan/banvasgl — 面向声明式 UI 的 2D 图形运行时（含流程控制）· 公共 API
  *
  * 本文件是唯一对外出口，显式列举所有公共符号。
@@ -46,15 +46,6 @@ export type {
     FieldType,
     IFieldSchema,
     IFieldSchemaMap,
-    // Flow 类型（从内部 flow 模块统一透传）
-    FlowValue,
-    FlowCondition,
-    FlowLiteralValue,
-    FlowDataRefValue,
-    FlowPageDataRefValue,
-    FlowEventArgValue,
-    // FlowContext
-    FlowContext,
     EventHandler,
     IViewEvents,
     IViewLifetimes,
@@ -115,24 +106,28 @@ export type {
 
 // 枚举值 —— 从各自归属模块直接导出（不再通过类型 barrel 透传，防止 chunk 级循环依赖）
 export { AddonCapability, Cursor, Action } from './foundation/constants'
-export { FLOW_SCHEMA_VERSION } from './flow/types/schema.js'
+export { FLOW_SCHEMA_VERSION } from './types/foundation/flow/index.js'
 
-    // Flow v2.0.0
-    FlowConditionNode,
-    FlowWhileNode,
-    FlowForEachNode,
-    FlowParallelNode,
-    FlowSubFlowNode,
+// ── Flow v2.0.0 类型（从 flow 模块直接导出） ──
+export type {
+    // control
     FlowControlNode,
+    FlowConditionNode,
+    FlowLoopNode,
+    FlowParallelNode,
+    // function
+    FlowFunctionNode,
+    FlowLocalFunctionNode,
+    FlowCloudFunctionNode,
+    // action
+    FlowActionNode,
     FlowSetVariableNode,
     FlowNavigateNode,
-    FlowCallFlowNode,
     FlowHttpRequestNode,
     FlowDbQueryNode,
     FlowDbInsertNode,
     FlowDbUpdateNode,
     FlowDbDeleteNode,
-    FlowActionNode,
     FlowLiteralSourceNode,
     FlowContextSourceNode,
     FlowSourceNode,
@@ -144,11 +139,11 @@ export { FLOW_SCHEMA_VERSION } from './flow/types/schema.js'
     FlowGetNode,
     FlowComputeNode,
     FlowNode,
-    FlowControlEdge,
-    FlowDataEdge,
     FlowSchema,
-    FlowSubSchema,
+    FlowSchema,
     NodeCategory,
+    DataRef,
+} from './types/foundation/flow/index.js'
 // ── Camera 接口 ──
 export type {
     ICamera,
