@@ -2,16 +2,17 @@
  * 后端 action 执行器 —— HTTP + 数据库
  */
 
-import type { NodeExecutor } from '../registry.js'
-import type { FlowHttpRequestNode, FlowDbQueryNode, FlowDbInsertNode, FlowDbUpdateNode, FlowDbDeleteNode } from '../../types/nodes/action.js'
+import { NodeKind } from '@/types/foundation/flow/enums.js'
+import type { NodeExecutor } from "./types.js"
+import type { FlowHttpRequestNode, FlowDbQueryNode, FlowDbInsertNode, FlowDbUpdateNode, FlowDbDeleteNode } from '@/types/foundation/flow/nodes/action.js'
 
 // ── httpRequest ──
 
 export const httpRequestExecutor: NodeExecutor<FlowHttpRequestNode> = {
-  kind: 'httpRequest',
+  kind: NodeKind.HttpRequest,
   outputPorts: ['status', 'body', 'headers'],
-  async execute(node, inputs, _in, _state, ctxCap) {
-    const cap = ctxCap as any
+  async execute(node, inputs, frame) {
+    const cap = frame.cap as any
     const http = cap.httpClient
     if (!http) throw new Error('httpClient not available in context')
 
@@ -34,10 +35,10 @@ export const httpRequestExecutor: NodeExecutor<FlowHttpRequestNode> = {
 // ── dbQuery ──
 
 export const dbQueryExecutor: NodeExecutor<FlowDbQueryNode> = {
-  kind: 'dbQuery',
+  kind: NodeKind.DbQuery,
   outputPorts: ['rows', 'count'],
-  async execute(node, inputs, _in, _state, ctxCap) {
-    const cap = ctxCap as any
+  async execute(node, inputs, frame) {
+    const cap = frame.cap as any
     const db = cap.db
     if (!db) throw new Error('db not available in context')
 
@@ -49,10 +50,10 @@ export const dbQueryExecutor: NodeExecutor<FlowDbQueryNode> = {
 // ── dbInsert ──
 
 export const dbInsertExecutor: NodeExecutor<FlowDbInsertNode> = {
-  kind: 'dbInsert',
+  kind: NodeKind.DbInsert,
   outputPorts: ['id'],
-  async execute(node, inputs, _in, _state, ctxCap) {
-    const cap = ctxCap as any
+  async execute(node, inputs, frame) {
+    const cap = frame.cap as any
     const db = cap.db
     if (!db) throw new Error('db not available in context')
 
@@ -64,10 +65,10 @@ export const dbInsertExecutor: NodeExecutor<FlowDbInsertNode> = {
 // ── dbUpdate ──
 
 export const dbUpdateExecutor: NodeExecutor<FlowDbUpdateNode> = {
-  kind: 'dbUpdate',
+  kind: NodeKind.DbUpdate,
   outputPorts: ['matchedCount', 'modifiedCount'],
-  async execute(node, inputs, _in, _state, ctxCap) {
-    const cap = ctxCap as any
+  async execute(node, inputs, frame) {
+    const cap = frame.cap as any
     const db = cap.db
     if (!db) throw new Error('db not available in context')
 
@@ -83,10 +84,10 @@ export const dbUpdateExecutor: NodeExecutor<FlowDbUpdateNode> = {
 // ── dbDelete ──
 
 export const dbDeleteExecutor: NodeExecutor<FlowDbDeleteNode> = {
-  kind: 'dbDelete',
+  kind: NodeKind.DbDelete,
   outputPorts: ['deletedCount'],
-  async execute(node, inputs, _in, _state, ctxCap) {
-    const cap = ctxCap as any
+  async execute(node, inputs, frame) {
+    const cap = frame.cap as any
     const db = cap.db
     if (!db) throw new Error('db not available in context')
 
