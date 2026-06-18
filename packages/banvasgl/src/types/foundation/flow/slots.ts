@@ -40,10 +40,10 @@ export interface FlowLoopSlot extends SlotBase {
   next: Next;
 }
 
-/** Parallel 节点使用——每条 slot 是一个并行分支 */
+/** Parallel 节点使用——单 slot 包含多个并行分支 */
 export interface FlowParallelSlot extends SlotBase {
-  /** 分支体子图（必填） */
-  body: FlowSchema;
+  /** 并行分支体数组（必填，至少一个） */
+  body: FlowSchema[];
   /** 并行汇聚后的出口（必填） */
   next: Next;
 }

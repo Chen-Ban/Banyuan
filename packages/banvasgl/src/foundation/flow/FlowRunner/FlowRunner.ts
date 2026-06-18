@@ -113,7 +113,7 @@ export class FlowRunner implements IFlowRunner {
         return s.next ? (nodes[s.next] ?? null) : null;
       }
       case NodeKind.Parallel: {
-        const bodies = node.slots.map((s) => s.body);
+        const bodies = node.slots[0].body;
         const mode = node.mode;
         const snapshots = bodies.map(() =>
           stack.frame.copy({ state: { view: {}, page: {}, app: {} } }),
