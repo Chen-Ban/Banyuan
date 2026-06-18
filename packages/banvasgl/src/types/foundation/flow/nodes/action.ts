@@ -23,11 +23,14 @@ export interface FlowHttpRequestNode {
   slots: FlowActionSlot[]
 }
 
-/** 云函数 = HTTP 调用后端执行指定函数 */
-export interface FlowCloudFunctionNode extends FlowHttpRequestNode {
+/** 云函数 = HTTP 调用后端执行指定函数，结构同 HttpRequest + functionId */
+export interface FlowCloudFunctionNode {
+  id: string
+  category: NodeCategory.Action
   kind: NodeKind.CloudFunction
-  /** 云函数 ID */
+  method: string
   functionId: string
+  slots: FlowActionSlot[]
 }
 
 export interface FlowDbQueryNode {
