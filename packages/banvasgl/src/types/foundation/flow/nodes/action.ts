@@ -1,6 +1,9 @@
 import { NodeCategory, NodeKind } from '../enums.js'
 import type {
   FlowSetVariableSlot,
+  FlowSetViewDataSlot,
+  FlowSetViewVisibleSlot,
+  FlowPlayAnimationSlot,
   FlowNavigateSlot,
   FlowHttpRequestSlot,
   FlowCloudFunctionSlot,
@@ -15,6 +18,27 @@ export interface FlowSetVariableNode {
   category: NodeCategory.Action
   kind: NodeKind.SetVariable
   slots: FlowSetVariableSlot[]
+}
+
+export interface FlowSetViewDataNode {
+  id: string
+  category: NodeCategory.Action
+  kind: NodeKind.SetViewData
+  slots: FlowSetViewDataSlot[]
+}
+
+export interface FlowSetViewVisibleNode {
+  id: string
+  category: NodeCategory.Action
+  kind: NodeKind.SetViewVisible
+  slots: FlowSetViewVisibleSlot[]
+}
+
+export interface FlowPlayAnimationNode {
+  id: string
+  category: NodeCategory.Action
+  kind: NodeKind.PlayAnimation
+  slots: FlowPlayAnimationSlot[]
 }
 
 export interface FlowNavigateNode {
@@ -68,6 +92,9 @@ export interface FlowDbDeleteNode {
 
 export type FlowActionNode =
   | FlowSetVariableNode
+  | FlowSetViewDataNode
+  | FlowSetViewVisibleNode
+  | FlowPlayAnimationNode
   | FlowNavigateNode
   | FlowHttpRequestNode
   | FlowCloudFunctionNode

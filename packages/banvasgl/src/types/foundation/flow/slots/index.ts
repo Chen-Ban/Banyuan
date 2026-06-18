@@ -9,6 +9,9 @@ import type { FlowLiteralSourceSlot, FlowContextSourceSlot } from './source.js'
 import type { FlowMathSlot, FlowCompareSlot, FlowLogicSlot, FlowConcatSlot, FlowFormatSlot, FlowGetSlot } from './compute.js'
 import type {
   FlowSetVariableSlot,
+  FlowSetViewDataSlot,
+  FlowSetViewVisibleSlot,
+  FlowPlayAnimationSlot,
   FlowNavigateSlot,
   FlowHttpRequestSlot,
   FlowCloudFunctionSlot,
@@ -36,6 +39,9 @@ export type FlowSlot =
   | FlowFormatSlot
   | FlowGetSlot
   | FlowSetVariableSlot
+  | FlowSetViewDataSlot
+  | FlowSetViewVisibleSlot
+  | FlowPlayAnimationSlot
   | FlowNavigateSlot
   | FlowHttpRequestSlot
   | FlowCloudFunctionSlot

@@ -116,8 +116,7 @@ export type {
   NodeCategory,
 } from "@/types/foundation/flow/index.js";
 
-// FLOW_SCHEMA_VERSION / FlowEnv —— 从 types 模块导出
-export type { FlowEnv } from "@/types/foundation/flow/context.js";
+// FLOW_SCHEMA_VERSION —— 从 types 模块导出
 
 // 文件内使用（EventHandler 等需要引用 FlowSchema）
 import type { FlowSchema } from "@/types/foundation/flow/index.js";

@@ -14,6 +14,30 @@ export interface FlowSetVariableSlot extends SlotBase {
   next: Next
 }
 
+/** 设置 View 数据 */
+export interface FlowSetViewDataSlot extends SlotBase {
+  input: { viewId: SlotValue; key: SlotValue; value: SlotValue }
+  output: []
+  onError?: FlowSchema
+  next: Next
+}
+
+/** 设置 View 可见性 */
+export interface FlowSetViewVisibleSlot extends SlotBase {
+  input: { viewId: SlotValue; visible: SlotValue }
+  output: []
+  onError?: FlowSchema
+  next: Next
+}
+
+/** 播放动画 */
+export interface FlowPlayAnimationSlot extends SlotBase {
+  input: { viewId: SlotValue; animationId: SlotValue }
+  output: []
+  onError?: FlowSchema
+  next: Next
+}
+
 /** 跳转页面 */
 export interface FlowNavigateSlot extends SlotBase {
   input: { target: SlotValue }

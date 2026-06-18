@@ -58,7 +58,6 @@ export type {
     FlowLoopNode,
     FlowParallelNode,
     FlowFunctionNode,
-    FlowForEachNode,
     // 前端 Action 节点
     FlowSetVariableNode,
     FlowNavigateNode,

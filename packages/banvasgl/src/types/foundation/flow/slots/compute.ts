@@ -1,4 +1,5 @@
 import type { SlotValue } from '../common.js'
+import { MathOp, CompareOp, LogicOp } from '../enums.js'
 import type { SlotBase } from './common.js'
 
 // ═══════════════════════════════════════════════════════════
@@ -7,25 +8,25 @@ import type { SlotBase } from './common.js'
 
 /** 数学运算 */
 export interface FlowMathSlot extends SlotBase {
-  input: { op: SlotValue; a: SlotValue; b: SlotValue }
+  input: { op: MathOp; a: SlotValue; b: SlotValue }
   output: ['value']
 }
 
 /** 比较运算 */
 export interface FlowCompareSlot extends SlotBase {
-  input: { op: SlotValue; a: SlotValue; b: SlotValue }
+  input: { op: CompareOp; a: SlotValue; b: SlotValue }
   output: ['value']
 }
 
 /** 逻辑运算 */
 export interface FlowLogicSlot extends SlotBase {
-  input: { op: SlotValue; a: SlotValue; b: SlotValue }
+  input: { op: LogicOp; a: SlotValue; b: SlotValue }
   output: ['value']
 }
 
 /** 字符串拼接 */
 export interface FlowConcatSlot extends SlotBase {
-  input: { a: SlotValue; b: SlotValue; separator?: SlotValue }
+  input: { a: SlotValue; b: SlotValue; separator?: string }
   output: ['value']
 }
 
@@ -37,6 +38,6 @@ export interface FlowFormatSlot extends SlotBase {
 
 /** 按路径从 object 取嵌套字段 */
 export interface FlowGetSlot extends SlotBase {
-  input: { path: SlotValue; object: SlotValue }
+  input: { path: string; object: SlotValue }
   output: ['value']
 }
