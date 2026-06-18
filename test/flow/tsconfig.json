@@ -1,0 +1,8 @@
+{
+  "extends": "../../packages/banvasgl/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "outDir": "./dist"
+  },
+  "include": ["./**/*.ts", "../../packages/banvasgl/src/**/*.ts"]
+}
