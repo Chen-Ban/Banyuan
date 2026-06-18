@@ -1,4 +1,4 @@
-import { NodeCategory, NodeKind, ParallelMode } from "../enums.js";
+import { NodeCategory, NodeKind } from "../enums.js";
 import type {
   FlowConditionSlot,
   FlowLoopSlot,
@@ -25,7 +25,6 @@ export interface FlowParallelNode {
   category: NodeCategory.Control;
   kind: NodeKind.Parallel;
   slots: FlowParallelSlot[];
-  mode: ParallelMode;
 }
 
 export interface FlowReturnNode {

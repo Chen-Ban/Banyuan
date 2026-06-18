@@ -116,7 +116,7 @@ export class FlowRunner implements IFlowRunner {
       }
       case NodeKind.Parallel: {
         const bodies = node.slots[0].body;
-        const mode = node.mode;
+        const mode = node.slots[0].mode;
         const snapshots = bodies.map(() =>
           stack.frame.copy({ state: { view: {}, page: {}, app: {} } }),
         );

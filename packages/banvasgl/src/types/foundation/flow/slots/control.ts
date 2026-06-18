@@ -1,6 +1,7 @@
 import type { Next, Filter } from '../common.js'
 import type { FlowSchema } from '../schema.js'
 import type { SlotBase } from './common.js'
+import { ParallelMode } from '../enums.js'
 
 // ═══════════════════════════════════════════════════════════
 // Control Slot —— 每种 Control 有专属 slot
@@ -22,6 +23,7 @@ export interface FlowLoopSlot extends SlotBase {
 /** Parallel 节点使用——单 slot 包含多个并行分支 */
 export interface FlowParallelSlot extends SlotBase {
   body: FlowSchema[];
+  mode: ParallelMode;
   next: Next;
 }
 

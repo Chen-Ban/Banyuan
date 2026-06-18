@@ -212,7 +212,7 @@ function deriveSummaryFromSchema(schema: FlowNode): string | null {
         case 'condition':   return `${(schema as any).cases?.length ?? 0} 分支`
         case 'while':       return 'while (…)'
         case 'forEach':     return `∀ ${(schema as any).itemVar ?? 'item'} in ${slotToString((schema as any).collection)}`
-        case 'parallel':    return `${(schema as any).branches?.length ?? 0} 分支 (${(schema as any).mode})`
+        case 'parallel':    return `${(schema as any).slots?.[0]?.body?.length ?? 0} 分支 (${(schema as any).slots?.[0]?.mode})`
         case 'function': return null // 无摘要
         default:            return null
     }
