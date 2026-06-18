@@ -47,10 +47,9 @@ export interface BackendCapProxy {
 
 export type CapProxy = FrontendCapProxy | BackendCapProxy
 
-/** 静态上下文（流程启动时注入，提供初始 state 和 cap） */
+/** 静态上下文（流程启动时注入初始 state） */
 export interface FlowEnv {
   state: State
-  cap: Record<string, unknown>
 }
 
 /** 运行时上下文帧接口 */

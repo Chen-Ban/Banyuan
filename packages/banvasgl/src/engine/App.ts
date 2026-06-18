@@ -12,6 +12,7 @@ import type { ISerializable } from "@/types/foundation/serializable.js";
 import { AppType } from "@/foundation/constants";
 import { createClientFlowRunner } from "@/foundation/flow/presets/client.js";
 import type { FlowRunner } from "@/foundation/flow/FlowRunner/index.js";
+import type { FrontendCapProxy } from "@/types/foundation/flow/context.js";
 import { AnimationManager } from "@/foundation/animation";
 import { flattenViewTree } from "@/engine/scene/utils";
 import type View from "@/view/View/View";
@@ -27,8 +28,8 @@ export class App implements ISerializable {
   public readonly animationManager: AnimationManager =
     AnimationManager.getInstance();
 
-  /** 流程执行器（前端预设，包含 client + shared 节点） */
-  public readonly flowRunner: FlowRunner = createClientFlowRunner();
+  /** 流程执行器（前端预设，cap 由 AppOptions 注入） */
+  public readonly flowRunner: FlowRunner;
 
   /**
    * 是否允许 FlowSchema 执行。
@@ -100,6 +101,7 @@ export class App implements ISerializable {
     this._enablePageStack = options.enablePageStack !== false;
     this._maxPageStackSize = options.maxPageStackSize || 50;
     this.flowEnabled = options.flowEnabled !== false; // 默认 true
+    this.flowRunner = createClientFlowRunner(options.cap as FrontendCapProxy);
 
     // 初始化 lifetimes（FlowSchema）
     this.lifetimes = {

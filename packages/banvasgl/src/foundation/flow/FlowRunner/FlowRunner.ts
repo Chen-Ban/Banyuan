@@ -30,16 +30,18 @@ const MAX_STEPS = 1000;
 
 export class FlowRunner implements IFlowRunner {
   private executors: Record<string, NodeExecutor>;
+  private cap: CapProxy;
 
-  constructor(executors: Record<string, NodeExecutor>) {
+  constructor(executors: Record<string, NodeExecutor>, cap: CapProxy) {
     this.executors = executors;
+    this.cap = cap;
   }
 
   async run(graph: FlowSchema, env: FlowEnv): Promise<void> {
     const root = new ContextFrame(
       { in: {}, local: {} },
       env.state,
-      env.cap as unknown as CapProxy,
+      this.cap,
     );
     const stack = new FrameStack(root);
     await this.runGraph(graph, stack);
