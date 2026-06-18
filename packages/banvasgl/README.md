@@ -18,7 +18,7 @@ BanvasGL 解决的问题是：**让同一套渲染逻辑在浏览器和桌面端
 
 **场景图体系**：App → Scene → View 的树形结构。View 是基本构建单元，支持嵌套、分组、层级管理。容器视图统一为 `CombinedView`，通过 `layoutMode`（`free` / `flex` / `list` / `grid` / `scroll`）切换自动布局策略（`ILayoutStrategy`）——不再存在独立的 FlexView / ListView 等布局容器类型（见 ADR-031）。
 
-**流程引擎（Flow）**：内置的声明式流程执行器。每个 View 通过事件（onClick 等）和生命周期（onCreated/onAttach/onDestroy）绑定 FlowSchema。前端流程处理动画/导航/数据绑定，后端流程处理数据库操作/HTTP 请求/脚本执行，两端共享同一套 Schema 格式。
+**流程引擎（Flow）**：内置的声明式流程执行器。每个 View 通过事件（onClick 等）和生命周期（onCreated/onAttach/onDestroy）绑定 FlowSchema。Push-Pull 混合调度模型——Push 沿 `next` 字段推进控制流，Pull 沿 `DataRef` 递归求值数据依赖。25 种节点（source / compute / control / action / function），前后端通过独立的 preset 工厂（`createClientFlowRunner` / `createServerFlowRunner`）创建 FlowRunner，共享同一套 FlowSchema 格式。
 
 **动画系统**：关键帧动画，支持缓动函数和时间线控制。
 
@@ -36,14 +36,14 @@ BanvasGL 通过子路径导出提供不同能力：
 
 | 导入路径 | 用途 |
 |----------|------|
-| `@banyuan/banvasgl` | 核心图形引擎 + Flow 类型（App、Scene、View、FlowSchema 等） |
+| `@banyuan/banvasgl` | 核心图形引擎 + Flow 类型（App、Scene、View、FlowSchema、FlowNode 等 25 种 NodeKind） |
 | `@banyuan/banvasgl/react` | React Hook 绑定（`useCanvasInit` / `useCanvasCamera`） |
-| `@banyuan/banvasgl/flow/client` | 前端流程 Runner 工厂（`createClientFlowRunner()`） |
-| `@banyuan/banvasgl/flow/server` | 后端流程 Runner 工厂（`createServerFlowRunner()`） |
+| `@banyuan/banvasgl/flow/client` | 前端 FlowRunner 工厂（`createClientFlowRunner()`） |
+| `@banyuan/banvasgl/flow/server` | 后端 FlowRunner 工厂（`createServerFlowRunner()`） |
 
-仅有 4 个导出路径，不存在公开的 `./flow` 子路径——内部组件（FlowRunner、NodeExecutorRegistry、各执行器）不对外暴露。高层交互识别（点击/拖拽等）不在本包，而在运行策略层 [`@banyuan/banvas-runtime`](../banvas-runtime/README.md)。
+仅有 4 个导出路径，不存在公开的 `./flow` 子路径——内部组件（FlowRunner 类、NodeExecutor 注册表、各求值器）不对外暴露，只暴露预组装工厂。高层交互识别（点击/拖拽等）不在本包，而在运行策略层 [`@banyuan/banvas-runtime`](../banvas-runtime/README.md)。
 
-Flow 的类型（FlowSchema、FlowNode、FlowEdge、FlowContext 等）统一从主入口导出，因为 View.events 的类型就是 FlowSchema，前端消费者天然需要。flow/client 和 flow/server 只提供预组装的 Runner 工厂函数，不暴露内部实现（FlowRunner 类、NodeExecutorRegistry、各执行器）。
+Flow 的类型（FlowSchema、FlowNode、FlowSlot、DataRef 等）统一从主入口导出，因为 View.events 的类型就是 FlowSchema，前端消费者天然需要。flow/client 和 flow/server 只提供预组装的 Runner 工厂函数，不暴露内部实现。
 
 ---
 
