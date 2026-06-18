@@ -1,6 +1,6 @@
 import type {
   FlowSchema,
-} from "@/types/foundation/flow/slots.js";
+} from "@/types/foundation/flow/schema.js";
 import type {
   Filter,
   Condition,
