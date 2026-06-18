@@ -1,7 +1,7 @@
 /**
  * function executor（stub）
  *
- * localFunction 的实际执行走 FlowRunner.invokeFunction 硬编码。
+ * Function 节点的实际执行走 FlowRunner.invokeFunction 硬编码。
  * 此 executor 为占位 stub，供将来可能的 executor 模式使用。
  */
 import type { FlowFunctionNode } from '@/types/foundation/flow/nodes/function.js'

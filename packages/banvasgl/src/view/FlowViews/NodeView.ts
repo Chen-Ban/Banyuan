@@ -49,7 +49,7 @@ function deriveAppearance(category: string, kind: string): NodeAppearance {
         }
         case 'function': {
             switch (kind) {
-                case 'localFunction':  return { shape: 'rect', accentColor: '#6366f1', icon: '⊞' }
+                case 'function':  return { shape: 'rect', accentColor: '#6366f1', icon: '⊞' }
                 default:               return { shape: 'rect', accentColor: '#6366f1', icon: '◆' }
             }
         }
@@ -93,8 +93,8 @@ function derivePortsFromSchema(schema: FlowNode): PortDefinition[] {
         return ports
     }
 
-    // localFunction: 根据 inputs 动态推导
-    if (kind === 'localFunction') {
+    // function: 根据 inputs 动态推导
+    if (kind === 'function') {
         const sf = schema as any
         ports.push({ id: `${schema.id}_in`, direction: 'input' })
         if (sf.inputs) {
@@ -139,7 +139,7 @@ function deriveTitleFromSchema(schema: FlowNode): string {
         case 'while':     return '循环'
         case 'forEach':   return '遍历列表'
         case 'parallel':  return '并行执行'
-        case 'localFunction': return (schema as any).name || '本地函数'
+        case 'function': return (schema as any).name || '本地函数'
         // action
         case 'setVariable': return '设置变量'
         case 'navigate':    return '跳转页面'
@@ -211,7 +211,7 @@ function deriveSummaryFromSchema(schema: FlowNode): string | null {
         case 'while':       return 'while (…)'
         case 'forEach':     return `∀ ${(schema as any).itemVar ?? 'item'} in ${slotToString((schema as any).collection)}`
         case 'parallel':    return `${(schema as any).branches?.length ?? 0} 分支 (${(schema as any).mode})`
-        case 'localFunction': return null // 无摘要
+        case 'function': return null // 无摘要
         default:            return null
     }
 }

@@ -21,7 +21,7 @@ import type { FlowControlNode } from "@/types/foundation/flow/nodes/control.js";
 import type { FlowActionNode } from "@/types/foundation/flow/nodes/action.js";
 import type { FlowSourceNode } from "@/types/foundation/flow/nodes/source.js";
 import type { FlowComputeNode } from "@/types/foundation/flow/nodes/compute.js";
-import type { FlowLocalFunctionNode } from "@/types/foundation/flow/nodes/function.js";
+import type { FlowFunctionNode } from "@/types/foundation/flow/nodes/function.js";
 import type { FlowEnv, CapProxy, IFlowRunner } from "../context/index.js";
 import { ContextFrame, FrameStack } from "../context/index.js";
 import type { NodeExecutor } from "../executors/types.js";
@@ -67,7 +67,7 @@ export class FlowRunner implements IFlowRunner {
           node = await this.pushControl(node, nodes, stack, executed, outputs);
           break;
         case NodeCategory.Function:
-          node = await this.invokeFunction(node as FlowLocalFunctionNode, nodes, stack, executed, outputs);
+          node = await this.invokeFunction(node as FlowFunctionNode, nodes, stack, executed, outputs);
           break;
         case NodeCategory.Action:
           node = await this.execute(node, nodes, stack, executed, outputs);
@@ -152,13 +152,13 @@ export class FlowRunner implements IFlowRunner {
   }
 
   /**
-   * invokeFunction —— 执行 Function 类节点（localFunction）
+   * invokeFunction —— 执行 Function 类节点
    *
    * 语义：创建新作用域边界（ContextFrame），隔离 vars（in=入参，local=局部），
    * state 和 cap 继承父帧。
    */
   private async invokeFunction(
-    node: FlowLocalFunctionNode,
+    node: FlowFunctionNode,
     nodes: Record<string, FlowNode>,
     stack: FrameStack,
     executed: Set<string>,

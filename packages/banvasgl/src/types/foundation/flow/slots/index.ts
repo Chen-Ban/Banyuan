@@ -22,7 +22,7 @@ import type {
   FlowLoopSlot,
   FlowParallelSlot,
 } from './control.js'
-import type { FlowLocalFunctionSlot } from './function.js'
+import type { FlowFunctionSlot } from './function.js'
 
 /** 统一插槽类型 */
 export type FlowSlot =
@@ -45,4 +45,4 @@ export type FlowSlot =
   | FlowConditionSlot
   | FlowLoopSlot
   | FlowParallelSlot
-  | FlowLocalFunctionSlot;
+  | FlowFunctionSlot;

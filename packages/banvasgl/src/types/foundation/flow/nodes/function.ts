@@ -1,17 +1,9 @@
 import { NodeCategory, NodeKind } from '../enums.js'
-import type { FlowLocalFunctionSlot } from '../slots/function.js'
+import type { FlowFunctionSlot } from '../slots/function.js'
 
-/**
- * Function（函数）节点
- *
- * Function 节点创建新作用域边界（ContextFrame），隔离 vars，
- * state 和 cap 继承父帧，执行完毕后返回结果。
- */
-export interface FlowLocalFunctionNode {
+export interface FlowFunctionNode {
   id: string
   category: NodeCategory.Function
-  kind: NodeKind.LocalFunction
-  slots: FlowLocalFunctionSlot[]
+  kind: NodeKind.Function
+  slots: FlowFunctionSlot[]
 }
-
-export type FlowFunctionNode = FlowLocalFunctionNode

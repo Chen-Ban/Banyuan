@@ -1,13 +1,13 @@
-import type { Next } from '../common.js'
+import type { Next, SlotValue } from '../common.js'
 import type { FlowSchema } from '../schema.js'
 import type { SlotBase } from './common.js'
 
 // ═══════════════════════════════════════════════════════════
-// Function Slot —— localFunction
+// Function Slot
 // ═══════════════════════════════════════════════════════════
 
-/** localFunction 节点使用——内联函数，body 嵌入节点 */
-export interface FlowLocalFunctionSlot extends SlotBase {
+/** 内联函数——body 嵌入节点，创建新作用域执行子图 */
+export interface FlowFunctionSlot extends SlotBase {
   body: FlowSchema;
   next: Next;
   onError?: FlowSchema;

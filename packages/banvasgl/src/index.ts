@@ -117,7 +117,6 @@ export type {
     FlowParallelNode,
     // function
     FlowFunctionNode,
-    FlowLocalFunctionNode,
     // action
     FlowActionNode,
     FlowSetVariableNode,
