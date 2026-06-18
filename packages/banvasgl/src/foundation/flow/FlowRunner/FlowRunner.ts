@@ -1,22 +1,12 @@
 import type {
   FlowSchema,
 } from "@/types/foundation/flow/schema.js";
-import type {
-  Filter,
-  Condition,
-  ConditionGroup,
-  SlotValue,
-  DataRef,
-} from "@/types/foundation/flow/common.js";
 import type { FlowNode } from "@/types/foundation/flow/index.js";
 import {
   NodeCategory,
   NodeKind,
   ParallelMode,
-  CompareOp,
-  LogicOp,
 } from "@/types/foundation/flow/enums.js";
-import { isDataRef } from "@/types/foundation/flow/common.js";
 import type { FlowControlNode } from "@/types/foundation/flow/nodes/control.js";
 import type { FlowActionNode } from "@/types/foundation/flow/nodes/action.js";
 import type { FlowSourceNode } from "@/types/foundation/flow/nodes/source.js";
@@ -25,20 +15,26 @@ import type { FlowFunctionNode } from "@/types/foundation/flow/nodes/function.js
 import type { FlowEnv, CapProxy, IFlowRunner } from "../context/index.js";
 import { ContextFrame, FrameStack } from "../context/index.js";
 import type { NodeExecutor } from "../executors/types.js";
+import {
+  type RunnerCtx,
+  pullSlots,
+  evaluateFilter,
+  restoreCtx,
+} from "./FlowRunnerUtils.js";
 
 const MAX_STEPS = 1000;
 
-export class FlowRunner implements IFlowRunner {
+export class FlowRunner implements IFlowRunner, RunnerCtx {
   private executors: Record<string, NodeExecutor>;
   private cap: CapProxy;
 
-  // ── 执行上下文（实例字段，避免层层透传） ──
-  private nodes: Record<string, FlowNode> = {};
-  private stack: FrameStack = new FrameStack();
-  private executed: Set<string> = new Set();
-  private outputs: Map<string, Record<string, unknown>> = new Map();
-  private returnRef: { value: Record<string, unknown> } = { value: {} };
-  private steps = 0;
+  // ── RunnerCtx 字段 ──
+  nodes: Record<string, FlowNode> = {};
+  stack: FrameStack = new FrameStack();
+  executed: Set<string> = new Set();
+  outputs: Map<string, Record<string, unknown>> = new Map();
+  returnRef: { value: Record<string, unknown> } = { value: {} };
+  steps = 0;
 
   constructor(executors: Record<string, NodeExecutor>, cap: CapProxy) {
     this.executors = executors;
@@ -68,7 +64,7 @@ export class FlowRunner implements IFlowRunner {
 
     const entryNode = this.nodes[graph.entry];
     if (!entryNode) {
-      this.restore(savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+      restoreCtx(this, savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
       return {};
     }
 
@@ -91,29 +87,13 @@ export class FlowRunner implements IFlowRunner {
       }
       if (node == null) {
         const value = this.returnRef.value;
-        this.restore(savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+        restoreCtx(this, savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
         return value;
       }
     }
     const value = this.returnRef.value;
-    this.restore(savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+    restoreCtx(this, savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
     return value;
-  }
-
-  private restore(
-    nodes: Record<string, FlowNode>,
-    stack: FrameStack,
-    executed: Set<string>,
-    outputs: Map<string, Record<string, unknown>>,
-    returnRef: { value: Record<string, unknown> },
-    steps: number,
-  ): void {
-    this.nodes = nodes;
-    this.stack = stack;
-    this.executed = executed;
-    this.outputs = outputs;
-    this.returnRef = returnRef;
-    this.steps = steps;
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -124,7 +104,7 @@ export class FlowRunner implements IFlowRunner {
     switch (node.kind) {
       case NodeKind.Condition: {
         for (const s of node.slots) {
-          if (this.evaluateFilter(s.filter)) {
+          if (evaluateFilter(this, s.filter)) {
             return s.next ? (this.nodes[s.next] ?? null) : null;
           }
         }
@@ -132,7 +112,7 @@ export class FlowRunner implements IFlowRunner {
       }
       case NodeKind.Loop: {
         const s = node.slots[0];
-        while (this.evaluateFilter(s.filter)) {
+        while (evaluateFilter(this, s.filter)) {
           this.stack.enter(this.stack.frame.copy());
           await this.runGraph(s.body);
           this.stack.leave();
@@ -179,7 +159,7 @@ export class FlowRunner implements IFlowRunner {
         return node.slots[0].next ? (this.nodes[node.slots[0].next] ?? null) : null;
       }
       case NodeKind.Return: {
-        const values = await this.pullSlots(node);
+        const values = await pullSlots(this, node);
         this.executed.add(node.id);
         this.outputs.set(node.id, values);
         this.returnRef.value = values;
@@ -196,7 +176,7 @@ export class FlowRunner implements IFlowRunner {
 
   private async invokeFunction(node: FlowFunctionNode): Promise<FlowNode | null> {
     const subSchema = node.slots[0].body;
-    const inputs = await this.pullSlots(node);
+    const inputs = await pullSlots(this, node);
     this.stack.enter(this.stack.frame.copy({ vars: { in: inputs, local: {} } }));
     const result = await this.runGraph(subSchema);
     this.stack.leave();
@@ -206,92 +186,10 @@ export class FlowRunner implements IFlowRunner {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // Data flow
-  // ═══════════════════════════════════════════════════════════
-
-  private async pull(slot: SlotValue): Promise<unknown> {
-    if (!isDataRef(slot)) return slot;
-    const ref = slot as DataRef;
-    const upstream = this.nodes[ref.nodeId];
-    if (!upstream) throw new Error("DataRef target not found: " + ref.nodeId);
-    await this.execute(upstream);
-    return this.outputs.get(upstream.id)![ref.field];
-  }
-
-  private async pullSlots(node: FlowNode): Promise<Record<string, unknown>> {
-    const result: Record<string, unknown> = {};
-    const slots = node.slots ?? [];
-    for (const s of slots) {
-      for (const [name, slot] of Object.entries(s.input ?? {})) {
-        result[name] = await this.pull(slot);
-      }
-    }
-    return result;
-  }
-
-  private evaluateFilter(filter: Filter): boolean {
-    if ("left" in filter && "right" in filter) {
-      const cond = filter as Condition;
-      return this.compareEval(
-        this.pull(cond.left),
-        cond.op,
-        this.pull(cond.right),
-      );
-    }
-    if ("conditions" in filter) {
-      const group = filter as ConditionGroup;
-      return this.logicEval(group.op, group.conditions);
-    }
-    return false;
-  }
-
-  private compareEval(left: unknown, op: CompareOp, right: unknown): boolean {
-    switch (op) {
-      case CompareOp.Eq:
-        return (left as any) == (right as any);
-      case CompareOp.Neq:
-        return (left as any) != (right as any);
-      case CompareOp.Gt:
-        return (left as any) > (right as any);
-      case CompareOp.Gte:
-        return (left as any) >= (right as any);
-      case CompareOp.Lt:
-        return (left as any) < (right as any);
-      case CompareOp.Lte:
-        return (left as any) <= (right as any);
-      case CompareOp.Contains:
-        return String(left).includes(String(right));
-      default:
-        return false;
-    }
-  }
-
-  private logicEval(op: LogicOp, conditions: Filter[]): boolean {
-    switch (op) {
-      case LogicOp.And: {
-        for (const c of conditions)
-          if (!this.evaluateFilter(c))
-            return false;
-        return true;
-      }
-      case LogicOp.Or: {
-        for (const c of conditions)
-          if (this.evaluateFilter(c))
-            return true;
-        return false;
-      }
-      case LogicOp.Not:
-        return !this.evaluateFilter(conditions[0]);
-      default:
-        return false;
-    }
-  }
-
-  // ═══════════════════════════════════════════════════════════
   // Execute (Source / Compute / Action)
   // ═══════════════════════════════════════════════════════════
 
-  private async execute(node: FlowNode): Promise<FlowNode | null> {
+  async execute(node: FlowNode): Promise<FlowNode | null> {
     if (this.executed.has(node.id)) return null;
     switch (node.category) {
       case NodeCategory.Source: {
@@ -308,7 +206,7 @@ export class FlowRunner implements IFlowRunner {
         const comp = node as FlowComputeNode;
         const ex = this.executors[comp.kind];
         if (!ex) throw new Error("Unknown compute: " + comp.kind);
-        const inputs = await this.pullSlots(node);
+        const inputs = await pullSlots(this, node);
         const r = await ex.execute(comp, inputs, this.stack.frame);
         if (r.error) throw r.error;
         this.executed.add(node.id);
@@ -319,7 +217,7 @@ export class FlowRunner implements IFlowRunner {
         const act = node as FlowActionNode;
         const ex = this.executors[act.kind];
         if (!ex) throw new Error("Unknown action: " + act.kind);
-        const inputs = await this.pullSlots(node);
+        const inputs = await pullSlots(this, node);
         const r = await ex.execute(act, inputs, this.stack.frame);
         if (r.error) {
           const errorSchema = act.slots.find((s) => s.onError)?.onError;
