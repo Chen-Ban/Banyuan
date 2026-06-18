@@ -1,3 +1,5 @@
+import type { FlowSchema } from './schema.js'
+
 /**
  * 流程上下文类型定义
  *
@@ -72,5 +74,5 @@ export interface IFrameStack {
 
 /** 流程执行器接口 */
 export interface IFlowRunner {
-  run(graph: import('./schema.js').FlowSchema, env: FlowEnv): Promise<void>
+  run(graph: FlowSchema, env: FlowEnv): Promise<void>
 }
