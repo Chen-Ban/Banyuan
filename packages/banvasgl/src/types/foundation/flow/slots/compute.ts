@@ -19,13 +19,13 @@ export interface FlowCompareSlot extends SlotBase {
 
 /** 逻辑运算 */
 export interface FlowLogicSlot extends SlotBase {
-  input: { op: SlotValue; operands: SlotValue }
+  input: { op: SlotValue; a: SlotValue; b: SlotValue }
   output: ['value']
 }
 
 /** 字符串拼接 */
 export interface FlowConcatSlot extends SlotBase {
-  input: { parts: SlotValue; separator?: SlotValue }
+  input: { a: SlotValue; b: SlotValue; separator?: SlotValue }
   output: ['value']
 }
 

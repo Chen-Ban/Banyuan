@@ -59,11 +59,12 @@ export const logicExecutor: NodeExecutor<FlowLogicNode> = {
   outputPorts: ['value'],
   async execute(_node, inputs) {
     const op = inputs.op as LogicOp
-    const vals = (inputs.operands as any[]) ?? []
+    const a = inputs.a
+    const b = inputs.b
     switch (op) {
-      case LogicOp.And: return { outputs: { value: vals.every(Boolean) } }
-      case LogicOp.Or:  return { outputs: { value: vals.some(Boolean) } }
-      case LogicOp.Not: return { outputs: { value: !vals[0] } }
+      case LogicOp.And: return { outputs: { value: !!(a && b) } }
+      case LogicOp.Or:  return { outputs: { value: !!(a || b) } }
+      case LogicOp.Not: return { outputs: { value: !a } }
       default: return { outputs: { value: false } }
     }
   },
@@ -75,9 +76,10 @@ export const concatExecutor: NodeExecutor<FlowConcatNode> = {
   kind: NodeKind.Concat,
   outputPorts: ['value'],
   async execute(_node, inputs) {
-    const parts = (inputs.parts as any[]) ?? []
+    const a = String(inputs.a ?? '')
+    const b = String(inputs.b ?? '')
     const sep = (inputs.separator as string) ?? ''
-    return { outputs: { value: parts.map(String).join(sep) } }
+    return { outputs: { value: a + sep + b } }
   },
 }
 
