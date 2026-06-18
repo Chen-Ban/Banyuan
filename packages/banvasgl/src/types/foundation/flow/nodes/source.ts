@@ -1,5 +1,5 @@
 import { NodeCategory, NodeKind, SourceFrom } from '../enums.js'
-import type { FlowDataSlot } from '../slots.js'
+import type { FlowDataSlot } from '../slots/data.js'
 
 export interface FlowLiteralSourceNode {
   id: string

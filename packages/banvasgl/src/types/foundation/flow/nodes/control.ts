@@ -1,5 +1,5 @@
 import { NodeCategory, NodeKind, ParallelMode } from '../enums.js'
-import type { FlowConditionSlot, FlowLoopSlot, FlowParallelSlot } from '../slots.js'
+import type { FlowConditionSlot, FlowLoopSlot, FlowParallelSlot } from '../slots/control.js'
 
 /**
  * Control（控制流）节点

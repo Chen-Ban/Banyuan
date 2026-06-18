@@ -8,7 +8,7 @@ import type {
   FlowDbInsertSlot,
   FlowDbUpdateSlot,
   FlowDbDeleteSlot,
-} from '../slots.js'
+} from '../slots/action.js'
 
 export interface FlowSetVariableNode {
   id: string

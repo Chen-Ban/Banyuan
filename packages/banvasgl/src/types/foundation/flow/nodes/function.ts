@@ -1,5 +1,5 @@
 import { NodeCategory, NodeKind } from '../enums.js'
-import type { FlowLocalFunctionSlot } from '../slots.js'
+import type { FlowLocalFunctionSlot } from '../slots/function.js'
 
 /**
  * Function（函数）节点
