@@ -164,7 +164,7 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
         return (
           <div className={styles.infoText}>
             循环节点：while (filter) 执行 body 子图。
-            filter 和 body 通过 FlowValue 编辑器配置。
+            filter 和 body 通过 SlotValue 编辑器配置。
           </div>
         )
 

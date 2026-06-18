@@ -113,42 +113,6 @@
   width: 100%;
 }
 
-// ── FlowValueEditor ──
-
-.flowValueEditor {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.sourceSegmented {
-  // 让 Segmented 组件在紧凑空间中自适应
-  :global(.ant-segmented-item) {
-    padding: 0 6px;
-    font-size: 10px;
-  }
-}
-
-.valueInputArea {
-  // 值输入区域
-}
-
-.hStack {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.selectHalf {
-  width: 50%;
-  flex-shrink: 0;
-}
-
-.inputHalf {
-  flex: 1;
-  min-width: 0;
-}
-
 // ── 其他 ──
 
 .infoText {
