@@ -72,5 +72,5 @@ export interface IFrameStack {
 
 /** 流程执行器接口 */
 export interface IFlowRunner {
-  run(graph: import('./common.js').FlowSchema, env: FlowEnv): Promise<void>
+  run(graph: import('./schema.js').FlowSchema, env: FlowEnv): Promise<void>
 }
