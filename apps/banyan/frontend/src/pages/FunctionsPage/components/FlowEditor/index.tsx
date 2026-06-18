@@ -28,7 +28,7 @@ import {
 } from "react";
 import { App, Drawer, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
-import type { FlowSchema } from "@banyuan/banvasgl";
+import type { ExtractedFlowSchema } from "@/components/FlowKit/extractSchema";
 import useFlowBanvas from "@/hooks/useFlowBanvas";
 import { FlowContextMenu } from "@/components/FlowKit/FlowContextMenu";
 import FlowNodePropertyPanel from "@/components/FlowKit/FlowNodePropertyPanel";
@@ -59,8 +59,8 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(
       setContainerEl(el);
     }, []);
 
-    const initialSchema = useMemo<FlowSchema>(
-      () => (fn.schema as FlowSchema) ?? { nodes: [], edges: [] },
+    const initialSchema = useMemo<ExtractedFlowSchema>(
+      () => (fn.schema as ExtractedFlowSchema) ?? { version: '2.0.0', entry: '', nodes: {}, layout: {} },
       [fn],
     );
 
@@ -95,7 +95,7 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(
             name: fn.name,
             displayName: fn.displayName,
             description: fn.description,
-            schema: schema as { nodes: unknown[]; edges: unknown[] },
+            schema: schema as ExtractedFlowSchema,
           },
         );
         if (res.data) {

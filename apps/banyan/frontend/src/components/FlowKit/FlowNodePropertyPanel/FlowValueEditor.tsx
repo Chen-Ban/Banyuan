@@ -7,7 +7,7 @@
 
 import { useCallback, useMemo } from 'react'
 import { Input, InputNumber, Select, Segmented, Switch } from 'antd'
-import type { FlowValue } from '@banyuan/banvasgl'
+import type { FlowValue } from '@/types/flow'
 import styles from './index.module.scss'
 
 // ── 来源选项 ──

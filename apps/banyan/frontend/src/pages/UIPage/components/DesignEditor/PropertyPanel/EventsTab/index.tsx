@@ -1,13 +1,15 @@
 import React, { useState } from 'react'
 import { Button, Select } from 'antd'
 import type { IBanvasActions, IViewEvents, IViewLifetimes, ISceneLifetimes, IAppLifetimes, EventHandler, FlowSchema } from '@banyuan/banvasgl'
+import type { ExtractedFlowSchema } from '@/components/FlowKit/extractSchema'
+import { FLOW_SCHEMA_VERSION } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
 
 /** 流程编辑器打开请求参数 */
 export interface FlowEditorOpenRequest {
     title: string
-    initialSchema: FlowSchema
-    onSave: (schema: FlowSchema) => void
+    initialSchema: ExtractedFlowSchema
+    onSave: (schema: ExtractedFlowSchema) => void
 }
 
 /** View 模式 Props */
@@ -73,17 +75,17 @@ function handlerPreview(handler: EventHandler): string {
     if (typeof handler === 'string') return handler || '(空)'
     if (typeof handler === 'function') return '(函数)'
     const schema = handler as FlowSchema
-    const nodeCount = schema.nodes?.length ?? 0
-    const edgeCount = schema.edges?.length ?? 0
+    const nodeCount = Object.keys(schema.nodes ?? {}).length
     if (nodeCount === 0) return '(空流程)'
-    return `${nodeCount} 节点 · ${edgeCount} 连线`
+    return `${nodeCount} 节点`
 }
 
-function toFlowSchema(handler: EventHandler): FlowSchema {
+function toFlowSchema(handler: EventHandler): ExtractedFlowSchema {
     if (!handler || typeof handler === 'string' || typeof handler === 'function') {
-        return { nodes: [], edges: [] }
+        return { version: FLOW_SCHEMA_VERSION, entry: '', nodes: {}, layout: {} }
     }
-    return handler as FlowSchema
+    const schema = handler as FlowSchema
+    return { version: schema.version || FLOW_SCHEMA_VERSION, entry: schema.entry || '', nodes: schema.nodes ?? {}, layout: {} }
 }
 
 interface EventRowItemProps {
@@ -130,7 +132,7 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
     const { actions, onOpenFlowEditor } = props
     const [addingEvent, setAddingEvent] = useState<keyof IViewEvents | ''>('')
 
-    const openEditor = (title: string, initialSchema: FlowSchema, onSave: (s: FlowSchema) => void) => {
+    const openEditor = (title: string, initialSchema: ExtractedFlowSchema, onSave: (s: ExtractedFlowSchema) => void) => {
         onOpenFlowEditor?.({ title, initialSchema, onSave })
     }
 
@@ -200,7 +202,7 @@ export const EventsTab: React.FC<EventsTabProps> = (props) => {
 
     const handleAddEvent = () => {
         if (!addingEvent) return
-        actions.view.setViewEvent(selectedViewId, addingEvent, { nodes: [], edges: [] })
+        actions.view.setViewEvent(selectedViewId, addingEvent, { version: FLOW_SCHEMA_VERSION, entry: '', nodes: {} })
         setAddingEvent('')
     }
 
