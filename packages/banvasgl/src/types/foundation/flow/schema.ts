@@ -1,5 +1,4 @@
-import type { NodeCategory } from './enums.js'
-import type { FlowSlot } from './slots.js'
+import type { FlowNode } from './nodes/index.js'
 
 // ═══════════════════════════════════════════════════════════
 // FlowSchema —— 声明式流程图顶层结构
@@ -8,14 +7,7 @@ import type { FlowSlot } from './slots.js'
 export interface FlowSchema {
   version: string;
   entry: string;
-  nodes: Record<string, AnyFlowNode>;
-}
-
-export interface AnyFlowNode {
-  id: string;
-  category: NodeCategory;
-  kind: string;
-  slots: FlowSlot[];
+  nodes: Record<string, FlowNode>;
 }
 
 export const FLOW_SCHEMA_VERSION = "2.0.0";

@@ -49,7 +49,7 @@ export class FlowRunner implements IFlowRunner {
     graph: FlowSchema,
     stack: FrameStack,
   ): Promise<Record<string, unknown>> {
-    const nodes = graph.nodes as Record<string, FlowNode>;
+    const nodes = graph.nodes;
     const entryId = graph.entry;
 
     const entryNode = nodes[entryId];
