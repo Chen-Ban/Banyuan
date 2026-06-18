@@ -1,12 +1,13 @@
 import type { Next, SlotValue } from '../common.js'
 import type { FlowSchema } from '../schema.js'
+import type { SlotBase } from './common.js'
 
 // ═══════════════════════════════════════════════════════════
-// Action Slot —— 每种 Action 有专属 slot，标注 IO shape
+// Action Slot —— 每种 Action 有专属 slot，类型化 IO
 // ═══════════════════════════════════════════════════════════
 
 /** 设置变量 */
-export interface FlowSetVariableSlot {
+export interface FlowSetVariableSlot extends SlotBase {
   input: { target: SlotValue; value: SlotValue }
   output: []
   onError?: FlowSchema
@@ -14,7 +15,7 @@ export interface FlowSetVariableSlot {
 }
 
 /** 跳转页面 */
-export interface FlowNavigateSlot {
+export interface FlowNavigateSlot extends SlotBase {
   input: { target: SlotValue }
   output: []
   onError?: FlowSchema
@@ -22,7 +23,7 @@ export interface FlowNavigateSlot {
 }
 
 /** HTTP 请求 */
-export interface FlowHttpRequestSlot {
+export interface FlowHttpRequestSlot extends SlotBase {
   input: { url: SlotValue; method?: SlotValue; headers?: SlotValue; body?: SlotValue }
   output: ['status', 'body', 'headers']
   onError?: FlowSchema
@@ -30,7 +31,7 @@ export interface FlowHttpRequestSlot {
 }
 
 /** 云函数 = HTTP POST 调用后端执行指定函数 */
-export interface FlowCloudFunctionSlot {
+export interface FlowCloudFunctionSlot extends SlotBase {
   input: { functionId: SlotValue; method?: SlotValue; args?: SlotValue }
   output: ['status', 'body', 'headers']
   onError?: FlowSchema
@@ -38,7 +39,7 @@ export interface FlowCloudFunctionSlot {
 }
 
 /** 数据库查询 */
-export interface FlowDbQuerySlot {
+export interface FlowDbQuerySlot extends SlotBase {
   input: { collection: SlotValue; filter?: SlotValue }
   output: ['rows', 'count']
   onError?: FlowSchema
@@ -46,7 +47,7 @@ export interface FlowDbQuerySlot {
 }
 
 /** 数据库插入 */
-export interface FlowDbInsertSlot {
+export interface FlowDbInsertSlot extends SlotBase {
   input: { collection: SlotValue; document: SlotValue }
   output: ['id']
   onError?: FlowSchema
@@ -54,7 +55,7 @@ export interface FlowDbInsertSlot {
 }
 
 /** 数据库更新 */
-export interface FlowDbUpdateSlot {
+export interface FlowDbUpdateSlot extends SlotBase {
   input: { collection: SlotValue; filter: SlotValue; update: SlotValue }
   output: ['matchedCount', 'modifiedCount']
   onError?: FlowSchema
@@ -62,7 +63,7 @@ export interface FlowDbUpdateSlot {
 }
 
 /** 数据库删除 */
-export interface FlowDbDeleteSlot {
+export interface FlowDbDeleteSlot extends SlotBase {
   input: { collection: SlotValue; filter?: SlotValue }
   output: ['deletedCount']
   onError?: FlowSchema
