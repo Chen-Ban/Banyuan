@@ -46,7 +46,7 @@ export class FlowRunner implements IFlowRunner {
   }
 
   async run(graph: FlowSchema, env: FlowEnv): Promise<void> {
-    this.stack = new FrameStack(
+    this.stack.enter(
       new ContextFrame({ in: {}, local: {} }, env.state, this.cap),
     );
     await this.runGraph(graph);
@@ -147,7 +147,9 @@ export class FlowRunner implements IFlowRunner {
           this.stack.frame.copy({ state: { view: {}, page: {}, app: {} } }),
         );
         const tasks = bodies.map((b, i) => {
-          this.stack = new FrameStack(snapshots[i]);
+          const branchStack = new FrameStack();
+          branchStack.enter(snapshots[i]);
+          this.stack = branchStack;
           return this.runGraph(b);
         });
         let result: unknown;

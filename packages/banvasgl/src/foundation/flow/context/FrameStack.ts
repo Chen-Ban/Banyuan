@@ -10,8 +10,8 @@ type FrameLayer = IRuntimeContext[]
 export class FrameStack implements IFrameStack {
   private layers: FrameLayer[];
 
-  constructor(root?: ContextFrame) {
-    this.layers = root ? [[root]] : [];
+  constructor() {
+    this.layers = [];
   }
 
   get frame(): IRuntimeContext {
