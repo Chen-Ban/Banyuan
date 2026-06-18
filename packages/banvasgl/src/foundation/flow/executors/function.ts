@@ -1,19 +1,19 @@
 /**
- * function executor（stub）
+ * Function 求值器 —— 内联函数调用
  *
- * Function 节点的实际执行走 FlowRunner.invokeFunction 硬编码，
- * localFunction / cloudFunction 的差异（body 嵌入 vs loadFunctionBody）
- * 在 invokeFunction 中抹平为统一的 FlowSchema → runGraph 路径。
+ * 创建新作用域执行子图后返回 `nextNodeId`。
  *
- * 此 executor 为占位 stub，供将来可能的 executor 模式使用。
+ * 调用 `ctx.runSubGraph(slot.body, inputs)` 在新帧中执行 body，
+ * 子图的 Return 节点写入 `returnRef.value`，作为本节点的 outputs 返回。
+ * 执行完毕后沿 `slot.next` 推进控制流。
  */
-import type { FlowFunctionNode } from '@/types/foundation/flow/nodes/function.js'
-import type { NodeExecutor } from "./types.js"
 
-export const functionExecutor: NodeExecutor<FlowFunctionNode> = {
-  kind: 'function',
-  outputPorts: [],
-  async execute(_node, _inputs, _frame) {
-    return { outputs: {} }
-  },
+import type { FlowFunctionNode } from '@/types/foundation/flow/nodes/function.js'
+import type { NodeExecutor } from '@/types/foundation/flow/executor.js'
+import type { CapProxy } from '@/types/foundation/flow/context.js'
+
+export const functionExecutor: NodeExecutor<FlowFunctionNode, CapProxy> = async (node, inputs, ctx) => {
+  const slot = node.slots[0]
+  const returnValue = await ctx.runSubGraph(slot.body, inputs)
+  return { outputs: returnValue, nextNodeId: slot.next || null }
 }

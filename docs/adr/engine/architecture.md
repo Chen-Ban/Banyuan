@@ -45,7 +45,7 @@
 - A2→A2a：Canvas 2D 渲染能力使相机模型成为可能
 - A3→A3a：交互状态机架构衍生出逐层激活策略
 - A4→A4a：视图体系确立后，布局以策略模式扩展
-- A5→A5a→A5b：FlowSchema 是 BanvasGL 内置子系统（过程式 AST + Push-Pull 调度）→ 子路径导出物理隔离 → 前后端执行器隔离（本质定义在前，物理形态在后）
+- A5→A5a→A5b：FlowSchema 是 BanvasGL 内置子系统（过程式 AST + Push-Pull 调度，v2.0.0 边消解为内嵌引用，v2.1.0 统一执行器模型）→ 子路径导出物理隔离 → 前后端执行器隔离（本质定义在前，物理形态在后）
 - A6→A6a：序列化系统衍生出版本迁移能力
 - A7→A7a：物料系统的核心是占位符替换机制
 - A8→A8a：宿主集成层使三态统一引擎成为可能
@@ -137,8 +137,8 @@ types、foundation、flow 三者处于同一基础设施平面——各自都仅
 
 **约束：**
 
-- types 是纯接口，不含实现代码，含 guards.ts 类型守卫
-- foundation 是零依赖原子模块（数学/样式/动画/常量），仅依赖 types
+- types 是纯接口，不含实现代码，含 guards.ts 类型守卫；flow 类型在 `src/types/foundation/flow/`
+- foundation 是零依赖原子模块（数学/样式/动画/常量 + flow 运行时），仅依赖 types；flow 实现在 `src/foundation/flow/`
 - flow 仅依赖 types，与 foundation 同级互不引用；运行时通过 package.json exports 子路径导出
 - graph 层依赖 base（foundation + types，不含 flow）
 - view 层依赖 graph + base
@@ -289,52 +289,52 @@ Canvas DOM 元素尺寸 = 外部容器尺寸（自适应）。Scene 使用 Ortho
 
 **✅ 已实施** · refines A0 · 流程控制子系统的本质定义决策。Flow 不做独立 npm 包，由此决策自然确立。
 
-FlowSchema 是一棵以**有向图**形态承载的**过程式抽象语法树（procedural AST as a directed graph）**。它用「语义化的节点 + 两种边」声明一段程序的**执行流程**：节点按在控制路径上的位置与有无副作用分为四类（详见 C17），**控制边（ControlEdge）**串起整个流程的执行顺序，**数据边（DataEdge）**连接节点的输出端口到下游节点的输入插槽。
+FlowSchema 是一棵以**有向图**形态承载的**过程式抽象语法树（procedural AST as a directed graph）**。它用「语义化的节点 + 内嵌引用」声明一段程序的**执行流程**：节点按在控制路径上的位置与有无副作用分为五类（control / action / source / compute / function），控制流由节点 `slots[*].next` 字段承载，数据依赖由 `SlotValue = unknown | DataRef` 承载。
 
-> FlowSchema is a procedural AST expressed as a directed graph, executed via Push-Pull scheduling: Push walks control edges, Pull resolves data dependencies along data edges.
+> FlowSchema is a procedural AST expressed as a directed graph, executed via Push-Pull scheduling: Push walks the `next` chain, Pull resolves DataRefs recursively.
+
+**v2.0.0 核心设计：边消解为节点内嵌引用。** 边的本质是节点之间的关系，不是独立存在的事物——控制流是"A 执行完后去 B"（A 的属性），数据流是"B 的输入来自 A"（B 的属性）。因此 v2.0.0 将 ControlEdge / DataEdge 两层边数组消解为节点内部字段：
+
+| 原边类型 | 消解为 | 所在位置 |
+|----------|--------|----------|
+| `FlowControlEdge` | `slots[*].next: string` | control / action 节点的 slot |
+| `FlowDataEdge` | `SlotValue = unknown \| DataRef` | 所有节点的 slot.input |
+
+`DataRef { nodeId, field }` 天然编码了"谁连到我"——`nodeId` 指向源节点，`field` 指向源节点的输出字段名。Runner 的 Pull 阶段遇到 DataRef 时递归 `stepNode` 求值源节点并取对应 field。不需要在顶层维护 DataEdge 数组。
 
 **执行模型：Push-Pull 混合调度。**
 
-- **Push（推进）**：FlowRunner 从显式 `entry` 节点出发，沿**控制边**遍历 control/action 节点。控制边上的 `branch` 字段区分 condition 的多分支出口，无 `branch` 即单出口顺序推进。遇到出度（控制边）为 0 的节点即该条控制路径结束，无需强制汇合。
-- **Pull（拉取）**：action 节点执行前、control 节点判据求值前，沿**数据边**反向递归拉取 source/compute 子树求值。source 直接出值（字面量或查上下文），compute 递归拉取其输入后计算出值。action 节点的输出通过数据边被下游引用。
-
-**两种边的分工：**
-
-| 类型 | 职责 | 调度器行为 | 字段 |
-|------|------|-----------|------|
-| **控制边（ControlEdge）** | 串起整个流程图的执行顺序 | Push 沿它推进到下一个节点 | `from`, `to`, `branch?` |
-| **数据边（DataEdge）** | 连接输出端口到输入插槽 | Pull 沿它反向递归求值 | `fromNode`, `fromPort`, `toNode`, `toSlot` |
-
-控制边不携带业务数据——数据传递是数据边的专属职责。控制边只管"谁接着谁执行"。同一个 action→control 节点对可以有两条边：一条控制边串执行顺序，一条数据边传递值。这是 Blueprints 的 exec + data 双线模型验证了二十年的模式。
+- **Push（推进）**：FlowRunner 从显式 `entry` 节点出发，沿节点 `slots[*].next` 字段推进 control/action 节点。Condition 的 slot 自带 `filter + next`，Loop/Parallel/Function 的 slot 自带 `body + next`。`next` 为空字符串即该条控制路径结束，无需强制汇合。
+- **Pull（拉取）**：action 节点执行前、control 节点判据求值前，沿 `DataRef` 反向递归拉取 source/compute 子树求值。source 直接出值（字面量或查上下文），compute 递归拉取其输入后计算出值。action 节点的输出通过 DataRef 被下游引用。
 
 **图结构：顶层开放 DAG，子图为可调用闭包。**
 
-> **为什么不用 SESE 作为顶层约束？** Blender Geometry Nodes 在 Group 级别强制 Group Input → Group Output 的 SESE 结构，所有分支必须汇合到唯一出口——这对纯粹的数据流图（shader 求值）是合理的。Houdini VOP 则走另一个极端：顶层是完全开放的 DAG，控制流通过 Block Begin/Block End 节点对在局部标记区间。Banyuan 的 FlowSchema 是事件驱动的过程式程序——一段 `onClick` 触发的流程中，"跳页后结束"和"验证失败后提示"是两种自然终点，不需要强制汇合。顶层采用开放 DAG（出度 0 即结束，汇合可选），比 Blender 的强制 SESE 更贴合事件驱动语义，比 Houdini 的 Block 节点对更简单。子图（`FlowSubSchema`）则是可调用闭包——显式 `subEntry`/`subExit` 定义参数注入点和产出收集点。
+- 顶层 FlowSchema：显式 `entry` 标起点，不设 `exit`。`next` 为空字符串即自然结束。多条控制路径汇入同一节点即 OR 汇合。
+- 子图（内嵌 FlowSchema body）：可调用闭包。通过 `entry` 标起点，独立作用域帧（FrameRecord）。Function / Loop / Parallel 节点内嵌 `body: FlowSchema`，通过 `runSubGraph()` 在新帧中执行。
 
-- 顶层 FlowSchema：显式 `entry` 标起点，不设 `exit`。控制边到达出度 0 即自然结束。多条控制边汇入同一节点即 OR 汇合。
-- 子图（`FlowSubSchema`）：可调用闭包。显式 `subEntry` + `subExit`，独立作用域帧。闭包类型决定变量隔离策略（详见 C16）。
+**五个语义边界：**
 
-**三个语义边界：**
-
-- **`navigate` 必须是终点节点**：navigate 切换 Scene 后当前 flow 的 context 失效，编辑时校验 navigate 控制边出度必须为 0。跨页面通信（如等待目标页面返回回调）属于 App 层路由模型的迭代，不在 FlowSchema 调度范围内。
-- **`onError` 是补偿（cleanup），非恢复（recovery）**：onError 子图执行完毕后流程终止——下游不应消费已失败节点的无效输出。这和 Saga 补偿模式一致。
-- **`subFlow` 是函数隔离闭包**：不穿透读取外层 `state.page.*`。所有依赖显式通过 inputs 传入。这是可复用性的代价，和 React Hook 不能隐式访问组件 state 同理。
+- **`navigate` 必须是终点节点**：navigate 切换 Scene 后当前 flow 的 context 失效，`next` 必须为空字符串。
+- **`onError` 是补偿（cleanup），非恢复（recovery）**：`onError` 是 slot 级别的字段（在 Action / Function slot 上），执行完毕后流程终止——下游不应消费已失败节点的无效输出。和 Saga 补偿模式一致。
+- **`Function` 是函数隔离闭包**：不穿透读取外层帧变量。所有依赖显式通过 inputs 传入。和 React Hook 不能隐式访问组件 state 同理。
+- **`Return` 写 `returnRef.value`**：Return 节点将 inputs 写入当前帧的 `returnRef.value`，`runSubGraph` 返回该值。仅用于子图。
+- **`Condition` 无默认分支**：全部 slot 的 filter 均不匹配时流程终止（`nextNodeId: null`）。
 
 **FlowSchema 只描述「流程控制」，不描述「面向对象」（本定义的核心边界）：**
 
-面向对象定义在 **View / Page / App 的数据层**——**View 本身就是那个「对象」**：它持有状态，暴露行为（`events` 的 13 个事件处理器 + `lifetimes`），FlowSchema 是挂在这些字段上的「**方法体**」。
+面向对象定义在 **View / Page / App 的数据层**——**View 本身就是那个「对象」**：它持有状态，暴露行为（`events` 的 12 个事件处理器 + `lifetimes`），FlowSchema 是挂在这些字段上的「**方法体**」。
 
-**决策链：** A0 确立 BanvasGL 是「面向声明式 UI 的 2D 图形运行时（含流程控制）」→ 流程控制是 BanvasGL 根定义的一部分 → View.events / View.lifetimes 的类型都是 FlowSchema | null → FlowSchema 是 View 的方法体 → 方法是过程式程序，用有向图承载即过程式 AST → 控制流和数据流是不同的关注面：控制边串执行顺序（Push），数据边传递值依赖（Pull）——Blueprints 的 exec + data 双线模型是业界唯一大规模验证过的混合图方案 → 顶层图是开放 DAG，子图是可调用闭包 → OO 语义归 View/Page/App，空间坐标归外壳层。
+**决策链：** A0 确立 BanvasGL 是「面向声明式 UI 的 2D 图形运行时（含流程控制）」→ 流程控制是 BanvasGL 根定义的一部分 → View.events / View.lifetimes 的类型都是 FlowSchema | null → FlowSchema 是 View 的方法体 → 方法是过程式程序，用有向图承载即过程式 AST → v2.0.0 将 ControlEdge/DataEdge 消解为节点内嵌引用（next + DataRef），消除边数组与节点间引用完整性的维护成本 → 顶层图是开放 DAG，子图是可调用闭包 → OO 语义归 View/Page/App，空间坐标归外壳层。
 
 **约束：**
 
 - FlowSchema 的语义边界 = 流程控制。OO 原语不进入 FlowSchema。
-- 节点按调度行为分四类（`category: 'control' | 'action' | 'source' | 'compute'`），详见 C17。
-- 边分两种：**控制边**（`{ id, from, to, branch? }`）串执行顺序，**数据边**（`{ id, fromNode, fromPort, toNode, toSlot }`）传递值依赖。控制边不携带业务数据。
-- 编辑时校验：控制路径有向无环；数据边 forward-reference；navigate 控制边出度必须为 0。
+- 节点按调度行为分五类（`category: 'control' | 'action' | 'source' | 'compute' | 'function'`），25 种 NodeKind（详见 C17）。
+- 控制流由 `slots[*].next: string` 承载（空字符串 = 终止），数据依赖由 `SlotValue = unknown | DataRef` 承载。
+- 编辑时校验：控制路径有向无环；DataRef forward-reference；navigate 的 next 必须为空字符串。
 - 节点空间坐标（x/y）不属于 FlowSchema。
 - Flow 不做独立 npm 包——A0 已确立流程控制是 BanvasGL 的组成部分。代码通过子路径导出物理隔离（见 A5a）。
-- 节点与边的具体字段形状由 **C15** 固化，调度算法的语义约束见 **M15**，节点全集见 **C17**。
+- FlowSchema 版本号 `FLOW_SCHEMA_VERSION = "2.0.0"`；FlowRunner 调度模型版本 v2.1.0（统一执行器模型）。
 
 **反例：**
 
@@ -343,34 +343,36 @@ FlowSchema 是一棵以**有向图**形态承载的**过程式抽象语法树（
 - Flow 作为独立 npm 包——割裂 BanvasGL 的完整语义。
 - 把 FlowSchema 理解为「纯数据流图」或「纯状态机」——丢失过程式程序本质。
 - 在顶层图强制 SESE（如 Blender GN）——事件驱动程序不需要所有分支汇合。
-- 用统一一种边承载控制流和数据流——两种边的职责、调度行为、校验规则都不同，隐式靠可选字段推断增加运行时和外壳层的歧义。Blueprints 的 exec + data 双线模型已证明显式二分是最清晰的方案。
+- 维护独立边数组而非内嵌引用——增加引用完整性维护成本和 O(n) 扫描开销。
 
 ---
 
 ### A5a. Flow 子模块通过子路径导出实现物理隔离
 
-**✅ 已实施** · 细化 A5 · 属于 A1 flow 层
+**✅ 已实施** · 细化 A5 · 属于 A1 base 层
 
 A5 已确立 Flow 是 BanvasGL 的内置子系统（不做独立包）。本决策解决随之而来的工程问题：**后端云函数也需执行 FlowSchema，但不应被迫引入整个图形引擎的渲染层代码**。方案是子路径导出 + tsup splitting：前端的 `flow/client` 和后端的 `flow/server` 各自独立打包，后者不会加载任何 Canvas/DOM/React 代码。
 
-流程执行引擎作为 `packages/banvasgl/src/flow/` 内部子模块，设计哲学为**领域专用声明式解释器**：
+流程执行引擎作为 `packages/banvasgl/src/foundation/flow/` 内部子模块（与 types、foundation 共处 base 层），设计哲学为**领域专用声明式解释器**：
 
 ```
-FlowSchema（nodes + edges）  ≈ AST
+FlowSchema（nodes + entry）  ≈ AST
     ↓
 NodeExecutor（registry）     ≈ 操作语义
     ↓
-FlowContext（env + 变量表）  ≈ 运行时环境
+FlowRunner（FrameStack + cap） ≈ 运行时环境
 ```
+
+**v2.1.0 统一执行器模型：** Runner 退化为纯编排外壳（帧栈管理 / ID→节点映射 / 缓存 / 错误恢复 / 步数限制），所有 NodeKind 均通过 `ExecutorRegistry`（按 NodeKind 索引的映射类型）分发。Executor 负责数据产出 + `nextNodeId` 决策。
 
 **决策链：** A5 确立 Flow 归属 BanvasGL（不做独立包）→ 后端云函数执行 FlowSchema 时不应被迫加载图形引擎 → 子路径导出 + tsup splitting → 前端取 `./flow/client`、后端取 `./flow/server`，各自只加载所需代码。
 
 **约束：**
 
-- Flow 源码位于 `packages/banvasgl/src/flow/`，包含 types/runtime/executors/presets 四个子目录
-- 子路径导出：`./flow`（核心类型+运行时+注册表）/ `./flow/client`（前端预设）/ `./flow/server`（后端预设）
-- tsup splitting 保证各入口文件独立打包，后端引入 flow/server 不会加载图形引擎代码
-- FlowRunner 执行模型：Push-Pull 混合调度（Push 沿控制边推进，Pull 沿数据边拉取；MAX_STEPS=1000 安全阀；详见 M15）
+- Flow 源码位于 `packages/banvasgl/src/foundation/flow/`，包含 FlowRunner / FrameStack / executors / presets 四个子目录；类型位于 `src/types/foundation/flow/`
+- 子路径导出：包级 exports 仅有四个子路径：`.`（主入口，含 Flow 类型）、`./react`、`./flow/client`、`./flow/server`；**不存在 `./flow` 公开子路径**——内部组件（FlowRunner 类、NodeExecutor 注册表、各求值器）不对外暴露，只暴露预组装工厂
+- tsup splitting 保证 `flow/server` 入口不加载图形引擎代码，后端可安全使用
+- FlowRunner 执行模型：v2.1.0 Push-Pull 混合调度（Push 沿 `next` 字段推进，Pull 沿 `DataRef` 递归求值；MAX_STEPS=1000 安全阀）；所有节点通过 `ExecutorRegistry`（按 NodeKind 索引的映射类型）分发
 
 **反例：**
 
@@ -382,16 +384,19 @@ FlowContext（env + 变量表）  ≈ 运行时环境
 
 **✅ 已实施** · 细化 A5a
 
-前端通过 createClientFlowRunner() 创建执行器（注册 client + shared 节点），后端通过 createServerFlowRunner() 创建执行器（注册 server + shared 节点）。
+前端通过 `createClientFlowRunner()` 创建 FlowRunner（注册 shared + 前端 action 执行器），后端通过 `createServerFlowRunner()` 创建 FlowRunner（注册 shared + 后端 action 执行器）。
 
-**决策链：** 同一个 FlowSchema JSON 在不同环境下执行时可用节点不同 -> Strategy Registry 模式：工厂函数创建 Runner 时按预设批量注册节点执行器。
+**决策链：** 同一个 FlowSchema JSON 在不同环境下执行时可用节点不同 → Preset 工厂模式：工厂函数创建 Runner 时按预设批量填充 `ExecutorRegistry`。
 
 **约束：**
 
-- 前端节点：animate / navigate / setData / setVisible
-- 后端节点：dbQuery / dbInsert / dbUpdate / dbDelete / httpRequest / script / transform
-- 共享节点：condition / delay / setVariable / callFlow / subFlow / return / forEach / parallel
-- App 持有唯一的 ClientFlowRunner 实例，Scene.triggerSchema 直接构造 FlowContext 并调用 FlowRunner.run
+- **前端节点**（6 个）：setViewData / setViewVisible / playAnimation / navigate / cloudFunction（+ 共享的 setVariable）
+- **后端节点**（5 个）：httpRequest / dbQuery / dbInsert / dbUpdate / dbDelete（+ 共享的 setVariable）
+- **共享节点**（13 个）：literal / context（source）、math / compare / logic / concat / format / get（compute）、condition / loop / parallel / return（control）、function
+- `ExecutorRegistry` 是映射类型 `{ [K in NodeKind]?: NodeExecutor<NodeForKind<K>, C> }`，Runner 的 dispatch 在 switch 中取出对应字段，类型天然匹配，无需 as 断言
+- App 持有唯一的 `FlowRunner<FrontendCapProxy>` 实例，Scene.triggerSchema 直接调用 `flowRunner.run(schema)`
+- 前端 cap 提供 `navigate` / `setViewData` / `setViewVisible` / `playAnimation` / `httpClient`
+- 后端 cap 提供 `db`（query/insert/update/delete）/ `httpClient`
 
 ---
 

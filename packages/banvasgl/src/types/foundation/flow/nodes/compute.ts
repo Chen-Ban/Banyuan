@@ -1,51 +1,53 @@
-import { NodeCategory, NodeKind, MathOp, CompareOp, LogicOp } from '../enums.js'
-import type { FlowDataSlot } from '../slots.js'
+import { NodeCategory, NodeKind } from '../enums.js'
+import type {
+  FlowMathSlot,
+  FlowCompareSlot,
+  FlowLogicSlot,
+  FlowConcatSlot,
+  FlowFormatSlot,
+  FlowGetSlot,
+} from '../slots/compute.js'
 
 export interface FlowMathNode {
   id: string
   category: NodeCategory.Compute
   kind: NodeKind.Math
-  op: MathOp
-  slots: FlowDataSlot[]
+  slots: FlowMathSlot[]
 }
 
 export interface FlowCompareNode {
   id: string
   category: NodeCategory.Compute
   kind: NodeKind.Compare
-  op: CompareOp
-  slots: FlowDataSlot[]
+  slots: FlowCompareSlot[]
 }
 
 export interface FlowLogicNode {
   id: string
   category: NodeCategory.Compute
   kind: NodeKind.Logic
-  op: LogicOp
-  slots: FlowDataSlot[]
+  slots: FlowLogicSlot[]
 }
 
 export interface FlowConcatNode {
   id: string
   category: NodeCategory.Compute
   kind: NodeKind.Concat
-  slots: FlowDataSlot[]
+  slots: FlowConcatSlot[]
 }
 
 export interface FlowFormatNode {
   id: string
   category: NodeCategory.Compute
   kind: NodeKind.Format
-  template: string
-  slots: FlowDataSlot[]
+  slots: FlowFormatSlot[]
 }
 
 export interface FlowGetNode {
   id: string
   category: NodeCategory.Compute
   kind: NodeKind.Get
-  path: string
-  slots: FlowDataSlot[]
+  slots: FlowGetSlot[]
 }
 
 export type FlowComputeNode =

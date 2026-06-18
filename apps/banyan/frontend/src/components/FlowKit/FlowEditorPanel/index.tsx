@@ -14,7 +14,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Drawer, Tooltip } from 'antd'
 import { AppstoreOutlined, CloseOutlined } from '@ant-design/icons'
-import type { FlowSchema } from '@banyuan/banvasgl'
+import type { ExtractedFlowSchema } from '../extractSchema'
 import useFlowBanvas from '../../../hooks/useFlowBanvas'
 import { FlowContextMenu } from '../FlowContextMenu'
 import FlowNodePropertyPanel from '../FlowNodePropertyPanel'
@@ -24,8 +24,8 @@ import styles from './index.module.scss'
 export interface FlowEditorPanelProps {
   open: boolean
   title: string
-  initialSchema: FlowSchema
-  onSave: (schema: FlowSchema) => void
+  initialSchema: ExtractedFlowSchema
+  onSave: (schema: ExtractedFlowSchema) => void
   onClose: () => void
 }
 

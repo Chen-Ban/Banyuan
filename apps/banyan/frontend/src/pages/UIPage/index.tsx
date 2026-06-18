@@ -34,7 +34,8 @@ import { useApplicationStore } from "@/stores/applicationStore";
 import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
 import { FlowEditorPanel } from "@/components/FlowKit/FlowEditorPanel";
 import type { FlowEditorOpenRequest } from "./components/DesignEditor/PropertyPanel/EventsTab";
-import type { FlowSchema } from "@banyuan/banvasgl";
+import type { ExtractedFlowSchema } from "@/components/FlowKit/extractSchema";
+import { FLOW_SCHEMA_VERSION } from "@banyuan/banvasgl";
 import PropertyDrawer from "./components/PropertyDrawer";
 import SaveMaterialModal from "@/components/SaveMaterialModal";
 import styles from "./index.module.scss";
@@ -43,14 +44,14 @@ import styles from "./index.module.scss";
 interface FlowEditorState {
   open: boolean;
   title: string;
-  initialSchema: FlowSchema;
-  onSave: (schema: FlowSchema) => void;
+  initialSchema: ExtractedFlowSchema;
+  onSave: (schema: ExtractedFlowSchema) => void;
 }
 
 const CLOSED_FLOW_EDITOR: FlowEditorState = {
   open: false,
   title: '',
-  initialSchema: { nodes: [], edges: [] },
+  initialSchema: { version: FLOW_SCHEMA_VERSION, entry: '', nodes: {}, layout: {} },
   onSave: () => {},
 };
 

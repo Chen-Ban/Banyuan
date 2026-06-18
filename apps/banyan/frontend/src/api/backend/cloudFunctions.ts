@@ -8,7 +8,7 @@ export interface CloudFunctionDef {
   name: string
   displayName: string
   description: string
-  schema: { nodes: unknown[]; edges: unknown[] }
+  schema: { version: string; entry: string; nodes: Record<string, unknown>; layout: Record<string, { x: number; y: number }> }
   version: number
   createdAt?: string
   updatedAt?: string
@@ -18,14 +18,14 @@ export interface CreateCloudFunctionParams {
   name: string
   displayName?: string
   description?: string
-  schema?: { nodes: unknown[]; edges: unknown[] }
+  schema?: { version: string; entry: string; nodes: Record<string, unknown>; layout: Record<string, { x: number; y: number }> }
 }
 
 export interface UpdateCloudFunctionParams {
   name?: string
   displayName?: string
   description?: string
-  schema?: { nodes: unknown[]; edges: unknown[] }
+  schema?: { version: string; entry: string; nodes: Record<string, unknown>; layout: Record<string, { x: number; y: number }> }
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────

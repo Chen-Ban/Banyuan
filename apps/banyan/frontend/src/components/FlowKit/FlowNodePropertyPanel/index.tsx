@@ -1,23 +1,22 @@
 /**
- * FlowNodePropertyPanel — 流程节点属性面板
+ * FlowNodePropertyPanel — 流程节点属性面板（v2.0.0 slots 架构适配）
  *
  * 当流程画布中选中一个 NodeView 时，右侧浮出此面板。
  * 根据 FlowNode.kind 动态渲染对应的参数编辑表单。
  *
- * 写回机制：表单 onChange → 更新 NodeView.schema 对应字段 → app.notify() 重绘画布。
+ * 写回机制：表单 onChange → 更新 NodeView.schema → app.notify() 重绘画布。
+ * 数据访问统一走 node.slots[0].input.*。
  */
 
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import {
   Input,
-  InputNumber,
   Select,
   Switch,
   Divider,
 } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
-import type { FlowNode, FlowValue } from '@banyuan/banvasgl'
-import FlowValueEditor from './FlowValueEditor'
+import type { FlowNode } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
 
 // ── 类型 ──
@@ -29,61 +28,108 @@ export interface FlowNodePropertyPanelProps {
   onChange: (updatedNode: FlowNode) => void
   /** 关闭面板 */
   onClose: () => void
-  /** 可用的页面列表（navigate 节点使用） */
-  pageOptions?: Array<{ id: string; name: string }>
-  /** 可用的云函数列表（callFlow 节点使用） */
+  /** 可用的云函数列表 */
   flowOptions?: Array<{ id: string; name: string }>
   /** 可用的集合列表（db* 节点使用） */
   collectionOptions?: string[]
-  /** 可用的 View 列表（FlowValueEditor dataRef 使用） */
-  viewOptions?: Array<{ id: string; name: string }>
-  /** 可用的页面变量列表 */
-  pageVarOptions?: string[]
-  /** 可用的上游值节点列表 */
-  nodeRefOptions?: Array<{ id: string; label: string }>
+}
+
+// ── slot 访问辅助 ──
+
+/** 获取 node.slots[0] 的 input 对象（安全访问） */
+function getSlotInput(node: FlowNode): Record<string, unknown> {
+  return ((node.slots?.[0] as unknown as Record<string, unknown>)?.input as Record<string, unknown>) ?? {}
+}
+
+/** 获取 slot 的某个非 input 字段 */
+function getSlotField(node: FlowNode, field: string): unknown {
+  return (node.slots?.[0] as unknown as Record<string, unknown>)?.[field]
+}
+
+/** 更新 slot[0].input 的部分字段，返回新的 FlowNode */
+function updateSlotInput(node: FlowNode, inputUpdates: Record<string, unknown>): FlowNode {
+  const slots = [...node.slots]
+  const oldSlot = (slots[0] as unknown as Record<string, unknown>) ?? {}
+  slots[0] = { ...oldSlot, input: { ...(oldSlot.input as Record<string, unknown> ?? {}), ...inputUpdates } } as unknown as typeof slots[0]
+  return { ...node, slots } as FlowNode
+}
+
+/** 更新 slot[0] 的非 input 字段，返回新的 FlowNode */
+function updateSlotField(node: FlowNode, field: string, value: unknown): FlowNode {
+  const slots = [...node.slots]
+  const oldSlot = (slots[0] as unknown as Record<string, unknown>) ?? {}
+  slots[0] = { ...oldSlot, [field]: value } as unknown as typeof slots[0]
+  return { ...node, slots } as FlowNode
 }
 
 // ── Kind 中文名映射 ──
 
 const KIND_LABELS: Record<string, string> = {
-  setVariable: '设置变量',
-  setData: '设置数据',
-  navigate: '跳转页面',
-  callFlow: '调用流程',
+  // control
   condition: '条件分支',
+  loop: '循环',
+  parallel: '并行执行',
+  return: '返回',
+  // function
+  function: '本地函数',
+  // action
+  setVariable: '设置变量',
+  setViewData: '设置 View 数据',
+  setViewVisible: '显隐控制',
+  playAnimation: '播放动画',
+  navigate: '跳转页面',
+  cloudFunction: '云函数',
+  httpRequest: 'HTTP 请求',
   dbQuery: '数据库查询',
   dbInsert: '数据库插入',
   dbUpdate: '数据库更新',
   dbDelete: '数据库删除',
-  httpRequest: 'HTTP 请求',
-  transform: '数据转换',
-  script: '自定义脚本',
-  delay: '延迟等待',
-  setVisible: '显隐控制',
-  animate: '播放动画',
-  forEach: '遍历列表',
-  parallel: '并行执行',
-  subFlow: '子流程',
-  return: '返回/终止',
+  // source
+  literal: '字面量',
+  context: '上下文',
+  // compute
+  math: '算术运算',
+  compare: '比较运算',
+  logic: '逻辑运算',
+  concat: '拼接字符串',
+  format: '格式化',
+  get: '字段提取',
 }
 
-// ── 条件操作符选项 ──
+// ── 比较运算符选项 ──
 
-const CONDITION_OPS = [
-  { label: '==', value: '==' },
-  { label: '!=', value: '!=' },
-  { label: '>', value: '>' },
-  { label: '>=', value: '>=' },
-  { label: '<', value: '<' },
-  { label: '<=', value: '<=' },
+const COMPARE_OPS = [
+  { label: '等于 (eq)', value: 'eq' },
+  { label: '不等于 (neq)', value: 'neq' },
+  { label: '大于 (gt)', value: 'gt' },
+  { label: '大于等于 (gte)', value: 'gte' },
+  { label: '小于 (lt)', value: 'lt' },
+  { label: '小于等于 (lte)', value: 'lte' },
+  { label: '包含 (contains)', value: 'contains' },
 ]
 
-const HTTP_METHODS = [
-  { label: 'GET', value: 'GET' },
-  { label: 'POST', value: 'POST' },
-  { label: 'PUT', value: 'PUT' },
-  { label: 'DELETE', value: 'DELETE' },
-  { label: 'PATCH', value: 'PATCH' },
+const MATH_OPS = [
+  { label: '加 (add)', value: 'add' },
+  { label: '减 (sub)', value: 'sub' },
+  { label: '乘 (mul)', value: 'mul' },
+  { label: '除 (div)', value: 'div' },
+  { label: '取模 (mod)', value: 'mod' },
+  { label: '幂 (pow)', value: 'pow' },
+  { label: '最小 (min)', value: 'min' },
+  { label: '最大 (max)', value: 'max' },
+]
+
+const LOGIC_OPS = [
+  { label: '与 (and)', value: 'and' },
+  { label: '或 (or)', value: 'or' },
+  { label: '非 (not)', value: 'not' },
+]
+
+const PARALLEL_MODES = [
+  { label: '全部完成', value: 'all' },
+  { label: '全部结束', value: 'allSettled' },
+  { label: '首个完成', value: 'race' },
+  { label: '首个成功', value: 'any' },
 ]
 
 // ── 主组件 ──
@@ -92,113 +138,184 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
   node,
   onChange,
   onClose,
-  pageOptions = [],
   flowOptions = [],
   collectionOptions = [],
-  viewOptions = [],
-  pageVarOptions = [],
-  nodeRefOptions = [],
 }) => {
   if (!node) return null
 
   const kindLabel = KIND_LABELS[node.kind] || node.kind
 
-  // FlowValue 字段更新辅助
-  const updateFlowValue = useCallback((field: string, value: FlowValue) => {
-    onChange({ ...node, [field]: value } as unknown as FlowNode)
-  }, [node, onChange])
-
   // ── 各 kind 的表单体 ──
   const formBody = useMemo(() => {
+    const inp = getSlotInput(node)
+
     switch (node.kind) {
-      case 'setVariable':
+      // ── control ──
+      case 'condition': {
+        const slots = node.slots as unknown as Array<Record<string, unknown>>
+        return (
+          <div className={styles.infoText}>
+            {slots.length} 条条件分支。在画布上通过连线配置分支目标。
+          </div>
+        )
+      }
+
+      case 'loop':
+        return (
+          <div className={styles.infoText}>
+            循环节点：while (filter) 执行 body 子图。
+            filter 和 body 通过 SlotValue 编辑器配置。
+          </div>
+        )
+
+      case 'parallel':
         return (
           <>
-            <FormField label="Scope">
-              <Input
-                value={node.scope}
-                onChange={(e) => onChange({ ...node, scope: e.target.value })}
+            <FormField label="收敛模式">
+              <Select
+                value={getSlotField(node, 'mode') as string ?? 'all'}
+                onChange={(v) => onChange(updateSlotField(node, 'mode', v))}
                 size="small"
-                placeholder="page / self / viewId"
+                className={styles.fullWidth}
+                options={PARALLEL_MODES}
               />
             </FormField>
-            <FormField label="Key">
-              <Input
-                value={node.key}
-                onChange={(e) => onChange({ ...node, key: e.target.value })}
-                size="small"
-                placeholder="变量名"
-              />
-            </FormField>
-            <FlowValueEditor
-              label="Value"
-              value={node.value}
-              onChange={(v) => updateFlowValue('value', v)}
-              viewOptions={viewOptions}
-              pageVarOptions={pageVarOptions}
-              nodeRefOptions={nodeRefOptions}
-            />
+            <div className={styles.infoText}>
+              {(getSlotField(node, 'body') as unknown[])?.length ?? 0} 条并行分支。
+            </div>
           </>
         )
 
-      case 'setData':
+      case 'return':
+        return (
+          <div className={styles.infoText}>
+            返回节点：终止子图执行。可收集 inputs 作为返回值。
+          </div>
+        )
+
+      // ── function ──
+      case 'function':
+        return (
+          <div className={styles.infoText}>
+            内联函数节点：创建新作用域执行 body 子图。
+          </div>
+        )
+
+      // ── action ──
+      case 'setVariable':
+        return (
+          <>
+            <FormField label="变量名">
+              <Input
+                value={(inp.target as string) ?? ''}
+                onChange={(e) => onChange(updateSlotInput(node, { target: e.target.value }))}
+                size="small"
+                placeholder="目标变量名"
+              />
+            </FormField>
+            <FormField label="值">
+              <Input
+                value={String(inp.value ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { value: e.target.value }))}
+                size="small"
+                placeholder="值（支持 DataRef：↗nodeId.field）"
+              />
+            </FormField>
+          </>
+        )
+
+      case 'setViewData':
         return (
           <>
             <FormField label="View ID">
-              <Select
-                value={node.viewId}
-                onChange={(v) => onChange({ ...node, viewId: v })}
+              <Input
+                value={(inp.viewId as string) ?? ''}
+                onChange={(e) => onChange(updateSlotInput(node, { viewId: e.target.value }))}
                 size="small"
-                className={styles.fullWidth}
-                options={[
-                  { label: 'self', value: 'self' },
-                  ...viewOptions.map(v => ({ label: v.name || v.id.slice(0, 8), value: v.id })),
-                ]}
-                showSearch
+                placeholder="self 或 viewId"
               />
             </FormField>
             <FormField label="Key">
               <Input
-                value={node.key}
-                onChange={(e) => onChange({ ...node, key: e.target.value })}
+                value={(inp.key as string) ?? ''}
+                onChange={(e) => onChange(updateSlotInput(node, { key: e.target.value }))}
                 size="small"
                 placeholder="data 字段名"
               />
             </FormField>
-            <FlowValueEditor
-              label="Value"
-              value={node.value}
-              onChange={(v) => updateFlowValue('value', v)}
-              viewOptions={viewOptions}
-              pageVarOptions={pageVarOptions}
-              nodeRefOptions={nodeRefOptions}
-            />
+            <FormField label="Value">
+              <Input
+                value={String(inp.value ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { value: e.target.value }))}
+                size="small"
+                placeholder="值"
+              />
+            </FormField>
+          </>
+        )
+
+      case 'setViewVisible':
+        return (
+          <>
+            <FormField label="View ID">
+              <Input
+                value={(inp.viewId as string) ?? ''}
+                onChange={(e) => onChange(updateSlotInput(node, { viewId: e.target.value }))}
+                size="small"
+                placeholder="self 或 viewId"
+              />
+            </FormField>
+            <FormField label="可见">
+              <Switch
+                checked={!!inp.visible}
+                onChange={(v) => onChange(updateSlotInput(node, { visible: v }))}
+                size="small"
+              />
+            </FormField>
+          </>
+        )
+
+      case 'playAnimation':
+        return (
+          <>
+            <FormField label="View ID">
+              <Input
+                value={(inp.viewId as string) ?? ''}
+                onChange={(e) => onChange(updateSlotInput(node, { viewId: e.target.value }))}
+                size="small"
+                placeholder="self 或 viewId"
+              />
+            </FormField>
+            <FormField label="动画 ID">
+              <Input
+                value={(inp.animationId as string) ?? ''}
+                onChange={(e) => onChange(updateSlotInput(node, { animationId: e.target.value }))}
+                size="small"
+                placeholder="动画标识"
+              />
+            </FormField>
           </>
         )
 
       case 'navigate':
         return (
-          <FormField label="目标页面">
-            <Select
-              value={node.pageId || undefined}
-              onChange={(v) => onChange({ ...node, pageId: v })}
+          <FormField label="目标">
+            <Input
+              value={String(inp.target ?? '')}
+              onChange={(e) => onChange(updateSlotInput(node, { target: e.target.value }))}
               size="small"
-              className={styles.fullWidth}
-              placeholder="选择页面"
-              options={pageOptions.map(p => ({ label: p.name, value: p.id }))}
-              showSearch
-              allowClear
+              placeholder="页面 ID 或 URL"
             />
           </FormField>
         )
 
-      case 'callFlow':
+      case 'cloudFunction':
         return (
           <>
-            <FormField label="目标流程">
+            <FormField label="云函数">
               <Select
-                value={node.flowId || undefined}
-                onChange={(v) => onChange({ ...node, flowId: v })}
+                value={(inp.functionId as string) || undefined}
+                onChange={(v) => onChange(updateSlotInput(node, { functionId: v }))}
                 size="small"
                 className={styles.fullWidth}
                 placeholder="选择云函数"
@@ -207,146 +324,12 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
                 allowClear
               />
             </FormField>
-          </>
-        )
-
-      case 'condition':
-        return (
-          <>
-            <FlowValueEditor
-              label="左值"
-              value={node.condition.left}
-              onChange={(v) => onChange({ ...node, condition: { ...node.condition, left: v } })}
-              viewOptions={viewOptions}
-              pageVarOptions={pageVarOptions}
-              nodeRefOptions={nodeRefOptions}
-            />
-            <FormField label="操作符">
-              <Select
-                value={node.condition.op}
-                onChange={(op) => onChange({ ...node, condition: { ...node.condition, op } })}
-                size="small"
-                className={styles.fullWidth}
-                options={CONDITION_OPS}
-              />
-            </FormField>
-            <FlowValueEditor
-              label="右值"
-              value={node.condition.right}
-              onChange={(v) => onChange({ ...node, condition: { ...node.condition, right: v } })}
-              viewOptions={viewOptions}
-              pageVarOptions={pageVarOptions}
-              nodeRefOptions={nodeRefOptions}
-            />
-          </>
-        )
-
-      case 'dbQuery':
-        return (
-          <>
-            <FormField label="集合">
-              <Select
-                value={node.collection || undefined}
-                onChange={(v) => onChange({ ...node, collection: v })}
-                size="small"
-                className={styles.fullWidth}
-                placeholder="选择集合"
-                options={collectionOptions.map(c => ({ label: c, value: c }))}
-                showSearch
-                allowClear
-              />
-            </FormField>
-            <FormField label="输出变量">
+            <FormField label="参数 (JSON)">
               <Input
-                value={node.outputVariable}
-                onChange={(e) => onChange({ ...node, outputVariable: e.target.value })}
+                value={String(inp.args ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { args: e.target.value }))}
                 size="small"
-                placeholder="结果写入变量名"
-              />
-            </FormField>
-            <FormField label="Limit">
-              <InputNumber
-                value={node.limit}
-                onChange={(v) => onChange({ ...node, limit: v ?? undefined })}
-                size="small"
-                min={1}
-                className={styles.fullWidth}
-                placeholder="不限"
-              />
-            </FormField>
-          </>
-        )
-
-      case 'dbInsert':
-        return (
-          <>
-            <FormField label="集合">
-              <Select
-                value={node.collection || undefined}
-                onChange={(v) => onChange({ ...node, collection: v })}
-                size="small"
-                className={styles.fullWidth}
-                placeholder="选择集合"
-                options={collectionOptions.map(c => ({ label: c, value: c }))}
-                showSearch
-              />
-            </FormField>
-            <FormField label="输出变量">
-              <Input
-                value={node.outputVariable}
-                onChange={(e) => onChange({ ...node, outputVariable: e.target.value })}
-                size="small"
-                placeholder="insertedId 写入变量名"
-              />
-            </FormField>
-          </>
-        )
-
-      case 'dbUpdate':
-        return (
-          <>
-            <FormField label="集合">
-              <Select
-                value={node.collection || undefined}
-                onChange={(v) => onChange({ ...node, collection: v })}
-                size="small"
-                className={styles.fullWidth}
-                placeholder="选择集合"
-                options={collectionOptions.map(c => ({ label: c, value: c }))}
-                showSearch
-              />
-            </FormField>
-            <FormField label="输出变量">
-              <Input
-                value={node.outputVariable}
-                onChange={(e) => onChange({ ...node, outputVariable: e.target.value })}
-                size="small"
-                placeholder="modifiedCount 写入变量名"
-              />
-            </FormField>
-          </>
-        )
-
-      case 'dbDelete':
-        return (
-          <>
-            <FormField label="集合">
-              <Select
-                value={node.collection || undefined}
-                onChange={(v) => onChange({ ...node, collection: v })}
-                size="small"
-                className={styles.fullWidth}
-                placeholder="选择集合"
-                options={collectionOptions.map(c => ({ label: c, value: c }))}
-                showSearch
-              />
-            </FormField>
-            <FormField label="输出变量">
-              <Input
-                value={node.outputVariable}
-                onChange={(e) => onChange({ ...node, outputVariable: e.target.value })}
-                size="small"
-                placeholder="deletedCount 写入变量名"
+                placeholder='{"key": "value"}'
               />
             </FormField>
           </>
@@ -355,241 +338,293 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
       case 'httpRequest':
         return (
           <>
+            <FormField label="URL">
+              <Input
+                value={String(inp.url ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { url: e.target.value }))}
+                size="small"
+                placeholder="https://..."
+              />
+            </FormField>
             <FormField label="Method">
               <Select
-                value={node.method}
-                onChange={(v) => onChange({ ...node, method: v })}
+                value={(inp.method as string) || 'GET'}
+                onChange={(v) => onChange(updateSlotInput(node, { method: v }))}
                 size="small"
                 className={styles.fullWidth}
-                options={HTTP_METHODS}
-              />
-            </FormField>
-            <FlowValueEditor
-              label="URL"
-              value={node.url}
-              onChange={(v) => updateFlowValue('url', v)}
-              viewOptions={viewOptions}
-              pageVarOptions={pageVarOptions}
-              nodeRefOptions={nodeRefOptions}
-            />
-            <FormField label="输出变量">
-              <Input
-                value={node.outputVariable}
-                onChange={(e) => onChange({ ...node, outputVariable: e.target.value })}
-                size="small"
-                placeholder="response 写入变量名"
+                options={[
+                  { label: 'GET', value: 'GET' },
+                  { label: 'POST', value: 'POST' },
+                  { label: 'PUT', value: 'PUT' },
+                  { label: 'DELETE', value: 'DELETE' },
+                  { label: 'PATCH', value: 'PATCH' },
+                ]}
               />
             </FormField>
           </>
         )
 
-      case 'transform':
+      case 'dbQuery':
         return (
           <>
-            <FormField label="表达式">
-              <Input.TextArea
-                value={node.expression}
-                onChange={(e) => onChange({ ...node, expression: e.target.value })}
+            <FormField label="集合">
+              <Select
+                value={(inp.collection as string) || undefined}
+                onChange={(v) => onChange(updateSlotInput(node, { collection: v }))}
                 size="small"
-                rows={3}
-                placeholder="安全表达式（expr-eval 语法）"
-              />
-            </FormField>
-            <FormField label="输出变量">
-              <Input
-                value={node.outputVariable}
-                onChange={(e) => onChange({ ...node, outputVariable: e.target.value })}
-                size="small"
-              />
-            </FormField>
-          </>
-        )
-
-      case 'script':
-        return (
-          <>
-            <FormField label="代码">
-              <Input.TextArea
-                value={node.code}
-                onChange={(e) => onChange({ ...node, code: e.target.value })}
-                size="small"
-                rows={6}
-                placeholder="自定义脚本（vm 沙箱执行）"
-                style={{ fontFamily: 'monospace', fontSize: 11 }}
-              />
-            </FormField>
-            <FormField label="超时 (ms)">
-              <InputNumber
-                value={node.timeout ?? 5000}
-                onChange={(v) => onChange({ ...node, timeout: v ?? 5000 })}
-                size="small"
-                min={100}
-                max={30000}
                 className={styles.fullWidth}
+                placeholder="选择集合"
+                options={collectionOptions.map(c => ({ label: c, value: c }))}
+                showSearch
+                allowClear
               />
             </FormField>
           </>
         )
 
-      case 'delay':
+      case 'dbInsert':
         return (
-          <FormField label="延迟 (ms)">
-            <InputNumber
-              value={node.ms}
-              onChange={(v) => onChange({ ...node, ms: v ?? 0 })}
+          <FormField label="集合">
+            <Select
+              value={(inp.collection as string) || undefined}
+              onChange={(v) => onChange(updateSlotInput(node, { collection: v }))}
               size="small"
-              min={0}
               className={styles.fullWidth}
+              placeholder="选择集合"
+              options={collectionOptions.map(c => ({ label: c, value: c }))}
+              showSearch
             />
           </FormField>
         )
 
-      case 'setVisible':
+      case 'dbUpdate':
         return (
-          <>
-            <FormField label="View ID">
-              <Select
-                value={node.viewId}
-                onChange={(v) => onChange({ ...node, viewId: v })}
-                size="small"
-                className={styles.fullWidth}
-                options={[
-                  { label: 'self', value: 'self' },
-                  ...viewOptions.map(v => ({ label: v.name || v.id.slice(0, 8), value: v.id })),
-                ]}
-                showSearch
-              />
-            </FormField>
-            <FormField label="可见">
-              <Switch
-                checked={node.visible}
-                onChange={(v) => onChange({ ...node, visible: v })}
-                size="small"
-              />
-            </FormField>
-          </>
-        )
-
-      case 'animate':
-        return (
-          <>
-            <FormField label="View ID">
-              <Select
-                value={node.viewId}
-                onChange={(v) => onChange({ ...node, viewId: v })}
-                size="small"
-                className={styles.fullWidth}
-                options={[
-                  { label: 'self', value: 'self' },
-                  ...viewOptions.map(v => ({ label: v.name || v.id.slice(0, 8), value: v.id })),
-                ]}
-                showSearch
-              />
-            </FormField>
-            <FormField label="动画 ID">
-              <Input
-                value={node.animationId}
-                onChange={(e) => onChange({ ...node, animationId: e.target.value })}
-                size="small"
-                placeholder="动画标识"
-              />
-            </FormField>
-          </>
-        )
-
-      case 'forEach':
-        return (
-          <>
-            <FlowValueEditor
-              label="集合"
-              value={node.collection}
-              onChange={(v) => updateFlowValue('collection', v)}
-              viewOptions={viewOptions}
-              pageVarOptions={pageVarOptions}
-              nodeRefOptions={nodeRefOptions}
+          <FormField label="集合">
+            <Select
+              value={(inp.collection as string) || undefined}
+              onChange={(v) => onChange(updateSlotInput(node, { collection: v }))}
+              size="small"
+              className={styles.fullWidth}
+              placeholder="选择集合"
+              options={collectionOptions.map(c => ({ label: c, value: c }))}
+              showSearch
             />
-            <FormField label="元素变量名">
-              <Input
-                value={node.itemVariable}
-                onChange={(e) => onChange({ ...node, itemVariable: e.target.value })}
-                size="small"
-                placeholder="item"
-              />
-            </FormField>
-            <FormField label="索引变量名">
-              <Input
-                value={node.indexVariable ?? ''}
-                onChange={(e) => onChange({ ...node, indexVariable: e.target.value || undefined })}
-                size="small"
-                placeholder="index（可选）"
-              />
-            </FormField>
-          </>
+          </FormField>
         )
 
-      case 'parallel':
+      case 'dbDelete':
+        return (
+          <FormField label="集合">
+            <Select
+              value={(inp.collection as string) || undefined}
+              onChange={(v) => onChange(updateSlotInput(node, { collection: v }))}
+              size="small"
+              className={styles.fullWidth}
+              placeholder="选择集合"
+              options={collectionOptions.map(c => ({ label: c, value: c }))}
+              showSearch
+              allowClear
+            />
+          </FormField>
+        )
+
+      // ── source ──
+      case 'literal':
+        return (
+          <FormField label="值">
+            <Input
+              value={String(getSlotField(node, 'value') ?? '')}
+              onChange={(e) => onChange(updateSlotField(node, 'value', e.target.value))}
+              size="small"
+              placeholder="字面量值"
+            />
+          </FormField>
+        )
+
+      case 'context':
+        return (
+          <FormField label="路径">
+            <Input
+              value={(getSlotField(node, 'path') as string) ?? ''}
+              onChange={(e) => onChange(updateSlotField(node, 'path', e.target.value))}
+              size="small"
+              placeholder="上下文路径（如 vars.myVar）"
+            />
+          </FormField>
+        )
+
+      // ── compute ──
+      case 'math':
         return (
           <>
-            <FormField label="汇聚模式">
+            <FormField label="运算符">
               <Select
-                value={node.joinMode}
-                onChange={(v) => onChange({ ...node, joinMode: v })}
+                value={(inp.op as string) ?? 'add'}
+                onChange={(v) => onChange(updateSlotInput(node, { op: v }))}
                 size="small"
                 className={styles.fullWidth}
-                options={[
-                  { label: '全部完成 (all)', value: 'all' },
-                  { label: '任一完成 (any)', value: 'any' },
-                ]}
+                options={MATH_OPS}
               />
             </FormField>
-            <FormField label="结果变量名">
+            <FormField label="左值 (a)">
               <Input
-                value={node.resultsVariable}
-                onChange={(e) => onChange({ ...node, resultsVariable: e.target.value })}
+                value={String(inp.a ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { a: e.target.value }))}
                 size="small"
-                placeholder="results"
+                placeholder="值或 DataRef"
               />
             </FormField>
-            <div className={styles.infoText}>
-              当前 {node.branches.length} 条并行分支
-            </div>
+            <FormField label="右值 (b)">
+              <Input
+                value={String(inp.b ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { b: e.target.value }))}
+                size="small"
+                placeholder="值或 DataRef"
+              />
+            </FormField>
           </>
         )
 
-      case 'subFlow':
+      case 'compare':
         return (
           <>
-            <FormField label="名称">
-              <Input
-                value={node.name}
-                onChange={(e) => onChange({ ...node, name: e.target.value })}
+            <FormField label="运算符">
+              <Select
+                value={(inp.op as string) ?? 'eq'}
+                onChange={(v) => onChange(updateSlotInput(node, { op: v }))}
                 size="small"
+                className={styles.fullWidth}
+                options={COMPARE_OPS}
               />
             </FormField>
-            <div className={styles.infoText}>
-              {node.inputs.length} 输入端口 / {node.outputs.length} 输出端口
-            </div>
+            <FormField label="左值 (a)">
+              <Input
+                value={String(inp.a ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { a: e.target.value }))}
+                size="small"
+                placeholder="值或 DataRef"
+              />
+            </FormField>
+            <FormField label="右值 (b)">
+              <Input
+                value={String(inp.b ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { b: e.target.value }))}
+                size="small"
+                placeholder="值或 DataRef"
+              />
+            </FormField>
           </>
         )
 
-      case 'return':
-        return node.outputValue ? (
-          <FlowValueEditor
-            label="返回值"
-            value={node.outputValue}
-            onChange={(v) => onChange({ ...node, outputValue: v })}
-            viewOptions={viewOptions}
-            pageVarOptions={pageVarOptions}
-            nodeRefOptions={nodeRefOptions}
-          />
-        ) : (
-          <div className={styles.infoText}>无返回值（终止流程）</div>
+      case 'logic':
+        return (
+          <>
+            <FormField label="运算符">
+              <Select
+                value={(inp.op as string) ?? 'and'}
+                onChange={(v) => onChange(updateSlotInput(node, { op: v }))}
+                size="small"
+                className={styles.fullWidth}
+                options={LOGIC_OPS}
+              />
+            </FormField>
+            <FormField label="左值 (a)">
+              <Input
+                value={String(inp.a ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { a: e.target.value }))}
+                size="small"
+                placeholder="值或 DataRef"
+              />
+            </FormField>
+            <FormField label="右值 (b)">
+              <Input
+                value={String(inp.b ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { b: e.target.value }))}
+                size="small"
+                placeholder="值或 DataRef"
+              />
+            </FormField>
+          </>
+        )
+
+      case 'concat':
+        return (
+          <>
+            <FormField label="左值 (a)">
+              <Input
+                value={String(inp.a ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { a: e.target.value }))}
+                size="small"
+                placeholder="值或 DataRef"
+              />
+            </FormField>
+            <FormField label="右值 (b)">
+              <Input
+                value={String(inp.b ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { b: e.target.value }))}
+                size="small"
+                placeholder="值或 DataRef"
+              />
+            </FormField>
+            <FormField label="分隔符">
+              <Input
+                value={(inp.separator as string) ?? ''}
+                onChange={(e) => onChange(updateSlotInput(node, { separator: e.target.value }))}
+                size="small"
+                placeholder="可选分隔符"
+              />
+            </FormField>
+          </>
+        )
+
+      case 'format':
+        return (
+          <>
+            <FormField label="模板">
+              <Input
+                value={String(inp.template ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { template: e.target.value }))}
+                size="small"
+                placeholder="Hello, {name}!"
+              />
+            </FormField>
+            <FormField label="值">
+              <Input
+                value={String(inp.values ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { values: e.target.value }))}
+                size="small"
+                placeholder='{"name": "World"}'
+              />
+            </FormField>
+          </>
+        )
+
+      case 'get':
+        return (
+          <>
+            <FormField label="路径">
+              <Input
+                value={(inp.path as string) ?? ''}
+                onChange={(e) => onChange(updateSlotInput(node, { path: e.target.value }))}
+                size="small"
+                placeholder="嵌套字段路径"
+              />
+            </FormField>
+            <FormField label="对象">
+              <Input
+                value={String(inp.object ?? '')}
+                onChange={(e) => onChange(updateSlotInput(node, { object: e.target.value }))}
+                size="small"
+                placeholder="值或 DataRef"
+              />
+            </FormField>
+          </>
         )
 
       default:
         return <div className={styles.infoText}>暂不支持编辑此节点类型</div>
     }
-  }, [node, onChange, updateFlowValue, pageOptions, flowOptions, collectionOptions, viewOptions, pageVarOptions, nodeRefOptions])
+  }, [node, onChange, flowOptions, collectionOptions])
 
   return (
     <div className={styles.propertyPanel}>

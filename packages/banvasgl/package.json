@@ -46,9 +46,15 @@
   },
   "typesVersions": {
     "*": {
-      "react": ["./dist/react.d.mts"],
-      "flow/client": ["./dist/flow/client.d.mts"],
-      "flow/server": ["./dist/flow/server.d.mts"]
+      "react": [
+        "./dist/react.d.mts"
+      ],
+      "flow/client": [
+        "./dist/flow/client.d.mts"
+      ],
+      "flow/server": [
+        "./dist/flow/server.d.mts"
+      ]
     }
   },
   "main": "./dist/index.cjs",
@@ -83,7 +89,8 @@
     "@types/react": "^19.0.0",
     "@types/uuid": "^10.0.0",
     "tsup": "^8.4.0",
-    "tsx": "^4.19.0"
+    "tsx": "^4.19.0",
+    "vitest": "^4.1.9"
   },
   "dependencies": {
     "uuid": "^11.1.0"

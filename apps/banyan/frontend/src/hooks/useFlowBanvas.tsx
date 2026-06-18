@@ -6,10 +6,11 @@ import React, {
 } from 'react'
 import { useCanvasInit } from '@banyuan/banvasgl/react'
 import type { SelectedViewPos } from '@banyuan/banvasgl/react'
-import type { FlowSchema, FlowNode } from '@banyuan/banvasgl'
+import type { FlowNode } from '@banyuan/banvasgl'
 import { useInteraction } from './useInteraction'
 import { useFlowContextMenu } from './useFlowContextMenu'
 import { extractSchema } from '../components/FlowKit/extractSchema'
+import type { ExtractedFlowSchema } from '../components/FlowKit/extractSchema'
 import {
     NodeView,
     EdgeView,
@@ -36,12 +37,12 @@ export interface UseFlowBanvasResult {
     /** 渲染好的 Canvas React 元素 */
     Canvas: React.ReactElement
     /**
-     * 获取当前画布的 FlowSchema 快照
+     * 获取当前画布的 FlowSchema 快照（含 layout 布局信息）
      *
      * 按需调用（如保存时），而非实时派生。
      * 内部遍历视图树序列化为纯数据结构。
      */
-    getSchema: () => FlowSchema
+    getSchema: () => ExtractedFlowSchema
     /**
      * 当前选中的视图 ID（空字符串表示无选中）
      */
@@ -70,7 +71,7 @@ export interface UseFlowBanvasResult {
 }
 
 /**
- * 流程图画布专用 hook
+ * 流程图画布专用 hook（v2.0.0 slots 架构适配）
  *
  * 设计原则：
  * - Scene 是 source of truth（NodeView.schema 存完整业务数据）
@@ -80,16 +81,15 @@ export interface UseFlowBanvasResult {
  * - 拖拽创建节点由外层面板通过 drop 事件完成
  *
  * @param options 画布配置
- * @param initialSchema 初始加载的 FlowSchema（组件挂载时一次性加载）
+ * @param initialSchema 初始加载的 FlowSchema + layout（组件挂载时一次性加载）
  */
 export default function useFlowBanvas(
     options: UseFlowBanvasOptions,
-    initialSchema?: FlowSchema,
+    initialSchema?: ExtractedFlowSchema,
 ): UseFlowBanvasResult {
     const { width, height, backgroundColor } = options
 
     // ── 初始化：App + 容器 DOM + 相机交互 ──
-    // width/height 均传入时为固定模式，否则为自适应模式（ResizeObserver）
     const canvasInitOptions = (width !== undefined && height !== undefined)
         ? {
             width,
@@ -118,38 +118,64 @@ export default function useFlowBanvas(
         initializedRef.current = true
 
         const schema = initialSchemaRef.current
-        if (!schema || schema.nodes.length === 0) return
+        if (!schema || Object.keys(schema.nodes).length === 0) return
+
+        const layout = schema.layout ?? {}
+        const nodeEntries = Object.entries(schema.nodes)
 
         // 创建 NodeView
-        for (const node of schema.nodes) {
+        for (const [nodeId, node] of nodeEntries) {
             const nodeView = new NodeView({
                 schema: node,
                 style: { width: 140, height: 60 },
             })
-            nodeView.translate(node.x ?? 20, node.y ?? 20, 0)
+            const pos = layout[nodeId]
+            nodeView.translate(pos?.x ?? 20, pos?.y ?? 20, 0)
             actions.view.addTempChild(nodeView)
         }
 
-        // 创建 EdgeView
-        for (const edge of schema.edges) {
-            const portIds = resolveEdgePorts(edge, schema.nodes)
-            if (!portIds) continue
-            const edgeView = new EdgeView({
-                id: edge.id,
-                fromPortId: portIds.fromPortId,
-                toPortId: portIds.toPortId,
-            })
-            actions.view.addTempChild(edgeView)
+        // 从 slots[*].next 创建 EdgeView
+        for (const [nodeId, node] of nodeEntries) {
+            const category = node.category
+            const kind = node.kind
+
+            for (let i = 0; i < (node.slots?.length ?? 0); i++) {
+                const slot = node.slots[i] as unknown as Record<string, unknown>
+                const next = slot.next as string | undefined
+                if (!next) continue
+
+                // 确定源端口 ID
+                let fromPortId: string
+                if (kind === 'condition') {
+                    fromPortId = `${nodeId}_${i}`
+                } else if (category === 'source' || category === 'compute') {
+                    fromPortId = `${nodeId}_value`
+                } else {
+                    fromPortId = `${nodeId}_out`
+                }
+
+                const toPortId = `${next}_in`
+
+                const edgeView = new EdgeView({
+                    fromPortId,
+                    toPortId,
+                })
+                actions.view.addTempChild(edgeView)
+            }
         }
 
         actions.app.notify()
     }, [actions])
 
     // ── getSchema：按需获取当前画布快照 ──
-    const getSchema = useCallback((): FlowSchema => {
-        if (!actions) return { nodes: [], edges: [] }
+    const getSchema = useCallback((): ExtractedFlowSchema => {
+        if (!actions) {
+            return { version: '2.0.0', entry: '', nodes: {}, layout: {} }
+        }
         const children = actions.page.getTopLevelViews()
-        if (children.length === 0) return { nodes: [], edges: [] }
+        if (children.length === 0) {
+            return { version: '2.0.0', entry: '', nodes: {}, layout: {} }
+        }
         return extractSchema(children)
     }, [actions])
 
@@ -191,29 +217,4 @@ export default function useFlowBanvas(
         updateNodeSchema,
         contextMenuState,
     }
-}
-
-// ── 内部辅助 ──
-
-function resolveEdgePorts(
-    edge: { from: string; to: string; branch?: 'true' | 'false' | 'error' },
-    nodes: FlowNode[],
-): { fromPortId: string; toPortId: string } | null {
-    const fromNode = nodes.find(n => n.id === edge.from)
-    const toNode = nodes.find(n => n.id === edge.to)
-    if (!fromNode || !toNode) return null
-
-    let fromPortId: string
-    if (edge.branch === 'true') {
-        fromPortId = `${edge.from}_true`
-    } else if (edge.branch === 'false') {
-        fromPortId = `${edge.from}_false`
-    } else if (edge.branch === 'error') {
-        fromPortId = `${edge.from}_error`
-    } else {
-        fromPortId = `${edge.from}_out`
-    }
-
-    const toPortId = `${edge.to}_in`
-    return { fromPortId, toPortId }
 }

@@ -12,6 +12,7 @@ import type { ISerializable } from "@/types/foundation/serializable.js";
 import { AppType } from "@/foundation/constants";
 import { createClientFlowRunner } from "@/foundation/flow/presets/client.js";
 import type { FlowRunner } from "@/foundation/flow/FlowRunner/index.js";
+import type { FrontendCapProxy } from "@/types/foundation/flow/context.js";
 import { AnimationManager } from "@/foundation/animation";
 import { flattenViewTree } from "@/engine/scene/utils";
 import type View from "@/view/View/View";
@@ -27,8 +28,8 @@ export class App implements ISerializable {
   public readonly animationManager: AnimationManager =
     AnimationManager.getInstance();
 
-  /** 流程执行器（前端预设，包含 client + shared 节点） */
-  public readonly flowRunner: FlowRunner = createClientFlowRunner();
+  /** 流程执行器（前端预设，cap 由 AppOptions 注入） */
+  public readonly flowRunner: FlowRunner<FrontendCapProxy>;
 
   /**
    * 是否允许 FlowSchema 执行。
@@ -48,8 +49,8 @@ export class App implements ISerializable {
   /**
    * 后端端点地址（可选）
    *
-   * 用于 cloudFunction 加载远端函数体。
-   * 未设置时 cloudFunction 使用 FlowRunner.loadFunctionBody 默认实现。
+   * cloudFunction 节点通过 httpClient 调用 `${endpoint}/api/functions/${functionId}`。
+   * 未设置时 httpClient 请求将使用相对路径。
    */
   public backendEndpoint: string | undefined = undefined;
 
@@ -95,11 +96,12 @@ export class App implements ISerializable {
    */
   public lifetimes: IAppLifetimes = { onLaunch: null, onUnlaunch: null };
 
-  constructor(renderer: Renderer, options: IAppOptions = {}) {
+  constructor(renderer: Renderer, options: IAppOptions) {
     this.renderer = renderer;
     this._enablePageStack = options.enablePageStack !== false;
     this._maxPageStackSize = options.maxPageStackSize || 50;
     this.flowEnabled = options.flowEnabled !== false; // 默认 true
+    this.flowRunner = createClientFlowRunner(options.cap as FrontendCapProxy);
 
     // 初始化 lifetimes（FlowSchema）
     this.lifetimes = {
@@ -121,10 +123,7 @@ export class App implements ISerializable {
     // 调用 lifetimes.onLaunch（FlowSchema）
     if (this.flowEnabled && this.lifetimes.onLaunch) {
       try {
-        const ctx = this._buildAppFlowContext(
-          Array.isArray(params) ? params : [params],
-        );
-        this.flowRunner!.run(this.lifetimes.onLaunch, ctx as any)
+        this.flowRunner!.run(this.lifetimes.onLaunch)
           .catch((err: unknown) => console.error('[App] onLaunch schema 执行出错:', err));
       } catch (error) {
         console.error("lifetimes.onLaunch 执行失败:", error);
@@ -156,8 +155,7 @@ export class App implements ISerializable {
     // 调用 lifetimes.onUnlaunch（FlowSchema）
     if (this.flowEnabled && this.lifetimes.onUnlaunch) {
       try {
-        const ctx = this._buildAppFlowContext([]);
-        this.flowRunner!.run(this.lifetimes.onUnlaunch, ctx as any)
+        this.flowRunner!.run(this.lifetimes.onUnlaunch)
           .catch((err: unknown) => console.error('[App] onUnlaunch schema 执行出错:', err));
       } catch (error) {
         console.error("lifetimes.onUnlaunch 执行失败:", error);
@@ -885,80 +883,11 @@ export class App implements ISerializable {
 
   // ──── App 级别 FlowContext 构造 ────
 
-  /**
-   * 构造 App 生命周期专用的 FlowContext
-   *
-   * 与 Scene.triggerSchema 不同，这里的 scope 解析基于当前页面（如果存在）。
-   */
-  private _buildAppFlowContext(eventArgs: unknown[]): Record<string, any> {
-    const app = this;
-    const scene = this.getCurrentScene();
-    return {
-      getVariable(scope: string, key: string): unknown {
-        if (!scene) return undefined;
-        if (scope === 'page') {
-          const field = (scene.data as Record<string, any>)?.[key];
-          return field?.value ?? undefined;
-        }
-        const view = scene.findViewById(scope);
-        if (view) {
-          const field = (view.data as Record<string, any>)[key];
-          return field?.value ?? undefined;
-        }
-        return undefined;
-      },
-      setVariable(scope: string, key: string, value: unknown): void {
-        if (!scene) return;
-        if (scope === 'page') {
-          if (scene.data && typeof scene.data === 'object') {
-            const pageData = scene.data as Record<string, any>;
-            if (key in pageData) {
-              pageData[key] = { ...pageData[key], value };
-            }
-          }
-          return;
-        }
-        const view = scene.findViewById(scope);
-        if (view) {
-          view.setData({ [key]: value as string | number | boolean | object });
-          scene.markDirty(view);
-        }
-      },
-      eventArgs,
-      env: {
-        appId: app.appId,
-        navigateTo(pageId: string): void {
-          const targetScene = app.getScene(pageId);
-          if (targetScene) app.navigateTo(targetScene);
-        },
-        playAnimation(viewId: string, animationId: string): void {
-          scene?.playAnimation(viewId, animationId);
-        },
-        setViewData(viewId: string, key: string, val: unknown): void {
-          if (!scene) return;
-          const v = scene.findViewById(viewId);
-          if (v) {
-            v.setData({ [key]: val as string | number | boolean | object });
-            scene.markDirty(v);
-          }
-        },
-        setViewVisible(viewId: string, visible: boolean): void {
-          if (!scene) return;
-          const v = scene.findViewById(viewId);
-          if (v) {
-            v.visible = visible;
-            scene.markDirty(v);
-          }
-        },
-        callFlow: undefined,
-      },
-    };
-  }
 
   // 静态方法：创建应用
   public static create(
     canvas: HTMLCanvasElement,
-    options: IAppOptions = {},
+    options: IAppOptions,
     rendererOptions: IRendererOptions = {},
   ): App {
     const renderer = new Renderer(canvas, rendererOptions);
