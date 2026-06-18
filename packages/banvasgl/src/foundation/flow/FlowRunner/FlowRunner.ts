@@ -32,6 +32,14 @@ export class FlowRunner implements IFlowRunner {
   private executors: Record<string, NodeExecutor>;
   private cap: CapProxy;
 
+  // ── 执行上下文（实例字段，避免层层透传） ──
+  private nodes!: Record<string, FlowNode>;
+  private stack!: FrameStack;
+  private executed!: Set<string>;
+  private outputs!: Map<string, Record<string, unknown>>;
+  private returnRef!: { value: Record<string, unknown> };
+  private steps = 0;
+
   constructor(executors: Record<string, NodeExecutor>, cap: CapProxy) {
     this.executors = executors;
     this.cap = cap;
@@ -43,88 +51,108 @@ export class FlowRunner implements IFlowRunner {
       env.state,
       this.cap,
     );
-    const stack = new FrameStack(root);
-    await this.runGraph(graph, stack);
+    this.stack = new FrameStack(root);
+    await this.runGraph(graph);
   }
 
-  private async runGraph(
-    graph: FlowSchema,
-    stack: FrameStack,
-  ): Promise<Record<string, unknown>> {
-    const nodes = graph.nodes;
-    const entryId = graph.entry;
+  private async runGraph(graph: FlowSchema): Promise<Record<string, unknown>> {
+    const savedNodes = this.nodes;
+    const savedStack = this.stack;
+    const savedExecuted = this.executed;
+    const savedOutputs = this.outputs;
+    const savedReturnRef = this.returnRef;
+    const savedSteps = this.steps;
 
-    const entryNode = nodes[entryId];
-    if (!entryNode) return {};
+    this.nodes = graph.nodes;
+    this.executed = new Set<string>();
+    this.outputs = new Map();
+    this.returnRef = { value: {} };
+    this.steps = 0;
+
+    const entryNode = this.nodes[graph.entry];
+    if (!entryNode) {
+      this.restore(savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+      return {};
+    }
 
     let node: FlowNode | null = entryNode;
-    let steps = 0;
-    const executed = new Set<string>();
-    const outputs = new Map<string, Record<string, unknown>>();
-    const returnRef = { value: {} as Record<string, unknown> };
 
     while (node != null) {
-      if (++steps > MAX_STEPS) throw new Error("Max steps exceeded");
+      if (++this.steps > MAX_STEPS) throw new Error("Max steps exceeded");
       switch (node.category) {
         case NodeCategory.Control:
-          node = await this.pushControl(node, nodes, stack, executed, outputs, returnRef);
+          node = await this.pushControl(node);
           break;
         case NodeCategory.Function:
-          node = await this.invokeFunction(node as FlowFunctionNode, nodes, stack, executed, outputs);
+          node = await this.invokeFunction(node as FlowFunctionNode);
           break;
         case NodeCategory.Action:
-          node = await this.execute(node, nodes, stack, executed, outputs);
+          node = await this.execute(node);
           break;
         default:
           throw new Error("Unexpected on control path: " + node.category);
       }
-      if (node == null) return returnRef.value;
+      if (node == null) {
+        const value = this.returnRef.value;
+        this.restore(savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+        return value;
+      }
     }
-    return returnRef.value;
+    const value = this.returnRef.value;
+    this.restore(savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+    return value;
   }
 
-  /**
-   * pushControl —— 执行 Control 类节点（Condition / Loop / Parallel / Return）
-   */
-  private async pushControl(
-    node: FlowControlNode,
+  private restore(
     nodes: Record<string, FlowNode>,
     stack: FrameStack,
     executed: Set<string>,
     outputs: Map<string, Record<string, unknown>>,
     returnRef: { value: Record<string, unknown> },
-  ): Promise<FlowNode | null> {
+    steps: number,
+  ): void {
+    this.nodes = nodes;
+    this.stack = stack;
+    this.executed = executed;
+    this.outputs = outputs;
+    this.returnRef = returnRef;
+    this.steps = steps;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Control
+  // ═══════════════════════════════════════════════════════════
+
+  private async pushControl(node: FlowControlNode): Promise<FlowNode | null> {
     switch (node.kind) {
       case NodeKind.Condition: {
         for (const s of node.slots) {
-          if (
-            this.evaluateFilter(s.filter, nodes, stack, executed, outputs)
-          ) {
-            return s.next ? (nodes[s.next] ?? null) : null;
+          if (this.evaluateFilter(s.filter)) {
+            return s.next ? (this.nodes[s.next] ?? null) : null;
           }
         }
         return null;
       }
       case NodeKind.Loop: {
         const s = node.slots[0];
-        while (
-          this.evaluateFilter(s.filter, nodes, stack, executed, outputs)
-        ) {
-          stack.enter(stack.frame.copy());
-          await this.runGraph(s.body, stack);
-          stack.leave();
+        while (this.evaluateFilter(s.filter)) {
+          this.stack.enter(this.stack.frame.copy());
+          await this.runGraph(s.body);
+          this.stack.leave();
         }
-        return s.next ? (nodes[s.next] ?? null) : null;
+        return s.next ? (this.nodes[s.next] ?? null) : null;
       }
       case NodeKind.Parallel: {
         const bodies = node.slots[0].body;
         const mode = node.slots[0].mode;
+        const savedStack = this.stack;
         const snapshots = bodies.map(() =>
-          stack.frame.copy({ state: { view: {}, page: {}, app: {} } }),
+          this.stack.frame.copy({ state: { view: {}, page: {}, app: {} } }),
         );
-        const tasks = bodies.map((b, i) =>
-          this.runGraph(b, new FrameStack(snapshots[i])),
-        );
+        const tasks = bodies.map((b, i) => {
+          this.stack = new FrameStack(snapshots[i]);
+          return this.runGraph(b);
+        });
         let result: unknown;
         switch (mode) {
           case ParallelMode.All:
@@ -146,22 +174,17 @@ export class FlowRunner implements IFlowRunner {
             result = await (Promise as any).any(tasks);
             break;
         }
-        executed.add(node.id);
-        outputs.set(node.id, { result });
-        return node.slots[0].next ? (nodes[node.slots[0].next] ?? null) : null;
+        this.stack = savedStack;
+        this.executed.add(node.id);
+        this.outputs.set(node.id, { result });
+        return node.slots[0].next ? (this.nodes[node.slots[0].next] ?? null) : null;
       }
       case NodeKind.Return: {
         const s = node.slots[0];
-        const values = await this.pullSlots(
-          s.input ?? {},
-          nodes,
-          stack,
-          executed,
-          outputs,
-        );
-        executed.add(node.id);
-        outputs.set(node.id, values);
-        returnRef.value = values;
+        const values = await this.pullSlots(s.input ?? {});
+        this.executed.add(node.id);
+        this.outputs.set(node.id, values);
+        this.returnRef.value = values;
         return null;
       }
       default:
@@ -169,91 +192,53 @@ export class FlowRunner implements IFlowRunner {
     }
   }
 
-  /**
-   * invokeFunction —— 执行 Function 节点
-   *
-   * 创建新作用域边界（ContextFrame），隔离 vars，
-   * state 和 cap 继承父帧。子图内的 Return 节点返回值
-   * 通过 runGraph 的 returnRef 传出，写入 function 节点的 outputs。
-   */
-  private async invokeFunction(
-    node: FlowFunctionNode,
-    nodes: Record<string, FlowNode>,
-    stack: FrameStack,
-    executed: Set<string>,
-    outputs: Map<string, Record<string, unknown>>,
-  ): Promise<FlowNode | null> {
+  // ═══════════════════════════════════════════════════════════
+  // Function
+  // ═══════════════════════════════════════════════════════════
+
+  private async invokeFunction(node: FlowFunctionNode): Promise<FlowNode | null> {
     const subSchema = node.slots[0].body;
-    const inputs = await this.pullSlots(
-      node.slots[0]?.input ?? {},
-      nodes,
-      stack,
-      executed,
-      outputs,
-    );
-    stack.enter(
-      stack.frame.copy({ vars: { in: inputs, local: {} } }),
-    );
-    const result = await this.runGraph(subSchema, stack);
-    stack.leave();
-    executed.add(node.id);
-    outputs.set(node.id, result);
-    return node.slots[0].next ? (nodes[node.slots[0].next] ?? null) : null;
+    const inputs = await this.pullSlots(node.slots[0]?.input ?? {});
+    this.stack.enter(this.stack.frame.copy({ vars: { in: inputs, local: {} } }));
+    const result = await this.runGraph(subSchema);
+    this.stack.leave();
+    this.executed.add(node.id);
+    this.outputs.set(node.id, result);
+    return node.slots[0].next ? (this.nodes[node.slots[0].next] ?? null) : null;
   }
 
-  private async pull(
-    slot: SlotValue,
-    nodes: Record<string, FlowNode>,
-    stack: FrameStack,
-    executed: Set<string>,
-    outputs: Map<string, Record<string, unknown>>,
-  ): Promise<unknown> {
+  // ═══════════════════════════════════════════════════════════
+  // Data flow
+  // ═══════════════════════════════════════════════════════════
+
+  private async pull(slot: SlotValue): Promise<unknown> {
     if (!isDataRef(slot)) return slot;
     const ref = slot as DataRef;
-    const upstream = nodes[ref.nodeId];
+    const upstream = this.nodes[ref.nodeId];
     if (!upstream) throw new Error("DataRef target not found: " + ref.nodeId);
-    await this.execute(upstream, nodes, stack, executed, outputs);
-    return outputs.get(upstream.id)![ref.field];
+    await this.execute(upstream);
+    return this.outputs.get(upstream.id)![ref.field];
   }
 
-  private async pullSlots(
-    slots: Record<string, SlotValue>,
-    nodes: Record<string, FlowNode>,
-    stack: FrameStack,
-    executed: Set<string>,
-    outputs: Map<string, Record<string, unknown>>,
-  ): Promise<Record<string, unknown>> {
+  private async pullSlots(slots: Record<string, SlotValue>): Promise<Record<string, unknown>> {
     const result: Record<string, unknown> = {};
     for (const [name, slot] of Object.entries(slots))
-      result[name] = await this.pull(slot, nodes, stack, executed, outputs);
+      result[name] = await this.pull(slot);
     return result;
   }
 
-  private evaluateFilter(
-    filter: Filter,
-    nodes: Record<string, FlowNode>,
-    stack: FrameStack,
-    executed: Set<string>,
-    outputs: Map<string, Record<string, unknown>>,
-  ): boolean {
+  private evaluateFilter(filter: Filter): boolean {
     if ("left" in filter && "right" in filter) {
       const cond = filter as Condition;
       return this.compareEval(
-        this.pull(cond.left, nodes, stack, executed, outputs),
+        this.pull(cond.left),
         cond.op,
-        this.pull(cond.right, nodes, stack, executed, outputs),
+        this.pull(cond.right),
       );
     }
     if ("conditions" in filter) {
       const group = filter as ConditionGroup;
-      return this.logicEval(
-        group.op,
-        group.conditions,
-        nodes,
-        stack,
-        executed,
-        outputs,
-      );
+      return this.logicEval(group.op, group.conditions);
     }
     return false;
   }
@@ -279,119 +264,78 @@ export class FlowRunner implements IFlowRunner {
     }
   }
 
-  private logicEval(
-    op: LogicOp,
-    conditions: Filter[],
-    nodes: Record<string, FlowNode>,
-    stack: FrameStack,
-    executed: Set<string>,
-    outputs: Map<string, Record<string, unknown>>,
-  ): boolean {
+  private logicEval(op: LogicOp, conditions: Filter[]): boolean {
     switch (op) {
       case LogicOp.And: {
         for (const c of conditions)
-          if (!this.evaluateFilter(c, nodes, stack, executed, outputs))
+          if (!this.evaluateFilter(c))
             return false;
         return true;
       }
       case LogicOp.Or: {
         for (const c of conditions)
-          if (this.evaluateFilter(c, nodes, stack, executed, outputs))
+          if (this.evaluateFilter(c))
             return true;
         return false;
       }
       case LogicOp.Not:
-        return !this.evaluateFilter(
-          conditions[0],
-          nodes,
-          stack,
-          executed,
-          outputs,
-        );
+        return !this.evaluateFilter(conditions[0]);
       default:
         return false;
     }
   }
 
-  private async execute(
-    node: FlowNode,
-    nodes: Record<string, FlowNode>,
-    stack: FrameStack,
-    executed: Set<string>,
-    outputs: Map<string, Record<string, unknown>>,
-  ): Promise<FlowNode | null> {
-    if (executed.has(node.id)) return null;
+  // ═══════════════════════════════════════════════════════════
+  // Execute (Source / Compute / Action)
+  // ═══════════════════════════════════════════════════════════
+
+  private async execute(node: FlowNode): Promise<FlowNode | null> {
+    if (this.executed.has(node.id)) return null;
     switch (node.category) {
       case NodeCategory.Source: {
         const src = node as FlowSourceNode;
         const ex = this.executors[src.kind];
         if (!ex) throw new Error("Missing source executor: " + src.kind);
-        const r = await ex.execute(
-          src,
-          {},
-          stack.frame,
-        );
+        const r = await ex.execute(src, {}, this.stack.frame);
         if (r.error) throw r.error;
-        executed.add(node.id);
-        outputs.set(node.id, r.outputs ?? {});
+        this.executed.add(node.id);
+        this.outputs.set(node.id, r.outputs ?? {});
         return null;
       }
       case NodeCategory.Compute: {
         const comp = node as FlowComputeNode;
         const ex = this.executors[comp.kind];
         if (!ex) throw new Error("Unknown compute: " + comp.kind);
-        const inputs = await this.pullSlots(
-          this.flattenInputs(node),
-          nodes,
-          stack,
-          executed,
-          outputs,
-        );
-        const r = await ex.execute(
-          comp,
-          inputs,
-          stack.frame,
-        );
+        const inputs = await this.pullSlots(this.flattenInputs(node));
+        const r = await ex.execute(comp, inputs, this.stack.frame);
         if (r.error) throw r.error;
-        executed.add(node.id);
-        outputs.set(node.id, r.outputs ?? {});
+        this.executed.add(node.id);
+        this.outputs.set(node.id, r.outputs ?? {});
         return null;
       }
       case NodeCategory.Action: {
         const act = node as FlowActionNode;
         const ex = this.executors[act.kind];
         if (!ex) throw new Error("Unknown action: " + act.kind);
-        const inputs = await this.pullSlots(
-          this.flattenInputs(node),
-          nodes,
-          stack,
-          executed,
-          outputs,
-        );
-        const r = await ex.execute(
-          act,
-          inputs,
-          stack.frame,
-        );
+        const inputs = await this.pullSlots(this.flattenInputs(node));
+        const r = await ex.execute(act, inputs, this.stack.frame);
         if (r.error) {
           const errorSchema = act.slots.find((s) => s.onError)?.onError;
           if (errorSchema) {
-            stack.enter(
-              stack.frame.copy({
-                vars: {
-                  in: { error: r.error, partialOutputs: r.outputs ?? {} },
-                  local: {},
-                },
-              }),
-            );
-            await this.runGraph(errorSchema, stack);
-            stack.leave();
+            this.stack.enter(this.stack.frame.copy({
+              vars: {
+                in: { error: r.error, partialOutputs: r.outputs ?? {} },
+                local: {},
+              },
+            }));
+            await this.runGraph(errorSchema);
+            this.stack.leave();
           } else throw r.error;
-          return act.slots[0].next ? (nodes[act.slots[0].next] ?? null) : null;
+          return act.slots[0].next ? (this.nodes[act.slots[0].next] ?? null) : null;
         }
-        executed.add(node.id);
-        outputs.set(node.id, r.outputs ?? {});
-        return act.slots[0].next ? (nodes[act.slots[0].next] ?? null) : null;
+        this.executed.add(node.id);
+        this.outputs.set(node.id, r.outputs ?? {});
+        return act.slots[0].next ? (this.nodes[act.slots[0].next] ?? null) : null;
       }
       case NodeCategory.Control:
       case NodeCategory.Function:
