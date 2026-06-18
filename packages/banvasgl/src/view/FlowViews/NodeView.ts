@@ -1,8 +1,8 @@
 /**
- * NodeView —— 流程图节点（v2.0.0 适配）
+ * NodeView —— 流程图节点（v2.0.0 slots 架构适配）
  *
- * 适配 Push-Pull 调度 + ControlEdge/DataEdge 二分边模型。
- * 节点按 category 采用不同外观策略。
+ * 基于 category + kind 判别联合类型，通过 slots[] 访问所有业务数据。
+ * 端口自动推导，外观策略按 category/kind 组合决定。
  */
 
 import Point3 from '@/foundation/math/Point3.js'
@@ -34,42 +34,46 @@ interface NodeAppearance {
     icon: string
 }
 
-/** 根据 category + kind 推导外观 */
+/** 根据 category + kind 推导外观 —— 全量 25 种 kind */
 function deriveAppearance(category: string, kind: string): NodeAppearance {
-    // 按 category 优先
     switch (category) {
         case 'control': {
             switch (kind) {
                 case 'condition': return { shape: 'diamond', accentColor: '#f59e0b', icon: '⟋' }
-                case 'while':     return { shape: 'rect', accentColor: '#a855f7', icon: '⟳' }
-                case 'forEach':   return { shape: 'rect', accentColor: '#a855f7', icon: '↻' }
-                case 'parallel':  return { shape: 'rect', accentColor: '#06b6d4', icon: '⫘' }
-                case 'return':    return { shape: 'pill', accentColor: '#ef4444', icon: '↩' }
-                default:          return { shape: 'rect', accentColor: '#6b7280', icon: '◆' }
+                case 'loop':      return { shape: 'rect',    accentColor: '#a855f7', icon: '⟳' }
+                case 'parallel':  return { shape: 'rect',    accentColor: '#06b6d4', icon: '⫘' }
+                case 'return':    return { shape: 'pill',    accentColor: '#ef4444', icon: '↩' }
+                default:          return { shape: 'rect',    accentColor: '#6b7280', icon: '◆' }
             }
         }
         case 'function': {
-            switch (kind) {
-                case 'function':  return { shape: 'rect', accentColor: '#6366f1', icon: '⊞' }
-                default:               return { shape: 'rect', accentColor: '#6366f1', icon: '◆' }
-            }
+            return { shape: 'rect', accentColor: '#6366f1', icon: '⊞' }
         }
         case 'action': {
             switch (kind) {
-                case 'setVariable': return { shape: 'rect', accentColor: '#6b7280', icon: '≔' }
-                case 'navigate':    return { shape: 'rect', accentColor: '#3b82f6', icon: '→' }
-                case 'cloudFunction': return { shape: 'rect', accentColor: '#f97316', icon: '⎇' }
-                case 'httpRequest': return { shape: 'rect', accentColor: '#f97316', icon: '⇄' }
-                case 'dbQuery':     return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
-                case 'dbInsert':    return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
-                case 'dbUpdate':    return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
-                case 'dbDelete':    return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
-                default:            return { shape: 'rect', accentColor: '#3b82f6', icon: '●' }
+                case 'setVariable':    return { shape: 'rect', accentColor: '#6b7280', icon: '≔' }
+                case 'setViewData':    return { shape: 'rect', accentColor: '#8b5cf6', icon: '📋' }
+                case 'setViewVisible': return { shape: 'rect', accentColor: '#8b5cf6', icon: '👁' }
+                case 'playAnimation':  return { shape: 'rect', accentColor: '#8b5cf6', icon: '▶' }
+                case 'navigate':       return { shape: 'rect', accentColor: '#3b82f6', icon: '→' }
+                case 'cloudFunction':  return { shape: 'rect', accentColor: '#f97316', icon: '⎇' }
+                case 'httpRequest':    return { shape: 'rect', accentColor: '#f97316', icon: '⇄' }
+                case 'dbQuery':        return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
+                case 'dbInsert':       return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
+                case 'dbUpdate':       return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
+                case 'dbDelete':       return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
+                default:               return { shape: 'rect', accentColor: '#3b82f6', icon: '●' }
             }
         }
-        case 'source':  return { shape: 'pill', accentColor: '#8b5cf6', icon: '◈' }
-        case 'compute': return { shape: 'pill', accentColor: '#8b5cf6', icon: '◆' }
-        default:        return { shape: 'rect', accentColor: '#d1d5db', icon: '●' }
+        case 'source': {
+            return { shape: 'pill', accentColor: '#8b5cf6', icon: kind === 'literal' ? '📝' : '🔗' }
+        }
+        case 'compute': {
+            return { shape: 'pill', accentColor: '#8b5cf6', icon: '◆' }
+        }
+        default: {
+            return { shape: 'rect', accentColor: '#d1d5db', icon: '●' }
+        }
     }
 }
 
@@ -82,49 +86,48 @@ export interface PortDefinition {
     maxConnections?: number
 }
 
-/** 从 FlowNode 推导端口（v2.0.0：无 error 端口——error 走 onError 子图） */
+/**
+ * 从 FlowNode 推导端口（v2.0.0 slots 架构）。
+ *
+ * 端口 ID 编码约定：`{nodeId}_{suffix}`
+ * - 控制输入: `_in`
+ * - 控制输出（默认）: `_out`
+ * - 数据输出（source/compute）: `_value`
+ * - 条件分支: `_{slotIndex}`（0, 1, 2, …）
+ * - 函数参数: `_param_{name}`
+ */
 function derivePortsFromSchema(schema: FlowNode): PortDefinition[] {
     const ports: PortDefinition[] = []
-    const cat = (schema as any).category as string
-    const kind = (schema as any).kind as string
+    const { id, category, kind } = schema
 
-    // source / compute: 仅数据输出端口
-    if (cat === 'source' || cat === 'compute') {
-        ports.push({ id: `${schema.id}_value`, direction: 'output', maxConnections: Infinity })
+    // source / compute: 仅数据输出端口（无控制流入口）
+    if (category === 'source' || category === 'compute') {
+        ports.push({ id: `${id}_value`, direction: 'output', maxConnections: Infinity })
         return ports
     }
 
-    // function: 根据 inputs 动态推导
-    if (kind === 'function') {
-        const sf = schema as any
-        ports.push({ id: `${schema.id}_in`, direction: 'input' })
-        if (sf.inputs) {
-            for (const [name] of Object.entries(sf.inputs as Record<string, unknown>)) {
-                ports.push({ id: `${schema.id}_param_${name}`, direction: 'input' })
-            }
-        }
-        ports.push({ id: `${schema.id}_out`, direction: 'output' })
-        return ports
-    }
-
-    // control / action 节点: 控制入 + 控制出
-    ports.push({ id: `${schema.id}_in`, direction: 'input' })
+    // control / action / function: 有控制输入
+    ports.push({ id: `${id}_in`, direction: 'input' })
 
     if (kind === 'condition') {
-        const cond = schema as any
-        if (cond.cases) {
-            for (const c of cond.cases as Array<{ label: string }>) {
-                ports.push({ id: `${schema.id}_${c.label}`, direction: 'output' })
+        // 每个 slot 是一条条件分支，按索引生成输出端口
+        for (let i = 0; i < schema.slots.length; i++) {
+            ports.push({ id: `${id}_${i}`, direction: 'output' })
+        }
+    } else if (kind === 'return' || kind === 'navigate') {
+        // 终点节点：无出端口
+    } else if (kind === 'function') {
+        // 函数节点：参数端口从 slots[0].input 的 key 推导
+        const slot0 = schema.slots[0]
+        if (slot0 && slot0.input) {
+            for (const paramName of Object.keys(slot0.input)) {
+                ports.push({ id: `${id}_param_${paramName}`, direction: 'input', maxConnections: Infinity })
             }
         }
-        if (cond.default) {
-            ports.push({ id: `${schema.id}_${cond.default}`, direction: 'output' })
-        }
+        ports.push({ id: `${id}_out`, direction: 'output' })
     } else {
-        // navigate / return 不能有出端口（终点节点）
-        if (kind !== 'navigate' && kind !== 'return') {
-            ports.push({ id: `${schema.id}_out`, direction: 'output' })
-        }
+        // 默认：一个控制输出端口
+        ports.push({ id: `${id}_out`, direction: 'output' })
     }
 
     return ports
@@ -132,39 +135,41 @@ function derivePortsFromSchema(schema: FlowNode): PortDefinition[] {
 
 // ── 标题推导 ──
 
+/** 全量 25 种 kind → 中文标题 */
+const KIND_TITLES: Record<string, string> = {
+    // control
+    condition: '条件分支',
+    loop: '循环',
+    parallel: '并行执行',
+    return: '返回',
+    // function
+    function: '本地函数',
+    // action
+    setVariable: '设置变量',
+    setViewData: '设置 View 数据',
+    setViewVisible: '显隐控制',
+    playAnimation: '播放动画',
+    navigate: '跳转页面',
+    cloudFunction: '云函数',
+    httpRequest: 'HTTP 请求',
+    dbQuery: '数据库查询',
+    dbInsert: '数据库插入',
+    dbUpdate: '数据库更新',
+    dbDelete: '数据库删除',
+    // source
+    literal: '字面量',
+    context: '上下文',
+    // compute
+    math: '算术运算',
+    compare: '比较运算',
+    logic: '逻辑运算',
+    concat: '拼接字符串',
+    format: '格式化',
+    get: '字段提取',
+}
+
 function deriveTitleFromSchema(schema: FlowNode): string {
-    const kind = (schema as any).kind as string
-    switch (kind) {
-        // control
-        case 'condition': return '条件分支'
-        case 'while':     return '循环'
-        case 'forEach':   return '遍历列表'
-        case 'parallel':  return '并行执行'
-        case 'return':    return '返回'
-        case 'function': return (schema as any).name || '本地函数'
-        // action
-        case 'setVariable': return '设置变量'
-        case 'navigate':    return '跳转页面'
-        case 'cloudFunction': return '云函数'
-        case 'httpRequest': return 'HTTP 请求'
-        case 'dbQuery':     return '数据库查询'
-        case 'dbInsert':    return '数据库插入'
-        case 'dbUpdate':    return '数据库更新'
-        case 'dbDelete':    return '数据库删除'
-        // source
-        case 'source': {
-            const src = schema as any
-            return src.from === 'literal' ? '字面量' : `上下文: ${src.path || '?'}`
-        }
-        // compute
-        case 'math':    return '算术运算'
-        case 'compare': return '比较运算'
-        case 'logic':   return '逻辑运算'
-        case 'concat':  return '拼接字符串'
-        case 'format':  return '格式化'
-        case 'get':     return '字段提取'
-        default: return kind || 'Node'
-    }
+    return KIND_TITLES[schema.kind] || schema.kind || 'Node'
 }
 
 // ── 摘要行推导 ──
@@ -174,48 +179,80 @@ function slotToString(slot: unknown): string {
     if (slot === null || slot === undefined) return 'null'
     if (typeof slot === 'string') return slot.length > 12 ? `"${slot.slice(0, 12)}…"` : `"${slot}"`
     if (typeof slot === 'number' || typeof slot === 'boolean') return String(slot)
-    if (typeof slot === 'object') return '{…}'
+    if (typeof slot === 'object') {
+        // DataRef 或普通对象
+        const obj = slot as Record<string, unknown>
+        if ('nodeId' in obj && 'field' in obj) {
+            return `↗ ${String(obj.field)}`
+        }
+        return '{…}'
+    }
     return '?'
 }
 
 function deriveSummaryFromSchema(schema: FlowNode): string | null {
-    const kind = (schema as any).kind as string
-    const cat = (schema as any).category as string
+    const { category, kind } = schema
+    const slot0 = schema.slots[0]
 
-    if (cat === 'source') {
-        const src = schema as any
-        if (src.from === 'literal') return slotToString(src.value)
-        return src.path ?? '?'
-    }
-
-    if (cat === 'compute') {
-        const comp = schema as any
-        switch (kind) {
-            case 'math':    return `${slotToString(comp.a)} ${comp.op} ${slotToString(comp.b)}`
-            case 'compare': return `${slotToString(comp.a)} ${comp.op} ${slotToString(comp.b)}`
-            case 'logic':   return `${comp.op}(${(comp.operands as any[])?.map(slotToString).join(', ') ?? ''})`
-            case 'concat':  return (comp.parts as any[])?.map(slotToString).join(' + ') ?? ''
-            case 'format':  return comp.template
-            case 'get':     return `${slotToString(comp.object)}.${comp.path}`
+    if (category === 'source') {
+        if (kind === 'literal') {
+            return slot0 ? slotToString((slot0 as { value: unknown }).value) : '?'
+        }
+        if (kind === 'context') {
+            return slot0 ? (slot0 as { path: string }).path ?? '?' : '?'
         }
     }
 
-    switch (kind) {
-        case 'setVariable': return `${(schema as any).target} = ${slotToString((schema as any).value)}`
-        case 'navigate':    return `→ ${slotToString((schema as any).target)}`
-        case 'cloudFunction': return `📞 ${slotToString((schema as any).slots?.[0]?.input?.functionId) || '?'}`
-        case 'httpRequest': return `${slotToString((schema as any).slots?.[0]?.input?.method) || 'GET'} ${slotToString((schema as any).slots?.[0]?.input?.url)}`
-        case 'dbQuery':     return `${slotToString((schema as any).slots?.[0]?.input?.collection) || '?'} → rows`
-        case 'dbInsert':    return `${slotToString((schema as any).slots?.[0]?.input?.collection) || '?'} ← insert`
-        case 'dbUpdate':    return `${slotToString((schema as any).slots?.[0]?.input?.collection) || '?'} ← update`
-        case 'dbDelete':    return `${slotToString((schema as any).slots?.[0]?.input?.collection) || '?'} ← delete`
-        case 'condition':   return `${(schema as any).cases?.length ?? 0} 分支`
-        case 'while':       return 'while (…)'
-        case 'forEach':     return `∀ ${(schema as any).itemVar ?? 'item'} in ${slotToString((schema as any).collection)}`
-        case 'parallel':    return `${(schema as any).slots?.[0]?.body?.length ?? 0} 分支 (${(schema as any).slots?.[0]?.mode})`
-        case 'function': return null // 无摘要
-        default:            return null
+    if (category === 'compute') {
+        if (!slot0) return null
+        const inp = (slot0 as { input: Record<string, unknown> }).input
+        switch (kind) {
+            case 'math':    return `${slotToString(inp.a)} ${inp.op} ${slotToString(inp.b)}`
+            case 'compare': return `${slotToString(inp.a)} ${inp.op} ${slotToString(inp.b)}`
+            case 'logic':   return `${inp.op}(${slotToString(inp.a)}, ${slotToString(inp.b)})`
+            case 'concat':  return `${slotToString(inp.a)} + ${slotToString(inp.b)}`
+            case 'format':  return String(inp.template ?? '')
+            case 'get':     return `${slotToString(inp.object)}.${inp.path}`
+        }
     }
+
+    if (category === 'action') {
+        if (!slot0) return null
+        const inp = (slot0 as { input: Record<string, unknown> }).input
+        const s = slot0 as { next?: string; onError?: unknown }
+        switch (kind) {
+            case 'setVariable':    return `${slotToString(inp.target)} = ${slotToString(inp.value)}`
+            case 'setViewData':    return `${slotToString(inp.viewId)}.${slotToString(inp.key)} ← ${slotToString(inp.value)}`
+            case 'setViewVisible': return `${slotToString(inp.viewId)} ${inp.visible ? '显示' : '隐藏'}`
+            case 'playAnimation':  return `${slotToString(inp.viewId)} ▶ ${slotToString(inp.animationId)}`
+            case 'navigate':       return `→ ${slotToString(inp.target)}`
+            case 'cloudFunction':  return `📞 ${slotToString(inp.functionId)}`
+            case 'httpRequest':    return `${slotToString(inp.method) || 'GET'} ${slotToString(inp.url)}`
+            case 'dbQuery':        return `${slotToString(inp.collection)} → rows`
+            case 'dbInsert':       return `${slotToString(inp.collection)} ← insert`
+            case 'dbUpdate':       return `${slotToString(inp.collection)} ← update`
+            case 'dbDelete':       return `${slotToString(inp.collection)} ← delete`
+        }
+    }
+
+    if (category === 'control') {
+        switch (kind) {
+            case 'condition': return `${schema.slots.length} 分支`
+            case 'loop':      return `while (…)`
+            case 'parallel': {
+                const ps = slot0 as { body?: unknown[]; mode?: string } | undefined
+                const count = ps?.body?.length ?? 0
+                return `${count} 分支${ps?.mode ? ` (${ps.mode})` : ''}`
+            }
+            case 'return': return slot0 && Object.keys(slot0.input ?? {}).length > 0 ? '有返回值' : '终止'
+        }
+    }
+
+    if (category === 'function') {
+        return null
+    }
+
+    return null
 }
 
 // ── NodeView 类 ──
@@ -244,8 +281,8 @@ export default class NodeView extends ContainerView implements INodeView {
         })
 
         this.schema = options.schema
-        const cat = (options.schema as any).category ?? 'action'
-        const kind = (options.schema as any).kind ?? 'unknown'
+        const cat = options.schema.category
+        const kind = options.schema.kind
         this.nodeTitle = options.nodeTitle ?? deriveTitleFromSchema(options.schema)
         this.appearance = deriveAppearance(cat, kind)
 
@@ -262,19 +299,31 @@ export default class NodeView extends ContainerView implements INodeView {
                 portIndex: def.index,
                 maxConnections: def.maxConnections,
             })
-            this.addView(port)
+            this.addChild(port)
         }
     }
 
-    interact(localPoint: Point3): IInteractResult | null {
+    protected override interactChildren(scrolledPoint: Point3, bufferCtx: CanvasRenderingContext2D): IInteractResult {
+        // 将 scrolledPoint 转回世界坐标传给 PortView 子节点
+        const worldPoint = this.getMVPMatrix().multiply(scrolledPoint)
         // PortView 优先
         for (const child of this.children) {
             if (child instanceof PortView) {
-                const result = child.interact(localPoint.clone())
-                if (result) return result
+                const result = child.interact(worldPoint, bufferCtx)
+                if (result.view && result.content && result.extraData) return result
             }
         }
-        // 回退到 BoundingBox
-        return super.interact(localPoint)
+        // 回退到默认子节点检测
+        return super.interactChildren(scrolledPoint, bufferCtx)
+    }
+
+    public copy(): NodeView {
+        return new NodeView({
+            id: this.id,
+            schema: this.schema,
+            nodeTitle: this.nodeTitle,
+            style: { ...this.style },
+            matrix: this.matrix.copy(),
+        })
     }
 }

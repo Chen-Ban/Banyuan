@@ -17,6 +17,8 @@ export interface PortViewOptions extends IViewOptions {
     portDirection: PortDirection
     /** 该端口允许的最大连线数（默认 1，Infinity 表示无限制） */
     maxConnections?: number
+    /** 端口在节点上的索引（condition 多分支时使用） */
+    portIndex?: number
 }
 
 /**
@@ -30,6 +32,8 @@ export default class PortView extends View implements IPortView {
     public portDirection: PortDirection
     /** 该端口允许的最大连线数 */
     public maxConnections: number
+    /** 端口在节点上的索引 */
+    public readonly portIndex?: number
 
     constructor(options: PortViewOptions) {
         const size = PORT_RADIUS * 2
@@ -45,6 +49,7 @@ export default class PortView extends View implements IPortView {
         })
         this.portDirection = options.portDirection
         this.maxConnections = options.maxConnections ?? 1
+        this.portIndex = options.portIndex
         // 端口不挂 BoundingBox（由 NodeView 统一管理选中态）
         this.boundingBox = null
     }
@@ -114,6 +119,7 @@ export default class PortView extends View implements IPortView {
             ...base,
             portDirection: this.portDirection,
             maxConnections: this.maxConnections,
+            portIndex: this.portIndex,
         }
     }
 
@@ -122,6 +128,7 @@ export default class PortView extends View implements IPortView {
             id: data.id,
             portDirection: data.portDirection,
             maxConnections: data.maxConnections ?? 1,
+            portIndex: data.portIndex,
         })
         port.restoreCommonFields(data)
         return port
@@ -134,6 +141,7 @@ export default class PortView extends View implements IPortView {
             id: this.id,
             portDirection: this.portDirection,
             maxConnections: this.maxConnections,
+            portIndex: this.portIndex,
             style: { ...this.style },
             matrix: this.matrix.copy(),
         })
