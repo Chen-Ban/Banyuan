@@ -305,8 +305,8 @@ export class FlowRunner implements IFlowRunner {
     switch (node.category) {
       case NodeCategory.Source: {
         const src = node as FlowSourceNode;
-        const ex = this.executors["source"];
-        if (!ex) throw new Error("Missing source executor");
+        const ex = this.executors[src.kind];
+        if (!ex) throw new Error("Missing source executor: " + src.kind);
         const r = await ex.execute(
           src,
           {},

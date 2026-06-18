@@ -7,7 +7,8 @@ export enum NodeCategory {
 }
 
 export enum NodeKind {
-  Source = "source",
+  Literal = "literal",
+  Context = "context",
   Math = "math",
   Compare = "compare",
   Logic = "logic",
@@ -57,8 +58,4 @@ export enum ParallelMode {
   AllSettled = "allSettled",
   Race = "race",
   Any = "any",
-}
-export enum SourceFrom {
-  Literal = "literal",
-  Context = "context",
 }

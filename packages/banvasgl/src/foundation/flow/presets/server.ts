@@ -6,6 +6,7 @@
  */
 
 import { FlowRunner } from '../FlowRunner/index.js'
+import { NodeKind } from '@/types/foundation/flow/enums.js'
 import { sourceExecutor } from '../executors/source.js'
 import { mathExecutor, compareExecutor, logicExecutor, concatExecutor, formatExecutor, getExecutor } from '../executors/compute.js'
 import { setVariableExecutor } from '../executors/action-client.js'
@@ -13,7 +14,8 @@ import { httpRequestExecutor, cloudFunctionExecutor, dbQueryExecutor, dbInsertEx
 
 export function createServerFlowRunner(): FlowRunner {
   return new FlowRunner({
-    source: sourceExecutor,
+    [NodeKind.Literal]: sourceExecutor,
+    [NodeKind.Context]: sourceExecutor,
     math: mathExecutor,
     compare: compareExecutor,
     logic: logicExecutor,
