@@ -19,7 +19,6 @@ import {
 import { setVariableExecutor } from "../executors/action-client.js";
 import {
   httpRequestExecutor,
-  cloudFunctionExecutor,
   dbQueryExecutor,
   dbInsertExecutor,
   dbUpdateExecutor,
@@ -39,7 +38,6 @@ export function createServerFlowRunner(cap: BackendCapProxy): FlowRunner {
       get: getExecutor,
       setVariable: setVariableExecutor,
       httpRequest: httpRequestExecutor,
-      cloudFunction: cloudFunctionExecutor,
       dbQuery: dbQueryExecutor,
       dbInsert: dbInsertExecutor,
       dbUpdate: dbUpdateExecutor,

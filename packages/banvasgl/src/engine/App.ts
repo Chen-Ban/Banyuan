@@ -96,7 +96,7 @@ export class App implements ISerializable {
    */
   public lifetimes: IAppLifetimes = { onLaunch: null, onUnlaunch: null };
 
-  constructor(renderer: Renderer, options: IAppOptions = {}) {
+  constructor(renderer: Renderer, options: IAppOptions) {
     this.renderer = renderer;
     this._enablePageStack = options.enablePageStack !== false;
     this._maxPageStackSize = options.maxPageStackSize || 50;
@@ -960,7 +960,7 @@ export class App implements ISerializable {
   // 静态方法：创建应用
   public static create(
     canvas: HTMLCanvasElement,
-    options: IAppOptions = {},
+    options: IAppOptions,
     rendererOptions: IRendererOptions = {},
   ): App {
     const renderer = new Renderer(canvas, rendererOptions);

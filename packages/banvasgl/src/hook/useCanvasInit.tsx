@@ -185,7 +185,9 @@ export function useCanvasInit(
     if (!canvasNode) return;
 
     const opts = optionsRef.current;
-    const _app = App.create(canvasNode, opts.appOptions ?? {}, {
+    const appOpts = opts.appOptions
+    if (!appOpts) throw new Error('useCanvasInit: appOptions.cap is required')
+    const _app = App.create(canvasNode, appOpts, {
       ...opts.rendererOptions,
       dpr: dprRef.current,
     });

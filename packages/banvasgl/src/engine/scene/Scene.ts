@@ -337,6 +337,7 @@ export class Scene implements ISerializable {
     const scene = this
     const ctx: Record<string, any> = {
       state: { view: {}, page: {}, app: {} },
+      getVariable(scope: string, key: string): unknown {
         // scope = viewId → 从该 view.data 中读取
         const targetView = scene.findViewById(scope)
         if (targetView) {
