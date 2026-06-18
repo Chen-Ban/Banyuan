@@ -201,12 +201,12 @@ function deriveSummaryFromSchema(schema: FlowNode): string | null {
     switch (kind) {
         case 'setVariable': return `${(schema as any).target} = ${slotToString((schema as any).value)}`
         case 'navigate':    return `→ ${slotToString((schema as any).target)}`
-        case 'cloudFunction': return `📞 ${(schema as any).functionId || '?'}`
-        case 'httpRequest': return `${(schema as any).method ?? 'GET'} ${slotToString((schema as any).url)}`
-        case 'dbQuery':     return `${(schema as any).collection || '?'} → rows`
-        case 'dbInsert':    return `${(schema as any).collection || '?'} ← insert`
-        case 'dbUpdate':    return `${(schema as any).collection || '?'} ← update`
-        case 'dbDelete':    return `${(schema as any).collection || '?'} ← delete`
+        case 'cloudFunction': return `📞 ${slotToString((schema as any).slots?.[0]?.input?.functionId) || '?'}`
+        case 'httpRequest': return `${slotToString((schema as any).slots?.[0]?.input?.method) || 'GET'} ${slotToString((schema as any).slots?.[0]?.input?.url)}`
+        case 'dbQuery':     return `${slotToString((schema as any).slots?.[0]?.input?.collection) || '?'} → rows`
+        case 'dbInsert':    return `${slotToString((schema as any).slots?.[0]?.input?.collection) || '?'} ← insert`
+        case 'dbUpdate':    return `${slotToString((schema as any).slots?.[0]?.input?.collection) || '?'} ← update`
+        case 'dbDelete':    return `${slotToString((schema as any).slots?.[0]?.input?.collection) || '?'} ← delete`
         case 'condition':   return `${(schema as any).cases?.length ?? 0} 分支`
         case 'while':       return 'while (…)'
         case 'forEach':     return `∀ ${(schema as any).itemVar ?? 'item'} in ${slotToString((schema as any).collection)}`

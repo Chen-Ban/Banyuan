@@ -15,53 +15,75 @@ export interface FlowNavigateNode {
   slots: FlowActionSlot[]
 }
 
+/**
+ * HTTP 请求节点。
+ * slot.input: { url, method?, headers?, body? }
+ * slot.output: ['status', 'body', 'headers']
+ */
 export interface FlowHttpRequestNode {
   id: string
   category: NodeCategory.Action
   kind: NodeKind.HttpRequest
-  method: string
   slots: FlowActionSlot[]
 }
 
-/** 云函数 = HTTP 调用后端执行指定函数，结构同 HttpRequest + functionId */
+/**
+ * 云函数节点 = HTTP POST 调用后端执行指定函数。
+ * slot.input: { functionId, method?, args? }
+ * slot.output: ['status', 'body', 'headers']
+ */
 export interface FlowCloudFunctionNode {
   id: string
   category: NodeCategory.Action
   kind: NodeKind.CloudFunction
-  method: string
-  functionId: string
   slots: FlowActionSlot[]
 }
 
+/**
+ * 数据库查询。
+ * slot.input: { collection, filter? }
+ * slot.output: ['rows', 'count']
+ */
 export interface FlowDbQueryNode {
   id: string
   category: NodeCategory.Action
   kind: NodeKind.DbQuery
-  collection: string
   slots: FlowActionSlot[]
 }
 
+/**
+ * 数据库插入。
+ * slot.input: { collection, document }
+ * slot.output: ['id']
+ */
 export interface FlowDbInsertNode {
   id: string
   category: NodeCategory.Action
   kind: NodeKind.DbInsert
-  collection: string
   slots: FlowActionSlot[]
 }
 
+/**
+ * 数据库更新。
+ * slot.input: { collection, filter, update }
+ * slot.output: ['matchedCount', 'modifiedCount']
+ */
 export interface FlowDbUpdateNode {
   id: string
   category: NodeCategory.Action
   kind: NodeKind.DbUpdate
-  collection: string
   slots: FlowActionSlot[]
 }
 
+/**
+ * 数据库删除。
+ * slot.input: { collection, filter? }
+ * slot.output: ['deletedCount']
+ */
 export interface FlowDbDeleteNode {
   id: string
   category: NodeCategory.Action
   kind: NodeKind.DbDelete
-  collection: string
   slots: FlowActionSlot[]
 }
 
