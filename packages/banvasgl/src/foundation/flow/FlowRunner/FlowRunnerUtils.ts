@@ -18,8 +18,8 @@ export async function pull(ctx: IRunnerCtx, slot: SlotValue): Promise<unknown> {
   const ref = slot as DataRef;
   const upstream = ctx.nodes[ref.nodeId];
   if (!upstream) throw new Error("DataRef target not found: " + ref.nodeId);
-  await ctx.execute(upstream);
-  return ctx.outputs.get(upstream.id)![ref.field];
+  const outputs = await ctx.execute(upstream);
+  return outputs![ref.field];
 }
 
 export async function pullSlots(ctx: IRunnerCtx, node: FlowNode): Promise<Record<string, unknown>> {
@@ -99,15 +99,11 @@ export function restoreCtx(
   ctx: IRunnerCtx,
   nodes: Record<string, FlowNode>,
   stack: FrameStack,
-  executed: Set<string>,
-  outputs: Map<string, Record<string, unknown>>,
   returnRef: { value: Record<string, unknown> },
   steps: number,
 ): void {
   ctx.nodes = nodes;
   ctx.stack = stack;
-  ctx.executed = executed;
-  ctx.outputs = outputs;
   ctx.returnRef = returnRef;
   ctx.steps = steps;
 }

@@ -81,9 +81,7 @@ export interface IFlowRunner {
 export interface IRunnerCtx {
   nodes: Record<string, import('./index.js').FlowNode>;
   stack: IFrameStack;
-  executed: Set<string>;
-  outputs: Map<string, Record<string, unknown>>;
   returnRef: { value: Record<string, unknown> };
   steps: number;
-  execute: (node: import('./index.js').FlowNode) => Promise<import('./index.js').FlowNode | null>;
+  execute: (node: import('./index.js').FlowNode) => Promise<Record<string, unknown> | null>;
 }

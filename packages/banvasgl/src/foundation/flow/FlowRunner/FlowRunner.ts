@@ -15,7 +15,7 @@ import type { FlowFunctionNode } from "@/types/foundation/flow/nodes/function.js
 import type { FlowEnv, CapProxy, IFlowRunner } from "../context/index.js";
 import type { IRunnerCtx } from "@/types/foundation/flow/context.js";
 import { ContextFrame, FrameStack } from "../context/index.js";
-import type { NodeExecutor } from "../executors/types.js";
+import type { NodeExecutor, NodeExecResult } from "../executors/types.js";
 import {
   pullSlots,
   evaluateFilter,
@@ -28,11 +28,9 @@ export class FlowRunner implements IFlowRunner, IRunnerCtx {
   private executors: Record<string, NodeExecutor>;
   private cap: CapProxy;
 
-  // ── RunnerCtx 字段 ──
+  // ── IRunnerCtx 字段 ──
   nodes: Record<string, FlowNode> = {};
   stack: FrameStack = new FrameStack();
-  executed: Set<string> = new Set();
-  outputs: Map<string, Record<string, unknown>> = new Map();
   returnRef: { value: Record<string, unknown> } = { value: {} };
   steps = 0;
 
@@ -51,20 +49,16 @@ export class FlowRunner implements IFlowRunner, IRunnerCtx {
   private async runGraph(graph: FlowSchema): Promise<Record<string, unknown>> {
     const savedNodes = this.nodes;
     const savedStack = this.stack;
-    const savedExecuted = this.executed;
-    const savedOutputs = this.outputs;
     const savedReturnRef = this.returnRef;
     const savedSteps = this.steps;
 
     this.nodes = graph.nodes;
-    this.executed = new Set<string>();
-    this.outputs = new Map();
     this.returnRef = { value: {} };
     this.steps = 0;
 
     const entryNode = this.nodes[graph.entry];
     if (!entryNode) {
-      restoreCtx(this, savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+      restoreCtx(this, savedNodes, savedStack, savedReturnRef, savedSteps);
       return {};
     }
 
@@ -80,19 +74,19 @@ export class FlowRunner implements IFlowRunner, IRunnerCtx {
           node = await this.invokeFunction(node as FlowFunctionNode);
           break;
         case NodeCategory.Action:
-          node = await this.execute(node);
+          node = await this.runAction(node as FlowActionNode);
           break;
         default:
           throw new Error("Unexpected on control path: " + node.category);
       }
       if (node == null) {
         const value = this.returnRef.value;
-        restoreCtx(this, savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+        restoreCtx(this, savedNodes, savedStack, savedReturnRef, savedSteps);
         return value;
       }
     }
     const value = this.returnRef.value;
-    restoreCtx(this, savedNodes, savedStack, savedExecuted, savedOutputs, savedReturnRef, savedSteps);
+    restoreCtx(this, savedNodes, savedStack, savedReturnRef, savedSteps);
     return value;
   }
 
@@ -154,14 +148,10 @@ export class FlowRunner implements IFlowRunner, IRunnerCtx {
             break;
         }
         this.stack = savedStack;
-        this.executed.add(node.id);
-        this.outputs.set(node.id, { result });
         return node.slots[0].next ? (this.nodes[node.slots[0].next] ?? null) : null;
       }
       case NodeKind.Return: {
         const values = await pullSlots(this, node);
-        this.executed.add(node.id);
-        this.outputs.set(node.id, values);
         this.returnRef.value = values;
         return null;
       }
@@ -180,62 +170,62 @@ export class FlowRunner implements IFlowRunner, IRunnerCtx {
     this.stack.enter(this.stack.frame.copy({ vars: { in: inputs, local: {} } }));
     const result = await this.runGraph(subSchema);
     this.stack.leave();
-    this.executed.add(node.id);
-    this.outputs.set(node.id, result);
     return node.slots[0].next ? (this.nodes[node.slots[0].next] ?? null) : null;
   }
 
   // ═══════════════════════════════════════════════════════════
-  // Execute (Source / Compute / Action)
+  // Execute — 控制流（runGraph 用）
   // ═══════════════════════════════════════════════════════════
 
-  async execute(node: FlowNode): Promise<FlowNode | null> {
-    if (this.executed.has(node.id)) return null;
+  private async runAction(node: FlowActionNode): Promise<FlowNode | null> {
+    const r = await this.dispatch(node);
+    if (r.error) {
+      const errorSchema = node.slots.find((s) => s.onError)?.onError;
+      if (errorSchema) {
+        this.stack.enter(this.stack.frame.copy({
+          vars: {
+            in: { error: r.error, partialOutputs: r.outputs ?? {} },
+            local: {},
+          },
+        }));
+        await this.runGraph(errorSchema);
+        this.stack.leave();
+      } else throw r.error;
+    }
+    return node.slots[0].next ? (this.nodes[node.slots[0].next] ?? null) : null;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Execute — 数据解析（IRunnerCtx.execute，供 pull 调用）
+  // ═══════════════════════════════════════════════════════════
+
+  async execute(node: FlowNode): Promise<Record<string, unknown> | null> {
+    const r = await this.dispatch(node);
+    if (r.error) throw r.error;
+    return r.outputs ?? {};
+  }
+
+  private async dispatch(node: FlowNode): Promise<NodeExecResult> {
     switch (node.category) {
       case NodeCategory.Source: {
         const src = node as FlowSourceNode;
         const ex = this.executors[src.kind];
         if (!ex) throw new Error("Missing source executor: " + src.kind);
-        const r = await ex.execute(src, {}, this.stack.frame);
-        if (r.error) throw r.error;
-        this.executed.add(node.id);
-        this.outputs.set(node.id, r.outputs ?? {});
-        return null;
+        return ex.execute(src, {}, this.stack.frame);
       }
       case NodeCategory.Compute: {
         const comp = node as FlowComputeNode;
         const ex = this.executors[comp.kind];
         if (!ex) throw new Error("Unknown compute: " + comp.kind);
         const inputs = await pullSlots(this, node);
-        const r = await ex.execute(comp, inputs, this.stack.frame);
-        if (r.error) throw r.error;
-        this.executed.add(node.id);
-        this.outputs.set(node.id, r.outputs ?? {});
-        return null;
+        return ex.execute(comp, inputs, this.stack.frame);
       }
       case NodeCategory.Action: {
         const act = node as FlowActionNode;
         const ex = this.executors[act.kind];
         if (!ex) throw new Error("Unknown action: " + act.kind);
         const inputs = await pullSlots(this, node);
-        const r = await ex.execute(act, inputs, this.stack.frame);
-        if (r.error) {
-          const errorSchema = act.slots.find((s) => s.onError)?.onError;
-          if (errorSchema) {
-            this.stack.enter(this.stack.frame.copy({
-              vars: {
-                in: { error: r.error, partialOutputs: r.outputs ?? {} },
-                local: {},
-              },
-            }));
-            await this.runGraph(errorSchema);
-            this.stack.leave();
-          } else throw r.error;
-          return act.slots[0].next ? (this.nodes[act.slots[0].next] ?? null) : null;
-        }
-        this.executed.add(node.id);
-        this.outputs.set(node.id, r.outputs ?? {});
-        return act.slots[0].next ? (this.nodes[act.slots[0].next] ?? null) : null;
+        return ex.execute(act, inputs, this.stack.frame);
       }
       case NodeCategory.Control:
       case NodeCategory.Function:
