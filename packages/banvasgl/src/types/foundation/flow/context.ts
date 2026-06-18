@@ -34,7 +34,6 @@ interface CapBase {
 /** 前端能力代理 */
 export interface FrontendCapProxy extends CapBase {
   navigate(target: string, params?: Record<string, unknown>): Promise<void>
-  persist(key: string, value: unknown): Promise<void>
 }
 
 /** 后端能力代理 */
