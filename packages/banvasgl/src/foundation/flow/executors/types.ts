@@ -1,27 +1,33 @@
 /**
- * 节点执行器类型定义
+ * 节点求值器类型定义
  *
- * 每个 kind 对应一个 NodeExecutor，定义了该节点在运行时的操作语义。
- * 前后端通过不同的预组装 presets 提供不同的执行器集合。
+ * NodeEvaluator 是数据节点的纯求值函数：接收已解析的输入和运行时帧，
+ * 产出 { outputs } 或 { error }。它不参与控制流决策，不关心 next 跳转，
+ * 不操作帧栈。
+ *
+ * 前后端通过不同的预组装 presets 提供不同的求值器集合。
+ *
+ * 注意：只有 Source / Compute / Action 三类节点需要 NodeEvaluator；
+ * Control / Function 节点由 FlowRunner 内部方法直接解释执行，不需要求值器。
  */
 
 import type { FlowNode } from '@/types/foundation/flow/index.js'
-import type { ContextFrame } from '../context/ContextFrame.js'
+import type { IRunnerCtx } from '@/types/foundation/flow/context.js'
 
-/** 执行器执行结果 */
-export interface NodeExecResult {
+/** 求值结果 */
+export interface EvalResult {
   outputs?: Record<string, unknown>
   error?: Error
 }
 
-/** 节点执行器接口 */
-export interface NodeExecutor<T extends FlowNode = FlowNode> {
+/** 节点求值器接口 */
+export interface NodeEvaluator<T extends FlowNode = FlowNode> {
   readonly kind: string
   readonly outputPorts: string[]
 
-  execute(
+  evaluate(
     node: T,
     resolvedInputs: Record<string, unknown>,
-    frame: ContextFrame,
-  ): Promise<NodeExecResult>
+    ctx: IRunnerCtx,
+  ): Promise<EvalResult>
 }

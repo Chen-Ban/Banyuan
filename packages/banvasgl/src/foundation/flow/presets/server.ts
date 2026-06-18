@@ -1,7 +1,7 @@
 /**
  * createServerFlowRunner —— 后端预组装工厂
  *
- * 组装 source/compute + 后端 action 执行器。
+ * 组装 source/compute + 后端 action 求值器。
  * cap 由调用方显式传入，类型为 BackendCapProxy。
  */
 

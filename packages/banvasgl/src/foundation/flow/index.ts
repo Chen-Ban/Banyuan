@@ -10,7 +10,7 @@
  *   - 节点五分：control/action/function/source/compute（调度行为 + 作用域封装派生）
  *   - 顶层开放 DAG（显式 entry，控制边出度 0 即结束）
  *   - 子图可调用闭包（显式 subEntry + subExit）
- *   - 上下文三分：in / state / cap（与调度正交）
+ *   - 上下文分层：FrameRecord.in / FrameRecord.local（帧内变量）+ FlowRunner.cap（全局能力代理）
  *   - SlotValue = unknown | DataRef（槽值：内联字面量或边引用）
  */
 
@@ -19,11 +19,11 @@ export * from '@/types/foundation/flow/index.js'
 
 // 运行时
 export { FlowRunner } from './FlowRunner/index.js'
-export type { FlowEnv, IRuntimeContext, IFrameStack, IFlowRunner, CapProxy, FrontendCapProxy, BackendCapProxy, Vars, State } from './context/index.js'
-export { ContextFrame, FrameStack } from './context/index.js'
+export type { IFrameStack, IFlowRunner, CapProxy, FrontendCapProxy, BackendCapProxy } from './context/index.js'
+export { FrameStack } from './context/index.js'
 
 // 执行器类型
-export type { NodeExecutor, NodeExecResult } from './executors/types.js'
+export type { NodeEvaluator, EvalResult } from './executors/types.js'
 
 // 执行器（按需导入）
 export { sourceExecutor } from './executors/source.js'

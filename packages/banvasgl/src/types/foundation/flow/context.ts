@@ -3,24 +3,13 @@ import type { FlowSchema } from './schema.js'
 /**
  * 流程上下文类型定义
  *
- * 三层架构：
- *   vars  — 临时变量区（in: 只读入参, local: 可读写临时变量）
- *   state — 共享区（跨帧可变的应用状态）
- *   cap   — 能力区（外部效应句柄）
+ * 分层架构：
+ *   FrameRecord.in    — 只读入参（子图调用时传入，帧内只读）
+ *   FrameRecord.local — 可读写临时变量（setVariable 写入，帧内可见）
+ *   FlowRunner.cap    — 全局能力代理（整个执行链共享同一引用）
+ *
+ * 数据流通过 DataRef（节点输出 → 下游输入）显式传递，不通过隐式共享状态。
  */
-
-/** 临时变量区 */
-export interface Vars {
-  in: Readonly<Record<string, unknown>>
-  local: Record<string, unknown>
-}
-
-/** 应用共享状态 */
-export interface State {
-  view: Record<string, Record<string, unknown>>
-  page: Record<string, unknown>
-  app: Record<string, unknown>
-}
 
 /** 能力代理基类——两端通用 */
 interface CapBase {
@@ -34,6 +23,9 @@ interface CapBase {
 /** 前端能力代理 */
 export interface FrontendCapProxy extends CapBase {
   navigate(target: string, params?: Record<string, unknown>): Promise<void>
+  setViewData(viewId: string, key: string, value: unknown): void
+  setViewVisible(viewId: string, visible: boolean): void
+  playAnimation(viewId: string, animationId: string): void
 }
 
 /** 后端能力代理 */
@@ -48,40 +40,34 @@ export interface BackendCapProxy extends CapBase {
 
 export type CapProxy = FrontendCapProxy | BackendCapProxy
 
-/** 静态上下文（流程启动时注入初始 state） */
-export interface FlowEnv {
-  state: State
-}
-
-/** 运行时上下文帧接口 */
-export interface IRuntimeContext {
-  readonly vars: Vars
-  readonly state: State
-  readonly cap: CapProxy
-  get(path: string): unknown
-  copy(opts?: { vars?: Vars; state?: State }): IRuntimeContext
-}
-
 /** 帧栈接口 */
 export interface IFrameStack {
-  readonly frame: IRuntimeContext
-  readonly depth: number
-  enter(frame: IRuntimeContext): void
-  enterParallel(frames: IRuntimeContext[]): void
-  leave(): IRuntimeContext[]
-  get(path: string): unknown
+  /** 当前帧的只读入参（子图调用时传入） */
+  readonly in: Readonly<Record<string, unknown>>
+  /** 当前帧的可读写临时变量（setVariable 写入） */
+  readonly local: Record<string, unknown>
+  readonly nodes: Record<string, import('./index.js').FlowNode>
+  readonly entry: string
+  readonly returnRef: { value: Record<string, unknown> }
+  readonly steps: number
+  enter(inputs: Readonly<Record<string, unknown>>, schema: FlowSchema): void
+  leave(): void
+  /** 当前帧的节点输出缓存（stepNode 首次写入，后续同一帧内命中则直接返回） */
+  getOutput(nodeId: string): { outputs?: Record<string, unknown>; error?: Error } | undefined
+  setOutput(nodeId: string, result: { outputs?: Record<string, unknown>; error?: Error }): void
 }
 
 /** 流程执行器接口 */
 export interface IFlowRunner {
-  run(graph: FlowSchema, env: FlowEnv): Promise<void>
+  run(graph: FlowSchema): Promise<void>
 }
 
 /** 运行时执行上下文——FlowRunner 实现此接口供工具函数消费 */
 export interface IRunnerCtx {
-  nodes: Record<string, import('./index.js').FlowNode>;
+  /** 帧栈（含 nodes / returnRef / steps / outputCache） */
   stack: IFrameStack;
-  returnRef: { value: Record<string, unknown> };
-  steps: number;
-  execute: (node: import('./index.js').FlowNode) => Promise<Record<string, unknown> | null>;
+  /** 节点执行器注册表（stepNode 按 kind 查找执行器） */
+  readonly executors: Record<string, import('../../../foundation/flow/executors/types.js').NodeEvaluator>;
+  /** 全局能力代理（整个执行链共享同一引用，executor 通过此字段访问外部效应） */
+  readonly cap: CapProxy;
 }

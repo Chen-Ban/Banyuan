@@ -1,19 +1,19 @@
 /**
- * compute executor —— 纯计算/变换
+ * compute 求值器 —— 纯计算/变换
  *
  * 所有配置（op/template/path 等）均从 inputs 读取。
  */
 
 import type { FlowMathNode, FlowCompareNode, FlowLogicNode, FlowConcatNode, FlowFormatNode, FlowGetNode } from '@/types/foundation/flow/nodes/compute.js'
 import { NodeKind, MathOp, CompareOp, LogicOp } from '@/types/foundation/flow/enums.js'
-import type { NodeExecutor } from "./types.js"
+import type { NodeEvaluator } from "./types.js"
 
 // ── math ──
 
-export const mathExecutor: NodeExecutor<FlowMathNode> = {
+export const mathExecutor: NodeEvaluator<FlowMathNode> = {
   kind: NodeKind.Math,
   outputPorts: ['value'],
-  async execute(_node, inputs) {
+  async evaluate(_node, inputs) {
     const op = inputs.op as MathOp
     const a = inputs.a as number
     const b = inputs.b as number
@@ -33,10 +33,10 @@ export const mathExecutor: NodeExecutor<FlowMathNode> = {
 
 // ── compare ──
 
-export const compareExecutor: NodeExecutor<FlowCompareNode> = {
+export const compareExecutor: NodeEvaluator<FlowCompareNode> = {
   kind: NodeKind.Compare,
   outputPorts: ['value'],
-  async execute(_node, inputs) {
+  async evaluate(_node, inputs) {
     const op = inputs.op as CompareOp
     const a = inputs.a as number
     const b = inputs.b as number
@@ -54,10 +54,10 @@ export const compareExecutor: NodeExecutor<FlowCompareNode> = {
 
 // ── logic ──
 
-export const logicExecutor: NodeExecutor<FlowLogicNode> = {
+export const logicExecutor: NodeEvaluator<FlowLogicNode> = {
   kind: NodeKind.Logic,
   outputPorts: ['value'],
-  async execute(_node, inputs) {
+  async evaluate(_node, inputs) {
     const op = inputs.op as LogicOp
     const a = inputs.a
     const b = inputs.b
@@ -72,10 +72,10 @@ export const logicExecutor: NodeExecutor<FlowLogicNode> = {
 
 // ── concat ──
 
-export const concatExecutor: NodeExecutor<FlowConcatNode> = {
+export const concatExecutor: NodeEvaluator<FlowConcatNode> = {
   kind: NodeKind.Concat,
   outputPorts: ['value'],
-  async execute(_node, inputs) {
+  async evaluate(_node, inputs) {
     const a = String(inputs.a ?? '')
     const b = String(inputs.b ?? '')
     const sep = (inputs.separator as string) ?? ''
@@ -85,10 +85,10 @@ export const concatExecutor: NodeExecutor<FlowConcatNode> = {
 
 // ── format ──
 
-export const formatExecutor: NodeExecutor<FlowFormatNode> = {
+export const formatExecutor: NodeEvaluator<FlowFormatNode> = {
   kind: NodeKind.Format,
   outputPorts: ['value'],
-  async execute(_node, inputs) {
+  async evaluate(_node, inputs) {
     let tmpl = String(inputs.template ?? '')
     const vals = inputs.values as Record<string, unknown> ?? {}
     for (const [k, v] of Object.entries(vals)) {
@@ -100,10 +100,10 @@ export const formatExecutor: NodeExecutor<FlowFormatNode> = {
 
 // ── get ──
 
-export const getExecutor: NodeExecutor<FlowGetNode> = {
+export const getExecutor: NodeEvaluator<FlowGetNode> = {
   kind: NodeKind.Get,
   outputPorts: ['value'],
-  async execute(_node, inputs) {
+  async evaluate(_node, inputs) {
     const obj = inputs.object as Record<string, unknown> | null | undefined
     if (obj == null) return { outputs: { value: undefined } }
     const parts = String(inputs.path ?? '').split('.')
