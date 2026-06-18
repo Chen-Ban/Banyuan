@@ -154,8 +154,8 @@ export class FlowRunner implements IFlowRunner {
   /**
    * invokeFunction —— 执行 Function 类节点（localFunction / cloudFunction）
    *
-   * 语义：创建新作用域边界（ContextFrame），隔离 vars.state，
-   * 加载函数体后执行子图并返回结果。
+   * 语义：创建新作用域边界（ContextFrame），隔离 vars（in=入参，local=局部），
+   * state 和 cap 继承父帧。localFunction 和 cloudFunction 仅 body 来源不同。
    */
   private async invokeFunction(
     node: FlowFunctionNode,
@@ -164,49 +164,25 @@ export class FlowRunner implements IFlowRunner {
     executed: Set<string>,
     outputs: Map<string, Record<string, unknown>>,
   ): Promise<FlowNode | null> {
-    switch (node.kind) {
-      case NodeKind.LocalFunction: {
-        const n = node as FlowLocalFunctionNode;
-        const subSchema = n.slots[0].body;
-        const inputs = await this.pullSlots(
-          n.slots[0]?.input ?? {},
-          nodes,
-          stack,
-          executed,
-          outputs,
-        );
-        stack.enter(
-          stack.frame.copy({ vars: { in: inputs, local: {} }, state: { view: {}, page: {}, app: {} } }),
-        );
-        const result = await this.runGraph(subSchema, stack);
-        stack.leave();
-        executed.add(n.id);
-        outputs.set(n.id, result);
-        return n.slots[0].next ? (nodes[n.slots[0].next] ?? null) : null;
-      }
-      case NodeKind.CloudFunction: {
-        const n = node as FlowCloudFunctionNode;
-        const functionId = n.slots[0].functionId;
-        const subSchema = this.loadFunctionBody(functionId);
-        const inputs = await this.pullSlots(
-          n.slots[0]?.input ?? {},
-          nodes,
-          stack,
-          executed,
-          outputs,
-        );
-        stack.enter(
-          stack.frame.copy({ vars: { in: inputs, local: {} }, state: { view: {}, page: {}, app: {} } }),
-        );
-        const result = await this.runGraph(subSchema, stack);
-        stack.leave();
-        executed.add(n.id);
-        outputs.set(n.id, result);
-        return n.slots[0].next ? (nodes[n.slots[0].next] ?? null) : null;
-      }
-      default:
-        throw new Error("Unknown function kind: " + (node as any).kind);
-    }
+    const subSchema = node.kind === NodeKind.LocalFunction
+      ? (node as FlowLocalFunctionNode).slots[0].body
+      : this.loadFunctionBody((node as FlowCloudFunctionNode).slots[0].functionId);
+
+    const inputs = await this.pullSlots(
+      node.slots[0]?.input ?? {},
+      nodes,
+      stack,
+      executed,
+      outputs,
+    );
+    stack.enter(
+      stack.frame.copy({ vars: { in: inputs, local: {} } }),
+    );
+    const result = await this.runGraph(subSchema, stack);
+    stack.leave();
+    executed.add(node.id);
+    outputs.set(node.id, result);
+    return node.slots[0].next ? (nodes[node.slots[0].next] ?? null) : null;
   }
 
   private async pull(
