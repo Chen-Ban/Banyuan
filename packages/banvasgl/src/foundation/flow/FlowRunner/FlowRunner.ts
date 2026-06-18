@@ -34,7 +34,7 @@ export class FlowRunner implements IFlowRunner {
 
   // ── 执行上下文（实例字段，避免层层透传） ──
   private nodes: Record<string, FlowNode> = {};
-  private stack: FrameStack;
+  private stack: FrameStack = new FrameStack();
   private executed: Set<string> = new Set();
   private outputs: Map<string, Record<string, unknown>> = new Map();
   private returnRef: { value: Record<string, unknown> } = { value: {} };
@@ -43,18 +43,12 @@ export class FlowRunner implements IFlowRunner {
   constructor(executors: Record<string, NodeExecutor>, cap: CapProxy) {
     this.executors = executors;
     this.cap = cap;
-    this.stack = new FrameStack(
-      new ContextFrame({ in: {}, local: {} }, { view: {}, page: {}, app: {} }, cap),
-    );
   }
 
   async run(graph: FlowSchema, env: FlowEnv): Promise<void> {
-    const root = new ContextFrame(
-      { in: {}, local: {} },
-      env.state,
-      this.cap,
+    this.stack = new FrameStack(
+      new ContextFrame({ in: {}, local: {} }, env.state, this.cap),
     );
-    this.stack = new FrameStack(root);
     await this.runGraph(graph);
   }
 
