@@ -8,12 +8,12 @@ import type {
 } from "@/types/foundation/flow/common.js";
 import { isDataRef } from "@/types/foundation/flow/common.js";
 import { CompareOp, LogicOp } from "@/types/foundation/flow/enums.js";
-import type { RunnerCtx } from "../context/index.js";
-import { FrameStack } from "../context/index.js";
+import type { IRunnerCtx } from "@/types/foundation/flow/context.js";
+import { FrameStack } from "../context/FrameStack.js";
 
 // ── 数据解析 ──
 
-export async function pull(ctx: RunnerCtx, slot: SlotValue): Promise<unknown> {
+export async function pull(ctx: IRunnerCtx, slot: SlotValue): Promise<unknown> {
   if (!isDataRef(slot)) return slot;
   const ref = slot as DataRef;
   const upstream = ctx.nodes[ref.nodeId];
@@ -22,7 +22,7 @@ export async function pull(ctx: RunnerCtx, slot: SlotValue): Promise<unknown> {
   return ctx.outputs.get(upstream.id)![ref.field];
 }
 
-export async function pullSlots(ctx: RunnerCtx, node: FlowNode): Promise<Record<string, unknown>> {
+export async function pullSlots(ctx: IRunnerCtx, node: FlowNode): Promise<Record<string, unknown>> {
   const result: Record<string, unknown> = {};
   const slots = node.slots ?? [];
   for (const s of slots) {
@@ -35,7 +35,7 @@ export async function pullSlots(ctx: RunnerCtx, node: FlowNode): Promise<Record<
 
 // ── 条件过滤 ──
 
-export function evaluateFilter(ctx: RunnerCtx, filter: Filter): boolean {
+export function evaluateFilter(ctx: IRunnerCtx, filter: Filter): boolean {
   if ("left" in filter && "right" in filter) {
     const cond = filter as Condition;
     return compareEval(
@@ -72,7 +72,7 @@ export function compareEval(left: unknown, op: CompareOp, right: unknown): boole
   }
 }
 
-export function logicEval(ctx: RunnerCtx, op: LogicOp, conditions: Filter[]): boolean {
+export function logicEval(ctx: IRunnerCtx, op: LogicOp, conditions: Filter[]): boolean {
   switch (op) {
     case LogicOp.And: {
       for (const c of conditions)
@@ -96,7 +96,7 @@ export function logicEval(ctx: RunnerCtx, op: LogicOp, conditions: Filter[]): bo
 // ── 上下文恢复 ──
 
 export function restoreCtx(
-  ctx: RunnerCtx,
+  ctx: IRunnerCtx,
   nodes: Record<string, FlowNode>,
   stack: FrameStack,
   executed: Set<string>,

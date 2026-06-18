@@ -12,7 +12,8 @@ import type { FlowActionNode } from "@/types/foundation/flow/nodes/action.js";
 import type { FlowSourceNode } from "@/types/foundation/flow/nodes/source.js";
 import type { FlowComputeNode } from "@/types/foundation/flow/nodes/compute.js";
 import type { FlowFunctionNode } from "@/types/foundation/flow/nodes/function.js";
-import type { FlowEnv, CapProxy, IFlowRunner, RunnerCtx } from "../context/index.js";
+import type { FlowEnv, CapProxy, IFlowRunner } from "../context/index.js";
+import type { IRunnerCtx } from "@/types/foundation/flow/context.js";
 import { ContextFrame, FrameStack } from "../context/index.js";
 import type { NodeExecutor } from "../executors/types.js";
 import {
@@ -23,7 +24,7 @@ import {
 
 const MAX_STEPS = 1000;
 
-export class FlowRunner implements IFlowRunner, RunnerCtx {
+export class FlowRunner implements IFlowRunner, IRunnerCtx {
   private executors: Record<string, NodeExecutor>;
   private cap: CapProxy;
 

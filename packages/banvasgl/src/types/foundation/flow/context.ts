@@ -76,3 +76,14 @@ export interface IFrameStack {
 export interface IFlowRunner {
   run(graph: FlowSchema, env: FlowEnv): Promise<void>
 }
+
+/** 运行时执行上下文——FlowRunner 实现此接口供工具函数消费 */
+export interface IRunnerCtx {
+  nodes: Record<string, import('./index.js').FlowNode>;
+  stack: IFrameStack;
+  executed: Set<string>;
+  outputs: Map<string, Record<string, unknown>>;
+  returnRef: { value: Record<string, unknown> };
+  steps: number;
+  execute: (node: import('./index.js').FlowNode) => Promise<import('./index.js').FlowNode | null>;
+}
