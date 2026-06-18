@@ -179,8 +179,7 @@ export class FlowRunner implements IFlowRunner {
         return node.slots[0].next ? (this.nodes[node.slots[0].next] ?? null) : null;
       }
       case NodeKind.Return: {
-        const s = node.slots[0];
-        const values = await this.pullSlots(s.input ?? {});
+        const values = await this.pullSlots(node);
         this.executed.add(node.id);
         this.outputs.set(node.id, values);
         this.returnRef.value = values;
@@ -197,7 +196,7 @@ export class FlowRunner implements IFlowRunner {
 
   private async invokeFunction(node: FlowFunctionNode): Promise<FlowNode | null> {
     const subSchema = node.slots[0].body;
-    const inputs = await this.pullSlots(node.slots[0]?.input ?? {});
+    const inputs = await this.pullSlots(node);
     this.stack.enter(this.stack.frame.copy({ vars: { in: inputs, local: {} } }));
     const result = await this.runGraph(subSchema);
     this.stack.leave();
@@ -219,10 +218,14 @@ export class FlowRunner implements IFlowRunner {
     return this.outputs.get(upstream.id)![ref.field];
   }
 
-  private async pullSlots(slots: Record<string, SlotValue>): Promise<Record<string, unknown>> {
+  private async pullSlots(node: FlowNode): Promise<Record<string, unknown>> {
     const result: Record<string, unknown> = {};
-    for (const [name, slot] of Object.entries(slots))
-      result[name] = await this.pull(slot);
+    const slots = node.slots ?? [];
+    for (const s of slots) {
+      for (const [name, slot] of Object.entries(s.input ?? {})) {
+        result[name] = await this.pull(slot);
+      }
+    }
     return result;
   }
 
@@ -305,7 +308,7 @@ export class FlowRunner implements IFlowRunner {
         const comp = node as FlowComputeNode;
         const ex = this.executors[comp.kind];
         if (!ex) throw new Error("Unknown compute: " + comp.kind);
-        const inputs = await this.pullSlots(this.flattenInputs(node));
+        const inputs = await this.pullSlots(node);
         const r = await ex.execute(comp, inputs, this.stack.frame);
         if (r.error) throw r.error;
         this.executed.add(node.id);
@@ -316,7 +319,7 @@ export class FlowRunner implements IFlowRunner {
         const act = node as FlowActionNode;
         const ex = this.executors[act.kind];
         if (!ex) throw new Error("Unknown action: " + act.kind);
-        const inputs = await this.pullSlots(this.flattenInputs(node));
+        const inputs = await this.pullSlots(node);
         const r = await ex.execute(act, inputs, this.stack.frame);
         if (r.error) {
           const errorSchema = act.slots.find((s) => s.onError)?.onError;
@@ -340,12 +343,5 @@ export class FlowRunner implements IFlowRunner {
       case NodeCategory.Function:
         throw new Error("Cannot Pull control/function: " + node.id);
     }
-  }
-
-  private flattenInputs(node: FlowNode): Record<string, SlotValue> {
-    const r: Record<string, SlotValue> = {};
-    const slots = node.slots ?? [];
-    for (const s of slots) Object.assign(r, s.input ?? {});
-    return r;
   }
 }
