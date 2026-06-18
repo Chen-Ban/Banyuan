@@ -21,6 +21,7 @@ import type {
   FlowConditionSlot,
   FlowLoopSlot,
   FlowParallelSlot,
+  FlowReturnSlot,
 } from './control.js'
 import type { FlowFunctionSlot } from './function.js'
 
@@ -45,4 +46,5 @@ export type FlowSlot =
   | FlowConditionSlot
   | FlowLoopSlot
   | FlowParallelSlot
+  | FlowReturnSlot
   | FlowFunctionSlot;

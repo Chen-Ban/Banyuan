@@ -44,6 +44,7 @@ function deriveAppearance(category: string, kind: string): NodeAppearance {
                 case 'while':     return { shape: 'rect', accentColor: '#a855f7', icon: '⟳' }
                 case 'forEach':   return { shape: 'rect', accentColor: '#a855f7', icon: '↻' }
                 case 'parallel':  return { shape: 'rect', accentColor: '#06b6d4', icon: '⫘' }
+                case 'return':    return { shape: 'pill', accentColor: '#ef4444', icon: '↩' }
                 default:          return { shape: 'rect', accentColor: '#6b7280', icon: '◆' }
             }
         }
@@ -120,8 +121,8 @@ function derivePortsFromSchema(schema: FlowNode): PortDefinition[] {
             ports.push({ id: `${schema.id}_${cond.default}`, direction: 'output' })
         }
     } else {
-        // navigate 不能有出端口（终点节点）
-        if (kind !== 'navigate') {
+        // navigate / return 不能有出端口（终点节点）
+        if (kind !== 'navigate' && kind !== 'return') {
             ports.push({ id: `${schema.id}_out`, direction: 'output' })
         }
     }
@@ -139,6 +140,7 @@ function deriveTitleFromSchema(schema: FlowNode): string {
         case 'while':     return '循环'
         case 'forEach':   return '遍历列表'
         case 'parallel':  return '并行执行'
+        case 'return':    return '返回'
         case 'function': return (schema as any).name || '本地函数'
         // action
         case 'setVariable': return '设置变量'

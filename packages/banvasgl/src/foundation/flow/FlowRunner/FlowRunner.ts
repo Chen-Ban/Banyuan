@@ -59,12 +59,13 @@ export class FlowRunner implements IFlowRunner {
     let steps = 0;
     const executed = new Set<string>();
     const outputs = new Map<string, Record<string, unknown>>();
+    const returnRef = { value: {} as Record<string, unknown> };
 
     while (node != null) {
       if (++steps > MAX_STEPS) throw new Error("Max steps exceeded");
       switch (node.category) {
         case NodeCategory.Control:
-          node = await this.pushControl(node, nodes, stack, executed, outputs);
+          node = await this.pushControl(node, nodes, stack, executed, outputs, returnRef);
           break;
         case NodeCategory.Function:
           node = await this.invokeFunction(node as FlowFunctionNode, nodes, stack, executed, outputs);
@@ -75,13 +76,13 @@ export class FlowRunner implements IFlowRunner {
         default:
           throw new Error("Unexpected on control path: " + node.category);
       }
-      if (node == null) return {};
+      if (node == null) return returnRef.value;
     }
-    return {};
+    return returnRef.value;
   }
 
   /**
-   * pushControl —— 执行 Control 类节点（Condition / Loop / Parallel）
+   * pushControl —— 执行 Control 类节点（Condition / Loop / Parallel / Return）
    */
   private async pushControl(
     node: FlowControlNode,
@@ -89,6 +90,7 @@ export class FlowRunner implements IFlowRunner {
     stack: FrameStack,
     executed: Set<string>,
     outputs: Map<string, Record<string, unknown>>,
+    returnRef: { value: Record<string, unknown> },
   ): Promise<FlowNode | null> {
     switch (node.kind) {
       case NodeKind.Condition: {
@@ -146,16 +148,31 @@ export class FlowRunner implements IFlowRunner {
         outputs.set(node.id, { result });
         return node.slots[0].next ? (nodes[node.slots[0].next] ?? null) : null;
       }
+      case NodeKind.Return: {
+        const s = node.slots[0];
+        const values = await this.pullSlots(
+          s.input ?? {},
+          nodes,
+          stack,
+          executed,
+          outputs,
+        );
+        executed.add(node.id);
+        outputs.set(node.id, values);
+        returnRef.value = values;
+        return null;
+      }
       default:
         throw new Error("Unknown control: " + (node as any).kind);
     }
   }
 
   /**
-   * invokeFunction —— 执行 Function 类节点
+   * invokeFunction —— 执行 Function 节点
    *
-   * 语义：创建新作用域边界（ContextFrame），隔离 vars（in=入参，local=局部），
-   * state 和 cap 继承父帧。
+   * 创建新作用域边界（ContextFrame），隔离 vars，
+   * state 和 cap 继承父帧。子图内的 Return 节点返回值
+   * 通过 runGraph 的 returnRef 传出，写入 function 节点的 outputs。
    */
   private async invokeFunction(
     node: FlowFunctionNode,
@@ -386,3 +403,4 @@ export class FlowRunner implements IFlowRunner {
     for (const s of slots) Object.assign(r, s.input ?? {});
     return r;
   }
+}

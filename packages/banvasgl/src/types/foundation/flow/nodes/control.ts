@@ -3,6 +3,7 @@ import type {
   FlowConditionSlot,
   FlowLoopSlot,
   FlowParallelSlot,
+  FlowReturnSlot,
 } from "../slots/control.js";
 
 export interface FlowConditionNode {
@@ -27,7 +28,15 @@ export interface FlowParallelNode {
   mode: ParallelMode;
 }
 
+export interface FlowReturnNode {
+  id: string;
+  category: NodeCategory.Control;
+  kind: NodeKind.Return;
+  slots: FlowReturnSlot[];
+}
+
 export type FlowControlNode =
   | FlowConditionNode
   | FlowLoopNode
-  | FlowParallelNode;
+  | FlowParallelNode
+  | FlowReturnNode;

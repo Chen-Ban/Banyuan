@@ -24,3 +24,6 @@ export interface FlowParallelSlot extends SlotBase {
   body: FlowSchema[];
   next: Next;
 }
+
+/** Return 节点使用——collect inputs, terminate subgraph */
+export interface FlowReturnSlot extends SlotBase {}

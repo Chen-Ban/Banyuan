@@ -18,6 +18,7 @@ export enum NodeKind {
   Condition = "condition",
   Loop = "loop",
   Parallel = "parallel",
+  Return = "return",
   Function = "function",
   SetVariable = "setVariable",
   Navigate = "navigate",
