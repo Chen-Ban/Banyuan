@@ -7,18 +7,9 @@ import type {
   DataRef,
 } from "@/types/foundation/flow/common.js";
 import { isDataRef } from "@/types/foundation/flow/common.js";
-import type { FrameStack } from "../context/index.js";
 import { CompareOp, LogicOp } from "@/types/foundation/flow/enums.js";
-
-export interface RunnerCtx {
-  nodes: Record<string, FlowNode>;
-  stack: FrameStack;
-  executed: Set<string>;
-  outputs: Map<string, Record<string, unknown>>;
-  returnRef: { value: Record<string, unknown> };
-  steps: number;
-  execute: (node: FlowNode) => Promise<FlowNode | null>;
-}
+import type { RunnerCtx } from "../context/index.js";
+import { FrameStack } from "../context/index.js";
 
 // ── 数据解析 ──
 

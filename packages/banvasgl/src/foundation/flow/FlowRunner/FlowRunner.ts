@@ -12,11 +12,10 @@ import type { FlowActionNode } from "@/types/foundation/flow/nodes/action.js";
 import type { FlowSourceNode } from "@/types/foundation/flow/nodes/source.js";
 import type { FlowComputeNode } from "@/types/foundation/flow/nodes/compute.js";
 import type { FlowFunctionNode } from "@/types/foundation/flow/nodes/function.js";
-import type { FlowEnv, CapProxy, IFlowRunner } from "../context/index.js";
+import type { FlowEnv, CapProxy, IFlowRunner, RunnerCtx } from "../context/index.js";
 import { ContextFrame, FrameStack } from "../context/index.js";
 import type { NodeExecutor } from "../executors/types.js";
 import {
-  type RunnerCtx,
   pullSlots,
   evaluateFilter,
   restoreCtx,
