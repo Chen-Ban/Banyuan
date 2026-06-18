@@ -4,4 +4,4 @@ export { mathExecutor, compareExecutor, logicExecutor, concatExecutor, formatExe
 export { conditionExecutor, parallelExecutor } from "./control.js"
 export { functionExecutor } from "./function.js"
 export { setVariableExecutor, navigateExecutor } from "./action-client.js"
-export { httpRequestExecutor, dbQueryExecutor, dbInsertExecutor, dbUpdateExecutor, dbDeleteExecutor } from "./action-server.js"
+export { httpRequestExecutor, cloudFunctionExecutor, dbQueryExecutor, dbInsertExecutor, dbUpdateExecutor, dbDeleteExecutor } from "./action-server.js"

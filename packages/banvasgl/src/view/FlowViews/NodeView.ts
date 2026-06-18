@@ -50,7 +50,6 @@ function deriveAppearance(category: string, kind: string): NodeAppearance {
         case 'function': {
             switch (kind) {
                 case 'localFunction':  return { shape: 'rect', accentColor: '#6366f1', icon: '⊞' }
-                case 'cloudFunction':  return { shape: 'rect', accentColor: '#6366f1', icon: '⎇' }
                 default:               return { shape: 'rect', accentColor: '#6366f1', icon: '◆' }
             }
         }
@@ -58,6 +57,7 @@ function deriveAppearance(category: string, kind: string): NodeAppearance {
             switch (kind) {
                 case 'setVariable': return { shape: 'rect', accentColor: '#6b7280', icon: '≔' }
                 case 'navigate':    return { shape: 'rect', accentColor: '#3b82f6', icon: '→' }
+                case 'cloudFunction': return { shape: 'rect', accentColor: '#f97316', icon: '⎇' }
                 case 'httpRequest': return { shape: 'rect', accentColor: '#f97316', icon: '⇄' }
                 case 'dbQuery':     return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
                 case 'dbInsert':    return { shape: 'rect', accentColor: '#10b981', icon: '⬡' }
@@ -93,8 +93,8 @@ function derivePortsFromSchema(schema: FlowNode): PortDefinition[] {
         return ports
     }
 
-    // localFunction / cloudFunction: 根据 inputs 动态推导
-    if (kind === 'localFunction' || kind === 'cloudFunction') {
+    // localFunction: 根据 inputs 动态推导
+    if (kind === 'localFunction') {
         const sf = schema as any
         ports.push({ id: `${schema.id}_in`, direction: 'input' })
         if (sf.inputs) {

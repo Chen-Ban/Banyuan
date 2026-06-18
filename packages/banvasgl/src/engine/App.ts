@@ -48,8 +48,8 @@ export class App implements ISerializable {
   /**
    * 后端端点地址（可选）
    *
-   * 用于 cloudFunction 加载远端函数体。
-   * 未设置时 cloudFunction 使用 FlowRunner.loadFunctionBody 默认实现。
+   * cloudFunction 节点通过 httpClient 调用 `${endpoint}/api/functions/${functionId}`。
+   * 未设置时 httpClient 请求将使用相对路径。
    */
   public backendEndpoint: string | undefined = undefined;
 

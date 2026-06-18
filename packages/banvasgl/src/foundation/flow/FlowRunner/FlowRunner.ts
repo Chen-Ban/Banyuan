@@ -21,7 +21,7 @@ import type { FlowControlNode } from "@/types/foundation/flow/nodes/control.js";
 import type { FlowActionNode } from "@/types/foundation/flow/nodes/action.js";
 import type { FlowSourceNode } from "@/types/foundation/flow/nodes/source.js";
 import type { FlowComputeNode } from "@/types/foundation/flow/nodes/compute.js";
-import type { FlowFunctionNode, FlowLocalFunctionNode, FlowCloudFunctionNode } from "@/types/foundation/flow/nodes/function.js";
+import type { FlowLocalFunctionNode } from "@/types/foundation/flow/nodes/function.js";
 import type { FlowEnv, CapProxy, IFlowRunner } from "../context/index.js";
 import { ContextFrame, FrameStack } from "../context/index.js";
 import type { NodeExecutor } from "../executors/types.js";
@@ -67,7 +67,7 @@ export class FlowRunner implements IFlowRunner {
           node = await this.pushControl(node, nodes, stack, executed, outputs);
           break;
         case NodeCategory.Function:
-          node = await this.invokeFunction(node as FlowFunctionNode, nodes, stack, executed, outputs);
+          node = await this.invokeFunction(node as FlowLocalFunctionNode, nodes, stack, executed, outputs);
           break;
         case NodeCategory.Action:
           node = await this.execute(node, nodes, stack, executed, outputs);
@@ -152,22 +152,19 @@ export class FlowRunner implements IFlowRunner {
   }
 
   /**
-   * invokeFunction —— 执行 Function 类节点（localFunction / cloudFunction）
+   * invokeFunction —— 执行 Function 类节点（localFunction）
    *
    * 语义：创建新作用域边界（ContextFrame），隔离 vars（in=入参，local=局部），
-   * state 和 cap 继承父帧。localFunction 和 cloudFunction 仅 body 来源不同。
+   * state 和 cap 继承父帧。
    */
   private async invokeFunction(
-    node: FlowFunctionNode,
+    node: FlowLocalFunctionNode,
     nodes: Record<string, FlowNode>,
     stack: FrameStack,
     executed: Set<string>,
     outputs: Map<string, Record<string, unknown>>,
   ): Promise<FlowNode | null> {
-    const subSchema = node.kind === NodeKind.LocalFunction
-      ? (node as FlowLocalFunctionNode).slots[0].body
-      : this.loadFunctionBody((node as FlowCloudFunctionNode).slots[0].functionId);
-
+    const subSchema = node.slots[0].body;
     const inputs = await this.pullSlots(
       node.slots[0]?.input ?? {},
       nodes,
@@ -389,14 +386,3 @@ export class FlowRunner implements IFlowRunner {
     for (const s of slots) Object.assign(r, s.input ?? {});
     return r;
   }
-
-  /**
-   * loadFunctionBody —— 加载云函数体
-   *
-   * 由消费者注入实现（例如从远端拉取 FlowSchema）。
-   * 内联函数（localFunction）不需要此方法——body 已嵌入 slot。
-   */
-  private loadFunctionBody(_functionId: string): FlowSchema {
-    throw new Error("loadFunctionBody not implemented — inject via FlowRunner subclass or factory");
-  }
-}

@@ -23,6 +23,13 @@ export interface FlowHttpRequestNode {
   slots: FlowActionSlot[]
 }
 
+/** 云函数 = HTTP 调用后端执行指定函数 */
+export interface FlowCloudFunctionNode extends FlowHttpRequestNode {
+  kind: NodeKind.CloudFunction
+  /** 云函数 ID */
+  functionId: string
+}
+
 export interface FlowDbQueryNode {
   id: string
   category: NodeCategory.Action
@@ -59,6 +66,7 @@ export type FlowActionNode =
   | FlowSetVariableNode
   | FlowNavigateNode
   | FlowHttpRequestNode
+  | FlowCloudFunctionNode
   | FlowDbQueryNode
   | FlowDbInsertNode
   | FlowDbUpdateNode

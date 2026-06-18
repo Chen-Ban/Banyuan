@@ -9,7 +9,7 @@ import { FlowRunner } from '../FlowRunner/index.js'
 import { sourceExecutor } from '../executors/source.js'
 import { mathExecutor, compareExecutor, logicExecutor, concatExecutor, formatExecutor, getExecutor } from '../executors/compute.js'
 import { setVariableExecutor } from '../executors/action-client.js'
-import { httpRequestExecutor, dbQueryExecutor, dbInsertExecutor, dbUpdateExecutor, dbDeleteExecutor } from '../executors/action-server.js'
+import { httpRequestExecutor, cloudFunctionExecutor, dbQueryExecutor, dbInsertExecutor, dbUpdateExecutor, dbDeleteExecutor } from '../executors/action-server.js'
 
 export function createServerFlowRunner(): FlowRunner {
   return new FlowRunner({
@@ -22,6 +22,7 @@ export function createServerFlowRunner(): FlowRunner {
     get: getExecutor,
     setVariable: setVariableExecutor,
     httpRequest: httpRequestExecutor,
+    cloudFunction: cloudFunctionExecutor,
     dbQuery: dbQueryExecutor,
     dbInsert: dbInsertExecutor,
     dbUpdate: dbUpdateExecutor,

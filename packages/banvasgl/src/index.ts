@@ -118,7 +118,6 @@ export type {
     // function
     FlowFunctionNode,
     FlowLocalFunctionNode,
-    FlowCloudFunctionNode,
     // action
     FlowActionNode,
     FlowSetVariableNode,

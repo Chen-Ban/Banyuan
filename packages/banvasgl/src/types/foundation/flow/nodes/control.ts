@@ -9,7 +9,7 @@ import type { FlowConditionSlot, FlowLoopSlot, FlowParallelSlot } from '../slots
  * - loop：循环（单 slot = while(filter) { body }）
  * - parallel：并行（每 slot 一个并行分支）
  *
- * 注：localFunction / cloudFunction 已独立为 Function 类（NodeCategory.Function），
+ * 注：localFunction 已独立为 Function 类（NodeCategory.Function），
  * 因其语义是作用域封装/子图调用而非路由控制。
  */
 

@@ -393,7 +393,7 @@ export class Scene implements ISerializable {
         playAnimation(viewId: string, animationId: string): void {
           scene.playAnimation(viewId, animationId)
         },
-        // @deprecated callFlow: cloudFunction 改用 FlowRunner.loadFunctionBody
+        // @deprecated: cloudFunction 现为 Action 节点，通过 httpClient 调用
         callFlow: scene._app?.backendEndpoint
           ? async (flowId: string, input: Record<string, unknown>) => {
               const endpoint = scene._app!.backendEndpoint

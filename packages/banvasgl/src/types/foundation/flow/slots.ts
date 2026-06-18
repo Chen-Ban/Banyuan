@@ -58,16 +58,6 @@ export interface FlowLocalFunctionSlot extends SlotBase {
   onError?: FlowSchema;
 }
 
-/** cloudFunction 节点使用——云函数，通过 functionId 引用远端 body */
-export interface FlowCloudFunctionSlot extends SlotBase {
-  /** 云函数 ID（必填） */
-  functionId: string;
-  /** 执行后的出口（必填） */
-  next: Next;
-  /** 错误处理子图 */
-  onError?: FlowSchema;
-}
-
 /** 统一插槽类型 */
 export type FlowSlot =
   | FlowDataSlot
@@ -75,5 +65,4 @@ export type FlowSlot =
   | FlowConditionSlot
   | FlowLoopSlot
   | FlowParallelSlot
-  | FlowLocalFunctionSlot
-  | FlowCloudFunctionSlot;
+  | FlowLocalFunctionSlot;
