@@ -33,16 +33,19 @@ export class FlowRunner implements IFlowRunner {
   private cap: CapProxy;
 
   // ── 执行上下文（实例字段，避免层层透传） ──
-  private nodes!: Record<string, FlowNode>;
-  private stack!: FrameStack;
-  private executed!: Set<string>;
-  private outputs!: Map<string, Record<string, unknown>>;
-  private returnRef!: { value: Record<string, unknown> };
+  private nodes: Record<string, FlowNode> = {};
+  private stack: FrameStack;
+  private executed: Set<string> = new Set();
+  private outputs: Map<string, Record<string, unknown>> = new Map();
+  private returnRef: { value: Record<string, unknown> } = { value: {} };
   private steps = 0;
 
   constructor(executors: Record<string, NodeExecutor>, cap: CapProxy) {
     this.executors = executors;
     this.cap = cap;
+    this.stack = new FrameStack(
+      new ContextFrame({ in: {}, local: {} }, { view: {}, page: {}, app: {} }, cap),
+    );
   }
 
   async run(graph: FlowSchema, env: FlowEnv): Promise<void> {
