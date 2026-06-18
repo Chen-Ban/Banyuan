@@ -6,7 +6,7 @@
 
 import { NodeKind } from '@/types/foundation/flow/enums.js'
 import type { NodeExecutor } from "./types.js"
-import type { FlowHttpRequestNode, FlowCloudFunctionNode, FlowDbQueryNode, FlowDbInsertNode, FlowDbUpdateNode, FlowDbDeleteNode } from '@/types/foundation/flow/nodes/action.js'
+import type { FlowHttpRequestNode, FlowDbQueryNode, FlowDbInsertNode, FlowDbUpdateNode, FlowDbDeleteNode } from '@/types/foundation/flow/nodes/action.js'
 
 // ── httpRequest ──
 
@@ -23,32 +23,6 @@ export const httpRequestExecutor: NodeExecutor<FlowHttpRequestNode> = {
       String(inputs.url ?? ''),
       (inputs.headers ?? {}) as Record<string, string>,
       inputs.body,
-    )
-    return {
-      outputs: {
-        status: result.status,
-        body: result.body,
-        headers: result.headers,
-      },
-    }
-  },
-}
-
-// ── cloudFunction ──
-
-export const cloudFunctionExecutor: NodeExecutor<FlowCloudFunctionNode> = {
-  kind: NodeKind.CloudFunction,
-  outputPorts: ['status', 'body', 'headers'],
-  async execute(_node, inputs, frame) {
-    const cap = frame.cap as any
-    const http = cap.httpClient
-    if (!http) throw new Error('httpClient not available in context')
-
-    const result = await http.request(
-      String(inputs.method ?? 'POST'),
-      `/api/functions/${String(inputs.functionId ?? '')}`,
-      { 'Content-Type': 'application/json' },
-      inputs.args,
     )
     return {
       outputs: {

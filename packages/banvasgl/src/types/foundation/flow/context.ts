@@ -22,26 +22,28 @@ export interface State {
   app: Record<string, unknown>
 }
 
+/** 能力代理基类——两端通用 */
+interface CapBase {
+  httpClient: {
+    request(method: string, url: string, headers?: object, body?: unknown): Promise<{
+      status: number; body: unknown; headers: object
+    }>
+  }
+}
+
 /** 前端能力代理 */
-export interface FrontendCapProxy {
+export interface FrontendCapProxy extends CapBase {
   navigate(target: string, params?: Record<string, unknown>): Promise<void>
-  /** @deprecated 使用 FlowRunner.loadFunctionBody 替代 */
-  callFlow(functionId: string, args: Record<string, unknown>): Promise<unknown>
   persist(key: string, value: unknown): Promise<void>
 }
 
 /** 后端能力代理 */
-export interface BackendCapProxy {
+export interface BackendCapProxy extends CapBase {
   db: {
     query(coll: string, filter: object): Promise<{ rows: unknown[]; count: number }>
     insert(coll: string, doc: object): Promise<{ id: string }>
     update(coll: string, filter: object, update: object): Promise<{ matched: number; modified: number }>
     delete(coll: string, filter: object): Promise<{ deleted: number }>
-  }
-  httpClient: {
-    request(method: string, url: string, headers?: object, body?: unknown): Promise<{
-      status: number; body: unknown; headers: object
-    }>
   }
 }
 

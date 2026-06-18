@@ -4,7 +4,7 @@
 
 import { NodeKind } from '@/types/foundation/flow/enums.js'
 import type { NodeExecutor } from "./types.js"
-import type { FlowSetVariableNode, FlowNavigateNode } from '@/types/foundation/flow/nodes/action.js'
+import type { FlowSetVariableNode, FlowNavigateNode, FlowCloudFunctionNode } from '@/types/foundation/flow/nodes/action.js'
 
 // ── setVariable ──
 
@@ -46,5 +46,31 @@ export const navigateExecutor: NodeExecutor<FlowNavigateNode> = {
       await cap.navigate(String(inputs.target ?? ''))
     }
     return {}
+  },
+}
+
+// ── cloudFunction ──
+
+export const cloudFunctionExecutor: NodeExecutor<FlowCloudFunctionNode> = {
+  kind: NodeKind.CloudFunction,
+  outputPorts: ['status', 'body', 'headers'],
+  async execute(_node, inputs, frame) {
+    const cap = frame.cap as any
+    const http = cap.httpClient
+    if (!http) throw new Error('httpClient not available in context')
+
+    const result = await http.request(
+      String(inputs.method ?? 'POST'),
+      `/api/functions/${String(inputs.functionId ?? '')}`,
+      { 'Content-Type': 'application/json' },
+      inputs.args,
+    )
+    return {
+      outputs: {
+        status: result.status,
+        body: result.body,
+        headers: result.headers,
+      },
+    }
   },
 }

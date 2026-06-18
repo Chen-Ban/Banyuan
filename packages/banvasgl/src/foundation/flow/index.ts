@@ -28,5 +28,5 @@ export type { NodeExecutor, NodeExecResult } from './executors/types.js'
 // 执行器（按需导入）
 export { sourceExecutor } from './executors/source.js'
 export { mathExecutor, compareExecutor, logicExecutor, concatExecutor, formatExecutor, getExecutor } from './executors/compute.js'
-export { setVariableExecutor, navigateExecutor } from './executors/action-client.js'
-export { httpRequestExecutor, cloudFunctionExecutor, dbQueryExecutor, dbInsertExecutor, dbUpdateExecutor, dbDeleteExecutor } from './executors/action-server.js'
+export { setVariableExecutor, navigateExecutor, cloudFunctionExecutor } from './executors/action-client.js'
+export { httpRequestExecutor, dbQueryExecutor, dbInsertExecutor, dbUpdateExecutor, dbDeleteExecutor } from './executors/action-server.js'

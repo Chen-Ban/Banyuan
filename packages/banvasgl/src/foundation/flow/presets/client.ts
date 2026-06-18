@@ -19,6 +19,7 @@ import {
 import {
   setVariableExecutor,
   navigateExecutor,
+  cloudFunctionExecutor,
 } from "../executors/action-client.js";
 
 export function createClientFlowRunner(cap: FrontendCapProxy): FlowRunner {
@@ -34,6 +35,7 @@ export function createClientFlowRunner(cap: FrontendCapProxy): FlowRunner {
       get: getExecutor,
       setVariable: setVariableExecutor,
       navigate: navigateExecutor,
+      cloudFunction: cloudFunctionExecutor,
     },
     cap,
   );
