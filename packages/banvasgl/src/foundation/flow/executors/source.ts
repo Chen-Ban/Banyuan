@@ -10,10 +10,10 @@ export const sourceExecutor: NodeExecutor<FlowSourceNode> = {
   kind: NodeKind.Source,
   outputPorts: ['value'],
 
-  async execute(node, _inputs, frame) {
+  async execute(node, inputs, frame) {
     if (node.from === SourceFrom.Literal) {
-      return { outputs: { value: node.value } }
+      return { outputs: { value: inputs.value } }
     }
-    return { outputs: { value: frame.get(node.path) } }
+    return { outputs: { value: frame.get(String(inputs.path ?? '')) } }
   },
 }

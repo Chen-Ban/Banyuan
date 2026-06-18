@@ -1,10 +1,12 @@
 export * from './common.js'
-export * from './data.js'
+export * from './source.js'
+export * from './compute.js'
 export * from './action.js'
 export * from './control.js'
 export * from './function.js'
 
-import type { FlowDataSlot } from './data.js'
+import type { FlowLiteralSourceSlot, FlowContextSourceSlot } from './source.js'
+import type { FlowMathSlot, FlowCompareSlot, FlowLogicSlot, FlowConcatSlot, FlowFormatSlot, FlowGetSlot } from './compute.js'
 import type {
   FlowSetVariableSlot,
   FlowNavigateSlot,
@@ -24,7 +26,14 @@ import type { FlowLocalFunctionSlot } from './function.js'
 
 /** 统一插槽类型 */
 export type FlowSlot =
-  | FlowDataSlot
+  | FlowLiteralSourceSlot
+  | FlowContextSourceSlot
+  | FlowMathSlot
+  | FlowCompareSlot
+  | FlowLogicSlot
+  | FlowConcatSlot
+  | FlowFormatSlot
+  | FlowGetSlot
   | FlowSetVariableSlot
   | FlowNavigateSlot
   | FlowHttpRequestSlot
