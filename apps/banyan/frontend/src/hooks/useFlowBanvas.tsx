@@ -4,7 +4,7 @@ import React, {
     useMemo,
     useRef,
 } from 'react'
-import { useCanvasInit } from '@banyuan/banvasgl/react'
+import { useAdaptiveCanvasInit } from '@banyuan/banvasgl/react'
 import type { SelectedViewPos } from '@banyuan/banvasgl/react'
 import type { FlowNode } from '@banyuan/banvasgl'
 import { useInteraction } from './useInteraction'
@@ -20,16 +20,7 @@ import type { FlowContextMenuState } from '../components/FlowKit/FlowContextMenu
 // ── 公共配置类型 ──
 
 export interface UseFlowBanvasOptions {
-    /**
-     * 画布固定宽度（像素）。
-     * 不传时进入自适应模式：画布跟随外部容器 ResizeObserver 动态调整。
-     */
-    width?: number
-    /**
-     * 画布固定高度（像素）。
-     * 不传时进入自适应模式：画布跟随外部容器 ResizeObserver 动态调整。
-     */
-    height?: number
+    /** 画布背景色 */
     backgroundColor?: string
 }
 
@@ -73,6 +64,9 @@ export interface UseFlowBanvasResult {
 /**
  * 流程图画布专用 hook（v2.0.0 slots 架构适配）
  *
+ * 使用自适应模式画布：画布尺寸和相机边界跟随容器实际尺寸动态变化，
+ * 支持无限画布交互（滚轮缩放/平移）。
+ *
  * 设计原则：
  * - Scene 是 source of truth（NodeView.schema 存完整业务数据）
  * - selectedViewId / selectedViewPos 是派生的响应式状态
@@ -87,24 +81,15 @@ export default function useFlowBanvas(
     options: UseFlowBanvasOptions,
     initialSchema?: ExtractedFlowSchema,
 ): UseFlowBanvasResult {
-    const { width, height, backgroundColor } = options
+    const { backgroundColor } = options
 
-    // ── 初始化：App + 容器 DOM + 相机交互 ──
-    const canvasInitOptions = (width !== undefined && height !== undefined)
-        ? {
-            width,
-            height,
-            rendererOptions: backgroundColor
-                ? { backgroundColor, clearColor: backgroundColor }
-                : undefined,
-          }
-        : {
-            rendererOptions: backgroundColor
-                ? { backgroundColor, clearColor: backgroundColor }
-                : undefined,
-          }
-
-    const { actions, elements, derived } = useCanvasInit('', canvasInitOptions)
+    // ── 初始化：自适应模式画布 + 无限画布交互 ──
+    const { actions, elements, derived } = useAdaptiveCanvasInit({
+        appJSON: '',
+        rendererOptions: backgroundColor
+            ? { backgroundColor, clearColor: backgroundColor }
+            : undefined,
+    })
 
     const { selectedViewId, selectedViewPos, canvas } = derived
 

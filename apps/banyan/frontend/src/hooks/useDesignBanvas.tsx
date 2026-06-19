@@ -1,12 +1,9 @@
 import React from "react";
-import { useCanvasInit } from "@banyuan/banvasgl/react";
-import type { UseCanvasOptions } from "@banyuan/banvasgl/react";
+import { useFixedCanvasInit } from "@banyuan/banvasgl/react";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useInteraction } from "@/hooks/useInteraction";
 import { useDesignContextMenu } from "./useDesignContextMenu";
 import type { IContextMenuState } from "@/types/contextMenu";
-
-export type { UseCanvasOptions };
 
 /**
  * useDesignBanvas Hook 的返回值类型
@@ -30,14 +27,32 @@ export interface IUseBanvasResult<TElement = unknown> {
   contextMenu: IContextMenuState;
 }
 
+export interface UseDesignBanvasOptions {
+  /** 页面样式宽度（设计尺寸，CSS 像素） */
+  width: number;
+  /** 页面样式高度（设计尺寸，CSS 像素） */
+  height: number;
+  /** 序列化的应用 JSON（空字符串表示新建空白应用） */
+  appJSON: string;
+  appOptions?: Partial<import("@banyuan/banvasgl").IAppOptions>;
+  rendererOptions?: Omit<import("@banyuan/banvasgl").IRendererOptions, "dpr">;
+}
+
 export default function useDesignBanvas(
-  appJSON: string,
-  _options: UseCanvasOptions,
+  options: UseDesignBanvasOptions,
 ): IUseBanvasResult<React.ReactElement> {
-  // ── 初始化：App + 容器 DOM + 相机交互 + version 订阅 + textInput ──
+  const { width, height, appJSON, appOptions, rendererOptions } = options;
+
+  // ── 初始化：固定模式画布 + textInput ──
   // flowEnabled: false — 编辑态禁止 FlowSchema 执行（显式传值，不依赖隐式约定）
-  const { actions, elements, derived } =
-    useCanvasInit(appJSON, { ..._options, appOptions: { ..._options.appOptions, flowEnabled: false }, textInput: true });
+  const { actions, elements, derived } = useFixedCanvasInit({
+    width,
+    height,
+    appJSON,
+    appOptions: { flowEnabled: false, ...appOptions },
+    rendererOptions: rendererOptions ?? { clearColor: "#fff" },
+    textInput: true,
+  });
 
   // ── 右键菜单 ──
   const { contextMenu, onContextMenuHit } = useDesignContextMenu(actions);
