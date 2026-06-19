@@ -148,6 +148,9 @@ importers:
       '@banyuan/banvasgl':
         specifier: workspace:*
         version: link:../../../packages/banvasgl
+      '@fontsource-variable/inter':
+        specifier: ^5.2.8
+        version: 5.2.8
       antd:
         specifier: ^6.0.0
         version: 6.4.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -1363,6 +1366,9 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fontsource-variable/inter@5.2.8':
+    resolution: {integrity: sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ==}
 
   '@hapi/address@5.1.1':
     resolution: {integrity: sha512-A+po2d/dVoY7cYajycYI43ZbYMXukuopIsqCjh5QzsBCipDtdofHntljDlpccMjIfTy6UOkg+5KPriwYch2bXA==}
@@ -5615,6 +5621,8 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@fontsource-variable/inter@5.2.8': {}
 
   '@hapi/address@5.1.1':
     dependencies:

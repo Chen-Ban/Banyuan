@@ -15,6 +15,7 @@ import { applicationApi, aiApi } from "@/api";
 import type { ProviderInfo } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import { useApplicationStore } from "@/stores/applicationStore";
+import { useAuthStore } from "@/stores/authStore";
 import Grainient from "./components/reactbits/Grainient";
 import TextPressure from "./components/reactbits/TextPressure";
 import DecryptedText from "./components/reactbits/DecryptedText";
@@ -35,6 +36,8 @@ const HomePage = () => {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const user = useAuthStore((s) => s.user);
+  const requestLogin = useAuthStore((s) => s.requestLogin);
 
   const [prompt, setPrompt] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -75,6 +78,13 @@ const HomePage = () => {
   const handleSubmit = useCallback(async () => {
     const text = prompt.trim();
     if (!text || submitting) return;
+
+    // 未登录 → 弹出登录弹窗，登录成功后自动继续提交
+    if (!user) {
+      const ok = await requestLogin();
+      if (!ok) return;
+    }
+
     setSubmitting(true);
     try {
       const res = await applicationApi.createApplication();
@@ -86,7 +96,7 @@ const HomePage = () => {
       message.error(getErrorMessage(err));
       setSubmitting(false);
     }
-  }, [prompt, submitting, navigate, message]);
+  }, [prompt, submitting, navigate, message, user, requestLogin]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -126,11 +136,11 @@ const HomePage = () => {
 
       {/* -- Main Content -- */}
       <div className={styles.hero}>
-        {/* TextPressure brand title - no fontUrl to avoid network blocking */}
+        {/* TextPressure brand title — uses Inter Variable font for weight axis variation */}
         <div className={styles.titleWrap}>
           <TextPressure
             text="Banyan"
-            fontFamily="system-ui"
+            fontFamily="Inter Variable"
             fontUrl=""
             width={false}
             weight={true}
