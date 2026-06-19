@@ -125,6 +125,8 @@ export interface BoxSelectingState {
   readonly mode: "box-selecting";
   readonly startPoint: Point3;
   readonly selectBox: SelectBoxView;
+  /** 上一帧碰撞的视图 ID 集合（用于跳过无变化更新） */
+  lastHitIds: Set<string> | null;
 }
 
 /** 文本选择状态 —— 在文本视图中拖选文字 */
@@ -207,6 +209,8 @@ export interface InteractionDelegate {
   // ── 选择 ──
   select(viewId: string, multiple?: boolean): void;
   deselect(): void;
+  /** 批量激活（一次遍历完成），比多次 select 减少树遍历 */
+  batchActivate(viewIds: Set<string>): void;
   getAllActivedViews(): View[];
 
   // ── 移动 ──

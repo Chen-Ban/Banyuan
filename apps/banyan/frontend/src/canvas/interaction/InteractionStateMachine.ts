@@ -54,6 +54,15 @@ import type {
   InteractionInput,
 } from "./types";
 
+/** 判断两个 Set 是否包含相同元素 */
+function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  if (a.size !== b.size) return false
+  for (const item of a) {
+    if (!b.has(item)) return false
+  }
+  return true
+}
+
 export class InteractionStateMachine {
   private _state: InteractionState = { mode: "idle" };
   private _config: InteractionStateMachineConfig;
@@ -205,6 +214,7 @@ export class InteractionStateMachine {
           mode: "box-selecting",
           startPoint: worldPoint,
           selectBox,
+          lastHitIds: null,
         };
         return { stateChanged: true, cursor: Cursor.Crosshair };
       }
@@ -616,14 +626,13 @@ export class InteractionStateMachine {
       .copy()
       .transform(selectionWorldMatrix);
 
-    const viewsToActivate: View[] = [];
+    const hitIds = new Set<string>();
     const children = this._delegate.getTopLevelViews();
 
     for (const view of children) {
       if (isSelectBoxView(view)) continue;
 
       if (view.actived) {
-        // 已选中：直接用 viewport 做碰撞检测
         const worldMatrix = view.getWorldMatrix();
         const viewportBounds = view.viewport ?? Bounds.empty();
         const viewportRect = Rectangle.fromBounds(viewportBounds);
@@ -634,20 +643,23 @@ export class InteractionStateMachine {
           worldSelectionRect.containsPoint(worldViewportRect.getCentroid()) ||
           worldViewportRect.containsPoint(worldSelectionRect.getCentroid())
         ) {
-          viewsToActivate.push(view);
+          hitIds.add(view.id);
         }
       } else {
-        // 未选中：用 content 做碰撞检测
         if (this._hitViewContent(view, worldSelectionRect)) {
-          viewsToActivate.push(view);
+          hitIds.add(view.id);
         }
       }
     }
 
-    this._delegate.deselect();
-    for (const view of viewsToActivate) {
-      this._delegate.select(view.id, true);
+    // 跳过无变化更新（消除边界抖动）
+    if (s.lastHitIds && setsEqual(s.lastHitIds, hitIds)) {
+      return { stateChanged: false, cursor: Cursor.Crosshair };
     }
+
+    // 批量激活：一次树遍历完成 deselect + select
+    this._delegate.batchActivate(hitIds);
+    s.lastHitIds = hitIds;
 
     return { stateChanged: false, cursor: Cursor.Crosshair };
   }

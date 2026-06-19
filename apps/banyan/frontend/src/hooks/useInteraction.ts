@@ -168,6 +168,9 @@ export function useInteraction({
       deselect() {
         actions.view.deselect();
       },
+      batchActivate(viewIds: Set<string>) {
+        actions.view.batchActivate(viewIds);
+      },
       getAllActivedViews(): View[] {
         return actions.view.getAllActivedViews();
       },
