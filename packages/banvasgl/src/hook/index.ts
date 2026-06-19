@@ -6,12 +6,27 @@
  *
  * 使用方式：
  * ```ts
- * import { useCanvasInit, useCanvasCamera } from '@banyuan/banvasgl/react'
+ * import { useFixedCanvasInit, useAdaptiveCanvasInit, useCanvasCamera } from '@banyuan/banvasgl/react'
  * ```
  */
 
+// ── 新 hook（推荐使用） ──
+export { useFixedCanvasInit } from './useFixedCanvasInit.js'
+export type {
+  UseFixedCanvasOptions,
+  UseFixedCanvasResult,
+  SelectedViewPos,
+} from './useFixedCanvasInit.js'
+
+export { useAdaptiveCanvasInit } from './useAdaptiveCanvasInit.js'
+export type {
+  UseAdaptiveCanvasOptions,
+  UseAdaptiveCanvasResult,
+} from './useAdaptiveCanvasInit.js'
+
+// ── 旧 hook（已弃用，兼容层转发到新 hook） ──
 export { useCanvasInit } from './useCanvasInit.js'
-export type { UseCanvasOptions, UseCanvasInitResult, SelectedViewPos } from './useCanvasInit.js'
+export type { UseCanvasOptions, UseCanvasInitResult } from './useCanvasInit.js'
 
 export { useCanvasCamera } from './useCanvasCamera.js'
 export type { UseCanvasCameraOptions, UseCanvasCameraResult } from './useCanvasCamera.js'
