@@ -139,7 +139,8 @@ export function App() {
 }
 
 function BanvasCanvas({ appJSON }: { appJSON: string }) {
-  const { Banvas } = useRuntimeBanvas(appJSON, {
+  const { Banvas } = useRuntimeBanvas({
+    appJSON,
     width: ${width},
     height: ${height},
     appOptions: { flowEnabled: true },
