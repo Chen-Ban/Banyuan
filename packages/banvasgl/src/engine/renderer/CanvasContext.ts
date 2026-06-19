@@ -142,12 +142,15 @@ class CanvasContext {
   // 调整画布物理像素尺寸
   // 引擎只关心虚拟尺寸（物理像素），CSS 样式尺寸（显示多大）由外层控制
   public resize(width: number, height: number): void {
-    this.mainCanvas.width = width;
-    this.mainCanvas.height = height;
+    const w = Math.round(width);
+    const h = Math.round(height);
+    if (this.mainCanvas.width === w && this.mainCanvas.height === h) return;
+    this.mainCanvas.width = w;
+    this.mainCanvas.height = h;
 
     if (this.bufferCanvas) {
-      this.bufferCanvas.width = width;
-      this.bufferCanvas.height = height;
+      this.bufferCanvas.width = w;
+      this.bufferCanvas.height = h;
     }
   }
 

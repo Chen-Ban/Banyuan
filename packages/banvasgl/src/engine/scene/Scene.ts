@@ -173,6 +173,29 @@ export class Scene implements ISerializable {
     }
   }
 
+  /**
+   * 批量激活：一次树遍历完成 deselect 所有旧选中 + select 新命中视图。
+   * 比多次调用 select() 减少 N 次 flattenViewTree。
+   */
+  public batchActivate(viewIds: Set<string>): void {
+    const idSet = viewIds.size > 0 ? viewIds : null
+    let selectedView: View | null = null
+    const views = flattenViewTree(this)
+    for (const v of views) {
+      const hit = idSet !== null && idSet.has(v.id)
+      if (hit) {
+        v.setActived(true)
+        selectedView = v
+      } else {
+        v.setActived(false)
+        v.setSelected(false)
+      }
+    }
+    if (selectedView) {
+      selectedView.setSelected(true)
+    }
+  }
+
   // 渲染方法
   public render(canvasContext?: CanvasContext): void {
     if (!this._isVisible) {

@@ -57,6 +57,13 @@ export function createViewActions(getApp: () => App | null): IViewActions {
       notify();
     },
 
+    batchActivate(viewIds: Set<string>): void {
+      const scene = getScene();
+      if (!scene) return;
+      scene.batchActivate(viewIds);
+      notify();
+    },
+
     selectAll(): void {
       const scene = getScene();
       if (!scene) return;

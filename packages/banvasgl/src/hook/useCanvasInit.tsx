@@ -13,6 +13,7 @@ import { createBanvasActions } from "@/actions/index.js";
 import type { IBanvasActions } from "@/types/hook/hook.js";
 import type { IAppOptions } from "@/types/engine/app.js";
 import type { IRendererOptions } from "@/types/engine/renderer.js";
+import type { FrontendCapProxy } from "@/types/foundation/flow/context.js";
 import { useCanvasCamera } from "./useCanvasCamera.js";
 
 // ── BOM 属性（内联，避免跨目录依赖） ──
@@ -43,6 +44,22 @@ function useBOMProperties(): { dpr: number } {
 
   return { dpr };
 }
+
+// ── 默认空能力代理（编辑态无需真实 cap 时使用） ──
+const NOOP_CAP: FrontendCapProxy = Object.freeze({
+  httpClient: Object.freeze({
+    request: async () => ({ status: 0, body: null, headers: {} }),
+  }),
+  navigate: async () => {},
+  setViewData: () => {},
+  setViewVisible: () => {},
+  playAnimation: () => {},
+})
+
+const DEFAULT_APP_OPTIONS: IAppOptions = Object.freeze({
+  cap: NOOP_CAP,
+  flowEnabled: false,
+})
 
 // ── 公共类型 ──
 
@@ -185,8 +202,7 @@ export function useCanvasInit(
     if (!canvasNode) return;
 
     const opts = optionsRef.current;
-    const appOpts = opts.appOptions
-    if (!appOpts) throw new Error('useCanvasInit: appOptions.cap is required')
+    const appOpts = { ...DEFAULT_APP_OPTIONS, ...(opts.appOptions ?? {}) }
     const _app = App.create(canvasNode, appOpts, {
       ...opts.rendererOptions,
       dpr: dprRef.current,

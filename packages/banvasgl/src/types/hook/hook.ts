@@ -29,6 +29,8 @@ export interface IViewActions {
 select(viewId: string, multiple?: boolean): void
     /** 取消所有选中 */
     deselect(): void
+    /** 批量激活：一次性设置多个视图为 actived（最后一个为 selected） */
+    batchActivate(viewIds: Set<string>): void
     /** 全选当前页面所有视图 */
     selectAll(): void
     /** 滚动画布使指定视图进入视口 */
