@@ -1,6 +1,8 @@
 import mongoose from 'mongoose'
 import { User } from '../models/User.js'
 import Conversation from '../models/Conversation.js'
+import Material from '../models/Material.js'
+import Application from '../models/Application.js'
 
 const MONGODB_HOST = process.env.MONGODB_HOST || 'localhost'
 const MONGODB_PORT = process.env.MONGODB_PORT || '27017'
@@ -20,6 +22,10 @@ export async function connectDatabase() {
     await User.syncIndexes()
     // 清除 V1 遗留的 id_1 唯一索引（当前 schema 已无 id 字段）
     await Conversation.syncIndexes()
+    // 清除旧版 material_id_1 唯一索引（当前 schema 改用 meta.id）
+    await Material.syncIndexes()
+    // 清除旧版 tenantId_appSlug sparse 索引，替换为 partialFilterExpression
+    await Application.syncIndexes()
   } catch (error) {
     console.error('❌ MongoDB connection error:', error)
     throw error
