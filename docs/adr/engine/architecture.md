@@ -29,13 +29,18 @@
 │A2a 相机   │  │A3a 逐层   │       │     │A5a Flow │   │       │A7a 占位 │  │A8a 三态 │
 │驱动无限   │  │激活策略    │       │     │融合物理 │   │       │符替换   │  │统一引擎 │
 │画布       │  │            │       │     │隔离     │   │       │机制     │  │         │
-└───────────┘  └───────────┘       │     └────┬────┘   │       └─────────┘  └─────────┘
-                                   │          │         │
-                              ┌────▼────┐ ┌───▼────┐ ┌──▼─────┐
-                              │A4a 布局 │ │A5b 前后│ │A6a 版本│
-                              │策略模式 │ │端执行器│ │迁移注册│
-                              └─────────┘ │隔离    │ └────────┘
-                                          └────────┘
+└───────────┘  └───────────┘       │     └────┬────┘   │       └─────────┘  └────┬────┘
+                                   │          │         │                        │ refines
+                              ┌────▼────┐ ┌───▼────┐ ┌──▼─────┐            ┌────▼────────┐
+                              │A4a 布局 │ │A5b 前后│ │A6a 版本│            │A8b 平台抽象 │
+                              │策略模式 │ │端执行器│ │迁移注册│            │层 (跨平台)  │
+                              └─────────┘ │隔离    │ └────────┘            └────┬────────┘
+                                          └────────┘                          │ enables
+                                                                       ┌────▼────────┐
+                                                                       │A9 Rust 原生 │
+                                                                       │核心迁移     │
+                                                                       │（提案）     │
+                                                                       └─────────────┘
 ```
 
 关系说明：
@@ -49,6 +54,8 @@
 - A6→A6a：序列化系统衍生出版本迁移能力
 - A7→A7a：物料系统的核心是占位符替换机制
 - A8→A8a：宿主集成层使三态统一引擎成为可能
+- A8→A8b：平台抽象层将 React/Web 宿主集成泛化为跨平台接口注入（A8b refines A8）
+- A8b→A9：平台抽象接口作为天然 FFI 边界，使 Rust 原生核心迁移成为可能（A9 refines A8b）
 
 ---
 
@@ -516,3 +523,110 @@ React hook 层通过 2 个核心 hook 桥接引擎与宿主：`useCanvasInit`（
 - 预览态做成「纯前端就地切换、无独立后端」——无法验证 FlowSchema 后端节点（callFlow/dbQuery）的真实执行，预览价值受限（修正：预览态需配本地真实后端，见 app/A5）
 
 **实施方案：** [三态统一引擎，hook 层区分行为](../../specs/engine/tristate-unified-engine.md)
+
+---
+
+## 平台抽象子系统
+
+### A8b. 平台抽象层：IDrawingContext / IPlatformCanvas / ICanvasHost
+
+**✅ 已实施** · refines A8（从 React-only 宿主集成泛化为平台无关抽象）
+
+A8 的宿主集成仅覆盖 React + Web 场景（useCanvasInit、useCanvasCamera、DOM 事件）。跨平台（iOS/Android/Node 服务端渲染）要求引擎核心不持有任何平台特定类型（HTMLCanvasElement、CanvasRenderingContext2D、OffscreenCanvas）。
+
+本决策将宿主集成从「React hook 桥接」升级为「平台无关接口注入」。
+
+**决策链：** A0 确立机制/策略分离 → A8 建立 React hook 宿主集成 → 跨平台需求要求引擎不依赖 DOM 类型 → 定义平台无关绘图接口 IDrawingContext（替代 CanvasRenderingContext2D）→ 定义平台画布注入接口 IPlatformCanvas（替代 HTMLCanvasElement）→ 定义引擎内部宿主接口 ICanvasHost（替代 CanvasContext 具体类）→ React/Web 绑定抽取为独立包 @banyuan/banvasgl-react。
+
+**三个核心接口：**
+
+| 接口 | 定义位置 | 职责 | 对应 Web 实现 |
+|------|---------|------|-------------|
+| `IDrawingContext` | `types/platform/drawing.ts` | 平台无关 2D 绘图 (~50 方法) | `WebDrawingContext` (banvasgl-react) |
+| `IPlatformCanvas` | `types/platform/canvas.ts` | 平台画布工厂 + 双缓冲管理 | `WebPlatformCanvas` (banvasgl-react) |
+| `ICanvasHost` | `types/platform/host.ts` | 引擎内部画布宿主（含 composite） | 原 `CanvasContext` 类隐式实现 |
+
+**包拆分：**
+
+```
+@banyuan/banvasgl              # 平台无关核心（零 DOM/React 依赖）
+    ├── IDrawingContext / IPlatformCanvas / ICanvasHost
+    ├── Graph / View / Scene / Camera / Renderer / Flow
+    └── 无 DOM lib，无 React peerDep
+
+@banyuan/banvasgl-react        # Web 平台注入 + React Hook
+    ├── WebDrawingContext (CanvasRenderingContext2D → IDrawingContext)
+    ├── WebPlatformCanvas (HTMLCanvasElement → IPlatformCanvas)
+    ├── useCanvasInit / useCanvasCamera / useFixedCanvasInit
+    └── 依赖: @banyuan/banvasgl + react (peerDep)
+
+@banyuan/banvas-react-runtime  # Web 人机交互运行策略（原 banvas-runtime）
+    ├── WebEventAdapter / ClickRecognizer / DragRecognizer
+    └── 依赖: @banyuan/banvasgl-react + @banyuan/banvasgl
+```
+
+**约束：**
+
+- IDrawingContext 覆盖 banvasgl 内部实际使用的 Canvas 2D API 子集，不追求完整覆盖
+- IDrawingContext 的类型定义使用平台无关枚举（DrawingFillRule 替代 CanvasFillRule 等），不依赖 lib.dom
+- IPlatformCanvas 的 toDataURL / toBlob 为可选方法——不是所有平台都支持
+- 引擎通过 `App.createFromPlatform(platform)` 工厂接收平台注入，旧 `App.create(HTMLCanvasElement)` 保留为过渡兼容
+- View 通过 `ICanvasHost.composite()` 执行双缓冲合成，不直接访问 OffscreenCanvas
+
+**反例：**
+
+- 方案 A：在 banvasgl 内部定义 WebCanvas 实现，通过条件编译切换——条件编译增加构建复杂度，且无法在类型层面阻止非 Web 代码使用 DOM 类型
+- 方案 B：保留 CanvasRenderingContext2D 作为绘图抽象，仅抽象创建过程——CanvasRenderingContext2D 来自 lib.dom，使引擎始终依赖 DOM 类型声明，且渐变/图案/图像数据返回类型（CanvasGradient/CanvasPattern/ImageData）无法在非 DOM 环境表达
+- 方案 C：使用 OffscreenCanvas 作为跨平台抽象——OffscreenCanvas 同样是 DOM 类型，Node.js 中不可用
+
+**实施方案：** 本决策已在 banvasgl v0.1.0 中实施完成。@banyuan/banvasgl-react 包已创建。
+
+---
+
+## Rust 原生核心
+
+### A9. Rust 原生核心迁移（提案）
+
+**未实施** · refines A8b（平台抽象层使原生核心迁移成为可能）
+
+A8b 的平台抽象接口（IDrawingContext / IPlatformCanvas / ICanvasHost）是天然的 FFI 边界。引擎核心的场景图遍历、布局计算、命中检测、FlowSchema 执行、动画插值等计算密集型操作可以从 TypeScript 迁移至 Rust，通过 WASM（Web）/ napi-rs（Node）/ UniFFI（移动端）暴露统一 C-ABI，不同平台注入各自的 IDrawingContext 实现。
+
+**为什么是 Rust 而非 C++：**
+
+| 维度 | Rust | C++ (Skia) |
+|------|------|-------------|
+| WASM 互操作 | wasm-bindgen 自动类型桥接，~200KB 产物 | Emscripten + CanvasKit ~3-8MB |
+| Node 原生模块 | napi-rs 一行宏，12 架构预编译 CI | node-addon-api 手动绑定 |
+| 移动端桥接 | UniFFI 自动生成 Swift/Kotlin | 手写 JNI + ObjC++ |
+| 2D 渲染后端 | femtovg (GPU) + cosmic-text (文本) + kurbo (几何) | Skia (旗舰但构建复杂) |
+
+**决策链：** A8b 定义平台无关接口 → IDrawingContext trait 可直接映射为 Rust trait → 引擎核心（Scene/View/Graph/Flow/Animation）从 TS 迁移至 Rust → 通过 wasm-bindgen 暴露 C-ABI → banvasgl-react 的 WebDrawingContext 继续作为 IDrawingContext 的 Web 实现，但引擎计算在 WASM 中执行 → Node 端通过 napi-rs 加载 .node 原生模块 → 移动端通过 UniFFI 生成 Swift/Kotlin 绑定。
+
+**分阶段路线：**
+
+| 阶段 | 时间 | 内容 |
+|------|------|------|
+| Phase 1：原型验证 | 1-2 月 | Rust workspace + wasm-bindgen；最小 Scene + Circle → render；性能对比 TS 版 1000 图形帧率 |
+| Phase 2：核心迁移 | 3-4 月 | Graph (14 种) → View 体系 → Layout (flex/list/grid) → Flow 执行器 (25 种 NodeKind) → Camera/Animation |
+| Phase 3：包整合 | 2-3 月 | @banyuan/banvasgl-native npm 包；RustPlatformCanvas 实现 IPlatformCanvas；banvasgl-react 新增 useNativeEngine 切换 |
+| Phase 4：多平台 | 2-3 月 | WASM (web) + napi-rs (Node) + UniFFI (iOS/Android) |
+
+**约束：**
+
+- 保留 TypeScript 引擎版本的向后兼容——Rust 核心是可选的加速模式，通过 `useNativeEngine: true` 启用
+- IDrawingContext trait 必须与 TypeScript 的 IDrawingContext 接口保持 1:1 语义映射
+- Scene 序列化格式（JSON → FlatBuffers）需重新设计，以降低 WASM ↔ JS 数据传递开销
+- Flow 执行器（25 种 NodeKind）是最大的单一迁移模块，但也是纯计算——编译后性能收益最大
+
+**风险：**
+
+- WASM ↔ JS 数据传递开销可能抵消计算收益（缓解：FlatBuffers 序列化，或 shared memory）
+- Rust 学习曲线对团队的影响（缓解：Phase 1 原型阶段评估）
+- 双代码库维护成本（缓解：TS 版本进入维护模式——只修 bug，不加新特性）
+
+**反例：**
+
+- 全量 C++ 迁移——Skia 构建系统（gn + 7MLOC）对 80 文件的引擎严重过度；WASM 产物 3-8MB 对 Web 部署不可接受
+- 保持纯 TypeScript + 性能优化——引擎核心计算（布局/命中检测/Flow 执行）在 V8 中已高度优化，但跨平台（iOS/Android）仍需 JS 运行时，无法做到原生集成
+
+**实施方案：** 待 Phase 1 原型验证后创建具体实施 spec。
