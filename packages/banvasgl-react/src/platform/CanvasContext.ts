@@ -1,4 +1,4 @@
-import type { ICanvasContextOptions } from '@/types/engine/renderer'
+import type { ICanvasContextOptions } from '@banyuan/banvasgl'
 
 class CanvasContext {
   // 画布上下文
@@ -180,6 +180,16 @@ class CanvasContext {
   // 获取离屏画布上下文
   public getBufferContext(): CanvasRenderingContext2D {
     return this.bufferCtx;
+  }
+
+  // ── 双缓冲合成 ──
+
+  /** 将离屏缓冲区合成到主画布 */
+  public composite(): void {
+    this.mainCtx.save();
+    this.mainCtx.setTransform(1, 0, 0, 1, 0, 0);
+    this.mainCtx.drawImage(this.bufferCanvas.transferToImageBitmap(), 0, 0);
+    this.mainCtx.restore();
   }
 
   // ── DPR ──

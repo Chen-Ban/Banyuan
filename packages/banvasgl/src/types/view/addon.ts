@@ -16,6 +16,7 @@ import type Bounds from '@/graph/base/Bounds'
 import type { Line, Rectangle, Circle } from '@/graph'
 import type { ITextFields, TextIndex } from '../graph/graph'
 import type { IComputedStyle, IViewStyle } from '../foundation/style'
+import type { IDrawingContext } from '../platform/drawing.js'
 
 // AddonCapability 枚举值定义已迁移至 foundation/constants（打破 barrel 循环依赖），
 // 此处仅作为类型引用。
@@ -46,9 +47,9 @@ export interface IAddonBase {
     capabilities: AddonCapability[]
     /** 管线内执行优先级（数值越小越先执行，默认 0） */
     readonly priority: number
-    render(ctx: CanvasRenderingContext2D): void
+    render(ctx: IDrawingContext): void
     copy(): IAddonBase
-    interact(p: Point3, bufferCtx?: CanvasRenderingContext2D): ExtraData | null
+    interact(p: Point3, bufferCtx?: IDrawingContext): ExtraData | null
 }
 
 // ────────────────────────────────────────────
@@ -137,11 +138,11 @@ export interface IBoxDecorationAddon extends IAddonBase {
     /** 计算样式（渲染和逻辑的唯一数据源） */
     readonly computedStyle: IComputedStyle
     /** 渲染背景填充和边框（在 content 之前调用） */
-    renderBackground(ctx: CanvasRenderingContext2D, viewport: Bounds): void
+    renderBackground(ctx: IDrawingContext, viewport: Bounds): void
     /** 渲染滚动条（在 renderPlugins 管线中调用） */
-    renderScrollBars(ctx: CanvasRenderingContext2D): void
+    renderScrollBars(ctx: IDrawingContext): void
     /** 构建圆角裁剪路径（computedStyle.clipContent = true 时使用） */
-    buildClipPath(ctx: CanvasRenderingContext2D, viewport: Bounds): void
+    buildClipPath(ctx: IDrawingContext, viewport: Bounds): void
     /** 装饰层是否有视觉效果（false 时 renderBackground 零开销跳过） */
     hasDecoration(): boolean
     /**

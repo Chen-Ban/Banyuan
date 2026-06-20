@@ -1,5 +1,6 @@
 import { TextIndex } from '@/graph/text/TextFields'
 import { Rectangle } from '@/graph/combined/Polygon'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 /**
  * 文本选区状态
@@ -103,7 +104,7 @@ export default class TextSelection {
      * @param ctx Canvas 渲染上下文
      * @param cursorOpacity 光标不透明度（0~1），仅光标模式生效；范围选中时忽略
      */
-    public render(ctx: CanvasRenderingContext2D, cursorOpacity: number = 1): void {
+    public render(ctx: IDrawingContext, cursorOpacity: number = 1): void {
         if (this.selectionBoxs.length === 0) {
             return
         }

@@ -27,6 +27,7 @@ export interface PatternSize {
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext, IDrawingPattern } from '@/types/platform/drawing.js'
 
 /**
  * 图片图案填充样式
@@ -158,7 +159,7 @@ export default class Image implements ISerializable {
    * }
    * ```
    */
-  createCanvasPattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  createCanvasPattern(ctx: IDrawingContext): IDrawingPattern | null {
     if (!this.src) return null
     
     // 创建图像元素

@@ -17,6 +17,7 @@ import type {
   IContainerViewOptions,
   FlowNode,
 } from "@/types/index.js";
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 // 节点默认尺寸
 const NODE_DEFAULT_WIDTH = 160;
@@ -362,7 +363,7 @@ export default class NodeView extends ContainerView implements INodeView {
 
   protected override interactChildren(
     scrolledPoint: Point3,
-    bufferCtx: CanvasRenderingContext2D,
+    bufferCtx: IDrawingContext,
   ): IInteractResult {
     // 将 scrolledPoint 转回世界坐标传给 PortView 子节点
     const worldPoint = this.getMVPMatrix().multiply(scrolledPoint);

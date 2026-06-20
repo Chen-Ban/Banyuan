@@ -1,6 +1,7 @@
 import { ViewType, Action, AddonCapability, Cursor } from "@/foundation/constants";
 import Matrix4 from "@/foundation/math/Matrix4";
-import { CanvasContext } from "@/engine/renderer/CanvasContext";
+import type { ICanvasHost } from "@/types/platform/host.js";
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 import type { ISceneNode, IView, IFieldSchemaMap, IInteractResult, IViewOptions, IViewEvents, IViewLifetimes } from '@/types/view/view'
 import type { IViewStyle } from '@/types/foundation/style'
 import type { ISerializable } from '@/types/foundation/serializable'
@@ -398,7 +399,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    */
   protected interactPlugins(
     relativePoint: Point3,
-    bufferCtx?: CanvasRenderingContext2D,
+    bufferCtx?: IDrawingContext,
   ): IInteractResult {
     if (!this.actived) return { view: null, content: null, extraData: null };
 
@@ -425,7 +426,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    *
    * @param ctx - Canvas 2D 渲染上下文
    */
-  protected renderPlugins(ctx: CanvasRenderingContext2D): void {
+  protected renderPlugins(ctx: IDrawingContext): void {
     if (!this.actived) return;
 
     const renderAddons = this.activeAddons
@@ -456,7 +457,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    */
   public interact(
     worldPoint: Point3,
-    bufferCtx?: CanvasRenderingContext2D,
+    bufferCtx?: IDrawingContext,
   ): IInteractResult {
     const relativePoint = this.getMVPMatrix().inverse().multiply(worldPoint);
 
@@ -495,7 +496,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    */
   protected interactContent(
     point: Point3,
-    bufferCtx?: CanvasRenderingContext2D,
+    bufferCtx?: IDrawingContext,
   ): IInteractResult {
     if (!this.content) return { view: null, content: null, extraData: null };
     const hitContent =
@@ -522,7 +523,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    */
   protected interactChildren(
     _scrolledPoint: Point3,
-    _bufferCtx: CanvasRenderingContext2D,
+    _bufferCtx: IDrawingContext,
   ): IInteractResult {
     return { view: null, content: null, extraData: null };
   }
@@ -580,10 +581,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * @param canvasContext - 引擎的 canvas 上下文（必需）
    * @throws 若未提供 `canvasContext` 则抛出错误
    */
-  public render(canvasContext?: CanvasContext): void {
+  public render(canvasContext?: ICanvasHost): void {
     if (!this.visible) return;
     if (!canvasContext)
-      throw new Error("render failed: CanvasContext is required");
+      throw new Error("render failed: canvas context is required");
     this.renderToOffScreen(canvasContext);
     this.renderFromCache(canvasContext);
   }
@@ -598,7 +599,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * 4. 应用滚动偏移，渲染内容 + 子节点
    * 5. 渲染 addon 插件（裁剪之上，始终在最顶层）
    */
-  private renderToOffScreen(canvasContext: CanvasContext): void {
+  private renderToOffScreen(canvasContext: ICanvasHost): void {
     const offscreenCtx = canvasContext.getBufferContext();
 
     // 延迟布局：若布局脏则执行完整管线（含样式解析）
@@ -709,17 +710,10 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   /**
    * 将离屏缓冲区合成到主画布
    *
-   * 绘制前将主画布变换重置为单位矩阵。
+   * 委托给 ICanvasHost.composite()，由各平台自行实现合成策略。
    */
-  private renderFromCache(canvasContext: CanvasContext): void {
-    const mainCtx = canvasContext.getMainContext();
-    const offscreenCtx = canvasContext.getBufferContext();
-    if (!offscreenCtx) return;
-    const canvas = offscreenCtx.canvas as unknown as OffscreenCanvas;
-    canvasContext.save();
-    canvasContext.setTransform([1, 0, 0, 1, 0, 0]);
-    mainCtx.drawImage(canvas.transferToImageBitmap(), 0, 0);
-    canvasContext.restore();
+  private renderFromCache(canvasContext: ICanvasHost): void {
+    canvasContext.composite();
   }
 
   /**
@@ -731,7 +725,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    *
    * @param ctx - Canvas 2D 渲染上下文
    */
-  public renderContent(ctx: CanvasRenderingContext2D): void {
+  public renderContent(ctx: IDrawingContext): void {
     if (!this.content) return;
     const defaultStyle = getDefaultStyle(this.content.type);
     const computedStyle = this.decoration?.computedStyle;
@@ -754,8 +748,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * @param offscreenCtx - 离屏渲染上下文
    */
   protected renderChildren(
-    _canvasContext: CanvasContext,
-    _offscreenCtx: CanvasRenderingContext2D,
+    _canvasContext: ICanvasHost,
+    _offscreenCtx: IDrawingContext,
   ): void {
     // 叶子 View 无子节点
   }
@@ -921,7 +915,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * @param ctx - 可选的 canvas 上下文（用于文本测量）
    * @returns 内容的布局边界
    */
-  public layoutContent(ctx?: CanvasRenderingContext2D): Bounds {
+  public layoutContent(ctx?: IDrawingContext): Bounds {
     return (
       this.content?.layout(this.constraintBounds, ctx)?.bounds ??
       this.content?.bounds ??
@@ -937,7 +931,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    *
    * @param ctx - 可选的 canvas 上下文（用于文本测量）
    */
-  protected performLayout(ctx?: CanvasRenderingContext2D): void {
+  protected performLayout(ctx?: IDrawingContext): void {
     const contentBounds = this.layoutContent(ctx);
     this.layoutArea = Bounds.union(this.viewport, contentBounds);
   }
@@ -985,7 +979,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * @param ctx - 可选的 canvas 上下文（用于文本测量）
    * @returns 视图的实际 viewport 边界
    */
-  public layout(ctx?: CanvasRenderingContext2D): Bounds {
+  public layout(ctx?: IDrawingContext): Bounds {
     this._layoutDirty = false;
 
     // 1. 阶段 A：解析视觉样式（布局前，不依赖几何）

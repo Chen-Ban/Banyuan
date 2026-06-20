@@ -11,6 +11,7 @@ import TextOptions from "./TextOptions";
 import { isGraphType } from '@/foundation/guards'
 import type { ITextFields } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import { generateId } from "@/foundation/utils";
 
 //文本选区三元组： 段落号，字序号，字前｜字后
@@ -160,10 +161,10 @@ export default class TextFields
   /**
    * 布局文本域
    * @param constraintBounds 排版约束区域，由 View 传入，描述内容可排版的空间
-   * @param measureCtx 可选的 CanvasRenderingContext2D，用于延迟测量文字尺寸。
+   * @param measureCtx 可选的 IDrawingContext，用于延迟测量文字尺寸。
    *                   传入时避免依赖全局 CanvasContext（P1a：TextElement lazy measurement）
    */
-  public layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): TextFields {
+  public layout(constraintBounds?: Bounds, measureCtx?: IDrawingContext): TextFields {
     // 批量确保所有文字元素尺寸已测量（延迟测量的执行点）
     // measureCtx 由渲染帧的 bufferCtx 传入；无 ctx 时跳过测量（保持 dirty，后续渲染时重新触发）
     for (const paragraph of this.paragraphs) {
@@ -484,7 +485,7 @@ export default class TextFields
    * @param relativePoint 相对坐标
    * @param bufferCtx 用于命中检测的离屏上下文
    */
-  public point2TextElement(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D | null): TextElement | null {
+  public point2TextElement(relativePoint: Point3, bufferCtx?: IDrawingContext | null): TextElement | null {
     const hitedParagraph = this.paragraphs.find(
       (paragraph: TextParagraph) =>
         paragraph.isPointInPath(relativePoint, bufferCtx) ||
@@ -607,7 +608,7 @@ export default class TextFields
     return hitedTextElement;
   }
 
-  public renderPath(ctx: CanvasRenderingContext2D, dependent: boolean): void {
+  public renderPath(ctx: IDrawingContext, dependent: boolean): void {
     dependent && ctx.beginPath();
     const bounds = this.bounds;
     ctx.moveTo(bounds.x, bounds.y);
@@ -673,7 +674,7 @@ export default class TextFields
   /**
    * 渲染文本域
    */
-  public render(ctx: CanvasRenderingContext2D, style: Style): void {
+  public render(ctx: IDrawingContext, style: Style): void {
     ctx.save();
 
     // 应用样式

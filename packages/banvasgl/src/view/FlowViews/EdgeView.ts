@@ -9,6 +9,7 @@ import type {
     IViewOptions,
 } from '@/types/index.js'
 import type PortView from './PortView.js'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 export interface EdgeViewOptions extends IViewOptions {
     fromPortId?: string | null
@@ -113,7 +114,7 @@ export default class EdgeView extends View implements IEdgeView {
      * 直接在世界坐标系下绘制贝塞尔曲线
      * EdgeView 的 matrix 保持 identity，不做额外变换
      */
-    public renderContent(ctx: CanvasRenderingContext2D): void {
+    public renderContent(ctx: IDrawingContext): void {
         const endpoints = this._resolveEndpoints()
         if (!endpoints) return
 
@@ -143,7 +144,7 @@ export default class EdgeView extends View implements IEdgeView {
     }
 
     /** 绘制终点箭头 */
-    private _drawArrow(ctx: CanvasRenderingContext2D, cp: Point3, tip: Point3): void {
+    private _drawArrow(ctx: IDrawingContext, cp: Point3, tip: Point3): void {
         const angle = Math.atan2(tip.y - cp.y, tip.x - cp.x)
         const size  = 8
         ctx.save()
@@ -238,7 +239,7 @@ export default class EdgeView extends View implements IEdgeView {
         return Bounds.empty()
     }
 
-    protected interactContent(_point: Point3, _bufferCtx?: CanvasRenderingContext2D): IInteractResult {
+    protected interactContent(_point: Point3, _bufferCtx?: IDrawingContext): IInteractResult {
         return { view: null, content: null, extraData: null }
     }
 }

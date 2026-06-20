@@ -11,6 +11,7 @@ import Graph from "@/graph/base/Graph";
 import Bounds from "@/graph/base/Bounds";
 import type { ICombinedGraph } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import { generateId } from "@/foundation/utils";
 
 /**
@@ -403,7 +404,7 @@ export default class CombinedGraph
    * 渲染组合图形的路径到 Canvas 上下文。
    * 第一个子图形独立起笔（moveTo），后续子图形续接路径。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    * @param {Boolean} dependent - 是否依赖外部 `beginPath` 调用；为 `true` 时自动 `beginPath`
    *
    * @example
@@ -412,7 +413,7 @@ export default class CombinedGraph
    * ctx.stroke();
    * ```
    */
-  public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
     dependent && ctx.beginPath();
     for (let i = 0; i < this.graphs.length; i++) {
       // 第一个子图形独立起笔（moveTo），后续子图形续接路径
@@ -426,14 +427,14 @@ export default class CombinedGraph
    * 应用组合图形的样式（填充、描边等），然后逐个渲染子图形。
    * 子图形共享组合图形的样式上下文。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    *
    * @example
    * ```ts
    * combined.render(ctx);
    * ```
    */
-  public render(ctx: CanvasRenderingContext2D, style: Style): void {
+  public render(ctx: IDrawingContext, style: Style): void {
     // 应用组合图形的样式
     ctx.save();
     const bounds = this.bounds;

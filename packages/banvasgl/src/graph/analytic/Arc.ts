@@ -7,6 +7,7 @@ import Graph from "@/graph/base/Graph";
 import { intersect } from "@/graph/algorithm/IntersectionUtils";
 import type { IArc } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import { generateId } from "@/foundation/utils";
 
 /**
@@ -365,7 +366,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
    * 使用 Canvas 2D 的 `ellipse()` API 绘制椭圆弧路径，
    * 仅绘制路径，不执行描边或填充。
    *
-   * @param ctx - {CanvasRenderingContext2D} Canvas 2D 渲染上下文
+   * @param ctx - {IDrawingContext} Canvas 2D 渲染上下文
    * @param dependent - {Boolean} 是否由本方法调用 `ctx.beginPath()`；
    *   为 `true` 时先调用 `beginPath()` 再绘制路径，为 `false` 时仅追加路径
    *
@@ -374,7 +375,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
    * arc.renderPath(ctx, true); // 开始新路径并绘制椭圆弧
    * ```
    */
-  public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
     dependent && ctx.beginPath();
     ctx.ellipse(
       this.center.x,
@@ -394,7 +395,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
    * 将椭圆弧以当前样式渲染到 Canvas 上下文中，包括保存/恢复上下文状态、
    * 应用样式、绘制路径和描边。
    *
-   * @param ctx - {CanvasRenderingContext2D} Canvas 2D 渲染上下文
+   * @param ctx - {IDrawingContext} Canvas 2D 渲染上下文
    *
    * @example
    * ```typescript
@@ -402,7 +403,7 @@ export default class Arc extends AnalyticGraph implements IArc, ISerializable {
    * arc.render(ctx);
    * ```
    */
-  public render(ctx: CanvasRenderingContext2D, style: Style): void {
+  public render(ctx: IDrawingContext, style: Style): void {
     ctx.save();
     const bounds = this.bounds;
     style.applyToContext(

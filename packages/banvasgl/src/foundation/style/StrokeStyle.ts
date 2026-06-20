@@ -3,6 +3,7 @@ import { LinearGradient, RadialGradient, ConicGradient } from './gradient/index'
 import Image from './Image'
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 
 /** 描边类型枚举：纯色、三种渐变、图片图案 */
 export type StrokeType = 'color' | 'linearGradient' | 'radialGradient' | 'conicGradient' | 'image'
@@ -373,7 +374,7 @@ export default class StrokeStyle implements ISerializable {
    * ctx.strokeRect(0, 0, rect.width, rect.height)
    * ```
    */
-  applyToContext(ctx: CanvasRenderingContext2D, width: number = 100, height: number = 100): void {
+  applyToContext(ctx: IDrawingContext, width: number = 100, height: number = 100): void {
     switch (this.strokeType) {
       case 'color':
         ctx.strokeStyle = this.cssColor

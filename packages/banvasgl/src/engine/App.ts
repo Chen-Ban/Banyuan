@@ -16,6 +16,7 @@ import type { FrontendCapProxy } from "@/types/foundation/flow/context.js";
 import { AnimationManager } from "@/foundation/animation";
 import { flattenViewTree } from "@/engine/scene/utils";
 import type View from "@/view/View/View";
+import type { IPlatformCanvas } from "@/types/platform/canvas.js";
 
 export class App implements ISerializable {
   // 类型标识（用于 Serializer 注册）
@@ -712,55 +713,6 @@ export class App implements ISerializable {
     return this;
   }
 
-  // ──── 导出当前页面图像 ────
-
-  /**
-   * 导出当前页面为 DataURL
-   *
-   * 采用“快照-清理-渲染-恢复”模式，确保预处理不影响用户的编辑状态：
-   * 1. 快照：记录当前所有 View 的交互状态（selected/actived）
-   * 2. 清理：清除选中/激活状态，消除 BoundingBox 等插件渲染
-   * 3. 执行：渲染并导出 canvas DataURL
-   * 4. 恢复：还原快照状态并重新渲染
-   *
-   * @param type    图片 MIME 类型（默认 'image/png'）
-   * @param quality 压缩质量 0~1（仅对 jpeg/webp 有效）
-   * @returns       DataURL 字符串，无当前页面时返回 null
-   */
-  public toDataURL(type?: string, quality?: number): string | null {
-    const scene = this.getCurrentScene();
-    if (!scene) return null;
-
-    // 1. 快照
-    const allViews = flattenViewTree(scene);
-    const snapshots: { view: View; actived: boolean; selected: boolean }[] = [];
-    for (const v of allViews) {
-      if (v.actived || v.selected) {
-        snapshots.push({ view: v, actived: v.actived, selected: v.selected });
-      }
-    }
-
-    // 2. 清理
-    for (const { view } of snapshots) {
-      if (view.actived) view.setActived(false);
-      if (view.selected) view.setSelected(false);
-    }
-
-    // 3. 执行
-    this.render();
-    const dataUrl = this.renderer.toDataURL(type, quality);
-
-    // 4. 恢复
-    for (const { view, actived, selected } of snapshots) {
-      if (actived) view.setActived(true);
-      if (selected) view.setSelected(true);
-    }
-    this.render();
-
-    return dataUrl;
-  }
-
-  // ──── 序列化 / 反序列化 ────
 
   /**
    * 序列化整个 App 为 JSON 字符串（通过 Serializer）
@@ -884,13 +836,17 @@ export class App implements ISerializable {
   // ──── App 级别 FlowContext 构造 ────
 
 
-  // 静态方法：创建应用
+  /**
+   * 平台无关工厂：从 IPlatformCanvas 创建应用
+   *
+   * 各平台（Web / React Native / Skia / Node）通过此方法注入平台画布。
+   */
   public static create(
-    canvas: HTMLCanvasElement,
+    platform: IPlatformCanvas,
     options: IAppOptions,
     rendererOptions: IRendererOptions = {},
   ): App {
-    const renderer = new Renderer(canvas, rendererOptions);
+    const renderer = Renderer.fromPlatform(platform, rendererOptions);
     return new App(renderer, options);
   }
 }

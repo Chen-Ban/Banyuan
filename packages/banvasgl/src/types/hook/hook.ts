@@ -11,9 +11,11 @@ import type View from '@/view/View/View'
 import type { Point3 } from '@/foundation'
 import type { Cursor } from '@/foundation/constants'
 import type { IFieldSchema, IFieldSchemaMap, EventHandler, IViewEvents, IViewLifetimes, IInteractResult, ViewTypeMap } from '../view/view'
-import type { ISceneLifetimes } from '../engine/scene'
+import type { ISceneLifetimes, IScene } from '../engine/scene'
 import type { IAppLifetimes } from '../engine/app'
 import type { IMaterialActions } from '../material/material.js'
+
+import type { IDrawingContext } from '../platform/drawing.js'
 
 // Re-export IMaterialActions 供外部类型引用
 export type { IMaterialActions }
@@ -172,7 +174,7 @@ select(viewId: string, multiple?: boolean): void
      * 仅供交互层内部需要逐 view 调用 view.interact() 的场景使用，
      * 一般业务层应优先使用 hitTest / hitTestAll / hitTestDetailed。
      */
-    getBufferContext(): CanvasRenderingContext2D | null
+    getBufferContext(): IDrawingContext | null
     /**
      * 添加临时视图到当前页面（不记录事务）
      *
@@ -234,22 +236,6 @@ select(viewId: string, multiple?: boolean): void
      * 结束对齐辅助线
      */
     snapAlignEnd(): void
-
-    // ── 坐标转换 ──
-
-    /**
-     * 将 MouseEvent/DragEvent 转为世界坐标（经过 Camera VP 逆变换）
-     *
-     * 统一入口，内部通过 clientX/clientY + canvas.getBoundingClientRect() 转换。
-     * canvas 从 app.renderer 内部获取，业务层无需传入。
-     */
-    screenToWorld(e: MouseEvent): Point3
-    /**
-     * 世界坐标 → 屏幕 CSS 坐标（相对于 canvas 元素的 offsetParent）
-     *
-     * 用于文本编辑 input 定位、ContextMenu 定位等。
-     */
-    worldToScreen(worldX: number, worldY: number): { x: number; y: number }
 
     // ── 物料操作（从 IMaterialActions 合并） ──
 
@@ -426,6 +412,14 @@ export interface IAppActions {
      * 当业务层在 actions 体系之外直接修改了 App/Scene 状态后调用此方法触发 re-render。
      */
     notify(): void
+    /**
+     * 获取当前活跃的 Scene 实例
+     *
+     * 供坐标转换等需要直接访问 Scene 的操作使用。
+     *
+     * @returns 当前 Scene，若 App 未初始化则返回 null
+     */
+    getCurrentScene(): IScene | null
 }
 
 /**

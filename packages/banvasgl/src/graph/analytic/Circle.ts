@@ -4,6 +4,7 @@ import { MathUtils, Point3, Vector3 } from "@/foundation/math";
 import { Style } from "@/foundation/style";
 import type { ICircle } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 
 /**
  * 圆形图形
@@ -172,7 +173,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    *
    * 与 `Arc.render` 不同，圆形始终为闭合路径，因此同时执行 `fill()` 和 `stroke()`。
    *
-   * @param ctx - {CanvasRenderingContext2D} Canvas 2D 渲染上下文
+   * @param ctx - {IDrawingContext} Canvas 2D 渲染上下文
    *
    * @example
    * ```typescript
@@ -180,7 +181,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * circle.render(ctx); // 填充 + 描边
    * ```
    */
-  public render(ctx: CanvasRenderingContext2D, style: Style): void {
+  public render(ctx: IDrawingContext, style: Style): void {
     ctx.save();
     const bounds = this.bounds;
     style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));

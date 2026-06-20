@@ -2,6 +2,7 @@ import { SnapAxis } from '@/foundation/constants'
 import type { AxisSnap, SnapResult } from '@/types/engine/snap'
 import { Point3 } from '@/foundation/math'
 import type Matrix4 from '@/foundation/math/Matrix4'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 
 /**
  * 在主画布上绘制对齐辅助线
@@ -26,7 +27,7 @@ export class SnapOverlay {
   }
 
   render(
-    ctx: CanvasRenderingContext2D,
+    ctx: IDrawingContext,
     vpMatrix: Matrix4,
     canvasWidth: number,
     canvasHeight: number,
@@ -47,7 +48,7 @@ export class SnapOverlay {
   }
 
   private renderGuideline(
-    ctx: CanvasRenderingContext2D,
+    ctx: IDrawingContext,
     vpMatrix: Matrix4,
     guide: AxisSnap,
     canvasWidth: number,

@@ -3,6 +3,7 @@ import MediaElement from "./MediaElement";
 import { Style } from "@/foundation/style";
 import type { IVideoElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import { generateId } from '@/foundation/utils';
 
 /**
@@ -337,14 +338,14 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * 否则应用样式后使用 `ctx.drawImage` 将当前帧绘制到 `(x, y, width, height)` 矩形区域。
    * 绘制使用设置的 `width`/`height`，而非视频的原始尺寸。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    *
    * @example
    * ```ts
    * video.render(ctx); // 绘制当前帧或占位符
    * ```
    */
-  public render(ctx: CanvasRenderingContext2D, style: Style): void {
+  public render(ctx: IDrawingContext, style: Style): void {
     ctx.save();
     if (!this.video || !this.loaded) {
       // 如果视频未加载，绘制占位符
@@ -366,7 +367,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * 渲染占位符。当视频未加载完成时，绘制灰色边框、播放按钮图标和 "Loading..." 提示文字。
    *
    * @protected
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    *
    * @example
    * ```ts
@@ -374,7 +375,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * video.renderPlaceholder(ctx);
    * ```
    */
-  protected renderPlaceholder(ctx: CanvasRenderingContext2D): void {
+  protected renderPlaceholder(ctx: IDrawingContext): void {
     ctx.strokeStyle = "#cccccc";
     ctx.lineWidth = 1;
     ctx.strokeRect(this.x, this.y, this.width, this.height);

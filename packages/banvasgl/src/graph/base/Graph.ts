@@ -4,6 +4,7 @@ import { MathUtils, Matrix4, Point3, Vector3 } from "@/foundation/math";
 import Bounds from "./Bounds";
 import type { IGraph } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 
 /**
  * 图形抽象基类
@@ -92,7 +93,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * 将图形的几何路径绘制到 Canvas 2D 上下文中，仅绘制路径（moveTo/lineTo 等），
    * 不执行描边（stroke）或填充（fill），适合用于组合路径或裁剪区域的构建。
    *
-   * @param ctx - {CanvasRenderingContext2D} Canvas 2D 渲染上下文
+   * @param ctx - {IDrawingContext} Canvas 2D 渲染上下文
    * @param dependent - {Boolean} 是否由本方法调用 `ctx.beginPath()`；
    *   为 `true` 时先调用 `beginPath()` 再绘制路径，为 `false` 时仅追加路径
    *
@@ -103,7 +104,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * ```
    */
   public abstract renderPath(
-    ctx: CanvasRenderingContext2D,
+    ctx: IDrawingContext,
     dependent: Boolean,
   ): void;
 
@@ -116,7 +117,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * Graph 不再持有 style 属性，样式由 View 层在渲染时传入。
    * 合并逻辑：computedStyle 覆盖 defaultStyle（来自 DefaultStyleRegistry）。
    *
-   * @param ctx - {CanvasRenderingContext2D} Canvas 2D 渲染上下文
+   * @param ctx - {IDrawingContext} Canvas 2D 渲染上下文
    * @param style - {Style} 渲染时使用的样式
    *
    * @example
@@ -124,7 +125,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * graph.render(ctx, style);
    * ```
    */
-  public abstract render(ctx: CanvasRenderingContext2D, style: Style): void;
+  public abstract render(ctx: IDrawingContext, style: Style): void;
 
 
   /**
@@ -164,14 +165,14 @@ export default abstract class Graph implements IGraph, ISerializable {
    * 应重写此方法并返回调整后的图形实例。
    *
    * @param _constraintBounds - {Bounds | undefined} 约束边界，表示可用空间
-   * @param _measureCtx - {CanvasRenderingContext2D | undefined} 测量上下文，用于文本测量等
+   * @param _measureCtx - {IDrawingContext | undefined} 测量上下文，用于文本测量等
    * @returns {Graph | void} 调整后的图形实例，或无返回值
    *
    * @example
    * ```typescript
    * // 子类重写示例
    * class MyGraph extends Graph {
-   *   layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): Graph | void {
+   *   layout(constraintBounds?: Bounds, measureCtx?: IDrawingContext): Graph | void {
    *     // 根据约束调整自身尺寸
    *     this.bounds = constraintBounds ?? this.bounds;
    *     return this;
@@ -179,7 +180,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * }
    * ```
    */
-  public layout(_constraintBounds?: Bounds, _measureCtx?: CanvasRenderingContext2D): Graph | void {}
+  public layout(_constraintBounds?: Bounds, _measureCtx?: IDrawingContext): Graph | void {}
 
   /**
    * 判断图形是否为严格封闭图形（首尾相连的闭合路径）
@@ -202,7 +203,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * 这样可以在多画布场景下安全使用。
    *
    * @param p - {Point3} 本地坐标系下的目标点
-   * @param bufferCtx - {CanvasRenderingContext2D | null | undefined} 离屏缓冲区上下文，
+   * @param bufferCtx - {IDrawingContext | null | undefined} 离屏缓冲区上下文，
    *   必须传入，否则抛出异常
    * @returns {Boolean} 点是否在图形路径内部
    * @throws {Error} 当未传入 `bufferCtx` 时抛出
@@ -216,7 +217,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    */
   public isPointInPath(
     p: Point3,
-    bufferCtx?: CanvasRenderingContext2D | null,
+    bufferCtx?: IDrawingContext | null,
   ): Boolean {
     const ctx = bufferCtx;
     if (!ctx) throw new Error("isPointInPath: 需要传入 bufferCtx");

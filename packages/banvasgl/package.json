@@ -1,7 +1,7 @@
 {
   "name": "@banyuan/banvasgl",
   "version": "0.1.0",
-  "description": "Banyuan 自研面向声明式 UI 的 2D 图形运行时（含流程控制），提供图形基元、场景管理、FlowSchema 执行、动画系统、序列化及编辑态/运行态 React Hook",
+  "description": "Banyuan 自研面向声明式 UI 的 2D 图形运行时（含流程控制），提供图形基元、场景管理、FlowSchema 执行、动画系统及序列化",
   "exports": {
     ".": {
       "import": {
@@ -11,16 +11,6 @@
       "require": {
         "types": "./dist/index.d.ts",
         "default": "./dist/index.cjs"
-      }
-    },
-    "./react": {
-      "import": {
-        "types": "./dist/react.d.mts",
-        "default": "./dist/react.mjs"
-      },
-      "require": {
-        "types": "./dist/react.d.ts",
-        "default": "./dist/react.cjs"
       }
     },
     "./flow/client": {
@@ -46,9 +36,6 @@
   },
   "typesVersions": {
     "*": {
-      "react": [
-        "./dist/react.d.mts"
-      ],
       "flow/client": [
         "./dist/flow/client.d.mts"
       ],
@@ -77,16 +64,9 @@
   "author": "",
   "license": "AGPL-3.0",
   "packageManager": "pnpm@10.10.0",
-  "peerDependencies": {
-    "react": ">=18.0.0"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    }
-  },
+  "peerDependencies": {},
+  "peerDependenciesMeta": {},
   "devDependencies": {
-    "@types/react": "^19.0.0",
     "@types/uuid": "^10.0.0",
     "tsup": "^8.4.0",
     "tsx": "^4.19.0",

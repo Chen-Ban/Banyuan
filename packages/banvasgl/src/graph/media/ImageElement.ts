@@ -3,6 +3,7 @@ import MediaElement from './MediaElement'
 import { Style } from '@/foundation/style'
 import type { IImageElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext, IDrawingImageSource } from '@/types/platform/drawing.js'
 import { generateId } from '@/foundation/utils'
 
 /**
@@ -17,8 +18,8 @@ import { generateId } from '@/foundation/utils'
  * **加载机制**：构造时自动调用 {@link loadMedia} → {@link loadImage}，通过 Promise 封装
  * `HTMLImageElement.onload` / `onerror` 回调，加载完成后更新 `actualWidth`/`actualHeight` 和控制点。
  *
- * **静态工厂**：{@link fromCanvas} 可从 `HTMLCanvasElement` 创建图片元素，
- * 内部通过 `canvas.toDataURL()` + `Image.onload` 实现转换。
+ * **静态工厂**：{@link fromImageSource} 可从任意 {@link IDrawingImageSource} 创建图片元素（平台无关）；
+ * {@link fromCanvas} 已废弃，保留为委托到 `fromImageSource` 的 convenience 方法。
  *
  * @extends MediaElement
  * @implements IImageElement
@@ -37,8 +38,8 @@ export default class ImageElement extends MediaElement implements IImageElement,
     /** 图形类型标识 */
     public type: GraphType = GraphType.IMAGE
 
-    /** 底层 HTMLImageElement 对象，加载完成后赋值 */
-    public image: HTMLImageElement | null = null
+    /** 平台无关的图像源，加载完成后赋值（可能是 HTMLImageElement / HTMLCanvasElement / ImageBitmap 等） */
+    public image: IDrawingImageSource | null = null
 
     /**
      * 创建图片元素实例。
@@ -156,14 +157,14 @@ export default class ImageElement extends MediaElement implements IImageElement,
      * 否则应用样式后使用 `ctx.drawImage` 将图片绘制到 `(x, y, width, height)` 矩形区域。
      * 绘制使用设置的 `width`/`height`，而非图片的原始尺寸。
      *
-     * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
      *
      * @example
      * ```ts
      * img.render(ctx); // 绘制图片或占位符
      * ```
      */
-    public render(ctx: CanvasRenderingContext2D, style: Style): void {
+    public render(ctx: IDrawingContext, style: Style): void {
         ctx.save()
         if (!this.image || !this.loaded) {
             // 如果图片未加载，绘制占位符
@@ -185,7 +186,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
      * 渲染占位符。当图片未加载完成时，绘制灰色虚线边框和 "Loading..." 提示文字。
      *
      * @protected
-     * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
      *
      * @example
      * ```ts
@@ -193,7 +194,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
      * img.renderPlaceholder(ctx);
      * ```
      */
-    protected renderPlaceholder(ctx: CanvasRenderingContext2D): void {
+    protected renderPlaceholder(ctx: IDrawingContext): void {
         ctx.save()
         ctx.strokeStyle = '#cccccc'
         ctx.lineWidth = 1
@@ -236,15 +237,15 @@ export default class ImageElement extends MediaElement implements IImageElement,
         const ctx = canvas.getContext('2d')
         if (!ctx) return null
 
-        canvas.width = this.image.naturalWidth
-        canvas.height = this.image.naturalHeight
+        canvas.width = this.actualWidth
+        canvas.height = this.actualHeight
 
         ctx.drawImage(
-            this.image,
+            this.image as unknown as CanvasImageSource,
             0,
             0,
-            this.image.naturalWidth,
-            this.image.naturalHeight
+            this.actualWidth,
+            this.actualHeight
         )
 
         return ctx.getImageData(0, 0, canvas.width, canvas.height)
@@ -324,18 +325,18 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 从 HTMLCanvasElement 创建图片元素的静态工厂方法。
+     * 从平台无关的图像源创建图片元素的静态工厂方法。
      *
-     * 通过 `canvas.toDataURL()` 将 Canvas 内容转为 Data URL，
-     * 再创建 `HTMLImageElement` 加载该 Data URL，加载成功后赋值给新实例的 {@link image} 属性。
+     * 直接存储 {@link IDrawingImageSource}，无需 `toDataURL()` 或 `HTMLImageElement` 中转。
+     * 适用于将 Canvas / ImageBitmap / SkImage 等任意平台图像源包装为图元。
      *
-     * @param {HTMLCanvasElement} canvas - 源 Canvas 元素
+     * @param {IDrawingImageSource} source - 平台无关的图像源
      * @param {number} x - 矩形左上角 x 坐标
      * @param {number} y - 矩形左上角 y 坐标
      * @param {number} width - 矩形宽度
      * @param {number} height - 矩形高度
-     * @param {Style} [style=Style.DEFAULT] - 元素样式
-     * @returns {Promise<ImageElement>} 加载完成后 resolve 为图片元素实例
+     * @param {Style} [_style] - 元素样式
+     * @returns {ImageElement} 立即可用的图片元素实例
      *
      * @example
      * ```ts
@@ -343,7 +344,46 @@ export default class ImageElement extends MediaElement implements IImageElement,
      * canvas.width = 200;
      * canvas.height = 100;
      * // ... 在 canvas 上绘制内容 ...
+     * const img = ImageElement.fromImageSource(canvas, 0, 0, 200, 100);
+     * ```
+     */
+    static fromImageSource(
+        source: IDrawingImageSource,
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        _style?: Style
+    ): ImageElement {
+        const element = new ImageElement('', x, y, width, height)
+        element.image = source
+        element.actualWidth = source.width
+        element.actualHeight = source.height
+        element.loaded = true
+        element.updateControlPoints()
+        return element
+    }
+
+    /**
+     * 从 HTMLCanvasElement 创建图片元素的静态工厂方法。
+     *
+     * @deprecated 请使用平台无关的 {@link fromImageSource}，它接受任意 {@link IDrawingImageSource}。
+     *             HTMLCanvasElement 本身已满足 IDrawingImageSource 接口。
+     *
+     * @param {HTMLCanvasElement} canvas - 源 Canvas 元素
+     * @param {number} x - 矩形左上角 x 坐标
+     * @param {number} y - 矩形左上角 y 坐标
+     * @param {number} width - 矩形宽度
+     * @param {number} height - 矩形高度
+     * @param {Style} [_style] - 元素样式
+     * @returns {Promise<ImageElement>} 加载完成后 resolve 为图片元素实例
+     *
+     * @example
+     * ```ts
+     * // 旧用法（不推荐）
      * const img = await ImageElement.fromCanvas(canvas, 0, 0, 200, 100);
+     * // 新用法（推荐）
+     * const img = ImageElement.fromImageSource(canvas, 0, 0, 200, 100);
      * ```
      */
     static fromCanvas(
@@ -354,22 +394,8 @@ export default class ImageElement extends MediaElement implements IImageElement,
         height: number,
         _style?: Style
     ): Promise<ImageElement> {
-        return new Promise((resolve, reject) => {
-            const element = new ImageElement('', x, y, width, height)
-            // 将 canvas 转换为图片
-            const img = new Image()
-            img.src = canvas.toDataURL()
-            img.onload = () => {
-                element.image = img
-                element.actualWidth = img.naturalWidth
-                element.actualHeight = img.naturalHeight
-                element.loaded = true
-                element.updateControlPoints()
-                resolve(element)
-            }
-            img.onerror = () => {
-                reject(new Error('Failed to create image from canvas'))
-            }
-        })
+        return Promise.resolve(
+            ImageElement.fromImageSource(canvas, x, y, width, height, _style)
+        )
     }
 }

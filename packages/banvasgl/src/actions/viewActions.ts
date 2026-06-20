@@ -20,11 +20,9 @@ import type {
 } from "@/types/view/view";
 import { Point3, ViewType, Cursor } from "@/foundation";
 import type { App } from "@/engine/App";
-import {
-  screenToWorld as _screenToWorld,
-  worldToScreen as _worldToScreen,
-} from "@/engine/camera/cameraUtils.js";
 import { createMaterialActions as _createMaterialActions } from "@/engine/material/index.js";
+
+import type { IDrawingContext } from "@/types/platform/drawing.js";
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null;
@@ -519,7 +517,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
       return result;
     },
 
-    getBufferContext(): CanvasRenderingContext2D | null {
+    getBufferContext(): IDrawingContext | null {
       const app = getApp();
       if (!app) return null;
       return app.renderer.getCanvasContext().getBufferContext();
@@ -588,27 +586,6 @@ export function createViewActions(getApp: () => App | null): IViewActions {
       scene.snapAlign.end();
     },
 
-    // ── 坐标转换 ──
-
-    screenToWorld(e: MouseEvent): Point3 {
-      const app = getApp();
-      if (!app) return new Point3(0, 0, 0);
-      const scene = app.getCurrentScene();
-      if (!scene) return new Point3(0, 0, 0);
-      const canvas = app.renderer.getCanvas();
-      return _screenToWorld(e.clientX, e.clientY, scene, canvas);
-    },
-
-    worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
-      const app = getApp();
-      if (!app) return { x: 0, y: 0 };
-      const scene = app.getCurrentScene();
-      if (!scene) return { x: 0, y: 0 };
-      const canvas = app.renderer.getCanvas();
-      return _worldToScreen(worldX, worldY, scene, canvas);
-    },
-
-    // ── 物料操作（从 materialActions 合并） ──
 
     serializeMaterial: materialActions.serialize,
     instantiateMaterial: materialActions.instantiate,

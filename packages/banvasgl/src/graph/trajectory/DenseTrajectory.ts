@@ -6,6 +6,7 @@ import Bounds from "@/graph/base/Bounds";
 import { Line } from "@/graph/analytic";
 import type { IDenseTrajectory } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import type { ITransferable, TransferableData } from '@/types/foundation/transferable'
 import { generateId } from "@/foundation/utils";
 
@@ -107,7 +108,7 @@ export default class DenseTrajectory
    * 使用 `moveTo` 到第一个点，然后依次 `lineTo` 到后续各点。
    * 当 `dependent` 为 `true` 时先调用 `ctx.beginPath()`。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    * @param {Boolean} dependent - 是否开启新路径
    *
    * @example
@@ -116,7 +117,7 @@ export default class DenseTrajectory
    * ctx.stroke();
    * ```
    */
-  public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
     dependent && ctx.beginPath();
     ctx.moveTo(this.controlPoints[0], this.controlPoints[1]);
     const length = this.controlPoints.length / 3;
@@ -130,14 +131,14 @@ export default class DenseTrajectory
    *
    * 应用样式后调用 {@link renderPath} 绘制路径，然后描边。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    *
    * @example
    * ```ts
    * traj.render(ctx);
    * ```
    */
-  public render(ctx: CanvasRenderingContext2D, style: Style): void {
+  public render(ctx: IDrawingContext, style: Style): void {
     ctx.save();
     style.applyToContext(ctx, Math.abs(this.bounds.width), Math.abs(this.bounds.height));
     this.renderPath(ctx, true);

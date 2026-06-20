@@ -4,6 +4,7 @@ import StrokeStyle from "./StrokeStyle";
 import ShadowStyle from "./ShadowStyle";
 import { StyleType } from "@/foundation/constants";
 import type { ISerializable } from '@/types/foundation/serializable';
+import type { IDrawingContext } from '@/types/platform/drawing.js';
 
 /**
  * 综合样式容器
@@ -85,7 +86,7 @@ export default class Style implements ISerializable {
    * ```
    */
   applyToContext(
-    ctx: CanvasRenderingContext2D,
+    ctx: IDrawingContext,
     width: number = 100,
     height: number = 100,
   ): void {

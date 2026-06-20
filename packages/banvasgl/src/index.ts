@@ -156,7 +156,6 @@ export type {
 // ── Renderer 接口 ──
 export type {
     ICanvasContextOptions,
-    ICanvasContext,
     IRendererOptions,
     IRenderer,
 } from './types'
@@ -226,6 +225,27 @@ export type {
     IMaterialActions,
     IMaterialSerializeConfig,
     IMaterialParameterBinding,
+} from './types'
+
+// ── 平台抽象接口 ──
+export type {
+    IDrawingGradient,
+    IDrawingPattern,
+    IDrawingImageSource,
+    IDrawingTextMetrics,
+    IDrawingImageData,
+    DrawingFillRule,
+    DrawingLineCap,
+    DrawingLineJoin,
+    DrawingTextAlign,
+    DrawingTextBaseline,
+    DrawingImageSmoothingQuality,
+    DrawingMatrix2DInit,
+    IDrawingContext,
+    IPlatformCanvasOptions,
+    IPlatformCanvas,
+    ICanvasHostOptions,
+    ICanvasHost,
 } from './types'
 
 // ── PropertyAdapter 接口 ──

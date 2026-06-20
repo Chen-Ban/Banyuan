@@ -1,6 +1,7 @@
 import Color from "./Color";
 import { StyleType } from "@/foundation/constants";
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 
 /**
  * 阴影样式
@@ -196,7 +197,7 @@ export default class ShadowStyle implements ISerializable {
    * ctx.fillRect(10, 10, 100, 100);
    * ```
    */
-  applyToContext(ctx: CanvasRenderingContext2D): void {
+  applyToContext(ctx: IDrawingContext): void {
     if (this.enabled) {
       const { r, g, b } = this.color;
       ctx.shadowColor = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${this.opacity})`;

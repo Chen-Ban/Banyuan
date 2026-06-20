@@ -9,6 +9,7 @@ import type {
     IInteractResult,
     IViewOptions,
 } from '@/types/index.js'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 // 端口圆形半径（逻辑像素）
 const PORT_RADIUS = 8
@@ -70,7 +71,7 @@ export default class PortView extends View implements IPortView {
     /**
      * 命中端口时返回 ConnectData，触发连线交互
      */
-    protected interactContent(point: Point3, bufferCtx?: CanvasRenderingContext2D): IInteractResult {
+    protected interactContent(point: Point3, bufferCtx?: IDrawingContext): IInteractResult {
         if (!this.content) return { view: null, content: null, extraData: null }
         const hit =
             this.content.isPointInPath(point, bufferCtx) ||
@@ -94,7 +95,7 @@ export default class PortView extends View implements IPortView {
      * - 默认：白底灰边
      * - actived（连线中）：橙色高亮
      */
-    public renderContent(ctx: CanvasRenderingContext2D): void {
+    public renderContent(ctx: IDrawingContext): void {
         if (!this.content) return
         const circle = this.content as Circle
         ctx.save()

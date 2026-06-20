@@ -21,7 +21,7 @@ import AnimationAddon from "@/view/addon/AnimationAddon";
 import { SceneType } from "@/foundation/constants";
 import { SnapAlignManager } from "./snap";
 import CombinedView from "@/view/CombinedViews";
-import type { CanvasContext } from "@/engine/renderer/CanvasContext";
+import type { ICanvasHost } from "@/types/platform/host.js";
 
 export interface SceneOptions {
   name?: string;
@@ -197,7 +197,7 @@ export class Scene implements ISerializable {
   }
 
   // 渲染方法
-  public render(canvasContext?: CanvasContext): void {
+  public render(canvasHost?: ICanvasHost): void {
     if (!this._isVisible) {
       return;
     }
@@ -211,13 +211,13 @@ export class Scene implements ISerializable {
       const bounds = camera.getViewportBounds();
       for (const view of this.children) {
         if (this._isViewInViewport(view, bounds)) {
-          view.render(canvasContext);
+          view.render(canvasHost);
         }
       }
     } else {
       // 非正交相机（BaseCamera）：渲染全部
       this.children.forEach((view) => {
-        view.render(canvasContext);
+        view.render(canvasHost);
       });
     }
   }

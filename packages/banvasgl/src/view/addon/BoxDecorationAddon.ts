@@ -42,6 +42,7 @@ import StrokeStyle from '@/foundation/style/StrokeStyle.js'
 import ShadowStyle from '@/foundation/style/ShadowStyle.js'
 import Style from '@/foundation/style/Style.js'
 import Color from '@/foundation/style/Color.js'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 // ────────────────────────────────────────────
 //  BoxDecorationAddon 实现
@@ -165,7 +166,7 @@ export default class BoxDecorationAddon implements IBoxDecorationAddon {
     // ────────────────────────────────────────
 
     /** 渲染背景填充和边框（在 content 之前调用，第〇阶段） */
-    public renderBackground(ctx: CanvasRenderingContext2D, viewport: Bounds): void {
+    public renderBackground(ctx: IDrawingContext, viewport: Bounds): void {
         if (!this.hasDecoration()) return
 
         const cs = this._computedStyle
@@ -205,7 +206,7 @@ export default class BoxDecorationAddon implements IBoxDecorationAddon {
         fillStyle: new FillStyle({ fillType: 'color', color: new Color(0, 0, 0, 0.3) }),
     })
 
-    public renderScrollBars(ctx: CanvasRenderingContext2D): void {
+    public renderScrollBars(ctx: IDrawingContext): void {
         this._scrollBarH?.render(ctx, BoxDecorationAddon.SCROLLBAR_STYLE)
         this._scrollBarV?.render(ctx, BoxDecorationAddon.SCROLLBAR_STYLE)
     }
@@ -215,12 +216,12 @@ export default class BoxDecorationAddon implements IBoxDecorationAddon {
      * renderPlugins 管线调用此方法 → 渲染滚动条。
      * renderBackground 是独立调用，不走管线。
      */
-    public render(ctx: CanvasRenderingContext2D): void {
+    public render(ctx: IDrawingContext): void {
         this.renderScrollBars(ctx)
     }
 
     /** 构建圆角裁剪路径（computedStyle.clipContent = true 时使用） */
-    public buildClipPath(ctx: CanvasRenderingContext2D, viewport: Bounds): void {
+    public buildClipPath(ctx: IDrawingContext, viewport: Bounds): void {
         const { x, y, width, height } = viewport
         this._buildRoundedRectPath(ctx, x, y, width, height, this._computedStyle.borderRadius)
         ctx.clip()
@@ -241,7 +242,7 @@ export default class BoxDecorationAddon implements IBoxDecorationAddon {
     //  交互（不参与）
     // ────────────────────────────────────────
 
-    public interact(_p: Point3, _bufferCtx?: CanvasRenderingContext2D): ExtraData | null {
+    public interact(_p: Point3, _bufferCtx?: IDrawingContext): ExtraData | null {
         return null
     }
 
@@ -411,7 +412,7 @@ export default class BoxDecorationAddon implements IBoxDecorationAddon {
      * radii 顺序：[左上, 右上, 右下, 左下]
      */
     private _buildRoundedRectPath(
-        ctx: CanvasRenderingContext2D,
+        ctx: IDrawingContext,
         x: number,
         y: number,
         w: number,
