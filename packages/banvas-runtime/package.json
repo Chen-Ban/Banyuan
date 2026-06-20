@@ -1,7 +1,7 @@
 {
-  "name": "@banyuan/banvas-runtime",
+  "name": "@banyuan/banvas-react-runtime",
   "version": "0.1.0",
-  "description": "BanvasGL 运行策略层：高级交互识别 + useRuntimeBanvas hook，进入用户 ECS 产物",
+  "description": "BanvasGL React 运行策略层：高级交互识别 + useRuntimeBanvas hook，进入用户 ECS 产物",
   "exports": {
     ".": {
       "import": {
@@ -29,10 +29,12 @@
   "packageManager": "pnpm@10.10.0",
   "peerDependencies": {
     "@banyuan/banvasgl": "workspace:*",
+    "@banyuan/banvasgl-react": "workspace:*",
     "react": ">=18.0.0"
   },
   "devDependencies": {
     "@banyuan/banvasgl": "workspace:*",
+    "@banyuan/banvasgl-react": "workspace:*",
     "@types/react": "^19.0.0",
     "tsup": "^8.4.0",
     "react": "^19.0.0"

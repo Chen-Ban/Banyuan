@@ -11,7 +11,7 @@ export default defineConfig({
   },
   splitting: true,
   clean: true,
-  external: ["react", "@banyuan/banvasgl"],
+  external: ["react", "@banyuan/banvasgl", "@banyuan/banvasgl-react"],
   esbuildOptions(options) {
     options.jsx = "automatic";
   },

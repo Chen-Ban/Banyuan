@@ -15,6 +15,7 @@
 
 import { useEffect, useRef } from "react";
 import type { IBanvasActions, InteractionInput } from "@banyuan/banvasgl";
+import { screenToWorld } from "@banyuan/banvasgl-react";
 import type { EventAdapter, CoordinateTransform } from "../adapters/types.js";
 import { ClickRecognizer } from "../interaction/ClickRecognizer.js";
 import { DragRecognizer } from "../interaction/DragRecognizer.js";
@@ -25,14 +26,18 @@ export interface UseRuntimeInteractionOptions {
     adapter: EventAdapter | null;
     /** banvas actions（提供 hitTest / triggerEvent 等能力） */
     actions: IBanvasActions | null;
+    /** canvas DOM 节点（供坐标转换使用） */
+    canvas: HTMLCanvasElement | null;
 }
 
 export function useRuntimeInteraction(
     options: UseRuntimeInteractionOptions,
 ): void {
-    const { adapter, actions } = options;
+    const { adapter, actions, canvas } = options;
     const actionsRef = useRef(actions);
     actionsRef.current = actions;
+    const canvasRef = useRef(canvas);
+    canvasRef.current = canvas;
 
     useEffect(() => {
         if (!adapter || !actions) return;
@@ -40,11 +45,10 @@ export function useRuntimeInteraction(
         // 识别器 emit 回调：hitTest + triggerEvent
         const handleRecognized = (r: RecognizedInteraction) => {
             const currentActions = actionsRef.current;
-            if (!currentActions) return;
+            const currentCanvas = canvasRef.current;
+            if (!currentActions || !currentCanvas) return;
 
-            // 构造一个 MouseEvent-like 对象供 screenToWorld 使用
-            const fakeEvent = { clientX: r.clientX, clientY: r.clientY } as MouseEvent;
-            const worldPoint = currentActions.view.screenToWorld(fakeEvent);
+            const worldPoint = screenToWorld(r.clientX, r.clientY, currentActions.app.getCurrentScene()!, currentCanvas);
             const hit = currentActions.view.hitTest(worldPoint);
             if (!hit.view) return;
 

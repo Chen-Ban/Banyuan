@@ -19,7 +19,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { App, Spin } from "antd";
-import { useFixedCanvasInit } from "@banyuan/banvasgl/react";
+import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
 import { applicationApi } from "@/api";
 import { getErrorMessage } from "@/utils/error";
 import { useApplicationStore } from "@/stores/applicationStore";

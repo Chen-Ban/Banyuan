@@ -1,5 +1,5 @@
 import React from "react";
-import { useFixedCanvasInit } from "@banyuan/banvasgl/react";
+import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useInteraction } from "@/hooks/useInteraction";
 import { useDesignContextMenu } from "./useDesignContextMenu";

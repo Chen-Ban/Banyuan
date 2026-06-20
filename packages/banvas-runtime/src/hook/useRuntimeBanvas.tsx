@@ -12,9 +12,10 @@
 
 import type React from "react";
 import { useMemo } from "react";
-import { useFixedCanvasInit } from "@banyuan/banvasgl/react";
-import type { UseFixedCanvasOptions } from "@banyuan/banvasgl/react";
+import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
+import type { UseFixedCanvasOptions } from "@banyuan/banvasgl-react";
 import type { IBanvasActions } from "@banyuan/banvasgl";
+import { screenToWorld } from "@banyuan/banvasgl-react";
 import { useRuntimeInteraction } from "./useRuntimeInteraction.js";
 import { WebEventAdapter } from "../adapters/web.js";
 
@@ -52,8 +53,7 @@ export function useRuntimeBanvas(
     return new WebEventAdapter({
       element: canvas,
       coordinateTransform: (clientX: number, clientY: number) => {
-        const fakeEvent = { clientX, clientY } as MouseEvent;
-        return actions.view.screenToWorld(fakeEvent);
+        return screenToWorld(clientX, clientY, actions.app.getCurrentScene()!, canvas);
       },
     });
   }, [derived.canvas, actions]);
@@ -62,6 +62,7 @@ export function useRuntimeBanvas(
   useRuntimeInteraction({
     adapter,
     actions,
+    canvas: derived.canvas,
   });
 
   return {

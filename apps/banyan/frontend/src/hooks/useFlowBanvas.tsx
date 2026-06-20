@@ -4,8 +4,8 @@ import React, {
     useMemo,
     useRef,
 } from 'react'
-import { useAdaptiveCanvasInit } from '@banyuan/banvasgl/react'
-import type { SelectedViewPos } from '@banyuan/banvasgl/react'
+import { useAdaptiveCanvasInit } from '@banyuan/banvasgl-react'
+import type { SelectedViewPos } from '@banyuan/banvasgl-react'
 import type { FlowNode } from '@banyuan/banvasgl'
 import { useInteraction } from './useInteraction'
 import { useFlowContextMenu } from './useFlowContextMenu'
