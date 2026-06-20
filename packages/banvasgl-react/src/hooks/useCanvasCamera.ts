@@ -10,9 +10,9 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
-import { App } from '@/engine/App.js'
-import { OrthographicCamera } from '@/engine/camera/index.js'
-import { Point3 } from '@/foundation/math/index.js'
+import { App } from '@banyuan/banvasgl'
+import { OrthographicCamera } from '@banyuan/banvasgl'
+import { Point3 } from '@banyuan/banvasgl'
 
 const MIN_ZOOM_LEVEL = 0.1; // 最小缩放比（视口 = 初始 × 10）
 const MAX_ZOOM_LEVEL = 10; // 最大缩放比（视口 = 初始 / 10）
@@ -48,7 +48,10 @@ export function useCanvasCamera({
       const scene = app.getCurrentScene();
       if (!scene) return;
       const camera = scene.camera;
-      if (!(camera instanceof OrthographicCamera)) return;
+      if (!(camera instanceof OrthographicCamera)) {
+        console.warn('[useCanvasCamera] Camera is not OrthographicCamera, zoom/pan disabled.');
+        return;
+      }
 
       if (e.ctrlKey || e.metaKey) {
         // ── Pinch / Ctrl+Wheel → zoom-to-cursor ──
@@ -116,7 +119,10 @@ export function useCanvasCamera({
       const scene = app.getCurrentScene();
       if (!scene) return;
       const camera = scene.camera;
-      if (!(camera instanceof OrthographicCamera)) return;
+      if (!(camera instanceof OrthographicCamera)) {
+        console.warn('[useCanvasCamera] Camera is not OrthographicCamera, resize sync disabled.');
+        return;
+      }
 
       // 更新 canvas 物理像素
       app.handleResize(containerWidth * dpr, containerHeight * dpr, dpr);
@@ -137,9 +143,10 @@ export function useCanvasCamera({
         currentCenterY - currentViewportHeight / 2,
       );
 
-      // 记录初始视口宽度（首次调用时）
+      // 记录初始世界视口宽度（世界单位），作为 zoom level 基准
+      // 注意：使用世界单位而非 CSS 像素，以与 handleWheel 中 newViewportWidth 量纲一致
       if (initialViewportWidthRef.current === 0) {
-        initialViewportWidthRef.current = containerWidth;
+        initialViewportWidthRef.current = currentViewportWidth;
       }
 
       scene.markDirty();

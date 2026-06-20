@@ -158,6 +158,7 @@ const UIPage = () => {
     () => ({
       width: 1280,
       height: 800,
+      appJSON: loaded ? canvasAppJSON : '',
       appOptions: {
         enablePageStack: true,
         maxPageStackSize: 50,
@@ -166,7 +167,7 @@ const UIPage = () => {
         clearColor: "#fff",
       },
     }),
-    [],
+    [loaded, canvasAppJSON],
   );
 
   const {
@@ -175,7 +176,7 @@ const UIPage = () => {
     selectedViewId,
     actions,
     contextMenu: rawContextMenu,
-  } = useDesignBanvas(loaded ? canvasAppJSON : '', banvasOptions);
+  } = useDesignBanvas(banvasOptions);
 
   // ── 扩展右键菜单：为视图添加"保存为物料"选项 ─────────────────────────────────
   const contextMenu = useMemo(() => {

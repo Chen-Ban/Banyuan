@@ -21,7 +21,7 @@ import AnimationAddon from "@/view/addon/AnimationAddon";
 import { SceneType } from "@/foundation/constants";
 import { SnapAlignManager } from "./snap";
 import CombinedView from "@/view/CombinedViews";
-import type { CanvasContext } from "@/engine/renderer/CanvasContext";
+import type { ICanvasHost } from "@/types/platform/host.js";
 
 export interface SceneOptions {
   name?: string;
@@ -173,8 +173,31 @@ export class Scene implements ISerializable {
     }
   }
 
+  /**
+   * 批量激活：一次树遍历完成 deselect 所有旧选中 + select 新命中视图。
+   * 比多次调用 select() 减少 N 次 flattenViewTree。
+   */
+  public batchActivate(viewIds: Set<string>): void {
+    const idSet = viewIds.size > 0 ? viewIds : null
+    let selectedView: View | null = null
+    const views = flattenViewTree(this)
+    for (const v of views) {
+      const hit = idSet !== null && idSet.has(v.id)
+      if (hit) {
+        v.setActived(true)
+        selectedView = v
+      } else {
+        v.setActived(false)
+        v.setSelected(false)
+      }
+    }
+    if (selectedView) {
+      selectedView.setSelected(true)
+    }
+  }
+
   // 渲染方法
-  public render(canvasContext?: CanvasContext): void {
+  public render(canvasHost?: ICanvasHost): void {
     if (!this._isVisible) {
       return;
     }
@@ -188,13 +211,13 @@ export class Scene implements ISerializable {
       const bounds = camera.getViewportBounds();
       for (const view of this.children) {
         if (this._isViewInViewport(view, bounds)) {
-          view.render(canvasContext);
+          view.render(canvasHost);
         }
       }
     } else {
       // 非正交相机（BaseCamera）：渲染全部
       this.children.forEach((view) => {
-        view.render(canvasContext);
+        view.render(canvasHost);
       });
     }
   }

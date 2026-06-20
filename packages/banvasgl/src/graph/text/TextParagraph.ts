@@ -9,6 +9,7 @@ import TextOptions from './TextOptions'
 import { isGraphType } from '@/foundation/guards'
 import type { ITextParagraph } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import { generateId } from '@/foundation/utils'
 
 export type TextParagraphContent = [
@@ -123,7 +124,7 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
         return this
     }
 
-    public renderPath(ctx: CanvasRenderingContext2D, dependent: boolean): void {
+    public renderPath(ctx: IDrawingContext, dependent: boolean): void {
         dependent && ctx.beginPath()
         const bounds = this.bounds
         ctx.moveTo(bounds.x, bounds.y)
@@ -194,7 +195,7 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
     /**
      * 渲染段落
      */
-    public render(ctx: CanvasRenderingContext2D, style: Style): void {
+    public render(ctx: IDrawingContext, style: Style): void {
         ctx.save()
         // 应用样式
         const bounds = this.bounds

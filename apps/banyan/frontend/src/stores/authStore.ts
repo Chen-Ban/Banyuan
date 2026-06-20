@@ -22,10 +22,14 @@ import type { AuthUser, TokenPair } from '@/api/auth'
 const TOKEN_KEY = 'banyan_access_token'
 const REFRESH_TOKEN_KEY = 'banyan_refresh_token'
 
+type PendingLoginResolver = (success: boolean) => void
+
 export interface AuthState {
   user: AuthUser | null
   loading: boolean
   loginModalOpen: boolean
+  /** 等待登录完成的 Promise resolver（null 表示没有等待者） */
+  pendingLoginResolver: PendingLoginResolver | null
 }
 
 export interface AuthActions {
@@ -33,7 +37,9 @@ export interface AuthActions {
   login: (user: AuthUser, tokens: TokenPair) => void
   /** 登出（调用后端 + 清除本地） */
   logout: () => Promise<void>
-  /** 打开登录弹窗 */
+  /** 打开登录弹窗并返回 Promise，登录成功 resolve(true)，取消 resolve(false) */
+  requestLogin: () => Promise<boolean>
+  /** 打开登录弹窗（不需要等待结果时使用） */
   openLoginModal: () => void
   /** 关闭登录弹窗 */
   closeLoginModal: () => void
@@ -49,18 +55,26 @@ export interface AuthActions {
 
 export type AuthStore = AuthState & AuthActions
 
-export const useAuthStore = create<AuthStore>((set) => ({
+export const useAuthStore = create<AuthStore>((set, get) => ({
   // ── State ──────────────────────────────────────────────────────────────────
   user: null,
   loading: true,
   loginModalOpen: false,
+  pendingLoginResolver: null,
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
   login: (user, tokens) => {
     localStorage.setItem(TOKEN_KEY, tokens.accessToken)
     localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
-    set({ user, loginModalOpen: false })
+    const pending = get().pendingLoginResolver
+    if (pending) {
+      // 先通知等待者，再更新 state（让调用方拿到最新 user 后继续）
+      pending(true)
+      set({ user, loginModalOpen: false, pendingLoginResolver: null })
+    } else {
+      set({ user, loginModalOpen: false })
+    }
   },
 
   logout: async () => {
@@ -77,8 +91,26 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ user: null })
   },
 
+  requestLogin: () => {
+    // 如果已有等待者，先 resolve(false) 通知旧的放弃
+    const old = get().pendingLoginResolver
+    if (old) old(false)
+    return new Promise<boolean>((resolve) => {
+      set({ loginModalOpen: true, pendingLoginResolver: resolve })
+    })
+  },
+
   openLoginModal: () => set({ loginModalOpen: true }),
-  closeLoginModal: () => set({ loginModalOpen: false }),
+
+  closeLoginModal: () => {
+    const pending = get().pendingLoginResolver
+    if (pending) {
+      pending(false)
+      set({ loginModalOpen: false, pendingLoginResolver: null })
+    } else {
+      set({ loginModalOpen: false })
+    }
+  },
 
   getAccessToken: () => localStorage.getItem(TOKEN_KEY),
 

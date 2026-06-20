@@ -9,6 +9,7 @@ import type { IScene } from './scene'
 import type { IRenderer, IRendererOptions } from './renderer'
 import type { EventHandler } from '../view/view'
 import type { FrontendCapProxy } from '../foundation/flow/context.js'
+import type { IPlatformCanvas } from '../platform/canvas.js'
 
 // ────────────────────────────────────────────
 //  App 相关类型
@@ -148,10 +149,10 @@ export interface IApp {
     destroy(): IApp
 }
 
-/** 静态工厂方法（需要 canvas 和具体 Renderer，故由消费者直接调用 App.create） */
+/** 静态工厂方法（接受平台画布，由消费者直接调用 App.create） */
 export interface IAppStatic {
     create(
-        canvas: HTMLCanvasElement,
+        platform: IPlatformCanvas,
         options?: IAppOptions,
         rendererOptions?: IRendererOptions
     ): IApp

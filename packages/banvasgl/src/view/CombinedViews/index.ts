@@ -24,6 +24,7 @@ import { BoundingBoxAddon } from '@/view/addon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
 import { getLayoutStrategy } from './layout/index.js'
 import type { ILayoutContext } from './layout/index.js'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 // ────────────────────────────────────────────
 //  CombinedView 实现
@@ -60,7 +61,7 @@ export default class CombinedView extends ContainerView implements ICombinedView
      * - layoutMode='free'（或未设置）：不干预子元素位置，直接调用基类 layout
      * - layoutMode='flex'/'list'/'grid'：委托对应 LayoutStrategy 执行
      */
-    public override layout(ctx?: CanvasRenderingContext2D): Bounds {
+    public override layout(ctx?: IDrawingContext): Bounds {
         const layoutMode = this.style.layoutMode
 
         // ── scroll 语法糖拦截 ──

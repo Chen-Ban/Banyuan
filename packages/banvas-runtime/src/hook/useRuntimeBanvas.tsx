@@ -1,7 +1,7 @@
 /**
  * useRuntimeBanvas — 运行态画布组装 hook
  *
- * 复用 banvasgl 的 useCanvasInit 机制底座，注入运行策略：
+ * 复用 banvasgl 的 useFixedCanvasInit 机制底座，注入运行策略：
  *   - flowEnabled: true（运行态允许 FlowSchema 执行）
  *   - textInput: false（运行态无文本编辑需求）
  *   - 装配 useRuntimeInteraction（高级交互识别 + 事件派发）
@@ -12,14 +12,14 @@
 
 import type React from "react";
 import { useMemo } from "react";
-import { useCanvasInit } from "@banyuan/banvasgl/react";
-import type { UseCanvasOptions } from "@banyuan/banvasgl/react";
+import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
+import type { UseFixedCanvasOptions } from "@banyuan/banvasgl-react";
 import type { IBanvasActions } from "@banyuan/banvasgl";
-import { Point3 } from "@banyuan/banvasgl";
+import { screenToWorld } from "@banyuan/banvasgl-react";
 import { useRuntimeInteraction } from "./useRuntimeInteraction.js";
 import { WebEventAdapter } from "../adapters/web.js";
 
-export interface UseRuntimeOptions extends UseCanvasOptions {
+export interface UseRuntimeOptions extends UseFixedCanvasOptions {
   /** 应用 ID，运行态后端节点请求使用 */
   appId?: string;
 }
@@ -34,15 +34,14 @@ export interface UseRuntimeBanvasResult {
 }
 
 export function useRuntimeBanvas(
-  appJSON: string,
-  options: UseRuntimeOptions = {},
+  options: UseRuntimeOptions,
 ): UseRuntimeBanvasResult {
   const { appId, ...canvasOptions } = options;
 
-  // 1. 复用 banvasgl 机制底座
-  const { actions, elements, derived } = useCanvasInit(appJSON, {
+  // 1. 复用 banvasgl 固定模式机制底座
+  const { actions, elements, derived } = useFixedCanvasInit({
     ...canvasOptions,
-    appOptions: { ...canvasOptions.appOptions, flowEnabled: true },
+    appOptions: { ...(canvasOptions.appOptions ?? {}), flowEnabled: true },
     textInput: false,
   });
 
@@ -54,9 +53,7 @@ export function useRuntimeBanvas(
     return new WebEventAdapter({
       element: canvas,
       coordinateTransform: (clientX: number, clientY: number) => {
-        // 利用 actions.view.screenToWorld 做坐标转换
-        const fakeEvent = { clientX, clientY } as MouseEvent;
-        return actions.view.screenToWorld(fakeEvent);
+        return screenToWorld(clientX, clientY, actions.app.getCurrentScene()!, canvas);
       },
     });
   }, [derived.canvas, actions]);
@@ -65,6 +62,7 @@ export function useRuntimeBanvas(
   useRuntimeInteraction({
     adapter,
     actions,
+    canvas: derived.canvas,
   });
 
   return {

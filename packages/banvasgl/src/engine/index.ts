@@ -31,7 +31,7 @@ export type {
 export * from "./camera";
 
 // ── Renderer ──
-export { Renderer, CanvasContext } from "./renderer/index";
+export { Renderer } from "./renderer/index";
 
 // ── Serialization ──
 export { Serializer } from "./serialization";

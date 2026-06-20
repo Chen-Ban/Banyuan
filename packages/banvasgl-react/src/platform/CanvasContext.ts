@@ -1,4 +1,4 @@
-import type { ICanvasContextOptions } from '@/types/engine/renderer'
+import type { ICanvasContextOptions } from '@banyuan/banvasgl'
 
 class CanvasContext {
   // 画布上下文
@@ -142,12 +142,15 @@ class CanvasContext {
   // 调整画布物理像素尺寸
   // 引擎只关心虚拟尺寸（物理像素），CSS 样式尺寸（显示多大）由外层控制
   public resize(width: number, height: number): void {
-    this.mainCanvas.width = width;
-    this.mainCanvas.height = height;
+    const w = Math.round(width);
+    const h = Math.round(height);
+    if (this.mainCanvas.width === w && this.mainCanvas.height === h) return;
+    this.mainCanvas.width = w;
+    this.mainCanvas.height = h;
 
     if (this.bufferCanvas) {
-      this.bufferCanvas.width = width;
-      this.bufferCanvas.height = height;
+      this.bufferCanvas.width = w;
+      this.bufferCanvas.height = h;
     }
   }
 
@@ -177,6 +180,16 @@ class CanvasContext {
   // 获取离屏画布上下文
   public getBufferContext(): CanvasRenderingContext2D {
     return this.bufferCtx;
+  }
+
+  // ── 双缓冲合成 ──
+
+  /** 将离屏缓冲区合成到主画布 */
+  public composite(): void {
+    this.mainCtx.save();
+    this.mainCtx.setTransform(1, 0, 0, 1, 0, 0);
+    this.mainCtx.drawImage(this.bufferCanvas.transferToImageBitmap(), 0, 0);
+    this.mainCtx.restore();
   }
 
   // ── DPR ──

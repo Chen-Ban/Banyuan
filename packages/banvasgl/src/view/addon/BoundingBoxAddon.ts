@@ -7,6 +7,7 @@ import type { IBoundingBoxAddon } from '@/types/view/addon'
 import { AddonType, Action, AddonCapability, Cursor, cursorMap } from "@/foundation/constants";
 import { Circle, Line } from "@/graph";
 import { Color, FillStyle, StrokeStyle } from "@/foundation/style";
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 /**
  * 主题色常量（PPT 风格）
@@ -155,7 +156,7 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
   /**
    * 在给定的上下文中渲染边界框
    */
-  render(ctx: CanvasRenderingContext2D): void {
+  render(ctx: IDrawingContext): void {
     const bounds = this.getBounds();
     if (!bounds) return;
     ctx.save();
@@ -185,7 +186,7 @@ export default class BoundingBoxAddon implements IBoundingBoxAddon {
   /**
    * 交互接口
    */
-  interact(p: Point3, bufferCtx?: CanvasRenderingContext2D): ExtraData | null {
+  interact(p: Point3, bufferCtx?: IDrawingContext): ExtraData | null {
     const isMoving =
       this.region.isPointOnCurve(p, 5) || this.rotate[0].isPointOnCurve(p, 5);
     const isRotate =

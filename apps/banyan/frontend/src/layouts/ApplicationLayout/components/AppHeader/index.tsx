@@ -59,8 +59,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
         </button>
       </Tooltip>
 
-      {/* 机型选择器 */}
-      <DevicePicker designSize={designSize} onChange={onDeviceChange} />
+      {/* 机型选择器（非编辑态保留等宽占位，避免胶囊抖动） */}
+      <span className={styles.devicePickerSlot}>
+        {activeTab === 'ui' && (
+          <DevicePicker designSize={designSize} onChange={onDeviceChange} />
+        )}
+      </span>
 
       {/* 左侧弹性占位 */}
       <div className={styles.headerSpacer} />

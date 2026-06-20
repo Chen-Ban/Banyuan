@@ -42,7 +42,8 @@ export function createAppActions(
         exportImage(type?: string, quality?: number): string | null {
             const app = getApp()
             if (!app) return null
-            return app.toDataURL(type, quality)
+            const platform = app.renderer.getPlatformCanvas()
+            return platform?.toDataURL?.(type, quality) ?? null
         },
 
         setBackendEndpoint(endpoint: string | undefined): void {
@@ -70,6 +71,10 @@ export function createAppActions(
 
         notify(): void {
             notify()
+        },
+
+        getCurrentScene() {
+            return getApp()?.getCurrentScene() ?? null
         },
     }
 }

@@ -105,8 +105,11 @@ const MaterialSchema = new Schema<IMaterialDoc>(
   }
 )
 
-// 创建索引
-MaterialSchema.index({ 'meta.id': 1 }, { unique: true })
+// 创建索引 — meta.id 唯一约束仅对非 null 的 string 生效（兼容旧数据中残留的 null 文档）
+MaterialSchema.index(
+  { 'meta.id': 1 },
+  { unique: true, partialFilterExpression: { 'meta.id': { $type: 'string' } } }
+)
 MaterialSchema.index({ 'meta.name': 'text', 'meta.description': 'text', 'meta.tags': 'text' })
 MaterialSchema.index({ 'meta.tags': 1 })
 MaterialSchema.index({ 'meta.source': 1 })

@@ -2,6 +2,7 @@ import { Point3 } from "@/foundation/math";
 import type { ExtraData } from '@/types/view/interaction'
 import type { IVertexAddon } from '@/types/view/addon'
 import { AddonType, Action, AddonCapability, Cursor } from "@/foundation/constants";
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 /**
  * 顶点样式主题（PPT 风格）
@@ -180,7 +181,7 @@ export default class VertexAddon implements IVertexAddon {
   /**
    * 渲染顶点（控制点）
    */
-  render(ctx: CanvasRenderingContext2D): void {
+  render(ctx: IDrawingContext): void {
     if (!this.vertices || this.vertices.length === 0 || !this.isEditing) {
       return;
     }
@@ -212,7 +213,7 @@ export default class VertexAddon implements IVertexAddon {
    * 渲染方块顶点（角点控制点）
    */
   private renderSquare(
-    ctx: CanvasRenderingContext2D,
+    ctx: IDrawingContext,
     vertex: Point3,
     isActive: boolean,
   ): void {
@@ -233,7 +234,7 @@ export default class VertexAddon implements IVertexAddon {
    * 渲染小圆（边中点控制点）
    */
   private renderCircle(
-    ctx: CanvasRenderingContext2D,
+    ctx: IDrawingContext,
     vertex: Point3,
     isActive: boolean,
   ): void {
@@ -254,7 +255,7 @@ export default class VertexAddon implements IVertexAddon {
    * 渲染菱形顶点（圆角控制点）
    */
   private renderDiamond(
-    ctx: CanvasRenderingContext2D,
+    ctx: IDrawingContext,
     vertex: Point3,
     isActive: boolean,
   ): void {

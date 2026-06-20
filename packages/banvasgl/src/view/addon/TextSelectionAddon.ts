@@ -8,6 +8,7 @@ import type { IAnimationDescriptor } from '@/types/engine/animation'
 import TextSelection from './TextSelection.js'
 import AnimationAddon from './AnimationAddon.js'
 import type TextView from '@/view/TextView/index.js'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 /**
  * TextSelectionAddon —— 文本光标/选区渲染与动画管理插件（RENDER + LOGIC）
@@ -159,7 +160,7 @@ export default class TextSelectionAddon implements ITextSelectionAddon {
    * 由 renderPlugins 管线在 RENDER 阶段调用。
    * cursorOpacity 优先读取动画系统的驱动值。
    */
-  public render(ctx: CanvasRenderingContext2D): void {
+  public render(ctx: IDrawingContext): void {
     const cursorOpacity =
       (this._view.getAnimatedValue('cursorOpacity') as number) ?? this.cursorOpacity
     this.selection.render(ctx, cursorOpacity)
@@ -169,7 +170,7 @@ export default class TextSelectionAddon implements ITextSelectionAddon {
    * 文本选区不参与通用交互检测（命中检测由 TextView.interactContent 负责），
    * 始终返回 null。
    */
-  public interact(_p: Point3, _bufferCtx?: CanvasRenderingContext2D): ExtraData | null {
+  public interact(_p: Point3, _bufferCtx?: IDrawingContext): ExtraData | null {
     return null
   }
 

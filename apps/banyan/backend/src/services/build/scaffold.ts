@@ -212,7 +212,8 @@ export default function App() {
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
   }, [])
 
-  const { Banvas } = useRuntimeBanvas(appData, {
+  const { Banvas } = useRuntimeBanvas({
+    appJSON: appData,
     width: size.width,
     height: size.height,
   })

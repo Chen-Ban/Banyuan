@@ -39,6 +39,7 @@ import {
   isContainerView,
   ViewType,
 } from "@banyuan/banvasgl";
+import { screenToWorld, worldToScreen } from "@banyuan/banvasgl-react";
 import type {
   IBanvasActions,
   IMaterialTemplate,
@@ -167,6 +168,9 @@ export function useInteraction({
       },
       deselect() {
         actions.view.deselect();
+      },
+      batchActivate(viewIds: Set<string>) {
+        actions.view.batchActivate(viewIds);
       },
       getAllActivedViews(): View[] {
         return actions.view.getAllActivedViews();
@@ -387,8 +391,10 @@ export function useInteraction({
   useEffect(() => {
     if (!canvas || !actions || !machine) return;
 
+    const getScene = () => actions.app.getCurrentScene()!;
+
     const onMouseDown = (e: MouseEvent) => {
-      const worldPoint = actions.view.screenToWorld(e);
+      const worldPoint = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
       const output = machine.handle({
         type: "pointerdown",
         worldPoint,
@@ -403,7 +409,7 @@ export function useInteraction({
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      const worldPoint = actions.view.screenToWorld(e);
+      const worldPoint = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
       const output = machine.handle({
         type: "pointermove",
         worldPoint,
@@ -417,7 +423,7 @@ export function useInteraction({
     };
 
     const onMouseUp = (e: MouseEvent) => {
-      const worldPoint = actions.view.screenToWorld(e);
+      const worldPoint = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
       const output = machine.handle({
         type: "pointerup",
         worldPoint,
@@ -441,7 +447,7 @@ export function useInteraction({
 
       if (mode === "flow") {
         // Flow click：选中/取消选中 + 通知业务层
-        const point = actions.view.screenToWorld(e);
+        const point = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
         let hitView: View | null = null;
         const bufferCtx = actions.view.getBufferContext();
         const children = actions.page.getTopLevelViews();
@@ -540,7 +546,7 @@ export function useInteraction({
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
 
-      const point = actions.view.screenToWorld(e);
+      const point = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
       const children = actions.page.getTopLevelViews();
       const bufferCtx = actions.view.getBufferContext();
 
@@ -614,7 +620,7 @@ export function useInteraction({
           materialId?: string;
         };
 
-        const worldPoint = actions.view.screenToWorld(e);
+        const worldPoint = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
         const x = worldPoint.x;
         const y = worldPoint.y;
 
@@ -776,9 +782,11 @@ export function useInteraction({
                   worldMatrix.multiply(relativeBottomLeft);
                 const layoutBounds = nextView.layoutArea;
                 if (layoutBounds) {
-                  const screenPos = actions.view.worldToScreen(
+                  const screenPos = worldToScreen(
                     worldBottomLeft.x,
                     worldBottomLeft.y,
+                    getScene(),
+                    canvas,
                   );
                   const scaleX = canvas.clientWidth / canvas.width;
                   inputEl.style.left = `${screenPos.x}px`;

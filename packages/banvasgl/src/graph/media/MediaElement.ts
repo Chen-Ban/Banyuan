@@ -4,6 +4,7 @@ import { Style } from '@/foundation/style'
 import Bounds from '@/graph/base/Bounds'
 import Rectangle from '@/graph/combined/Polygon/Rectangle'
 import type { IMediaElement } from '@/types/graph/graph'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 
 /**
  * 媒体元素抽象基类。
@@ -249,7 +250,7 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
      * 路径按 **左上 → 右上 → 右下 → 左下 → 闭合** 的顺序绘制，
      * 当 `dependent` 为 `true` 时会先调用 `ctx.beginPath()` 开启新路径。
      *
-     * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
      * @param {Boolean} dependent - 是否开启新路径（`true` 时调用 `beginPath`）
      *
      * @example
@@ -258,7 +259,7 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
      * ctx.stroke(); // 描边矩形路径
      * ```
      */
-    public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+    public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
         dependent && ctx.beginPath()
         const x = this.x
         const y = this.y
@@ -277,15 +278,15 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
      *
      * @abstract
      * @protected
-     * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
      *
      * @example
      * ```ts
      * // ImageElement 中的实现：灰色边框 + "Loading..." 文字
-     * protected renderPlaceholder(ctx: CanvasRenderingContext2D): void { ... }
+     * protected renderPlaceholder(ctx: IDrawingContext): void { ... }
      * ```
      */
-    protected abstract renderPlaceholder(ctx: CanvasRenderingContext2D): void
+    protected abstract renderPlaceholder(ctx: IDrawingContext): void
 
     /**
      * 获取媒体元素的像素数据。由子类实现，返回当前帧（图片）或当前播放帧（视频）的 ImageData。

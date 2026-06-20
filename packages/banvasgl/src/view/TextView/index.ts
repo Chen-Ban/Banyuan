@@ -15,6 +15,7 @@ import TextFields from '@/graph/text/TextFields'
 import type { TextParagraphContent } from '@/graph/text/TextParagraph'
 import { TextIndex } from '@/graph/text/TextFields'
 import TextSelectionAddon from '@/view/addon/TextSelectionAddon.js'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 /**
  * 文本视图
@@ -58,7 +59,7 @@ export default class TextView extends View implements ITextView, ISerializable {
         return this.content.textContent
     }
 
-    public renderContent(ctx: CanvasRenderingContext2D): void {
+    public renderContent(ctx: IDrawingContext): void {
         super.renderContent(ctx)
         // 触发选区矩形计算（布局已完成）；实际渲染由 TextSelectionAddon 在 renderPlugins 管线中完成
         this.selectionAddon?.computeSelectionBoxes()
@@ -94,7 +95,7 @@ export default class TextView extends View implements ITextView, ISerializable {
      * 未命中文本域时返回 null，让外层回退到 MOVE 等 action。
      * 坐标约束只在拖拽选区阶段（InteractionDispatcher.handleTextSelection）进行。
      */
-    protected interactContent(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D): IInteractResult {
+    protected interactContent(relativePoint: Point3, bufferCtx?: IDrawingContext): IInteractResult {
         // 是否命中文本域
         const hitedFields =
             this.content.isPointInPath(relativePoint, bufferCtx) ||

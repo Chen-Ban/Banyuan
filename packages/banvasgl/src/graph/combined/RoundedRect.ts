@@ -6,6 +6,7 @@ import Line from "@/graph/analytic/Line";
 import Arc from "@/graph/analytic/Arc";
 import type { IRoundedRect } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import { generateId } from "@/foundation/utils";
 
 /**
@@ -394,14 +395,14 @@ export default class RoundedRect
    * 直接使用 Canvas API 绘制圆角矩形路径，比逐段子图形渲染更精确。
    * 应用样式后执行 fill 和 stroke。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    *
    * @example
    * ```ts
    * rr.render(ctx);
    * ```
    */
-  public render(ctx: CanvasRenderingContext2D, style: Style): void {
+  public render(ctx: IDrawingContext, style: Style): void {
     const bounds = this.bounds;
     ctx.save();
     style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
@@ -416,7 +417,7 @@ export default class RoundedRect
   /**
    * 渲染圆角矩形的路径到 Canvas 上下文（不执行 fill/stroke）。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    * @param {Boolean} dependent - 是否依赖外部 `beginPath` 调用；为 `true` 时自动 `beginPath`
    *
    * @example
@@ -425,7 +426,7 @@ export default class RoundedRect
    * ctx.stroke();
    * ```
    */
-  public renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void {
+  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
     dependent && ctx.beginPath();
     this.buildCanvasPath(ctx);
     ctx.closePath();
@@ -661,7 +662,7 @@ export default class RoundedRect
    * 直接用 Canvas API 绘制圆角矩形路径。
    * 比逐段子图形渲染更精确，避免子图形拼接处的微小间隙。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    *
    * @example
    * ```ts
@@ -669,7 +670,7 @@ export default class RoundedRect
    * this.buildCanvasPath(ctx);
    * ```
    */
-  private buildCanvasPath(ctx: CanvasRenderingContext2D): void {
+  private buildCanvasPath(ctx: IDrawingContext): void {
     const { x, y, width: w, height: h } = this;
     const [rtl, rtr, rbr, rbl] = this.radii;
     const PI = Math.PI;

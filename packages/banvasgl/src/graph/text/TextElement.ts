@@ -7,6 +7,7 @@ import Bounds from '@/graph/base/Bounds'
 import { Rectangle } from '@/graph/combined'
 import type { ITextElement, IPrintableTextElement, INonPrintableTextElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import { generateId } from '@/foundation/utils'
 
 /**
@@ -105,12 +106,12 @@ export default abstract class TextElement extends Graph implements ITextElement 
      *
      * @abstract
      * @protected
-     * @param {CanvasRenderingContext2D} [ctx] - Canvas 2D 渲染上下文，用于 measureText
+     * @param {IDrawingContext} [ctx] - Canvas 2D 渲染上下文，用于 measureText
      *
      * @example
      * ```ts
      * // PrintableTextElement 中的实现：
-     * protected calculateActualDimensions(ctx?: CanvasRenderingContext2D): void {
+     * protected calculateActualDimensions(ctx?: IDrawingContext): void {
      *   ctx.font = this.options.fontString;
      *   const metrics = ctx.measureText(this._content);
      *   this.width = metrics.width;
@@ -118,7 +119,7 @@ export default abstract class TextElement extends Graph implements ITextElement 
      * }
      * ```
      */
-    protected abstract calculateActualDimensions(ctx?: CanvasRenderingContext2D): void
+    protected abstract calculateActualDimensions(ctx?: IDrawingContext): void
 
     /**
      * 确保尺寸已测量（延迟测量的执行入口）。
@@ -128,7 +129,7 @@ export default abstract class TextElement extends Graph implements ITextElement 
      * 当 `ctx` 为空时（如 Node.js 后端环境无 canvas），跳过测量并保持 dirty，
      * 等待后续有 ctx 时再执行。
      *
-     * @param {CanvasRenderingContext2D} [ctx] - canvas context，用于 measureText
+     * @param {IDrawingContext} [ctx] - canvas context，用于 measureText
      *
      * @example
      * ```ts
@@ -137,7 +138,7 @@ export default abstract class TextElement extends Graph implements ITextElement 
      * ch._measureDirty; // false
      * ```
      */
-    public ensureMeasured(ctx?: CanvasRenderingContext2D): void {
+    public ensureMeasured(ctx?: IDrawingContext): void {
         if (!this._measureDirty) return
         if (!ctx) return // 无 context 时跳过，保持 dirty，后续渲染时重新触发
         this.calculateActualDimensions(ctx)
@@ -309,7 +310,7 @@ export default abstract class TextElement extends Graph implements ITextElement 
      *
      * 路径按包围盒的四条边绘制，当 `dependent` 为 `true` 时先调用 `ctx.beginPath()`。
      *
-     * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
      * @param {boolean} dependent - 是否开启新路径
      *
      * @example
@@ -318,7 +319,7 @@ export default abstract class TextElement extends Graph implements ITextElement 
      * ctx.stroke(); // 描边包围盒路径
      * ```
      */
-    public renderPath(ctx: CanvasRenderingContext2D, dependent: boolean): void {
+    public renderPath(ctx: IDrawingContext, dependent: boolean): void {
         dependent && ctx.beginPath()
         const bounds = this.bounds
         ctx.moveTo(bounds.x, bounds.y)
@@ -332,14 +333,14 @@ export default abstract class TextElement extends Graph implements ITextElement 
      * 渲染文字元素。由子类实现具体的渲染逻辑。
      *
      * @abstract
-     * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
      *
      * @example
      * ```ts
      * ch.render(ctx); // 绘制文字
      * ```
      */
-    public abstract render(ctx: CanvasRenderingContext2D, style: Style): void
+    public abstract render(ctx: IDrawingContext, style: Style): void
 
     /**
      * 判断给定点是否在曲线上。文字元素不支持曲线判定，始终返回 `false`。
@@ -613,7 +614,7 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
      * 必须传入有效的 Canvas 上下文，否则抛出错误。
      *
      * @protected
-     * @param {CanvasRenderingContext2D} [ctx] - Canvas 2D 渲染上下文，用于 measureText
+     * @param {IDrawingContext} [ctx] - Canvas 2D 渲染上下文，用于 measureText
      * @throws {Error} 当未传入 `ctx` 时抛出错误
      *
      * @example
@@ -623,7 +624,7 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
      * ch.height; // options.size
      * ```
      */
-    protected calculateActualDimensions(ctx?: CanvasRenderingContext2D): void {
+    protected calculateActualDimensions(ctx?: IDrawingContext): void {
         if (!ctx) throw new Error('calculateActualDimensions: 需要传入 ctx')
         ctx.save()
         // 设置字体样式
@@ -701,14 +702,14 @@ export class PrintableTextElement extends TextElement implements IPrintableTextE
      * 使用 `options.color` 作为文字颜色（在应用样式后设置，确保不被覆盖），
      * 然后调用 `ctx.fillText` 在控制点位置绘制字符。
      *
-     * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
      *
      * @example
      * ```ts
      * ch.render(ctx); // 在画布上绘制字符
      * ```
      */
-    public render(ctx: CanvasRenderingContext2D, style: Style): void {
+    public render(ctx: IDrawingContext, style: Style): void {
         ctx.save()
 
         // 设置字体样式
@@ -1016,7 +1017,7 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
      * `height = 0` 是有意设计，确保布局引擎在重新布局时计算一致。
      *
      * @protected
-     * @param {CanvasRenderingContext2D} [_ctx] - 未使用
+     * @param {IDrawingContext} [_ctx] - 未使用
      *
      * @example
      * ```ts
@@ -1025,7 +1026,7 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
      * guard.height; // 0
      * ```
      */
-    protected calculateActualDimensions(_ctx?: CanvasRenderingContext2D): void {
+    protected calculateActualDimensions(_ctx?: IDrawingContext): void {
         this.width = 2
         this.height = 0
     }
@@ -1059,14 +1060,14 @@ export class NonPrintableTextElement extends TextElement implements INonPrintabl
     /**
      * 渲染文字元素。不可打印元素不渲染任何内容，方法体为空。
      *
-     * @param {CanvasRenderingContext2D} _ctx - Canvas 2D 渲染上下文（未使用）
+     * @param {IDrawingContext} _ctx - Canvas 2D 渲染上下文（未使用）
      *
      * @example
      * ```ts
      * guard.render(ctx); // 无任何绘制
      * ```
      */
-    public render(_ctx: CanvasRenderingContext2D, _style: Style): void {
+    public render(_ctx: IDrawingContext, _style: Style): void {
         // 不可打印元素不渲染任何内容
     }
 

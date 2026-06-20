@@ -6,6 +6,7 @@ import Line from "@/graph/analytic/Line";
 import { isGraphType } from '@/foundation/guards'
 import type { IPolygon } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import { generateId } from '@/foundation/utils';
 
 /**
@@ -364,14 +365,14 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * 直接使用 Canvas API（moveTo + lineTo）绘制，比逐段子图形渲染更高效。
    * 闭合多边形自动执行 `closePath()`。
    *
-   * @param {CanvasRenderingContext2D} ctx - Canvas 2D 渲染上下文
+   * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
    *
    * @example
    * ```ts
    * polygon.render(ctx);
    * ```
    */
-  public render(ctx: CanvasRenderingContext2D, style: Style): void {
+  public render(ctx: IDrawingContext, style: Style): void {
     if (this.controlPoints.length < 2) {
       return;
     }

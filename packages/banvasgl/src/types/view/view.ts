@@ -48,6 +48,8 @@ export type {
 import type { IAnimationAddon } from "../engine/animation";
 export type { IAnimationAddon } from "../engine/animation";
 
+import type { IDrawingContext } from "../platform/drawing.js";
+
 // ────────────────────────────────────────────
 //  IFieldSchema —— data 的字段定义
 // ────────────────────────────────────────────
@@ -244,9 +246,9 @@ export interface IView {
   style: IViewStyle;
 
   // 布局与渲染
-  layoutContent(ctx?: CanvasRenderingContext2D): Bounds;
-  renderContent(ctx: CanvasRenderingContext2D): void;
-  layout(ctx?: CanvasRenderingContext2D): Bounds;
+  layoutContent(ctx?: IDrawingContext): Bounds;
+  renderContent(ctx: IDrawingContext): void;
+  layout(ctx?: IDrawingContext): Bounds;
   render(): void;
   copy(): IView;
 

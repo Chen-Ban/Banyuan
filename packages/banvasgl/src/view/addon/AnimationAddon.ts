@@ -19,6 +19,7 @@ import type {
 import type { IView } from '@/types/view/view'
 import type { ExtraData } from '@/types/view/interaction'
 import type View from '@/view/View/View'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 
 /**
  * AnimationAddon —— 动画能力插件
@@ -50,12 +51,12 @@ export default class AnimationAddon implements IAnimationAddon {
   readonly priority = 0
 
   /** 动画插件不参与渲染管线（由 AnimationManager 每帧 tick 驱动） */
-  render(_ctx: CanvasRenderingContext2D): void {
+  render(_ctx: IDrawingContext): void {
     // noop
   }
 
   /** 动画插件不参与交互管线 */
-  interact(_p: Point3, _bufferCtx?: CanvasRenderingContext2D): ExtraData | null {
+  interact(_p: Point3, _bufferCtx?: IDrawingContext): ExtraData | null {
     return null
   }
 

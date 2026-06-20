@@ -24,7 +24,8 @@ import type { IContainerView, IFieldSchemaMap, IContainerViewOptions, IInteractR
 import { Rectangle } from '@/graph/combined/Polygon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
 import type Matrix4 from '@/foundation/math/Matrix4.js'
-import type { CanvasContext } from '@/engine/renderer/CanvasContext'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { ICanvasHost } from "@/types/platform/host.js";
 import { Point3, Vector3 } from '@/foundation/math/index.js'
 
 export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSchemaMap>
@@ -88,7 +89,7 @@ export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSc
      * 执行实际布局：布局内容 + 布局子容器 → 设置 layoutArea。
      * override 基类的 performLayout，将子节点联合包围盒纳入 layoutArea 计算。
      */
-    protected override performLayout(ctx?: CanvasRenderingContext2D): void {
+    protected override performLayout(ctx?: IDrawingContext): void {
         const contentBounds = this.layoutContent(ctx)
         const childrenBounds = this.measureChildren()
         this.layoutArea = Bounds.union(this.viewport, contentBounds, childrenBounds)
@@ -157,8 +158,8 @@ export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSc
      * 由基类 renderToOffScreen 在 scroll translate 上下文中调用。
      */
     protected override renderChildren(
-        canvasContext: CanvasContext,
-        _offscreenCtx: CanvasRenderingContext2D,
+        canvasContext: ICanvasHost,
+        _offscreenCtx: IDrawingContext,
     ): void {
         this._children.forEach((view) => {
             if (!view.visible) return
@@ -176,7 +177,7 @@ export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSc
      * @param scrolledPoint 已补偿 scroll 偏移的本地坐标点
      * @param bufferCtx 用于命中检测的离屏上下文
      */
-    protected override interactChildren(scrolledPoint: Point3, bufferCtx: CanvasRenderingContext2D): IInteractResult {
+    protected override interactChildren(scrolledPoint: Point3, bufferCtx: IDrawingContext): IInteractResult {
         // 将 scrolledPoint 转回世界坐标传给子视图
         const adjustedWorldPoint = this.getMVPMatrix().multiply(scrolledPoint)
         let best: IInteractResult = { view: null, content: null, extraData: null }

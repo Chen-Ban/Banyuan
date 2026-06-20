@@ -6,7 +6,6 @@ const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 export default defineConfig({
   entry: {
     index: "src/index.ts",
-    react: "src/hook/index.ts",
     "flow/client": "src/foundation/flow/presets/client.ts",
     "flow/server": "src/foundation/flow/presets/server.ts",
   },
@@ -17,10 +16,7 @@ export default defineConfig({
   },
   splitting: true,
   clean: true,
-  external: ["react"],
-  esbuildOptions(options) {
-    options.jsx = "automatic";
-  },
+  external: [],
   define: {
     __BANVASGL_VERSION__: JSON.stringify(pkg.version),
   },

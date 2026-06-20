@@ -6,6 +6,7 @@ import { Point3 } from "@/foundation/math";
 import { Color, FillStyle, StrokeStyle, Style } from "@/foundation/style";
 import type { ISelectBoxView } from '@/types/view/view'
 import type { ISelectBoxViewOptions } from '@/types/view/view'
+import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
 /**
  * 框选视图 - 专门用于矩形框选操作
  * 继承自 GraphView，但具有特殊的类型标识，不参与交互
@@ -37,7 +38,7 @@ export default class SelectBoxView extends GraphView implements ISelectBoxView {
   /**
    * 重写渲染内容，使用 SelectBox 专用样式
    */
-  public override renderContent(ctx: CanvasRenderingContext2D): void {
+  public override renderContent(ctx: IDrawingContext): void {
     this.content?.render(ctx, SELECTION_STYLE);
   }
 

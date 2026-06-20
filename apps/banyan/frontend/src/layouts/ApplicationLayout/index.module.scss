@@ -74,6 +74,14 @@
   }
 }
 
+// 占位槽：与 devicePicker 等宽，非编辑态保持布局不抖动
+.devicePickerSlot {
+  display: inline-flex;
+  width: 140px; // 与 devicePicker 自然宽度一致
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
 .deviceLabel {
   font-size: 12px;
   line-height: 1;

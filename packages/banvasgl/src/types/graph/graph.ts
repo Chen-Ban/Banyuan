@@ -19,6 +19,7 @@ import type Style from '@/foundation/style/Style'
 import type TextOptions from '@/graph/text/TextOptions'
 import type ParagraphOptions from '@/graph/text/ParagraphOptions'
 import type TextFieldsOptions from '@/graph/text/TextFieldsOptions'
+import type { IDrawingContext, IDrawingImageSource, IDrawingImageData } from '@/types/platform/drawing.js'
 
 // ────────────────────────────────────────────
 //  基础接口
@@ -31,15 +32,15 @@ export interface IGraph {
     controlPoints: Point3[] | Float32Array
     bounds: Bounds
     // 渲染
-    renderPath(ctx: CanvasRenderingContext2D, dependent: Boolean): void
-    render(ctx: CanvasRenderingContext2D, style: Style): void
+    renderPath(ctx: IDrawingContext, dependent: Boolean): void
+    render(ctx: IDrawingContext, style: Style): void
     copy(): IGraph
     updateBounds(): Bounds
-    layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): IGraph | void
+    layout(constraintBounds?: Bounds, measureCtx?: IDrawingContext): IGraph | void
 
     // 几何查询
     isClosed(): boolean
-    isPointInPath(p: Point3, bufferCtx?: CanvasRenderingContext2D | null): Boolean
+    isPointInPath(p: Point3, bufferCtx?: IDrawingContext | null): Boolean
     getPointAt(t: number): Point3
     getTangentAt(t: number): Vector3
     getNormalAt(t: number): Vector3
@@ -263,19 +264,19 @@ export interface IMediaElement extends IGraph {
 
     setPosition(x: number, y: number): IMediaElement
     setSize(width: number, height: number): IMediaElement
-    getImageData(): ImageData | null
+    getImageData(): IDrawingImageData | null
 }
 
 /** ImageElement 接口 */
 export interface IImageElement extends IMediaElement {
-    image: HTMLImageElement | null
+    image: IDrawingImageSource | null
 
     setImageSrc(src: string): IImageElement
 }
 
 /** VideoElement 接口 */
 export interface IVideoElement extends IMediaElement {
-    video: HTMLVideoElement | null
+    video: unknown
     autoplay: boolean
     loop: boolean
     muted: boolean
@@ -363,8 +364,8 @@ export interface ITextFields extends IGraph {
     clearParagraphs(): ITextFields
     getParagraph(index: number): ITextParagraph | undefined
     getTextOptionsByIndex(textIndex: TextIndex): TextOptions
-    layout(constraintBounds?: Bounds, measureCtx?: CanvasRenderingContext2D): ITextFields
-    point2TextElement(relativePoint: Point3, bufferCtx?: CanvasRenderingContext2D | null): ITextElement | null
+    layout(constraintBounds?: Bounds, measureCtx?: IDrawingContext): ITextFields
+    point2TextElement(relativePoint: Point3, bufferCtx?: IDrawingContext | null): ITextElement | null
     element2Index(
         textElement: ITextElement,
         relativePoint: Point3
