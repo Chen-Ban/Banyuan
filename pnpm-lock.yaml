@@ -148,6 +148,9 @@ importers:
       '@banyuan/banvasgl':
         specifier: workspace:*
         version: link:../../../packages/banvasgl
+      '@banyuan/banvasgl-react':
+        specifier: workspace:*
+        version: link:../../../packages/banvasgl-react
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
@@ -639,16 +642,10 @@ importers:
 
   packages/banvasgl:
     dependencies:
-      react:
-        specifier: '>=18.0.0'
-        version: 19.2.6
       uuid:
         specifier: ^11.1.0
         version: 11.1.1
     devDependencies:
-      '@types/react':
-        specifier: ^19.0.0
-        version: 19.2.14
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0

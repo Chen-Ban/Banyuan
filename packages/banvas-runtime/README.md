@@ -1,8 +1,8 @@
-# @banyuan/banvas-runtime
+# @banyuan/banvas-react-runtime
 
 > 机制由引擎提供，策略由运行时注入。
 
-`@banyuan/banvas-runtime` 是 Banyuan 的**运行策略层**。它构建在 [`@banyuan/banvasgl`](../banvasgl/README.md) 之上，把「高层交互策略」从图形引擎里分离出来——引擎只提供原子事件机制，运行时负责把这些原子事件识别成点击、拖拽等有语义的交互，并适配到具体宿主环境（Web / Electron）。
+`@banyuan/banvas-react-runtime` 是 Banyuan 的**运行策略层**（原 `@banyuan/banvas-runtime`）。它构建在 [`@banyuan/banvasgl-react`](../banvasgl-react/README.md) 之上，把「高层交互策略」从图形引擎里分离出来——引擎只提供原子事件机制，运行时负责把这些原子事件识别成点击、拖拽等有语义的交互，并适配到具体宿主环境（Web / Electron）。
 
 这个包会随构建产物进入用户最终部署的 ECS 应用，因此它的职责是保证**设计态与运行态的交互行为完全一致**。它不进入 Banyan 编辑器自身的交互逻辑。
 
@@ -13,7 +13,7 @@
 BanvasGL 作为运行时，遵循「机制与策略分离」原则（见 [ADR engine/architecture A0](../../docs/adr/README.md)）：
 
 - **机制（BanvasGL 提供）**：原子事件（pointerdown/move/up 等）、几何变换、命中测试、FlowSchema 执行。
-- **策略（banvas-runtime 提供）**：把原子事件序列识别成 `click` / `dragstart` / `drag` / `dragend` 等高层交互，并映射到 View 的 `events` 事件键，最终触发对应 FlowSchema。
+- **策略（banvas-react-runtime 提供）**：把原子事件序列识别成 `click` / `dragstart` / `drag` / `dragend` 等高层交互，并映射到 View 的 `events` 事件键，最终触发对应 FlowSchema。
 
 把策略层独立出来，使得引擎核心保持纯净、可测试，而交互策略可以按宿主环境、按业务需要灵活替换或扩展。
 
@@ -56,19 +56,20 @@ BanvasGL 作为运行时，遵循「机制与策略分离」原则（见 [ADR en
 ## 依赖关系
 
 ```
-@banyuan/banvas-runtime ──peerDep──▶ @banyuan/banvasgl
-                        ──peerDep──▶ react (>=18)
+@banyuan/banvas-react-runtime ──peerDep──▶ @banyuan/banvasgl-react
+                              ──peerDep──▶ @banyuan/banvasgl
+                              ──peerDep──▶ react (>=18)
 ```
 
-`@banyuan/banvasgl` 与 `react` 均为 **peerDependency**，由宿主应用提供，避免重复打包与实例不一致。
+`@banyuan/banvasgl-react`、`@banyuan/banvasgl` 与 `react` 均为 **peerDependency**，由宿主应用提供，避免重复打包与实例不一致。banvas-react-runtime 通过 banvasgl-react 获取 Web 平台适配器与 React Hook，而非直接依赖 banvasgl 的 React 集成（原 `/react` 子路径已移除）。
 
 ---
 
 ## 构建
 
 ```bash
-pnpm --filter @banyuan/banvas-runtime build   # tsup，ESM + CJS 双出
-pnpm --filter @banyuan/banvas-runtime dev     # watch 模式
+pnpm --filter @banyuan/banvas-react-runtime build   # tsup，ESM + CJS 双出
+pnpm --filter @banyuan/banvas-react-runtime dev     # watch 模式
 ```
 
 入口统一从 `src/index.ts` 导出，单一公共导出路径 `.`。
