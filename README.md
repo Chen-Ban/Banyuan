@@ -56,10 +56,17 @@ Banyuan 是一个 pnpm monorepo，由引擎层和应用层组成：
 │                                                                                    │
 │   ┌─────────────────────┐ ┌─────────────────────┐ ┌──────────────┐ ┌────────────┐ │
 │   │ @banyuan/banvasgl   │ │ @banyuan/           │ │ @banyuan/    │ │ @banyuan/  │ │
-│   │ 图形运行时(含流程)  │ │ banvas-runtime      │ │ xiangdi-agent│ │ deploy-    │ │
-│   │ 机制层               │ │ 运行策略层           │ │ AI Agent 引擎 │ │ agent      │ │
-│   └─────────────────────┘ └─────────────────────┘ └──────────────┘ │ ECS 部署   │ │
-│                                                                     └────────────┘ │
+│   │ 图形运行时(含流程)  │ │ banvasgl-react      │ │ xiangdi-agent│ │ deploy-    │ │
+│   │ 平台无关核心         │ │ Web 平台注入+React  │ │ AI Agent 引擎 │ │ agent      │ │
+│   └─────────┬───────────┘ └──────────┬──────────┘ └──────────────┘ │ ECS 部署   │ │
+│             │                        │                               └────────────┘ │
+│             │          ┌─────────────┘                                              │
+│             ▼          ▼                                                            │
+│   ┌─────────────────────┐                                                           │
+│   │ @banyuan/           │                                                           │
+│   │ banvas-react-runtime│                                                           │
+│   │ 运行策略层           │                                                           │
+│   └─────────────────────┘                                                           │
 └────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -67,13 +74,19 @@ Banyuan 是一个 pnpm monorepo，由引擎层和应用层组成：
 
 Banyuan 的渲染基础。基于 Canvas 2D 双缓冲，自带完整的场景图体系、视图系统、动画系统、事务化撤销/重做，以及内置的声明式流程引擎（FlowRunner）。一份渲染逻辑，浏览器和桌面端行为完全一致。
 
+**平台无关**：核心零 React、零 DOM 依赖，通过 `IDrawingContext` / `IPlatformCanvas` / `ICanvasHost` 三个平台抽象接口实现跨平台。同一套引擎代码可运行在 Web、iOS、Android、Node.js 等多种平台。
+
 流程引擎（Flow）以子路径导出的方式内置于 BanvasGL，前后端共享同一套 FlowSchema 格式，分别预装不同的节点类型——前端负责动画/导航/数据绑定，后端负责数据库操作/HTTP 请求/脚本执行。
 
 作为运行时，BanvasGL 只提供**机制**：原子事件、几何变换、FlowSchema 执行。高层交互策略（手势识别、点击/拖拽语义等）不在引擎内硬编码，而是由运行策略层注入。
 
-### Banvas Runtime —— 运行策略层（`@banyuan/banvas-runtime`）
+### BanvasGL React —— Web 平台注入 + React 集成（`@banyuan/banvasgl-react`）
 
-构建在 BanvasGL 之上的交互策略层。BanvasGL 提供原子事件机制，banvas-runtime 在其上实现高层交互识别（ClickRecognizer / DragRecognizer / InteractionRecognizer）、宿主事件适配（WebEventAdapter）以及 React 集成（`useRuntimeBanvas` / `useRuntimeInteraction`）。这套运行策略会被注入到用户最终部署的 ECS 产物中，保证设计态与运行态行为一致。banvasgl 与 react 均为其 peerDependency。
+BanvasGL 的 Web 平台适配层。提供 `WebDrawingContext`（CanvasRenderingContext2D → IDrawingContext）、`WebPlatformCanvas`（HTMLCanvasElement → IPlatformCanvas）、`CanvasContext`（ICanvasHost 实现）三个 Web 平台注入，以及 `useFixedCanvasInit` / `useAdaptiveCanvasInit` / `useCanvasCamera` / `cameraUtils` 等 React Hook 和坐标转换工具。`@banyuan/banvasgl` 与 `react` 均为其 peerDependency。
+
+### Banvas React Runtime —— 运行策略层（`@banyuan/banvas-react-runtime`，原 `@banyuan/banvas-runtime`）
+
+构建在 BanvasGL React 之上的交互策略层。BanvasGL 提供原子事件机制，banvas-react-runtime 在其上实现高层交互识别（ClickRecognizer / DragRecognizer / InteractionRecognizer）、宿主事件适配（WebEventAdapter）以及 React 集成（`useRuntimeBanvas` / `useRuntimeInteraction`）。这套运行策略会被注入到用户最终部署的 ECS 产物中，保证设计态与运行态行为一致。
 
 ### XiangDi —— AI Agent 引擎（`@banyuan/xiangdi-agent`）
 
@@ -144,8 +157,9 @@ pnpm dev:banyan
 ```
 Banyuan/
 ├── packages/
-│   ├── banvasgl/            # 面向声明式 UI 的 2D 图形运行时（含流程控制）·机制层
-│   ├── banvas-runtime/      # 运行策略层（交互识别 + 宿主适配 + React 集成）
+│   ├── banvasgl/            # 面向声明式 UI 的 2D 图形运行时（含流程控制）· 平台无关核心
+│   ├── banvasgl-react/      # Web 平台注入 + React Hook 集成层
+│   ├── banvas-runtime/      # 运行策略层（交互识别 + 宿主适配 + React 集成）→ banvas-react-runtime
 │   ├── xiangdi-agent/       # AI Agent 引擎（LangGraph 编排）
 │   └── deploy-agent/        # ECS 部署代理（WebSocket + Docker + Nginx）
 ├── apps/
@@ -164,7 +178,7 @@ Banyuan/
 
 ## 设计哲学
 
-**渲染层与宿主解耦**：Canvas 2D 在浏览器、Electron、未来的移动端行为一致，自研引擎换来跨平台路径清晰。
+**渲染层与宿主解耦**：通过 `IDrawingContext` / `IPlatformCanvas` / `ICanvasHost` 平台抽象接口，Canvas 2D 在浏览器、Electron、未来的移动端行为一致，自研引擎换来跨平台路径清晰。
 
 **流程与渲染是同一层抽象**：每个视图对象天然绑定事件处理和生命周期流程（FlowSchema），渲染和交互逻辑内聚在同一层。
 
@@ -178,8 +192,9 @@ Banyuan/
 
 | 文档 | 说明 |
 |------|------|
-| [BanvasGL](./packages/banvasgl/README.md) | 面向声明式 UI 的 2D 图形运行时（含流程控制）·机制层 |
-| [Banvas Runtime](./packages/banvas-runtime/README.md) | 运行策略层（交互识别 + 宿主适配 + React 集成） |
+| [BanvasGL](./packages/banvasgl/README.md) | 面向声明式 UI 的 2D 图形运行时（含流程控制）· 平台无关核心 |
+| [BanvasGL React](./packages/banvasgl-react/README.md) | Web 平台注入 + React Hook 集成层 |
+| [Banvas React Runtime](./packages/banvas-runtime/README.md) | 运行策略层（交互识别 + 宿主适配 + React 集成） |
 | [XiangDi Agent](./packages/xiangdi-agent/README.md) | AI Agent 引擎（LangGraph 编排） |
 | [Deploy Agent](./packages/deploy-agent/README.md) | ECS 部署代理（WebSocket + Docker + Nginx） |
 | [Banyan](./apps/banyan/README.md) | 低代码平台（前端 + 后端 + 桌面） |
