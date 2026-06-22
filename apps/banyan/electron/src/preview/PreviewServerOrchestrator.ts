@@ -18,6 +18,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { existsSync } from 'fs';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { spawn, type ChildProcess } from 'child_process';
 import { scaffoldServer, type ScaffoldServerOptions, type CollectionDef, type CloudFunctionDef } from '@banyuan/deploy-agent';
 
@@ -72,6 +73,9 @@ const LOCAL_MONGO_URI = process.env.PREVIEW_MONGO_URI || 'mongodb://localhost:27
 /** 临时目录前缀 */
 const TEMP_DIR_PREFIX = 'banyuan-preview-';
 
+/** Monorepo 根目录（从 dist/preview/ 往上 4 级） */
+const MONOREPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+
 // ─── 编排器实现 ──────────────────────────────────────────────────────────────
 
 export class PreviewServerOrchestrator {
@@ -122,6 +126,9 @@ export class PreviewServerOrchestrator {
     try {
       // Step 1: scaffold 生成后端工程
       await this.scaffold(instance, input);
+
+      // Step 1.5: 将 @banyuan/* 依赖替换为本地 file: 协议（npm 未发布）
+      await this.patchPackageJson(instance.serverDir);
 
       // Step 2: npm install
       await this.install(instance);
@@ -236,6 +243,28 @@ export class PreviewServerOrchestrator {
     };
 
     await scaffoldServer(options);
+  }
+
+  /**
+   * 将 package.json 中的 @banyuan/* 依赖从 "latest" 替换为本地 file: 协议路径。
+   * 预览态下 @banyuan 包未发布到 npm registry，需要直接引用 monorepo 中的本地包。
+   */
+  private async patchPackageJson(serverDir: string): Promise<void> {
+    const pkgPath = path.join(serverDir, 'package.json');
+    const raw = await fs.readFile(pkgPath, 'utf-8');
+    const pkg = JSON.parse(raw);
+
+    if (pkg.dependencies) {
+      for (const [name, version] of Object.entries(pkg.dependencies)) {
+        if (name.startsWith('@banyuan/')) {
+          const pkgDir = name.slice('@banyuan/'.length);
+          const absPath = path.join(MONOREPO_ROOT, 'packages', pkgDir);
+          pkg.dependencies[name] = pathToFileURL(absPath).toString();
+        }
+      }
+    }
+
+    await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2), 'utf-8');
   }
 
   private async install(instance: PreviewServerInstance): Promise<void> {
