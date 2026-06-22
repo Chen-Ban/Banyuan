@@ -66,14 +66,8 @@ function buildFrontendCap(app: App): FrontendCapProxy {
         view.setVisible(visible);
       }
     },
-    playAnimation: (viewId, animationId) => {
-      const scene = app.getCurrentScene();
-      if (!scene) return;
-      const view = scene.findViewById(viewId);
-      if (view?.animation) {
-        // 触发视图上已注册的动画（animationId 对应 KeyframeDefinition name）
-        view.animation.animate({ name: animationId, keyframes: [] }, { duration: 300 });
-      }
+    playAnimation: (_viewId, _animationId) => {
+      // TODO: 动画系统成熟后由 AnimationManager 按名称触发已注册动画
     },
   };
 }

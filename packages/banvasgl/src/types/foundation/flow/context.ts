@@ -18,8 +18,8 @@ import type { ExecutorRegistry } from './executor.js'
 /** 能力代理基类——两端通用 */
 interface CapBase {
   httpClient: {
-    request(method: string, url: string, headers?: object, body?: unknown): Promise<{
-      status: number; body: unknown; headers: object
+    request(method: string, url: string, headers?: Record<string, string>, body?: string | object): Promise<{
+      status: number; body: unknown; headers: Record<string, string>
     }>
   }
 }
