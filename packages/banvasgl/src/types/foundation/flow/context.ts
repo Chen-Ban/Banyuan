@@ -27,7 +27,7 @@ interface CapBase {
 /** 前端能力代理 */
 export interface FrontendCapProxy extends CapBase {
   navigate(target: string, params?: Record<string, unknown>): Promise<void>
-  setViewData(viewId: string, key: string, value: unknown): void
+  setViewData(viewId: string, key: string, value: string | number | boolean | object): void
   setViewVisible(viewId: string, visible: boolean): void
   playAnimation(viewId: string, animationId: string): void
 }
