@@ -110,8 +110,11 @@ export function useFixedCanvasInit(
   const heightRef = useRef(height);
   heightRef.current = height;
 
-  // ── 共享底座 ──
-  const coreOptions: UseCanvasCoreOptions = { appOptions, rendererOptions, textInput };
+  // ── 共享底座（options 由调用方保证引用稳定） ──
+  const coreOptions: UseCanvasCoreOptions = useMemo(
+    () => ({ appOptions, rendererOptions, textInput }),
+    [appOptions, rendererOptions, textInput],
+  );
   const {
     actions,
     app,

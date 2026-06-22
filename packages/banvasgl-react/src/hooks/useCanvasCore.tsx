@@ -122,10 +122,6 @@ export function useCanvasCore(
   const [app, setApp] = useState<App | null>(null);
   const [actions, setActions] = useState<IBanvasActions | null>(null);
 
-  // ref 持有最新的 options，供 Effect 内部读取但不作为依赖
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
-
   // ── textInput ──
   const textInputEnabled = options.textInput ?? false;
   const internalInputRef = useRef<HTMLInputElement | null>(null);
@@ -158,18 +154,17 @@ export function useCanvasCore(
   }, []);
 
   // Effect 1: App 初始化 + Actions 创建
-  // 只在 canvas DOM 节点挂载/卸载时执行。
-  // dpr/options 变化不需要销毁重建 App——dpr 走 handleResize，options 是一次性初始化配置。
+  // canvasNode 挂载/卸载 或 options 变化时重建 App。
+  // 调用方（useFixedCanvasInit / useAdaptiveCanvasInit）通过 useMemo 保证 options 引用稳定。
   useEffect(() => {
     if (!canvasNode) return;
 
-    const opts = optionsRef.current;
-    const appOpts = { flowEnabled: false, ...(opts.appOptions ?? {}) } as IAppOptions;
+    const appOpts = { flowEnabled: false, ...(options.appOptions ?? {}) } as IAppOptions;
     const _app = App.create(
-      new WebPlatformCanvas(canvasNode, opts.rendererOptions),
+      new WebPlatformCanvas(canvasNode, options.rendererOptions),
       appOpts,
       {
-        ...opts.rendererOptions,
+        ...options.rendererOptions,
         dpr: dprRef.current,
       },
     );
@@ -185,7 +180,7 @@ export function useCanvasCore(
       setApp(null);
       setActions(null);
     };
-  }, [canvasNode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canvasNode, options]);
 
   // ── version 订阅驱动重渲染 ──
   const subscribe = useCallback(
