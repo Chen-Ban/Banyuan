@@ -1,6 +1,6 @@
 import Router from '@koa/router'
 import applicationRoutes from './applications.js'
-import aiRoutes from './ai.js'
+import aiRoutes, { publicAiRouter } from './ai.js'
 import conversationRoutes from './conversations.js'
 import buildRouter from './build.js'
 import previewRouter from './preview.js'
@@ -29,6 +29,9 @@ router.get('/health', async (ctx) => {
 
 // 预览 GET（无需认证，供 iframe / 浏览器直接访问）
 router.use(previewRouter.routes(), previewRouter.allowedMethods())
+
+// AI 模型查询 / 切换（无需认证，前端登录页需要展示可选模型）
+router.use(publicAiRouter.routes(), publicAiRouter.allowedMethods())
 
 // 内部 API（供 XiangDi 服务回调，使用 X-Internal-Token 鉴权，不走 JWT）
 router.use(internalRouter.routes(), internalRouter.allowedMethods())

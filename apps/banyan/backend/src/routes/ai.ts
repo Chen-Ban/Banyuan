@@ -2,13 +2,20 @@ import Router from '@koa/router'
 import aiController from '../controllers/AiController.js'
 import { appOwnership } from '../middleware/appOwnership.js'
 
-const router = new Router({ prefix: '/api/ai' })
+/**
+ * 无需认证的公开 AI 路由（模型列表 / 模型切换）
+ */
+export const publicAiRouter = new Router({ prefix: '/api/ai' })
 
 // GET  /api/ai/models         — 查询可用 LLM provider 及当前激活状态
-router.get('/models', aiController.getModels.bind(aiController))
+publicAiRouter.get('/models', aiController.getModels.bind(aiController))
 
 // POST /api/ai/models/switch  — 切换激活的 LLM provider
-router.post('/models/switch', aiController.switchModel.bind(aiController))
+publicAiRouter.post('/models/switch', aiController.switchModel.bind(aiController))
+
+// ─── 以下路由需要应用所有权认证 ─────────────────────────────────────────────
+
+const router = new Router({ prefix: '/api/ai' })
 
 // GET  /api/ai/:appId/status  — 查询应用当前 AI 执行状态
 router.get('/:appId/status', appOwnership, aiController.getStatus.bind(aiController))
