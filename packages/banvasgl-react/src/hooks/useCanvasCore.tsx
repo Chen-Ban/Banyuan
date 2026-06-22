@@ -29,7 +29,6 @@ import type { IAppOptions } from "@banyuan/banvasgl";
 import type { IRendererOptions } from "@banyuan/banvasgl";
 import type { FrontendCapProxy } from "@banyuan/banvasgl";
 import { WebPlatformCanvas } from "../platform/WebPlatformCanvas.js";
-import { useBOMProperties } from "./useBOMProperties.js";
 
 // ── 构建前端能力代理（闭包捕获 App 实例，供 FlowRunner 调用） ──
 function buildFrontendCap(app: App): FrontendCapProxy {
@@ -76,7 +75,7 @@ function buildFrontendCap(app: App): FrontendCapProxy {
 
 export interface UseCanvasCoreOptions {
   appOptions?: Partial<IAppOptions>;
-  rendererOptions?: Omit<IRendererOptions, "dpr">;
+  rendererOptions?: IRendererOptions;
   /** 是否启用文本输入（隐藏的 input 元素） */
   textInput?: boolean;
 }
@@ -116,7 +115,6 @@ export interface UseCanvasCoreResult {
 export function useCanvasCore(
   options: UseCanvasCoreOptions,
 ): UseCanvasCoreResult {
-  const { dprRef } = useBOMProperties();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [canvasNode, setCanvasNode] = useState<HTMLCanvasElement | null>(null);
   const [app, setApp] = useState<App | null>(null);
@@ -163,10 +161,7 @@ export function useCanvasCore(
     const _app = App.create(
       new WebPlatformCanvas(canvasNode, options.rendererOptions),
       appOpts,
-      {
-        ...options.rendererOptions,
-        dpr: dprRef.current,
-      },
+      options.rendererOptions,
     );
     _app.launch({});
     setApp(_app);

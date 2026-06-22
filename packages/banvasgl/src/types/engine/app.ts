@@ -140,7 +140,7 @@ export interface IApp {
 
     // 设计尺寸
     getDesignSize(): { width: number; height: number }
-    setDesignSize(width: number, height: number, dpr?: number): IApp
+    setDesignSize(width: number, height: number): IApp
 
     // 销毁
     destroy(): IApp

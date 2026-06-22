@@ -128,10 +128,11 @@ export function useAdaptiveCanvasInit(
   }, [app, appJSON, actions]);
 
   // ── Effect 3: 容器 resize / DPR 变化时同步 ──
-  // 自适应模式：更新 canvas 物理像素 + camera bounds
+  // 自适应模式：更新 canvas 尺寸 + camera bounds
   useEffect(() => {
     if (!app || containerSize.width <= 0 || containerSize.height <= 0) return;
-    syncCameraToContainer(containerSize.width, containerSize.height, dpr);
+    app.renderer.setDPR(dpr);
+    syncCameraToContainer(containerSize.width, containerSize.height);
   }, [app, containerSize, dpr, syncCameraToContainer]);
 
   // ── 派生：selectedViewPos ──

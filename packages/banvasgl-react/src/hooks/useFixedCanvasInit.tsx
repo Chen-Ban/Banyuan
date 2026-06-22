@@ -141,7 +141,8 @@ export function useFixedCanvasInit(
       app.initFromSerialized(appJSON);
       // 反序列化的 camera 可能来自不同 designSize，需同步
       const { width: dw, height: dh } = app.getDesignSize();
-      app.handleResize(dw * dprRef.current, dh * dprRef.current, dprRef.current);
+      app.renderer.setDPR(dprRef.current);
+      app.handleResize(dw, dh);
       const scene = app.getCurrentScene();
       if (scene && scene.camera instanceof OrthographicCamera) {
         scene.camera.setBounds(0, dw, dh, 0);
@@ -166,7 +167,8 @@ export function useFixedCanvasInit(
       const scene = new Scene(camera);
       app.addScene(scene);
       app.navigateTo(scene);
-      app.setDesignSize(w, h, dprRef.current);
+      app.renderer.setDPR(dprRef.current);
+      app.setDesignSize(w, h);
     }
   }, [app, appJSON, actions]);
 
@@ -176,7 +178,8 @@ export function useFixedCanvasInit(
     if (!app || containerSize.width <= 0 || containerSize.height <= 0) return;
 
     const { width: dw, height: dh } = app.getDesignSize();
-    app.handleResize(dw * dpr, dh * dpr, dpr);
+    app.renderer.setDPR(dpr);
+    app.handleResize(dw, dh);
     const scene = app.getCurrentScene();
     if (scene) scene.markDirty();
   }, [app, containerSize, dpr, version]); // version: designSize 变更后重新同步

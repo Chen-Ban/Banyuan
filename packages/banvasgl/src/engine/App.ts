@@ -666,13 +666,10 @@ export class App implements ISerializable {
     return this;
   }
 
-  // 调整画布物理像素尺寸，并可选更新渲染 DPR
-  // 引擎只关心虚拟尺寸（物理像素），CSS 样式尺寸由外层控制
-  public handleResize(width: number, height: number, dpr?: number): App {
+  // 调整画布尺寸（逻辑像素，渲染器内部乘以 dpr）
+  // 引擎只关心逻辑尺寸，CSS 样式尺寸由外层控制
+  public handleResize(width: number, height: number): App {
     this.renderer.resize(width, height);
-    if (dpr !== undefined) {
-      this.renderer.setDPR(dpr);
-    }
     return this;
   }
 
@@ -688,17 +685,12 @@ export class App implements ISerializable {
    *
    * @param width  目标设备逻辑宽度（px）
    * @param height 目标设备逻辑高度（px）
-   * @param dpr    设备像素比（可选，默认不变）
    */
-  public setDesignSize(width: number, height: number, dpr?: number): App {
+  public setDesignSize(width: number, height: number): App {
     this._designSize = { width, height };
 
-    // 同步 canvas 物理像素
-    const effectiveDpr = dpr ?? this.renderer.getDPR();
-    this.renderer.resize(width * effectiveDpr, height * effectiveDpr);
-    if (dpr !== undefined) {
-      this.renderer.setDPR(dpr);
-    }
+    // 同步 canvas 物理像素（renderer 内部乘以 dpr）
+    this.renderer.resize(width, height);
 
     // 同步当前 Scene 的 Camera bounds
     const scene = this.getCurrentScene();

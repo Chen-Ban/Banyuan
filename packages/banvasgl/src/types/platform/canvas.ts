@@ -17,7 +17,6 @@ export interface IPlatformCanvasOptions {
   enableImageSmoothing?: boolean;
   backgroundColor?: string;
   clearColor?: string;
-  dpr?: number;
 }
 
 /** 平台画布注入接口 */

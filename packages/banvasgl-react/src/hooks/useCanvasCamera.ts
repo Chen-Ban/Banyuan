@@ -27,7 +27,7 @@ export interface UseCanvasCameraOptions {
 
 export interface UseCanvasCameraResult {
   /** 更新相机视口以匹配容器尺寸（resize 时调用） */
-  syncCameraToContainer: (containerWidth: number, containerHeight: number, dpr: number) => void;
+  syncCameraToContainer: (containerWidth: number, containerHeight: number) => void;
 }
 
 export function useCanvasCamera({
@@ -114,7 +114,7 @@ export function useCanvasCamera({
 
   // ── 容器 resize 时同步 camera bounds ──
   const syncCameraToContainer = useCallback(
-    (containerWidth: number, containerHeight: number, dpr: number) => {
+    (containerWidth: number, containerHeight: number) => {
       if (!app) return;
       const scene = app.getCurrentScene();
       if (!scene) return;
@@ -124,8 +124,8 @@ export function useCanvasCamera({
         return;
       }
 
-      // 更新 canvas 物理像素
-      app.handleResize(containerWidth * dpr, containerHeight * dpr, dpr);
+      // 更新 canvas 尺寸（渲染器内部乘以 dpr）
+      app.handleResize(containerWidth, containerHeight);
 
       // 保持当前 zoom level 不变，只调整视口宽高比
       const currentViewportWidth = camera.right - camera.left;
