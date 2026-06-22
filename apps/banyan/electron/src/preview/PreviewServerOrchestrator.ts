@@ -73,8 +73,8 @@ const LOCAL_MONGO_URI = process.env.PREVIEW_MONGO_URI || 'mongodb://localhost:27
 /** 临时目录前缀 */
 const TEMP_DIR_PREFIX = 'banyuan-preview-';
 
-/** Monorepo 根目录（从 dist/preview/ 往上 4 级） */
-const MONOREPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+/** Monorepo 根目录（从 dist/preview/ 往上 5 级：dist → electron → banyan → apps → root） */
+const MONOREPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
 
 // ─── 编排器实现 ──────────────────────────────────────────────────────────────
 
@@ -315,16 +315,22 @@ export class PreviewServerOrchestrator {
       }, 15000);
 
       let stdout = '';
-      const onData = (chunk: Buffer) => {
+      let stderr = '';
+      const onStdout = (chunk: Buffer) => {
         stdout += chunk.toString();
         if (stdout.includes('[Banyuan Server] Running on port')) {
           clearTimeout(timeout);
-          proc.stdout?.off('data', onData);
+          proc.stdout?.off('data', onStdout);
+          proc.stderr?.off('data', onStderr);
           resolve();
         }
       };
+      const onStderr = (chunk: Buffer) => {
+        stderr += chunk.toString();
+      };
 
-      proc.stdout?.on('data', onData);
+      proc.stdout?.on('data', onStdout);
+      proc.stderr?.on('data', onStderr);
 
       proc.on('error', (err) => {
         clearTimeout(timeout);
@@ -334,7 +340,8 @@ export class PreviewServerOrchestrator {
       proc.on('exit', (code) => {
         if (code !== null && code !== 0) {
           clearTimeout(timeout);
-          reject(new Error(`Preview server exited with code ${code}`));
+          const detail = stderr.trim() ? `: ${stderr.trim().slice(0, 500)}` : '';
+          reject(new Error(`Preview server exited with code ${code}${detail}`));
         }
       });
     });
