@@ -116,7 +116,7 @@ export interface UseCanvasCoreResult {
 export function useCanvasCore(
   options: UseCanvasCoreOptions,
 ): UseCanvasCoreResult {
-  const { dpr, dprRef } = useBOMProperties();
+  const { dprRef } = useBOMProperties();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [canvasNode, setCanvasNode] = useState<HTMLCanvasElement | null>(null);
   const [app, setApp] = useState<App | null>(null);
