@@ -6,7 +6,8 @@
   "scripts": {
     "build:banvasgl": "pnpm --filter @banyuan/banvasgl build && pnpm --filter @banyuan/banvasgl-react build && pnpm --filter @banyuan/banvas-react-runtime build",
     "build:agent": "pnpm --filter @banyuan/xiangdi-agent build",
-    "build:libs": "pnpm run build:banvasgl && pnpm run build:agent",
+    "build:deploy": "pnpm --filter @banyuan/deploy-agent build",
+    "build:libs": "pnpm run build:banvasgl && pnpm run build:agent && pnpm run build:deploy",
     "dev:banyan": "pnpm run build:libs && concurrently --kill-others -c \"magenta.bold,gray.bold,#ff9900.bold,#00cc99.bold,cyan.bold\" -n canvas,agent,xiangdi-srv,knowledge-srv,banyan \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter @banyuan/banvasgl-react dev\" \"pnpm --filter @banyuan/xiangdi-agent dev\" \"pnpm --filter xiangdi-server dev\" \"pnpm --filter knowledge-server dev\" \"pnpm --filter banyan dev\"",
     "dev:lunlunglass": "pnpm run build:banvasgl && concurrently --kill-others -c \"magenta.bold,cyan.bold,green.bold\" -n canvas,lunlunglass,react \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter lunlunglass dev\" \"pnpm --filter @banyuan/banvasgl-react dev\"",
     "knowledge:schema": "tsx scripts/knowledge/generate-schema-seeds.ts",
@@ -24,6 +25,7 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "better-sqlite3",
       "canvas",
       "electron",
       "sharp"
