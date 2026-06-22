@@ -20,6 +20,7 @@ import type { IAppOptions } from "@banyuan/banvasgl";
 import type { IRendererOptions } from "@banyuan/banvasgl";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useCanvasCore } from "./useCanvasCore.js";
+import { useBOMProperties } from "./useBOMProperties.js";
 import type { UseCanvasCoreOptions } from "./useCanvasCore.js";
 import { useCanvasCamera } from "./useCanvasCamera.js";
 import type { SelectedViewPos } from "./useFixedCanvasInit.js";
@@ -81,8 +82,6 @@ export function useAdaptiveCanvasInit(
     app,
     canvasNode,
     containerSize,
-    dpr,
-    dprRef: _dprRef, // 自适应模式下 resize 由 syncCameraToContainer 统一处理
     version,
     selectedViewId,
     currentPageId,
@@ -91,6 +90,8 @@ export function useAdaptiveCanvasInit(
     inputElement,
     textInputOverlay,
   } = useCanvasCore(coreOptions);
+
+  const { dpr } = useBOMProperties();
 
   // ── 相机驱动的无限画布交互 ──
   const { syncCameraToContainer } = useCanvasCamera({

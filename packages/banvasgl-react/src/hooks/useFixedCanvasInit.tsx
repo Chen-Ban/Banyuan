@@ -20,6 +20,7 @@ import type { IAppOptions } from "@banyuan/banvasgl";
 import type { IRendererOptions } from "@banyuan/banvasgl";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useCanvasCore } from "./useCanvasCore.js";
+import { useBOMProperties } from "./useBOMProperties.js";
 import type { UseCanvasCoreOptions } from "./useCanvasCore.js";
 
 // ── 公共类型 ──
@@ -116,8 +117,6 @@ export function useFixedCanvasInit(
     app,
     canvasNode,
     containerSize,
-    dpr,
-    dprRef,
     version,
     selectedViewId,
     currentPageId,
@@ -126,6 +125,8 @@ export function useFixedCanvasInit(
     inputElement,
     textInputOverlay,
   } = useCanvasCore(coreOptions);
+
+  const { dpr, dprRef } = useBOMProperties();
 
   // ── Effect 2: appJSON 恢复 / 空应用初始化 ──
   // 固定模式：相机锁定为 App.designSize

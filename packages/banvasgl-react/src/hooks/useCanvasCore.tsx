@@ -90,10 +90,6 @@ export interface UseCanvasCoreResult {
   canvasNode: HTMLCanvasElement | null;
   /** 容器 CSS 尺寸 */
   containerSize: { width: number; height: number };
-  /** 设备像素比 */
-  dpr: number;
-  /** 最新的 dpr 值（ref 形式，供 Effect 内部读取但不作为依赖） */
-  dprRef: React.MutableRefObject<number>;
   /** 画布状态修订号，每次 Scene 变更递增 */
   version: number;
   /** 当前选中视图 ID（空字符串表示未选中） */
@@ -120,17 +116,15 @@ export interface UseCanvasCoreResult {
 export function useCanvasCore(
   options: UseCanvasCoreOptions,
 ): UseCanvasCoreResult {
-  const { dpr } = useBOMProperties();
+  const { dpr, dprRef } = useBOMProperties();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [canvasNode, setCanvasNode] = useState<HTMLCanvasElement | null>(null);
   const [app, setApp] = useState<App | null>(null);
   const [actions, setActions] = useState<IBanvasActions | null>(null);
 
-  // ref 持有最新的 options 和 dpr，供 Effect 内部读取但不作为依赖
+  // ref 持有最新的 options，供 Effect 内部读取但不作为依赖
   const optionsRef = useRef(options);
   optionsRef.current = options;
-  const dprRef = useRef(dpr);
-  dprRef.current = dpr;
 
   // ── textInput ──
   const textInputEnabled = options.textInput ?? false;
@@ -274,8 +268,6 @@ export function useCanvasCore(
     app,
     canvasNode,
     containerSize,
-    dpr,
-    dprRef,
     version,
     selectedViewId,
     currentPageId,
