@@ -29,51 +29,54 @@ import type { IAppOptions } from "@banyuan/banvasgl";
 import type { IRendererOptions } from "@banyuan/banvasgl";
 import type { FrontendCapProxy } from "@banyuan/banvasgl";
 import { WebPlatformCanvas } from "../platform/WebPlatformCanvas.js";
+import { useBOMProperties } from "./useBOMProperties.js";
 
-// ── BOM 属性（内联，避免跨目录依赖） ──
-function useBOMProperties(): { dpr: number } {
-  const [dpr, setDpr] = useState<number>(() =>
-    typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1,
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    let mql: MediaQueryList | null = null;
-
-    const listen = () => {
-      const currentDpr = window.devicePixelRatio ?? 1;
-      setDpr(currentDpr);
-      mql?.removeEventListener("change", listen);
-      mql = window.matchMedia(`(resolution: ${currentDpr}dppx)`);
-      mql.addEventListener("change", listen);
-    };
-
-    listen();
-
-    return () => {
-      mql?.removeEventListener("change", listen);
-    };
-  }, []);
-
-  return { dpr };
+// ── 构建前端能力代理（闭包捕获 App 实例，供 FlowRunner 调用） ──
+function buildFrontendCap(app: App): FrontendCapProxy {
+  return {
+    httpClient: {
+      request: async (method, url, headers, body) => {
+        const resp = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+        return { status: resp.status, body: await resp.json().catch(() => null), headers: Object.fromEntries(resp.headers) };
+      },
+    },
+    navigate: async (target, _params) => {
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+      // 查找目标页面并导航
+      const pages = app.getScenes();
+      const targetScene = pages.find(s => s.id === target);
+      if (targetScene) {
+        app.navigateTo(targetScene);
+      }
+    },
+    setViewData: (viewId, key, value) => {
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+      const view = scene.findViewById(viewId);
+      if (view) {
+        view.setData({ [key]: value });
+      }
+    },
+    setViewVisible: (viewId, visible) => {
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+      const view = scene.findViewById(viewId);
+      if (view) {
+        view.setVisible(visible);
+      }
+    },
+    playAnimation: (viewId, animationId) => {
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+      const view = scene.findViewById(viewId);
+      if (view?.animation) {
+        // 触发视图上已注册的动画（animationId 对应 KeyframeDefinition name）
+        view.animation.animate({ name: animationId, keyframes: [] }, { duration: 300 });
+      }
+    },
+  };
 }
-
-// ── 默认空能力代理（编辑态无需真实 cap 时使用） ──
-const NOOP_CAP: FrontendCapProxy = Object.freeze({
-  httpClient: Object.freeze({
-    request: async () => ({ status: 0, body: null, headers: {} }),
-  }),
-  navigate: async () => {},
-  setViewData: () => {},
-  setViewVisible: () => {},
-  playAnimation: () => {},
-});
-
-const DEFAULT_APP_OPTIONS: IAppOptions = Object.freeze({
-  cap: NOOP_CAP,
-  flowEnabled: false,
-});
 
 // ── 类型 ──
 
@@ -173,7 +176,7 @@ export function useCanvasCore(
     if (!canvasNode) return;
 
     const opts = optionsRef.current;
-    const appOpts = { ...DEFAULT_APP_OPTIONS, ...(opts.appOptions ?? {}) };
+    const appOpts = { flowEnabled: false, ...(opts.appOptions ?? {}) } as IAppOptions;
     const _app = App.create(
       new WebPlatformCanvas(canvasNode, opts.rendererOptions),
       appOpts,
@@ -185,6 +188,9 @@ export function useCanvasCore(
     _app.launch({});
     setApp(_app);
     setActions(createBanvasActions(() => _app));
+
+    // 延迟注入前端能力代理（App 创建后才能构建 cap，因其需要访问 App 实例）
+    _app.initFlowRunner(buildFrontendCap(_app));
 
     return () => {
       _app.destroy();

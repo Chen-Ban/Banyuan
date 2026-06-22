@@ -29,8 +29,8 @@ export class App implements ISerializable {
   public readonly animationManager: AnimationManager =
     AnimationManager.getInstance();
 
-  /** 流程执行器（前端预设，cap 由 AppOptions 注入） */
-  public readonly flowRunner: FlowRunner<FrontendCapProxy>;
+  /** 流程执行器（前端预设，通过 initFlowRunner 延迟注入） */
+  public flowRunner: FlowRunner<FrontendCapProxy> | null = null;
 
   /**
    * 是否允许 FlowSchema 执行。
@@ -102,13 +102,23 @@ export class App implements ISerializable {
     this._enablePageStack = options.enablePageStack !== false;
     this._maxPageStackSize = options.maxPageStackSize || 50;
     this.flowEnabled = options.flowEnabled !== false; // 默认 true
-    this.flowRunner = createClientFlowRunner(options.cap as FrontendCapProxy);
 
     // 初始化 lifetimes（FlowSchema）
     this.lifetimes = {
       onLaunch: options.lifetimes?.onLaunch ?? null,
       onUnlaunch: options.lifetimes?.onUnlaunch ?? null,
     };
+  }
+
+  /**
+   * 延迟注入前端能力代理，创建 FlowRunner。
+   *
+   * App 构造时不依赖 cap（引擎层环境无关），
+   * 由宿主层（如 useCanvasCore）在 App 实例化后调用，
+   * 传入闭包捕获 App 的 FrontendCapProxy。
+   */
+  public initFlowRunner(cap: FrontendCapProxy): void {
+    this.flowRunner = createClientFlowRunner(cap);
   }
 
   // 内置生命周期方法
