@@ -30,56 +30,52 @@ import type { IRendererOptions } from "@banyuan/banvasgl";
 import type { FrontendCapProxy } from "@banyuan/banvasgl";
 import { WebPlatformCanvas } from "../platform/WebPlatformCanvas.js";
 
-// ── BOM 属性（内联，避免跨目录依赖） ──
-function useBOMProperties(): { dpr: number } {
-  const [dpr, setDpr] = useState<number>(() =>
-    typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1,
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    let mql: MediaQueryList | null = null;
-
-    const listen = () => {
-      const currentDpr = window.devicePixelRatio ?? 1;
-      setDpr(currentDpr);
-      mql?.removeEventListener("change", listen);
-      mql = window.matchMedia(`(resolution: ${currentDpr}dppx)`);
-      mql.addEventListener("change", listen);
-    };
-
-    listen();
-
-    return () => {
-      mql?.removeEventListener("change", listen);
-    };
-  }, []);
-
-  return { dpr };
+// ── 构建前端能力代理（闭包捕获 App 实例，供 FlowRunner 调用） ──
+function buildFrontendCap(app: App): FrontendCapProxy {
+  return {
+    httpClient: {
+      request: async (method, url, headers, body) => {
+        const resp = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+        return { status: resp.status, body: await resp.json().catch(() => null), headers: Object.fromEntries(resp.headers) };
+      },
+    },
+    navigate: async (target, _params) => {
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+      // 查找目标页面并导航
+      const pages = app.getScenes();
+      const targetScene = pages.find(s => s.id === target);
+      if (targetScene) {
+        app.navigateTo(targetScene);
+      }
+    },
+    setViewData: (viewId, key, value) => {
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+      const view = scene.findViewById(viewId);
+      if (view) {
+        view.setData({ [key]: value });
+      }
+    },
+    setViewVisible: (viewId, visible) => {
+      const scene = app.getCurrentScene();
+      if (!scene) return;
+      const view = scene.findViewById(viewId);
+      if (view) {
+        view.setVisible(visible);
+      }
+    },
+    playAnimation: (_viewId, _animationId) => {
+      // TODO: 动画系统成熟后由 AnimationManager 按名称触发已注册动画
+    },
+  };
 }
-
-// ── 默认空能力代理（编辑态无需真实 cap 时使用） ──
-const NOOP_CAP: FrontendCapProxy = Object.freeze({
-  httpClient: Object.freeze({
-    request: async () => ({ status: 0, body: null, headers: {} }),
-  }),
-  navigate: async () => {},
-  setViewData: () => {},
-  setViewVisible: () => {},
-  playAnimation: () => {},
-});
-
-const DEFAULT_APP_OPTIONS: IAppOptions = Object.freeze({
-  cap: NOOP_CAP,
-  flowEnabled: false,
-});
 
 // ── 类型 ──
 
 export interface UseCanvasCoreOptions {
   appOptions?: Partial<IAppOptions>;
-  rendererOptions?: Omit<IRendererOptions, "dpr">;
+  rendererOptions?: IRendererOptions;
   /** 是否启用文本输入（隐藏的 input 元素） */
   textInput?: boolean;
 }
@@ -93,10 +89,6 @@ export interface UseCanvasCoreResult {
   canvasNode: HTMLCanvasElement | null;
   /** 容器 CSS 尺寸 */
   containerSize: { width: number; height: number };
-  /** 设备像素比 */
-  dpr: number;
-  /** 最新的 dpr 值（ref 形式，供 Effect 内部读取但不作为依赖） */
-  dprRef: React.MutableRefObject<number>;
   /** 画布状态修订号，每次 Scene 变更递增 */
   version: number;
   /** 当前选中视图 ID（空字符串表示未选中） */
@@ -123,17 +115,10 @@ export interface UseCanvasCoreResult {
 export function useCanvasCore(
   options: UseCanvasCoreOptions,
 ): UseCanvasCoreResult {
-  const { dpr } = useBOMProperties();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [canvasNode, setCanvasNode] = useState<HTMLCanvasElement | null>(null);
   const [app, setApp] = useState<App | null>(null);
   const [actions, setActions] = useState<IBanvasActions | null>(null);
-
-  // ref 持有最新的 options 和 dpr，供 Effect 内部读取但不作为依赖
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
-  const dprRef = useRef(dpr);
-  dprRef.current = dpr;
 
   // ── textInput ──
   const textInputEnabled = options.textInput ?? false;
@@ -167,31 +152,30 @@ export function useCanvasCore(
   }, []);
 
   // Effect 1: App 初始化 + Actions 创建
-  // 只在 canvas DOM 节点挂载/卸载时执行。
-  // dpr/options 变化不需要销毁重建 App——dpr 走 handleResize，options 是一次性初始化配置。
+  // canvasNode 挂载/卸载 或 options 变化时重建 App。
+  // 调用方（useFixedCanvasInit / useAdaptiveCanvasInit）通过 useMemo 保证 options 引用稳定。
   useEffect(() => {
     if (!canvasNode) return;
 
-    const opts = optionsRef.current;
-    const appOpts = { ...DEFAULT_APP_OPTIONS, ...(opts.appOptions ?? {}) };
+    const appOpts = { flowEnabled: false, ...(options.appOptions ?? {}) } as IAppOptions;
     const _app = App.create(
-      new WebPlatformCanvas(canvasNode, opts.rendererOptions),
+      new WebPlatformCanvas(canvasNode, options.rendererOptions),
       appOpts,
-      {
-        ...opts.rendererOptions,
-        dpr: dprRef.current,
-      },
+      options.rendererOptions,
     );
     _app.launch({});
     setApp(_app);
     setActions(createBanvasActions(() => _app));
+
+    // 延迟注入前端能力代理（App 创建后才能构建 cap，因其需要访问 App 实例）
+    _app.initFlowRunner(buildFrontendCap(_app));
 
     return () => {
       _app.destroy();
       setApp(null);
       setActions(null);
     };
-  }, [canvasNode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [canvasNode, options]);
 
   // ── version 订阅驱动重渲染 ──
   const subscribe = useCallback(
@@ -274,8 +258,6 @@ export function useCanvasCore(
     app,
     canvasNode,
     containerSize,
-    dpr,
-    dprRef,
     version,
     selectedViewId,
     currentPageId,

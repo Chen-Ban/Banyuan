@@ -20,6 +20,7 @@ import type { IAppOptions } from "@banyuan/banvasgl";
 import type { IRendererOptions } from "@banyuan/banvasgl";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useCanvasCore } from "./useCanvasCore.js";
+import { useBOMProperties } from "./useBOMProperties.js";
 import type { UseCanvasCoreOptions } from "./useCanvasCore.js";
 
 // ── 公共类型 ──
@@ -109,15 +110,16 @@ export function useFixedCanvasInit(
   const heightRef = useRef(height);
   heightRef.current = height;
 
-  // ── 共享底座 ──
-  const coreOptions: UseCanvasCoreOptions = { appOptions, rendererOptions, textInput };
+  // ── 共享底座（options 由调用方保证引用稳定） ──
+  const coreOptions: UseCanvasCoreOptions = useMemo(
+    () => ({ appOptions, rendererOptions, textInput }),
+    [appOptions, rendererOptions, textInput],
+  );
   const {
     actions,
     app,
     canvasNode,
     containerSize,
-    dpr,
-    dprRef,
     version,
     selectedViewId,
     currentPageId,
@@ -126,6 +128,8 @@ export function useFixedCanvasInit(
     inputElement,
     textInputOverlay,
   } = useCanvasCore(coreOptions);
+
+  const { dpr, dprRef } = useBOMProperties();
 
   // ── Effect 2: appJSON 恢复 / 空应用初始化 ──
   // 固定模式：相机锁定为 App.designSize
@@ -137,7 +141,8 @@ export function useFixedCanvasInit(
       app.initFromSerialized(appJSON);
       // 反序列化的 camera 可能来自不同 designSize，需同步
       const { width: dw, height: dh } = app.getDesignSize();
-      app.handleResize(dw * dprRef.current, dh * dprRef.current, dprRef.current);
+      app.renderer.setDPR(dprRef.current);
+      app.handleResize(dw, dh);
       const scene = app.getCurrentScene();
       if (scene && scene.camera instanceof OrthographicCamera) {
         scene.camera.setBounds(0, dw, dh, 0);
@@ -162,7 +167,8 @@ export function useFixedCanvasInit(
       const scene = new Scene(camera);
       app.addScene(scene);
       app.navigateTo(scene);
-      app.setDesignSize(w, h, dprRef.current);
+      app.renderer.setDPR(dprRef.current);
+      app.setDesignSize(w, h);
     }
   }, [app, appJSON, actions]);
 
@@ -172,7 +178,8 @@ export function useFixedCanvasInit(
     if (!app || containerSize.width <= 0 || containerSize.height <= 0) return;
 
     const { width: dw, height: dh } = app.getDesignSize();
-    app.handleResize(dw * dpr, dh * dpr, dpr);
+    app.renderer.setDPR(dpr);
+    app.handleResize(dw, dh);
     const scene = app.getCurrentScene();
     if (scene) scene.markDirty();
   }, [app, containerSize, dpr, version]); // version: designSize 变更后重新同步

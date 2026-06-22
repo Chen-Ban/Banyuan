@@ -11,9 +11,6 @@ export class Renderer {
   private frameCount: number = 0;
   private fps: number = 0;
 
-  // 设备像素比
-  private dpr: number;
-
   // 每个 Renderer 实例拥有自己的画布宿主（不再依赖全局单例）
   private _canvasHost: ICanvasHost;
 
@@ -26,8 +23,7 @@ export class Renderer {
   private constructor(host: ICanvasHost, platform: IPlatformCanvas | null, options: IRendererOptions = {}) {
     this._canvasHost = host;
     this._platformCanvas = platform;
-    this.dpr = options.dpr ?? (platform?.getDPR() ?? 1);
-    this._canvasHost.setDPR(this.dpr);
+    // dpr 初始值由 platform 注册后 setDPR 设置
   }
 
   /**
@@ -75,7 +71,7 @@ export class Renderer {
           const ctx = host.getMainContext();
           const vpMatrix = scene.camera.viewProjectionMatrix;
           const { width, height } = host.getSize();
-          scene.snapAlign.overlay.render(ctx, vpMatrix, width, height, this.dpr);
+          scene.snapAlign.overlay.render(ctx, vpMatrix, width, height, host.dpr);
         }
       }
 
@@ -106,9 +102,10 @@ export class Renderer {
     }
   }
 
-  // 调整画布物理像素尺寸
-  public resize(width: number, height: number): void {
-    this.canvasHost.resize(width, height);
+  // 调整画布尺寸（逻辑像素，内部乘以 dpr）
+  public resize(logicalWidth: number, logicalHeight: number): void {
+    const dpr = this._canvasHost.dpr;
+    this._canvasHost.resize(logicalWidth * dpr, logicalHeight * dpr);
   }
 
   // 获取画布尺寸
@@ -124,20 +121,16 @@ export class Renderer {
   // 设置渲染选项
   public setOptions(options: Partial<IRendererOptions>): void {
     this.canvasHost.setOptions(options);
-    if (options.dpr !== undefined) {
-      this.dpr = options.dpr;
-    }
   }
 
   // 设置设备像素比
   public setDPR(dpr: number): void {
-    this.dpr = dpr;
     this._canvasHost.setDPR(dpr);
   }
 
   // 获取设备像素比
   public getDPR(): number {
-    return this.dpr;
+    return this._canvasHost.dpr;
   }
 
   // 获取渲染选项

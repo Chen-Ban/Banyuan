@@ -50,7 +50,7 @@ export class WebPlatformCanvas implements IPlatformCanvas {
     this._bufferCtx = bCtx;
     this._bufferDrawing = new WebDrawingContext(bCtx);
 
-    this._dpr = options.dpr ?? 1;
+    this._dpr = typeof window !== "undefined" ? (window.devicePixelRatio ?? 1) : 1;
 
     this._initContexts();
   }
@@ -73,9 +73,9 @@ export class WebPlatformCanvas implements IPlatformCanvas {
     return this._mainCanvas.height;
   }
 
-  resize(width: number, height: number): void {
-    const w = Math.round(width);
-    const h = Math.round(height);
+  resize(logicalWidth: number, logicalHeight: number): void {
+    const w = Math.round(logicalWidth * this._dpr);
+    const h = Math.round(logicalHeight * this._dpr);
     if (this._mainCanvas.width === w && this._mainCanvas.height === h) return;
     this._mainCanvas.width = w;
     this._mainCanvas.height = h;

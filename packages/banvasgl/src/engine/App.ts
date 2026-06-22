@@ -29,8 +29,8 @@ export class App implements ISerializable {
   public readonly animationManager: AnimationManager =
     AnimationManager.getInstance();
 
-  /** 流程执行器（前端预设，cap 由 AppOptions 注入） */
-  public readonly flowRunner: FlowRunner<FrontendCapProxy>;
+  /** 流程执行器（前端预设，通过 initFlowRunner 延迟注入） */
+  public flowRunner: FlowRunner<FrontendCapProxy> | null = null;
 
   /**
    * 是否允许 FlowSchema 执行。
@@ -102,13 +102,23 @@ export class App implements ISerializable {
     this._enablePageStack = options.enablePageStack !== false;
     this._maxPageStackSize = options.maxPageStackSize || 50;
     this.flowEnabled = options.flowEnabled !== false; // 默认 true
-    this.flowRunner = createClientFlowRunner(options.cap as FrontendCapProxy);
 
     // 初始化 lifetimes（FlowSchema）
     this.lifetimes = {
       onLaunch: options.lifetimes?.onLaunch ?? null,
       onUnlaunch: options.lifetimes?.onUnlaunch ?? null,
     };
+  }
+
+  /**
+   * 延迟注入前端能力代理，创建 FlowRunner。
+   *
+   * App 构造时不依赖 cap（引擎层环境无关），
+   * 由宿主层（如 useCanvasCore）在 App 实例化后调用，
+   * 传入闭包捕获 App 的 FrontendCapProxy。
+   */
+  public initFlowRunner(cap: FrontendCapProxy): void {
+    this.flowRunner = createClientFlowRunner(cap);
   }
 
   // 内置生命周期方法
@@ -656,13 +666,10 @@ export class App implements ISerializable {
     return this;
   }
 
-  // 调整画布物理像素尺寸，并可选更新渲染 DPR
-  // 引擎只关心虚拟尺寸（物理像素），CSS 样式尺寸由外层控制
-  public handleResize(width: number, height: number, dpr?: number): App {
+  // 调整画布尺寸（逻辑像素，渲染器内部乘以 dpr）
+  // 引擎只关心逻辑尺寸，CSS 样式尺寸由外层控制
+  public handleResize(width: number, height: number): App {
     this.renderer.resize(width, height);
-    if (dpr !== undefined) {
-      this.renderer.setDPR(dpr);
-    }
     return this;
   }
 
@@ -678,17 +685,12 @@ export class App implements ISerializable {
    *
    * @param width  目标设备逻辑宽度（px）
    * @param height 目标设备逻辑高度（px）
-   * @param dpr    设备像素比（可选，默认不变）
    */
-  public setDesignSize(width: number, height: number, dpr?: number): App {
+  public setDesignSize(width: number, height: number): App {
     this._designSize = { width, height };
 
-    // 同步 canvas 物理像素
-    const effectiveDpr = dpr ?? this.renderer.getDPR();
-    this.renderer.resize(width * effectiveDpr, height * effectiveDpr);
-    if (dpr !== undefined) {
-      this.renderer.setDPR(dpr);
-    }
+    // 同步 canvas 物理像素（renderer 内部乘以 dpr）
+    this.renderer.resize(width, height);
 
     // 同步当前 Scene 的 Camera bounds
     const scene = this.getCurrentScene();

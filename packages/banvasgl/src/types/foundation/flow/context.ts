@@ -18,8 +18,8 @@ import type { ExecutorRegistry } from './executor.js'
 /** 能力代理基类——两端通用 */
 interface CapBase {
   httpClient: {
-    request(method: string, url: string, headers?: object, body?: unknown): Promise<{
-      status: number; body: unknown; headers: object
+    request(method: string, url: string, headers?: Record<string, string>, body?: string | object): Promise<{
+      status: number; body: unknown; headers: Record<string, string>
     }>
   }
 }
@@ -27,7 +27,7 @@ interface CapBase {
 /** 前端能力代理 */
 export interface FrontendCapProxy extends CapBase {
   navigate(target: string, params?: Record<string, unknown>): Promise<void>
-  setViewData(viewId: string, key: string, value: unknown): void
+  setViewData(viewId: string, key: string, value: string | number | boolean | object): void
   setViewVisible(viewId: string, visible: boolean): void
   playAnimation(viewId: string, animationId: string): void
 }

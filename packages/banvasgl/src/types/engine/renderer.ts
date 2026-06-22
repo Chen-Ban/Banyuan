@@ -27,7 +27,6 @@ export interface ICanvasContextOptions {
 
 /** Renderer 配置选项 */
 export interface IRendererOptions extends ICanvasContextOptions {
-    dpr?: number
     /**
      * 是否显示网格
      *

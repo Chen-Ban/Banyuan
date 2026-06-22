@@ -8,7 +8,6 @@
 import type { IScene } from './scene'
 import type { IRenderer, IRendererOptions } from './renderer'
 import type { EventHandler } from '../view/view'
-import type { FrontendCapProxy } from '../foundation/flow/context.js'
 import type { IPlatformCanvas } from '../platform/canvas.js'
 
 // ────────────────────────────────────────────
@@ -45,8 +44,6 @@ export interface IAppOptions {
     flowEnabled?: boolean
     /** App 生命周期钩子 */
     lifetimes?: Partial<IAppLifetimes>
-    /** 能力代理（必填——显式注入执行环境能力） */
-    cap: FrontendCapProxy
 }
 
 /** 导航选项 */
@@ -143,7 +140,7 @@ export interface IApp {
 
     // 设计尺寸
     getDesignSize(): { width: number; height: number }
-    setDesignSize(width: number, height: number, dpr?: number): IApp
+    setDesignSize(width: number, height: number): IApp
 
     // 销毁
     destroy(): IApp
