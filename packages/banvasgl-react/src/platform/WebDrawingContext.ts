@@ -1,8 +1,8 @@
 /**
- * WebDrawingContext — IDrawingContext 的 Web Canvas 实现
+ * WebDrawingContext — IDrawingContext 的 Web 平台实现
  *
- * 将真实的 CanvasRenderingContext2D 包装为平台无关的 IDrawingContext。
- * 渐变/图案/图像源也在 Web 层面实现对应的 IDrawingGradient/IDrawingPattern/IDrawingImageSource。
+ * 将 CanvasRenderingContext2D 适配为平台无关的 IDrawingContext 接口。
+ * 包含渐变/图案/视频源的包装类，封装 DOM 细节于适配器内部。
  */
 
 import type {
@@ -10,199 +10,413 @@ import type {
   IDrawingGradient,
   IDrawingPattern,
   IDrawingImageSource,
+  IDrawingVideoSource,
   IDrawingTextMetrics,
   IDrawingImageData,
-} from "@banyuan/banvasgl";
+  IDrawingVideoLoadOptions,
+  DrawingFillRule,
+  DrawingLineCap,
+  DrawingLineJoin,
+  DrawingTextAlign,
+  DrawingTextBaseline,
+  DrawingImageSmoothingQuality,
+  DrawingMatrix2DInit,
+} from '@banyuan/banvasgl';
 
-// ── Web 渐变适配器 ──
+// ── WebDrawingGradient ──────────────────────────────────────────
 
-class WebGradient implements IDrawingGradient {
-  constructor(private gradient: CanvasGradient) {}
+class WebDrawingGradient implements IDrawingGradient {
+  readonly native: CanvasGradient;
+
+  constructor(gradient: CanvasGradient) {
+    this.native = gradient;
+  }
+
   addColorStop(offset: number, color: string): void {
-    this.gradient.addColorStop(offset, color);
+    this.native.addColorStop(offset, color);
   }
 }
 
-// ── Web 图案适配器 ──
+// ── WebDrawingPattern ───────────────────────────────────────────
 
-class WebPattern implements IDrawingPattern {
-  constructor(private pattern: CanvasPattern) {}
-  setTransform(matrix?: DOMMatrix2DInit): void {
-    this.pattern.setTransform(matrix);
+class WebDrawingPattern implements IDrawingPattern {
+  readonly native: CanvasPattern;
+
+  constructor(pattern: CanvasPattern) {
+    this.native = pattern;
+  }
+
+  setTransform(matrix?: DrawingMatrix2DInit): void {
+    if (matrix) {
+      this.native.setTransform(matrix as DOMMatrix2DInit);
+    }
   }
 }
 
-// ── Web 图像数据适配器 ──
+// ── WebDrawingVideoSource ───────────────────────────────────────
 
-class WebImageData implements IDrawingImageData {
-  readonly width: number;
-  readonly height: number;
-  readonly data: Uint8ClampedArray;
-  private _imageData: ImageData;
-  constructor(imageData: ImageData) {
-    this._imageData = imageData;
-    this.width = imageData.width;
-    this.height = imageData.height;
-    this.data = imageData.data;
+class WebDrawingVideoSource implements IDrawingVideoSource {
+  readonly native: HTMLVideoElement;
+
+  constructor(video: HTMLVideoElement) {
+    this.native = video;
   }
-  /** 获取底层 ImageData（用于 putImageData 等平台操作） */
-  get imageData(): ImageData { return this._imageData; }
+
+  get width(): number {
+    return this.native.videoWidth;
+  }
+
+  get height(): number {
+    return this.native.videoHeight;
+  }
+
+  play(): Promise<void> {
+    return this.native.play();
+  }
+
+  pause(): void {
+    this.native.pause();
+  }
+
+  stop(): void {
+    this.native.pause();
+    this.native.currentTime = 0;
+  }
+
+  get playing(): boolean {
+    return !this.native.paused && !this.native.ended;
+  }
+
+  get currentTime(): number {
+    return this.native.currentTime;
+  }
+
+  set currentTime(value: number) {
+    this.native.currentTime = value;
+  }
+
+  get duration(): number {
+    return this.native.duration;
+  }
+
+  get volume(): number {
+    return this.native.volume;
+  }
+
+  set volume(value: number) {
+    this.native.volume = Math.max(0, Math.min(1, value));
+  }
+
+  get autoplay(): boolean {
+    return this.native.autoplay;
+  }
+
+  set autoplay(value: boolean) {
+    this.native.autoplay = value;
+  }
+
+  get loop(): boolean {
+    return this.native.loop;
+  }
+
+  set loop(value: boolean) {
+    this.native.loop = value;
+  }
+
+  get muted(): boolean {
+    return this.native.muted;
+  }
+
+  set muted(value: boolean) {
+    this.native.muted = value;
+  }
+
+  setPlayOptions(options: IDrawingVideoLoadOptions): void {
+    if (options.autoplay !== undefined) this.native.autoplay = options.autoplay;
+    if (options.loop !== undefined) this.native.loop = options.loop;
+    if (options.muted !== undefined) this.native.muted = options.muted;
+  }
 }
 
-// ── 辅助：解包／包装 ──
+// ── 解包辅助函数 ────────────────────────────────────────────────
 
+/** 将 fillStyle/strokeStyle 值解包为 Canvas 2D 可接受的类型 */
 function unwrapStyle(
   value: string | IDrawingGradient | IDrawingPattern,
 ): string | CanvasGradient | CanvasPattern {
-  if (value instanceof WebGradient) return (value as unknown as { gradient: CanvasGradient }).gradient;
-  if (value instanceof WebPattern) return (value as unknown as { pattern: CanvasPattern }).pattern;
-  return value as string;
+  if (typeof value === 'string') return value;
+  if (value instanceof WebDrawingGradient) return value.native;
+  if (value instanceof WebDrawingPattern) return value.native;
+  // 兜底：未知类型直接返回（理论上不会走到这里）
+  return value as unknown as string;
 }
 
-function wrapGradient(g: CanvasGradient): IDrawingGradient {
-  return new WebGradient(g);
+/** 将图像源解包为 Canvas 可接受的类型 */
+function unwrapImageSource(
+  source: IDrawingImageSource,
+): CanvasImageSource {
+  if (source instanceof WebDrawingVideoSource) return source.native;
+  // HTMLImageElement / ImageBitmap / HTMLCanvasElement 等本身即是 CanvasImageSource
+  return source as unknown as CanvasImageSource;
 }
 
-function wrapPattern(p: CanvasPattern): IDrawingPattern | null {
-  return p ? new WebPattern(p) : null;
-}
+// ── WebDrawingContext ───────────────────────────────────────────
 
-// ── WebDrawingContext ──
-
-/**
- * WebDrawingContext 将 CanvasRenderingContext2D 适配为 IDrawingContext。
- *
- * 每个 WebDrawingContext 实例绑定一个真实的 CanvasRenderingContext2D，
- * 所有方法直接委托给底层上下文。
- */
 export class WebDrawingContext implements IDrawingContext {
-  /**
-   * @param ctx 底层的 CanvasRenderingContext2D
-   */
-  constructor(public readonly ctx: CanvasRenderingContext2D) {}
+  private _ctx: CanvasRenderingContext2D;
+
+  constructor(ctx: CanvasRenderingContext2D) {
+    this._ctx = ctx;
+  }
 
   // ── 状态管理 ──
-  save(): void { this.ctx.save(); }
-  restore(): void { this.ctx.restore(); }
+
+  save(): void {
+    this._ctx.save();
+  }
+
+  restore(): void {
+    this._ctx.restore();
+  }
 
   // ── 变换矩阵 ──
+
   setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void {
-    this.ctx.setTransform(a, b, c, d, e, f);
+    this._ctx.setTransform(a, b, c, d, e, f);
   }
+
   transform(a: number, b: number, c: number, d: number, e: number, f: number): void {
-    this.ctx.transform(a, b, c, d, e, f);
+    this._ctx.transform(a, b, c, d, e, f);
   }
-  translate(x: number, y: number): void { this.ctx.translate(x, y); }
-  scale(x: number, y: number): void { this.ctx.scale(x, y); }
-  rotate(angle: number): void { this.ctx.rotate(angle); }
+
+  translate(x: number, y: number): void {
+    this._ctx.translate(x, y);
+  }
+
+  scale(x: number, y: number): void {
+    this._ctx.scale(x, y);
+  }
+
+  rotate(angle: number): void {
+    this._ctx.rotate(angle);
+  }
 
   // ── 全局合成 ──
-  get globalAlpha(): number { return this.ctx.globalAlpha; }
-  set globalAlpha(v: number) { this.ctx.globalAlpha = v; }
-  get globalCompositeOperation(): string { return this.ctx.globalCompositeOperation; }
-  set globalCompositeOperation(v: string) { this.ctx.globalCompositeOperation = v as GlobalCompositeOperation; }
+
+  get globalAlpha(): number {
+    return this._ctx.globalAlpha;
+  }
+
+  set globalAlpha(value: number) {
+    this._ctx.globalAlpha = value;
+  }
+
+  get globalCompositeOperation(): string {
+    return this._ctx.globalCompositeOperation;
+  }
+
+  set globalCompositeOperation(value: string) {
+    this._ctx.globalCompositeOperation = value as GlobalCompositeOperation;
+  }
 
   // ── 路径 ──
-  beginPath(): void { this.ctx.beginPath(); }
-  closePath(): void { this.ctx.closePath(); }
-  moveTo(x: number, y: number): void { this.ctx.moveTo(x, y); }
-  lineTo(x: number, y: number): void { this.ctx.lineTo(x, y); }
+
+  beginPath(): void {
+    this._ctx.beginPath();
+  }
+
+  closePath(): void {
+    this._ctx.closePath();
+  }
+
+  moveTo(x: number, y: number): void {
+    this._ctx.moveTo(x, y);
+  }
+
+  lineTo(x: number, y: number): void {
+    this._ctx.lineTo(x, y);
+  }
+
   arc(x: number, y: number, radius: number, startAngle: number, endAngle: number, counterclockwise?: boolean): void {
-    this.ctx.arc(x, y, radius, startAngle, endAngle, counterclockwise);
+    this._ctx.arc(x, y, radius, startAngle, endAngle, counterclockwise);
   }
+
   arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void {
-    this.ctx.arcTo(x1, y1, x2, y2, radius);
+    this._ctx.arcTo(x1, y1, x2, y2, radius);
   }
+
   bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void {
-    this.ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
+    this._ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x, y);
   }
+
   quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void {
-    this.ctx.quadraticCurveTo(cpx, cpy, x, y);
+    this._ctx.quadraticCurveTo(cpx, cpy, x, y);
   }
+
   ellipse(x: number, y: number, radiusX: number, radiusY: number, rotation: number, startAngle: number, endAngle: number, counterclockwise?: boolean): void {
-    this.ctx.ellipse(x, y, radiusX, radiusY, rotation, startAngle, endAngle, counterclockwise);
+    this._ctx.ellipse(x, y, radiusX, radiusY, rotation, startAngle, endAngle, counterclockwise);
   }
-  rect(x: number, y: number, w: number, h: number): void { this.ctx.rect(x, y, w, h); }
+
+  rect(x: number, y: number, w: number, h: number): void {
+    this._ctx.rect(x, y, w, h);
+  }
+
   roundRect(x: number, y: number, w: number, h: number, radii?: number | number[]): void {
-    if (this.ctx.roundRect) {
-      this.ctx.roundRect(x, y, w, h, radii);
+    if (radii !== undefined) {
+      this._ctx.roundRect(x, y, w, h, radii);
+    } else {
+      this._ctx.roundRect(x, y, w, h);
     }
   }
 
   // ── 填充与描边 ──
-  fill(fillRule?: CanvasFillRule): void { this.ctx.fill(fillRule); }
-  stroke(): void { this.ctx.stroke(); }
-  fillRect(x: number, y: number, w: number, h: number): void { this.ctx.fillRect(x, y, w, h); }
-  strokeRect(x: number, y: number, w: number, h: number): void { this.ctx.strokeRect(x, y, w, h); }
-  clearRect(x: number, y: number, w: number, h: number): void { this.ctx.clearRect(x, y, w, h); }
-  clip(fillRule?: CanvasFillRule): void { this.ctx.clip(fillRule); }
+
+  fill(fillRule?: DrawingFillRule): void {
+    this._ctx.fill(fillRule);
+  }
+
+  stroke(): void {
+    this._ctx.stroke();
+  }
+
+  fillRect(x: number, y: number, w: number, h: number): void {
+    this._ctx.fillRect(x, y, w, h);
+  }
+
+  strokeRect(x: number, y: number, w: number, h: number): void {
+    this._ctx.strokeRect(x, y, w, h);
+  }
+
+  clearRect(x: number, y: number, w: number, h: number): void {
+    this._ctx.clearRect(x, y, w, h);
+  }
+
+  clip(fillRule?: DrawingFillRule): void {
+    this._ctx.clip(fillRule);
+  }
 
   // ── 样式属性 ──
+
   get fillStyle(): string | IDrawingGradient | IDrawingPattern {
-    const v = this.ctx.fillStyle;
-    if (v instanceof CanvasGradient) return wrapGradient(v);
-    if (v instanceof CanvasPattern) return wrapPattern(v)!;
-    return v as string;
+    return this._ctx.fillStyle as unknown as string | IDrawingGradient | IDrawingPattern;
   }
-  set fillStyle(v: string | IDrawingGradient | IDrawingPattern) {
-    this.ctx.fillStyle = unwrapStyle(v);
+
+  set fillStyle(value: string | IDrawingGradient | IDrawingPattern) {
+    this._ctx.fillStyle = unwrapStyle(value);
   }
+
   get strokeStyle(): string | IDrawingGradient | IDrawingPattern {
-    const v = this.ctx.strokeStyle;
-    if (v instanceof CanvasGradient) return wrapGradient(v);
-    if (v instanceof CanvasPattern) return wrapPattern(v)!;
-    return v as string;
+    return this._ctx.strokeStyle as unknown as string | IDrawingGradient | IDrawingPattern;
   }
-  set strokeStyle(v: string | IDrawingGradient | IDrawingPattern) {
-    this.ctx.strokeStyle = unwrapStyle(v);
+
+  set strokeStyle(value: string | IDrawingGradient | IDrawingPattern) {
+    this._ctx.strokeStyle = unwrapStyle(value);
   }
-  get lineWidth(): number { return this.ctx.lineWidth; }
-  set lineWidth(v: number) { this.ctx.lineWidth = v; }
-  get lineCap(): CanvasLineCap { return this.ctx.lineCap; }
-  set lineCap(v: CanvasLineCap) { this.ctx.lineCap = v; }
-  get lineJoin(): CanvasLineJoin { return this.ctx.lineJoin; }
-  set lineJoin(v: CanvasLineJoin) { this.ctx.lineJoin = v; }
-  get miterLimit(): number { return this.ctx.miterLimit; }
-  set miterLimit(v: number) { this.ctx.miterLimit = v; }
-  get lineDashOffset(): number { return this.ctx.lineDashOffset; }
-  set lineDashOffset(v: number) { this.ctx.lineDashOffset = v; }
-  setLineDash(segments: number[]): void { this.ctx.setLineDash(segments); }
-  getLineDash(): number[] { return this.ctx.getLineDash(); }
+
+  get lineWidth(): number {
+    return this._ctx.lineWidth;
+  }
+
+  set lineWidth(value: number) {
+    this._ctx.lineWidth = value;
+  }
+
+  get lineCap(): DrawingLineCap {
+    return this._ctx.lineCap as DrawingLineCap;
+  }
+
+  set lineCap(value: DrawingLineCap) {
+    this._ctx.lineCap = value;
+  }
+
+  get lineJoin(): DrawingLineJoin {
+    return this._ctx.lineJoin as DrawingLineJoin;
+  }
+
+  set lineJoin(value: DrawingLineJoin) {
+    this._ctx.lineJoin = value;
+  }
+
+  get miterLimit(): number {
+    return this._ctx.miterLimit;
+  }
+
+  set miterLimit(value: number) {
+    this._ctx.miterLimit = value;
+  }
+
+  get lineDashOffset(): number {
+    return this._ctx.lineDashOffset;
+  }
+
+  set lineDashOffset(value: number) {
+    this._ctx.lineDashOffset = value;
+  }
+
+  setLineDash(segments: number[]): void {
+    this._ctx.setLineDash(segments);
+  }
+
+  getLineDash(): number[] {
+    return this._ctx.getLineDash();
+  }
 
   // ── 阴影 ──
-  get shadowBlur(): number { return this.ctx.shadowBlur; }
-  set shadowBlur(v: number) { this.ctx.shadowBlur = v; }
-  get shadowColor(): string { return this.ctx.shadowColor; }
-  set shadowColor(v: string) { this.ctx.shadowColor = v; }
-  get shadowOffsetX(): number { return this.ctx.shadowOffsetX; }
-  set shadowOffsetX(v: number) { this.ctx.shadowOffsetX = v; }
-  get shadowOffsetY(): number { return this.ctx.shadowOffsetY; }
-  set shadowOffsetY(v: number) { this.ctx.shadowOffsetY = v; }
+
+  get shadowBlur(): number {
+    return this._ctx.shadowBlur;
+  }
+
+  set shadowBlur(value: number) {
+    this._ctx.shadowBlur = value;
+  }
+
+  get shadowColor(): string {
+    return this._ctx.shadowColor;
+  }
+
+  set shadowColor(value: string) {
+    this._ctx.shadowColor = value;
+  }
+
+  get shadowOffsetX(): number {
+    return this._ctx.shadowOffsetX;
+  }
+
+  set shadowOffsetX(value: number) {
+    this._ctx.shadowOffsetX = value;
+  }
+
+  get shadowOffsetY(): number {
+    return this._ctx.shadowOffsetY;
+  }
+
+  set shadowOffsetY(value: number) {
+    this._ctx.shadowOffsetY = value;
+  }
 
   // ── 渐变与图案 ──
+
   createLinearGradient(x0: number, y0: number, x1: number, y1: number): IDrawingGradient {
-    return wrapGradient(this.ctx.createLinearGradient(x0, y0, x1, y1));
+    return new WebDrawingGradient(this._ctx.createLinearGradient(x0, y0, x1, y1));
   }
+
   createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): IDrawingGradient {
-    return wrapGradient(this.ctx.createRadialGradient(x0, y0, r0, x1, y1, r1));
+    return new WebDrawingGradient(this._ctx.createRadialGradient(x0, y0, r0, x1, y1, r1));
   }
+
   createConicGradient(startAngle: number, x: number, y: number): IDrawingGradient {
-    return wrapGradient(this.ctx.createConicGradient(startAngle, x, y));
+    return new WebDrawingGradient(this._ctx.createConicGradient(startAngle, x, y));
   }
+
   createPattern(image: IDrawingImageSource, repetition: string | null): IDrawingPattern | null {
-    if (
-      image instanceof HTMLImageElement ||
-      image instanceof HTMLCanvasElement ||
-      image instanceof HTMLVideoElement ||
-      image instanceof ImageBitmap
-    ) {
-      const pattern = this.ctx.createPattern(image, repetition);
-      return pattern ? wrapPattern(pattern) : null;
-    }
-    return null;
+    const nativeImg = unwrapImageSource(image);
+    const pattern = this._ctx.createPattern(nativeImg, repetition ?? '');
+    return pattern ? new WebDrawingPattern(pattern) : null;
   }
 
   // ── 图像 ──
+
   drawImage(image: IDrawingImageSource, dx: number, dy: number): void;
   drawImage(image: IDrawingImageSource, dx: number, dy: number, dw: number, dh: number): void;
   drawImage(image: IDrawingImageSource, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
@@ -210,57 +424,139 @@ export class WebDrawingContext implements IDrawingContext {
     image: IDrawingImageSource,
     ...args: number[]
   ): void {
-    const img = image as unknown as CanvasImageSource;
-    if (args.length === 2) {
-      this.ctx.drawImage(img, args[0], args[1]);
-    } else if (args.length === 4) {
-      this.ctx.drawImage(img, args[0], args[1], args[2], args[3]);
-    } else if (args.length === 8) {
-      this.ctx.drawImage(img, args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7]);
-    }
+    const nativeImg = unwrapImageSource(image);
+    (this._ctx.drawImage as Function)(nativeImg, ...args);
   }
 
   // ── 图像平滑 ──
-  get imageSmoothingEnabled(): boolean { return this.ctx.imageSmoothingEnabled; }
-  set imageSmoothingEnabled(v: boolean) { this.ctx.imageSmoothingEnabled = v; }
-  get imageSmoothingQuality(): ImageSmoothingQuality { return this.ctx.imageSmoothingQuality; }
-  set imageSmoothingQuality(v: ImageSmoothingQuality) { this.ctx.imageSmoothingQuality = v; }
+
+  get imageSmoothingEnabled(): boolean {
+    return this._ctx.imageSmoothingEnabled;
+  }
+
+  set imageSmoothingEnabled(value: boolean) {
+    this._ctx.imageSmoothingEnabled = value;
+  }
+
+  get imageSmoothingQuality(): DrawingImageSmoothingQuality {
+    return this._ctx.imageSmoothingQuality as DrawingImageSmoothingQuality;
+  }
+
+  set imageSmoothingQuality(value: DrawingImageSmoothingQuality) {
+    this._ctx.imageSmoothingQuality = value;
+  }
 
   // ── 文字 ──
-  get font(): string { return this.ctx.font; }
-  set font(v: string) { this.ctx.font = v; }
-  get textAlign(): CanvasTextAlign { return this.ctx.textAlign; }
-  set textAlign(v: CanvasTextAlign) { this.ctx.textAlign = v; }
-  get textBaseline(): CanvasTextBaseline { return this.ctx.textBaseline; }
-  set textBaseline(v: CanvasTextBaseline) { this.ctx.textBaseline = v; }
+
+  get font(): string {
+    return this._ctx.font;
+  }
+
+  set font(value: string) {
+    this._ctx.font = value;
+  }
+
+  get textAlign(): DrawingTextAlign {
+    return this._ctx.textAlign as DrawingTextAlign;
+  }
+
+  set textAlign(value: DrawingTextAlign) {
+    this._ctx.textAlign = value;
+  }
+
+  get textBaseline(): DrawingTextBaseline {
+    return this._ctx.textBaseline as DrawingTextBaseline;
+  }
+
+  set textBaseline(value: DrawingTextBaseline) {
+    this._ctx.textBaseline = value;
+  }
+
   fillText(text: string, x: number, y: number, maxWidth?: number): void {
-    this.ctx.fillText(text, x, y, maxWidth);
+    this._ctx.fillText(text, x, y, maxWidth);
   }
+
   strokeText(text: string, x: number, y: number, maxWidth?: number): void {
-    this.ctx.strokeText(text, x, y, maxWidth);
+    this._ctx.strokeText(text, x, y, maxWidth);
   }
+
   measureText(text: string): IDrawingTextMetrics {
-    return this.ctx.measureText(text);
+    return this._ctx.measureText(text);
   }
 
   // ── 像素操作 ──
+
   getImageData(sx: number, sy: number, sw: number, sh: number): IDrawingImageData {
-    return new WebImageData(this.ctx.getImageData(sx, sy, sw, sh));
+    return this._ctx.getImageData(sx, sy, sw, sh);
   }
+
   putImageData(imagedata: IDrawingImageData, dx: number, dy: number): void {
-    if (imagedata instanceof WebImageData) {
-      this.ctx.putImageData(imagedata.imageData, dx, dy);
-    }
+    this._ctx.putImageData(imagedata as ImageData, dx, dy);
   }
+
   createImageData(sw: number, sh: number): IDrawingImageData {
-    return new WebImageData(this.ctx.createImageData(sw, sh));
+    return this._ctx.createImageData(sw, sh);
   }
 
   // ── 命中测试 ──
-  isPointInPath(x: number, y: number, fillRule?: CanvasFillRule): boolean {
-    return this.ctx.isPointInPath(x, y, fillRule);
+
+  isPointInPath(x: number, y: number, fillRule?: DrawingFillRule): boolean {
+    return this._ctx.isPointInPath(x, y, fillRule);
   }
+
   isPointInStroke(x: number, y: number): boolean {
-    return this.ctx.isPointInStroke(x, y);
+    return this._ctx.isPointInStroke(x, y);
   }
+
+  // ── 平台媒体源创建 ──
+
+  async loadImageSource(src: string, crossOrigin?: string): Promise<IDrawingImageSource> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      if (crossOrigin) {
+        img.crossOrigin = crossOrigin;
+      }
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      img.src = src;
+    });
+  }
+
+  async loadVideoSource(src: string, options?: IDrawingVideoLoadOptions): Promise<IDrawingVideoSource> {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.crossOrigin = options?.crossOrigin ?? 'anonymous';
+      video.preload = 'metadata';
+
+      if (options?.autoplay) video.autoplay = true;
+      if (options?.loop) video.loop = true;
+      if (options?.muted) video.muted = true;
+
+      video.onloadedmetadata = () => resolve(new WebDrawingVideoSource(video));
+      video.onerror = () => reject(new Error(`Failed to load video: ${src}`));
+      video.src = src;
+    });
+  }
+
+  extractImageData(source: IDrawingImageSource, width: number, height: number): IDrawingImageData | null {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const nativeImg = unwrapImageSource(source);
+    ctx.drawImage(nativeImg, 0, 0, width, height);
+
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  }
+}
+
+// ── 工厂函数 ──
+
+export function createWebDrawingContext(
+  ctx: CanvasRenderingContext2D,
+): IDrawingContext {
+  return new WebDrawingContext(ctx);
 }

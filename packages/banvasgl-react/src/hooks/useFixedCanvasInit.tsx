@@ -18,7 +18,7 @@ import React, { useEffect, useMemo } from "react";
 import { OrthographicCamera } from "@banyuan/banvasgl";
 import { Scene } from "@banyuan/banvasgl";
 import type { IAppOptions } from "@banyuan/banvasgl";
-import type { IRendererOptions } from "@banyuan/banvasgl";
+import type { WebCanvasOptions } from "../platform/WebCanvas.js";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useCanvasCore } from "./useCanvasCore.js";
 import { useBOMProperties } from "./useBOMProperties.js";
@@ -40,7 +40,7 @@ export interface SelectedViewPos {
 
 export interface UseFixedCanvasOptions {
   appOptions?: Partial<IAppOptions>;
-  rendererOptions?: Omit<IRendererOptions, "dpr">;
+  rendererOptions?: WebCanvasOptions;
   /**
    * 是否启用文本输入（隐藏的 input 元素）
    *
