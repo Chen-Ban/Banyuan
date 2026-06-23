@@ -1,7 +1,8 @@
 import Color from '../Color.js'
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingGradient } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
 
 export type GradientStop = {
   color: Color
@@ -109,7 +110,7 @@ export default abstract class Gradient implements ISerializable {
    * ctx.fillStyle = canvasGradient
    * ```
    */
-  abstract createCanvasGradient(ctx: IDrawingContext, width: number, height: number): IDrawingGradient
+  abstract createCanvasGradient(ctx: IDrawingContext, width: number, height: number): IGradient
 
   /**
    * 序列化为 JSON
@@ -206,7 +207,7 @@ export default abstract class Gradient implements ISerializable {
    * this.applyStops(gradient)
    * ```
    */
-  protected applyStops(gradient: IDrawingGradient): void {
+  protected applyStops(gradient: IGradient): void {
     this.stops.forEach(stop => {
       gradient.addColorStop(stop.position, stop.color.rgba)
     })

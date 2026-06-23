@@ -150,7 +150,7 @@ const LoginModal = () => {
       width={400}
       centered
       className={styles.modal}
-      maskClosable={!loggingIn}
+      mask={{ closable: !loggingIn }}
     >
       <div className={styles.content}>
         <div className={styles.header}>

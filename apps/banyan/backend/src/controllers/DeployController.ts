@@ -5,7 +5,7 @@ import { Application } from '../models/index.js'
 import { Tenant } from '../models/Tenant.js'
 import { agentGateway } from '../services/AgentGateway.js'
 import type { DeployRequest, CollectionDef, CloudFunctionDef } from '../services/AgentGateway.js'
-import appContentService from '../services/AppContentService.js'
+import uiDefinitionService from '../services/UIDefinitionService.js'
 import { SchemaService } from '../services/SchemaService.js'
 import cloudFunctionService from '../services/CloudFunctionService.js'
 import dialogueService from '../services/DialogueService.js'
@@ -85,10 +85,10 @@ export class DeployController {
     const [schemaResult, cfGroup, contentResult] = await Promise.all([
       SchemaService.getByVersion(applicationId, versions.schemaVersion),
       cloudFunctionService.getByVersion(applicationId, versions.cloudFunctionVersion),
-      appContentService.getByVersion(applicationId, versions.appContentVersion),
+      uiDefinitionService.getByVersion(applicationId, versions.uiDefinitionVersion),
     ])
     const cfList = cfGroup?.functions ?? []
-    const appJSON = contentResult?.appJSON ?? ''
+    const uiJSON = contentResult?.uiJSON ?? ''
 
     if ((schemaResult?.collections.length ?? 0) > 0) {
       collections = schemaResult!.collections.map((c) => ({
@@ -131,7 +131,7 @@ export class DeployController {
       status: 'pending',
       triggeredBy: userId,
       snapshot: {
-        appJSON,
+        uiJSON,
         collections: collections?.map((c) => ({
           name: c.name,
           displayName: c.displayName,
@@ -154,14 +154,14 @@ export class DeployController {
       },
     })
 
-    // 8. 构建部署请求（ADR-042：使用版本化内容表的 appJSON）
+    // 8. 构建部署请求（ADR-042：使用版本化内容表的 uiJSON）
     const deployRequest: DeployRequest = {
       requestId: deploymentId,
       appId: applicationId,
       appSlug: app.appSlug!,
-      appJSON,
+      uiJSON,
       tenantDomain: tenant.domain!,
-      width: 375, // 默认移动端宽度，后续可从 appJSON 中提取
+      width: 375, // 默认移动端宽度，后续可从 uiJSON 中提取
       height: 812,
       canvasVersion: '0.1.0', // TODO: 从 package.json 或环境变量读取
       deployType: effectiveDeployType,
@@ -245,7 +245,7 @@ export class DeployController {
     }
 
     // 3. 从快照中提取数据
-    const { appJSON, collections, cloudFunctions } = targetDeployment.snapshot
+    const { uiJSON, collections, cloudFunctions } = targetDeployment.snapshot
     const parsedCollections = collections.length > 0 ? collections : undefined
     const parsedCloudFunctions = cloudFunctions.length > 0 ? cloudFunctions : undefined
     const effectiveDeployType = (parsedCollections || parsedCloudFunctions) ? 'fullstack' : 'static' as const
@@ -268,7 +268,7 @@ export class DeployController {
       requestId: rollbackDeploymentId,
       appId: targetDeployment.applicationId,
       appSlug: app.appSlug!,
-      appJSON,
+      uiJSON,
       tenantDomain: tenant.domain!,
       width: 375,
       height: 812,

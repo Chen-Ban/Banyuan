@@ -14,7 +14,7 @@
  *   - 加载应用 Schema 获取集合列表及字段定义
  *   - 左侧列表使用 EditableListItem（editable={false}，只读浏览）
  *   - 右侧使用 Ant Design Table 展示数据，支持分页
- *   - 数据查询通过本地 Preview Server（从 PreviewServerCtx 获取地址）
+ *   - 数据查询通过本地 Preview Server（从 previewServerStore 获取地址）
  *   - 非 Electron 环境显示降级提示
  */
 
@@ -27,7 +27,7 @@ import { schemaApi } from '@/api'
 import { listDocuments } from '@/api/runtime/data'
 import type { CollectionDef, FieldDef } from '@/api'
 import EditableListItem from '@/components/EditableListItem'
-import { usePreviewServerCtx } from '@/layouts/ApplicationLayout/PreviewServerCtx'
+import { usePreviewServerStore } from '@/stores/previewServerStore'
 import styles from './index.module.scss'
 
 const PAGE_SIZE = 20
@@ -35,7 +35,8 @@ const PAGE_SIZE = 20
 const DataBrowserPage: React.FC = () => {
   const { message } = App.useApp()
   const { id: appId } = useParams<{ id: string }>()
-  const { serverInfo, status: serverStatus } = usePreviewServerCtx()
+  const serverInfo = usePreviewServerStore((s) => s.serverInfo)
+  const serverStatus = usePreviewServerStore((s) => s.status)
 
   const [collections, setCollections] = useState<CollectionDef[]>([])
   const [selectedName, setSelectedName] = useState<string | null>(null)
@@ -50,7 +51,7 @@ const DataBrowserPage: React.FC = () => {
   useEffect(() => {
     if (!appId) return
     setSchemaLoading(true)
-    schemaApi.fetchSchema(appId)
+    schemaApi.fetchDataSchema(appId)
       .then((res) => {
         const cols = res.data?.collections ?? []
         setCollections(cols)

@@ -8,7 +8,7 @@ export type Platform = 'mac' | 'win' | 'linux' | 'web' | 'ios' | 'android'
 export type BuildStatus = 'pending' | 'running' | 'success' | 'failed'
 
 export interface SubmitBuildParams {
-    appJson: string
+    uiJSON: string
     appName: string
     platform: Platform
     width: number

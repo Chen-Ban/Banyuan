@@ -1,7 +1,7 @@
 /**
  * patchProjection — Patch 语义的 Projection 写入
  *
- * ADR-041: 修复 projectionToAppJSON 全量覆盖导致 App-level lifetimes 丢失的问题。
+ * ADR-041: 修复 projectionToUIJSON 全量覆盖导致 App-level lifetimes 丢失的问题。
  * patchProjection 只更新指定的 Scene，保留未涉及的 Scene 和 App 级配置不变。
  */
 import type { SerializedData } from '@banyuan/banvasgl'
@@ -33,22 +33,22 @@ export interface PatchProjectionResult {
 /**
  * Patch 语义写入 Projection。
  *
- * 读取当前 appJSON → 对传入的 scene 按 id 匹配：
+ * 读取当前 UI 定义 JSON → 对传入的 scene 按 id 匹配：
  *   - id 已存在 → 替换该 scene（更新）
  *   - id 不存在 → 追加到末尾（新增）
  * 未传入的 scene 和 App-level 字段（lifetimes 等）完全保留不动。
  *
- * @param currentAppJSON - 当前完整的 appJSON 字符串（App.serialize() 输出）
+ * @param currentUIJSON - 当前完整的 UI 定义 JSON 字符串（App.serialize() 输出）
  * @param input - 要写入的页面列表
  * @param version - BanvasGL 版本号
- * @returns 新的 appJSON 字符串 + 变更摘要
+ * @returns 新的 UI 定义 JSON 字符串 + 变更摘要
  */
 export function patchProjection(
-  currentAppJSON: string,
+  currentUIJSON: string,
   input: PatchProjectionInput,
   version: string,
-): { appJSON: string; result: PatchProjectionResult } {
-  const appSerialized: SerializedData = JSON.parse(currentAppJSON)
+): { uiJSON: string; result: PatchProjectionResult } {
+  const appSerialized: SerializedData = JSON.parse(currentUIJSON)
   const appData = appSerialized.data
 
   // 确保 scenes 数组存在
@@ -109,7 +109,7 @@ export function patchProjection(
   }
 
   // 重新序列化（保留原有的 App-level 字段：lifetimes、metadata 等）
-  const patchedAppJSON = JSON.stringify({
+  const patchedUIJSON = JSON.stringify({
     ...appSerialized,
     data: {
       ...appData,
@@ -122,7 +122,7 @@ export function patchProjection(
     },
   })
 
-  return { appJSON: patchedAppJSON, result }
+  return { uiJSON: patchedUIJSON, result }
 }
 
 /**
@@ -134,20 +134,20 @@ export async function patchProjectionViaAdapter(
   adapter: { getAppJSON(): Promise<string>; setAppJSON(json: string): Promise<void>; getAppMeta(): Promise<{ version: string }> },
   input: PatchProjectionInput,
 ): Promise<PatchProjectionResult> {
-  const [currentAppJSON, meta] = await Promise.all([
+  const [fetchedJSON, meta] = await Promise.all([
     adapter.getAppJSON(),
     adapter.getAppMeta(),
   ])
 
   // 空应用时构造最小 App 结构
-  const appJSON = currentAppJSON || JSON.stringify({
+  const appJSON = fetchedJSON || JSON.stringify({
     type: 'APP',
     version: meta.version,
     data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
     metadata: { timestamp: Date.now(), source: 'AI Projection Patch' },
   })
 
-  const { appJSON: patchedJSON, result } = patchProjection(appJSON, input, meta.version)
+  const { uiJSON: patchedJSON, result } = patchProjection(appJSON, input, meta.version)
   await adapter.setAppJSON(patchedJSON)
   return result
 }

@@ -1,7 +1,7 @@
 /**
  * Application 模型（ADR-042）— 纯元数据壳
  *
- * appJSON / collectionSchema / cloudFunctions 已拆分到独立的 append-only 内容表。
+ * appJSON / collectionSchema / cloudFunctions 已拆分到独立的 append-only 内容表（UIDefinition / CollectionSchema / CloudFunction）。
  * 读取内容时通过 appId 查内容表最新版本即可，无需版本指针。
  */
 
@@ -26,12 +26,6 @@ const ApplicationSchema = new Schema<IApplicationDoc>(
       required: true,
       trim: true,
       maxlength: 200,
-    },
-    description: {
-      type: String,
-      default: '',
-      trim: true,
-      maxlength: 1000,
     },
     thumbnail: {
       type: String,

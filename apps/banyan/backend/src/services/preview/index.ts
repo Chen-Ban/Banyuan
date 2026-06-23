@@ -87,7 +87,7 @@ export function buildPreviewHtml(data: PreviewData): string {
       const HEIGHT = ${height}
 
       function App() {
-        const { Banvas } = useRuntimeBanvas({ appJSON: APP_DATA, width: WIDTH, height: HEIGHT })
+        const { Banvas } = useRuntimeBanvas({ uiJSON: APP_DATA, width: WIDTH, height: HEIGHT })
         return React.createElement(React.Fragment, null, Banvas)
       }
 

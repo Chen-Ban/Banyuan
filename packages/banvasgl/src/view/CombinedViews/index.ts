@@ -24,7 +24,9 @@ import { BoundingBoxAddon } from '@/view/addon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
 import { getLayoutStrategy } from './layout/index.js'
 import type { ILayoutContext } from './layout/index.js'
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 
 // ────────────────────────────────────────────
 //  CombinedView 实现

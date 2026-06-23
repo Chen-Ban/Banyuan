@@ -4,9 +4,13 @@
  * 包含：
  *   - 画布区域 Segmented（预览 | 编辑），切换 /preview、/ui 子路由
  *   - 数据库 / 数据浏览 / 云函数 三个 Tab
+ *
+ * 所有路由相关状态（activeTab / applicationId / navigate）均通过
+ * react-router-dom hooks 内部自持，不依赖父组件传参。
  */
 
 import React from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Tooltip } from 'antd'
 import {
   DatabaseOutlined,
@@ -17,14 +21,26 @@ import {
 } from '@ant-design/icons'
 import styles from '../../index.module.scss'
 
-interface TabCapsuleProps {
-  activeTab: 'preview' | 'ui' | 'database' | 'data-browser' | 'functions'
-  applicationId: string | undefined
-  onNavigate: (path: string) => void
-  onTabChange: (key: string) => void
+function deriveActiveTab(pathname: string): 'preview' | 'ui' | 'database' | 'data-browser' | 'functions' {
+  if (pathname.endsWith('/database')) return 'database'
+  if (pathname.endsWith('/data-browser')) return 'data-browser'
+  if (pathname.endsWith('/functions')) return 'functions'
+  if (pathname.endsWith('/ui')) return 'ui'
+  return 'preview'
 }
 
-const TabCapsule: React.FC<TabCapsuleProps> = ({ activeTab, applicationId, onNavigate, onTabChange }) => {
+const TabCapsule: React.FC = () => {
+  const { id: applicationId } = useParams<{ id: string }>()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const activeTab = deriveActiveTab(location.pathname)
+
+  const nav = (segment: string) => {
+    if (!applicationId) return
+    navigate(`/application/${applicationId}/${segment}`)
+  }
+
   return (
     <div className={styles.tabCapsule}>
       {/* 画布区域 Segmented：预览 | 编辑 */}
@@ -32,10 +48,7 @@ const TabCapsule: React.FC<TabCapsuleProps> = ({ activeTab, applicationId, onNav
         <Tooltip title="预览应用">
           <button
             className={`${styles.segBtn} ${activeTab === 'preview' ? styles.segBtnActive : ''}`}
-            onClick={() => {
-              if (!applicationId) return
-              onNavigate(`/application/${applicationId}/preview`)
-            }}
+            onClick={() => nav('preview')}
           >
             <PlayCircleOutlined />
           </button>
@@ -43,10 +56,7 @@ const TabCapsule: React.FC<TabCapsuleProps> = ({ activeTab, applicationId, onNav
         <Tooltip title="编辑应用">
           <button
             className={`${styles.segBtn} ${activeTab === 'ui' ? styles.segBtnActive : ''}`}
-            onClick={() => {
-              if (!applicationId) return
-              onNavigate(`/application/${applicationId}/ui`)
-            }}
+            onClick={() => nav('ui')}
           >
             <EditOutlined />
           </button>
@@ -60,7 +70,7 @@ const TabCapsule: React.FC<TabCapsuleProps> = ({ activeTab, applicationId, onNav
       <Tooltip title="数据库">
         <button
           className={`${styles.tabBtn} ${activeTab === 'database' ? styles.tabBtnActive : ''}`}
-          onClick={() => onTabChange('database')}
+          onClick={() => nav('database')}
         >
           <span className={styles.tabIcon}><DatabaseOutlined /></span>
         </button>
@@ -70,7 +80,7 @@ const TabCapsule: React.FC<TabCapsuleProps> = ({ activeTab, applicationId, onNav
       <Tooltip title="数据浏览">
         <button
           className={`${styles.tabBtn} ${activeTab === 'data-browser' ? styles.tabBtnActive : ''}`}
-          onClick={() => onTabChange('data-browser')}
+          onClick={() => nav('data-browser')}
         >
           <span className={styles.tabIcon}><SearchOutlined /></span>
         </button>
@@ -83,7 +93,7 @@ const TabCapsule: React.FC<TabCapsuleProps> = ({ activeTab, applicationId, onNav
       <Tooltip title="云函数">
         <button
           className={`${styles.tabBtn} ${activeTab === 'functions' ? styles.tabBtnActive : ''}`}
-          onClick={() => onTabChange('functions')}
+          onClick={() => nav('functions')}
         >
           <span className={styles.tabIcon}><FunctionOutlined /></span>
         </button>

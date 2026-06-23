@@ -7,7 +7,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { isCombinedView, getClipboard } from '@banyuan/banvasgl'
 import type { IBanvasActions, View } from '@banyuan/banvasgl'
-import type { ContextMenuHitResult } from '@/hooks/useInteraction'
+import type { ContextMenuEvent } from '@/hooks/useInteraction'
 import type { IContextMenuState, IContextMenuItem } from '@/types'
 
 // ── 菜单项生成 ──
@@ -15,6 +15,7 @@ import type { IContextMenuState, IContextMenuItem } from '@/types'
 function createViewContextMenuItems(
     view: View,
     actions: IBanvasActions,
+    onSaveMaterial?: (viewId: string) => void,
 ): IContextMenuItem[] {
     const viewId = view.id
     const isLocked = view.freezed
@@ -92,6 +93,16 @@ function createViewContextMenuItems(
         },
     ]
 
+    // ── 保存为物料（独立菜单项，分割线隔开） ──
+    if (onSaveMaterial) {
+        items.push({
+            key: 'saveMaterial',
+            label: '保存为物料',
+            divider: true,
+            handler: () => onSaveMaterial(viewId),
+        })
+    }
+
     return items
 }
 
@@ -122,12 +133,24 @@ function createCanvasContextMenuItems(
 
 export interface UseDesignContextMenuResult {
     contextMenu: IContextMenuState
-    onContextMenuHit: (hit: ContextMenuHitResult) => void
+    onContextMenu: (event: ContextMenuEvent) => void
+    /** 保存为物料弹窗控制 */
+    saveMaterial: {
+        open: boolean
+        viewId: string
+        close: () => void
+        openFor: (viewId: string) => void
+    }
 }
 
 export function useDesignContextMenu(
     actions: IBanvasActions | null,
 ): UseDesignContextMenuResult {
+    const [saveMaterialOpen, setSaveMaterialOpen] = useState(false)
+    const [saveMaterialViewId, setSaveMaterialViewId] = useState('')
+
+    const closeSaveMaterial = useCallback(() => setSaveMaterialOpen(false), [])
+
     const defaultContextMenu: IContextMenuState = useMemo(
         () => ({
             visible: false,
@@ -146,29 +169,41 @@ export function useDesignContextMenu(
         setContextMenu((prev) => ({ ...prev, visible: false }))
     }, [])
 
-    const onContextMenuHit = useCallback(
-        (hit: ContextMenuHitResult) => {
+    const handleSaveMaterial = useCallback((viewId: string) => {
+        dismissContextMenu()
+        setSaveMaterialViewId(viewId)
+        setSaveMaterialOpen(true)
+    }, [dismissContextMenu])
+
+    const onContextMenu = useCallback(
+        (event: ContextMenuEvent) => {
             if (!actions) return
 
-            let items: IContextMenuItem[]
+            const view = event.targetId ? actions.view.getViewInstance(event.targetId) : null
+            const target = view ? 'view' : 'canvas'
 
-            if (hit.target === 'view' && hit.view) {
-                items = createViewContextMenuItems(hit.view, actions)
-            } else {
-                items = createCanvasContextMenuItems(actions, hit.canvasPosition)
-            }
+            const items: IContextMenuItem[] = view
+                ? createViewContextMenuItems(view, actions, handleSaveMaterial)
+                : createCanvasContextMenuItems(actions, event.canvasPosition)
 
             setContextMenu({
                 visible: true,
-                position: hit.position,
-                target: hit.target,
-                viewId: hit.view?.id ?? null,
+                position: event.position,
+                target,
+                viewId: view?.id ?? null,
                 items,
                 dismiss: dismissContextMenu,
             })
         },
-        [actions, dismissContextMenu],
+        [actions, dismissContextMenu, handleSaveMaterial],
     )
 
-    return { contextMenu, onContextMenuHit }
+    const saveMaterial = useMemo(() => ({
+        open: saveMaterialOpen,
+        viewId: saveMaterialViewId,
+        close: closeSaveMaterial,
+        openFor: handleSaveMaterial,
+    }), [saveMaterialOpen, saveMaterialViewId, closeSaveMaterial, handleSaveMaterial])
+
+    return { contextMenu, onContextMenu, saveMaterial }
 }

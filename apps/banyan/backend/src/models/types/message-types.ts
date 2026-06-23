@@ -76,7 +76,7 @@ export interface IToolResultContent extends IAssistantContentBase {
 /** 应用快照 */
 export interface IAppSnapshotContent extends IAssistantContentBase {
   type: 'app_snapshot'
-  appJSON: string
+  uiJSON: string
 }
 
 /** Schema 更新 */

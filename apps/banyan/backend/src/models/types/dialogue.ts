@@ -5,7 +5,7 @@
  *
  * 版本号引用模型（取代旧的嵌入快照）：
  *   - 对话发起时，给三个内容表各 append 一条新版本（拷贝自最新已接受版本），
- *     Dialogue 持有这三个版本号（appContentVersion / schemaVersion / cloudFunctionVersion）。
+ *     Dialogue 持有这三个版本号（uiDefinitionVersion / schemaVersion / cloudFunctionVersion）。
  *   - Agent / 用户编辑时，按版本号定位到内容表那条 in-progress 记录原地修改。
  *   - confirm = Dialogue phase → done（该版本转为"已接受"）；discard = phase → discarded（该版本永远"未接受"，被读取过滤）。
  *   - 读取聚合：取最新 done Dialogue 的三个版本号，精确取三表内容（O(1)）。
@@ -141,8 +141,8 @@ export interface IDialogue {
   // ─── 应用内容版本引用（持有三张 append-only 内容表的版本号）───────────────────
   // 对话创建时，三张内容表各 append 一个新版本（拷贝最新已接受版本），
   // 对话持有这三个版本号；agent 通过版本号定位记录并原地修改，无需 confirm 落库。
-  /** AppContent 表版本号（App 级别序列化 JSON） */
-  appContentVersion: number
+  /** UIDefinition 表版本号（App 级别 UI 定义 JSON） */
+  uiDefinitionVersion: number
   /** CollectionSchema 表版本号（数据库表定义） */
   schemaVersion: number
   /** CloudFunction 表版本号（云函数定义） */

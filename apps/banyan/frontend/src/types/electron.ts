@@ -8,7 +8,7 @@
 export interface PreviewServerInput {
   appId: string;
   appSlug?: string;
-  appJSON: Record<string, unknown>;
+  uiJSON: Record<string, unknown>;
   collectionSchemas: unknown[];
   cloudFunctions: unknown[];
 }

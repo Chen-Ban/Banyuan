@@ -34,9 +34,9 @@ import { useAuthStore } from "@/stores/authStore";
 import { applicationApi } from "@/api";
 import type { Application } from "@/api";
 import { useApplicationStore } from "@/stores/applicationStore";
+import { useWorkspaceStore } from "@/stores/workspaceStore";
 import AiBar from "@/components/AiBar";
-import { type SidebarMode } from "./RootLayoutCtx";
-import styles from "./Sidebar.module.scss";
+import styles from "./index.module.scss";
 
 // ─── 工具函数 ────────────────────────────────────────────────────────────────────
 
@@ -44,15 +44,10 @@ function getInitial(username: string): string {
   return username.charAt(0).toUpperCase();
 }
 
-// ─── Props ──────────────────────────────────────────────────────────────────────
-
-interface SidebarProps {
-  mode: SidebarMode;
-}
-
 // ─── 组件 ────────────────────────────────────────────────────────────────────────
 
-const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
+const Sidebar: React.FC = () => {
+  const mode = useWorkspaceStore((s) => s.workspace);
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.loading);
@@ -195,7 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mode }) => {
       return <SettingsNav />;
     }
     // app 模式：直接渲染 AiBar
-    return <AppAiBar />;
+    return <AiBar />;
   };
 
   return (
@@ -451,14 +446,6 @@ const AppBreadcrumb: React.FC = () => {
       </Modal>
     </>
   );
-};
-
-// ─── 子组件：app 模式 AiBar 容器（直接渲染 AiBar 组件） ──────────────────────────
-
-const AppAiBar: React.FC = () => {
-  const { id: appId } = useParams<{ id: string }>();
-  if (!appId) return null;
-  return <AiBar appId={appId} />;
 };
 
 export default Sidebar;

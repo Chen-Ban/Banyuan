@@ -2,6 +2,6 @@
  * Web 平台适配层 — barrel
  */
 
-export { WebDrawingContext } from "./WebDrawingContext.js";
-export { WebPlatformCanvas } from "./WebPlatformCanvas.js";
-export { CanvasContext, createCanvasContext } from "./CanvasContext.js";
+export { createWebDrawingContext } from "./WebDrawingContext.js";
+export { WebCanvas } from "./WebCanvas.js";
+export type { WebCanvasOptions } from "./WebCanvas.js";

@@ -3,23 +3,24 @@ import MediaElement from './MediaElement'
 import { Style } from '@/foundation/style'
 import type { IImageElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingImageSource } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IImageSource } from '@/types/foundation/media.js'
 import { generateId } from '@/foundation/utils'
 
 /**
- * 图片元素类。
+ * 图片元素类�?
  *
- * ImageElement 继承自 {@link MediaElement}，实现 {@link IImageElement} 和 {@link ISerializable} 接口，
- * 用于在画布中绘制位图图片。
+ * ImageElement 继承�?{@link MediaElement}，实�?{@link IImageElement} �?{@link ISerializable} 接口�?
+ * 用于在画布中绘制位图图片�?
  *
- * **跨域支持**：创建 `HTMLImageElement` 时设置 `crossOrigin = 'anonymous'`，
- * 允许从跨域 CDN 加载图片并提取像素数据（{@link getImageData}）。
+ * **跨域支持**：创�?`HTMLImageElement` 时设�?`crossOrigin = 'anonymous'`�?
+ * 允许从跨�?CDN 加载图片并提取像素数据（{@link getImageData}）�?
  *
- * **加载机制**：构造时自动调用 {@link loadMedia} → {@link loadImage}，通过 Promise 封装
- * `HTMLImageElement.onload` / `onerror` 回调，加载完成后更新 `actualWidth`/`actualHeight` 和控制点。
+ * **加载机制**：构造时自动调用 {@link loadMedia} �?{@link loadImage}，通过 Promise 封装
+ * `HTMLImageElement.onload` / `onerror` 回调，加载完成后更新 `actualWidth`/`actualHeight` 和控制点�?
  *
- * **静态工厂**：{@link fromImageSource} 可从任意 {@link IDrawingImageSource} 创建图片元素（平台无关）；
- * {@link fromCanvas} 已废弃，保留为委托到 `fromImageSource` 的 convenience 方法。
+ * **静态工�?*：{@link fromImageSource} 可从任意 {@link IImageSource} 创建图片元素（平台无关）�?
+ * {@link fromCanvas} 已废弃，保留为委托到 `fromImageSource` �?convenience 方法�?
  *
  * @extends MediaElement
  * @implements IImageElement
@@ -31,24 +32,24 @@ import { generateId } from '@/foundation/utils'
  * // 异步加载完成后：
  * img.loaded; // true
  * img.actualWidth; // 原始宽度
- * img.render(ctx); // 绘制到画布
+ * img.render(ctx); // 绘制到画�?
  * ```
  */
 export default class ImageElement extends MediaElement implements IImageElement, ISerializable {
     /** 图形类型标识 */
     public type: GraphType = GraphType.IMAGE
 
-    /** 平台无关的图像源，加载完成后赋值（可能是 HTMLImageElement / HTMLCanvasElement / ImageBitmap 等） */
-    public image: IDrawingImageSource | null = null
+    /** 平台无关的图像源，加载完成后赋值（可能�?HTMLImageElement / HTMLCanvasElement / ImageBitmap 等） */
+    public image: IImageSource | null = null
 
     /**
-     * 创建图片元素实例。
+     * 创建图片元素实例�?
      *
-     * 构造时自动调用 {@link loadMedia} 开始异步加载图片资源。
+     * 构造时自动调用 {@link loadMedia} 开始异步加载图片资源�?
      *
-     * @param {string} src - 图片资源的 URL 地址
-     * @param {number} x - 矩形左上角 x 坐标
-     * @param {number} y - 矩形左上角 y 坐标
+     * @param {string} src - 图片资源�?URL 地址
+     * @param {number} x - 矩形左上�?x 坐标
+     * @param {number} y - 矩形左上�?y 坐标
      * @param {number} width - 矩形宽度
      * @param {number} height - 矩形高度
      * @param {Style} [style=Style.DEFAULT] - 元素样式
@@ -71,14 +72,14 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 加载图片资源。委托给 {@link loadImage} 执行实际的异步加载。
+     * 加载图片资源。委托给 {@link loadImage} 执行实际的异步加载�?
      *
      * @protected
-     * @returns {Promise<void>} 加载完成后 resolve
+     * @returns {Promise<void>} 加载完成�?resolve
      *
      * @example
      * ```ts
-     * // 由 MediaElement 构造函数自动调用
+     * // �?MediaElement 构造函数自动调�?
      * protected async loadMedia(): Promise<void> { return this.loadImage(); }
      * ```
      */
@@ -87,53 +88,50 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 异步加载图片。
+     * 异步加载图片�?
      *
-     * 创建 `HTMLImageElement` 并设置 `crossOrigin = 'anonymous'` 以支持跨域图片，
-     * 通过 Promise 封装 `onload`/`onerror` 回调：
-     * - `onload`：赋值 {@link image}，更新 `actualWidth`/`actualHeight` 和 `loaded`，同步控制点和包围盒
-     * - `onerror`：reject 并打印错误日志
+     * 引擎不再直接创建 HTMLImageElement，改为通过平台注入�?IDrawingContext 加载像素源�?
+     * 构造时此方法为 no-op（不自动加载），需�?app 初始化时通过 loadImageWithContext(ctx) 显式加载�?
      *
-     * @private
-     * @returns {Promise<void>} 图片加载完成后 resolve，加载失败则 reject
-     *
-     * @example
-     * ```ts
-     * await img.loadImage();
-     * img.loaded; // true
-     * ```
+     * @deprecated 请使�?loadImageWithContext(ctx) 传入平台 DrawingContext 进行加载
+     * @returns {Promise<void>} 立即 resolve（无操作�?
      */
     private async loadImage(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            img.crossOrigin = 'anonymous' // 支持跨域图片
-
-            img.onload = () => {
-                this.image = img
-                this.actualWidth = img.naturalWidth
-                this.actualHeight = img.naturalHeight
-                this.loaded = true
-                // 媒体加载完成后，更新控制点和边界框
-                this.updateControlPoints()
-                resolve()
-            }
-
-            img.onerror = () => {
-                console.error(`Failed to load image: ${this.src}`)
-                reject(new Error(`Failed to load image: ${this.src}`))
-            }
-
-            img.src = this.src
-        })
+        // 引擎不再直接创建 DOM Image�?
+        // 图像源加载需要通过 loadImageWithContext(ctx) 由平台层注入�?
+        return Promise.resolve()
     }
 
     /**
-     * 更换图片源并重新加载。
+     * 使用平台 DrawingContext 加载图片像素源�?
      *
-     * 重置 `image`/`loaded` 状态，同步控制点和包围盒，然后触发异步重新加载。
+     * 调用 ctx.loadImageSource() 获取平台无关�?IImageSource�?
+     * 完成后更�?actualWidth/actualHeight/loaded 和控制点�?
+     *
+     * @param {IDrawingContext} ctx - 平台绘图上下�?
+     * @returns {Promise<void>} 加载完成�?resolve
+     */
+    async loadImageWithContext(ctx: IDrawingContext): Promise<void> {
+        if (!this.src) return
+        try {
+            const source = await ctx.loadImageSource(this.src, 'anonymous')
+            this.image = source
+            this.actualWidth = source.width
+            this.actualHeight = source.height
+            this.loaded = true
+            this.updateControlPoints()
+        } catch (e) {
+            console.error(`Failed to load image: ${this.src}`, e)
+        }
+    }
+
+    /**
+     * 更换图片源并重新加载�?
+     *
+     * 重置 `image`/`loaded` 状态，同步控制点和包围盒，然后触发异步重新加载�?
      *
      * @param {string} src - 新的图片资源 URL
-     * @returns {ImageElement} 当前实例，支持链式调用
+     * @returns {ImageElement} 当前实例，支持链式调�?
      *
      * @example
      * ```ts
@@ -151,13 +149,13 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 渲染图片到 Canvas。
+     * 渲染图片�?Canvas�?
      *
      * 若图片尚未加载完成，调用 {@link renderPlaceholder} 绘制占位符；
-     * 否则应用样式后使用 `ctx.drawImage` 将图片绘制到 `(x, y, width, height)` 矩形区域。
-     * 绘制使用设置的 `width`/`height`，而非图片的原始尺寸。
+     * 否则应用样式后使�?`ctx.drawImage` 将图片绘制到 `(x, y, width, height)` 矩形区域�?
+     * 绘制使用设置�?`width`/`height`，而非图片的原始尺寸�?
      *
-     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下�?
      *
      * @example
      * ```ts
@@ -167,7 +165,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
     public render(ctx: IDrawingContext, style: Style): void {
         ctx.save()
         if (!this.image || !this.loaded) {
-            // 如果图片未加载，绘制占位符
+            // 如果图片未加载，绘制占位�?
             this.renderPlaceholder(ctx)
             ctx.restore()
             return
@@ -177,20 +175,20 @@ export default class ImageElement extends MediaElement implements IImageElement,
         const bounds = this.bounds
         style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
 
-        // 使用设置的尺寸绘制图片，而不是原始尺寸
+        // 使用设置的尺寸绘制图片，而不是原始尺�?
         ctx.drawImage(this.image, this.x, this.y, this.width, this.height)
         ctx.restore()
     }
 
     /**
-     * 渲染占位符。当图片未加载完成时，绘制灰色虚线边框和 "Loading..." 提示文字。
+     * 渲染占位符。当图片未加载完成时，绘制灰色虚线边框和 "Loading..." 提示文字�?
      *
      * @protected
-     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下文
+     * @param {IDrawingContext} ctx - Canvas 2D 渲染上下�?
      *
      * @example
      * ```ts
-     * // 由 render() 在 loaded === false 时自动调用
+     * // �?render() �?loaded === false 时自动调�?
      * img.renderPlaceholder(ctx);
      * ```
      */
@@ -200,7 +198,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
         ctx.lineWidth = 1
         ctx.strokeRect(this.x, this.y, this.width, this.height)
 
-        // 绘制加载中文字
+        // 绘制加载中文�?
         ctx.fillStyle = '#999999'
         ctx.font = '12px Arial'
         ctx.textAlign = 'center'
@@ -214,48 +212,28 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 获取图片的像素数据。
+     * 获取图片的像素数据�?
      *
-     * 创建临时 Canvas，将图片以原始尺寸（`naturalWidth` × `naturalHeight`）绘制到上面，
-     * 再通过 `ctx.getImageData` 提取完整的像素数据。
-     * 需要图片已加载完成且跨域配置正确，否则返回 `null`。
+     * 直接返回 image.data —�?引擎持有原始 RGBA 像素�?
+     * 无需通过 DrawingContext 中转�?
+     * 需要图片已加载完成，否则返�?`null`�?
      *
-     * @returns {ImageData | null} 图片像素数据；若未加载或 Canvas 不可用则返回 `null`
-     *
-     * @example
-     * ```ts
-     * const img = new ImageElement('photo.jpg', 0, 0, 100, 100);
-     * await img.loadMedia();
-     * const pixels = img.getImageData();
-     * // pixels.data[0] → 第一个像素的 R 通道值
-     * ```
+     * @returns {IImageSource | null} 图片像素数据；若未加载则返回 `null`
      */
-    getImageData(): ImageData | null {
+    getImageData(): IImageSource | null {
         if (!this.image || !this.loaded) return null
-
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return null
-
-        canvas.width = this.actualWidth
-        canvas.height = this.actualHeight
-
-        ctx.drawImage(
-            this.image as unknown as CanvasImageSource,
-            0,
-            0,
-            this.actualWidth,
-            this.actualHeight
-        )
-
-        return ctx.getImageData(0, 0, canvas.width, canvas.height)
+        return {
+            width: this.image.width,
+            height: this.image.height,
+            data: this.image.data,
+        }
     }
 
     /**
-     * 复制图片元素。
+     * 复制图片元素�?
      *
-     * 创建一个相同属性（`src`、位置、尺寸、样式）的新 {@link ImageElement} 实例。
-     * 注意：复制后的实例不共享 `HTMLImageElement`，需要重新加载。
+     * 创建一个相同属性（`src`、位置、尺寸、样式）的新 {@link ImageElement} 实例�?
+     * 注意：复制后的实例不共享 `HTMLImageElement`，需要重新加载�?
      *
      * @returns {this} 新的图片元素实例
      *
@@ -276,12 +254,12 @@ export default class ImageElement extends MediaElement implements IImageElement,
         return copy as this
     }
 
-    // ── 序列化 ──
+    // ── 序列�?──
 
     /**
-     * 将图片元素序列化为 JSON 对象，用于持久化存储。
+     * 将图片元素序列化�?JSON 对象，用于持久化存储�?
      *
-     * @returns {any} 包含 id、type、src、位置、尺寸和样式的 JSON 对象
+     * @returns {any} 包含 id、type、src、位置、尺寸和样式�?JSON 对象
      *
      * @example
      * ```ts
@@ -302,10 +280,10 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 从 JSON 对象反序列化创建图片元素。
+     * �?JSON 对象反序列化创建图片元素�?
      *
-     * @param {any} data - 序列化后的 JSON 数据
-     * @returns {ImageElement} 恢复的图片元素实例
+     * @param {any} data - 序列化后�?JSON 数据
+     * @returns {ImageElement} 恢复的图片元素实�?
      *
      * @example
      * ```ts
@@ -325,30 +303,30 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 从平台无关的图像源创建图片元素的静态工厂方法。
+     * 从平台无关的图像源创建图片元素的静态工厂方法�?
      *
-     * 直接存储 {@link IDrawingImageSource}，无需 `toDataURL()` 或 `HTMLImageElement` 中转。
-     * 适用于将 Canvas / ImageBitmap / SkImage 等任意平台图像源包装为图元。
+     * 直接存储 {@link IImageSource}，无需 `toDataURL()` �?`HTMLImageElement` 中转�?
+     * 适用于将 Canvas / ImageBitmap / SkImage 等任意平台图像源包装为图元�?
      *
-     * @param {IDrawingImageSource} source - 平台无关的图像源
-     * @param {number} x - 矩形左上角 x 坐标
-     * @param {number} y - 矩形左上角 y 坐标
+     * @param {IImageSource} source - 平台无关的图像源
+     * @param {number} x - 矩形左上�?x 坐标
+     * @param {number} y - 矩形左上�?y 坐标
      * @param {number} width - 矩形宽度
      * @param {number} height - 矩形高度
      * @param {Style} [_style] - 元素样式
-     * @returns {ImageElement} 立即可用的图片元素实例
+     * @returns {ImageElement} 立即可用的图片元素实�?
      *
      * @example
      * ```ts
      * const canvas = document.createElement('canvas');
      * canvas.width = 200;
      * canvas.height = 100;
-     * // ... 在 canvas 上绘制内容 ...
+     * // ... �?canvas 上绘制内�?...
      * const img = ImageElement.fromImageSource(canvas, 0, 0, 200, 100);
      * ```
      */
     static fromImageSource(
-        source: IDrawingImageSource,
+        source: IImageSource,
         x: number,
         y: number,
         width: number,
@@ -365,29 +343,20 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 从 HTMLCanvasElement 创建图片元素的静态工厂方法。
+     * 从平台无关的图像源创建图片元素的静态工厂方法�?
      *
-     * @deprecated 请使用平台无关的 {@link fromImageSource}，它接受任意 {@link IDrawingImageSource}。
-     *             HTMLCanvasElement 本身已满足 IDrawingImageSource 接口。
+     * @deprecated 请使用平台无关的 {@link fromImageSource}，它接受任意 {@link IImageSource}�?
      *
-     * @param {HTMLCanvasElement} canvas - 源 Canvas 元素
-     * @param {number} x - 矩形左上角 x 坐标
-     * @param {number} y - 矩形左上角 y 坐标
+     * @param {IImageSource} source - 平台无关的图像源
+     * @param {number} x - 矩形左上�?x 坐标
+     * @param {number} y - 矩形左上�?y 坐标
      * @param {number} width - 矩形宽度
      * @param {number} height - 矩形高度
      * @param {Style} [_style] - 元素样式
-     * @returns {Promise<ImageElement>} 加载完成后 resolve 为图片元素实例
-     *
-     * @example
-     * ```ts
-     * // 旧用法（不推荐）
-     * const img = await ImageElement.fromCanvas(canvas, 0, 0, 200, 100);
-     * // 新用法（推荐）
-     * const img = ImageElement.fromImageSource(canvas, 0, 0, 200, 100);
-     * ```
+     * @returns {Promise<ImageElement>} 加载完成�?resolve 为图片元素实�?
      */
     static fromCanvas(
-        canvas: HTMLCanvasElement,
+        source: IImageSource,
         x: number,
         y: number,
         width: number,
@@ -395,7 +364,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
         _style?: Style
     ): Promise<ImageElement> {
         return Promise.resolve(
-            ImageElement.fromImageSource(canvas, x, y, width, height, _style)
+            ImageElement.fromImageSource(source, x, y, width, height, _style)
         )
     }
 }

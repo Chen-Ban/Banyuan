@@ -1,14 +1,5 @@
-/**
- * 图案平铺模式
- *
- * 对应 Canvas 2D createPattern 的 repetition 参数。
- *
- * @example
- * ```ts
- * const repeat: PatternRepeat = 'repeat-x' // 仅水平方向平铺
- * ```
- */
-export type PatternRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat'
+import type { PatternRepeat } from '@/types/foundation/media.js'
+export type { PatternRepeat }
 
 /**
  * 图案尺寸
@@ -27,7 +18,9 @@ export interface PatternSize {
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingPattern } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IPattern } from '@/types/foundation/pattern.js'
+import type { IImageSource } from '@/types/foundation/media.js'
 
 /**
  * 图片图案填充样式
@@ -46,6 +39,9 @@ export default class Image implements ISerializable {
   src: string | null
   size: PatternSize | null
   repeat: PatternRepeat
+
+  /** 平台加载的像素源（由 ctx.loadImageSource() 注入），null 表示尚未加载 */
+  private _loadedSource: IImageSource | null = null
 
   /**
    * 构造图片图案
@@ -122,6 +118,25 @@ export default class Image implements ISerializable {
   }
 
   /**
+   * 设置已加载的像素源。
+   * 由平台层在加载图片后调用（ctx.loadImageSource → setLoadedSource）。
+   */
+  setLoadedSource(source: IImageSource | null): Image {
+    this._loadedSource = source
+    return this
+  }
+
+  /** 像素源是否已就绪 */
+  hasLoadedSource(): boolean {
+    return this._loadedSource !== null
+  }
+
+  /** 获取已加载的像素源（供 FillStyle/StrokeStyle 透传） */
+  getLoadedSource(): IImageSource | null {
+    return this._loadedSource
+  }
+
+  /**
    * 获取图案配置信息
    *
    * 返回当前图案的完整配置对象，包含源地址、尺寸和平铺模式。
@@ -159,16 +174,11 @@ export default class Image implements ISerializable {
    * }
    * ```
    */
-  createCanvasPattern(ctx: IDrawingContext): IDrawingPattern | null {
-    if (!this.src) return null
-    
-    // 创建图像元素
-    const img = new globalThis.Image()
-    img.src = this.src
-    
-    // 创建图案
-    const image = ctx.createPattern(img, this.repeat)
-    return image
+  createCanvasPattern(ctx: IDrawingContext): IPattern | null {
+    if (!this._loadedSource) return null
+
+    // 使用平台注入的像素源创建图案，引擎不再直接创建 DOM Image
+    return ctx.createPattern(this._loadedSource, this.repeat)
   }
 
   /**
@@ -220,6 +230,7 @@ export default class Image implements ISerializable {
    */
   copy(): Image {
     const image = new Image(this.src, this.size, this.repeat)
+    image._loadedSource = this._loadedSource
     return image
   }
 

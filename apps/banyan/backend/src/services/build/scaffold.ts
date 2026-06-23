@@ -213,7 +213,7 @@ export default function App() {
   }, [])
 
   const { Banvas } = useRuntimeBanvas({
-    appJSON: appData,
+    uiJSON: appData,
     width: size.width,
     height: size.height,
   })

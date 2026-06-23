@@ -34,7 +34,7 @@
  *
  * 三条 DialogueType 路径（入口不同，本文件仅负责 chat / task）：
  *   - chat / task：入口 /api/ai/run（AiController，type: 'chat' | 'task'），经本文件 SSE 代理 XiangDi。
- *   - edit：用户绕过 AI 在编辑器里手动改表结构 / 云函数 / appJSON，入口为 SchemaController /
+ *   - edit：用户绕过 AI 在编辑器里手动改表结构 / 云函数 / UI 定义，入口为 SchemaController /
  *     CloudFunctionController，调 DialogueService.runAutoConfirmedEdit。该路径**不走本文件、不走 SSE**，
  *     是一次同步 HTTP 请求，phase 自动验收 start → committing → done（无 awaiting_confirm）。
  *     其设计目的是让「所有内容变更都归属于某个对话」这一不变式成立（详见 runAutoConfirmedEdit 注释）。
@@ -45,7 +45,7 @@ import http from 'http'
 import https from 'https'
 import { Types } from 'mongoose'
 import applicationService from './ApplicationService.js'
-import appContentService from './AppContentService.js'
+import uiDefinitionService from './UIDefinitionService.js'
 import cloudFunctionService from './CloudFunctionService.js'
 import conversationService from './ConversationService.js'
 import contextBuilder, { ContextBudgetOverflowError } from './ContextBuilder.js'
@@ -120,12 +120,12 @@ function startHeartbeat(res: ServerResponse): () => void {
 // ─── 统一 SSE 代理核心（ADR-041 Orchestrator 事件协议）───────────────────────
 
 interface ProxySSECallbacks {
-  /** 流结束时回调：携带最终 appJSON 和助手内容 */
-  onDone: (appJSON: string, assistantContent: IAssistantContent[], summary: string | null) => Promise<void>
+  /** 流结束时回调：携带最终 UI 定义 JSON 和助手内容 */
+  onDone: (uiJSON: string, assistantContent: IAssistantContent[], summary: string | null) => Promise<void>
   /** 错误时回调 */
   onError?: () => Promise<void>
   /** 收到 app_state 事件（包含 schema + cloudFunctions）时回调 */
-  onAppState?: (state: { appJSON: string; schema: ICollectionDef[]; cloudFunctions: unknown[] }) => void
+  onAppState?: (state: { uiJSON: string; schema: ICollectionDef[]; cloudFunctions: unknown[] }) => void
 }
 
 interface ProxySSEOptions {
@@ -186,8 +186,8 @@ function proxySSECore(
     let textBuffer = ''
     let summaryBuffer: string | null = null
     const assistantContentBuffer: IAssistantContent[] = []
-    /** app_state 中的最终 appJSON（覆盖 done 中可能没有的 appJSON） */
-    let finalAppJSON = ''
+    /** app_state 中的最终 UI 定义 JSON（覆盖 done 中可能没有的） */
+    let finalUIJSON = ''
 
     const phaseCtrl = options?.phaseCtrl
 
@@ -218,10 +218,10 @@ function proxySSECore(
       // ── app_state：拦截，不透传给前端 ──
       if (currentEvent === 'app_state') {
         try {
-          const parsed = JSON.parse(dataStr) as { appJSON?: string; schema?: ICollectionDef[]; cloudFunctions?: unknown[] }
-          finalAppJSON = parsed.appJSON ?? ''
+          const parsed = JSON.parse(dataStr) as { uiJSON?: string; schema?: ICollectionDef[]; cloudFunctions?: unknown[] }
+          finalUIJSON = parsed.uiJSON ?? ''
           callbacks.onAppState?.({
-            appJSON: finalAppJSON,
+            uiJSON: finalUIJSON,
             schema: parsed.schema ?? [],
             cloudFunctions: parsed.cloudFunctions ?? [],
           })
@@ -238,9 +238,9 @@ function proxySSECore(
           if (textBuffer) {
             assistantContentBuffer.unshift({ type: 'text', text: textBuffer })
           }
-          assistantContentBuffer.push({ type: 'app_snapshot', appJSON: finalAppJSON })
+          assistantContentBuffer.push({ type: 'app_snapshot', uiJSON: finalUIJSON })
 
-          callbacks.onDone(finalAppJSON, assistantContentBuffer, summaryBuffer).then(async () => {
+          callbacks.onDone(finalUIJSON, assistantContentBuffer, summaryBuffer).then(async () => {
             if (phaseCtrl && !phaseCtrl.isTerminal()) {
               const phase = phaseCtrl.getPhase()
               if (phase === 'responding') {
@@ -462,7 +462,7 @@ class AiService {
     })
     const dialogueId = dlgDoc._id as import('mongoose').Types.ObjectId
     // 本轮对话持有的三个内容版本号（agent 按版本号原地修改这些草稿记录）
-    const appContentVersion = dlgDoc.appContentVersion
+    const uiDefinitionVersion = dlgDoc.uiDefinitionVersion
     const schemaVersion = dlgDoc.schemaVersion
     const cloudFunctionVersion = dlgDoc.cloudFunctionVersion
 
@@ -495,9 +495,9 @@ class AiService {
 
     // 5. proxySSECore — 回调统一写 Dialogue
     await proxySSECore('/ai/run', requestBody, res, {
-      onDone: async (finalAppJSON, assistantContent, summary) => {
-        // 5a. 按版本号原地更新 appJSON 草稿记录（所有模式共享）
-        await appContentService.updateByVersion(appId, appContentVersion, finalAppJSON)
+      onDone: async (finalUIJSON, assistantContent, summary) => {
+        // 5a. 按版本号原地更新 UI 定义 JSON 草稿记录（所有模式共享）
+        await uiDefinitionService.updateByVersion(appId, uiDefinitionVersion, finalUIJSON)
         await dialogueService.appendAssistantContent(dialogueId, assistantContent)
         if (summary) {
           await dialogueService.setRoundSummary(dialogueId, summary)

@@ -1,9 +1,12 @@
 import React from "react";
 import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
-import type { IBanvasActions } from "@banyuan/banvasgl";
+import type { IBanvasActions, IAppOptions } from "@banyuan/banvasgl";
+import type { WebCanvasOptions } from "@banyuan/banvasgl-react";
 import { useInteraction } from "@/hooks/useInteraction";
 import { useDesignContextMenu } from "./useDesignContextMenu";
+import type { UseDesignContextMenuResult } from "./useDesignContextMenu";
 import type { IContextMenuState } from "@/types/contextMenu";
+import { useApplicationStore } from "@/stores/applicationStore";
 
 /**
  * useDesignBanvas Hook 的返回值类型
@@ -25,44 +28,85 @@ export interface IUseBanvasResult<TElement = unknown> {
   actions: IBanvasActions;
   /** 右键菜单上下文 */
   contextMenu: IContextMenuState;
+  /** 保存为物料弹窗控制 */
+  saveMaterial: UseDesignContextMenuResult['saveMaterial'];
 }
 
 export interface UseDesignBanvasOptions {
-  /** 页面样式宽度（设计尺寸，CSS 像素） */
-  width: number;
-  /** 页面样式高度（设计尺寸，CSS 像素） */
-  height: number;
-  /** 序列化的应用 JSON（空字符串表示新建空白应用） */
-  appJSON: string;
-  appOptions?: Partial<import("@banyuan/banvasgl").IAppOptions>;
-  rendererOptions?: Omit<import("@banyuan/banvasgl").IRendererOptions, "dpr">;
+  appOptions?: Partial<IAppOptions>;
+  rendererOptions?: WebCanvasOptions;
 }
 
 export default function useDesignBanvas(
   options: UseDesignBanvasOptions,
 ): IUseBanvasResult<React.ReactElement> {
-  const { width, height, appJSON, appOptions, rendererOptions } = options;
+  const { appOptions, rendererOptions } = options;
+
+  // ── Store 桥接源 ──
+  const designSize = useApplicationStore((s) => s.designSize);
+  const uiJSON = useApplicationStore((s) => s.uiJSON);
+  const { registerActions, setDesignSize } = useApplicationStore();
 
   // ── 初始化：固定模式画布 + textInput ──
   // flowEnabled: false — 编辑态禁止 FlowSchema 执行（显式传值，不依赖隐式约定）
+  const appOptionsStable = React.useMemo(
+    () => ({ flowEnabled: false, ...appOptions }),
+    [appOptions],
+  );
+  const fallbackRendererOptions = React.useMemo(
+    () => ({ clearColor: "#fff" }),
+    [],
+  );
   const { actions, elements, derived } = useFixedCanvasInit({
-    width,
-    height,
-    appJSON,
-    appOptions: { flowEnabled: false, ...appOptions },
-    rendererOptions: rendererOptions ?? { clearColor: "#fff" },
+    appOptions: appOptionsStable,
+    rendererOptions: rendererOptions ?? fallbackRendererOptions,
     textInput: true,
   });
 
+  // ════════════════════════════════════════════════════════════════
+  // Store ↔ 引擎 桥接
+  // ════════════════════════════════════════════════════════════════
+
+  // ① designSize: store → 引擎
+  React.useEffect(() => {
+    if (actions?.app) {
+      actions.app.setDesignSize(designSize.width, designSize.height);
+    }
+  }, [actions, designSize.width, designSize.height]);
+
+  // ② 挂载 actions 到 store + 同步设计尺寸: 引擎 → store
+  React.useEffect(() => {
+    if (!actions?.app) return;
+    const unregister = registerActions(actions);
+    const ds = actions.app.getDesignSize();
+    setDesignSize({ width: ds.width, height: ds.height });
+    return unregister;
+  }, [registerActions, setDesignSize, actions]);
+
+  // ③ 引擎变更 → 标记 UI 脏
+  React.useEffect(() => {
+    if (!actions?.app) return;
+    return actions.app.subscribe(() => {
+      useApplicationStore.getState().markUIDirty();
+    });
+  }, [actions]);
+
+  // ④ uiJSON: store → 引擎
+  React.useEffect(() => {
+    if (actions?.app && uiJSON) {
+      actions.app.loadAppJSON(uiJSON);
+    }
+  }, [uiJSON, actions]);
+
   // ── 右键菜单 ──
-  const { contextMenu, onContextMenuHit } = useDesignContextMenu(actions);
+  const { contextMenu, onContextMenu, saveMaterial } = useDesignContextMenu(actions);
 
   useInteraction({
     canvas: derived.canvas,
     actions,
     mode: "design",
     inputElement: derived.inputElement,
-    onContextMenuHit,
+    onContextMenu,
   });
 
   return {
@@ -71,5 +115,6 @@ export default function useDesignBanvas(
     selectedViewId: derived.selectedViewId,
     actions: actions!,
     contextMenu,
+    saveMaterial,
   };
 }

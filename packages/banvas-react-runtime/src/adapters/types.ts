@@ -1,7 +1,7 @@
 /**
  * 平台事件适配器契约
  *
- * EventAdapter 是 banvas-runtime 的跨平台适配抽象：
+ * EventAdapter 是 banvas-react-runtime 的跨平台适配抽象：
  *   - 每个平台（Web / Electron / 未来 Native）提供一个 EventAdapter 实现
  *   - 适配器负责监听平台原生事件，规范化为 InteractionInput 后回调上层
  *   - 上层（useRuntimeInteraction / 识别器）只消费 InteractionInput，不感知平台

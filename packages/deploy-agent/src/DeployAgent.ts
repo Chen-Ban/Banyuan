@@ -127,9 +127,9 @@ export class DeployAgent {
   }
 
   private async handleDeployStart(request: DeployRequest): Promise<void> {
-    // appJSON 可能是字符串（后端直接从 MongoDB 传输），需要 parse 为对象
-    if (typeof request.appJSON === 'string') {
-      request.appJSON = JSON.parse(request.appJSON);
+    // uiJSON 可能是字符串（后端直接从 MongoDB 传输），需要 parse 为对象
+    if (typeof request.uiJSON === 'string') {
+      request.uiJSON = JSON.parse(request.uiJSON);
     }
 
     this.log(`Starting deploy: ${request.appSlug} (${request.deployType})`);
@@ -171,7 +171,7 @@ export class DeployAgent {
     // Step 1: Scaffold 项目
     this.sendProgress(request.requestId, 'scaffold', 10, '生成项目文件...');
     await mkdir(projectDir, { recursive: true });
-    await scaffoldProject(projectDir, request.appJSON);
+    await scaffoldProject(projectDir, request.uiJSON);
 
     // Step 2: 安装依赖
     this.sendProgress(request.requestId, 'install', 30, '安装依赖...');
@@ -215,7 +215,7 @@ export class DeployAgent {
     // Step 1: Scaffold 前端项目
     this.sendProgress(request.requestId, 'scaffold-frontend', 5, '生成前端项目文件...');
     await mkdir(projectDir, { recursive: true });
-    await scaffoldProject(projectDir, request.appJSON);
+    await scaffoldProject(projectDir, request.uiJSON);
 
     // Step 2: 安装依赖并构建前端
     this.sendProgress(request.requestId, 'install', 15, '安装前端依赖...');

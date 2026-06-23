@@ -2,23 +2,19 @@
  * DevicePicker — 机型选择器
  *
  * 顶部栏左侧的机型下拉，从 DEVICE_GROUPS 构造分组菜单，
- * 选择后通过 onChange 回调更新设计尺寸。
+ * 选择后直接通过 useApplicationStore().changeDesignSize 更新设计尺寸。
  */
 
 import React, { useState } from 'react'
 import { Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
 import { LaptopOutlined, DownOutlined } from '@ant-design/icons'
-import type { DesignSize } from '@/stores/applicationStore'
+import { useApplicationStore } from '@/stores/applicationStore'
 import { DEVICE_GROUPS, ALL_DEVICE_PRESETS } from '../../constants'
 import styles from '../../index.module.scss'
 
-interface DevicePickerProps {
-  designSize: DesignSize
-  onChange: (size: { width: number; height: number }) => void
-}
-
-const DevicePicker: React.FC<DevicePickerProps> = ({ designSize, onChange }) => {
+const DevicePicker: React.FC = () => {
+  const { designSize, changeDesignSize } = useApplicationStore()
   const [deviceDropdownOpen, setDeviceDropdownOpen] = useState(false)
 
   const deviceMenuItems: MenuProps['items'] = DEVICE_GROUPS.flatMap((group) => {
@@ -29,7 +25,7 @@ const DevicePicker: React.FC<DevicePickerProps> = ({ designSize, onChange }) => 
         key: preset.key,
         icon: <GroupIcon />,
         label: `${preset.label}（${preset.width}×${preset.height}）`,
-        onClick: () => onChange({ width: preset.width, height: preset.height }),
+        onClick: () => changeDesignSize({ width: preset.width, height: preset.height }),
       })),
     ]
   })

@@ -111,7 +111,7 @@ const SaveMaterialModal: React.FC<SaveMaterialModalProps> = ({
       confirmLoading={loading}
       okText="保存"
       cancelText="取消"
-      destroyOnClose
+      destroyOnHidden
     >
       <div className={styles.formItem}>
         <span className={styles.label}>名称 *</span>

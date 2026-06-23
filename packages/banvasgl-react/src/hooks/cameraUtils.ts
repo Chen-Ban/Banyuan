@@ -4,10 +4,10 @@
  * 提供世界坐标 ↔ 屏幕坐标的转换，供设计态和流程图编辑态共用。
  *
  * 坐标转换链路：
- *   screenToWorld：clientX/Y → canvasX/Y（CSS 像素）→ 逻辑坐标（× logicalSize/styleSize）→ VP⁻¹ → 世界坐标
- *   worldToScreen：世界坐标 → VP → 逻辑坐标 → canvasX/Y（÷ logicalSize/styleSize）→ + DOM 偏移 → 屏幕坐标
+ *   screenToWorld：clientX/Y → canvasX/Y（CSS 像素偏移）→ 缩放归一化 → Camera.screenToWorld → 世界坐标
+ *   worldToScreen：世界坐标 → Camera.worldToScreen → canvasX/Y → 缩放 + DOM 偏移 → 屏幕坐标
  *
- * 这些都是 Web 平台特定的工具函数，依赖 HTMLCanvasElement 的 DOM API。
+ * Web 平台层负责 DOM 坐标偏移和 CSS 像素缩放；Camera 负责纯 VP 矩阵变换。
  */
 
 import { Point3 } from "@banyuan/banvasgl";
@@ -41,11 +41,11 @@ export function screenToWorld(
 
   const camera = scene.camera;
   const { width: logicalW, height: logicalH } = camera.getSize();
-  const logicalX = canvasX * (logicalW / rect.width);
-  const logicalY = canvasY * (logicalH / rect.height);
+  const domX = canvasX * (logicalW / rect.width);
+  const domY = canvasY * (logicalH / rect.height);
 
-  const vpInverse = camera.viewProjectionMatrix.inverse();
-  return vpInverse.multiply(new Point3(logicalX, logicalY, 0));
+  const [wx, wy, wz] = camera.screenToWorld(domX, domY);
+  return new Point3(wx, wy, wz);
 }
 
 /**
@@ -59,13 +59,12 @@ export function worldToScreen(
 ): { x: number; y: number } {
   const camera = scene.camera;
 
-  const vpMatrix = camera.viewProjectionMatrix;
-  const logical = vpMatrix.multiply(new Point3(worldX, worldY, 0));
+  const [lx, ly] = camera.worldToScreen(worldX, worldY);
 
   const { width: logicalW, height: logicalH } = camera.getSize();
   const rect = canvas.getBoundingClientRect();
-  const cssX = logical.x * (rect.width / logicalW);
-  const cssY = logical.y * (rect.height / logicalH);
+  const cssX = lx * (rect.width / logicalW);
+  const cssY = ly * (rect.height / logicalH);
 
   return {
     x: cssX + canvas.offsetLeft,

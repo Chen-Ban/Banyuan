@@ -1,39 +1,17 @@
 /**
  * 平台抽象层 — barrel 导出
  *
- * 所有平台无关的接口从这里统一导出。
- * banvasgl 引擎核心通过这些接口与平台交互，
- * 不再直接依赖 HTMLCanvasElement / CanvasRenderingContext2D 等 DOM 类型。
+ * IDrawingContext 是引擎与平台之间的唯一绘制契约。
+ * 所有辅助类型（枚举、渐变、图案、文本度量等）已移至 types/foundation/，
+ * 它们是引擎自有类型，不属平台注入层。
  */
 
-// ── 绘图上下文 ──
+// ── 绘图上下文（平台注入能力） ──
 export type {
-  // 辅助类型
-  IDrawingGradient,
-  IDrawingPattern,
-  IDrawingImageSource,
-  IDrawingTextMetrics,
-  IDrawingImageData,
-  // Canvas 风格枚举（平台无关）
-  DrawingFillRule,
-  DrawingLineCap,
-  DrawingLineJoin,
-  DrawingTextAlign,
-  DrawingTextBaseline,
-  DrawingImageSmoothingQuality,
-  DrawingMatrix2DInit,
-  // 核心接口
   IDrawingContext,
 } from './drawing.js';
 
-// ── 平台画布 ──
+// ── 画布表面（平台注入能力） ──
 export type {
-  IPlatformCanvasOptions,
-  IPlatformCanvas,
-} from './canvas.js';
-
-// ── 画布宿主 ──
-export type {
-  ICanvasHostOptions,
-  ICanvasHost,
-} from './host.js';
+  IDrawingSurface,
+} from './surface.js';

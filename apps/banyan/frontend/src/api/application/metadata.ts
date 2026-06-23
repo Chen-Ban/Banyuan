@@ -7,10 +7,9 @@ import type { ApiResponse } from '../client'
 export interface Application {
   application_id: string
   name: string
-  description?: string
   thumbnail?: string
-  /** 完整 App 序列化 JSON（包含 lifetimes + scenes） */
-  appJSON?: string
+  /** 完整 App UI 定义 JSON（包含 lifetimes + scenes） */
+  uiJSON?: string
   tags?: string[]
   version?: number
   createdBy?: string
@@ -22,13 +21,12 @@ export interface Application {
 /**
  * 应用表单数据（仅元信息）
  *
- * ADR-042：画布内容 appJSON 是版本化内容，不通过本表单/PUT /applications/:id 更新，
- * 必须走 appContentApi.saveAppContent → PUT /apps/:appId/app-content。
- * 故这里刻意不含 appJSON。
+ * ADR-042：画布内容 uiJSON 是版本化内容，不通过本表单/PUT /applications/:id 更新，
+ * 必须走 uiDefinitionApi.saveUIDefinition → PUT /apps/:appId/app-content。
+ * 故这里刻意不含 uiJSON。
  */
 export interface ApplicationFormData {
   name: string
-  description?: string
   thumbnail?: string
   tags?: string[]
 }
@@ -66,7 +64,7 @@ export function fetchApplication(id: string): Promise<ApiResponse<Application>> 
 }
 
 /**
- * 创建空白应用（服务端自动生成 ID、默认名称、空 appJSON）
+ * 创建空白应用（服务端自动生成 ID、默认名称、空 uiJSON）
  */
 export function createApplication(): Promise<ApiResponse<Application>> {
   return post<ApiResponse<Application>>('/applications', {})

@@ -1,7 +1,7 @@
 /**
  * FullStateController — 应用全量状态聚合读写
  *
- * save-all：在一次 runAutoConfirmedEdit 中原子更新三张内容表（appJSON / collections / cloudFunctions），
+ * save-all：在一次 runAutoConfirmedEdit 中原子更新三张内容表（uiJSON / collections / cloudFunctions），
  * 保证版本号引用模型的完整性。
  *
  * full-state：聚合读取最新已接受版本的全部业务数据，与 ApplicationService.getFullApplicationById 口径一致。
@@ -9,36 +9,40 @@
 
 import type { Context } from 'koa'
 import { Types } from 'mongoose'
-import appContentService from '../services/AppContentService.js'
+import sharp from 'sharp'
+import uiDefinitionService from '../services/UIDefinitionService.js'
 import { SchemaService } from '../services/SchemaService.js'
 import cloudFunctionService from '../services/CloudFunctionService.js'
 import dialogueService from '../services/DialogueService.js'
 import conversationService from '../services/ConversationService.js'
+import applicationService from '../services/ApplicationService.js'
+import ossService from '../services/OssService.js'
+import { generateCover } from '../services/thumbnail/index.js'
 import type { ICollectionDef, ICloudFunctionDef } from '../models/types/index.js'
 
 export class FullStateController {
   /**
    * PUT /api/apps/:appId/save-all
    *
-   * 请求体：{ appJSON: string, collections: ICollectionDef[], cloudFunctions: ICloudFunctionDef[] }
+   * 请求体：{ uiJSON: string, collections: ICollectionDef[], cloudFunctions: ICloudFunctionDef[] }
    * 在一次 edit 对话中原子写入三张表。任何字段缺失则跳过该表的更新。
    */
   static async saveAll(ctx: Context) {
     const { appId } = ctx.params as { appId: string }
     const body = ctx.request.body as {
-      appJSON?: unknown
+      uiJSON?: unknown
       collections?: unknown
       cloudFunctions?: unknown
     }
 
     // 至少需要提供一个字段
-    const hasAppJSON = typeof body.appJSON === 'string'
+    const hasUIJSON = typeof body.uiJSON === 'string'
     const hasCollections = Array.isArray(body.collections)
     const hasCloudFunctions = Array.isArray(body.cloudFunctions)
 
-    if (!hasAppJSON && !hasCollections && !hasCloudFunctions) {
+    if (!hasUIJSON && !hasCollections && !hasCloudFunctions) {
       ctx.status = 400
-      ctx.body = { success: false, message: '至少需要提供 appJSON / collections / cloudFunctions 其中之一' }
+      ctx.body = { success: false, message: '至少需要提供 uiJSON / collections / cloudFunctions 其中之一' }
       return
     }
 
@@ -72,9 +76,9 @@ export class FullStateController {
       mutate: async (versions) => {
         const tasks: Promise<void>[] = []
 
-        if (hasAppJSON) {
+        if (hasUIJSON) {
           tasks.push(
-            appContentService.updateByVersion(appId, versions.appContentVersion, body.appJSON as string),
+            uiDefinitionService.updateByVersion(appId, versions.uiDefinitionVersion, body.uiJSON as string),
           )
         }
 
@@ -95,12 +99,33 @@ export class FullStateController {
     })
 
     ctx.body = { success: true, data: { appId } }
+
+    // ── 异步生成封面（best-effort，不阻塞 save 响应）──
+    if (hasUIJSON) {
+      generateCover(body.uiJSON as string)
+        .then(async (coverBuffer) => {
+          if (!coverBuffer) return
+          // 压缩为缩略图尺寸
+          const compressed = await sharp(coverBuffer)
+            .resize(480, 480, { fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 75 })
+            .toBuffer()
+          // 上传到 OSS
+          const objectKey = `thumbnails/${appId}_${Date.now()}.webp`
+          const thumbnailUrl = await ossService.uploadBuffer(objectKey, compressed)
+          // 写回应用元数据
+          await applicationService.updateApplication(appId, { thumbnail: thumbnailUrl })
+        })
+        .catch((err) => {
+          console.warn('[FullStateController] 封面生成失败:', err instanceof Error ? err.message : String(err))
+        })
+    }
   }
 
   /**
    * GET /api/apps/:appId/full-state
    *
-   * 返回最新已接受版本的 appJSON + collections + cloudFunctions。
+   * 返回最新已接受版本的 uiJSON + collections + cloudFunctions。
    * 口径与 ApplicationService.getFullApplicationById 一致。
    */
   static async getFullState(ctx: Context) {
@@ -109,19 +134,19 @@ export class FullStateController {
 
     // 无任何已接受版本 → 返回空内容
     if (
-      versions.appContentVersion <= 0 &&
+      versions.uiDefinitionVersion <= 0 &&
       versions.schemaVersion <= 0 &&
       versions.cloudFunctionVersion <= 0
     ) {
       ctx.body = {
         success: true,
-        data: { appJSON: '', collections: [], cloudFunctions: [] },
+        data: { uiJSON: '', collections: [], cloudFunctions: [] },
       }
       return
     }
 
     const [content, schema, group] = await Promise.all([
-      appContentService.getByVersion(appId, versions.appContentVersion),
+      uiDefinitionService.getByVersion(appId, versions.uiDefinitionVersion),
       SchemaService.getByVersion(appId, versions.schemaVersion),
       cloudFunctionService.getByVersion(appId, versions.cloudFunctionVersion),
     ])
@@ -129,7 +154,7 @@ export class FullStateController {
     ctx.body = {
       success: true,
       data: {
-        appJSON: content?.appJSON ?? '',
+        uiJSON: content?.uiJSON ?? '',
         collections: schema?.collections ?? [],
         cloudFunctions: group?.functions ?? [],
       },

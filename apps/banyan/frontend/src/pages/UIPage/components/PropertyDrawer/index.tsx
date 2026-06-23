@@ -15,7 +15,6 @@ export interface PropertyDrawerProps {
   selectedViewId: string;
   actions: DesignBanvasReturn["actions"];
   currentPageId: string;
-  appId?: string;
   /** 请求打开流程编辑面板（状态提升到 UIPage） */
   onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void;
 }
@@ -27,7 +26,6 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
   selectedViewId,
   actions,
   currentPageId,
-  appId,
   onOpenFlowEditor,
 }) => {
   return (
@@ -72,14 +70,13 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
           },
           body: { padding: 0, background: "#16161e", overflowY: "auto" },
         }}
-        width={300}
+        size={300}
         push={false}
       >
         <PropertyPanel
           selectedViewId={selectedViewId}
           actions={actions}
           currentPageId={currentPageId}
-          appId={appId}
           onOpenFlowEditor={onOpenFlowEditor}
         />
       </Drawer>

@@ -9,7 +9,9 @@ import type {
     IViewOptions,
 } from '@/types/index.js'
 import type PortView from './PortView.js'
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 
 export interface EdgeViewOptions extends IViewOptions {
     fromPortId?: string | null

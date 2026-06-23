@@ -7,7 +7,7 @@
  */
 import type { ServerResponse } from 'http'
 import type { FrontendToolHandlers, BackendToolHandlers, AIProjectionScene, AIProjectionApp, AIAppLifetimes } from '@banyuan/xiangdi-agent'
-import { appJSONToProjection, patchProjection } from '@banyuan/xiangdi-agent'
+import { uiJSONToProjection, patchProjection } from '@banyuan/xiangdi-agent'
 import type { BanyanClient, CloudFunctionInfo, SchemaCollectionInfo } from '../banyan/index.js'
 import type { RemoteKnowledgeStore } from '../knowledge/RemoteKnowledgeStore.js'
 import type { RemoteMaterialStore } from '../banyan/RemoteMaterialStore.js'
@@ -17,7 +17,7 @@ import type { RemoteMaterialStore } from '../banyan/RemoteMaterialStore.js'
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export interface AppRuntimeState {
-  appJSON: string
+  uiJSON: string
   schema: SchemaCollectionInfo[]
   cloudFunctions: CloudFunctionInfo[]
   version: string
@@ -43,9 +43,9 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
     },
 
     async readPages(input: { pageId?: string }) {
-      if (!state.appJSON) return JSON.stringify({ pages: [], message: '应用尚无页面数据' })
+      if (!state.uiJSON) return JSON.stringify({ pages: [], message: '应用尚无页面数据' })
 
-      const appProjection = appJSONToProjection(state.appJSON)
+      const appProjection = uiJSONToProjection(state.uiJSON)
       if (!appProjection.scenes || appProjection.scenes.length === 0) {
         return JSON.stringify({ pages: [], message: '应用尚无页面数据' })
       }
@@ -66,8 +66,8 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
       // 确保 scene.id 与 pageId 一致
       scene.id = input.pageId
 
-      const { appJSON: patched, result } = patchProjection(
-        state.appJSON || JSON.stringify({
+      const { uiJSON: patched, result } = patchProjection(
+        state.uiJSON || JSON.stringify({
           type: 'APP',
           version: state.version,
           data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
@@ -76,7 +76,7 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
         { scenes: [scene] },
         state.version,
       )
-      state.appJSON = patched
+      state.uiJSON = patched
       return JSON.stringify({ success: true, ...result })
     },
 
@@ -88,8 +88,8 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
         size: { width: 375, height: 812 },
         children: [],
       }
-      const { appJSON: patched } = patchProjection(
-        state.appJSON || JSON.stringify({
+      const { uiJSON: patched } = patchProjection(
+        state.uiJSON || JSON.stringify({
           type: 'APP',
           version: state.version,
           data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
@@ -98,21 +98,21 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
         { scenes: [emptyScene] },
         state.version,
       )
-      state.appJSON = patched
+      state.uiJSON = patched
       return JSON.stringify({ success: true, pageId })
     },
 
     async deletePage(input: { pageId: string }) {
-      if (!state.appJSON) return JSON.stringify({ error: '应用无数据' })
+      if (!state.uiJSON) return JSON.stringify({ error: '应用无数据' })
 
-      const parsed = JSON.parse(state.appJSON)
+      const parsed = JSON.parse(state.uiJSON)
       if (parsed.data?.scenes) {
         parsed.data.scenes = parsed.data.scenes.filter((s: { $value?: { id?: string }; id?: string }) => {
           const sceneId = s.$value?.id ?? s.id
           return sceneId !== input.pageId
         })
       }
-      state.appJSON = JSON.stringify(parsed)
+      state.uiJSON = JSON.stringify(parsed)
       return JSON.stringify({ success: true, deletedPageId: input.pageId })
     },
 

@@ -7,7 +7,7 @@
 import { useCallback, useState } from 'react'
 import { NodeView, EdgeView } from '@banyuan/banvasgl'
 import type { IBanvasActions } from '@banyuan/banvasgl'
-import type { FlowContextMenuEvent } from './useInteraction'
+import type { ContextMenuEvent } from './useInteraction'
 import type { FlowContextMenuItem, FlowContextMenuState } from '../components/FlowKit/FlowContextMenu'
 
 // ── 菜单项生成 ──
@@ -111,7 +111,7 @@ function createCanvasContextMenuItems(
 
 export interface UseFlowContextMenuResult {
     contextMenuState: FlowContextMenuState
-    handleContextMenu: (event: FlowContextMenuEvent) => void
+    onContextMenu: (event: ContextMenuEvent) => void
 }
 
 export function useFlowContextMenu(
@@ -130,14 +130,24 @@ export function useFlowContextMenu(
         setContextMenuState(prev => ({ ...prev, visible: false }))
     }, [])
 
-    const handleContextMenu = useCallback((event: FlowContextMenuEvent) => {
+    const onContextMenu = useCallback((event: ContextMenuEvent) => {
         if (!actions) return
 
-        let items
+        // 从 targetId 推导 targetType
+        let targetType: 'node' | 'edge' | 'canvas' = 'canvas'
+        if (event.targetId) {
+            const view = actions.view.getViewInstance(event.targetId)
+            if (view instanceof NodeView) {
+                targetType = 'node'
+            } else if (view instanceof EdgeView) {
+                targetType = 'edge'
+            }
+        }
 
-        if (event.targetType === 'node') {
+        let items
+        if (targetType === 'node') {
             items = createNodeContextMenuItems(event.targetId!, actions)
-        } else if (event.targetType === 'edge') {
+        } else if (targetType === 'edge') {
             items = createEdgeContextMenuItems(event.targetId!, actions)
         } else {
             items = createCanvasContextMenuItems(actions)
@@ -146,12 +156,12 @@ export function useFlowContextMenu(
         setContextMenuState({
             visible: true,
             position: event.position,
-            targetType: event.targetType,
+            targetType,
             targetId: event.targetId,
             items,
             dismiss: dismissMenu,
         })
     }, [actions, dismissMenu])
 
-    return { contextMenuState, handleContextMenu }
+    return { contextMenuState, onContextMenu }
 }

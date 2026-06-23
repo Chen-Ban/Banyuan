@@ -145,8 +145,6 @@ export type {
 
 // ── Renderer 接口 ──
 export type {
-    ICanvasContextOptions,
-    IRendererOptions,
     IRenderer,
 } from './engine/renderer'
 
@@ -206,6 +204,34 @@ export * from './foundation/flow/index.js'
 // ── Worker 传输接口 ──
 export type { ITransferable, TransferableData } from './foundation/transferable'
 
+// ── 媒体源（引擎自有像素数据） ──
+export type {
+  IImageSource,
+  IVideoSource,
+  IVideoLoadOptions,
+  PatternRepeat,
+} from './foundation/media.js'
+
+// ── 绘制枚举（引擎自有，替代 lib.dom 中的 Canvas* 类型） ──
+export type {
+  FillRule,
+  LineCap,
+  LineJoin,
+  ImageSmoothingQuality,
+} from './foundation/drawing.js'
+
+// ── 渐变 / 图案 / 文本度量（引擎自有类型） ──
+export type { IGradient } from './foundation/gradient.js'
+export type { IPattern } from './foundation/pattern.js'
+export type {
+  TextAlign,
+  TextBaseline,
+  ITextMetrics,
+} from './foundation/text.js'
+
+// ── 数学类型 ──
+export type { Matrix2DInit } from './foundation/math.js'
+
 // ── Hook 公共接口 ──
 export type {
     IViewActions,
@@ -231,23 +257,8 @@ export type {
 
 // ── 平台抽象接口 ──
 export type {
-    IDrawingGradient,
-    IDrawingPattern,
-    IDrawingImageSource,
-    IDrawingTextMetrics,
-    IDrawingImageData,
-    DrawingFillRule,
-    DrawingLineCap,
-    DrawingLineJoin,
-    DrawingTextAlign,
-    DrawingTextBaseline,
-    DrawingImageSmoothingQuality,
-    DrawingMatrix2DInit,
     IDrawingContext,
-    IPlatformCanvasOptions,
-    IPlatformCanvas,
-    ICanvasHostOptions,
-    ICanvasHost,
+    IDrawingSurface,
 } from './platform/index'
 
 // ── PropertyAdapter 接口 ──

@@ -2,7 +2,7 @@
  * 版本化内容类型定义（ADR-042）
  *
  * 三个 append-only 内容表的类型定义：
- *   - AppContent：存储 appJSON 版本
+ *   - UIDefinition：存储 UI 定义 JSON 版本
  *   - CollectionSchema：存储数据表定义版本（类型已在 collection.ts 中定义）
  *   - CloudFunction：存储云函数定义版本（本文件定义）
  *
@@ -12,18 +12,18 @@
 
 import type { Types } from 'mongoose'
 
-// ─── AppContent（BanvasGL 序列化，append-only）──────────────────────────────────
+// ─── UIDefinition（BanvasGL UI 定义，append-only）─────────────────────────────
 
-/** AppContent 文档数据接口 */
-export interface IAppContent {
+/** UIDefinition 文档数据接口 */
+export interface IUIDefinition {
   /** 关联 Application */
   appId: string
   /** 自增版本号 */
   version: number
   /** 持有该版本的 Dialogue ID（反向引用 / 审计） */
   dialogueId: Types.ObjectId
-  /** BanvasGL Serializer 输出 */
-  appJSON: string
+  /** BanvasGL Serializer 输出的 UI 定义 JSON */
+  uiJSON: string
   /** 创建时间（即该版本产生的时间） */
   createdAt: Date
 }

@@ -1,33 +1,33 @@
 /**
- * Scaffold 模块 - 从 appJSON 生成项目文件
+ * Scaffold 模块 - 从 UI 定义 JSON 生成项目文件
  * 逻辑与 banyan backend scaffold.ts 一致的简化版，不依赖后端代码
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { AppJSON, CollectionDef, CloudFunctionDef } from './types.js';
+import type { UIDefinition, CollectionDef, CloudFunctionDef } from './types.js';
 
 /** 生成项目 scaffold 到指定目录 */
-export async function scaffoldProject(projectDir: string, appJSON: AppJSON): Promise<void> {
+export async function scaffoldProject(projectDir: string, uiJSON: UIDefinition): Promise<void> {
   // 确保目录结构存在
   await mkdir(join(projectDir, 'src'), { recursive: true });
   await mkdir(join(projectDir, 'public'), { recursive: true });
 
   // 并行写入所有文件
   await Promise.all([
-    writeFile(join(projectDir, 'package.json'), generatePackageJson(appJSON)),
+    writeFile(join(projectDir, 'package.json'), generatePackageJson(uiJSON)),
     writeFile(join(projectDir, 'vite.config.ts'), generateViteConfig()),
     writeFile(join(projectDir, 'tsconfig.json'), generateTsConfig()),
-    writeFile(join(projectDir, 'index.html'), generateIndexHtml(appJSON)),
+    writeFile(join(projectDir, 'index.html'), generateIndexHtml(uiJSON)),
     writeFile(join(projectDir, 'src', 'main.tsx'), generateMainTsx()),
-    writeFile(join(projectDir, 'src', 'App.tsx'), generateAppTsx(appJSON)),
-    writeFile(join(projectDir, 'public', 'app.json'), JSON.stringify(appJSON, null, 2)),
+    writeFile(join(projectDir, 'src', 'App.tsx'), generateAppTsx(uiJSON)),
+    writeFile(join(projectDir, 'public', 'ui.json'), JSON.stringify(uiJSON, null, 2)),
   ]);
 }
 
-function generatePackageJson(appJSON: AppJSON): string {
+function generatePackageJson(uiJSON: UIDefinition): string {
   const pkg = {
-    name: appJSON.appId,
+    name: uiJSON.appId,
     version: '1.0.0',
     private: true,
     type: 'module',
@@ -40,7 +40,7 @@ function generatePackageJson(appJSON: AppJSON): string {
       react: '^19.0.0',
       'react-dom': '^19.0.0',
       '@banyuan/banvasgl': 'latest',
-      '@banyuan/banvas-runtime': 'latest',
+      '@banyuan/banvas-react-runtime': 'latest',
     },
     devDependencies: {
       '@types/react': '^19.0.0',
@@ -85,13 +85,13 @@ function generateTsConfig(): string {
   return JSON.stringify(config, null, 2);
 }
 
-function generateIndexHtml(appJSON: AppJSON): string {
+function generateIndexHtml(uiJSON: UIDefinition): string {
   return `<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${appJSON.name}</title>
+    <title>${uiJSON.name}</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body, #root { width: 100%; height: 100%; }
@@ -114,33 +114,33 @@ root.render(<App />);
 `;
 }
 
-function generateAppTsx(appJSON: AppJSON): string {
+function generateAppTsx(uiJSON: UIDefinition): string {
   // 获取首页尺寸作为画布 fixed mode 参数
-  const firstPage = appJSON.pages?.[0] as { width?: number; height?: number } | undefined;
+  const firstPage = uiJSON.pages?.[0] as { width?: number; height?: number } | undefined;
   const width = firstPage?.width ?? 375;
   const height = firstPage?.height ?? 812;
 
   return `import { useState, useEffect } from 'react';
-import { useRuntimeBanvas } from '@banyuan/banvas-runtime';
+import { useRuntimeBanvas } from '@banyuan/banvas-react-runtime';
 
 export function App() {
-  const [appJSONStr, setAppJSONStr] = useState<string | null>(null);
+  const [uiJSONStr, setUIJSONStr] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/app.json')
+    fetch('/ui.json')
       .then(res => res.text())
-      .then(setAppJSONStr)
-      .catch(err => console.error('[Banyuan App] Failed to load app.json:', err));
+      .then(setUIJSONStr)
+      .catch(err => console.error('[Banyuan App] Failed to load ui.json:', err));
   }, []);
 
-  if (!appJSONStr) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>Loading...</div>;
+  if (!uiJSONStr) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>Loading...</div>;
 
-  return <BanvasCanvas appJSON={appJSONStr} />;
+  return <BanvasCanvas uiJSON={uiJSONStr} />;
 }
 
-function BanvasCanvas({ appJSON }: { appJSON: string }) {
+function BanvasCanvas({ uiJSON }: { uiJSON: string }) {
   const { Banvas } = useRuntimeBanvas({
-    appJSON,
+    uiJSON: uiJSON,
     width: ${width},
     height: ${height},
     appOptions: { flowEnabled: true },

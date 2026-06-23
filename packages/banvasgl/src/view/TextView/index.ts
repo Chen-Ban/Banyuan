@@ -15,7 +15,9 @@ import TextFields from '@/graph/text/TextFields'
 import type { TextParagraphContent } from '@/graph/text/TextParagraph'
 import { TextIndex } from '@/graph/text/TextFields'
 import TextSelectionAddon from '@/view/addon/TextSelectionAddon.js'
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 
 /**
  * 文本视图

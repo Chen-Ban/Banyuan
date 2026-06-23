@@ -50,8 +50,8 @@ export type {
 export {
   toAIProjection,
   fromAIProjection,
-  appJSONToProjection,
-  projectionToAppJSON,
+  uiJSONToProjection,
+  projectionToUIJSON,
   // Patch Projection（ADR-041）
   patchProjection,
   patchProjectionViaAdapter,

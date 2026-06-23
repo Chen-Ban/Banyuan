@@ -8,7 +8,7 @@
  * 架构定位：
  *   前端 ←SSE── banyan 后端(:3001) ←SSE── XiangDi 服务(:3002)
  *
- * 本服务无状态：Agent 通过 BanyanClient 按需拉取 appJSON，最终 appJSON 随 done 事件返回，
+ * 本服务无状态：Agent 通过 BanyanClient 按需拉取 UI 定义 JSON，最终 UI 定义 JSON 随 done 事件返回，
  * 不访问 MongoDB，持久化由 banyan 后端负责。
  */
 

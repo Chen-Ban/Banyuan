@@ -2,17 +2,18 @@
  * @banyuan/banvasgl-react — BanvasGL React 集成层
  *
  * 提供：
- *   - Web 平台画布注入（WebPlatformCanvas / WebDrawingContext）
- *   - React Hook（useCanvasInit / useCanvasCamera）
+ *   - Web 平台画布注入（WebCanvas / createWebDrawingContext）
+ *   - React Hook（useFixedCanvasInit / useAdaptiveCanvasInit / useCanvasCamera）
  *
  * 使用方式：
  * ```ts
- * import { useFixedCanvasInit, WebPlatformCanvas } from '@banyuan/banvasgl-react'
+ * import { useFixedCanvasInit, WebCanvas } from '@banyuan/banvasgl-react'
  * ```
  */
 
 // ── Web 平台适配器 ──
-export { WebDrawingContext, WebPlatformCanvas } from "./platform/index.js";
+export { createWebDrawingContext, WebCanvas } from "./platform/index.js";
+export type { WebCanvasOptions } from "./platform/index.js";
 
 // ── React Hook ──
 export { useFixedCanvasInit } from "./hooks/useFixedCanvasInit.js";

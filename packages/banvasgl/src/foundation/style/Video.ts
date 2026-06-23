@@ -27,6 +27,7 @@ export interface VideoSize {
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
+import type { IVideoSource } from '@/types/foundation/media.js'
 
 /**
  * 视频图案填充样式
@@ -50,6 +51,9 @@ export default class Video implements ISerializable {
   loop: boolean
   muted: boolean
   controls: boolean
+
+  /** 平台加载的视频像素源（由 ctx.loadVideoSource() 注入），null 表示尚未加载 */
+  private _loadedSource: IVideoSource | null = null
 
   /**
    * 构造视频图案
@@ -214,6 +218,25 @@ export default class Video implements ISerializable {
   }
 
   /**
+   * 设置已加载的视频像素源。
+   * 由平台层在加载视频后调用（ctx.loadVideoSource → setLoadedSource）。
+   */
+  setLoadedSource(source: IVideoSource | null): Video {
+    this._loadedSource = source
+    return this
+  }
+
+  /** 视频像素源是否已就绪 */
+  hasLoadedSource(): boolean {
+    return this._loadedSource !== null
+  }
+
+  /** 获取已加载的视频像素源 */
+  getVideoSource(): IVideoSource | null {
+    return this._loadedSource
+  }
+
+  /**
    * 获取视频配置信息
    *
    * 返回当前视频的完整配置对象，包含所有属性。
@@ -247,38 +270,15 @@ export default class Video implements ISerializable {
   }
 
   /**
-   * 创建 HTML 视频元素
+   * 获取视频像素源（替代原 createCanvasVideo）。
    *
-   * 创建 HTMLVideoElement 实例并配置各属性，
-   * 可用于 Canvas 2D 的 drawImage 或 createPattern。
+   * 引擎不再直接创建 HTMLVideoElement，改为由平台层通过 ctx.loadVideoSource() 注入。
    *
-   * @returns HTMLVideoElement 实例；若 src 为 null 则返回 null
-   *
-   * @example
-   * ```ts
-   * const videoEl = video.createCanvasVideo()
-   * if (videoEl) {
-   *   ctx.drawImage(videoEl, 0, 0)
-   * }
-   * ```
+   * @returns 平台无关的视频源；若尚未加载则返回 null
+   * @deprecated 请使用 getVideoSource() 获取平台无关的视频源
    */
-  createCanvasVideo(): HTMLVideoElement | null {
-    if (!this.src) return null
-    
-    // 创建视频元素
-    const video = document.createElement('video')
-    video.src = this.src
-    video.autoplay = this.autoplay
-    video.loop = this.loop
-    video.muted = this.muted
-    video.controls = this.controls
-    
-    if (this.size) {
-      video.width = this.size.width
-      video.height = this.size.height
-    }
-    
-    return video
+  createCanvasVideo(): IVideoSource | null {
+    return this._loadedSource
   }
 
   /**
@@ -351,7 +351,7 @@ export default class Video implements ISerializable {
    * ```
    */
   copy(): Video {
-    return new Video(
+    const v = new Video(
       this.src,
       this.size,
       this.repeat,
@@ -360,6 +360,8 @@ export default class Video implements ISerializable {
       this.muted,
       this.controls
     )
+    v._loadedSource = this._loadedSource
+    return v
   }
 
   /**

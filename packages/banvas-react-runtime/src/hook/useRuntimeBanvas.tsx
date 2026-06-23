@@ -39,9 +39,13 @@ export function useRuntimeBanvas(
   const { appId, ...canvasOptions } = options;
 
   // 1. 复用 banvasgl 固定模式机制底座
+  const appOptionsStable = useMemo(
+    () => ({ flowEnabled: true, ...(canvasOptions.appOptions ?? {}) }),
+    [canvasOptions.appOptions],
+  );
   const { actions, elements, derived } = useFixedCanvasInit({
     ...canvasOptions,
-    appOptions: { ...(canvasOptions.appOptions ?? {}), flowEnabled: true },
+    appOptions: appOptionsStable,
     textInput: false,
   });
 

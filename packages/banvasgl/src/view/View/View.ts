@@ -1,7 +1,9 @@
 import { ViewType, Action, AddonCapability, Cursor } from "@/foundation/constants";
 import Matrix4 from "@/foundation/math/Matrix4";
-import type { ICanvasHost } from "@/types/platform/host.js";
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingSurface } from "@/types/platform/surface.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 import type { ISceneNode, IView, IFieldSchemaMap, IInteractResult, IViewOptions, IViewEvents, IViewLifetimes } from '@/types/view/view'
 import type { IViewStyle } from '@/types/foundation/style'
 import type { ISerializable } from '@/types/foundation/serializable'
@@ -581,12 +583,12 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * @param canvasContext - 引擎的 canvas 上下文（必需）
    * @throws 若未提供 `canvasContext` 则抛出错误
    */
-  public render(canvasContext?: ICanvasHost): void {
+  public render(surface?: IDrawingSurface): void {
     if (!this.visible) return;
-    if (!canvasContext)
-      throw new Error("render failed: canvas context is required");
-    this.renderToOffScreen(canvasContext);
-    this.renderFromCache(canvasContext);
+    if (!surface)
+      throw new Error("render failed: surface is required");
+    this.renderToOffScreen(surface);
+    this.renderFromCache(surface);
   }
 
   /**
@@ -599,8 +601,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * 4. 应用滚动偏移，渲染内容 + 子节点
    * 5. 渲染 addon 插件（裁剪之上，始终在最顶层）
    */
-  private renderToOffScreen(canvasContext: ICanvasHost): void {
-    const offscreenCtx = canvasContext.getBufferContext();
+  private renderToOffScreen(surface: IDrawingSurface): void {
+    const offscreenCtx = surface.offscreen;
 
     // 延迟布局：若布局脏则执行完整管线（含样式解析）
     if (this._layoutDirty) {
@@ -615,7 +617,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
 
     const transform = this.getMVPMatrix().transform;
     // 将 dpr 融入变换矩阵，将逻辑坐标映射到物理像素
-    const dpr = canvasContext.dpr;
+    const dpr = surface.dpr;
     const a = transform[0] * dpr;
     const b = transform[4] * dpr;
     const c = transform[1] * dpr;
@@ -661,7 +663,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
     offscreenCtx.translate(scrollOffset.x, scrollOffset.y);
 
     this.renderContent(offscreenCtx);
-    this.renderChildren(canvasContext, offscreenCtx);
+    this.renderChildren(surface, offscreenCtx);
 
     offscreenCtx.restore(); // 恢复滚动平移
     offscreenCtx.restore(); // 恢复 MVP + 裁剪
@@ -712,8 +714,8 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    *
    * 委托给 ICanvasHost.composite()，由各平台自行实现合成策略。
    */
-  private renderFromCache(canvasContext: ICanvasHost): void {
-    canvasContext.composite();
+  private renderFromCache(surface: IDrawingSurface): void {
+    surface.present();
   }
 
   /**
@@ -748,7 +750,7 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
    * @param offscreenCtx - 离屏渲染上下文
    */
   protected renderChildren(
-    _canvasContext: ICanvasHost,
+    _surface: IDrawingSurface,
     _offscreenCtx: IDrawingContext,
   ): void {
     // 叶子 View 无子节点

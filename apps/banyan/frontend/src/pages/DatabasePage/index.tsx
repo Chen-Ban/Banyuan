@@ -16,7 +16,7 @@ const DatabasePage: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   void navigate // layout 负责导航，此处保留以备不时之需
-  const { registerFlushHandler, setCollections: syncCollections } = useApplicationStore()
+  const { setDataSchema: syncDataSchema } = useApplicationStore()
 
   const [collections, setCollections] = useState<CollectionDef[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,16 +28,6 @@ const DatabasePage: React.FC = () => {
 
   // 稳定回调引用，避免 FieldEditor 无限渲染
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), [])
-
-  // ── 注册 flushHandler（ApplicationLayout 保存按钮触发） ──────────────────
-  useEffect(() => {
-    const unsubscribe = registerFlushHandler(async () => {
-      if (fieldEditorRef.current && dirty) {
-        await fieldEditorRef.current.save()
-      }
-    })
-    return unsubscribe
-  }, [dirty, registerFlushHandler])
 
   // ── 加载 Schema ──────────────────────────────────────────────────────────
 
@@ -82,7 +72,7 @@ const DatabasePage: React.FC = () => {
     if (added) {
       const next = [...collections, added]
       setCollections(next)
-      syncCollections(next)
+      syncDataSchema(next)
       setSelectedName(added.name)
       setAdding(false)
     }
@@ -92,7 +82,7 @@ const DatabasePage: React.FC = () => {
     await schemaApi.deleteCollection(id!, name)
     const next = collections.filter((c) => c.name !== name)
     setCollections(next)
-    syncCollections(next)
+    syncDataSchema(next)
     setSelectedName((prev) => {
       if (prev !== name) return prev
       return next.length > 0 ? next[0].name : null
@@ -105,7 +95,7 @@ const DatabasePage: React.FC = () => {
     if (updated) {
       const next = collections.map((c) => (c.name === name ? updated : c))
       setCollections(next)
-      syncCollections(next)
+      syncDataSchema(next)
     }
   }
 
@@ -140,10 +130,10 @@ const DatabasePage: React.FC = () => {
   const handleSaved = useCallback((updated: CollectionDef) => {
     setCollections((prev) => {
       const next = prev.map((c) => (c.name === updated.name ? updated : c))
-      syncCollections(next)
+      syncDataSchema(next)
       return next
     })
-  }, [syncCollections])
+  }, [syncDataSchema])
 
   const selectedCollection = useMemo(
     () => collections.find((c) => c.name === selectedName) ?? null,

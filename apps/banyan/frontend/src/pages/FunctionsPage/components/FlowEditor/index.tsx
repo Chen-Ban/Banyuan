@@ -138,7 +138,7 @@ const FlowEditor = forwardRef<FlowEditorHandle, FlowEditorProps>(
             open={paletteOpen}
             onClose={() => setPaletteOpen(false)}
             placement="left"
-            width={260}
+            size={260}
             mask={false}
             closable={false}
             classNames={{ body: styles.drawerBody }}

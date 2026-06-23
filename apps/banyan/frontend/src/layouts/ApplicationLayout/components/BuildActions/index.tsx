@@ -10,6 +10,7 @@
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import { App, Badge, Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -24,21 +25,15 @@ import { version as canvasVersion } from '@banyuan/banvasgl'
 import { buildApi } from '@/api'
 import type { Platform, BuildTaskInfo } from '@/api'
 import { getErrorMessage } from '@/utils/error'
-import type { DesignSize } from '@/stores/applicationStore'
+import { useApplicationStore } from '@/stores/applicationStore'
 import BuildTaskModal from '@/components/BuildTaskModal'
 import { PLATFORM_ICON_MAP, PLATFORM_LABEL_MAP, BUILD_STATUS_CONFIG } from '../../constants'
 import styles from '../../index.module.scss'
 
-interface BuildActionsProps {
-  applicationId: string | undefined
-  appName: string
-  designSize: DesignSize
-  /** 取应用最新序列化结果（画布在线时为实时态，离线时为 store.appJSON 兜底） */
-  getSerializedApp: () => string
-}
-
-const BuildActions: React.FC<BuildActionsProps> = ({ applicationId, appName, designSize, getSerializedApp }) => {
+const BuildActions: React.FC = () => {
+  const { id: applicationId } = useParams<{ id: string }>()
   const { message } = App.useApp()
+  const { appName, designSize, getSerializedUI } = useApplicationStore()
 
   // ── 构建相关状态 ────────────────────────────────────────────────────────────
   const [buildModalOpen, setBuildModalOpen] = useState(false)
@@ -104,7 +99,7 @@ const BuildActions: React.FC<BuildActionsProps> = ({ applicationId, appName, des
   const showProcessingDot = badgeCount === 1 && activeTasks.length === 1 && unviewedTasks[0]?.status !== 'success' && unviewedTasks[0]?.status !== 'failed'
 
   // ── 生成应用 ──────────────────────────────────────────────────────────────
-  // getSerializedApp 画布在线时取实时态，离线时自动回退到 store.appJSON
+  // getSerializedUI 画布在线时取实时态，离线时自动回退到 store.uiJSON
   const handleBuild = useCallback(async (platform: Platform) => {
     if (!appName.trim()) {
       message.warning('请先输入应用名称')
@@ -113,9 +108,9 @@ const BuildActions: React.FC<BuildActionsProps> = ({ applicationId, appName, des
     if (!applicationId) return
     setBuildSubmitting(true)
     try {
-      const appJson = getSerializedApp() || '{}'
+      const uiJSON = getSerializedUI() || '{}'
       const res = await buildApi.submitBuild({
-        appJson,
+        uiJSON,
         appName,
         platform,
         width: designSize.width,
@@ -140,7 +135,7 @@ const BuildActions: React.FC<BuildActionsProps> = ({ applicationId, appName, des
     } finally {
       setBuildSubmitting(false)
     }
-  }, [appName, applicationId, designSize, getSerializedApp, message])
+  }, [appName, applicationId, designSize, getSerializedUI, message])
 
   // ── 生成应用下拉菜单 ────────────────────────────────────────────────────────
   // 产物列表菜单项
@@ -197,8 +192,8 @@ const BuildActions: React.FC<BuildActionsProps> = ({ applicationId, appName, des
         }}
         trigger={['hover']}
         placement="bottomRight"
-        overlayStyle={{ paddingTop: 6 }}
-        overlayClassName={styles.buildDropdown}
+        styles={{ root: { paddingTop: 6 } }}
+        classNames={{ root: styles.buildDropdown }}
         mouseEnterDelay={0}
         mouseLeaveDelay={0.15}
         onOpenChange={(open) => {

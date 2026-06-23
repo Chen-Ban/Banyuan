@@ -1,7 +1,7 @@
 /**
  * 应用全量状态聚合 API
  *
- * - saveAll：一次原子写入 appJSON + collections + cloudFunctions
+ * - saveAll：一次原子写入 uiJSON + collections + cloudFunctions
  * - getFullState：聚合读取最新已接受版本的全部业务数据
  *
  * 对应后端路由：/api/apps/:appId/save-all 和 /api/apps/:appId/full-state
@@ -13,13 +13,13 @@ import type { CollectionDef } from '../backend/schema'
 import type { CloudFunctionDef } from '../backend/cloudFunctions'
 
 export interface FullStateData {
-  appJSON: string
+  uiJSON: string
   collections: CollectionDef[]
   cloudFunctions: CloudFunctionDef[]
 }
 
 export interface SaveAllParams {
-  appJSON?: string
+  uiJSON?: string
   collections?: CollectionDef[]
   cloudFunctions?: CloudFunctionDef[]
 }

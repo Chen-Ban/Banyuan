@@ -9,7 +9,7 @@
  *   生产环境必须配置 INTERNAL_API_TOKEN 环境变量。
  */
 import Router from '@koa/router'
-import appContentService from '../services/AppContentService.js'
+import uiDefinitionService from '../services/UIDefinitionService.js'
 import { SchemaService } from '../services/SchemaService.js'
 import cloudFunctionService from '../services/CloudFunctionService.js'
 import dialogueService from '../services/DialogueService.js'
@@ -30,18 +30,18 @@ router.use(async (ctx, next) => {
   await next()
 })
 
-// ─── GET /internal/apps/:appId/appJSON ───────────────────────────────────────
-// 返回应用的 appJSON（版本号引用模型：读取当前工作版本——活跃对话的草稿版本，
+// ─── GET /internal/apps/:appId/ui-definition ─────────────────────────────
+// 返回应用的 UI 定义 JSON（版本号引用模型：读取当前工作版本——活跃对话的草稿版本，
 // 无活跃对话则回退到最新已接受版本）
 
-router.get('/:appId/appJSON', async (ctx) => {
+router.get('/:appId/ui-definition', async (ctx) => {
   const { appId } = ctx.params
   const versions = await dialogueService.getWorkingVersions(appId)
-  const content = await appContentService.getByVersion(appId, versions.appContentVersion)
+  const content = await uiDefinitionService.getByVersion(appId, versions.uiDefinitionVersion)
 
   ctx.body = {
     success: true,
-    data: { appJSON: content?.appJSON ?? '', version: versions.appContentVersion },
+    data: { uiJSON: content?.uiJSON ?? '', version: versions.uiDefinitionVersion },
   }
 })
 

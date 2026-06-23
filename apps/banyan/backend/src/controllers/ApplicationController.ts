@@ -1,13 +1,12 @@
 import { Context } from 'koa'
 import applicationService from '../services/ApplicationService'
 
-// ADR-042：本端点只更新应用「元信息」（name/description/thumbnail/tags）。
-// 画布内容 appJSON 是版本化内容（AppContent 表），不在此更新——
+// ADR-042：本端点只更新应用「元信息」（name/thumbnail/tags）。
+// UI 定义 JSON 是版本化内容（UIDefinition 表），不在此更新——
 // 它必须走 PUT /api/apps/:appId/app-content（经 runAutoConfirmedEdit 落库为新版本），
-// 故这里刻意不再声明 appJSON 字段，避免前端误以为能通过本接口保存画布。
+// 故这里刻意不再声明 uiJSON 字段，避免前端误以为能通过本接口保存画布。
 interface UpdateApplicationRequest {
   name?: string
-  description?: string
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
@@ -59,7 +58,7 @@ class ApplicationController {
       const { id } = ctx.params
       const user = ctx.state.user!
 
-      // ADR-042：聚合返回 application + appJSON + collections + cloudFunctions
+      // ADR-042：聚合返回 application + uiJSON + collections + cloudFunctions
       const result = await applicationService.getFullApplicationById(id)
 
       if (!result) {
@@ -80,7 +79,7 @@ class ApplicationController {
         success: true,
         data: {
           ...result.application,
-          appJSON: result.appJSON,
+          uiJSON: result.uiJSON,
           collections: result.collections,
           cloudFunctions: result.cloudFunctions,
         },

@@ -152,23 +152,23 @@ router.post('/run', async (ctx) => {
     const llm = await createLLMClient()
 
     // 2. 拉取应用数据
-    const [appJSON, schema, cloudFunctions] = await Promise.all([
-      banyanClient.getAppJSON(appId),
+    const [uiJSON, schema, cloudFunctions] = await Promise.all([
+      banyanClient.getUIDefinition(appId),
       banyanClient.getSchema(appId),
       banyanClient.getCloudFunctions(appId),
     ])
 
     // 获取 BanvasGL 版本
     let version = '1.0.0'
-    if (appJSON) {
+    if (uiJSON) {
       try {
-        const parsed = JSON.parse(appJSON)
+        const parsed = JSON.parse(uiJSON)
         if (parsed.version) version = parsed.version
       } catch { /* 使用默认版本 */ }
     }
 
     // 3. 构建运行时状态（整个请求生命周期内可变）
-    const runtimeState: AppRuntimeState = { appJSON, schema, cloudFunctions, version }
+    const runtimeState: AppRuntimeState = { uiJSON, schema, cloudFunctions, version }
 
     // 4. 构建工具处理器
     const materialStore = new RemoteMaterialStore(banyanClient)
@@ -242,9 +242,9 @@ router.post('/run', async (ctx) => {
     checkpointStore.recordActivity(threadId, 'completed')
 
     // 8. done 事件已由 summarizeNode 通过 sseCallback 推送
-    //    额外推送最终 appJSON（banyan 后端需要写回 MongoDB）
+    //    额外推送最终 UI 定义 JSON（banyan 后端需要写回 MongoDB）
     sseWrite(res, 'app_state', {
-      appJSON: runtimeState.appJSON,
+      uiJSON: runtimeState.uiJSON,
       schema: runtimeState.schema,
       cloudFunctions: runtimeState.cloudFunctions,
     })

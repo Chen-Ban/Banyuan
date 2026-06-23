@@ -31,7 +31,6 @@ import {
   View,
   SelectBoxView,
   EdgeView,
-  NodeView,
   isPortView,
   isEdgeView,
   isNodeView,
@@ -47,6 +46,7 @@ import type {
   ITextView,
   ITextElement,
   TextIndex,
+  IDrawingContext,
 } from "@banyuan/banvasgl";
 // ────────────────────────────────────────────
 //  公共类型导出
@@ -54,18 +54,13 @@ import type {
 
 export type InteractionMode = "design" | "flow";
 
-/** Design 模式的右键菜单命中信息 */
-export interface ContextMenuHitResult {
-  target: "canvas" | "view";
-  view: View | null;
+/** 右键菜单事件（Design / Flow 统一） */
+export interface ContextMenuEvent {
+  /** 屏幕坐标（菜单弹出位置） */
   position: { x: number; y: number };
+  /** 画布世界坐标（paste 等操作需要） */
   canvasPosition: { x: number; y: number };
-}
-
-/** Flow 模式的右键菜单事件信息 */
-export interface FlowContextMenuEvent {
-  position: { x: number; y: number };
-  targetType: "node" | "edge" | "canvas";
+  /** 命中目标 viewId（canvas 空白处为 null） */
   targetId: string | null;
 }
 
@@ -106,11 +101,7 @@ export interface UseInteractionOptions {
   // ── Design 模式回调 ──
   /** 文本编辑 input DOM 节点（由 useCanvasInit 的 textInput 选项提供） */
   inputElement?: HTMLInputElement | null;
-  onContextMenuHit?: (hit: ContextMenuHitResult) => void;
-
-  // ── Flow 模式回调 ──
-  /** 右键菜单回调（Flow 模式） */
-  onFlowContextMenu?: (event: FlowContextMenuEvent) => void;
+  onContextMenu?: (event: ContextMenuEvent) => void;
 }
 
 // ────────────────────────────────────────────
@@ -122,18 +113,15 @@ export function useInteraction({
   actions,
   mode,
   inputElement,
-  onContextMenuHit,
-  onFlowContextMenu,
+  onContextMenu,
 }: UseInteractionOptions) {
   const [interactionState, setInteractionState] = useState<InteractionState>({
     mode: "idle",
   });
 
   // ref 稳定化回调
-  const onContextMenuHitRef = useRef(onContextMenuHit);
-  onContextMenuHitRef.current = onContextMenuHit;
-  const onFlowContextMenuRef = useRef(onFlowContextMenu);
-  onFlowContextMenuRef.current = onFlowContextMenu;
+  const onContextMenuRef = useRef(onContextMenu);
+  onContextMenuRef.current = onContextMenu;
   const isComposingRef = useRef(false);
 
   // ── 创建 Delegate + StateMachine ──
@@ -215,7 +203,7 @@ export function useInteraction({
       textInteract(
         view: View,
         point: Point3,
-        bufferCtx: CanvasRenderingContext2D,
+        bufferCtx: IDrawingContext,
       ) {
         return view.interact(point, bufferCtx);
       },
@@ -358,7 +346,7 @@ export function useInteraction({
       },
 
       // ── 辅助 ──
-      getBufferCtx(): CanvasRenderingContext2D | null {
+      getBufferCtx(): IDrawingContext | null {
         return actions.view.getBufferContext();
       },
       resolveActivationTarget(view: View): View {
@@ -391,10 +379,12 @@ export function useInteraction({
   useEffect(() => {
     if (!canvas || !actions || !machine) return;
 
-    const getScene = () => actions.app.getCurrentScene()!;
+    const getScene = () => actions.app.getCurrentScene();
 
     const onMouseDown = (e: MouseEvent) => {
-      const worldPoint = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
+      const scene = getScene();
+      if (!scene) return;
+      const worldPoint = screenToWorld(e.clientX, e.clientY, scene, canvas);
       const output = machine.handle({
         type: "pointerdown",
         worldPoint,
@@ -409,7 +399,9 @@ export function useInteraction({
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      const worldPoint = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
+      const scene = getScene();
+      if (!scene) return;
+      const worldPoint = screenToWorld(e.clientX, e.clientY, scene, canvas);
       const output = machine.handle({
         type: "pointermove",
         worldPoint,
@@ -423,7 +415,9 @@ export function useInteraction({
     };
 
     const onMouseUp = (e: MouseEvent) => {
-      const worldPoint = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
+      const scene = getScene();
+      if (!scene) return;
+      const worldPoint = screenToWorld(e.clientX, e.clientY, scene, canvas);
       const output = machine.handle({
         type: "pointerup",
         worldPoint,
@@ -447,7 +441,9 @@ export function useInteraction({
 
       if (mode === "flow") {
         // Flow click：选中/取消选中 + 通知业务层
-        const point = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
+        const scene = getScene();
+        if (!scene) return;
+        const point = screenToWorld(e.clientX, e.clientY, scene, canvas);
         let hitView: View | null = null;
         const bufferCtx = actions.view.getBufferContext();
         const children = actions.page.getTopLevelViews();
@@ -546,59 +542,32 @@ export function useInteraction({
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault();
 
-      const point = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
+      const scene = getScene();
+      if (!scene) return;
+      const point = screenToWorld(e.clientX, e.clientY, scene, canvas);
       const children = actions.page.getTopLevelViews();
       const bufferCtx = actions.view.getBufferContext();
+      const callback = onContextMenuRef.current;
+      if (!callback) return;
 
-      if (mode === "flow") {
-        // Flow 右键菜单
-        if (!onFlowContextMenuRef.current) return;
-
-        let targetType: "node" | "edge" | "canvas" = "canvas";
-        let targetId: string | null = null;
-
-        if (bufferCtx) {
-          for (const view of children) {
-            const { view: hit } = view.interact(point, bufferCtx);
-            if (hit) {
-              if (view instanceof NodeView) {
-                targetType = "node";
-                targetId = view.id;
-                if (!view.actived) actions.view.select(view.id);
-              } else if (view instanceof EdgeView) {
-                targetType = "edge";
-                targetId = view.id ?? null;
-                if (!view.actived) actions.view.select(view.id);
-              }
-              break;
-            }
+      // 命中检测：找到第一个命中的目标
+      let targetId: string | null = null;
+      if (bufferCtx) {
+        for (const view of children) {
+          const { view: hit } = view.interact(point, bufferCtx);
+          if (hit) {
+            targetId = view.id || null;
+            if (!view.actived) actions.view.select(view.id);
+            break;
           }
         }
-
-        onFlowContextMenuRef.current({
-          position: { x: e.clientX, y: e.clientY },
-          targetType,
-          targetId,
-        });
-      } else {
-        // Design 右键菜单
-        if (!onContextMenuHitRef.current) return;
-
-        let hitView: View | null = null;
-        if (bufferCtx) {
-          for (const view of children) {
-            const { view: _view } = view.interact(point, bufferCtx);
-            if (_view) hitView = _view as View;
-          }
-        }
-
-        onContextMenuHitRef.current({
-          target: hitView ? "view" : "canvas",
-          view: hitView,
-          position: { x: e.clientX, y: e.clientY },
-          canvasPosition: { x: point.x, y: point.y },
-        });
       }
+
+      callback({
+        position: { x: e.clientX, y: e.clientY },
+        canvasPosition: { x: point.x, y: point.y },
+        targetId,
+      });
     };
 
     const onDragOver = (e: DragEvent) => {
@@ -610,6 +579,9 @@ export function useInteraction({
       e.preventDefault();
       if (!e.dataTransfer) return;
 
+      const scene = getScene();
+      if (!scene) return;
+
       // 统一 Drop 协议：application/json + materialId 或 template
       try {
         const dataStr = e.dataTransfer.getData("application/json");
@@ -620,7 +592,7 @@ export function useInteraction({
           materialId?: string;
         };
 
-        const worldPoint = screenToWorld(e.clientX, e.clientY, getScene(), canvas);
+        const worldPoint = screenToWorld(e.clientX, e.clientY, scene, canvas);
         const x = worldPoint.x;
         const y = worldPoint.y;
 
@@ -782,10 +754,12 @@ export function useInteraction({
                   worldMatrix.multiply(relativeBottomLeft);
                 const layoutBounds = nextView.layoutArea;
                 if (layoutBounds) {
+                  const scene = getScene();
+                  if (!scene) return;
                   const screenPos = worldToScreen(
                     worldBottomLeft.x,
                     worldBottomLeft.y,
-                    getScene(),
+                    scene,
                     canvas,
                   );
                   const scaleX = canvas.clientWidth / canvas.width;

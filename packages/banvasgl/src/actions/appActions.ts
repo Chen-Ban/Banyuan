@@ -42,8 +42,8 @@ export function createAppActions(
         exportImage(type?: string, quality?: number): string | null {
             const app = getApp()
             if (!app) return null
-            const platform = app.renderer.getPlatformCanvas()
-            return platform?.toDataURL?.(type, quality) ?? null
+            const surface = app.renderer.getSurface()
+            return surface.export?.(type, quality) ?? null
         },
 
         setBackendEndpoint(endpoint: string | undefined): void {
@@ -75,6 +75,19 @@ export function createAppActions(
 
         getCurrentScene() {
             return getApp()?.getCurrentScene() ?? null
+        },
+
+        subscribe(listener: () => void): () => void {
+            const app = getApp()
+            if (!app) return () => {}
+            return app.subscribe(listener)
+        },
+
+        loadAppJSON(json: string): void {
+            const app = getApp()
+            if (!app) return
+            app.initFromSerialized(json)
+            notify()
         },
     }
 }

@@ -7,52 +7,43 @@
  *   └────────────────────────────────────────────────────────────────┘
  *
  * 自身只负责返回按钮、保存按钮和布局，机型/Tab/构建分别委托给子组件。
+ * 返回按钮的 navigate 和 DevicePicker 的 activeTab 条件均通过 router hooks 内部自持。
  */
 
 import React from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Tooltip } from 'antd'
 import { SaveOutlined, ArrowLeftOutlined } from '@ant-design/icons'
-import type { DesignSize } from '@/stores/applicationStore'
+import { useApplicationStore } from '@/stores/applicationStore'
+import { useShallow } from 'zustand/shallow'
 import DevicePicker from '../DevicePicker'
 import TabCapsule from '../TabCapsule'
 import BuildActions from '../BuildActions'
 import styles from '../../index.module.scss'
 
 interface AppHeaderProps {
-  applicationId: string | undefined
-  appName: string
-  designSize: DesignSize
-  activeTab: 'preview' | 'ui' | 'database' | 'data-browser' | 'functions'
-  saving: boolean
-  /** 取应用最新序列化结果（透传给 BuildActions） */
-  getSerializedApp: () => string
-  onBack: () => void
   onSave: () => void
-  onDeviceChange: (size: { width: number; height: number }) => void
-  onNavigate: (path: string) => void
-  onTabChange: (key: string) => void
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
-  applicationId,
-  appName,
-  designSize,
-  activeTab,
-  saving,
-  getSerializedApp,
-  onBack,
   onSave,
-  onDeviceChange,
-  onNavigate,
-  onTabChange,
 }) => {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const isEditMode = location.pathname.endsWith('/ui')
+  const { uiJSONDirty, dataSchemaDirty, cloudFunctionsDirty, isSaving } = useApplicationStore(
+    useShallow((s) => ({ uiJSONDirty: s.uiJSONDirty, dataSchemaDirty: s.dataSchemaDirty, cloudFunctionsDirty: s.cloudFunctionsDirty, isSaving: s.isSaving })),
+  );
+  const isDirty = uiJSONDirty || dataSchemaDirty || cloudFunctionsDirty;
+  const saveTooltip = isSaving ? '正在保存…' : isDirty ? '保存' : '没有需要保存的更改';
+
   return (
     <div className={styles.appHeader}>
       {/* 左侧：返回首页按钮 */}
       <Tooltip title="返回首页">
         <button
           className={styles.backBtn}
-          onClick={onBack}
+          onClick={() => navigate('/')}
           aria-label="返回首页"
         >
           <ArrowLeftOutlined />
@@ -61,43 +52,31 @@ const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* 机型选择器（非编辑态保留等宽占位，避免胶囊抖动） */}
       <span className={styles.devicePickerSlot}>
-        {activeTab === 'ui' && (
-          <DevicePicker designSize={designSize} onChange={onDeviceChange} />
-        )}
+        {isEditMode && <DevicePicker />}
       </span>
 
       {/* 左侧弹性占位 */}
       <div className={styles.headerSpacer} />
 
       {/* Tab 胶囊：[ ▶预览 | ✏编辑 ]  [ 数据库 ]  [ 云函数 ] */}
-      <TabCapsule
-        activeTab={activeTab}
-        applicationId={applicationId}
-        onNavigate={onNavigate}
-        onTabChange={onTabChange}
-      />
+      <TabCapsule />
 
       {/* 右侧弹性占位 */}
       <div className={styles.headerSpacer} />
 
       {/* 操作胶囊：保存 / 生成应用 */}
       <div className={styles.actionCapsule}>
-        <Tooltip title="保存">
+        <Tooltip title={saveTooltip}>
           <button
             className={styles.actionBtn}
             onClick={onSave}
-            disabled={saving}
+            disabled={isSaving || !isDirty}
           >
-            {saving ? <span className={styles.actionSpinner} /> : <SaveOutlined />}
+            {isSaving ? <span className={styles.actionSpinner} /> : <SaveOutlined />}
           </button>
         </Tooltip>
         <div className={styles.capsuleDivider} />
-        <BuildActions
-          applicationId={applicationId}
-          appName={appName}
-          designSize={designSize}
-          getSerializedApp={getSerializedApp}
-        />
+        <BuildActions />
       </div>
     </div>
   )

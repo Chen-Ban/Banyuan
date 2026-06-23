@@ -8,7 +8,9 @@ import type { IAnimationDescriptor } from '@/types/engine/animation'
 import TextSelection from './TextSelection.js'
 import AnimationAddon from './AnimationAddon.js'
 import type TextView from '@/view/TextView/index.js'
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 
 /**
  * TextSelectionAddon —— 文本光标/选区渲染与动画管理插件（RENDER + LOGIC）

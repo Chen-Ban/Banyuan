@@ -141,12 +141,11 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
   flowOptions = [],
   collectionOptions = [],
 }) => {
-  if (!node) return null
-
-  const kindLabel = KIND_LABELS[node.kind] || node.kind
+  const kindLabel = (KIND_LABELS[node?.kind ?? ''] || node?.kind) ?? ''
 
   // ── 各 kind 的表单体 ──
   const formBody = useMemo(() => {
+    if (!node) return null
     const inp = getSlotInput(node)
 
     switch (node.kind) {
@@ -625,6 +624,8 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
         return <div className={styles.infoText}>暂不支持编辑此节点类型</div>
     }
   }, [node, onChange, flowOptions, collectionOptions])
+
+  if (!node) return null
 
   return (
     <div className={styles.propertyPanel}>

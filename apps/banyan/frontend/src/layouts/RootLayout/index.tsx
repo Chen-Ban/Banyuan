@@ -16,18 +16,18 @@
  * 此组件仅负责 Layout 壳 + sidebarMode 判断。
  */
 
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { Outlet, useLocation, useParams } from 'react-router-dom'
-import Sidebar from './Sidebar'
+import Sidebar from '@/components/Sidebar'
 import LoginModal from '@/components/LoginModal'
-import { RootLayoutCtx, type SidebarMode } from './RootLayoutCtx'
+import { useWorkspaceStore, type Workspace } from '@/stores/workspaceStore'
 import styles from './index.module.scss'
 
 const RootLayout: React.FC = () => {
   const location = useLocation()
   const { id: appId } = useParams<{ id: string }>()
 
-  const sidebarMode: SidebarMode = useMemo(() => {
+  const sidebarMode: Workspace = useMemo(() => {
     if (appId || location.pathname.startsWith('/application/')) {
       return 'app'
     }
@@ -37,18 +37,21 @@ const RootLayout: React.FC = () => {
     return 'nav'
   }, [location.pathname, appId])
 
+  // 写入 store，供 Sidebar 及子组件读取
+  useEffect(() => {
+    useWorkspaceStore.getState().setWorkspace(sidebarMode)
+  }, [sidebarMode])
+
   return (
-    <RootLayoutCtx.Provider value={{ sidebarMode }}>
-      <div className={styles.root}>
-        <aside className={`${styles.sidebar}${sidebarMode === 'app' ? ` ${styles.sidebarApp}` : ''}`}>
-          <Sidebar mode={sidebarMode} />
-        </aside>
-        <main className={styles.main}>
-          <Outlet />
-        </main>
-      </div>
+    <div className={styles.root}>
+      <aside className={`${styles.sidebar}${sidebarMode === 'app' ? ` ${styles.sidebarApp}` : ''}`}>
+        <Sidebar />
+      </aside>
+      <main className={styles.main}>
+        <Outlet />
+      </main>
       <LoginModal />
-    </RootLayoutCtx.Provider>
+    </div>
   )
 }
 

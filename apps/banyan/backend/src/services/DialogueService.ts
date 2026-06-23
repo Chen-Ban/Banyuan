@@ -27,13 +27,13 @@ import {
   type IAssistantContent,
   type IMemoryUpdateInput,
 } from '../models/types/index.js'
-import appContentService from './AppContentService.js'
+import uiDefinitionService from './UIDefinitionService.js'
 import { SchemaService } from './SchemaService.js'
 import cloudFunctionService from './CloudFunctionService.js'
 
 /** 三个内容表的版本号三元组 */
 export interface IContentVersions {
-  appContentVersion: number
+  uiDefinitionVersion: number
   schemaVersion: number
   cloudFunctionVersion: number
 }
@@ -87,8 +87,8 @@ class DialogueService {
     const dialogueId = new Types.ObjectId()
 
     // 给三张内容表 append 草稿版本（绑定本对话 _id），方案 A：三表强制对齐 append
-    const [appContentVersion, schemaVersion, cloudFunctionVersion] = await Promise.all([
-      appContentService.createDraftVersion(params.appId, dialogueId, base.appContentVersion),
+    const [uiDefinitionVersion, schemaVersion, cloudFunctionVersion] = await Promise.all([
+      uiDefinitionService.createDraftVersion(params.appId, dialogueId, base.uiDefinitionVersion),
       SchemaService.createDraftVersion(params.appId, dialogueId, base.schemaVersion),
       cloudFunctionService.createDraftVersion(params.appId, dialogueId, base.cloudFunctionVersion),
     ])
@@ -109,7 +109,7 @@ class DialogueService {
           createdAt: new Date(),
         },
       ],
-      appContentVersion,
+      uiDefinitionVersion,
       schemaVersion,
       cloudFunctionVersion,
     })
@@ -127,17 +127,17 @@ class DialogueService {
   async getLatestAcceptedVersions(appId: string): Promise<IContentVersions> {
     const latestDone = await Dialogue.findOne(
       { appId, phase: 'done' },
-      { appContentVersion: 1, schemaVersion: 1, cloudFunctionVersion: 1 },
+      { uiDefinitionVersion: 1, schemaVersion: 1, cloudFunctionVersion: 1 },
     )
       .sort({ createdAt: -1 })
       .lean()
 
     if (!latestDone) {
-      return { appContentVersion: 0, schemaVersion: 0, cloudFunctionVersion: 0 }
+      return { uiDefinitionVersion: 0, schemaVersion: 0, cloudFunctionVersion: 0 }
     }
 
     return {
-      appContentVersion: latestDone.appContentVersion,
+      uiDefinitionVersion: latestDone.uiDefinitionVersion,
       schemaVersion: latestDone.schemaVersion,
       cloudFunctionVersion: latestDone.cloudFunctionVersion,
     }
@@ -153,14 +153,14 @@ class DialogueService {
   async getWorkingVersions(appId: string): Promise<IContentVersions> {
     const active = await Dialogue.findOne(
       { appId, phase: { $nin: ['done', 'discarded', 'failed'] } },
-      { appContentVersion: 1, schemaVersion: 1, cloudFunctionVersion: 1 },
+      { uiDefinitionVersion: 1, schemaVersion: 1, cloudFunctionVersion: 1 },
     )
       .sort({ createdAt: -1 })
       .lean()
 
     if (active) {
       return {
-        appContentVersion: active.appContentVersion,
+        uiDefinitionVersion: active.uiDefinitionVersion,
         schemaVersion: active.schemaVersion,
         cloudFunctionVersion: active.cloudFunctionVersion,
       }
@@ -172,7 +172,7 @@ class DialogueService {
   /**
    * 执行一次「自动验收的直接编辑」对话（方向 B：保证语义一致性）。
    *
-   * 设计：用户绕过 AI 的自主修改（改表结构 / 云函数 / appJSON）也包装成一个
+   * 设计：用户绕过 AI 的自主修改（改表结构 / 云函数 / UI 定义）也包装成一个
    * type='edit' 的对话，使「所有内容变更都归属于某个对话」这一不变式成立，
    * 从而读取聚合（getLatestAcceptedVersions + getByVersion）始终成立。
    *
@@ -206,13 +206,13 @@ class DialogueService {
     const dialogueId = new Types.ObjectId()
 
     // 给三表 append 草稿版本（方案 A：三表强制对齐 append）
-    const [appContentVersion, schemaVersion, cloudFunctionVersion] = await Promise.all([
-      appContentService.createDraftVersion(params.appId, dialogueId, base.appContentVersion),
+    const [uiDefinitionVersion, schemaVersion, cloudFunctionVersion] = await Promise.all([
+      uiDefinitionService.createDraftVersion(params.appId, dialogueId, base.uiDefinitionVersion),
       SchemaService.createDraftVersion(params.appId, dialogueId, base.schemaVersion),
       cloudFunctionService.createDraftVersion(params.appId, dialogueId, base.cloudFunctionVersion),
     ])
 
-    const versions: IContentVersions = { appContentVersion, schemaVersion, cloudFunctionVersion }
+    const versions: IContentVersions = { uiDefinitionVersion, schemaVersion, cloudFunctionVersion }
 
     // 创建对话（系统生成的用户消息描述本次直接编辑操作）
     const dialogue = new Dialogue({
@@ -228,7 +228,7 @@ class DialogueService {
           createdAt: new Date(),
         },
       ],
-      appContentVersion,
+      uiDefinitionVersion,
       schemaVersion,
       cloudFunctionVersion,
     })
