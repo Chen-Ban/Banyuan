@@ -301,7 +301,7 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
      * const data = img.getImageData(); // ImageData { width: ..., height: ..., data: ... }
      * ```
      */
-    public abstract getImageData(ctx: IDrawingContext): IDrawingImageData | null
+    public abstract getImageData(): IDrawingImageData | null
 
     /**
      * 获取矩形周长上参数 `t` 对应的点。

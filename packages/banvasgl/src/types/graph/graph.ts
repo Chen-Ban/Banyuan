@@ -264,7 +264,7 @@ export interface IMediaElement extends IGraph {
 
     setPosition(x: number, y: number): IMediaElement
     setSize(width: number, height: number): IMediaElement
-    getImageData(ctx: IDrawingContext): IDrawingImageData | null
+    getImageData(): IDrawingImageData | null
 }
 
 /** ImageElement 接口 */

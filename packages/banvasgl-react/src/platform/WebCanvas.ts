@@ -105,10 +105,14 @@ export class WebCanvas implements IDrawingSurface {
   }
 
   present(): void {
-    this.main.save();
-    this.main.setTransform(1, 0, 0, 1, 0, 0);
-    this.main.drawImage(this._offscreen.transferToImageBitmap(), 0, 0);
-    this.main.restore();
+    // 双缓冲合成：将离屏 buffer 以 ImageBitmap 形式绘制到主 canvas。
+    // 使用原生 Canvas API 避免经过 IDrawingContext 抽象层（ImageBitmap 不是 IDrawingImageSource）。
+    const mainCtx = this._canvas.getContext('2d');
+    if (!mainCtx) return;
+    mainCtx.save();
+    mainCtx.setTransform(1, 0, 0, 1, 0, 0);
+    mainCtx.drawImage(this._offscreen.transferToImageBitmap(), 0, 0);
+    mainCtx.restore();
   }
 
   dispose(): void {

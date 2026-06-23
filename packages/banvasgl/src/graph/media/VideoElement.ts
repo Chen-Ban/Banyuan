@@ -393,21 +393,20 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   /**
    * 获取视频当前帧的像素数据。
    *
-   * 通过平台 DrawingContext 提取像素数据（ctx.extractImageData），
-   * 封装了"临时画布 → drawImage → getImageData"的平台实现细节。
-   * 需要视频已加载完成且跨域配置正确，否则返回 `null`。
+   * 直接返回 video.data —— IDrawingVideoSource.data 是 getter，
+   * 每次读取返回当前帧的 RGBA 像素（带时间维度）。
+   * 需要视频已加载完成，否则返回 `null`。
    *
-   * @param {IDrawingContext} ctx - 平台绘图上下文
    * @returns {IDrawingImageData | null} 当前帧像素数据；若未加载则返回 `null`
    */
-  getImageData(ctx: IDrawingContext): IDrawingImageData | null {
+  getImageData(): IDrawingImageData | null {
     if (!this.video || !this.loaded) return null;
 
-    return ctx.extractImageData(
-      this.video,
-      this.video.width,
-      this.video.height
-    )
+    return {
+      width: this.video.width,
+      height: this.video.height,
+      data: this.video.data,
+    }
   }
 
   /**

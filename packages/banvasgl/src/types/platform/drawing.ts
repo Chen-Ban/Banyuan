@@ -64,18 +64,24 @@ export interface IDrawingPattern {
   setTransform(matrix?: DrawingMatrix2DInit): void;
 }
 
-/** 图像源（平台无关） */
+/** 图像源（平台无关）
+ *
+ * 引擎视角：图片 = 宽度 × 高度 的 RGBA 像素阵列。
+ * 平台适配器负责在加载时将平台图像（HTMLImageElement / SkImage 等）解码为原始像素。
+ */
 export interface IDrawingImageSource {
   readonly width: number;
   readonly height: number;
+  /** RGBA 像素数据（width × height × 4 字节） */
+  readonly data: Uint8ClampedArray;
 }
 
 /**
  * 视频源（平台无关）
  *
- * 引擎视角下，视频 = 带时间维度的像素帧序列。
- * 平台适配器（如 WebDrawingVideoSource）负责封装底层播放器（HTMLVideoElement / ffmpeg 等），
- * 引擎只通过此接口控制播放和获取当前帧像素尺寸。
+ * 引擎视角：视频 = 带时间维度的像素帧序列。
+ * 与 IDrawingImageSource 一致的数据模型 —— 继承的 `.data` 返回当前帧的 RGBA 像素，
+ * 每次读取都可能不同（反映最新帧）。平台适配器负责从底层播放器实时提取帧像素。
  */
 export interface IDrawingVideoSource extends IDrawingImageSource {
   /** 播放视频 */
@@ -326,26 +332,17 @@ export interface IDrawingContext {
 
   /**
    * 从 URL 加载图像源。
-   * 平台负责创建像素源（如 Web 的 HTMLImageElement），引擎只拿到 IDrawingImageSource。
+   * 平台负责解码为 RGBA 像素数据，引擎拿到包含 width/height/data 的 IDrawingImageSource。
    */
   loadImageSource(src: string, crossOrigin?: string): Promise<IDrawingImageSource>;
 
   /**
    * 从 URL 加载视频源。
-   * 平台负责创建视频像素源（如 Web 的 HTMLVideoElement），引擎只拿到 IDrawingVideoSource。
+   * 平台负责创建视频像素源（如 Web 的 HTMLVideoElement），
+   * 引擎拿到 IDrawingVideoSource，其 .data 返回当前帧 RGBA 像素。
    */
   loadVideoSource(
     src: string,
     options?: IDrawingVideoLoadOptions,
   ): Promise<IDrawingVideoSource>;
-
-  /**
-   * 从图像/视频源提取像素数据。
-   * 封装"临时画布 → drawImage → getImageData"的平台实现细节。
-   */
-  extractImageData(
-    source: IDrawingImageSource,
-    width: number,
-    height: number,
-  ): IDrawingImageData | null;
 }

@@ -213,21 +213,19 @@ export default class ImageElement extends MediaElement implements IImageElement,
     /**
      * 获取图片的像素数据。
      *
-     * 通过平台 DrawingContext 提取像素数据（ctx.extractImageData），
-     * 封装了"临时画布 → drawImage → getImageData"的平台实现细节。
-     * 需要图片已加载完成且跨域配置正确，否则返回 `null`。
+     * 直接返回 image.data —— 引擎持有原始 RGBA 像素，
+     * 无需通过 DrawingContext 中转。
+     * 需要图片已加载完成，否则返回 `null`。
      *
-     * @param {IDrawingContext} ctx - 平台绘图上下文
      * @returns {IDrawingImageData | null} 图片像素数据；若未加载则返回 `null`
      */
-    getImageData(ctx: IDrawingContext): IDrawingImageData | null {
+    getImageData(): IDrawingImageData | null {
         if (!this.image || !this.loaded) return null
-
-        return ctx.extractImageData(
-            this.image,
-            this.actualWidth,
-            this.actualHeight
-        )
+        return {
+            width: this.image.width,
+            height: this.image.height,
+            data: this.image.data,
+        }
     }
 
     /**
