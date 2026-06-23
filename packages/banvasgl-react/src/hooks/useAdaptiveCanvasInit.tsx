@@ -3,7 +3,7 @@
  *
  * 职责（在 useCanvasCore 共享底座之上）：
  *   1. 空应用时用 800×600 占位 camera（首次 resize 时接管）
- *   2. appJSON 恢复后不操作 camera（首次 resize 时接管）
+ *   2. uiJSON 恢复后不操作 camera（首次 resize 时接管）
  *   3. 容器 resize/DPR 时同步 canvas 物理像素 + camera bounds
  *   4. 启用相机驱动的无限画布交互（zoom via Ctrl+Wheel / pan via Wheel）
  *   5. Canvas CSS 样式：100% 铺满容器
@@ -32,7 +32,7 @@ export interface UseAdaptiveCanvasOptions {
    * 序列化的应用 JSON（空字符串表示新建空白应用）。
    * 自适应模式下通常初始加载为空（流程图画布为空画布）。
    */
-  appJSON?: string;
+  uiJSON?: string;
   appOptions?: Partial<IAppOptions>;
   rendererOptions?: Omit<IRendererOptions, "dpr">;
   /** 是否启用文本输入（默认 false，流程设计态不需要） */
@@ -73,7 +73,7 @@ export interface UseAdaptiveCanvasResult {
 export function useAdaptiveCanvasInit(
   options: UseAdaptiveCanvasOptions = {},
 ): UseAdaptiveCanvasResult {
-  const { appJSON = "", appOptions, rendererOptions, textInput } = options;
+  const { uiJSON = "", appOptions, rendererOptions, textInput } = options;
 
   // ── 共享底座（options 由调用方保证引用稳定） ──
   const coreOptions: UseCanvasCoreOptions = useMemo(
@@ -103,14 +103,14 @@ export function useAdaptiveCanvasInit(
     enabled: true,
   });
 
-  // ── Effect 2: appJSON 恢复 / 空应用初始化 ──
+  // ── Effect 2: uiJSON 恢复 / 空应用初始化 ──
   // 自适应模式：初始 camera 800×600 占位，首次 resize 时 syncCameraToContainer 接管
   useEffect(() => {
     if (!app || !actions) return;
 
-    if (appJSON) {
+    if (uiJSON) {
       // ── JSON 恢复 ──
-      app.initFromSerialized(appJSON);
+      app.initFromSerialized(uiJSON);
       actions.app.notify();
     } else {
       // ── 空应用 ──
@@ -125,7 +125,7 @@ export function useAdaptiveCanvasInit(
       app.navigateTo(scene);
       actions.app.notify();
     }
-  }, [app, appJSON, actions]);
+  }, [app, uiJSON, actions]);
 
   // ── Effect 3: 容器 resize / DPR 变化时同步 ──
   // 自适应模式：更新 canvas 尺寸 + camera bounds
