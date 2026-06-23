@@ -2,7 +2,7 @@
  * useFixedCanvasInit — 固定模式 Canvas 初始化 hook
  *
  * 职责（在 useCanvasCore 共享底座之上）：
- *   1. 空应用时用 width×height 创建 camera + setDesignSize
+ *   1. 空应用时用 App._designSize 默认值创建 camera（designSize 由调用方通过 actions.app.setDesignSize() 命令式注入）
  *   2. 容器 resize/DPR 变化时仅更新物理像素（camera 不动）
  *   3. 页面切换时强制同步 camera bounds 到 designSize
  *   4. Canvas CSS 样式：contain-fit 长边适配
@@ -11,10 +11,10 @@
  *
  * 适用场景：UI 设计态（useDesignBanvas）、预览态（PreviewPage）、运行态（useRuntimeBanvas）
  *
- * 注意：uiJSON 已从此 hook 剥离，JSON 恢复由调用方通过 actions.app.loadAppJSON() 单独注入。
+ * 注意：uiJSON 和 designSize 已从此 hook 剥离，由调用方通过 actions.app.loadAppJSON() / actions.app.setDesignSize() 命令式注入。
  */
 
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo } from "react";
 import { OrthographicCamera } from "@banyuan/banvasgl";
 import { Scene } from "@banyuan/banvasgl";
 import type { IAppOptions } from "@banyuan/banvasgl";
@@ -39,16 +39,6 @@ export interface SelectedViewPos {
 }
 
 export interface UseFixedCanvasOptions {
-  /**
-   * 页面样式宽度（设计尺寸，CSS 像素）。
-   * 固定模式下必传，与 height 共同决定画布逻辑尺寸。
-   */
-  width: number;
-  /**
-   * 页面样式高度（设计尺寸，CSS 像素）。
-   * 固定模式下必传，与 width 共同决定画布逻辑尺寸。
-   */
-  height: number;
   appOptions?: Partial<IAppOptions>;
   rendererOptions?: Omit<IRendererOptions, "dpr">;
   /**
@@ -90,22 +80,17 @@ export interface UseFixedCanvasResult {
 /**
  * useFixedCanvasInit — 固定模式 Canvas 初始化 hook
  *
- * 画布物理像素 = width * dpr × height * dpr（保证高清）。
+ * designSize 通过 actions.app.setDesignSize() 命令式注入（不再作为 hook options）。
+ * 初始 designSize 使用 App 内置默认值（1280×800），后续由调用方按需覆盖。
+ * 画布物理像素 = designSize.width * dpr × designSize.height * dpr（保证高清）。
  * dpr 融入 View 的 MVP 变换矩阵，渲染时自动映射到物理像素。
- * 相机在逻辑空间操作，bounds = [0, width] × [0, height]。
+ * 相机在逻辑空间操作，bounds = [0, designSize.width] × [0, designSize.height]。
  * CSS 样式尺寸在容器内做长边适配（contain fit）居中展示。
  */
 export function useFixedCanvasInit(
   options: UseFixedCanvasOptions,
 ): UseFixedCanvasResult {
-  const { width, height, appOptions, rendererOptions, textInput } =
-    options;
-
-  // ref 持有最新的 width/height，供 Effect 内部读取但不作为依赖
-  const widthRef = useRef(width);
-  widthRef.current = width;
-  const heightRef = useRef(height);
-  heightRef.current = height;
+  const { appOptions, rendererOptions, textInput } = options;
 
   // ── 共享底座（options 由调用方保证引用稳定） ──
   const coreOptions: UseCanvasCoreOptions = useMemo(
@@ -129,28 +114,26 @@ export function useFixedCanvasInit(
   const { dpr, dprRef } = useBOMProperties();
 
   // ── Effect 2: 空应用初始化 ──
-  // 固定模式：相机锁定为 App.designSize
-  // JSON 恢复由调用方通过 actions.app.loadAppJSON() 单独注入
+  // 固定模式：相机锁定为 App.designSize（使用 App 内置默认值 1280×800）
+  // designSize / JSON 恢复由调用方通过 actions.app.setDesignSize() / loadAppJSON() 命令式注入
   useEffect(() => {
     if (!app || !actions) return;
 
     // ── 空应用 ──
-    // camera 直接使用 width × height
+    // camera 用 App 内置默认 designSize
     // 先 resize canvas 再 navigateTo，避免 FlowSchema 在未初始化的 canvas 上触发渲染
-    const w = widthRef.current;
-    const h = heightRef.current;
+    const ds = app.getDesignSize();
     app.renderer.setDPR(dprRef.current);
-    app.handleResize(w, h);
+    app.handleResize(ds.width, ds.height);
     const camera = new OrthographicCamera({
       left: 0,
-      right: w,
+      right: ds.width,
       top: 0,
-      bottom: h,
+      bottom: ds.height,
     });
     const scene = new Scene(camera);
     app.addScene(scene);
     app.navigateTo(scene);
-    app.setDesignSize(w, h);
   }, [app, actions]);
 
   // ── Effect 3: 容器 resize / DPR 变化时同步 ──
@@ -211,10 +194,7 @@ export function useFixedCanvasInit(
 
   // ── Canvas 样式：contain-fit 长边适配 ──
   const canvasStyle: React.CSSProperties = useMemo(() => {
-    const designSize = app?.getDesignSize() ?? {
-      width: widthRef.current,
-      height: heightRef.current,
-    };
+    const designSize = app?.getDesignSize() ?? { width: 1280, height: 800 };
     if (containerSize.width <= 0 || containerSize.height <= 0) {
       return { display: "block", width: "100%", height: "100%" };
     }

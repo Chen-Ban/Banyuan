@@ -91,7 +91,6 @@ export default function useFlowBanvas(
         [backgroundColor],
     );
     const { actions, elements, derived } = useAdaptiveCanvasInit({
-        appJSON: '',
         rendererOptions,
     })
 

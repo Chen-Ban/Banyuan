@@ -31,16 +31,16 @@ const PreviewPage: React.FC = () => {
   const serverStatus = usePreviewServerStore((s) => s.status);
 
   // ── 画布初始化（运行策略：useRuntimeBanvas = 机制底座 + 交互识别 + FlowSchema 触发） ──
+  // designSize 通过 actions.app.setDesignSize() 命令式注入
   const rendererOptions = useMemo(() => ({ clearColor: "#fff" }), []);
-  const runtimeOptions = useMemo(
-    () => ({
-      width: designSize.width,
-      height: designSize.height,
-      rendererOptions,
-    }),
-    [designSize.width, designSize.height, rendererOptions],
-  );
-  const { Banvas, actions } = useRuntimeBanvas(runtimeOptions);
+  const { Banvas, actions } = useRuntimeBanvas({ rendererOptions });
+
+  // ── designSize 命令式注入引擎 ──
+  useEffect(() => {
+    if (actions?.app) {
+      actions.app.setDesignSize(designSize.width, designSize.height);
+    }
+  }, [actions, designSize.width, designSize.height]);
 
   // ── uiJSON 注入引擎（store 数据就绪时） ──────────────────────────────────
   useEffect(() => {

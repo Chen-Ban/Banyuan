@@ -157,10 +157,9 @@ export function useCanvasCore(
   useEffect(() => {
     if (!canvasNode) return;
 
-    const appOpts = { flowEnabled: false, ...(options.appOptions ?? {}) } as IAppOptions;
     const _app = App.create(
       new WebPlatformCanvas(canvasNode, options.rendererOptions),
-      appOpts,
+      options.appOptions ?? {},
       options.rendererOptions,
     );
     _app.launch({});

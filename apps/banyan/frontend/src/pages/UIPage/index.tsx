@@ -13,10 +13,9 @@
  *   └──────────────────────────────────────────────────────────┘
  *
  * 职责：
- *   - 从 applicationStore 读取 uiJSON，通过 actions.app.loadAppJSON() 注入引擎
+ *   - 调用 useDesignBanvas hook（内部完成 store ↔ 引擎全部桥接）
  *   - 渲染物料面板、画布、PropertyDrawer
  *   - 管理 FlowEditorPanel 状态（从 EventsTab 提升）
- *   - 响应 store.uiJSON 外部变化（AI done 后画布重载）
  *
  * 设计决策来源：docs/specs/app/metadata-dataflow.md 步骤 7
  */
@@ -27,7 +26,6 @@ import useDesignBanvas from "@/hooks/useDesignBanvas";
 import { DesignContextMenu } from "./components/DesignEditor/DesignContextMenu";
 import { Drawer, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
-import { useApplicationStore } from "@/stores/applicationStore";
 import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
 import { FlowEditorPanel } from "@/components/FlowKit/FlowEditorPanel";
 import type { FlowEditorOpenRequest } from "./components/DesignEditor/PropertyPanel/EventsTab";
@@ -55,16 +53,6 @@ const CLOSED_FLOW_EDITOR: FlowEditorState = {
 
 const UIPage = () => {
   const { id: application_id } = useParams<{ id: string }>();
-
-  // ── ApplicationStore ────────────────────────────────────────────────────────
-  const {
-    setDesignSize,
-    registerActions,
-    consumeInitialPrompt,
-  } = useApplicationStore()
-
-  // ── uiJSON 从 store 读取（唯一数据源） ──────────────────────────────────
-  const uiJSON = useApplicationStore((s) => s.uiJSON);
 
   // canvasSection 容器，作为两个抽屉的挂载容器（仅覆盖画布区域）
   const [canvasSectionEl, setCanvasSectionEl] = useState<HTMLDivElement | null>(null);
@@ -94,13 +82,9 @@ const UIPage = () => {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const prevSelectedViewIdRef = useRef<string>("");
 
-  // banvasOptions 仅含低频配置（width/height/appOptions/rendererOptions）
-  // uiJSON 通过 actions.app.loadAppJSON() 命令式注入，不混入 options
-  const designSize = useApplicationStore((s) => s.designSize);
+  // banvasOptions 仅含配置（appOptions/rendererOptions）
   const banvasOptions = useMemo(
     () => ({
-      width: designSize.width,
-      height: designSize.height,
       appOptions: {
         enablePageStack: true,
         maxPageStackSize: 50,
@@ -109,7 +93,7 @@ const UIPage = () => {
         clearColor: "#fff",
       },
     }),
-    [designSize.width, designSize.height],
+    [],
   );
 
   const {
@@ -121,31 +105,6 @@ const UIPage = () => {
     saveMaterial,
   } = useDesignBanvas(banvasOptions);
 
-  // ── 挂载画布引擎实例到 store（供 Layout build / 机型切换 / 外部消费） ────────
-  useEffect(() => {
-    if (!actions?.app) return;
-    const unregister = registerActions(actions);
-    // appJSON 加载后同步引擎当前 designSize 到 store
-    const ds = actions.app.getDesignSize();
-    setDesignSize({ width: ds.width, height: ds.height });
-    return unregister;
-  }, [registerActions, setDesignSize, actions]);
-
-  // ── 引擎变更 → 标记 UI 脏 ────────────────────────────
-  useEffect(() => {
-    if (!actions?.app) return;
-    return actions.app.subscribe(() => {
-      useApplicationStore.getState().markUIDirty();
-    });
-  }, [actions]);
-
-  // ── 监听 store.uiJSON 外部变化，注入引擎 ─────────────────────────────────
-  useEffect(() => {
-    if (actions?.app && uiJSON) {
-      actions.app.loadAppJSON(uiJSON);
-    }
-  }, [uiJSON, actions]);
-
   useEffect(() => {
     if (selectedViewId !== "") {
       setRightOpen(true);
@@ -154,15 +113,6 @@ const UIPage = () => {
     }
     prevSelectedViewIdRef.current = selectedViewId;
   }, [selectedViewId]);
-
-  // ── 首页跳转后自动发送 initialPrompt ─────────────────────────────────────
-  useEffect(() => {
-    if (!application_id) return;
-    const prompt = consumeInitialPrompt(application_id);
-    if (prompt) {
-      useApplicationStore.getState().setInitialPrompt(application_id, prompt);
-    }
-  }, [application_id, consumeInitialPrompt]);
 
   if (!application_id) {
     return <div style={{ padding: 40, textAlign: "center" }}>缺少应用 ID</div>;

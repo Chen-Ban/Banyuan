@@ -249,4 +249,28 @@ export abstract class BaseCamera {
         return this
     }
 
+    // ── 坐标转换（世界 ↔ 画布 DOM 相对坐标）──
+
+    /**
+     * 世界坐标 → 画布 DOM 相对坐标
+     *
+     * 对世界坐标 (worldX, worldY, z=0) 应用 VP 矩阵，
+     * 返回 <canvas> 元素左上角为原点的像素坐标。
+     */
+    worldToScreen(worldX: number, worldY: number): [number, number] {
+        const p = this.viewProjectionMatrix.multiplyPoint(new Point3(worldX, worldY, 0))
+        return [p.x, p.y]
+    }
+
+    /**
+     * 画布 DOM 相对坐标 → 世界坐标
+     *
+     * 对 <canvas> 元素左上角为原点的像素坐标应用 VP⁻¹ 矩阵，
+     * 返回世界空间的三维坐标。
+     */
+    screenToWorld(screenX: number, screenY: number): [number, number, number] {
+        const p = this.viewProjectionMatrix.inverse().multiplyPoint(new Point3(screenX, screenY, 0))
+        return [p.x, p.y, p.z]
+    }
+
 }
