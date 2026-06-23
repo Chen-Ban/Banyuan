@@ -8,7 +8,7 @@
  */
 
 import { App, OrthographicCamera } from "@banyuan/banvasgl";
-import { NodePlatformCanvas } from "./NodePlatformCanvas.js";
+import { NodeSurface } from "./NodePlatformCanvas.js";
 
 /** 封面画布尺寸 */
 const COVER_WIDTH = 1280;
@@ -22,22 +22,11 @@ const COVER_HEIGHT = 800;
  */
 export async function generateCover(uiJSON: string): Promise<Buffer | null> {
   try {
-    // 创建 node-canvas 并包装为平台接口
-    const platform = new NodePlatformCanvas(COVER_WIDTH, COVER_HEIGHT, {
-      clearColor: "#ffffff",
-      backgroundColor: "#ffffff",
-    });
-    const mainCtx = platform.getMainContext();
-    const bufferCtx = platform.getBufferContext();
+    // 创建 node-canvas 并包装为 IDrawingSurface
+    const surface = new NodeSurface(COVER_WIDTH, COVER_HEIGHT);
 
-    // 通过平台无关工厂创建 App（flowEnabled: false，缩略图无需流程执行）
-    const app = App.create(
-      platform,
-      mainCtx,
-      bufferCtx,
-      { flowEnabled: false, enablePageStack: false },
-      { clearColor: "#ffffff" },
-    );
+    // 通过平台无关工厂创建 App
+    const app = App.create(surface, { flowEnabled: false, enablePageStack: false });
 
     // 从 JSON 恢复应用状态
     app.initFromSerialized(uiJSON);
@@ -61,10 +50,10 @@ export async function generateCover(uiJSON: string): Promise<Buffer | null> {
     }
 
     // 导出为 WebP Buffer
-    const buffer = platform.toWebPBuffer(85);
+    const buffer = surface.toWebPBuffer(85);
 
     // 清理
-    platform.destroy();
+    surface.dispose();
 
     return buffer;
   } catch (err) {

@@ -1,5 +1,5 @@
 /**
- * NodePlatformCanvas — IPlatformCanvas 的 Node.js (node-canvas) 实现
+ * NodeSurface — IDrawingSurface 的 Node.js (node-canvas) 实现
  *
  * 基于单个 node-canvas 实例，主/缓冲上下文复用同一画布。
  * 用于服务端缩略图生成，无需双缓冲。
@@ -7,7 +7,7 @@
  * 注：node-canvas 模块通过动态 import 加载，类型定义使用 any 规避编译期依赖。
  */
 
-import type { IPlatformCanvas, IPlatformCanvasOptions, IPlatformDrawingContext } from "@banyuan/banvasgl";
+import type { IDrawingSurface, IDrawingContext } from "@banyuan/banvasgl";
 import { NodeDrawingContext } from "./NodeDrawingContext.js";
 
 // node-canvas 运行时类型（由 canvas 包提供）
@@ -25,105 +25,79 @@ function getCreateCanvas(): (w: number, h: number) => NodeCanvas {
   return _createCanvas!;
 }
 
-export class NodePlatformCanvas implements IPlatformCanvas {
+export class NodeSurface implements IDrawingSurface {
   private _canvas: NodeCanvas;
   private _ctx: NodeCanvasCtx;
-  private _drawing: NodeDrawingContext;
+  readonly main: IDrawingContext;
+  readonly offscreen: IDrawingContext;
   private _dpr: number;
-  private _options: IPlatformCanvasOptions;
   private _destroyed: boolean = false;
 
-  constructor(width: number, height: number, options: IPlatformCanvasOptions = {}) {
-    this._options = {
-      enableAntialiasing: true,
-      enableImageSmoothing: true,
-      backgroundColor: "#ffffff",
-      clearColor: "#ffffff",
-      ...options,
-    };
-
+  constructor(width: number, height: number) {
     const createCanvas = getCreateCanvas();
     this._canvas = createCanvas(width, height);
     this._ctx = this._canvas.getContext("2d");
-    this._drawing = new NodeDrawingContext(this._ctx, this._canvas);
     this._dpr = 1; // 服务端渲染使用 1x
 
+    const drawingCtx = new NodeDrawingContext(this._ctx, this._canvas);
+    this.main = drawingCtx;
+    this.offscreen = drawingCtx; // 单画布模式，主/离屏复用同一上下文
+
     this._initContext();
   }
 
-  // ── IPlatformCanvas 实现 ──
+  // ── IDrawingSurface 实现 ──
 
-  resize(width: number, height: number): void {
-    if (this._destroyed) return;
-    if (this._canvas.width === width && this._canvas.height === height) return;
-    this._canvas.width = width;
-    this._canvas.height = height;
-    this._initContext();
+  get width(): number {
+    return this._canvas.width;
   }
 
-  getDPR(): number {
+  get height(): number {
+    return this._canvas.height;
+  }
+
+  get dpr(): number {
     return this._dpr;
   }
 
-  setDPR(dpr: number): void {
-    this._dpr = dpr;
+  set dpr(value: number) {
+    this._dpr = value;
   }
 
-  /**
-   * 合成离屏缓冲到主画布。
-   * 单画布模式下为 no-op（绘制直接在主画布上进行）。
-   */
-  composite(): void {
-    // 单画布模式，无需合成
-  }
-
-  getSize(): { width: number; height: number } {
-    return { width: this._canvas.width, height: this._canvas.height };
-  }
-
-  setOptions(options: Partial<IPlatformCanvasOptions>): void {
-    Object.assign(this._options, options);
+  resize(logicalWidth: number, logicalHeight: number): void {
+    if (this._destroyed) return;
+    const w = Math.round(logicalWidth * this._dpr);
+    const h = Math.round(logicalHeight * this._dpr);
+    if (this._canvas.width === w && this._canvas.height === h) return;
+    this._canvas.width = w;
+    this._canvas.height = h;
     this._initContext();
   }
 
-  getOptions(): IPlatformCanvasOptions {
-    return { ...this._options };
+  clear(): void {
+    this.main.clearRect(0, 0, this._canvas.width, this._canvas.height);
   }
 
-  setAntialiasingEnabled(enabled: boolean): void {
-    this._options.enableAntialiasing = enabled;
-    this._ctx.imageSmoothingEnabled = enabled;
+  present(): void {
+    // 单画布模式，无需合成
   }
 
-  setBackgroundColor(color: string): void {
-    this._options.backgroundColor = color;
-  }
-
-  setClearColor(color: string): void {
-    this._options.clearColor = color;
-  }
-
-  destroy(): void {
+  dispose(): void {
     this._destroyed = true;
   }
 
-  // ── 上下文访问 ──
-
-  getMainContext(): IPlatformDrawingContext {
-    return this._drawing;
-  }
-
-  /**
-   * 获取离屏绘图上下文。
-   * 单画布模式下返回与主上下文相同的实例。
-   */
-  getBufferContext(): IPlatformDrawingContext {
-    return this._drawing;
+  export(type?: string, quality?: number): string | null {
+    if (typeof (this._canvas as any).toDataURL !== 'function') return null;
+    try {
+      return (this._canvas as any).toDataURL(type, quality);
+    } catch {
+      return null;
+    }
   }
 
   // ── Node 特定方法 ──
 
-  /** 获取底层 node-canvas 实例（用于 toBuffer 等） */
+  /** 获取底层 node-canvas 实例 */
   getCanvas(): NodeCanvas {
     return this._canvas;
   }
@@ -136,9 +110,7 @@ export class NodePlatformCanvas implements IPlatformCanvas {
   // ── 内部方法 ──
 
   private _initContext(): void {
-    if (this._options.enableAntialiasing || this._options.enableImageSmoothing) {
-      this._ctx.imageSmoothingEnabled = true;
-      this._ctx.imageSmoothingQuality = "high";
-    }
+    this._ctx.imageSmoothingEnabled = true;
+    this._ctx.imageSmoothingQuality = "high";
   }
 }

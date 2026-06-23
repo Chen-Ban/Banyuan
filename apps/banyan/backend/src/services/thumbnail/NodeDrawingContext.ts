@@ -1,30 +1,31 @@
 /**
- * NodeDrawingContext — IPlatformDrawingContext 的 Node.js (node-canvas) 实现
+ * NodeDrawingContext — IDrawingContext 的 Node.js (node-canvas) 实现
  *
- * 将 node-canvas 的 CanvasRenderingContext2D 包装为平台无关的 IPlatformDrawingContext。
+ * 将 node-canvas 的 CanvasRenderingContext2D 包装为平台无关的 IDrawingContext。
  * API 与 WebDrawingContext 对称，但适配 node-canvas 特有的类型差异。
  *
  * 注：node-canvas 模块通过动态 import 加载，类型定义使用 any 规避编译期依赖。
  */
 
 import type {
-  IPlatformDrawingContext,
-  IDrawingGradient,
-  IDrawingPattern,
-  IDrawingImageSource,
-  IDrawingTextMetrics,
-  IDrawingImageData,
+  IDrawingContext,
+  IGradient,
+  IPattern,
+  IImageSource,
+  ITextMetrics,
+  IVideoSource,
+  IVideoLoadOptions,
+  PatternRepeat,
 } from "@banyuan/banvasgl";
 
 // node-canvas 类型（运行时由 canvas 包提供）
 type NodeCanvas = any;
 type NodeCanvasCtx = any;
 type NodeImage = any;
-type NodeImageData = any;
 
 // ── Node 渐变适配器 ──
 
-class NodeGradient implements IDrawingGradient {
+class NodeGradient implements IGradient {
   constructor(private gradient: { addColorStop(offset: number, color: string): void }) {}
   addColorStop(offset: number, color: string): void {
     this.gradient.addColorStop(offset, color);
@@ -33,65 +34,56 @@ class NodeGradient implements IDrawingGradient {
 
 // ── Node 图案适配器 ──
 
-class NodePattern implements IDrawingPattern {
-  constructor(private pattern: { setTransform(matrix?: { a?: number; b?: number; c?: number; d?: number; e?: number; f?: number }): void }) {}
+class NodePattern implements IPattern {
+  constructor(private pattern: { setTransform(matrix?: object): void }) {}
   setTransform(matrix?: { a?: number; b?: number; c?: number; d?: number; e?: number; f?: number }): void {
     this.pattern.setTransform(matrix);
   }
 }
 
-// ── Node 图像数据适配器 ──
+// ── Node 图像源适配器 ──
 
-class NodeImageDataWrapper implements IDrawingImageData {
+class NodeImageSource implements IImageSource {
   readonly width: number;
   readonly height: number;
   readonly data: Uint8ClampedArray;
-  private _imageData: NodeImageData;
-  constructor(imageData: NodeImageData) {
-    this._imageData = imageData;
-    this.width = imageData.width;
-    this.height = imageData.height;
-    this.data = imageData.data;
-  }
-  get imageData(): NodeImageData { return this._imageData; }
-}
+  private _image: NodeImage;
 
-// ── Node 图像源适配器 ──
-
-class NodeImageSource implements IDrawingImageSource {
-  readonly width: number;
-  readonly height: number;
-  constructor(private image: NodeImage) {
+  constructor(image: NodeImage, imgData?: { width: number; height: number; data: Uint8ClampedArray }) {
+    this._image = image;
     this.width = image.width;
     this.height = image.height;
+    // node-canvas Image 不直接暴露像素，需要时通过 imgData 注入或后续提取
+    this.data = imgData?.data ?? new Uint8ClampedArray(this.width * this.height * 4);
   }
+
   get native(): NodeImage {
-    return this.image;
+    return this._image;
   }
 }
 
 // ── 辅助：解包／包装 ──
 
-function unwrapStyle(value: string | IDrawingGradient | IDrawingPattern): string | object {
+function unwrapStyle(value: string | IGradient | IPattern): string | object {
   if (value instanceof NodeGradient) return (value as unknown as { gradient: object }).gradient;
   if (value instanceof NodePattern) return (value as unknown as { pattern: object }).pattern;
   return value as string;
 }
 
-function wrapGradient(g: object): IDrawingGradient {
+function wrapGradient(g: object): IGradient {
   return new NodeGradient(g as { addColorStop(offset: number, color: string): void });
 }
 
-function wrapPattern(p: object | null): IDrawingPattern | null {
+function wrapPattern(p: object | null): IPattern | null {
   return p ? new NodePattern(p as { setTransform(m?: object): void }) : null;
 }
 
 // ── NodeDrawingContext ──
 
 /**
- * NodeDrawingContext 将 node-canvas CanvasRenderingContext2D 适配为 IPlatformDrawingContext。
+ * NodeDrawingContext 将 node-canvas CanvasRenderingContext2D 适配为 IDrawingContext。
  */
-export class NodeDrawingContext implements IPlatformDrawingContext {
+export class NodeDrawingContext implements IDrawingContext {
   private _canvas: NodeCanvas | null;
 
   constructor(
@@ -158,22 +150,22 @@ export class NodeDrawingContext implements IPlatformDrawingContext {
   clip(fillRule?: "nonzero" | "evenodd"): void { this.ctx.clip(fillRule); }
 
   // ── 样式属性 ──
-  get fillStyle(): string | IDrawingGradient | IDrawingPattern {
+  get fillStyle(): string | IGradient | IPattern {
     const v = this.ctx.fillStyle;
     if (typeof v === 'object' && v !== null && 'addColorStop' in v) return wrapGradient(v);
     if (typeof v === 'object' && v !== null && 'setTransform' in v) return wrapPattern(v)!;
     return v as string;
   }
-  set fillStyle(v: string | IDrawingGradient | IDrawingPattern) {
+  set fillStyle(v: string | IGradient | IPattern) {
     this.ctx.fillStyle = unwrapStyle(v) as string;
   }
-  get strokeStyle(): string | IDrawingGradient | IDrawingPattern {
+  get strokeStyle(): string | IGradient | IPattern {
     const v = this.ctx.strokeStyle;
     if (typeof v === 'object' && v !== null && 'addColorStop' in v) return wrapGradient(v);
     if (typeof v === 'object' && v !== null && 'setTransform' in v) return wrapPattern(v)!;
     return v as string;
   }
-  set strokeStyle(v: string | IDrawingGradient | IDrawingPattern) {
+  set strokeStyle(v: string | IGradient | IPattern) {
     this.ctx.strokeStyle = unwrapStyle(v) as string;
   }
   get lineWidth(): number { return this.ctx.lineWidth; }
@@ -200,31 +192,30 @@ export class NodeDrawingContext implements IPlatformDrawingContext {
   set shadowOffsetY(v: number) { this.ctx.shadowOffsetY = v; }
 
   // ── 渐变与图案 ──
-  createLinearGradient(x0: number, y0: number, x1: number, y1: number): IDrawingGradient {
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): IGradient {
     return wrapGradient(this.ctx.createLinearGradient(x0, y0, x1, y1));
   }
-  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): IDrawingGradient {
+  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): IGradient {
     return wrapGradient(this.ctx.createRadialGradient(x0, y0, r0, x1, y1, r1));
   }
-  createConicGradient(startAngle: number, x: number, y: number): IDrawingGradient {
+  createConicGradient(startAngle: number, x: number, y: number): IGradient {
     const cg = (this.ctx as unknown as { createConicGradient?: (sa: number, x: number, y: number) => object }).createConicGradient;
     if (cg) return wrapGradient(cg(startAngle, x, y));
-    // fallback: 返回一个简单的线性渐变（node-canvas 可能不支持 conic）
     return this.createLinearGradient(x, y, x + 1, y + 1);
   }
-  createPattern(image: IDrawingImageSource, repetition: string | null): IDrawingPattern | null {
+  createPattern(image: IImageSource, repetition: PatternRepeat | null): IPattern | null {
     if (image instanceof NodeImageSource) {
-      const pattern = this.ctx.createPattern(image.native, repetition!);
+      const pattern = this.ctx.createPattern(image.native, repetition ?? 'repeat');
       return pattern ? wrapPattern(pattern) : null;
     }
     return null;
   }
 
   // ── 图像 ──
-  drawImage(image: IDrawingImageSource, dx: number, dy: number): void;
-  drawImage(image: IDrawingImageSource, dx: number, dy: number, dw: number, dh: number): void;
-  drawImage(image: IDrawingImageSource, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
-  drawImage(image: IDrawingImageSource, ...args: number[]): void {
+  drawImage(image: IImageSource, dx: number, dy: number): void;
+  drawImage(image: IImageSource, dx: number, dy: number, dw: number, dh: number): void;
+  drawImage(image: IImageSource, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
+  drawImage(image: IImageSource, ...args: number[]): void {
     const img = image instanceof NodeImageSource ? image.native : image;
     (this.ctx as any).drawImage(img, ...args);
   }
@@ -250,21 +241,21 @@ export class NodeDrawingContext implements IPlatformDrawingContext {
   strokeText(text: string, x: number, y: number, maxWidth?: number): void {
     this.ctx.strokeText(text, x, y, maxWidth);
   }
-  measureText(text: string): IDrawingTextMetrics {
+  measureText(text: string): ITextMetrics {
     return this.ctx.measureText(text);
   }
 
   // ── 像素操作 ──
-  getImageData(sx: number, sy: number, sw: number, sh: number): IDrawingImageData {
-    return new NodeImageDataWrapper(this.ctx.getImageData(sx, sy, sw, sh));
+  getImageData(sx: number, sy: number, sw: number, sh: number): IImageSource {
+    const id = this.ctx.getImageData(sx, sy, sw, sh);
+    return { width: id.width, height: id.height, data: id.data };
   }
-  putImageData(imagedata: IDrawingImageData, dx: number, dy: number): void {
-    if (imagedata instanceof NodeImageDataWrapper) {
-      this.ctx.putImageData(imagedata.imageData, dx, dy);
-    }
+  putImageData(imagedata: IImageSource, dx: number, dy: number): void {
+    this.ctx.putImageData(imagedata as any, dx, dy);
   }
-  createImageData(sw: number, sh: number): IDrawingImageData {
-    return new NodeImageDataWrapper(this.ctx.createImageData(sw, sh));
+  createImageData(sw: number, sh: number): IImageSource {
+    const id = this.ctx.createImageData(sw, sh);
+    return { width: id.width, height: id.height, data: id.data };
   }
 
   // ── 命中测试 ──
@@ -275,7 +266,18 @@ export class NodeDrawingContext implements IPlatformDrawingContext {
     return this.ctx.isPointInStroke(x, y);
   }
 
+  // ── 平台媒体源创建 ──
+
+  async loadImageSource(_src: string, _crossOrigin?: string): Promise<IImageSource> {
+    throw new Error("NodeDrawingContext.loadImageSource not implemented — use NodeImageSource directly");
+  }
+
+  async loadVideoSource(_src: string, _options?: IVideoLoadOptions): Promise<IVideoSource> {
+    throw new Error("NodeDrawingContext.loadVideoSource not implemented");
+  }
+
   // ── 导出 ──
+
   exportImage(type?: string, quality?: number): string | null {
     if (!this._canvas || typeof (this._canvas as any).toDataURL !== 'function') return null;
     try {

@@ -46,7 +46,7 @@ import type {
   ITextView,
   ITextElement,
   TextIndex,
-  IPlatformDrawingContext,
+  IDrawingContext,
 } from "@banyuan/banvasgl";
 // ────────────────────────────────────────────
 //  公共类型导出
@@ -203,7 +203,7 @@ export function useInteraction({
       textInteract(
         view: View,
         point: Point3,
-        bufferCtx: IPlatformDrawingContext,
+        bufferCtx: IDrawingContext,
       ) {
         return view.interact(point, bufferCtx);
       },
@@ -346,7 +346,7 @@ export function useInteraction({
       },
 
       // ── 辅助 ──
-      getBufferCtx(): IPlatformDrawingContext | null {
+      getBufferCtx(): IDrawingContext | null {
         return actions.view.getBufferContext();
       },
       resolveActivationTarget(view: View): View {

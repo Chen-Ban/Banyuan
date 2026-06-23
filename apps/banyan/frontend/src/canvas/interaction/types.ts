@@ -20,7 +20,7 @@ import type {
   SelectBoxView,
   EdgeView,
   TextIndex,
-  IPlatformDrawingContext,
+  IDrawingContext,
 } from "@banyuan/banvasgl";
 
 // ────────────────────────────────────────────
@@ -239,7 +239,7 @@ export interface InteractionDelegate {
   textInteract(
     view: View,
     point: Point3,
-    bufferCtx: IPlatformDrawingContext,
+    bufferCtx: IDrawingContext,
   ): { content: IGraph | IViewAddon | null };
   element2Index(
     view: ITextView,
@@ -278,7 +278,7 @@ export interface InteractionDelegate {
   commitTransaction(): void;
 
   // ── 辅助（含容器层级穿透逻辑） ──
-  getBufferCtx(): IPlatformDrawingContext | null;
+  getBufferCtx(): IDrawingContext | null;
   resolveActivationTarget(view: View): View;
 }
 
