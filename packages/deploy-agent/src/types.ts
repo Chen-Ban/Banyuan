@@ -87,8 +87,8 @@ export interface DeployRequest {
   deployType: DeployType;
   /** 租户域名 */
   tenantDomain: string;
-  /** 应用 JSON 数据（pages、theme 等） */
-  appJSON: AppJSON;
+  /** UI 定义 JSON 数据（pages、theme 等） */
+  uiJSON: UIDefinition;
   /** 画布宽度 */
   width?: number;
   /** 画布高度 */
@@ -103,8 +103,8 @@ export interface DeployRequest {
   containerPort?: number;
 }
 
-/** 应用 JSON 结构 */
-export interface AppJSON {
+/** UI 定义 JSON 结构 */
+export interface UIDefinition {
   /** 应用 ID */
   appId: string;
   /** 应用名称 */

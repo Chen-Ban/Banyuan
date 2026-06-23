@@ -18,5 +18,5 @@ export type {
   DeployRequest,
   DeployProgress,
   DeployResult,
-  AppJSON,
+  UIDefinition,
 } from './types.js';
