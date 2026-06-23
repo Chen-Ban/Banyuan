@@ -27,7 +27,7 @@ export interface VideoSize {
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingVideoSource } from '@/types/platform/drawing.js'
+import type { IVideoSource } from '@/types/foundation/media.js'
 
 /**
  * 视频图案填充样式
@@ -53,7 +53,7 @@ export default class Video implements ISerializable {
   controls: boolean
 
   /** 平台加载的视频像素源（由 ctx.loadVideoSource() 注入），null 表示尚未加载 */
-  private _loadedSource: IDrawingVideoSource | null = null
+  private _loadedSource: IVideoSource | null = null
 
   /**
    * 构造视频图案
@@ -221,7 +221,7 @@ export default class Video implements ISerializable {
    * 设置已加载的视频像素源。
    * 由平台层在加载视频后调用（ctx.loadVideoSource → setLoadedSource）。
    */
-  setLoadedSource(source: IDrawingVideoSource | null): Video {
+  setLoadedSource(source: IVideoSource | null): Video {
     this._loadedSource = source
     return this
   }
@@ -232,7 +232,7 @@ export default class Video implements ISerializable {
   }
 
   /** 获取已加载的视频像素源 */
-  getVideoSource(): IDrawingVideoSource | null {
+  getVideoSource(): IVideoSource | null {
     return this._loadedSource
   }
 
@@ -277,7 +277,7 @@ export default class Video implements ISerializable {
    * @returns 平台无关的视频源；若尚未加载则返回 null
    * @deprecated 请使用 getVideoSource() 获取平台无关的视频源
    */
-  createCanvasVideo(): IDrawingVideoSource | null {
+  createCanvasVideo(): IVideoSource | null {
     return this._loadedSource
   }
 

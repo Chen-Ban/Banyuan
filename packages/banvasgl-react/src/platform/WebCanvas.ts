@@ -106,7 +106,7 @@ export class WebCanvas implements IDrawingSurface {
 
   present(): void {
     // 双缓冲合成：将离屏 buffer 以 ImageBitmap 形式绘制到主 canvas。
-    // 使用原生 Canvas API 避免经过 IDrawingContext 抽象层（ImageBitmap 不是 IDrawingImageSource）。
+    // 使用原生 Canvas API 避免经过 IDrawingContext 抽象层（ImageBitmap 不是 IImageSource）。
     const mainCtx = this._canvas.getContext('2d');
     if (!mainCtx) return;
     mainCtx.save();

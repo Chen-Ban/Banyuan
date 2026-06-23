@@ -3,7 +3,8 @@ import MediaElement from "./MediaElement";
 import { Style } from "@/foundation/style";
 import type { IVideoElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingVideoSource, IDrawingVideoLoadOptions, IDrawingImageData } from '@/types/platform/drawing.js'
+import type { IDrawingContext, IDrawingImageData } from '@/types/platform/drawing.js'
+import type { IVideoSource, IVideoLoadOptions } from '@/types/foundation/media.js'
 import { generateId } from '@/foundation/utils';
 
 /**
@@ -39,7 +40,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   public type: GraphType = GraphType.VIDEO;
 
   /** 平台无关的视频像素源，加载完成后赋值 */
-  public video: IDrawingVideoSource | null = null;
+  public video: IVideoSource | null = null;
   /** 是否自动播放，默认 `false` */
   public autoplay: boolean = false;
   /** 是否循环播放，默认 `false` */
@@ -103,7 +104,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   /**
    * 使用平台 DrawingContext 加载视频像素源。
    *
-   * 调用 ctx.loadVideoSource() 获取平台无关的 IDrawingVideoSource，
+   * 调用 ctx.loadVideoSource() 获取平台无关的 IVideoSource，
    * 自动同步播放选项（autoplay/loop/muted），完成后更新 actualWidth/actualHeight/loaded。
    *
    * @param {IDrawingContext} ctx - 平台绘图上下文
@@ -112,7 +113,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   async loadVideoWithContext(ctx: IDrawingContext): Promise<void> {
     if (!this.src) return
     try {
-      const options: IDrawingVideoLoadOptions = {
+      const options: IVideoLoadOptions = {
         autoplay: this.autoplay,
         loop: this.loop,
         muted: this.muted,
@@ -393,7 +394,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   /**
    * 获取视频当前帧的像素数据。
    *
-   * 直接返回 video.data —— IDrawingVideoSource.data 是 getter，
+   * 直接返回 video.data —— IVideoSource.data 是 getter，
    * 每次读取返回当前帧的 RGBA 像素（带时间维度）。
    * 需要视频已加载完成，否则返回 `null`。
    *

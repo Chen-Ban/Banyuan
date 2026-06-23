@@ -19,7 +19,8 @@ import type Style from '@/foundation/style/Style'
 import type TextOptions from '@/graph/text/TextOptions'
 import type ParagraphOptions from '@/graph/text/ParagraphOptions'
 import type TextFieldsOptions from '@/graph/text/TextFieldsOptions'
-import type { IDrawingContext, IDrawingImageSource, IDrawingImageData, IDrawingVideoSource } from '@/types/platform/drawing.js'
+import type { IDrawingContext, IDrawingImageData } from '@/types/platform/drawing.js'
+import type { IVideoSource, IImageSource } from '@/types/foundation/media.js'
 
 // ────────────────────────────────────────────
 //  基础接口
@@ -269,14 +270,14 @@ export interface IMediaElement extends IGraph {
 
 /** ImageElement 接口 */
 export interface IImageElement extends IMediaElement {
-    image: IDrawingImageSource | null
+    image: IImageSource | null
 
     setImageSrc(src: string): IImageElement
 }
 
 /** VideoElement 接口 */
 export interface IVideoElement extends IMediaElement {
-    video: IDrawingVideoSource | null
+    video: IVideoSource | null
     autoplay: boolean
     loop: boolean
     muted: boolean

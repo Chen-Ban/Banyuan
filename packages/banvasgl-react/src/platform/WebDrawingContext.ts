@@ -10,11 +10,11 @@ import type {
   IDrawingContext,
   IDrawingGradient,
   IDrawingPattern,
-  IDrawingImageSource,
-  IDrawingVideoSource,
+  IImageSource,
+  IVideoSource,
   IDrawingTextMetrics,
   IDrawingImageData,
-  IDrawingVideoLoadOptions,
+  IVideoLoadOptions,
   DrawingFillRule,
   DrawingLineCap,
   DrawingLineJoin,
@@ -61,7 +61,7 @@ class WebDrawingPattern implements IDrawingPattern {
  *
  * 引擎通过 .data 直接访问像素，drawImage / createPattern 通过 getCanvas() 拿 CanvasImageSource。
  */
-class WebDrawingImageSource implements IDrawingImageSource {
+class WebDrawingImageSource implements IImageSource {
   readonly width: number;
   readonly height: number;
   readonly data: Uint8ClampedArray;
@@ -94,7 +94,7 @@ class WebDrawingImageSource implements IDrawingImageSource {
  *
  * 引擎通过 .data 获取当前帧像素（带时间维度），drawImage 直接使用底层 video 元素。
  */
-class WebDrawingVideoSource implements IDrawingVideoSource {
+class WebDrawingVideoSource implements IVideoSource {
   readonly native: HTMLVideoElement;
 
   /** 用于提取帧像素的复用 Canvas */
@@ -191,7 +191,7 @@ class WebDrawingVideoSource implements IDrawingVideoSource {
     this.native.muted = value;
   }
 
-  setPlayOptions(options: IDrawingVideoLoadOptions): void {
+  setPlayOptions(options: IVideoLoadOptions): void {
     if (options.autoplay !== undefined) this.native.autoplay = options.autoplay;
     if (options.loop !== undefined) this.native.loop = options.loop;
     if (options.muted !== undefined) this.native.muted = options.muted;
@@ -217,7 +217,7 @@ function unwrapStyle(
  * - WebDrawingImageSource → 使用预渲染的 Canvas（像素数据写入的静态画布）
  */
 function unwrapImageSource(
-  source: IDrawingImageSource,
+  source: IImageSource,
 ): CanvasImageSource {
   if (source instanceof WebDrawingVideoSource) return source.native;
   if (source instanceof WebDrawingImageSource) return source.getCanvas();
@@ -335,7 +335,7 @@ export class WebDrawingContext implements IDrawingContext {
     return new WebDrawingGradient(this._ctx.createConicGradient(startAngle, x, y));
   }
 
-  createPattern(image: IDrawingImageSource, repetition: string | null): IDrawingPattern | null {
+  createPattern(image: IImageSource, repetition: string | null): IDrawingPattern | null {
     const nativeImg = unwrapImageSource(image);
     const pattern = this._ctx.createPattern(nativeImg, repetition ?? '');
     return pattern ? new WebDrawingPattern(pattern) : null;
@@ -343,10 +343,10 @@ export class WebDrawingContext implements IDrawingContext {
 
   // ── 图像 ──
 
-  drawImage(image: IDrawingImageSource, dx: number, dy: number): void;
-  drawImage(image: IDrawingImageSource, dx: number, dy: number, dw: number, dh: number): void;
-  drawImage(image: IDrawingImageSource, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
-  drawImage(image: IDrawingImageSource, ...args: number[]): void {
+  drawImage(image: IImageSource, dx: number, dy: number): void;
+  drawImage(image: IImageSource, dx: number, dy: number, dw: number, dh: number): void;
+  drawImage(image: IImageSource, sx: number, sy: number, sw: number, sh: number, dx: number, dy: number, dw: number, dh: number): void;
+  drawImage(image: IImageSource, ...args: number[]): void {
     const nativeImg = unwrapImageSource(image);
     (this._ctx.drawImage as Function)(nativeImg, ...args);
   }
@@ -392,7 +392,7 @@ export class WebDrawingContext implements IDrawingContext {
    *
    * Web 实现：HTMLImageElement → onload → 临时 Canvas → getImageData → WebDrawingImageSource。
    */
-  async loadImageSource(src: string, crossOrigin?: string): Promise<IDrawingImageSource> {
+  async loadImageSource(src: string, crossOrigin?: string): Promise<IImageSource> {
     return new Promise((resolve, reject) => {
       const img = new Image();
       if (crossOrigin) {
@@ -418,7 +418,7 @@ export class WebDrawingContext implements IDrawingContext {
    *
    * Web 实现：HTMLVideoElement → onloadedmetadata → WebDrawingVideoSource。
    */
-  async loadVideoSource(src: string, options?: IDrawingVideoLoadOptions): Promise<IDrawingVideoSource> {
+  async loadVideoSource(src: string, options?: IVideoLoadOptions): Promise<IVideoSource> {
     return new Promise((resolve, reject) => {
       const video = document.createElement('video');
       video.crossOrigin = options?.crossOrigin ?? 'anonymous';

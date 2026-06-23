@@ -27,7 +27,8 @@ export interface PatternSize {
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingPattern, IDrawingImageSource } from '@/types/platform/drawing.js'
+import type { IDrawingContext, IDrawingPattern } from '@/types/platform/drawing.js'
+import type { IImageSource } from '@/types/foundation/media.js'
 
 /**
  * 图片图案填充样式
@@ -48,7 +49,7 @@ export default class Image implements ISerializable {
   repeat: PatternRepeat
 
   /** 平台加载的像素源（由 ctx.loadImageSource() 注入），null 表示尚未加载 */
-  private _loadedSource: IDrawingImageSource | null = null
+  private _loadedSource: IImageSource | null = null
 
   /**
    * 构造图片图案
@@ -128,7 +129,7 @@ export default class Image implements ISerializable {
    * 设置已加载的像素源。
    * 由平台层在加载图片后调用（ctx.loadImageSource → setLoadedSource）。
    */
-  setLoadedSource(source: IDrawingImageSource | null): Image {
+  setLoadedSource(source: IImageSource | null): Image {
     this._loadedSource = source
     return this
   }
@@ -139,7 +140,7 @@ export default class Image implements ISerializable {
   }
 
   /** 获取已加载的像素源（供 FillStyle/StrokeStyle 透传） */
-  getLoadedSource(): IDrawingImageSource | null {
+  getLoadedSource(): IImageSource | null {
     return this._loadedSource
   }
 

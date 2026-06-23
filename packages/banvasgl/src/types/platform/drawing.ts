@@ -1,3 +1,5 @@
+import type { IImageSource, IVideoSource, IVideoLoadOptions } from '../foundation/media.js'
+
 /**
  * 平台无关的 2D 绘图上下文接口
  *
@@ -8,6 +10,7 @@
  *   - 与 CanvasRenderingContext2D API 保持 1:1 语义映射，降低心智负担
  *   - 仅包含 banvasgl 内部实际调用的方法/属性
  *   - 渐变/图案/图像源同样以接口抽象，避免 DOM 类型泄漏
+ *   - 图像/视频源数据契约在 types/foundation/media.ts，引擎自有
  */
 
 // ── 平台无关的 Canvas 枚举类型（替代 lib.dom 中的对应类型） ──
@@ -62,62 +65,6 @@ export interface IDrawingGradient {
 /** 图案接口（平台无关） */
 export interface IDrawingPattern {
   setTransform(matrix?: DrawingMatrix2DInit): void;
-}
-
-/** 图像源（平台无关）
- *
- * 引擎视角：图片 = 宽度 × 高度 的 RGBA 像素阵列。
- * 平台适配器负责在加载时将平台图像（HTMLImageElement / SkImage 等）解码为原始像素。
- */
-export interface IDrawingImageSource {
-  readonly width: number;
-  readonly height: number;
-  /** RGBA 像素数据（width × height × 4 字节） */
-  readonly data: Uint8ClampedArray;
-}
-
-/**
- * 视频源（平台无关）
- *
- * 引擎视角：视频 = 带时间维度的像素帧序列。
- * 与 IDrawingImageSource 一致的数据模型 —— 继承的 `.data` 返回当前帧的 RGBA 像素，
- * 每次读取都可能不同（反映最新帧）。平台适配器负责从底层播放器实时提取帧像素。
- */
-export interface IDrawingVideoSource extends IDrawingImageSource {
-  /** 播放视频 */
-  play(): Promise<void>;
-  /** 暂停视频 */
-  pause(): void;
-  /** 停止视频（暂停 + 回到起始位置） */
-  stop(): void;
-  /** 当前是否正在播放 */
-  readonly playing: boolean;
-  /** 当前播放时间（秒），可读写 */
-  currentTime: number;
-  /** 视频总时长（秒），只读 */
-  readonly duration: number;
-  /** 音量（0-1），可读写 */
-  volume: number;
-  /** 是否自动播放 */
-  autoplay: boolean;
-  /** 是否循环播放 */
-  loop: boolean;
-  /** 是否静音 */
-  muted: boolean;
-  /**
-   * 批量设置播放选项。
-   * 只更新传入的字段，未传入的保持不变。
-   */
-  setPlayOptions(options: IDrawingVideoLoadOptions): void;
-}
-
-/** 视频加载选项 */
-export interface IDrawingVideoLoadOptions {
-  autoplay?: boolean;
-  loop?: boolean;
-  muted?: boolean;
-  /** 跨域模式，Web 平台对应 HTMLVideoElement.crossOrigin */
-  crossOrigin?: string;
 }
 
 /** 文字度量 */
@@ -273,21 +220,21 @@ export interface IDrawingContext {
     y: number,
   ): IDrawingGradient;
   createPattern(
-    image: IDrawingImageSource,
+    image: IImageSource,
     repetition: string | null,
   ): IDrawingPattern | null;
 
   // ── 图像 ──
-  drawImage(image: IDrawingImageSource, dx: number, dy: number): void;
+  drawImage(image: IImageSource, dx: number, dy: number): void;
   drawImage(
-    image: IDrawingImageSource,
+    image: IImageSource,
     dx: number,
     dy: number,
     dw: number,
     dh: number,
   ): void;
   drawImage(
-    image: IDrawingImageSource,
+    image: IImageSource,
     sx: number,
     sy: number,
     sw: number,
@@ -332,17 +279,17 @@ export interface IDrawingContext {
 
   /**
    * 从 URL 加载图像源。
-   * 平台负责解码为 RGBA 像素数据，引擎拿到包含 width/height/data 的 IDrawingImageSource。
+   * 平台负责解码为 RGBA 像素数据，引擎拿到包含 width/height/data 的 IImageSource。
    */
-  loadImageSource(src: string, crossOrigin?: string): Promise<IDrawingImageSource>;
+  loadImageSource(src: string, crossOrigin?: string): Promise<IImageSource>;
 
   /**
    * 从 URL 加载视频源。
    * 平台负责创建视频像素源（如 Web 的 HTMLVideoElement），
-   * 引擎拿到 IDrawingVideoSource，其 .data 返回当前帧 RGBA 像素。
+   * 引擎拿到 IVideoSource，其 .data 返回当前帧 RGBA 像素。
    */
   loadVideoSource(
     src: string,
-    options?: IDrawingVideoLoadOptions,
-  ): Promise<IDrawingVideoSource>;
+    options?: IVideoLoadOptions,
+  ): Promise<IVideoSource>;
 }

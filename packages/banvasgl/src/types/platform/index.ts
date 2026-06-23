@@ -11,11 +11,8 @@ export type {
   // 辅助类型
   IDrawingGradient,
   IDrawingPattern,
-  IDrawingImageSource,
-  IDrawingVideoSource,
   IDrawingTextMetrics,
   IDrawingImageData,
-  IDrawingVideoLoadOptions,
   // Canvas 风格枚举（平台无关）
   DrawingFillRule,
   DrawingLineCap,

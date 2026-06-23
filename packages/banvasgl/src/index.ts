@@ -235,11 +235,8 @@ export type {
 export type {
     IDrawingGradient,
     IDrawingPattern,
-    IDrawingImageSource,
-    IDrawingVideoSource,
     IDrawingTextMetrics,
     IDrawingImageData,
-    IDrawingVideoLoadOptions,
     DrawingFillRule,
     DrawingLineCap,
     DrawingLineJoin,
@@ -249,6 +246,13 @@ export type {
     DrawingMatrix2DInit,
     IDrawingContext,
     IDrawingSurface,
+} from './types'
+
+// ── 媒体源（引擎自有像素数据） ──
+export type {
+    IImageSource,
+    IVideoSource,
+    IVideoLoadOptions,
 } from './types'
 
 // ── PropertyAdapter 接口 ──

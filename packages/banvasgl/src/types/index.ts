@@ -204,6 +204,13 @@ export * from './foundation/flow/index.js'
 // ── Worker 传输接口 ──
 export type { ITransferable, TransferableData } from './foundation/transferable'
 
+// ── 媒体源（引擎自有像素数据） ──
+export type {
+  IImageSource,
+  IVideoSource,
+  IVideoLoadOptions,
+} from './foundation/media.js'
+
 // ── Hook 公共接口 ──
 export type {
     IViewActions,
@@ -231,11 +238,8 @@ export type {
 export type {
     IDrawingGradient,
     IDrawingPattern,
-    IDrawingImageSource,
-    IDrawingVideoSource,
     IDrawingTextMetrics,
     IDrawingImageData,
-    IDrawingVideoLoadOptions,
     DrawingFillRule,
     DrawingLineCap,
     DrawingLineJoin,
