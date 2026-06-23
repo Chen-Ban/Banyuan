@@ -25,7 +25,6 @@ export interface IApplicationListResult {
 
 export interface IUpdateApplicationData {
   name?: string;
-  description?: string;
   thumbnail?: string;
   tags?: string[];
   updatedBy?: string;
@@ -170,7 +169,6 @@ class ApplicationService {
     const application = new Application({
       application_id,
       name: "未命名应用",
-      description: "",
       tags: [],
       version: 1,
       tenantId,
@@ -197,8 +195,6 @@ class ApplicationService {
     }
 
     if (updateData.name !== undefined) application.name = updateData.name;
-    if (updateData.description !== undefined)
-      application.description = updateData.description;
     if (updateData.thumbnail !== undefined)
       application.thumbnail = updateData.thumbnail;
     if (updateData.tags !== undefined) application.tags = updateData.tags;

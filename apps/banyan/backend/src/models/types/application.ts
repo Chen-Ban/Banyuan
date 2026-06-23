@@ -11,8 +11,6 @@ export interface IApplication {
   application_id: string
   /** 应用名称 */
   name: string
-  /** 应用描述 */
-  description: string
   /** 缩略图 URL */
   thumbnail: string
   /** 标签 */

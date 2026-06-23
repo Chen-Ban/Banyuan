@@ -9,11 +9,15 @@
 
 import type { Context } from 'koa'
 import { Types } from 'mongoose'
+import sharp from 'sharp'
 import uiDefinitionService from '../services/UIDefinitionService.js'
 import { SchemaService } from '../services/SchemaService.js'
 import cloudFunctionService from '../services/CloudFunctionService.js'
 import dialogueService from '../services/DialogueService.js'
 import conversationService from '../services/ConversationService.js'
+import applicationService from '../services/ApplicationService.js'
+import ossService from '../services/OssService.js'
+import { generateCover } from '../services/thumbnail/index.js'
 import type { ICollectionDef, ICloudFunctionDef } from '../models/types/index.js'
 
 export class FullStateController {
@@ -95,6 +99,27 @@ export class FullStateController {
     })
 
     ctx.body = { success: true, data: { appId } }
+
+    // ── 异步生成封面（best-effort，不阻塞 save 响应）──
+    if (hasUIJSON) {
+      generateCover(body.uiJSON as string)
+        .then(async (coverBuffer) => {
+          if (!coverBuffer) return
+          // 压缩为缩略图尺寸
+          const compressed = await sharp(coverBuffer)
+            .resize(480, 480, { fit: 'inside', withoutEnlargement: true })
+            .webp({ quality: 75 })
+            .toBuffer()
+          // 上传到 OSS
+          const objectKey = `thumbnails/${appId}_${Date.now()}.webp`
+          const thumbnailUrl = await ossService.uploadBuffer(objectKey, compressed)
+          // 写回应用元数据
+          await applicationService.updateApplication(appId, { thumbnail: thumbnailUrl })
+        })
+        .catch((err) => {
+          console.warn('[FullStateController] 封面生成失败:', err instanceof Error ? err.message : String(err))
+        })
+    }
   }
 
   /**

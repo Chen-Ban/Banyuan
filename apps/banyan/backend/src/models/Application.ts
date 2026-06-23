@@ -27,12 +27,6 @@ const ApplicationSchema = new Schema<IApplicationDoc>(
       trim: true,
       maxlength: 200,
     },
-    description: {
-      type: String,
-      default: '',
-      trim: true,
-      maxlength: 1000,
-    },
     thumbnail: {
       type: String,
       default: '',
