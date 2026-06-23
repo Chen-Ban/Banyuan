@@ -209,6 +209,7 @@ export type {
   IImageSource,
   IVideoSource,
   IVideoLoadOptions,
+  PatternRepeat,
 } from './foundation/media.js'
 
 // ── Hook 公共接口 ──
@@ -239,7 +240,6 @@ export type {
     IDrawingGradient,
     IDrawingPattern,
     IDrawingTextMetrics,
-    IDrawingImageData,
     DrawingFillRule,
     DrawingLineCap,
     DrawingLineJoin,

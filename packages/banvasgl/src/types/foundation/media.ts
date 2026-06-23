@@ -65,3 +65,12 @@ export interface IVideoLoadOptions {
   /** 跨域模式，Web 平台对应 HTMLVideoElement.crossOrigin */
   crossOrigin?: string;
 }
+
+/**
+ * 图案平铺模式
+ *
+ * 对应 Canvas 2D createPattern 的 repetition 参数。
+ * 从 foundation/style/Image.ts 提升到 types/foundation/media.ts，
+ * 供 IDrawingContext.createPattern 和 Image 样式类共享。
+ */
+export type PatternRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat';

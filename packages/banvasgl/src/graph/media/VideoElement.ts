@@ -3,8 +3,8 @@ import MediaElement from "./MediaElement";
 import { Style } from "@/foundation/style";
 import type { IVideoElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingImageData } from '@/types/platform/drawing.js'
-import type { IVideoSource, IVideoLoadOptions } from '@/types/foundation/media.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IVideoSource, IVideoLoadOptions, IImageSource } from '@/types/foundation/media.js'
 import { generateId } from '@/foundation/utils';
 
 /**
@@ -398,9 +398,9 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * 每次读取返回当前帧的 RGBA 像素（带时间维度）。
    * 需要视频已加载完成，否则返回 `null`。
    *
-   * @returns {IDrawingImageData | null} 当前帧像素数据；若未加载则返回 `null`
+   * @returns {IImageSource | null} 当前帧像素数据；若未加载则返回 `null`
    */
-  getImageData(): IDrawingImageData | null {
+  getImageData(): IImageSource | null {
     if (!this.video || !this.loaded) return null;
 
     return {

@@ -12,7 +12,6 @@ export type {
   IDrawingGradient,
   IDrawingPattern,
   IDrawingTextMetrics,
-  IDrawingImageData,
   // Canvas 风格枚举（平台无关）
   DrawingFillRule,
   DrawingLineCap,

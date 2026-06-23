@@ -236,7 +236,6 @@ export type {
     IDrawingGradient,
     IDrawingPattern,
     IDrawingTextMetrics,
-    IDrawingImageData,
     DrawingFillRule,
     DrawingLineCap,
     DrawingLineJoin,
@@ -253,6 +252,7 @@ export type {
     IImageSource,
     IVideoSource,
     IVideoLoadOptions,
+    PatternRepeat,
 } from './types'
 
 // ── PropertyAdapter 接口 ──

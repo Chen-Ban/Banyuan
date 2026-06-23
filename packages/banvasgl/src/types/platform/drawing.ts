@@ -1,4 +1,4 @@
-import type { IImageSource, IVideoSource, IVideoLoadOptions } from '../foundation/media.js'
+import type { IImageSource, IVideoSource, IVideoLoadOptions, PatternRepeat } from '../foundation/media.js'
 
 /**
  * 平台无关的 2D 绘图上下文接口
@@ -74,13 +74,6 @@ export interface IDrawingTextMetrics {
   readonly actualBoundingBoxDescent?: number;
   readonly fontBoundingBoxAscent?: number;
   readonly fontBoundingBoxDescent?: number;
-}
-
-/** 像素数据 */
-export interface IDrawingImageData {
-  readonly width: number;
-  readonly height: number;
-  readonly data: Uint8ClampedArray;
 }
 
 // ── 绘图上下文接口 ──
@@ -221,7 +214,7 @@ export interface IDrawingContext {
   ): IDrawingGradient;
   createPattern(
     image: IImageSource,
-    repetition: string | null,
+    repetition: PatternRepeat | null,
   ): IDrawingPattern | null;
 
   // ── 图像 ──
@@ -263,13 +256,13 @@ export interface IDrawingContext {
     sy: number,
     sw: number,
     sh: number,
-  ): IDrawingImageData;
+  ): IImageSource;
   putImageData(
-    imagedata: IDrawingImageData,
+    imagedata: IImageSource,
     dx: number,
     dy: number,
   ): void;
-  createImageData(sw: number, sh: number): IDrawingImageData;
+  createImageData(sw: number, sh: number): IImageSource;
 
   // ── 命中测试 ──
   isPointInPath(x: number, y: number, fillRule?: DrawingFillRule): boolean;

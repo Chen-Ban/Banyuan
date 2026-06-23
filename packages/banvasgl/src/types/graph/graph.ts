@@ -19,7 +19,7 @@ import type Style from '@/foundation/style/Style'
 import type TextOptions from '@/graph/text/TextOptions'
 import type ParagraphOptions from '@/graph/text/ParagraphOptions'
 import type TextFieldsOptions from '@/graph/text/TextFieldsOptions'
-import type { IDrawingContext, IDrawingImageData } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import type { IVideoSource, IImageSource } from '@/types/foundation/media.js'
 
 // ────────────────────────────────────────────
@@ -265,7 +265,7 @@ export interface IMediaElement extends IGraph {
 
     setPosition(x: number, y: number): IMediaElement
     setSize(width: number, height: number): IMediaElement
-    getImageData(): IDrawingImageData | null
+    getImageData(): IImageSource | null
 }
 
 /** ImageElement 接口 */

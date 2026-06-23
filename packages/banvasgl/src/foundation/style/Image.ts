@@ -1,14 +1,5 @@
-/**
- * 图案平铺模式
- *
- * 对应 Canvas 2D createPattern 的 repetition 参数。
- *
- * @example
- * ```ts
- * const repeat: PatternRepeat = 'repeat-x' // 仅水平方向平铺
- * ```
- */
-export type PatternRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat'
+import type { PatternRepeat } from '@/types/foundation/media.js'
+export type { PatternRepeat }
 
 /**
  * 图案尺寸

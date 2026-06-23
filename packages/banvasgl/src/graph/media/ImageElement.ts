@@ -3,7 +3,7 @@ import MediaElement from './MediaElement'
 import { Style } from '@/foundation/style'
 import type { IImageElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingImageData } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
 import type { IImageSource } from '@/types/foundation/media.js'
 import { generateId } from '@/foundation/utils'
 
@@ -218,9 +218,9 @@ export default class ImageElement extends MediaElement implements IImageElement,
      * 无需通过 DrawingContext 中转�?
      * 需要图片已加载完成，否则返�?`null`�?
      *
-     * @returns {IDrawingImageData | null} 图片像素数据；若未加载则返回 `null`
+     * @returns {IImageSource | null} 图片像素数据；若未加载则返回 `null`
      */
-    getImageData(): IDrawingImageData | null {
+    getImageData(): IImageSource | null {
         if (!this.image || !this.loaded) return null
         return {
             width: this.image.width,

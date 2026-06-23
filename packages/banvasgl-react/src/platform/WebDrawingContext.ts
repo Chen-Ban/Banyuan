@@ -13,8 +13,8 @@ import type {
   IImageSource,
   IVideoSource,
   IDrawingTextMetrics,
-  IDrawingImageData,
   IVideoLoadOptions,
+  PatternRepeat,
   DrawingFillRule,
   DrawingLineCap,
   DrawingLineJoin,
@@ -335,7 +335,7 @@ export class WebDrawingContext implements IDrawingContext {
     return new WebDrawingGradient(this._ctx.createConicGradient(startAngle, x, y));
   }
 
-  createPattern(image: IImageSource, repetition: string | null): IDrawingPattern | null {
+  createPattern(image: IImageSource, repetition: PatternRepeat | null): IDrawingPattern | null {
     const nativeImg = unwrapImageSource(image);
     const pattern = this._ctx.createPattern(nativeImg, repetition ?? '');
     return pattern ? new WebDrawingPattern(pattern) : null;
@@ -376,9 +376,9 @@ export class WebDrawingContext implements IDrawingContext {
 
   // ── 像素操作 ──
 
-  getImageData(sx: number, sy: number, sw: number, sh: number): IDrawingImageData { return this._ctx.getImageData(sx, sy, sw, sh); }
-  putImageData(imagedata: IDrawingImageData, dx: number, dy: number): void { this._ctx.putImageData(imagedata as ImageData, dx, dy); }
-  createImageData(sw: number, sh: number): IDrawingImageData { return this._ctx.createImageData(sw, sh); }
+  getImageData(sx: number, sy: number, sw: number, sh: number): IImageSource { return this._ctx.getImageData(sx, sy, sw, sh) as unknown as IImageSource; }
+  putImageData(imagedata: IImageSource, dx: number, dy: number): void { this._ctx.putImageData(imagedata as unknown as ImageData, dx, dy); }
+  createImageData(sw: number, sh: number): IImageSource { return this._ctx.createImageData(sw, sh) as unknown as IImageSource; }
 
   // ── 命中测试 ──
 
