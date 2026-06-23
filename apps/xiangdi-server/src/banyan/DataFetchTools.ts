@@ -2,7 +2,7 @@
  * 数据拉取工具集 — 注册到 ToolRegistry，供 AI Agent 按需获取应用数据
  *
  * 工具列表：
- *   - app_get_app_json：获取应用当前的 appJSON（App 级别序列化字符串）
+ *   - app_get_ui_definition：获取应用当前的 UI 定义 JSON（App 级别序列化字符串）
  *   - app_get_schema：获取应用数据库表结构定义
  *   - app_get_cloud_functions：获取应用所有云函数列表（摘要信息）
  *   - app_get_cloud_function_detail：获取单个云函数的完整 FlowSchema
@@ -22,8 +22,8 @@ import type { BanyanClient } from './BanyanClient.js'
 // ─── 工具定义 ─────────────────────────────────────────────────────────────────
 
 const GET_APP_JSON_DEFINITION: ToolDefinition = {
-    name: 'app_get_app_json',
-    description: '获取当前应用的完整序列化数据（appJSON 字符串）。包含应用生命周期和所有页面场景。在需要查看或修改应用内容前调用此工具。',
+    name: 'app_get_ui_definition',
+    description: '获取当前应用的完整 UI 定义 JSON。包含应用生命周期和所有页面场景。在需要查看或修改应用内容前调用此工具。',
     input_schema: {
         type: 'object',
         properties: {},
@@ -80,10 +80,10 @@ export function registerDataFetchTools(
     banyanClient: BanyanClient,
     appId: string
 ): void {
-    // app_get_app_json
+    // app_get_ui_definition
     registry.register(GET_APP_JSON_DEFINITION, async () => {
-        const appJSON = await banyanClient.getAppJSON(appId)
-        return { appJSON, hasData: !!appJSON }
+        const uiJSON = await banyanClient.getUIDefinition(appId)
+        return { uiJSON, hasData: !!uiJSON }
     })
 
     // app_get_schema

@@ -2,7 +2,7 @@
  * BanyanClient — Banyan 后端内部 API 客户端（Pull-based 架构）
  *
  * XiangDi 服务在 Agent 执行过程中，通过此客户端按需拉取应用数据：
- *   - GET /internal/apps/:appId/appJSON        → 获取 appJSON 字符串
+ *   - GET /internal/apps/:appId/ui-definition → 获取 UI 定义 JSON 字符串
  *   - GET /internal/apps/:appId/schema         → 获取 CollectionSchema
  *   - GET /internal/apps/:appId/cloud-functions → 获取所有云函数列表
  *   - GET /internal/apps/:appId/cloud-functions/:functionId → 获取单个云函数
@@ -75,9 +75,9 @@ export class BanyanClient {
      * 获取应用的 appJSON（App 级别序列化字符串）
      * @throws ServiceUnavailableError 当 banyan 后端不可用时
      */
-    async getAppJSON(appId: string): Promise<string> {
-        const resp = await this.get<{ success: boolean; data: { appJSON: string } }>(`/internal/apps/${appId}/appJSON`)
-        return resp.data?.appJSON ?? ''
+    async getUIDefinition(appId: string): Promise<string> {
+        const resp = await this.get<{ success: boolean; data: { uiJSON: string } }>(`/internal/apps/${appId}/ui-definition`)
+        return resp.data?.uiJSON ?? ''
     }
 
     /**
