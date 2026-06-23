@@ -59,7 +59,7 @@ export interface DeployRequest {
   requestId: string
   appId: string
   appSlug: string
-  appJSON: string
+  uiJSON: string
   deployType: 'static' | 'fullstack'
   /** 租户域名（如 abc12345.banyuan.club） */
   tenantDomain: string

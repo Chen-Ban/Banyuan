@@ -67,7 +67,7 @@ export type { PackagePlatform, PackageStatus, IPackageTask } from './package-tas
 export type { IRefreshToken } from './refresh-token.js'
 
 export type {
-  IAppContent,
+  IUIDefinition,
   ICloudFunctionDef,
   ICloudFunctionGroup,
 } from './versioned-content.js'

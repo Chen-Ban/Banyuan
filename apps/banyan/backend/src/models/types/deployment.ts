@@ -18,8 +18,8 @@ export type DeployStatus =
 
 /** 每次 publish 时将发送给 agent 的完整数据冻结在此，支持回滚时原样重发 */
 export interface IDeploySnapshot {
-  /** 完整的 appJSON（序列化字符串） */
-  appJSON: string
+  /** 完整的 UI 定义 JSON（序列化字符串） */
+  uiJSON: string
   /** 数据库表定义（fullstack 模式下） */
   collections: ICollectionDef[]
   /** 云函数定义（fullstack 模式下） */

@@ -2,7 +2,7 @@
  * 应用（Application）类型定义
  *
  * ADR-042：Application 是纯元数据壳。
- * appJSON / collectionSchema / cloudFunctions 已拆分到独立的 append-only 内容表。
+ * UIDefinition JSON / collectionSchema / cloudFunctions 已拆分到独立的 append-only 内容表。
  * 读取内容时通过 appId 查内容表最新版本，不需要版本指针。
  */
 

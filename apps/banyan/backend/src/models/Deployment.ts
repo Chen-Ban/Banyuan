@@ -13,7 +13,7 @@ type IDeploymentDoc = IDeployment & Document
 
 const DeploySnapshotSubSchema = new Schema<IDeploySnapshot>(
   {
-    appJSON: { type: String, required: true },
+    uiJSON: { type: String, required: true },
     collections: { type: [CollectionDefSchema], default: [] },
     cloudFunctions: { type: [CloudFunctionDefSchema], default: [] },
   },

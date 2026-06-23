@@ -2,7 +2,7 @@
  * 对话模型（Dialogue）— 独立顶层集合
  *
  * Dialogue 是一次完整用户-AI 交互的权威载体，承载状态机、消息、内容版本号引用、规划产物。
- * 对话持有三张 append-only 内容表的版本号（appContentVersion/schemaVersion/cloudFunctionVersion），
+ * 对话持有三张 append-only 内容表的版本号（uiDefinitionVersion/schemaVersion/cloudFunctionVersion），
  * agent / 用户通过版本号定位内容表记录原地修改，无需 confirm 落库。
  *
  * 生命周期（task 路径）：
@@ -160,7 +160,7 @@ const DialogueSchema = new Schema<IDialogueDoc>(
     },
 
     // ─── 应用内容版本引用（持有三张 append-only 内容表的版本号）─────────────────
-    appContentVersion: {
+    uiDefinitionVersion: {
       type: Number,
       required: true,
     },
