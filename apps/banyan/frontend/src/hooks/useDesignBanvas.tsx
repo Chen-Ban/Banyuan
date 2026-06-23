@@ -1,6 +1,7 @@
 import React from "react";
 import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
-import type { IBanvasActions } from "@banyuan/banvasgl";
+import type { IBanvasActions, IAppOptions } from "@banyuan/banvasgl";
+import type { WebCanvasOptions } from "@banyuan/banvasgl-react";
 import { useInteraction } from "@/hooks/useInteraction";
 import { useDesignContextMenu } from "./useDesignContextMenu";
 import type { UseDesignContextMenuResult } from "./useDesignContextMenu";
@@ -32,8 +33,8 @@ export interface IUseBanvasResult<TElement = unknown> {
 }
 
 export interface UseDesignBanvasOptions {
-  appOptions?: Partial<import("@banyuan/banvasgl").IAppOptions>;
-  rendererOptions?: Omit<import("@banyuan/banvasgl").IRendererOptions, "dpr">;
+  appOptions?: Partial<IAppOptions>;
+  rendererOptions?: WebCanvasOptions;
 }
 
 export default function useDesignBanvas(
