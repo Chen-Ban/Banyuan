@@ -3,14 +3,15 @@
  *
  * 职责（在 useCanvasCore 共享底座之上）：
  *   1. 空应用时用 width×height 创建 camera + setDesignSize
- *   2. uiJSON 恢复后同步 camera bounds 到 designSize
- *   3. 容器 resize/DPR 变化时仅更新物理像素（camera 不动）
- *   4. 页面切换时强制同步 camera bounds 到 designSize
- *   5. Canvas CSS 样式：contain-fit 长边适配
- *   6. 容器 CSS 样式：flex 居中
- *   7. selectedViewPos 计算（逻辑尺寸 = designSize）
+ *   2. 容器 resize/DPR 变化时仅更新物理像素（camera 不动）
+ *   3. 页面切换时强制同步 camera bounds 到 designSize
+ *   4. Canvas CSS 样式：contain-fit 长边适配
+ *   5. 容器 CSS 样式：flex 居中
+ *   6. selectedViewPos 计算（逻辑尺寸 = designSize）
  *
  * 适用场景：UI 设计态（useDesignBanvas）、预览态（PreviewPage）、运行态（useRuntimeBanvas）
+ *
+ * 注意：uiJSON 已从此 hook 剥离，JSON 恢复由调用方通过 actions.app.loadAppJSON() 单独注入。
  */
 
 import React, { useEffect, useMemo, useRef } from "react";
@@ -48,10 +49,6 @@ export interface UseFixedCanvasOptions {
    * 固定模式下必传，与 width 共同决定画布逻辑尺寸。
    */
   height: number;
-  /**
-   * 序列化的应用 JSON（空字符串表示新建空白应用）
-   */
-  uiJSON: string;
   appOptions?: Partial<IAppOptions>;
   rendererOptions?: Omit<IRendererOptions, "dpr">;
   /**
@@ -101,7 +98,7 @@ export interface UseFixedCanvasResult {
 export function useFixedCanvasInit(
   options: UseFixedCanvasOptions,
 ): UseFixedCanvasResult {
-  const { width, height, uiJSON, appOptions, rendererOptions, textInput } =
+  const { width, height, appOptions, rendererOptions, textInput } =
     options;
 
   // ref 持有最新的 width/height，供 Effect 内部读取但不作为依赖
@@ -131,54 +128,30 @@ export function useFixedCanvasInit(
 
   const { dpr, dprRef } = useBOMProperties();
 
-  // ── Effect 2: uiJSON 恢复 / 空应用初始化 ──
+  // ── Effect 2: 空应用初始化 ──
   // 固定模式：相机锁定为 App.designSize
+  // JSON 恢复由调用方通过 actions.app.loadAppJSON() 单独注入
   useEffect(() => {
     if (!app || !actions) return;
 
-    if (uiJSON) {
-      // ── JSON 恢复 ──
-      // 先 resize canvas 确保物理像素正确，再 initFromSerialized。
-      // 避免 initFromSerialized → setCurrentScene → scene.show() → onShow()
-      // 在预览态（flowEnabled: true）触发 FlowSchema 时 canvas 尺寸尚未初始化。
-      app.renderer.setDPR(dprRef.current);
-      app.handleResize(widthRef.current, heightRef.current);
-      app.initFromSerialized(uiJSON);
-      // 反序列化的 designSize 可能与 props 不同，同步更新
-      const { width: dw, height: dh } = app.getDesignSize();
-      if (dw !== widthRef.current || dh !== heightRef.current) {
-        app.handleResize(dw, dh);
-      }
-      const scene = app.getCurrentScene();
-      if (scene && scene.camera instanceof OrthographicCamera) {
-        scene.camera.setBounds(0, dw, dh, 0);
-        scene.markDirty();
-      } else if (scene) {
-        console.warn(
-          "[useFixedCanvasInit] Camera is not OrthographicCamera, bounds sync skipped.",
-        );
-      }
-      actions.app.notify();
-    } else {
-      // ── 空应用 ──
-      // camera 直接使用 width × height
-      // 先 resize canvas 再 navigateTo，避免 FlowSchema 在未初始化的 canvas 上触发渲染
-      const w = widthRef.current;
-      const h = heightRef.current;
-      app.renderer.setDPR(dprRef.current);
-      app.handleResize(w, h);
-      const camera = new OrthographicCamera({
-        left: 0,
-        right: w,
-        top: 0,
-        bottom: h,
-      });
-      const scene = new Scene(camera);
-      app.addScene(scene);
-      app.navigateTo(scene);
-      app.setDesignSize(w, h);
-    }
-  }, [app, uiJSON, actions]);
+    // ── 空应用 ──
+    // camera 直接使用 width × height
+    // 先 resize canvas 再 navigateTo，避免 FlowSchema 在未初始化的 canvas 上触发渲染
+    const w = widthRef.current;
+    const h = heightRef.current;
+    app.renderer.setDPR(dprRef.current);
+    app.handleResize(w, h);
+    const camera = new OrthographicCamera({
+      left: 0,
+      right: w,
+      top: 0,
+      bottom: h,
+    });
+    const scene = new Scene(camera);
+    app.addScene(scene);
+    app.navigateTo(scene);
+    app.setDesignSize(w, h);
+  }, [app, actions]);
 
   // ── Effect 3: 容器 resize / DPR 变化时同步 ──
   // 固定模式：用 App.designSize 更新物理像素（DPR 变化或跨屏时），camera 不动
