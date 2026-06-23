@@ -161,8 +161,6 @@ export type {
 
 // ── Renderer 接口 ──
 export type {
-    ICanvasContextOptions,
-    IRendererOptions,
     IRenderer,
 } from './types'
 
@@ -238,8 +236,10 @@ export type {
     IDrawingGradient,
     IDrawingPattern,
     IDrawingImageSource,
+    IDrawingVideoSource,
     IDrawingTextMetrics,
     IDrawingImageData,
+    IDrawingVideoLoadOptions,
     DrawingFillRule,
     DrawingLineCap,
     DrawingLineJoin,
@@ -248,10 +248,7 @@ export type {
     DrawingImageSmoothingQuality,
     DrawingMatrix2DInit,
     IDrawingContext,
-    IPlatformCanvasOptions,
-    IPlatformCanvas,
-    ICanvasHostOptions,
-    ICanvasHost,
+    IDrawingSurface,
 } from './types'
 
 // ── PropertyAdapter 接口 ──

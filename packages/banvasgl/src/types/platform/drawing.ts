@@ -70,6 +70,50 @@ export interface IDrawingImageSource {
   readonly height: number;
 }
 
+/**
+ * 视频源（平台无关）
+ *
+ * 引擎视角下，视频 = 带时间维度的像素帧序列。
+ * 平台适配器（如 WebDrawingVideoSource）负责封装底层播放器（HTMLVideoElement / ffmpeg 等），
+ * 引擎只通过此接口控制播放和获取当前帧像素尺寸。
+ */
+export interface IDrawingVideoSource extends IDrawingImageSource {
+  /** 播放视频 */
+  play(): Promise<void>;
+  /** 暂停视频 */
+  pause(): void;
+  /** 停止视频（暂停 + 回到起始位置） */
+  stop(): void;
+  /** 当前是否正在播放 */
+  readonly playing: boolean;
+  /** 当前播放时间（秒），可读写 */
+  currentTime: number;
+  /** 视频总时长（秒），只读 */
+  readonly duration: number;
+  /** 音量（0-1），可读写 */
+  volume: number;
+  /** 是否自动播放 */
+  autoplay: boolean;
+  /** 是否循环播放 */
+  loop: boolean;
+  /** 是否静音 */
+  muted: boolean;
+  /**
+   * 批量设置播放选项。
+   * 只更新传入的字段，未传入的保持不变。
+   */
+  setPlayOptions(options: IDrawingVideoLoadOptions): void;
+}
+
+/** 视频加载选项 */
+export interface IDrawingVideoLoadOptions {
+  autoplay?: boolean;
+  loop?: boolean;
+  muted?: boolean;
+  /** 跨域模式，Web 平台对应 HTMLVideoElement.crossOrigin */
+  crossOrigin?: string;
+}
+
 /** 文字度量 */
 export interface IDrawingTextMetrics {
   readonly width: number;
@@ -277,4 +321,31 @@ export interface IDrawingContext {
   // ── 命中测试 ──
   isPointInPath(x: number, y: number, fillRule?: DrawingFillRule): boolean;
   isPointInStroke(x: number, y: number): boolean;
+
+  // ── 平台媒体源创建（替代引擎内直接 new Image() / document.createElement） ──
+
+  /**
+   * 从 URL 加载图像源。
+   * 平台负责创建像素源（如 Web 的 HTMLImageElement），引擎只拿到 IDrawingImageSource。
+   */
+  loadImageSource(src: string, crossOrigin?: string): Promise<IDrawingImageSource>;
+
+  /**
+   * 从 URL 加载视频源。
+   * 平台负责创建视频像素源（如 Web 的 HTMLVideoElement），引擎只拿到 IDrawingVideoSource。
+   */
+  loadVideoSource(
+    src: string,
+    options?: IDrawingVideoLoadOptions,
+  ): Promise<IDrawingVideoSource>;
+
+  /**
+   * 从图像/视频源提取像素数据。
+   * 封装"临时画布 → drawImage → getImageData"的平台实现细节。
+   */
+  extractImageData(
+    source: IDrawingImageSource,
+    width: number,
+    height: number,
+  ): IDrawingImageData | null;
 }

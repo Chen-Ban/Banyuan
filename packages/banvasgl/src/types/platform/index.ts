@@ -12,8 +12,10 @@ export type {
   IDrawingGradient,
   IDrawingPattern,
   IDrawingImageSource,
+  IDrawingVideoSource,
   IDrawingTextMetrics,
   IDrawingImageData,
+  IDrawingVideoLoadOptions,
   // Canvas 风格枚举（平台无关）
   DrawingFillRule,
   DrawingLineCap,
@@ -26,14 +28,7 @@ export type {
   IDrawingContext,
 } from './drawing.js';
 
-// ── 平台画布 ──
+// ── 画布表面（替代 IPlatformCanvas + ICanvasHost）──
 export type {
-  IPlatformCanvasOptions,
-  IPlatformCanvas,
-} from './canvas.js';
-
-// ── 画布宿主 ──
-export type {
-  ICanvasHostOptions,
-  ICanvasHost,
-} from './host.js';
+  IDrawingSurface,
+} from './surface.js';
