@@ -145,6 +145,12 @@ export type {
     FlowSchema,
     NodeCategory,
     DataRef,
+    // context
+    FrontendCapProxy,
+    BackendCapProxy,
+    CapProxy,
+    IFrameStack,
+    IFlowRunner,
 } from './types/foundation/flow/index.js'
 // ── Camera 接口 ──
 export type {

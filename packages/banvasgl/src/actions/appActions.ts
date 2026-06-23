@@ -76,5 +76,18 @@ export function createAppActions(
         getCurrentScene() {
             return getApp()?.getCurrentScene() ?? null
         },
+
+        subscribe(listener: () => void): () => void {
+            const app = getApp()
+            if (!app) return () => {}
+            return app.subscribe(listener)
+        },
+
+        loadAppJSON(json: string): void {
+            const app = getApp()
+            if (!app) return
+            app.initFromSerialized(json)
+            notify()
+        },
     }
 }

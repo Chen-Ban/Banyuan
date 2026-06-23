@@ -420,6 +420,25 @@ export interface IAppActions {
      * @returns 当前 Scene，若 App 未初始化则返回 null
      */
     getCurrentScene(): IScene | null
+    /**
+     * 订阅引擎状态变更通知。返回取消订阅函数。
+     *
+     * 对应 App.subscribe，供业务层在 useSyncExternalStore 之外订阅引擎变更。
+     * 典型用法：actions.app.subscribe(() => store.getState().markUIDirty())
+     *
+     * @param listener 状态变更时调用的回调
+     * @returns 取消订阅函数
+     */
+    subscribe(listener: () => void): () => void
+    /**
+     * 从 JSON 字符串恢复完整应用状态，并通知所有订阅者。
+     *
+     * 等效于 app.initFromSerialized(json) + notify()。
+     * 用于 uiJSON 外部变化（AI done / store 同步）后命令式注入引擎。
+     *
+     * @param json App.serialize() 产出的 JSON 字符串
+     */
+    loadAppJSON(json: string): void
 }
 
 /**
