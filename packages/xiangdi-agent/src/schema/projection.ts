@@ -97,13 +97,13 @@ export function fromAIProjection(projection: AIProjectionScene, version: string)
 }
 
 /**
- * 从 App 级别的 appJSON 字符串中提取并转换为 AIProjectionApp。
+ * 从 App 级别的 UI 定义 JSON 字符串中提取并转换为 AIProjectionApp。
  *
- * appJSON 格式：{ type: "APP", version, data: { lifetimes, scenes: [{ $type, $value }, ...] }, metadata }
+ * UI 定义 JSON 格式：{ type: "APP", version, data: { lifetimes, scenes: [{ $type, $value }, ...] }, metadata }
  * 每个 scene 元素包装为 { $type: "SCENE", $value: sceneData }。
  */
-export function appJSONToProjection(appJSON: string): AIProjectionApp {
-    const appSerialized: SerializedData = JSON.parse(appJSON)
+export function uiJSONToProjection(uiJSON: string): AIProjectionApp {
+    const appSerialized: SerializedData = JSON.parse(uiJSON)
     const appData = appSerialized.data
 
     // App lifetimes 投影（省略全 null 的情况）
@@ -130,11 +130,11 @@ export function appJSONToProjection(appJSON: string): AIProjectionApp {
 }
 
 /**
- * 将 AIProjectionApp 转换回 App 级别的 appJSON 字符串。
+ * 将 AIProjectionApp 转换回 App 级别的 UI 定义 JSON 字符串。
  *
  * 输出格式：{ type: "APP", version, data: { lifetimes, scenes: [{ $type, $value }, ...] }, metadata }
  */
-export function projectionToAppJSON(app: AIProjectionApp): string {
+export function projectionToUIJSON(app: AIProjectionApp): string {
     const sceneWrappers = app.scenes.map((scene) => {
         const sceneSerializedData = fromAIProjection(scene, app.version)
         return sceneSerializedData.data
