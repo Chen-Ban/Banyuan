@@ -1,5 +1,5 @@
 /**
- * @banyuan/banvas-runtime — 运行策略层公共 API
+ * @banyuan/banvas-react-runtime — 运行策略层公共 API
  *
  * 承载运行态的：
  *   - 跨平台事件适配器（adapters）：平台原生事件 → InteractionInput

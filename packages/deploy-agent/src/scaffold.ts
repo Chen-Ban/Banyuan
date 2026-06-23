@@ -40,7 +40,7 @@ function generatePackageJson(uiJSON: UIDefinition): string {
       react: '^19.0.0',
       'react-dom': '^19.0.0',
       '@banyuan/banvasgl': 'latest',
-      '@banyuan/banvas-runtime': 'latest',
+      '@banyuan/banvas-react-runtime': 'latest',
     },
     devDependencies: {
       '@types/react': '^19.0.0',
@@ -121,7 +121,7 @@ function generateAppTsx(uiJSON: UIDefinition): string {
   const height = firstPage?.height ?? 812;
 
   return `import { useState, useEffect } from 'react';
-import { useRuntimeBanvas } from '@banyuan/banvas-runtime';
+import { useRuntimeBanvas } from '@banyuan/banvas-react-runtime';
 
 export function App() {
   const [uiJSONStr, setUIJSONStr] = useState<string | null>(null);

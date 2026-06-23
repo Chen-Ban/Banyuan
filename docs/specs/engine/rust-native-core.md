@@ -5,7 +5,7 @@
 | 决策 | 状态 | 关联 |
 |------|------|------|
 | **A0** — 机制/策略分离契约 | ✅ 已实施 | 根定位：runtime ⊃ rendering，只提供机制不内置策略 |
-| **A8b** — 平台抽象层 (IDrawingContext/IPlatformCanvas/ICanvasHost) | ✅ 已实施 | Rust 侧的天然 FFI 边界 |
+| **A8b** — 平台抽象层 (IPlatformDrawingContext/IPlatformCanvas/IEngineContext) | ✅ 已实施 | Rust 侧的天然 FFI 边界 |
 | **A9** — Rust 原生核心迁移（提案） | 未实施 | 本方案的父决策 |
 | **P7** — 引擎纯净原则 | ✅ 已实施 | 核心不依赖 DOM/React |
 | **P7a** — Flow 子模块后端独立 | ✅ 已实施 | 后端只取 Flow 执行，不引入渲染代码 |
@@ -58,8 +58,8 @@
 | **wasm-pack** | 封装了 `wasm-bindgen` + 构建 + 打包 npm 的完整流程 | `tsup` 的 WASM 版本 |
 | **`#[napi]`** | napi-rs 的属性宏。写在函数/结构体上暴露给 JS | `export` 关键字 |
 | **`#[wasm_bindgen]`** | wasm-bindgen 的属性宏 | `export` 关键字 |
-| **trait** | Rust 的接口。定义一组方法签名，由具体类型实现 | `interface IDrawingContext` |
-| **impl Trait for Struct** | Rust 的"为某个结构体实现某个接口" | `class WebDrawingContext implements IDrawingContext` |
+| **trait** | Rust 的接口。定义一组方法签名，由具体类型实现 | `interface IPlatformDrawingContext` |
+| **impl Trait for Struct** | Rust 的"为某个结构体实现某个接口" | `class WebDrawingContext implements IPlatformDrawingContext` |
 
 ### 工具链相关
 
@@ -118,7 +118,7 @@
 | `graph/media/VideoElement.ts` | 421 | `ImageData` 返回类型 |
 | `graph/media/ImageElement.ts` | 244 | `CanvasImageSource` 强转 |
 
-**Rust 侧方案**：全部替换为平台无关类型。`IDrawingImageData` 已定义（`types/platform/drawing.ts:83`），Rust 侧对应自有 struct。
+**Rust 侧方案**：全部替换为平台无关类型。`IDrawingImageData` 已定义（`types/platform/context.ts:83`），Rust 侧对应自有 struct。
 
 ### 0.5 其他
 
@@ -159,8 +159,8 @@
 
 | 类别 | 名称 | 方向 | 职责 |
 |------|------|------|------|
-| **trait** | `DrawingContext` | Host → Rust | 2D 绘图命令（~40 方法），对应已有 TS `IDrawingContext` |
-| **trait** | `PlatformCanvas` | Host → Rust | 画布工厂 + 双缓冲 + composite，对应已有 TS `IPlatformCanvas` + `ICanvasHost` |
+| **trait** | `DrawingContext` | Host → Rust | 2D 绘图命令（~40 方法），对应已有 TS `IPlatformDrawingContext` |
+| **trait** | `PlatformCanvas` | Host → Rust | 画布工厂 + 双缓冲 + composite，对应已有 TS `IPlatformCanvas` + `IEngineContext` |
 | **struct** | `PixelBuffer` | Host → Rust | RGBA8 像素数据（纯数据，非 trait），Host 解码后传入 |
 | **struct** | `InteractionInput` | Host → Rust | 已归一化的原子事件（已有 M10a 定义，纯数据） |
 | **方法** | `engine.render_frame(ts)` | Host → Rust | Host 在自有的帧循环中每帧调用 |
@@ -448,7 +448,7 @@ pub trait DrawingContext {
 }
 ```
 
-> **为什么 trait 定义在 banvasgl-core 而非 napi-rs 绑定层？** trait 是引擎核心与平台的**契约**，不是绑定细节。TypeScript 侧的 `IDrawingContext` 在 `@banyuan/banvasgl/types/platform/`，Rust 侧的 trait 也应该在 `banvasgl-core`。
+> **为什么 trait 定义在 banvasgl-core 而非 napi-rs 绑定层？** trait 是引擎核心与平台的**契约**，不是绑定细节。TypeScript 侧的 `IPlatformDrawingContext` 在 `@banyuan/banvasgl/types/platform/`，Rust 侧的 trait 也应该在 `banvasgl-core`。
 
 ### 3.5 Circle 图形基元
 
@@ -614,7 +614,7 @@ export function createCanvasAdapter(ctx: CanvasRenderingContext2D): DrawingConte
 
 ### 5.1 DrawingContext trait（完整版 ~40 方法）
 
-Phase 1 原型使用精简版（§3.4）。Phase 2 补齐到与 TS `IDrawingContext` 1:1 对应，涵盖渐变、图案、阴影、像素操作、命中测试等全部能力。
+Phase 1 原型使用精简版（§3.4）。Phase 2 补齐到与 TS `IPlatformDrawingContext` 1:1 对应，涵盖渐变、图案、阴影、像素操作、命中测试等全部能力。
 
 ### 5.2 PlatformCanvas trait
 
@@ -857,7 +857,7 @@ napi-rs 脚手架在 `packages/banvasgl-native/` 下生成独立 `Cargo.toml`。
 
 `DrawingContext` trait 定义在引擎核心 crate，因为它描述了「引擎需要平台提供什么能力」。napi-rs 绑定层只是把 trait 翻译成 JS 可调用的形式。
 
-**类比**：`IDrawingContext` 在 `@banyuan/banvasgl`（核心），`WebDrawingContext` 在 `@banyuan/banvasgl-react`（Web 适配）。
+**类比**：`IPlatformDrawingContext` 在 `@banyuan/banvasgl`（核心），`WebDrawingContext` 在 `@banyuan/banvasgl-react`（Web 适配）。
 
 ### 决策 3：开发时绕过 napi-rs，直接编译 WASM 调试
 
