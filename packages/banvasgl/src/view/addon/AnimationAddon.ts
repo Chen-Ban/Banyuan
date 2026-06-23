@@ -19,7 +19,9 @@ import type {
 import type { IView } from '@/types/view/view'
 import type { ExtraData } from '@/types/view/interaction'
 import type View from '@/view/View/View'
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 
 /**
  * AnimationAddon —— 动画能力插件

@@ -18,7 +18,8 @@ export interface PatternSize {
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingPattern } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IPattern } from '@/types/foundation/pattern.js'
 import type { IImageSource } from '@/types/foundation/media.js'
 
 /**
@@ -173,7 +174,7 @@ export default class Image implements ISerializable {
    * }
    * ```
    */
-  createCanvasPattern(ctx: IDrawingContext): IDrawingPattern | null {
+  createCanvasPattern(ctx: IDrawingContext): IPattern | null {
     if (!this._loadedSource) return null
 
     // 使用平台注入的像素源创建图案，引擎不再直接创建 DOM Image

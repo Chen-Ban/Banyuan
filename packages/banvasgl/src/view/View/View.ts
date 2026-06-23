@@ -1,7 +1,9 @@
 import { ViewType, Action, AddonCapability, Cursor } from "@/foundation/constants";
 import Matrix4 from "@/foundation/math/Matrix4";
 import type { IDrawingSurface } from "@/types/platform/surface.js";
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 import type { ISceneNode, IView, IFieldSchemaMap, IInteractResult, IViewOptions, IViewEvents, IViewLifetimes } from '@/types/view/view'
 import type { IViewStyle } from '@/types/foundation/style'
 import type { ISerializable } from '@/types/foundation/serializable'

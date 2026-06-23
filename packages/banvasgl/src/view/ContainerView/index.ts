@@ -24,7 +24,9 @@ import type { IContainerView, IFieldSchemaMap, IContainerViewOptions, IInteractR
 import { Rectangle } from '@/graph/combined/Polygon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
 import type Matrix4 from '@/foundation/math/Matrix4.js'
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 import type { IDrawingSurface } from "@/types/platform/surface.js";
 import { Point3, Vector3 } from '@/foundation/math/index.js'
 

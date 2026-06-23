@@ -7,7 +7,9 @@ import type { IBoundingBoxAddon } from '@/types/view/addon'
 import { AddonType, Action, AddonCapability, Cursor, cursorMap } from "@/foundation/constants";
 import { Circle, Line } from "@/graph";
 import { Color, FillStyle, StrokeStyle } from "@/foundation/style";
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 
 /**
  * 主题色常量（PPT 风格）

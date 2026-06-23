@@ -17,7 +17,9 @@ import type {
   IContainerViewOptions,
   FlowNode,
 } from "@/types/index.js";
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 
 // 节点默认尺寸
 const NODE_DEFAULT_WIDTH = 160;

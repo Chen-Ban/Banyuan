@@ -2,7 +2,9 @@ import { Point3 } from "@/foundation/math";
 import type { ExtraData } from '@/types/view/interaction'
 import type { IVertexAddon } from '@/types/view/addon'
 import { AddonType, Action, AddonCapability, Cursor } from "@/foundation/constants";
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 
 /**
  * 顶点样式主题（PPT 风格）

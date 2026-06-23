@@ -1,6 +1,7 @@
 import Gradient, { type GradientStop } from './Gradient.js'
 import { StyleType } from '@/foundation/constants'
-import type { IDrawingContext, IDrawingGradient } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
 
 /**
  * 圆锥渐变（角度渐变）
@@ -74,7 +75,7 @@ export default class ConicGradient extends Gradient {
    * ctx.fill()
    * ```
    */
-  createCanvasGradient(ctx: IDrawingContext, width: number = 100, height: number = 100): IDrawingGradient {
+  createCanvasGradient(ctx: IDrawingContext, width: number = 100, height: number = 100): IGradient {
     const centerX = this.cx * width / 100
     const centerY = this.cy * height / 100
 

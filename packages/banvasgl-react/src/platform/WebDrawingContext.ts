@@ -8,25 +8,25 @@
 
 import type {
   IDrawingContext,
-  IDrawingGradient,
-  IDrawingPattern,
+  IGradient,
+  IPattern,
   IImageSource,
   IVideoSource,
-  IDrawingTextMetrics,
+  ITextMetrics,
   IVideoLoadOptions,
   PatternRepeat,
-  DrawingFillRule,
-  DrawingLineCap,
-  DrawingLineJoin,
-  DrawingTextAlign,
-  DrawingTextBaseline,
-  DrawingImageSmoothingQuality,
-  DrawingMatrix2DInit,
+  FillRule,
+  LineCap,
+  LineJoin,
+  TextAlign,
+  TextBaseline,
+  ImageSmoothingQuality,
+  Matrix2DInit,
 } from '@banyuan/banvasgl';
 
 // ── WebDrawingGradient ──────────────────────────────────────────
 
-class WebDrawingGradient implements IDrawingGradient {
+class WebDrawingGradient implements IGradient {
   readonly native: CanvasGradient;
 
   constructor(gradient: CanvasGradient) {
@@ -40,14 +40,14 @@ class WebDrawingGradient implements IDrawingGradient {
 
 // ── WebDrawingPattern ───────────────────────────────────────────
 
-class WebDrawingPattern implements IDrawingPattern {
+class WebDrawingPattern implements IPattern {
   readonly native: CanvasPattern;
 
   constructor(pattern: CanvasPattern) {
     this.native = pattern;
   }
 
-  setTransform(matrix?: DrawingMatrix2DInit): void {
+  setTransform(matrix?: Matrix2DInit): void {
     if (matrix) {
       this.native.setTransform(matrix as DOMMatrix2DInit);
     }
@@ -202,7 +202,7 @@ class WebDrawingVideoSource implements IVideoSource {
 
 /** 将 fillStyle/strokeStyle 值解包为 Canvas 2D 可接受的类型 */
 function unwrapStyle(
-  value: string | IDrawingGradient | IDrawingPattern,
+  value: string | IGradient | IPattern,
 ): string | CanvasGradient | CanvasPattern {
   if (typeof value === 'string') return value;
   if (value instanceof WebDrawingGradient) return value.native;
@@ -274,29 +274,29 @@ export class WebDrawingContext implements IDrawingContext {
 
   // ── 填充与描边 ──
 
-  fill(fillRule?: DrawingFillRule): void { this._ctx.fill(fillRule); }
+  fill(fillRule?: FillRule): void { this._ctx.fill(fillRule); }
   stroke(): void { this._ctx.stroke(); }
   fillRect(x: number, y: number, w: number, h: number): void { this._ctx.fillRect(x, y, w, h); }
   strokeRect(x: number, y: number, w: number, h: number): void { this._ctx.strokeRect(x, y, w, h); }
   clearRect(x: number, y: number, w: number, h: number): void { this._ctx.clearRect(x, y, w, h); }
-  clip(fillRule?: DrawingFillRule): void { this._ctx.clip(fillRule); }
+  clip(fillRule?: FillRule): void { this._ctx.clip(fillRule); }
 
   // ── 样式属性 ──
 
-  get fillStyle(): string | IDrawingGradient | IDrawingPattern { return this._ctx.fillStyle as unknown as string | IDrawingGradient | IDrawingPattern; }
-  set fillStyle(value: string | IDrawingGradient | IDrawingPattern) { this._ctx.fillStyle = unwrapStyle(value); }
+  get fillStyle(): string | IGradient | IPattern { return this._ctx.fillStyle as unknown as string | IGradient | IPattern; }
+  set fillStyle(value: string | IGradient | IPattern) { this._ctx.fillStyle = unwrapStyle(value); }
 
-  get strokeStyle(): string | IDrawingGradient | IDrawingPattern { return this._ctx.strokeStyle as unknown as string | IDrawingGradient | IDrawingPattern; }
-  set strokeStyle(value: string | IDrawingGradient | IDrawingPattern) { this._ctx.strokeStyle = unwrapStyle(value); }
+  get strokeStyle(): string | IGradient | IPattern { return this._ctx.strokeStyle as unknown as string | IGradient | IPattern; }
+  set strokeStyle(value: string | IGradient | IPattern) { this._ctx.strokeStyle = unwrapStyle(value); }
 
   get lineWidth(): number { return this._ctx.lineWidth; }
   set lineWidth(value: number) { this._ctx.lineWidth = value; }
 
-  get lineCap(): DrawingLineCap { return this._ctx.lineCap as DrawingLineCap; }
-  set lineCap(value: DrawingLineCap) { this._ctx.lineCap = value; }
+  get lineCap(): LineCap { return this._ctx.lineCap as LineCap; }
+  set lineCap(value: LineCap) { this._ctx.lineCap = value; }
 
-  get lineJoin(): DrawingLineJoin { return this._ctx.lineJoin as DrawingLineJoin; }
-  set lineJoin(value: DrawingLineJoin) { this._ctx.lineJoin = value; }
+  get lineJoin(): LineJoin { return this._ctx.lineJoin as LineJoin; }
+  set lineJoin(value: LineJoin) { this._ctx.lineJoin = value; }
 
   get miterLimit(): number { return this._ctx.miterLimit; }
   set miterLimit(value: number) { this._ctx.miterLimit = value; }
@@ -323,19 +323,19 @@ export class WebDrawingContext implements IDrawingContext {
 
   // ── 渐变与图案 ──
 
-  createLinearGradient(x0: number, y0: number, x1: number, y1: number): IDrawingGradient {
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): IGradient {
     return new WebDrawingGradient(this._ctx.createLinearGradient(x0, y0, x1, y1));
   }
 
-  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): IDrawingGradient {
+  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): IGradient {
     return new WebDrawingGradient(this._ctx.createRadialGradient(x0, y0, r0, x1, y1, r1));
   }
 
-  createConicGradient(startAngle: number, x: number, y: number): IDrawingGradient {
+  createConicGradient(startAngle: number, x: number, y: number): IGradient {
     return new WebDrawingGradient(this._ctx.createConicGradient(startAngle, x, y));
   }
 
-  createPattern(image: IImageSource, repetition: PatternRepeat | null): IDrawingPattern | null {
+  createPattern(image: IImageSource, repetition: PatternRepeat | null): IPattern | null {
     const nativeImg = unwrapImageSource(image);
     const pattern = this._ctx.createPattern(nativeImg, repetition ?? '');
     return pattern ? new WebDrawingPattern(pattern) : null;
@@ -356,23 +356,23 @@ export class WebDrawingContext implements IDrawingContext {
   get imageSmoothingEnabled(): boolean { return this._ctx.imageSmoothingEnabled; }
   set imageSmoothingEnabled(value: boolean) { this._ctx.imageSmoothingEnabled = value; }
 
-  get imageSmoothingQuality(): DrawingImageSmoothingQuality { return this._ctx.imageSmoothingQuality as DrawingImageSmoothingQuality; }
-  set imageSmoothingQuality(value: DrawingImageSmoothingQuality) { this._ctx.imageSmoothingQuality = value; }
+  get imageSmoothingQuality(): ImageSmoothingQuality { return this._ctx.imageSmoothingQuality as ImageSmoothingQuality; }
+  set imageSmoothingQuality(value: ImageSmoothingQuality) { this._ctx.imageSmoothingQuality = value; }
 
   // ── 文字 ──
 
   get font(): string { return this._ctx.font; }
   set font(value: string) { this._ctx.font = value; }
 
-  get textAlign(): DrawingTextAlign { return this._ctx.textAlign as DrawingTextAlign; }
-  set textAlign(value: DrawingTextAlign) { this._ctx.textAlign = value; }
+  get textAlign(): TextAlign { return this._ctx.textAlign as TextAlign; }
+  set textAlign(value: TextAlign) { this._ctx.textAlign = value; }
 
-  get textBaseline(): DrawingTextBaseline { return this._ctx.textBaseline as DrawingTextBaseline; }
-  set textBaseline(value: DrawingTextBaseline) { this._ctx.textBaseline = value; }
+  get textBaseline(): TextBaseline { return this._ctx.textBaseline as TextBaseline; }
+  set textBaseline(value: TextBaseline) { this._ctx.textBaseline = value; }
 
   fillText(text: string, x: number, y: number, maxWidth?: number): void { this._ctx.fillText(text, x, y, maxWidth); }
   strokeText(text: string, x: number, y: number, maxWidth?: number): void { this._ctx.strokeText(text, x, y, maxWidth); }
-  measureText(text: string): IDrawingTextMetrics { return this._ctx.measureText(text); }
+  measureText(text: string): ITextMetrics { return this._ctx.measureText(text); }
 
   // ── 像素操作 ──
 
@@ -382,7 +382,7 @@ export class WebDrawingContext implements IDrawingContext {
 
   // ── 命中测试 ──
 
-  isPointInPath(x: number, y: number, fillRule?: DrawingFillRule): boolean { return this._ctx.isPointInPath(x, y, fillRule); }
+  isPointInPath(x: number, y: number, fillRule?: FillRule): boolean { return this._ctx.isPointInPath(x, y, fillRule); }
   isPointInStroke(x: number, y: number): boolean { return this._ctx.isPointInStroke(x, y); }
 
   // ── 平台媒体源创建 ──

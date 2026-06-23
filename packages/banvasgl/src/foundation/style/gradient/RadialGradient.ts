@@ -1,7 +1,8 @@
 import Color from '../Color.js'
 import Gradient, { type GradientStop } from './Gradient.js'
 import { StyleType } from '@/foundation/constants'
-import type { IDrawingContext, IDrawingGradient } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
 
 /**
  * 径向渐变
@@ -87,7 +88,7 @@ export default class RadialGradient extends Gradient {
    * ctx.fillRect(0, 0, 300, 300)
    * ```
    */
-  createCanvasGradient(ctx: IDrawingContext, width: number = 100, height: number = 100): IDrawingGradient {
+  createCanvasGradient(ctx: IDrawingContext, width: number = 100, height: number = 100): IGradient {
     const minDim = Math.min(width, height)
     let gradient: CanvasGradient
 

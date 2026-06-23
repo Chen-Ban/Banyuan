@@ -233,16 +233,6 @@ export type {
 
 // ── 平台抽象接口 ──
 export type {
-    IDrawingGradient,
-    IDrawingPattern,
-    IDrawingTextMetrics,
-    DrawingFillRule,
-    DrawingLineCap,
-    DrawingLineJoin,
-    DrawingTextAlign,
-    DrawingTextBaseline,
-    DrawingImageSmoothingQuality,
-    DrawingMatrix2DInit,
     IDrawingContext,
     IDrawingSurface,
 } from './types'
@@ -253,6 +243,20 @@ export type {
     IVideoSource,
     IVideoLoadOptions,
     PatternRepeat,
+} from './types'
+
+// ── 绘制枚举 / 渐变 / 图案 / 文本 / 数学（引擎自有类型） ──
+export type {
+    FillRule,
+    LineCap,
+    LineJoin,
+    ImageSmoothingQuality,
+    IGradient,
+    IPattern,
+    TextAlign,
+    TextBaseline,
+    ITextMetrics,
+    Matrix2DInit,
 } from './types'
 
 // ── PropertyAdapter 接口 ──

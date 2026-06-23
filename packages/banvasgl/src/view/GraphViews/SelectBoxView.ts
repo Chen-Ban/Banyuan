@@ -6,7 +6,9 @@ import { Point3 } from "@/foundation/math";
 import { Color, FillStyle, StrokeStyle, Style } from "@/foundation/style";
 import type { ISelectBoxView } from '@/types/view/view'
 import type { ISelectBoxViewOptions } from '@/types/view/view'
-import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IGradient } from '@/types/foundation/gradient.js'
+import type { IPattern } from '@/types/foundation/pattern.js';
 /**
  * 框选视图 - 专门用于矩形框选操作
  * 继承自 GraphView，但具有特殊的类型标识，不参与交互
