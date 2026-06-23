@@ -2,7 +2,9 @@
  * PreviewPage — 预览态页面
  *
  * 职责：
- *   - 使用 useCanvasInit 渲染运行态画布（flowEnabled: true）
+ *   - 使用 useRuntimeBanvas 渲染运行态画布（内置 ClickRecognizer + DragRecognizer，
+ *     自动归一化 DOM 事件 → hitTest → triggerEvent → FlowSchema 执行）
+ *   - 从 store 读取 uiJSON，通过 actions.app.loadAppJSON() 注入引擎
  *   - 从 previewServerStore 读取本地 Preview Server 地址，
  *     设置 app.backendEndpoint 使 callFlow 节点打到本地后端
  *
@@ -16,55 +18,36 @@
  *   unmount → 清除 endpoint（Preview Server 由 ApplicationLayout 管理，不在此停止）
  */
 
-import { useEffect, useState, useRef, useMemo } from "react";
-import { useParams } from "react-router-dom";
-import { App, Spin } from "antd";
-import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
-import { applicationApi } from "@/api";
-import { getErrorMessage } from "@/utils/error";
+import { useEffect, useMemo } from "react";
+import { useRuntimeBanvas } from "@banyuan/banvas-react-runtime";
 import { useApplicationStore } from "@/stores/applicationStore";
 import { usePreviewServerStore } from "@/stores/previewServerStore";
 import styles from "./index.module.scss";
 
 const PreviewPage: React.FC = () => {
-  const { message } = App.useApp();
-  const { id: applicationId } = useParams<{ id: string }>();
   const { registerActions, setDesignSize, designSize } = useApplicationStore();
+  const uiJSON = useApplicationStore((s) => s.uiJSON);
   const serverInfo = usePreviewServerStore((s) => s.serverInfo);
   const serverStatus = usePreviewServerStore((s) => s.status);
 
-  // ── 状态 ───────────────────────────────────────────────────────────────────
-  const [uiJSON, setUIJSON] = useState<string>("");
-  const [loaded, setLoaded] = useState(false);
-  const mountedRef = useRef(true);
-
-  // ── 加载 UI 定义 JSON ─────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!applicationId) return;
-    applicationApi
-      .fetchApplication(applicationId)
-      .then((res) => {
-        if (!mountedRef.current) return;
-        setUIJSON(res.data!.uiJSON || "");
-        setLoaded(true);
-      })
-      .catch((err: unknown) => {
-        if (!mountedRef.current) return;
-        message.error(getErrorMessage(err));
-        setLoaded(true);
-      });
-  }, [applicationId, message]);
-
-  // ── 画布初始化（运行态：固定模式，flowEnabled = true） ────────────────────
-  const appOptions = useMemo(() => ({ flowEnabled: true }), []);
+  // ── 画布初始化（运行策略：useRuntimeBanvas = 机制底座 + 交互识别 + FlowSchema 触发） ──
   const rendererOptions = useMemo(() => ({ clearColor: "#fff" }), []);
-  const { elements, actions } = useFixedCanvasInit({
-    width: designSize.width,
-    height: designSize.height,
-    uiJSON: loaded ? uiJSON : "",
-    appOptions,
-    rendererOptions,
-  });
+  const runtimeOptions = useMemo(
+    () => ({
+      width: designSize.width,
+      height: designSize.height,
+      rendererOptions,
+    }),
+    [designSize.width, designSize.height, rendererOptions],
+  );
+  const { Banvas, actions } = useRuntimeBanvas(runtimeOptions);
+
+  // ── uiJSON 注入引擎（store 数据就绪时） ──────────────────────────────────
+  useEffect(() => {
+    if (actions?.app && uiJSON) {
+      actions.app.loadAppJSON(uiJSON);
+    }
+  }, [uiJSON, actions]);
 
   // ── 挂载画布引擎实例到 store + 同步初始 designSize ────────────────────
   useEffect(() => {
@@ -85,32 +68,14 @@ const PreviewPage: React.FC = () => {
     }
 
     return () => {
-      // 退出预览态时清除 endpoint，防止其他页面误用
       actions.app.setBackendEndpoint(undefined);
     };
   }, [actions, serverInfo, serverStatus]);
 
-  // cleanup ref
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  // ── 加载中 ─────────────────────────────────────────────────────────────────
-  if (!loaded) {
-    return (
-      <div className={styles.loadingContainer}>
-        <Spin size="large" tip="加载应用数据..." />
-      </div>
-    );
-  }
-
   return (
     <div className={styles.page}>
       <div className={styles.canvasContainer}>
-        {elements.container}
+        {Banvas}
       </div>
     </div>
   );

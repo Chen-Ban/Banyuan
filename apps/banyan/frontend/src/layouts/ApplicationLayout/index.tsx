@@ -12,7 +12,7 @@
  *   └──────────────────────────────────────────────────────────────────┘
  *
  * 职责：
- *   - 加载并管理应用元数据（名称、描述），写入 applicationStore 供各处读取
+ *   - 加载并管理应用元数据（名称），写入 applicationStore 供各处读取
  *   - 编排保存（handleSave）操作，渲染 <AppHeader/> 顶部栏
  *   - Tab 导航通过 React Router navigate 切换子路由
  *   - 画布位置是 Segmented（预览 | 编辑），对应 /preview 和 /ui 两个子路由
@@ -22,105 +22,95 @@
  * 所有共享状态通过 useApplicationStore 读写。
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { useParams, Outlet } from 'react-router-dom'
-import { App } from 'antd'
-import { applicationApi } from '@/api'
-import { getErrorMessage } from '@/utils/error'
-import { useApplicationStore } from '@/stores/applicationStore'
-import { usePreviewServerStore } from '@/stores/previewServerStore'
-import AppHeader from './components/AppHeader'
-import styles from './index.module.scss'
-
+import React, { useCallback, useEffect } from "react";
+import { useParams, Outlet } from "react-router-dom";
+import { App, Spin } from "antd";
+import { applicationApi } from "@/api";
+import { getErrorMessage } from "@/utils/error";
+import { useApplicationStore } from "@/stores/applicationStore";
+import { usePreviewServerStore } from "@/stores/previewServerStore";
+import AppHeader from "./components/AppHeader";
+import styles from "./index.module.scss";
 
 const ApplicationLayout: React.FC = () => {
-  const { id: application_id } = useParams<{ id: string }>()
-  const { message } = App.useApp()
+  const { id: application_id } = useParams<{ id: string }>();
+  const { message } = App.useApp();
 
   // ── ApplicationStore ────────────────────────────────────────────────────────
   const {
-    appName: applicationName,
+    isSaving,
+    dataLoading,
     setAppName,
-    requestFlush,
     reset: resetStore,
     load: loadStore,
-  } = useApplicationStore()
-
-  // ── 应用元数据（本地 description 状态，不进 store） ─────────────────────────
-  const [applicationDescription, setApplicationDescription] = useState('')
-  const [saving, setSaving] = useState(false)
-  const nameRef = useRef(applicationName)
-  const descRef = useRef(applicationDescription)
-  nameRef.current = applicationName
-  descRef.current = applicationDescription
+  } = useApplicationStore();
 
   // ── 加载应用元数据 + 业务数据 ─────────────────────────────────────────────
   useEffect(() => {
-    if (!application_id) return
+    if (!application_id) return;
     // 切换应用时重置 store
-    resetStore()
-    usePreviewServerStore.getState().reset()
 
-    // 加载应用元数据（名称/描述）
-    applicationApi.fetchApplication(application_id).then((res) => {
-      const app = res.data!
-      setAppName(app.name)
-      setApplicationDescription(app.description || '')
-    }).catch(() => {})
+    resetStore();
+    usePreviewServerStore.getState().reset();
+
+    // 加载应用元数据（名称）
+    applicationApi
+      .fetchApplication(application_id)
+      .then((res) => {
+        setAppName(res.data!.name);
+      })
+      .catch((err) => {
+        message.error(getErrorMessage(err));
+      });
 
     // 加载业务数据（uiJSON/dataSchema/cloudFunctions）到 store
-    loadStore(application_id)
-  }, [application_id, setAppName, resetStore, loadStore])
+    loadStore(application_id);
+  }, [application_id, setAppName, resetStore, loadStore]);
 
   // ── Preview Server 生命周期管理（应用级） ─────────────────────────────────
   useEffect(() => {
-    if (!application_id) return
-    const store = usePreviewServerStore.getState()
-    store.start(application_id)
-    return () => { store.stop(application_id) }
-  }, [application_id])
+    if (!application_id) return;
+    const store = usePreviewServerStore.getState();
+    store.start(application_id);
+    return () => {
+      store.stop(application_id);
+    };
+  }, [application_id]);
 
   // ── 保存应用 ──────────────────────────────────────────────────────────────
-  // requestFlush 刷回画布态 → store.save 持久化业务数据 + 保存元数据（名称/描述）
   const handleSave = useCallback(async () => {
-    if (!applicationName.trim()) {
-      message.warning('请输入应用名称')
-      return
+    const result = await useApplicationStore.getState().save()
+    if (result.success) {
+      message.success(result.saved.length > 0 ? "已保存" : "没有需要保存的更改")
+    } else if (result.error !== 'ALREADY_SAVING') {
+      message.error(result.error || "保存失败")
     }
-    if (!application_id) return
-    setSaving(true)
-    try {
-      // 先将画布最新状态刷回 store（必须 await 以确保 uiJSON 已写入 store）
-      await requestFlush()
-      // 然后并行执行：持久化业务数据 + 保存元数据
-      await Promise.all([
-        useApplicationStore.getState().save(),
-        applicationApi.updateApplication(application_id, {
-          name: nameRef.current,
-          description: descRef.current,
-        }),
-      ])
-      message.success('已保存')
-    } catch (error: unknown) {
-      message.error(getErrorMessage(error))
-    } finally {
-      setSaving(false)
-    }
-  }, [applicationName, application_id, requestFlush, message])
+  }, [message]);
 
   return (
     <div className={styles.layout}>
-      <AppHeader
-        saving={saving}
-        onSave={handleSave}
-      />
+      <AppHeader onSave={handleSave} />
 
-      {/* ── 子页面内容（通过 Outlet 渲染当前路由对应的子页面） ── */}
+      {/* ── 加载中或子页面内容 ── */}
       <div className={styles.content}>
-        <Outlet />
+        {dataLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <Spin size="large" tip="加载应用数据..." />
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </div>
-    </div>
-  )
-}
 
-export default ApplicationLayout
+      {/* ── 保存遮罩层：阻止所有交互 ── */}
+      {isSaving && (
+        <div className={styles.savingOverlay}>
+          <Spin size="large" />
+          <span className={styles.savingText}>正在保存…</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ApplicationLayout;

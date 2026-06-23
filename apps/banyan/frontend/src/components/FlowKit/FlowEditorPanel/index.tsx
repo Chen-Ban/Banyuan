@@ -117,7 +117,7 @@ export const FlowEditorPanel: React.FC<FlowEditorPanelProps> = ({
             open={paletteOpen}
             onClose={() => setPaletteOpen(false)}
             placement="left"
-            width={240}
+            size={240}
             mask={false}
             closable={false}
             classNames={{ body: styles.drawerBody }}

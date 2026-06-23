@@ -8,6 +8,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 // ── AppHeader：应用级工具栏 ──────────────────────────────────────────────────
@@ -321,4 +322,31 @@
   position: relative;
   display: flex;
   flex-direction: column;
+}
+
+// ── 保存遮罩层 ────────────────────────────────────────────────────────────
+
+.savingOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  animation: overlayFadeIn var(--duration-normal) ease-out;
+}
+
+.savingText {
+  font-size: $text-base;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

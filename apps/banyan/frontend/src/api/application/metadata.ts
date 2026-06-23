@@ -7,7 +7,6 @@ import type { ApiResponse } from '../client'
 export interface Application {
   application_id: string
   name: string
-  description?: string
   thumbnail?: string
   /** 完整 App UI 定义 JSON（包含 lifetimes + scenes） */
   uiJSON?: string
@@ -28,7 +27,6 @@ export interface Application {
  */
 export interface ApplicationFormData {
   name: string
-  description?: string
   thumbnail?: string
   tags?: string[]
 }

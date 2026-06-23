@@ -84,11 +84,15 @@ export default function useFlowBanvas(
     const { backgroundColor } = options
 
     // ── 初始化：自适应模式画布 + 无限画布交互 ──
-    const { actions, elements, derived } = useAdaptiveCanvasInit({
-        appJSON: '',
-        rendererOptions: backgroundColor
+    const rendererOptions = useMemo(
+        () => backgroundColor
             ? { backgroundColor, clearColor: backgroundColor }
             : undefined,
+        [backgroundColor],
+    );
+    const { actions, elements, derived } = useAdaptiveCanvasInit({
+        appJSON: '',
+        rendererOptions,
     })
 
     const { selectedViewId, selectedViewPos, canvas } = derived
@@ -183,14 +187,14 @@ export default function useFlowBanvas(
     }, [actions, selectedViewId])
 
     // ── 右键菜单 ──
-    const { contextMenuState, handleContextMenu } = useFlowContextMenu(actions)
+    const { contextMenuState, onContextMenu } = useFlowContextMenu(actions)
 
     // ── 统一交互 Hook（Flow 模式） ──
     useInteraction({
         canvas,
         actions,
         mode: 'flow',
-        onFlowContextMenu: handleContextMenu,
+        onContextMenu,
     })
 
     return {

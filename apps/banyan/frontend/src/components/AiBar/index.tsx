@@ -16,12 +16,13 @@
  *   └─────────────────────────────────────────────┘
  *
  * 数据流：
- *   - 发送前：requestFlush() + save() 刷回 store 并持久化
+ *   - 发送前：save() 刷回 store 并持久化
  *   - initialPrompt 由 store 消费
  *   - onDone 回调调用 refreshFromBackend() 从后端拉取最新数据
  */
 
 import { useRef, useEffect, useState, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import { Image, Select, Tooltip, message as antdMessage } from "antd";
 import {
   CloseOutlined,
@@ -38,12 +39,6 @@ import { useApplicationStore } from "@/stores/applicationStore";
 import ConversationPanel from "./ConversationPanel";
 import styles from "./index.module.scss";
 
-// ─── Props ────────────────────────────────────────────────────────────────────
-
-export interface AiBarProps {
-  appId: string;
-}
-
 // ─── 粘贴图片类型 ─────────────────────────────────────────────────────────────
 
 interface PastedImage {
@@ -54,13 +49,14 @@ interface PastedImage {
 
 // ─── AiBar ────────────────────────────────────────────────────────────────────
 
-const AiBar: React.FC<AiBarProps> = ({ appId }) => {
+const AiBar: React.FC = () => {
+  const { id: appId } = useParams<{ id: string }>();
   const [inputValue, setInputValue] = useState("");
   const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ── ApplicationStore ────────────────────────────────────────────────────────
-  const { requestFlush, consumeInitialPrompt, refreshFromBackend } = useApplicationStore()
+  const { consumeInitialPrompt, refreshFromBackend } = useApplicationStore()
 
   // ─── 模型选择 ──────────────────────────────────────────────────────────────
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -90,11 +86,10 @@ const AiBar: React.FC<AiBarProps> = ({ appId }) => {
     await refreshFromBackend()
   }, [refreshFromBackend])
 
-  // onBeforeSend：先 flush ref → store，再 save 到后端，保证 AI 看到最新数据
+  // onBeforeSend：save() 内部 flush + 持久化，保证 AI 看到最新数据
   const handleBeforeSend = useCallback(async () => {
-    await requestFlush()
     await useApplicationStore.getState().save()
-  }, [requestFlush])
+  }, [])
 
   const {
     loading,
@@ -110,7 +105,7 @@ const AiBar: React.FC<AiBarProps> = ({ appId }) => {
     discardTask,
     retryError,
   } = useXiangDi({
-    appId,
+    appId: appId!,
     onBeforeSend: handleBeforeSend,
     onDone: handleDone,
   });
@@ -243,6 +238,9 @@ const AiBar: React.FC<AiBarProps> = ({ appId }) => {
 
   const canSend =
     (inputValue.trim().length > 0 || pastedImages.length > 0) && !loading && !uploading;
+
+  // appId 从路由参数获取，不存在时不渲染（必须放在所有 hooks 之后）
+  if (!appId) return null;
 
   return (
     <div className={styles.aiBar}>

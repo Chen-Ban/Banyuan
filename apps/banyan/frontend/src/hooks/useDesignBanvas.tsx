@@ -3,6 +3,7 @@ import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useInteraction } from "@/hooks/useInteraction";
 import { useDesignContextMenu } from "./useDesignContextMenu";
+import type { UseDesignContextMenuResult } from "./useDesignContextMenu";
 import type { IContextMenuState } from "@/types/contextMenu";
 
 /**
@@ -25,6 +26,8 @@ export interface IUseBanvasResult<TElement = unknown> {
   actions: IBanvasActions;
   /** 右键菜单上下文 */
   contextMenu: IContextMenuState;
+  /** 保存为物料弹窗控制 */
+  saveMaterial: UseDesignContextMenuResult['saveMaterial'];
 }
 
 export interface UseDesignBanvasOptions {
@@ -32,8 +35,6 @@ export interface UseDesignBanvasOptions {
   width: number;
   /** 页面样式高度（设计尺寸，CSS 像素） */
   height: number;
-  /** 序列化的应用 JSON（空字符串表示新建空白应用） */
-  uiJSON: string;
   appOptions?: Partial<import("@banyuan/banvasgl").IAppOptions>;
   rendererOptions?: Omit<import("@banyuan/banvasgl").IRendererOptions, "dpr">;
 }
@@ -41,7 +42,7 @@ export interface UseDesignBanvasOptions {
 export default function useDesignBanvas(
   options: UseDesignBanvasOptions,
 ): IUseBanvasResult<React.ReactElement> {
-  const { width, height, uiJSON, appOptions, rendererOptions } = options;
+  const { width, height, appOptions, rendererOptions } = options;
 
   // ── 初始化：固定模式画布 + textInput ──
   // flowEnabled: false — 编辑态禁止 FlowSchema 执行（显式传值，不依赖隐式约定）
@@ -56,21 +57,20 @@ export default function useDesignBanvas(
   const { actions, elements, derived } = useFixedCanvasInit({
     width,
     height,
-    uiJSON,
     appOptions: appOptionsStable,
     rendererOptions: rendererOptions ?? fallbackRendererOptions,
     textInput: true,
   });
 
   // ── 右键菜单 ──
-  const { contextMenu, onContextMenuHit } = useDesignContextMenu(actions);
+  const { contextMenu, onContextMenu, saveMaterial } = useDesignContextMenu(actions);
 
   useInteraction({
     canvas: derived.canvas,
     actions,
     mode: "design",
     inputElement: derived.inputElement,
-    onContextMenuHit,
+    onContextMenu,
   });
 
   return {
@@ -79,5 +79,6 @@ export default function useDesignBanvas(
     selectedViewId: derived.selectedViewId,
     actions: actions!,
     contextMenu,
+    saveMaterial,
   };
 }

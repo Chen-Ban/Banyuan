@@ -17,7 +17,6 @@ interface ViewEventsTabProps {
     mode: 'view'
     selectedViewId: string
     actions: IBanvasActions
-    appId?: string
     /** 请求打开流程编辑面板 */
     onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }
@@ -27,7 +26,6 @@ interface PageEventsTabProps {
     mode: 'page'
     pageId: string
     actions: IBanvasActions
-    appId?: string
     /** 请求打开流程编辑面板 */
     onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }
@@ -36,7 +34,6 @@ interface PageEventsTabProps {
 interface AppEventsTabProps {
     mode: 'app'
     actions: IBanvasActions
-    appId?: string
     /** 请求打开流程编辑面板 */
     onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }

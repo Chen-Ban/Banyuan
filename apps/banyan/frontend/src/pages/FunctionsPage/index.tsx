@@ -20,7 +20,7 @@ const FunctionsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   void navigate; // layout 负责导航
-  const { registerFlushHandler, setCloudFunctions: syncCloudFunctions } = useApplicationStore();
+  const { setCloudFunctions: syncCloudFunctions } = useApplicationStore();
 
   const [functions, setFunctions] = useState<CloudFunctionDef[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,16 +31,6 @@ const FunctionsPage: React.FC = () => {
   const flowEditorRef = useRef<FlowEditorHandle>(null);
 
   const handleDirtyChange = useCallback((d: boolean) => setDirty(d), []);
-
-  // ── 注册 flushHandler（ApplicationLayout 保存按钮触发） ──────────────────
-  useEffect(() => {
-    const unsubscribe = registerFlushHandler(async () => {
-      if (flowEditorRef.current && dirty) {
-        await flowEditorRef.current.save();
-      }
-    });
-    return unsubscribe;
-  }, [dirty, registerFlushHandler]);
 
   // ── 加载云函数列表 ───────────────────────────────────────────────────────
 

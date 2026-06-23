@@ -13,7 +13,6 @@ export interface PropertyPanelProps {
   selectedViewId: string
   actions: IBanvasActions
   currentPageId: string | null
-  appId?: string
   /** 请求打开流程编辑面板（状态提升到 UIPage） */
   onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }
@@ -22,7 +21,6 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   selectedViewId,
   actions,
   currentPageId,
-  appId,
   onOpenFlowEditor,
 }) => {
   const view = selectedViewId
@@ -95,7 +93,6 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
         mode="page"
         pageId={currentPageId}
         actions={actions}
-        appId={appId}
         onOpenFlowEditor={onOpenFlowEditor}
       />
     ) : null
@@ -161,7 +158,6 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           mode="view"
           selectedViewId={selectedViewId}
           actions={actions}
-          appId={appId}
           onOpenFlowEditor={onOpenFlowEditor}
         />
       ),

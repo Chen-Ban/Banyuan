@@ -2,7 +2,7 @@
  * Data API — 业务数据查询层
  *
  * 业务数据存储在本地 Preview Server 中（独立 MongoDB 实例）。
- * 所有请求直接打到 Preview Server 地址（从 PreviewServerCtx 获取）。
+ * 所有请求直接打到 Preview Server 地址（从 previewServerStore 获取）。
  *
  * 注意：不再走 banyan 后端（:3001），banyan 后端只负责元数据存储。
  */
