@@ -3,7 +3,7 @@ import MediaElement from "./MediaElement";
 import { Style } from "@/foundation/style";
 import type { IVideoElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext, IDrawingVideoSource, IDrawingVideoLoadOptions, IDrawingImageData } from '@/types/platform/drawing.js'
 import { generateId } from '@/foundation/utils';
 
 /**
@@ -38,8 +38,8 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   /** 图形类型标识 */
   public type: GraphType = GraphType.VIDEO;
 
-  /** 底层 HTMLVideoElement 对象，加载完成后赋值 */
-  public video: HTMLVideoElement | null = null;
+  /** 平台无关的视频像素源，加载完成后赋值 */
+  public video: IDrawingVideoSource | null = null;
   /** 是否自动播放，默认 `false` */
   public autoplay: boolean = false;
   /** 是否循环播放，默认 `false` */
@@ -88,56 +88,45 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   /**
    * 异步加载视频。
    *
-   * 创建 `HTMLVideoElement` 并设置 `crossOrigin = 'anonymous'` 以支持跨域视频，
-   * `preload = 'metadata'` 以预加载元数据。
-   * 若 {@link autoplay}/{@link loop}/{@link muted} 已设置，同步到 video 元素属性。
+   * 引擎不再直接创建 HTMLVideoElement，改为通过平台注入的 IDrawingContext 加载像素源。
+   * 构造时此方法为 no-op（不自动加载），需在 app 初始化时通过 loadVideoWithContext(ctx) 显式加载。
    *
-   * 通过 Promise 封装 `onloadedmetadata`/`onerror` 回调：
-   * - `onloadedmetadata`：赋值 {@link video}，更新 `actualWidth`/`actualHeight` 和 `loaded`，同步控制点
-   * - `onerror`：reject 并打印错误日志
-   *
-   * @private
-   * @returns {Promise<void>} 视频元数据加载完成后 resolve，加载失败则 reject
-   *
-   * @example
-   * ```ts
-   * await video.loadVideo();
-   * video.loaded; // true
-   * ```
+   * @deprecated 请使用 loadVideoWithContext(ctx) 传入平台 DrawingContext 进行加载
+   * @returns {Promise<void>} 立即 resolve（无操作）
    */
   private async loadVideo(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const video = document.createElement("video");
-      video.crossOrigin = "anonymous"; // 支持跨域视频
-      video.preload = "metadata";
+    // 引擎不再直接创建 DOM VideoElement。
+    // 视频源加载需要通过 loadVideoWithContext(ctx) 由平台层注入。
+    return Promise.resolve()
+  }
 
-      if (this.autoplay) {
-        video.autoplay = true;
+  /**
+   * 使用平台 DrawingContext 加载视频像素源。
+   *
+   * 调用 ctx.loadVideoSource() 获取平台无关的 IDrawingVideoSource，
+   * 自动同步播放选项（autoplay/loop/muted），完成后更新 actualWidth/actualHeight/loaded。
+   *
+   * @param {IDrawingContext} ctx - 平台绘图上下文
+   * @returns {Promise<void>} 加载完成后 resolve
+   */
+  async loadVideoWithContext(ctx: IDrawingContext): Promise<void> {
+    if (!this.src) return
+    try {
+      const options: IDrawingVideoLoadOptions = {
+        autoplay: this.autoplay,
+        loop: this.loop,
+        muted: this.muted,
+        crossOrigin: 'anonymous',
       }
-      if (this.loop) {
-        video.loop = true;
-      }
-      if (this.muted) {
-        video.muted = true;
-      }
-
-      video.onloadedmetadata = () => {
-        this.video = video;
-        this.actualWidth = video.videoWidth;
-        this.actualHeight = video.videoHeight;
-        this.loaded = true;
-        // 媒体加载完成后，更新控制点和边界框
-        this.updateControlPoints();
-        resolve();
-      };
-
-      video.onerror = () => {
-        console.error(`Failed to load video: ${this.src}`);
-        reject(new Error(`Failed to load video: ${this.src}`));
-      };
-
-      video.src = this.src;
-    });
+      const source = await ctx.loadVideoSource(this.src, options)
+      this.video = source
+      this.actualWidth = source.width
+      this.actualHeight = source.height
+      this.loaded = true
+      this.updateControlPoints()
+    } catch (e) {
+      console.error(`Failed to load video: ${this.src}`, e)
+    }
   }
 
   /**
@@ -404,33 +393,21 @@ export default class VideoElement extends MediaElement implements IVideoElement,
   /**
    * 获取视频当前帧的像素数据。
    *
-   * 创建临时 Canvas，将当前帧以视频原始分辨率（`videoWidth` × `videoHeight`）绘制到上面，
-   * 再通过 `ctx.getImageData` 提取完整的像素数据。
+   * 通过平台 DrawingContext 提取像素数据（ctx.extractImageData），
+   * 封装了"临时画布 → drawImage → getImageData"的平台实现细节。
    * 需要视频已加载完成且跨域配置正确，否则返回 `null`。
    *
-   * @returns {ImageData | null} 当前帧像素数据；若未加载或 Canvas 不可用则返回 `null`
-   *
-   * @example
-   * ```ts
-   * const video = new VideoElement('clip.mp4', 0, 0, 640, 360);
-   * await video.loadMedia();
-   * const pixels = video.getImageData();
-   * // pixels.data[0] → 当前帧左上角第一个像素的 R 通道值
-   * ```
+   * @param {IDrawingContext} ctx - 平台绘图上下文
+   * @returns {IDrawingImageData | null} 当前帧像素数据；若未加载则返回 `null`
    */
-  getImageData(): ImageData | null {
+  getImageData(ctx: IDrawingContext): IDrawingImageData | null {
     if (!this.video || !this.loaded) return null;
 
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-
-    canvas.width = this.video.videoWidth;
-    canvas.height = this.video.videoHeight;
-
-    ctx.drawImage(this.video, 0, 0, this.video.videoWidth, this.video.videoHeight);
-
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    return ctx.extractImageData(
+      this.video,
+      this.video.width,
+      this.video.height
+    )
   }
 
   /**

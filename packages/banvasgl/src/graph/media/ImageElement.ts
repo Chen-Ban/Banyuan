@@ -3,7 +3,7 @@ import MediaElement from './MediaElement'
 import { Style } from '@/foundation/style'
 import type { IImageElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext, IDrawingImageSource } from '@/types/platform/drawing.js'
+import type { IDrawingContext, IDrawingImageSource, IDrawingImageData } from '@/types/platform/drawing.js'
 import { generateId } from '@/foundation/utils'
 
 /**
@@ -89,42 +89,39 @@ export default class ImageElement extends MediaElement implements IImageElement,
     /**
      * 异步加载图片。
      *
-     * 创建 `HTMLImageElement` 并设置 `crossOrigin = 'anonymous'` 以支持跨域图片，
-     * 通过 Promise 封装 `onload`/`onerror` 回调：
-     * - `onload`：赋值 {@link image}，更新 `actualWidth`/`actualHeight` 和 `loaded`，同步控制点和包围盒
-     * - `onerror`：reject 并打印错误日志
+     * 引擎不再直接创建 HTMLImageElement，改为通过平台注入的 IDrawingContext 加载像素源。
+     * 构造时此方法为 no-op（不自动加载），需在 app 初始化时通过 loadImageWithContext(ctx) 显式加载。
      *
-     * @private
-     * @returns {Promise<void>} 图片加载完成后 resolve，加载失败则 reject
-     *
-     * @example
-     * ```ts
-     * await img.loadImage();
-     * img.loaded; // true
-     * ```
+     * @deprecated 请使用 loadImageWithContext(ctx) 传入平台 DrawingContext 进行加载
+     * @returns {Promise<void>} 立即 resolve（无操作）
      */
     private async loadImage(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const img = new Image()
-            img.crossOrigin = 'anonymous' // 支持跨域图片
+        // 引擎不再直接创建 DOM Image。
+        // 图像源加载需要通过 loadImageWithContext(ctx) 由平台层注入。
+        return Promise.resolve()
+    }
 
-            img.onload = () => {
-                this.image = img
-                this.actualWidth = img.naturalWidth
-                this.actualHeight = img.naturalHeight
-                this.loaded = true
-                // 媒体加载完成后，更新控制点和边界框
-                this.updateControlPoints()
-                resolve()
-            }
-
-            img.onerror = () => {
-                console.error(`Failed to load image: ${this.src}`)
-                reject(new Error(`Failed to load image: ${this.src}`))
-            }
-
-            img.src = this.src
-        })
+    /**
+     * 使用平台 DrawingContext 加载图片像素源。
+     *
+     * 调用 ctx.loadImageSource() 获取平台无关的 IDrawingImageSource，
+     * 完成后更新 actualWidth/actualHeight/loaded 和控制点。
+     *
+     * @param {IDrawingContext} ctx - 平台绘图上下文
+     * @returns {Promise<void>} 加载完成后 resolve
+     */
+    async loadImageWithContext(ctx: IDrawingContext): Promise<void> {
+        if (!this.src) return
+        try {
+            const source = await ctx.loadImageSource(this.src, 'anonymous')
+            this.image = source
+            this.actualWidth = source.width
+            this.actualHeight = source.height
+            this.loaded = true
+            this.updateControlPoints()
+        } catch (e) {
+            console.error(`Failed to load image: ${this.src}`, e)
+        }
     }
 
     /**
@@ -216,39 +213,21 @@ export default class ImageElement extends MediaElement implements IImageElement,
     /**
      * 获取图片的像素数据。
      *
-     * 创建临时 Canvas，将图片以原始尺寸（`naturalWidth` × `naturalHeight`）绘制到上面，
-     * 再通过 `ctx.getImageData` 提取完整的像素数据。
+     * 通过平台 DrawingContext 提取像素数据（ctx.extractImageData），
+     * 封装了"临时画布 → drawImage → getImageData"的平台实现细节。
      * 需要图片已加载完成且跨域配置正确，否则返回 `null`。
      *
-     * @returns {ImageData | null} 图片像素数据；若未加载或 Canvas 不可用则返回 `null`
-     *
-     * @example
-     * ```ts
-     * const img = new ImageElement('photo.jpg', 0, 0, 100, 100);
-     * await img.loadMedia();
-     * const pixels = img.getImageData();
-     * // pixels.data[0] → 第一个像素的 R 通道值
-     * ```
+     * @param {IDrawingContext} ctx - 平台绘图上下文
+     * @returns {IDrawingImageData | null} 图片像素数据；若未加载则返回 `null`
      */
-    getImageData(): ImageData | null {
+    getImageData(ctx: IDrawingContext): IDrawingImageData | null {
         if (!this.image || !this.loaded) return null
 
-        const canvas = document.createElement('canvas')
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return null
-
-        canvas.width = this.actualWidth
-        canvas.height = this.actualHeight
-
-        ctx.drawImage(
-            this.image as unknown as CanvasImageSource,
-            0,
-            0,
+        return ctx.extractImageData(
+            this.image,
             this.actualWidth,
             this.actualHeight
         )
-
-        return ctx.getImageData(0, 0, canvas.width, canvas.height)
     }
 
     /**
@@ -365,29 +344,20 @@ export default class ImageElement extends MediaElement implements IImageElement,
     }
 
     /**
-     * 从 HTMLCanvasElement 创建图片元素的静态工厂方法。
+     * 从平台无关的图像源创建图片元素的静态工厂方法。
      *
      * @deprecated 请使用平台无关的 {@link fromImageSource}，它接受任意 {@link IDrawingImageSource}。
-     *             HTMLCanvasElement 本身已满足 IDrawingImageSource 接口。
      *
-     * @param {HTMLCanvasElement} canvas - 源 Canvas 元素
+     * @param {IDrawingImageSource} source - 平台无关的图像源
      * @param {number} x - 矩形左上角 x 坐标
      * @param {number} y - 矩形左上角 y 坐标
      * @param {number} width - 矩形宽度
      * @param {number} height - 矩形高度
      * @param {Style} [_style] - 元素样式
      * @returns {Promise<ImageElement>} 加载完成后 resolve 为图片元素实例
-     *
-     * @example
-     * ```ts
-     * // 旧用法（不推荐）
-     * const img = await ImageElement.fromCanvas(canvas, 0, 0, 200, 100);
-     * // 新用法（推荐）
-     * const img = ImageElement.fromImageSource(canvas, 0, 0, 200, 100);
-     * ```
      */
     static fromCanvas(
-        canvas: HTMLCanvasElement,
+        source: IDrawingImageSource,
         x: number,
         y: number,
         width: number,
@@ -395,7 +365,7 @@ export default class ImageElement extends MediaElement implements IImageElement,
         _style?: Style
     ): Promise<ImageElement> {
         return Promise.resolve(
-            ImageElement.fromImageSource(canvas, x, y, width, height, _style)
+            ImageElement.fromImageSource(source, x, y, width, height, _style)
         )
     }
 }

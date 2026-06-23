@@ -4,7 +4,7 @@ import { Style } from '@/foundation/style'
 import Bounds from '@/graph/base/Bounds'
 import Rectangle from '@/graph/combined/Polygon/Rectangle'
 import type { IMediaElement } from '@/types/graph/graph'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext, IDrawingImageData } from '@/types/platform/drawing.js'
 
 /**
  * 媒体元素抽象基类。
@@ -301,7 +301,7 @@ export default abstract class MediaElement extends Graph implements IMediaElemen
      * const data = img.getImageData(); // ImageData { width: ..., height: ..., data: ... }
      * ```
      */
-    public abstract getImageData(): ImageData | null
+    public abstract getImageData(ctx: IDrawingContext): IDrawingImageData | null
 
     /**
      * 获取矩形周长上参数 `t` 对应的点。
