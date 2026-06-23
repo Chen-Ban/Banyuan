@@ -689,7 +689,7 @@ export class App implements ISerializable {
   public setDesignSize(width: number, height: number): App {
     this._designSize = { width, height };
 
-    // 同步 canvas 物理像素（renderer 内部乘以 dpr）
+    // 同步 canvas 物理像素（dpr 由平台层内部处理）
     this.renderer.resize(width, height);
 
     // 同步当前 Scene 的 Camera bounds

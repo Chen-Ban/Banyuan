@@ -102,10 +102,9 @@ export class Renderer {
     }
   }
 
-  // 调整画布尺寸（逻辑像素，内部乘以 dpr）
+  // 调整画布尺寸（逻辑像素，dpr 由平台层内部处理）
   public resize(logicalWidth: number, logicalHeight: number): void {
-    const dpr = this._canvasHost.dpr;
-    this._canvasHost.resize(logicalWidth * dpr, logicalHeight * dpr);
+    this._canvasHost.resize(logicalWidth, logicalHeight);
   }
 
   // 获取画布尺寸
