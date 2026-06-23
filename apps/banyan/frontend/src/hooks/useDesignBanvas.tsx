@@ -33,7 +33,7 @@ export interface UseDesignBanvasOptions {
   /** 页面样式高度（设计尺寸，CSS 像素） */
   height: number;
   /** 序列化的应用 JSON（空字符串表示新建空白应用） */
-  appJSON: string;
+  uiJSON: string;
   appOptions?: Partial<import("@banyuan/banvasgl").IAppOptions>;
   rendererOptions?: Omit<import("@banyuan/banvasgl").IRendererOptions, "dpr">;
 }
@@ -41,16 +41,24 @@ export interface UseDesignBanvasOptions {
 export default function useDesignBanvas(
   options: UseDesignBanvasOptions,
 ): IUseBanvasResult<React.ReactElement> {
-  const { width, height, appJSON, appOptions, rendererOptions } = options;
+  const { width, height, uiJSON, appOptions, rendererOptions } = options;
 
   // ── 初始化：固定模式画布 + textInput ──
   // flowEnabled: false — 编辑态禁止 FlowSchema 执行（显式传值，不依赖隐式约定）
+  const appOptionsStable = React.useMemo(
+    () => ({ flowEnabled: false, ...appOptions }),
+    [appOptions],
+  );
+  const fallbackRendererOptions = React.useMemo(
+    () => ({ clearColor: "#fff" }),
+    [],
+  );
   const { actions, elements, derived } = useFixedCanvasInit({
     width,
     height,
-    appJSON,
-    appOptions: { flowEnabled: false, ...appOptions },
-    rendererOptions: rendererOptions ?? { clearColor: "#fff" },
+    uiJSON,
+    appOptions: appOptionsStable,
+    rendererOptions: rendererOptions ?? fallbackRendererOptions,
     textInput: true,
   });
 

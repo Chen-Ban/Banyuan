@@ -13,11 +13,11 @@
  *   └──────────────────────────────────────────────────────────┘
  *
  * 职责：
- *   - 从 applicationStore 加载 appJSON 初始化 useDesignBanvas
+ *   - 从 applicationStore 加载 uiJSON 初始化 useDesignBanvas
  *   - 渲染物料面板、画布、PropertyDrawer
  *   - 管理 FlowEditorPanel 状态（从 EventsTab 提升）
  *   - 注册 flushHandler：路由离开或保存前将 ref 实时态 flush 到 store
- *   - 订阅 store.appJSON 变化（AI done / refreshFromBackend 后画布重载）
+ *   - 订阅 store.uiJSON 变化（AI done / refreshFromBackend 后画布重载）
  *
  * 设计决策来源：docs/specs/app/metadata-dataflow.md 步骤 7
  */
@@ -64,18 +64,18 @@ const UIPage = () => {
     setDesignSize,
     registerActions,
     registerFlushHandler,
-    flushAppJSON,
+    flushUIJSON,
     consumeInitialPrompt,
   } = useApplicationStore()
 
-  // ── 画布初始化用的 appJSON（仅在以下情况更新以避免不必要的画布重初始化）：
+  // ── 画布初始化用的 uiJSON（仅在以下情况更新以避免不必要的画布重初始化）：
   //    1. 首次加载
-  //    2. AI done 后 refreshFromBackend 更新了 store.appJSON
+  //    2. AI done 后 refreshFromBackend 更新了 store.uiJSON
   const [canvasAppJSON, setCanvasAppJSON] = useState<string>('');
   const [loaded, setLoaded] = useState(false);
   const needsThumbnailRef = useRef(false);
 
-  // 跟踪是否为本组件自己 flush 导致的 store appJSON 变化（避免循环更新）
+  // 跟踪是否为本组件自己 flush 导致的 store uiJSON 变化（避免循环更新）
   const selfFlushRef = useRef(false);
 
   // canvasSection 容器，作为两个抽屉的挂载容器（仅覆盖画布区域）
@@ -102,14 +102,14 @@ const UIPage = () => {
     setFlowEditor(CLOSED_FLOW_EDITOR);
   }, []);
 
-  // ── 加载应用数据（从 store 获取 appJSON） ──────────────────────────────────
+  // ── 加载应用数据（从 store 获取 uiJSON） ──────────────────────────────────
   useEffect(() => {
     if (!application_id) return;
     // store.load 在 ApplicationLayout 中已调用，这里只需从 store 读取
     // 但为安全起见，如果 store 未加载（appId 不匹配），fallback 加载
     const state = useApplicationStore.getState();
-    if (state.appId === application_id && state.appJSON !== undefined) {
-      setCanvasAppJSON(state.appJSON);
+    if (state.appId === application_id && state.uiJSON !== undefined) {
+      setCanvasAppJSON(state.uiJSON);
       setLoaded(true);
       // 检测是否需要缩略图
       applicationApi.fetchApplication(application_id).then((res) => {
@@ -120,7 +120,7 @@ const UIPage = () => {
         .fetchApplication(application_id)
         .then((res) => {
           const application = res.data!;
-          setCanvasAppJSON(application.appJSON || '');
+          setCanvasAppJSON(application.uiJSON || '');
           needsThumbnailRef.current = !application.thumbnail;
           setLoaded(true);
         })
@@ -131,15 +131,15 @@ const UIPage = () => {
     }
   }, [application_id, message]);
 
-  // ── 订阅 store.appJSON 变化（AI done 后 refreshFromBackend 更新） ─────────
+  // ── 订阅 store.uiJSON 变化（AI done 后 refreshFromBackend 更新） ─────────
   useEffect(() => {
     const unsub = useApplicationStore.subscribe((state, prevState) => {
-      if (state.appJSON === prevState.appJSON) return;
-      // appJSON 发生变化：若是自己 flush 导致的则消费 flag 并跳过，否则更新画布
+      if (state.uiJSON === prevState.uiJSON) return;
+      // uiJSON 发生变化：若是自己 flush 导致的则消费 flag 并跳过，否则更新画布
       if (selfFlushRef.current) {
         selfFlushRef.current = false;
       } else {
-        setCanvasAppJSON(state.appJSON);
+        setCanvasAppJSON(state.uiJSON);
       }
     });
     return unsub;
@@ -158,7 +158,7 @@ const UIPage = () => {
     () => ({
       width: 1280,
       height: 800,
-      appJSON: loaded ? canvasAppJSON : '',
+      uiJSON: loaded ? canvasAppJSON : '',
       appOptions: {
         enablePageStack: true,
         maxPageStackSize: 50,
@@ -217,10 +217,10 @@ const UIPage = () => {
     const unsubscribe = registerFlushHandler(async () => {
       const serialized = actions.app.getSerializedApp();
       selfFlushRef.current = true;
-      flushAppJSON(serialized);
+      flushUIJSON(serialized);
     });
     return unsubscribe;
-  }, [application_id, actions, registerFlushHandler, flushAppJSON]);
+  }, [application_id, actions, registerFlushHandler, flushUIJSON]);
 
   // ── 路由离开时自动 flush ──────────────────────────────────────────────────
   useEffect(() => {
@@ -229,7 +229,7 @@ const UIPage = () => {
       try {
         const serialized = actions.app.getSerializedApp();
         selfFlushRef.current = true;
-        useApplicationStore.getState().flushAppJSON(serialized);
+        useApplicationStore.getState().flushUIJSON(serialized);
       } catch {
         // actions 可能已销毁，静默忽略
       }
@@ -299,7 +299,7 @@ const UIPage = () => {
             open={paletteOpen}
             onClose={() => setPaletteOpen(false)}
             placement="left"
-            width={260}
+            size={260}
             mask={false}
             closable={false}
             classNames={{ body: styles.drawerBody }}
@@ -333,7 +333,6 @@ const UIPage = () => {
             selectedViewId={selectedViewId}
             actions={actions}
             currentPageId={currentPageId || ""}
-            appId={application_id}
             onOpenFlowEditor={handleOpenFlowEditor}
           />
         </div>

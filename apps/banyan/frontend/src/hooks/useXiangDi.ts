@@ -80,7 +80,7 @@ export interface UseXiangDiOptions {
   onDone?: (summary: string) => void
   /** 发生错误时回调 */
   onError?: (message: string) => void
-  /** task 确认成功后回调（可用于重新加载 appJSON） */
+  /** task 确认成功后回调（可用于重新加载 uiJSON） */
   onConfirmed?: (dialogueId: string) => void
   /** task 撤销后回调（前端应回滚画布到对话前的状态） */
   onDiscarded?: () => void

@@ -1,10 +1,10 @@
 /**
  * ApplicationStore — 应用编辑态全局状态（zustand）
  *
- * 持有业务数据：appJSON（string）/ collections / cloudFunctions
+ * 持有业务数据：uiJSON（string）/ dataSchema / cloudFunctions
  *   - save()：调用聚合端点 PUT /apps/:appId/save-all 持久化后推送 PreviewServer
  *   - refreshFromBackend()：AI done 后拉取最新数据并推送 PreviewServer
- *   - flushAppJSON()：将画布/编辑器实时态写回 store.appJSON
+ *   - flushUIJSON()：将画布/编辑器实时态写回 store.uiJSON
  *   - load()：初始化加载全量数据
  *
  * 画布引擎实例（actions）直接挂载到 store：
@@ -47,15 +47,15 @@ export interface ApplicationState {
   // ── 业务数据 ─────────────────────────────────────────────────────────────────
   /** 当前应用 ID */
   appId: string | null
-  /** App.serialize() 产出的完整 JSON 字符串 */
-  appJSON: string
+  /** App.serialize() 产出的完整 UI 定义 JSON 字符串 */
+  uiJSON: string
   /** 数据表定义 */
-  collections: CollectionDef[]
+  dataSchema: CollectionDef[]
   /** 云函数定义 */
   cloudFunctions: CloudFunctionDef[]
 
   // ── 状态标识 ─────────────────────────────────────────────────────────────────
-  /** appJSON 是否有未保存的编辑 */
+  /** uiJSON 是否有未保存的编辑 */
   isDirty: boolean
   /** 是否正在保存 */
   isSaving: boolean
@@ -92,10 +92,10 @@ export interface ApplicationActions {
   save: () => Promise<void>
   /** AI done 后拉取最新数据并推送 PreviewServer */
   refreshFromBackend: () => Promise<void>
-  /** 将实时态写回 store.appJSON（仅更新 appJSON，不触发 hotUpdate） */
-  flushAppJSON: (serialized: string) => void
-  /** 更新 collections（CRUD 后调用） */
-  setCollections: (collections: CollectionDef[]) => void
+  /** 将实时态写回 store.uiJSON（仅更新 uiJSON，不触发 hotUpdate） */
+  flushUIJSON: (serialized: string) => void
+  /** 更新 dataSchema（CRUD 后调用） */
+  setDataSchema: (dataSchema: CollectionDef[]) => void
   /** 更新 cloudFunctions（CRUD 后调用） */
   setCloudFunctions: (cloudFunctions: CloudFunctionDef[]) => void
 
@@ -110,8 +110,8 @@ export interface ApplicationActions {
   // ── 画布引擎实例挂载 ────────────────────────────────────────────────────────
   /** 活跃画布页挂载引擎实例。返回卸载函数。 */
   registerActions: (actions: IBanvasActions) => () => void
-  /** 取当前画布最新序列化结果（画布未挂载时返回 store.appJSON 兜底） */
-  getSerializedApp: () => string
+  /** 取当前画布最新序列化结果（画布未挂载时返回 store.uiJSON 兜底） */
+  getSerializedUI: () => string
 
   // ── Flush 总线（子页面注册 handler 将本地态刷回 store） ─────────────────────
   /**
@@ -142,8 +142,8 @@ const flushHandlers = new Set<() => Promise<void>>()
 
 const initialState: ApplicationState = {
   appId: null,
-  appJSON: '',
-  collections: [],
+  uiJSON: '',
+  dataSchema: [],
   cloudFunctions: [],
   isDirty: false,
   isSaving: false,
@@ -163,8 +163,8 @@ export const useApplicationStore = create<ApplicationState & ApplicationActions>
     const res = await fullStateApi.getFullState(appId)
     if (res.success && res.data) {
       set({
-        appJSON: res.data.appJSON,
-        collections: res.data.collections,
+        uiJSON: res.data.uiJSON,
+        dataSchema: res.data.collections,
         cloudFunctions: res.data.cloudFunctions,
         isDirty: false,
       })
@@ -174,15 +174,15 @@ export const useApplicationStore = create<ApplicationState & ApplicationActions>
   },
 
   save: async () => {
-    const { appId, appJSON, collections, cloudFunctions, isSaving } = get()
+    const { appId, uiJSON, dataSchema, cloudFunctions, isSaving } = get()
     if (!appId || isSaving) return
 
     set({ isSaving: true })
     try {
-      await fullStateApi.saveAll(appId, { appJSON, collections, cloudFunctions })
+      await fullStateApi.saveAll(appId, { uiJSON, collections: dataSchema, cloudFunctions })
       set({ isDirty: false })
       // 持久化成功后推送 PreviewServer
-      hotUpdatePreview(collections, cloudFunctions)
+      hotUpdatePreview(dataSchema, cloudFunctions)
     } finally {
       set({ isSaving: false })
     }
@@ -194,8 +194,8 @@ export const useApplicationStore = create<ApplicationState & ApplicationActions>
     const res = await fullStateApi.getFullState(appId)
     if (res.success && res.data) {
       set({
-        appJSON: res.data.appJSON,
-        collections: res.data.collections,
+        uiJSON: res.data.uiJSON,
+        dataSchema: res.data.collections,
         cloudFunctions: res.data.cloudFunctions,
         isDirty: false,
       })
@@ -204,18 +204,18 @@ export const useApplicationStore = create<ApplicationState & ApplicationActions>
     }
   },
 
-  flushAppJSON: (serialized) => {
-    set({ appJSON: serialized, isDirty: true })
+  flushUIJSON: (serialized) => {
+    set({ uiJSON: serialized, isDirty: true })
   },
 
-  setCollections: (collections) => {
-    set({ collections })
-    hotUpdatePreview(collections, get().cloudFunctions)
+  setDataSchema: (dataSchema) => {
+    set({ dataSchema })
+    hotUpdatePreview(dataSchema, get().cloudFunctions)
   },
 
   setCloudFunctions: (cloudFunctions) => {
     set({ cloudFunctions })
-    hotUpdatePreview(get().collections, cloudFunctions)
+    hotUpdatePreview(get().dataSchema, cloudFunctions)
   },
 
   // ── 应用元数据 ─────────────────────────────────────────────────────────────
@@ -238,9 +238,9 @@ export const useApplicationStore = create<ApplicationState & ApplicationActions>
     }
   },
 
-  getSerializedApp: () => {
+  getSerializedUI: () => {
     const actions = get().actions
-    return actions ? actions.app.getSerializedApp() : get().appJSON
+    return actions ? actions.app.getSerializedApp() : get().uiJSON
   },
 
   // ── Flush 总线 ──────────────────────────────────────────────────────────────
