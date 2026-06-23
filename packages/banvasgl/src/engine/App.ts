@@ -7,7 +7,6 @@ import type {
   IAppLifetimes,
   INavigationOptions,
 } from "@/types/engine/app.js";
-import type { IRendererOptions } from "@/types/engine/renderer.js";
 import type { ISerializable } from "@/types/foundation/serializable.js";
 import { AppType } from "@/foundation/constants";
 import { createClientFlowRunner } from "@/foundation/flow/presets/client.js";
@@ -16,7 +15,7 @@ import type { FrontendCapProxy } from "@/types/foundation/flow/context.js";
 import { AnimationManager } from "@/foundation/animation";
 import { flattenViewTree } from "@/engine/scene/utils";
 import type View from "@/view/View/View";
-import type { IPlatformCanvas } from "@/types/platform/canvas.js";
+import type { IDrawingSurface } from "@/types/platform/surface.js";
 
 export class App implements ISerializable {
   // 类型标识（用于 Serializer 注册）
@@ -839,16 +838,15 @@ export class App implements ISerializable {
 
 
   /**
-   * 平台无关工厂：从 IPlatformCanvas 创建应用
+   * 平台无关工厂：从 IDrawingSurface 创建应用
    *
-   * 各平台（Web / React Native / Skia / Node）通过此方法注入平台画布。
+   * 各平台（Web / React Native / Skia / Node）通过此方法注入画布表面。
    */
   public static create(
-    platform: IPlatformCanvas,
+    surface: IDrawingSurface,
     options: IAppOptions,
-    rendererOptions: IRendererOptions = {},
   ): App {
-    const renderer = Renderer.fromPlatform(platform, rendererOptions);
+    const renderer = new Renderer(surface);
     return new App(renderer, options);
   }
 }

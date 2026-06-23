@@ -466,7 +466,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
       };
       if (!app || !scene) return empty;
 
-      const bufferCtx = app.renderer.getCanvasContext().getBufferContext();
+      const bufferCtx = app.renderer.getSurface().offscreen;
       let result: IInteractResult = empty;
       for (const view of scene.children) {
         const hit = view.interact(point, bufferCtx);
@@ -482,7 +482,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
       const scene = getScene();
       if (!app || !scene) return [];
 
-      const bufferCtx = app.renderer.getCanvasContext().getBufferContext();
+      const bufferCtx = app.renderer.getSurface().offscreen;
       const results: IInteractResult[] = [];
       for (const view of scene.children) {
         const hit = view.interact(point, bufferCtx);
@@ -506,7 +506,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
       };
       if (!app || !scene) return empty;
 
-      const bufferCtx = app.renderer.getCanvasContext().getBufferContext();
+      const bufferCtx = app.renderer.getSurface().offscreen;
       let result: IInteractResult & { cursor: Cursor } = empty;
       for (const view of scene.children) {
         const hit = view.interact(point, bufferCtx);
@@ -520,7 +520,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
     getBufferContext(): IDrawingContext | null {
       const app = getApp();
       if (!app) return null;
-      return app.renderer.getCanvasContext().getBufferContext();
+      return app.renderer.getSurface().offscreen;
     },
 
     addTempChild(view: View): void {

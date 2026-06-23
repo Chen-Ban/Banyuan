@@ -25,7 +25,7 @@ import { Rectangle } from '@/graph/combined/Polygon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
 import type Matrix4 from '@/foundation/math/Matrix4.js'
 import type { IDrawingContext, IDrawingGradient, IDrawingPattern } from "@/types/platform/drawing.js";
-import type { ICanvasHost } from "@/types/platform/host.js";
+import type { IDrawingSurface } from "@/types/platform/surface.js";
 import { Point3, Vector3 } from '@/foundation/math/index.js'
 
 export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSchemaMap>
@@ -158,13 +158,13 @@ export default abstract class ContainerView<D extends IFieldSchemaMap = IFieldSc
      * 由基类 renderToOffScreen 在 scroll translate 上下文中调用。
      */
     protected override renderChildren(
-        canvasContext: ICanvasHost,
+        surface: IDrawingSurface,
         _offscreenCtx: IDrawingContext,
     ): void {
         this._children.forEach((view) => {
             if (!view.visible) return
             // renderToOffScreen 是 View 的 private 方法，通过 (view as any) 访问
-            ;(view as any).renderToOffScreen(canvasContext)
+            ;(view as any).renderToOffScreen(surface)
         })
     }
 
