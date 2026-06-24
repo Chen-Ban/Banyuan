@@ -1,29 +1,4 @@
-/**
- * 视频图案平铺模式
- *
- * 与 PatternRepeat 语义相同，定义视频帧在画布上的平铺方式。
- *
- * @example
- * ```ts
- * const repeat: VideoRepeat = 'no-repeat' // 视频不平铺，仅显示一次
- * ```
- */
-export type VideoRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat'
-
-/**
- * 视频尺寸
- *
- * 指定视频在画布上的渲染宽高（像素）。
- *
- * @example
- * ```ts
- * const size: VideoSize = { width: 320, height: 240 }
- * ```
- */
-export interface VideoSize {
-  width: number
-  height: number
-}
+import type { VideoRepeat, VideoSize } from '@/types/foundation/style'
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'

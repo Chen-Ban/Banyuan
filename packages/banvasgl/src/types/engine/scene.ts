@@ -11,7 +11,7 @@
 
 import type { IView, FlowSchema } from '../view/view'
 import type { ICamera } from './camera'
-import type { IAnimationDescriptor } from './animation'
+import type { IAnimationDescriptor } from '../foundation/animation'
 
 // ────────────────────────────────────────────
 //  操作栈相关类型（re-export）

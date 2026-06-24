@@ -3,11 +3,7 @@ import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
 import type { IDrawingContext } from '@/types/platform/drawing.js'
 import type { IGradient } from '@/types/foundation/gradient.js'
-
-export type GradientStop = {
-  color: Color
-  position: number // 0-1
-}
+import type { GradientStop } from '@/types/foundation/style'
 
 /**
  * 渐变抽象基类

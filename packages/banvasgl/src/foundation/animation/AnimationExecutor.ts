@@ -1,4 +1,4 @@
-import MathUtils, { type ResolvedKeyframeSegment } from '@/foundation/math/MathUtils'
+import MathUtils from '@/foundation/math/MathUtils'
 import Matrix4 from '@/foundation/math/Matrix4'
 import type AnimationDescriptor from './AnimationDescriptor'
 import type {
@@ -6,15 +6,9 @@ import type {
     KeyframeProps,
     EasingFunction,
     IAnimationDescriptor,
-} from '@/types/engine/animation'
-
-/**
- * 属性插值策略映射（由外部传入）
- *
- * key: 属性名
- * value: 'angle' 表示走短弧插值，默认走线性插值
- */
-export type InterpolationHints = Record<string, 'angle'>
+    InterpolationHints,
+    ResolvedKeyframeSegment,
+} from '@/types/foundation/animation'
 
 /**
  * AnimationExecutor —— 纯计算动画执行器

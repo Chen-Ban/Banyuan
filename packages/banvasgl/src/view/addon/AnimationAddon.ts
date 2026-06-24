@@ -2,8 +2,6 @@ import Bounds from '@/graph/base/Bounds'
 import { Point3, Vector3 } from '@/foundation/math'
 import Matrix4 from '@/foundation/math/Matrix4'
 import { AnimationDescriptor, AnimationManager } from '@/foundation/animation'
-import type { PropertyClassification } from '@/foundation/animation/AnimationDescriptor'
-import type { InterpolationHints } from '@/foundation/animation/AnimationExecutor'
 import { AddonType, AddonCapability } from '@/foundation/constants'
 import { isContainerView } from '@/foundation/guards'
 import { adapterRegistry } from '@/view/property'
@@ -15,7 +13,9 @@ import type {
   AnimatableValue,
   IAnimationDescriptor,
   IAnimationAddon,
-} from '@/types/engine/animation'
+  PropertyClassification,
+  InterpolationHints,
+} from '@/types/foundation/animation'
 import type { IView } from '@/types/view/view'
 import type { ExtraData } from '@/types/view/interaction'
 import type View from '@/view/View/View'

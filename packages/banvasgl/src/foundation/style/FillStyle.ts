@@ -4,9 +4,7 @@ import Image from "./Image";
 import { StyleType } from '@/foundation/constants';
 import type { ISerializable } from '@/types/foundation/serializable'
 import type { IDrawingContext } from '@/types/platform/drawing.js'
-
-/** 填充类型枚举：纯色、三种渐变、图片图案 */
-export type FillType = "color" | "linearGradient" | "radialGradient" | "conicGradient" | "image";
+import type { FillType } from '@/types/foundation/style'
 
 /**
  * 填充样式

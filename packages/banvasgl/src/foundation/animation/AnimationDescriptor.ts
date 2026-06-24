@@ -7,22 +7,9 @@ import type {
     PlaybackDirection,
     EasingFunction,
     Keyframe,
-} from '@/types/engine/animation'
+} from '@/types/foundation/animation'
+import type { PropertyClassification } from '@/types/foundation/animation'
 import { MathUtils } from '@/foundation/math'
-
-/**
- * 属性分类信息（由外部在创建时传入）
- */
-export interface PropertyClassification {
-    /** 动画涉及的所有属性名 */
-    properties: string[]
-    /** 空间属性（x/y/rotation → matrix） */
-    spatialProps: string[]
-    /** 尺寸属性（width/height/scaleX/scaleY → viewport） */
-    sizeProps: string[]
-    /** 直通属性（直接读写 View 同名属性） */
-    directProps: string[]
-}
 
 /**
  * AnimationDescriptor —— 动画描述对象（纯数据模型，无业务逻辑）

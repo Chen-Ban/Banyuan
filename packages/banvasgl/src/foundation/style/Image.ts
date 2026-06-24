@@ -1,20 +1,7 @@
 import type { PatternRepeat } from '@/types/foundation/media.js'
 export type { PatternRepeat }
 
-/**
- * 图案尺寸
- *
- * 指定图案在画布上的渲染宽高（像素）。
- *
- * @example
- * ```ts
- * const size: PatternSize = { width: 64, height: 64 }
- * ```
- */
-export interface PatternSize {
-  width: number
-  height: number
-}
+import type { PatternSize } from '@/types/foundation/style'
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'

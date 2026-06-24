@@ -45,23 +45,30 @@ interface FlowEditorState {
 
 const CLOSED_FLOW_EDITOR: FlowEditorState = {
   open: false,
-  title: '',
-  initialSchema: { version: FLOW_SCHEMA_VERSION, entry: '', nodes: {}, layout: {} },
+  title: "",
+  initialSchema: {
+    version: FLOW_SCHEMA_VERSION,
+    entry: "",
+    nodes: {},
+    layout: {},
+  },
   onSave: () => {},
 };
-
 
 const UIPage = () => {
   const { id: application_id } = useParams<{ id: string }>();
 
   // canvasSection 容器，作为两个抽屉的挂载容器（仅覆盖画布区域）
-  const [canvasSectionEl, setCanvasSectionEl] = useState<HTMLDivElement | null>(null);
+  const [canvasSectionEl, setCanvasSectionEl] = useState<HTMLDivElement | null>(
+    null,
+  );
   const canvasSectionRef = useCallback((el: HTMLDivElement | null) => {
     setCanvasSectionEl(el);
   }, []);
 
   // ── 流程编辑面板状态（从 EventsTab 提升） ────────────────────────────────────
-  const [flowEditor, setFlowEditor] = useState<FlowEditorState>(CLOSED_FLOW_EDITOR);
+  const [flowEditor, setFlowEditor] =
+    useState<FlowEditorState>(CLOSED_FLOW_EDITOR);
 
   const handleOpenFlowEditor = useCallback((request: FlowEditorOpenRequest) => {
     setFlowEditor({
@@ -88,6 +95,7 @@ const UIPage = () => {
       appOptions: {
         enablePageStack: true,
         maxPageStackSize: 50,
+        flowEnabled: false,
       },
       rendererOptions: {
         clearColor: "#fff",
@@ -127,9 +135,12 @@ const UIPage = () => {
           {Banvas}
 
           {/* 物料面板触发按钮（overlay 在画布左上角，抽屉打开时向右偏移） */}
-          <Tooltip title={paletteOpen ? '收起组件' : '组件物料'} placement="right">
+          <Tooltip
+            title={paletteOpen ? "收起组件" : "组件物料"}
+            placement="right"
+          >
             <button
-              className={`${styles.paletteToggleBtn}${paletteOpen ? ` ${styles.paletteToggleBtnOpen}` : ''}`}
+              className={`${styles.paletteToggleBtn}${paletteOpen ? ` ${styles.paletteToggleBtnOpen}` : ""}`}
               onClick={() => setPaletteOpen((v) => !v)}
               aria-label="打开组件面板"
             >
@@ -147,21 +158,28 @@ const UIPage = () => {
             closable={false}
             classNames={{ body: styles.drawerBody }}
             getContainer={canvasSectionEl ?? false}
-            rootStyle={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, height: '100%' }}
+            rootStyle={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: "100%",
+            }}
             styles={{
               wrapper: {
                 top: 12,
                 bottom: 12,
                 left: 12,
-                height: 'calc(100% - 24px)',
+                height: "calc(100% - 24px)",
                 borderRadius: 12,
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                overflow: 'hidden',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
+                border: "1px solid rgba(255, 255, 255, 0.1)",
+                overflow: "hidden",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
               },
               section: {
                 borderRadius: 12,
-                overflow: 'hidden',
+                overflow: "hidden",
               },
             }}
           >

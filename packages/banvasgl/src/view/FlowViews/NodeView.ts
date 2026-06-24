@@ -389,4 +389,23 @@ export default class NodeView extends ContainerView implements INodeView {
       matrix: this.matrix.copy(),
     });
   }
+
+  // ── 序列化 ──
+
+  public override toJSON(): any {
+    return {
+      ...super.toJSON(),
+      schema: this.schema,
+      nodeTitle: this.nodeTitle,
+    }
+  }
+
+  public static fromJSON(data: any): NodeView {
+    const node = new NodeView({
+      schema: data.schema,
+      nodeTitle: data.nodeTitle,
+    })
+    node.restoreCommonFields(data)
+    return node
+  }
 }

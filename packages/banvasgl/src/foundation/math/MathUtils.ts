@@ -7,20 +7,10 @@ import type {
     EasingFunction,
     AnimatableValue,
     Interpolator,
+    ResolvedKeyframeSegment,
 } from '@/types'
 
 // ── 插值器相关导出 ─────────────────────────────────────────────────────────────
-
-/**
- * 已解析的关键帧段信息
- */
-export interface ResolvedKeyframeSegment {
-    startOffset: number
-    endOffset: number
-    startValue: AnimatableValue
-    endValue: AnimatableValue
-    easing?: EasingFunction
-}
 
 /**
  * 数学工具类

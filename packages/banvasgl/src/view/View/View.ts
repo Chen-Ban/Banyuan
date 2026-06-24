@@ -9,7 +9,7 @@ import type { IViewStyle } from '@/types/foundation/style'
 import type { ISerializable } from '@/types/foundation/serializable'
 import type { IGraph } from '@/types/graph/graph'
 import type { IAddonBase, IBoundingBoxAddon, IBoxDecorationAddon } from '@/types/view/addon'
-import type { IAnimationAddon, AnimatableValue } from '@/types/engine/animation'
+import type { IAnimationAddon, AnimatableValue } from '@/types/foundation/animation'
 
 import { Line } from "@/graph";
 import { getDefaultStyle } from "@/graph/DefaultStyleRegistry";

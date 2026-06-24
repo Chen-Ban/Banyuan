@@ -45,8 +45,8 @@ export type {
 } from "../foundation/style";
 
 // IAnimationAddon 接口（动画插件，不走管线，由 AnimationManager 驱动）
-import type { IAnimationAddon } from "../engine/animation";
-export type { IAnimationAddon } from "../engine/animation";
+import type { IAnimationAddon } from "../foundation/animation";
+export type { IAnimationAddon } from "../foundation/animation";
 
 import type { IDrawingContext } from "../platform/drawing.js";
 

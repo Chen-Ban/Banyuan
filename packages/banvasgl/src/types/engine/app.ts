@@ -62,7 +62,7 @@ export interface IApp {
   /** App 生命周期钩子 */
   lifetimes: IAppLifetimes;
   scenes: IScene[];
-  renderer: IRenderer;
+  renderer: IRenderer | null;
   pageStack: IScene[];
 
   // 生命周期
@@ -128,7 +128,7 @@ export interface IApp {
   getMaxPageStackSize(): number;
 
   // 渲染器管理
-  getRenderer(): IRenderer;
+  getRenderer(): IRenderer | null;
   setRenderer(renderer: IRenderer): IApp;
 
   // 批量操作

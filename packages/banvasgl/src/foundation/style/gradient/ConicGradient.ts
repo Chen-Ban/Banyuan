@@ -1,4 +1,5 @@
-import Gradient, { type GradientStop } from './Gradient.js'
+import Gradient from './Gradient.js'
+import type { GradientStop } from '@/types/foundation/style'
 import { StyleType } from '@/foundation/constants'
 import type { IDrawingContext } from '@/types/platform/drawing.js'
 import type { IGradient } from '@/types/foundation/gradient.js'

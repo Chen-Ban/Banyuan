@@ -238,3 +238,38 @@ export interface Keyframe {
     /** 动画属性键值对 */
     [property: string]: AnimatableValue | number | EasingFunction | undefined
 }
+
+// ── 动画模块内部跨文件共享类型（从实现文件收拢至此） ──────────────────────────
+
+/**
+ * 属性分类信息（由 AnimationAddon 传入 AnimationDescriptor）
+ */
+export interface PropertyClassification {
+    /** 动画涉及的所有属性名 */
+    properties: string[]
+    /** 空间属性（x/y/rotation → matrix） */
+    spatialProps: string[]
+    /** 尺寸属性（width/height/scaleX/scaleY → viewport） */
+    sizeProps: string[]
+    /** 直通属性（直接读写 View 同名属性） */
+    directProps: string[]
+}
+
+/**
+ * 属性插值策略映射（由 AnimationAddon 传入 AnimationExecutor）
+ *
+ * key: 属性名
+ * value: 'angle' 表示走短弧插值，默认走线性插值
+ */
+export type InterpolationHints = Record<string, 'angle'>
+
+/**
+ * 已解析的关键帧段信息（由 MathUtils 计算关键帧过渡用）
+ */
+export interface ResolvedKeyframeSegment {
+    startOffset: number
+    endOffset: number
+    startValue: AnimatableValue
+    endValue: AnimatableValue
+    easing?: EasingFunction
+}
