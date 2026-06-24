@@ -1,9 +1,11 @@
 // Moved to dataSchema/collections.ts — re-export for backward compatibility
-export {
+export type {
   FieldType,
   FieldDef,
   CollectionDef,
   DataSchemaDefinition,
+} from '../dataSchema/collections'
+export {
   fetchDataSchema,
   addCollection,
   updateCollection,
@@ -13,4 +15,5 @@ export {
   deleteField,
 } from '../dataSchema/collections'
 // Legacy alias
-export { DataSchemaDefinition as AppSchema, fetchDataSchema as fetchSchema } from '../dataSchema/collections'
+export type { DataSchemaDefinition as AppSchema } from '../dataSchema/collections'
+export { fetchDataSchema as fetchSchema } from '../dataSchema/collections'

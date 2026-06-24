@@ -35,7 +35,7 @@ const DatabasePage: React.FC = () => {
     if (!id || id === 'new') return
     setLoading(true)
     try {
-      const res = await schemaApi.fetchSchema(id)
+      const res = await schemaApi.fetchDataSchema(id)
       const cols = res.data?.collections ?? []
       setCollections(cols)
       // 默认选中第一张表

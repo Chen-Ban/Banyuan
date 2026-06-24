@@ -114,6 +114,7 @@ const AiBar: React.FC = () => {
   const initialPromptConsumed = useRef(false)
   useEffect(() => {
     if (initialPromptConsumed.current) return
+    if (!appId) return
     const prompt = consumeInitialPrompt(appId)
     if (prompt) {
       initialPromptConsumed.current = true
@@ -125,6 +126,7 @@ const AiBar: React.FC = () => {
   useEffect(() => {
     const unsub = useApplicationStore.subscribe((state) => {
       if (initialPromptConsumed.current) return
+      if (!appId) return
       const prompt = state.initialPrompt.get(appId)
       if (prompt) {
         initialPromptConsumed.current = true
@@ -184,7 +186,7 @@ const AiBar: React.FC = () => {
 
   const handleSend = useCallback(async () => {
     const prompt = inputValue.trim();
-    if ((!prompt && pastedImages.length === 0) || loading || uploading) return;
+    if ((!prompt && pastedImages.length === 0) || loading || uploading || !appId) return;
 
     // 先捕获当前图片并清空 UI
     const imagesToUpload = [...pastedImages];
