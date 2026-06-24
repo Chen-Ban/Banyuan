@@ -118,6 +118,7 @@ export function useFixedCanvasInit(
   // designSize / JSON 恢复由调用方通过 actions.app.setDesignSize() / loadAppJSON() 命令式注入
   useEffect(() => {
     if (!app || !actions) return;
+    if (!app.renderer) return;
 
     // ── 空应用 ──
     // camera 用 App 内置默认 designSize
@@ -140,6 +141,7 @@ export function useFixedCanvasInit(
   // 固定模式：用 App.designSize 更新物理像素（DPR 变化或跨屏时），camera 不动
   useEffect(() => {
     if (!app || containerSize.width <= 0 || containerSize.height <= 0) return;
+    if (!app.renderer) return;
 
     const { width: dw, height: dh } = app.getDesignSize();
     app.renderer.setDPR(dpr);

@@ -120,6 +120,7 @@ export function useAdaptiveCanvasInit(
   // 自适应模式：更新 canvas 尺寸 + camera bounds
   useEffect(() => {
     if (!app || containerSize.width <= 0 || containerSize.height <= 0) return;
+    if (!app.renderer) return;
     app.renderer.setDPR(dpr);
     syncCameraToContainer(containerSize.width, containerSize.height);
   }, [app, containerSize, dpr, syncCameraToContainer]);

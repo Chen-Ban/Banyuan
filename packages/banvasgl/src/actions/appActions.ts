@@ -2,7 +2,7 @@
  * App 级别操作
  */
 
-import type { IAppActions } from '@/types/hook/hook'
+import type { IAppActions } from '@/types/actions/actions'
 import type { IAppLifetimes } from '@/types/engine/app'
 import type { EventHandler } from '@/types/view/view'
 import type { App } from '@/engine/App'
@@ -41,7 +41,7 @@ export function createAppActions(
 
         exportImage(type?: string, quality?: number): string | null {
             const app = getApp()
-            if (!app) return null
+            if (!app || !app.renderer) return null
             const surface = app.renderer.getSurface()
             return surface.export?.(type, quality) ?? null
         },

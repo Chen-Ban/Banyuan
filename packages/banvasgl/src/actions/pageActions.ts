@@ -4,7 +4,7 @@
 
 import { OrthographicCamera } from "@/engine/camera";
 import { Scene } from "@/engine/scene/Scene";
-import type { IPageActions } from "@/types/hook/hook";
+import type { IPageActions } from "@/types/actions/actions";
 import type {
   IFieldSchema,
   IFieldSchemaMap,
@@ -246,7 +246,7 @@ export function createPageActions(getApp: () => App | null): IPageActions {
     ): boolean {
       if (!_isPanning || !_panStart) return false;
       const app = getApp();
-      if (!app) return false;
+      if (!app || !app.renderer) return false;
       const scene = app.getCurrentScene();
       if (!scene) return false;
       const camera = scene.camera;
