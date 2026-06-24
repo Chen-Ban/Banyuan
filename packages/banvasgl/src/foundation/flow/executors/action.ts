@@ -89,7 +89,7 @@ export const setViewDataExecutor: NodeExecutor<FlowSetViewDataNode, FrontendCapP
     ctx.cap.setViewData(
       String(inputs.viewId ?? ''),
       String(inputs.key ?? ''),
-      inputs.value,
+      inputs.value as string | number | boolean | object,
     )
   }
   return { nextNodeId: node.slots[0].next || null }
@@ -156,7 +156,7 @@ export const cloudFunctionExecutor: NodeExecutor<FlowCloudFunctionNode, Frontend
     String(inputs.method ?? 'POST'),
     `/api/functions/${String(inputs.functionId ?? '')}`,
     { 'Content-Type': 'application/json' },
-    inputs.args,
+    inputs.args as string | object | undefined,
   )
   return {
     outputs: {
@@ -185,7 +185,7 @@ export const httpRequestExecutor: NodeExecutor<FlowHttpRequestNode, BackendCapPr
     String(inputs.method ?? 'GET'),
     String(inputs.url ?? ''),
     (inputs.headers ?? {}) as Record<string, string>,
-    inputs.body,
+    inputs.body as string | object | undefined,
   )
   return {
     outputs: {

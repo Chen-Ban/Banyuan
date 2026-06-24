@@ -50,6 +50,11 @@ export interface UseFixedCanvasOptions {
    * 默认 false。
    */
   textInput?: boolean;
+  /**
+   * 画布外边距（px），用于 contain-fit 缩放时预留空间。
+   * 设备框装饰会占用此空间，默认 36。
+   */
+  canvasMargin?: number;
 }
 
 export interface UseFixedCanvasResult {
@@ -90,7 +95,7 @@ export interface UseFixedCanvasResult {
 export function useFixedCanvasInit(
   options: UseFixedCanvasOptions,
 ): UseFixedCanvasResult {
-  const { appOptions, rendererOptions, textInput } = options;
+  const { appOptions, rendererOptions, textInput, canvasMargin = 36 } = options;
 
   // ── 共享底座（options 由调用方保证引用稳定） ──
   const coreOptions: UseCanvasCoreOptions = useMemo(
@@ -206,10 +211,10 @@ export function useFixedCanvasInit(
     let styleWidth: number;
     let styleHeight: number;
     if (containerAspect > pageAspect) {
-      styleHeight = containerSize.height - 36;
+      styleHeight = containerSize.height - canvasMargin;
       styleWidth = styleHeight * pageAspect;
     } else {
-      styleWidth = containerSize.width - 36;
+      styleWidth = containerSize.width - canvasMargin;
       styleHeight = styleWidth / pageAspect;
     }
 

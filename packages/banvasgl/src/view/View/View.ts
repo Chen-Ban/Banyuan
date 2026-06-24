@@ -1013,16 +1013,14 @@ export default abstract class View<D extends IFieldSchemaMap = IFieldSchemaMap>
   protected resolveVisualStyle(): void {
     this._styleDirty = false;
 
+    // 确保 BoxDecorationAddon 始终存在，以便 resolveVisual 处理
+    // backgroundColor / borderWidth / borderColor / borderRadius / clipContent / opacity
+    // hasDecoration() 在渲染路径上已是零成本守卫
     if (!this.decoration) {
-      const overflow = this.style.overflow;
-      if (overflow === "scroll" || overflow === "hidden") {
-        this.decoration = new BoxDecorationAddon();
-      }
+      this.decoration = new BoxDecorationAddon();
     }
 
-    if (this.decoration) {
-      this.decoration.resolveVisual(this.style);
-    }
+    this.decoration.resolveVisual(this.style);
   }
 
   /**
