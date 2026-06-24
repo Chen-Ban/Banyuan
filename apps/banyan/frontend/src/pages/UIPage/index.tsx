@@ -23,6 +23,7 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import useDesignBanvas from "@/hooks/useDesignBanvas";
+import { useApplicationStore } from "@/stores/applicationStore";
 import { DesignContextMenu } from "./components/DesignEditor/DesignContextMenu";
 import { Drawer, Tooltip } from "antd";
 import { AppstoreOutlined } from "@ant-design/icons";
@@ -33,6 +34,7 @@ import type { ExtractedFlowSchema } from "@/components/FlowKit/extractSchema";
 import { FLOW_SCHEMA_VERSION } from "@banyuan/banvasgl";
 import PropertyDrawer from "./components/PropertyDrawer";
 import SaveMaterialModal from "@/components/SaveMaterialModal";
+import CanvasDecoration, { getCanvasMargin } from "@/components/CanvasDecoration";
 import styles from "./index.module.scss";
 
 /** FlowEditorPanel 的状态 */
@@ -65,6 +67,12 @@ const UIPage = () => {
   const canvasSectionRef = useCallback((el: HTMLDivElement | null) => {
     setCanvasSectionEl(el);
   }, []);
+
+  // ── 设备类型（驱动画布装饰） ──
+  const deviceType = useApplicationStore((s) => s.deviceType);
+
+  // 根据设备类型计算画布所需外边距，为设备框装饰预留空间
+  const canvasMargin = useMemo(() => getCanvasMargin(deviceType), [deviceType]);
 
   // ── 流程编辑面板状态（从 EventsTab 提升） ────────────────────────────────────
   const [flowEditor, setFlowEditor] =
@@ -100,8 +108,9 @@ const UIPage = () => {
       rendererOptions: {
         clearColor: "#fff",
       },
+      canvasMargin,
     }),
-    [],
+    [canvasMargin],
   );
 
   const {
@@ -111,6 +120,7 @@ const UIPage = () => {
     actions,
     contextMenu,
     saveMaterial,
+    canvasNode,
   } = useDesignBanvas(banvasOptions);
 
   useEffect(() => {
@@ -133,6 +143,9 @@ const UIPage = () => {
         <div className={styles.canvasSection} ref={canvasSectionRef}>
           {/* 画布（Banvas 内部已有 div 包裹） */}
           {Banvas}
+
+          {/* 画布设备框装饰（overlay 在画布外围，pointer-events: none） */}
+          <CanvasDecoration deviceType={deviceType} canvasNode={canvasNode} canvasSectionEl={canvasSectionEl} />
 
           {/* 物料面板触发按钮（overlay 在画布左上角，抽屉打开时向右偏移） */}
           <Tooltip

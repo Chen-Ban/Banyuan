@@ -146,6 +146,15 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+.segBtnDisabled {
+  color: var(--color-text-disabled) !important;
+  cursor: not-allowed;
+
+  &:hover {
+    color: var(--color-text-disabled) !important;
+  }
+}
+
 // Tab 分隔线
 .tabDivider {
   width: 1px;
@@ -179,6 +188,16 @@
 .tabBtnActive {
   color: var(--color-text-primary) !important;
   background: var(--color-bg-selected) !important;
+}
+
+.tabBtnDisabled {
+  color: var(--color-text-disabled) !important;
+  cursor: not-allowed;
+
+  &:hover {
+    color: var(--color-text-disabled) !important;
+    background: transparent;
+  }
 }
 
 .tabIcon {

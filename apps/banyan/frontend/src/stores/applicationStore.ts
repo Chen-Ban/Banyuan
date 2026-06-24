@@ -39,6 +39,7 @@ import { applicationApi } from "@/api";
 import type { CollectionDef } from "@/api/backend/schema";
 import type { CloudFunctionDef } from "@/api/backend/cloudFunctions";
 import { hotUpdatePreview } from "@/utils/previewBridge";
+import type { DeviceType } from "@/layouts/ApplicationLayout/constants";
 
 // ── 类型定义 ─────────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,10 @@ export interface ApplicationState {
   // ── 设计尺寸 ───────────────────────────────────────────────────────────────
   /** 当前应用设计尺寸 */
   designSize: DesignSize;
+
+  // ── 设备类型 ───────────────────────────────────────────────────────────────
+  /** 当前设备类型，驱动画布装饰渲染 */
+  deviceType: DeviceType;
 
   // ── 画布引擎实例 ────────────────────────────────────────────────────────────
   /**
@@ -122,6 +127,9 @@ export interface ApplicationActions {
   /** Layout 机型选择器调用：更新 store 状态 + 通过 actions 通知画布引擎 */
   changeDesignSize: (size: DesignSize) => void;
 
+  // ── 设备类型 ───────────────────────────────────────────────────────────────
+  setDeviceType: (type: DeviceType) => void;
+
   // ── 画布引擎实例挂载 ────────────────────────────────────────────────────────
   /** 活跃画布页挂载引擎实例。返回卸载函数。 */
   registerActions: (actions: IBanvasActions) => () => void;
@@ -163,6 +171,7 @@ const initialState: ApplicationState = {
   dataLoading: false,
   appName: "",
   designSize: { width: 1280, height: 800 },
+  deviceType: "windows",
   actions: null,
   initialPrompt: new Map(),
 };
@@ -298,6 +307,9 @@ export const useApplicationStore = create<
     // 直接通知画布引擎
     get().actions?.app.setDesignSize(size.width, size.height);
   },
+
+  // ── 设备类型 ───────────────────────────────────────────────────────────────
+  setDeviceType: (type) => set({ deviceType: type }),
 
   // ── 画布引擎实例挂载 ────────────────────────────────────────────────────────
   registerActions: (actions) => {

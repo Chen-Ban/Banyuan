@@ -19,6 +19,7 @@ import {
   PlayCircleOutlined,
   EditOutlined,
 } from '@ant-design/icons'
+import { usePreviewServerStore } from '@/stores/previewServerStore'
 import styles from '../../index.module.scss'
 
 function deriveActiveTab(pathname: string): 'preview' | 'ui' | 'database' | 'data-browser' | 'functions' {
@@ -33,6 +34,9 @@ const TabCapsule: React.FC = () => {
   const { id: applicationId } = useParams<{ id: string }>()
   const location = useLocation()
   const navigate = useNavigate()
+  const serverInfo = usePreviewServerStore((s) => s.serverInfo)
+  const serverStatus = usePreviewServerStore((s) => s.status)
+  const serverError = usePreviewServerStore((s) => s.errorMessage)
 
   const activeTab = deriveActiveTab(location.pathname)
 
@@ -41,14 +45,21 @@ const TabCapsule: React.FC = () => {
     navigate(`/application/${applicationId}/${segment}`)
   }
 
+  // 预览/数据浏览依赖 Preview Server，不可用时禁用但保留占位避免布局抖动
+  const previewDisabled = !serverInfo
+  const previewDisabledReason = serverStatus === 'error'
+    ? `预览服务启动失败${serverError ? '：' + serverError : ''}`
+    : '预览服务不可用'
+
   return (
     <div className={styles.tabCapsule}>
       {/* 画布区域 Segmented：预览 | 编辑 */}
       <div className={styles.canvasSegmented}>
-        <Tooltip title="预览应用">
+        <Tooltip title={previewDisabled ? previewDisabledReason : '预览应用'}>
           <button
-            className={`${styles.segBtn} ${activeTab === 'preview' ? styles.segBtnActive : ''}`}
-            onClick={() => nav('preview')}
+            className={`${styles.segBtn} ${activeTab === 'preview' ? styles.segBtnActive : ''} ${previewDisabled ? styles.segBtnDisabled : ''}`}
+            onClick={() => { if (!previewDisabled) nav('preview') }}
+            disabled={previewDisabled}
           >
             <PlayCircleOutlined />
           </button>
@@ -77,10 +88,11 @@ const TabCapsule: React.FC = () => {
       </Tooltip>
 
       {/* 数据浏览 Tab */}
-      <Tooltip title="数据浏览">
+      <Tooltip title={previewDisabled ? previewDisabledReason : '数据浏览'}>
         <button
-          className={`${styles.tabBtn} ${activeTab === 'data-browser' ? styles.tabBtnActive : ''}`}
-          onClick={() => nav('data-browser')}
+          className={`${styles.tabBtn} ${activeTab === 'data-browser' ? styles.tabBtnActive : ''} ${previewDisabled ? styles.tabBtnDisabled : ''}`}
+          onClick={() => { if (!previewDisabled) nav('data-browser') }}
+          disabled={previewDisabled}
         >
           <span className={styles.tabIcon}><SearchOutlined /></span>
         </button>

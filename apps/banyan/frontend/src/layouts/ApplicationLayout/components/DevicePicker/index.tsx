@@ -2,7 +2,8 @@
  * DevicePicker — 机型选择器
  *
  * 顶部栏左侧的机型下拉，从 DEVICE_GROUPS 构造分组菜单，
- * 选择后直接通过 useApplicationStore().changeDesignSize 更新设计尺寸。
+ * 选择后直接通过 useApplicationStore().changeDesignSize 更新设计尺寸，
+ * 并通过 setDeviceType 同步设备类型给画布装饰。
  */
 
 import React, { useState } from 'react'
@@ -14,7 +15,7 @@ import { DEVICE_GROUPS, ALL_DEVICE_PRESETS } from '../../constants'
 import styles from '../../index.module.scss'
 
 const DevicePicker: React.FC = () => {
-  const { designSize, changeDesignSize } = useApplicationStore()
+  const { designSize, changeDesignSize, setDeviceType } = useApplicationStore()
   const [deviceDropdownOpen, setDeviceDropdownOpen] = useState(false)
 
   const deviceMenuItems: MenuProps['items'] = DEVICE_GROUPS.flatMap((group) => {
@@ -25,7 +26,10 @@ const DevicePicker: React.FC = () => {
         key: preset.key,
         icon: <GroupIcon />,
         label: `${preset.label}（${preset.width}×${preset.height}）`,
-        onClick: () => changeDesignSize({ width: preset.width, height: preset.height }),
+        onClick: () => {
+          changeDesignSize({ width: preset.width, height: preset.height });
+          setDeviceType(preset.deviceType);
+        },
       })),
     ]
   })

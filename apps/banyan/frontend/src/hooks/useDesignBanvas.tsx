@@ -16,6 +16,7 @@ import { useApplicationStore } from "@/stores/applicationStore";
  * - 通过 derived 提供只读的页面 + 选中态数据
  * - 通过 actions 提供所有可用操作
  * - Banvas 仍然是 React 元素，业务方直接渲染
+ * - canvasNode 透出 canvas DOM 节点，供 CanvasDecoration 获取实际渲染位置/尺寸
  */
 export interface IUseBanvasResult<TElement = unknown> {
   /** Canvas 渲染元素（React.ReactElement 或其他 UI 框架元素） */
@@ -30,17 +31,21 @@ export interface IUseBanvasResult<TElement = unknown> {
   contextMenu: IContextMenuState;
   /** 保存为物料弹窗控制 */
   saveMaterial: UseDesignContextMenuResult['saveMaterial'];
+  /** canvas DOM 节点，供 CanvasDecoration 实时获取 CSS 位置和尺寸 */
+  canvasNode: HTMLCanvasElement | null;
 }
 
 export interface UseDesignBanvasOptions {
   appOptions?: Partial<IAppOptions>;
   rendererOptions?: WebCanvasOptions;
+  /** 画布外边距（px），透传给 useFixedCanvasInit，默认 36 */
+  canvasMargin?: number;
 }
 
 export default function useDesignBanvas(
   options: UseDesignBanvasOptions,
 ): IUseBanvasResult<React.ReactElement> {
-  const { appOptions, rendererOptions } = options;
+  const { appOptions, rendererOptions, canvasMargin } = options;
 
   // ── Store 桥接源 ──
   const designSize = useApplicationStore((s) => s.designSize);
@@ -61,6 +66,7 @@ export default function useDesignBanvas(
     appOptions: appOptionsStable,
     rendererOptions: rendererOptions ?? fallbackRendererOptions,
     textInput: true,
+    canvasMargin,
   });
 
   // ════════════════════════════════════════════════════════════════
@@ -116,5 +122,6 @@ export default function useDesignBanvas(
     actions: actions!,
     contextMenu,
     saveMaterial,
+    canvasNode: derived.canvas,
   };
 }

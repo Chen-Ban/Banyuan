@@ -95,7 +95,7 @@ const ApplicationLayout: React.FC = () => {
       <div className={styles.content}>
         {dataLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-            <Spin size="large" tip="加载应用数据..." />
+            <Spin size="large" description="加载应用数据..." />
           </div>
         ) : (
           <Outlet />
