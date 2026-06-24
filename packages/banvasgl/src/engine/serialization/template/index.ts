@@ -1,7 +1,7 @@
 /**
  * 模板模块 —— serializeTemplate（View → 模板）& instantiateTemplate（模板 → View）
  *
- * 本模块是建立在 engine/serialization 之上的"模板层"：负责占位符化、ID 重生成、
+ * 本模块是建立在 serialization/rawjson 之上的"模板层"：负责占位符化、ID 重生成、
  * 坐标归零等模板语义，实例化时复用 Serializer 还原 View 实例。
  *
  * 对外通过 createTemplateActions(getApp) 暴露 ITemplateActions，
@@ -16,8 +16,7 @@ import type {
     ITemplateActions,
     ITemplateSerializeConfig,
 } from '@/types/template/template.js'
-import { serializeTemplate } from './TemplateSerializer.js'
-import { instantiateTemplate } from './TemplateInstantiator.js'
+import { serializeTemplate, instantiateTemplate } from './Serializer.js'
 
 /**
  * 创建模板操作实例
@@ -45,5 +44,4 @@ export function createTemplateActions(
     }
 }
 
-export { serializeTemplate } from './TemplateSerializer.js'
-export { instantiateTemplate } from './TemplateInstantiator.js'
+export { serializeTemplate, instantiateTemplate } from './Serializer.js'

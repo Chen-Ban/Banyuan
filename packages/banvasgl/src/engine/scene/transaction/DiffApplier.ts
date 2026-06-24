@@ -4,7 +4,7 @@ import type { SceneAccessor } from '@/types/engine/scene'
 import { Matrix4 } from '@/foundation/math'
 import Bounds from '@/graph/base/Bounds'
 import { isContainerView } from '@/foundation/guards'
-import { Serializer } from '@/engine/serialization/Serializer'
+import { Serializer } from '@/engine/serialization/rawjson/Serializer.js'
 
 /**
  * Diff 回放执行器

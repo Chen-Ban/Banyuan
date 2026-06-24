@@ -1,7 +1,7 @@
 import type { Diff, PropChange, AddDiff, RemoveDiff, ReorderDiff, ReorderChange } from './OperationStack'
 import { DiffType, Operation, OperationStack } from './OperationStack'
 import { DiffApplier } from './DiffApplier'
-import { Serializer } from '@/engine/serialization/Serializer'
+import { Serializer } from '@/engine/serialization/rawjson/Serializer.js'
 
 // ============ 快照相关类型 ============
 

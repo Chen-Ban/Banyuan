@@ -99,7 +99,7 @@ export interface IInternalIdRef {
 /**
  * 模板操作接口
  *
- * 实现位于 engine/template/，由 actions/viewActions 代理为
+ * 实现位于 engine/serialization/template/，由 actions/viewActions 代理为
  * view.serializeTemplate / view.instantiateTemplate 暴露。
  */
 export interface ITemplateActions {

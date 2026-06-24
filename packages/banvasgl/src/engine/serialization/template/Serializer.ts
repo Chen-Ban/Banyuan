@@ -1,12 +1,11 @@
 /**
- * 模板实例化 —— 模板（ITemplate）→ View 实例
+ * 模板序列化 & 实例化 —— View 子树 ⇄ 模板（ITemplate）
  *
- * 与 serialize 对称：把占位符填回真实值（每次落地都重生成 ID），
- * 再复用 Serializer.deserialize() 还原 View 实例树。
- *
- * 注意 ID 语义：模板实例化要求每次生成全新 ID（模板复用语义），
- * 这与序列化模块用于 undo/redo 时"ID 保持不变"的诉求相反，
- * 因此 ID 重生成由本模板层负责，Serializer 只做纯粹的对象还原。
+ * 这是建立在 rawjson/Serializer 之上的"模板层"：
+ *   serializeTemplate：  先 view.toJSON() 拿到全量 RawJSON，再把易变信息
+ *                        （ID / 可参数化字段 / 资源 URL）替换为占位符，根节点坐标归零。
+ *   instantiateTemplate：把占位符填回真实值（每次落地重生成 ID），再复用
+ *                        rawjson/Serializer.deserialize() 还原 View 实例树。
  *
  * NodeView 走特殊路径：端口由构造函数按 schema 自动推导，
  * fromJSON 会跳过自动端口创建，故直接 new NodeView()。
@@ -17,12 +16,25 @@
 import { v4 as uuid } from 'uuid'
 import type { App } from '@/engine/App.js'
 import type { Scene } from '@/engine/scene/Scene.js'
-import { Serializer } from '@/engine/serialization/Serializer.js'
+import { Serializer } from '../rawjson/Serializer.js'
 import { ViewType } from '@/foundation/constants.js'
 import NodeView from '@/view/FlowViews/NodeView.js'
 import type { FlowNode } from '@/types/index.js'
-import type { ITemplate } from '@/types/template/template.js'
+import type {
+    ITemplate,
+    ITemplateSerializeConfig,
+    ITemplateParameter,
+    ITemplateAsset,
+    IInternalIdRef,
+} from '@/types/template/template.js'
 import {
+    collectIds,
+    deepCloneAndReplace,
+    scanFlowSchemaRefs,
+    extractAssets,
+    replaceAssetUrls,
+    applyParameterBindings,
+    zeroRootTransform,
     replaceIdPlaceholders,
     replaceParamPlaceholders,
     replaceAssetPlaceholderById,
@@ -30,6 +42,73 @@ import {
     setRootPosition,
 } from './placeholders.js'
 import { setValueByPath } from './pathUtils.js'
+
+// ── serializeTemplate：View 子树 → 模板 ──
+
+/**
+ * 将场景中指定 View 子树序列化为模板
+ *
+ * @returns 模板；当场景或视图不存在时返回 null
+ */
+export function serializeTemplate(
+    scene: Scene | null,
+    viewId: string,
+    config: ITemplateSerializeConfig,
+): ITemplate | null {
+    if (!scene) return null
+
+    const view = scene.findViewById(viewId)
+    if (!view) return null
+
+    // 1. 获取完整子树 JSON
+    const json = view.toJSON()
+
+    // 2. 收集所有 ID 并建立映射
+    const idMap = new Map<string, string>() // oldId → placeholder
+    let idCounter = 0
+    collectIds(json, idMap, () => `{{id:${idCounter++}}}`)
+
+    // 3. 深拷贝并替换 ID
+    const root = deepCloneAndReplace(json, idMap)
+
+    // 4. 扫描 FlowSchema 中的 viewId 引用
+    const internalIdRefs: IInternalIdRef[] = []
+    scanFlowSchemaRefs(root, '', idMap, internalIdRefs)
+
+    // 5. 提取资源 URL
+    const assets: ITemplateAsset[] = []
+    const assetMap = new Map<string, string>() // url → placeholder
+    extractAssets(root, assets, assetMap)
+
+    // 6. 替换资源 URL 为占位符
+    if (assetMap.size > 0) {
+        replaceAssetUrls(root, assetMap)
+    }
+
+    // 7. 处理参数绑定
+    const parameters: ITemplateParameter[] = []
+    if (config.parameterBindings && config.parameterBindings.length > 0) {
+        applyParameterBindings(root, config.parameterBindings, parameters)
+    }
+
+    // 8. 根节点 transform 归零（将坐标置为原点）
+    zeroRootTransform(root)
+
+    // 9. 包装为全量数据协议（{ $type, $value }）
+    //    模板数据 = 带占位符的 RawJSON 子集；Serializer.deserialize() 依赖顶层 $type
+    //    分派到 View.fromJSON 才能还原实例。占位符/参数/资源/ref 均已在裸子树上处理完成。
+    const wrappedRoot = { $type: view.type, $value: root }
+
+    return {
+        root: wrappedRoot,
+        idCount: idCounter,
+        internalIdRefs,
+        parameters,
+        assets,
+    }
+}
+
+// ── instantiateTemplate：模板 → View 实例 ──
 
 /**
  * 将模板实例化为场景中的 View，并添加到当前场景

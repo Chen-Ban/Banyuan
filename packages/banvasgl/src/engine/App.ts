@@ -1,5 +1,5 @@
 import { Scene } from "@/engine/scene/Scene";
-import { Serializer } from "@/engine/serialization/Serializer";
+import { Serializer } from "@/engine/serialization/rawjson/Serializer.js";
 import { Renderer } from "@/engine/renderer/Renderer";
 import { OrthographicCamera } from "@/engine/camera/OrthographicCamera.js";
 import type {

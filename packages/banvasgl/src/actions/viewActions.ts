@@ -20,7 +20,7 @@ import type {
 } from "@/types/view/view";
 import { Point3, ViewType, Cursor } from "@/foundation";
 import type { App } from "@/engine/App";
-import { createTemplateActions as _createTemplateActions } from "@/engine/template/index.js";
+import { createTemplateActions as _createTemplateActions } from "@/engine/serialization/template/index.js";
 
 import type { IDrawingContext } from "@/types/platform/drawing.js";
 
@@ -424,6 +424,8 @@ export function createViewActions(getApp: () => App | null): IViewActions {
         (view as any).style = {};
       }
       (view.style as any)[prop] = value;
+      // 标记样式脏，确保下一帧 repaint 时 resolveVisualStyle 重新计算 computedStyle
+      view.markStyleDirty();
       notify();
     },
 
