@@ -106,8 +106,8 @@ interface TypeRegistry {
 /**
  * 核心对象序列化工具类
  *
- * 实现了 ISerializable 的类会自动使用 toJSON()/fromJSON() 进行序列化。
- * 也支持通过 registerType() 注册自定义序列化器（用于未实现 ISerializable 的特殊类型）。
+ * 所有类型均实现 ISerializable，通过 registerSerializable() 注册，
+ * 自动使用 toJSON()/fromJSON() 进行序列化和反序列化。
  */
 export class Serializer {
     private static instance: Serializer
@@ -142,32 +142,13 @@ export class Serializer {
      */
     private registerSerializable(
         typeName: string,
-        ctor: ISerializableClass
+        ctor: ISerializableClass,
     ): void {
         this.typeRegistry.set(typeName, {
             type: typeName,
             constructor: ctor,
             serializer: (obj: ISerializable) => obj.toJSON(),
             deserializer: (data: any) => ctor.fromJSON(data),
-        })
-    }
-
-    /**
-     * 注册自定义序列化器（用于没有实现 ISerializable 的类或需要特殊处理的类型）
-     */
-    public registerType(
-        typeName: string,
-        constructor: new (...args: any[]) => any,
-        handlers?: {
-            serialize?: (obj: any) => any
-            deserialize?: (data: any) => any
-        }
-    ): void {
-        this.typeRegistry.set(typeName, {
-            type: typeName,
-            constructor,
-            serializer: handlers?.serialize,
-            deserializer: handlers?.deserialize,
         })
     }
 
