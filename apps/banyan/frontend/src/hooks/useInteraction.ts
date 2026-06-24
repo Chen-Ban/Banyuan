@@ -41,7 +41,7 @@ import {
 import { screenToWorld, worldToScreen } from "@banyuan/banvasgl-react";
 import type {
   IBanvasActions,
-  IMaterialTemplate,
+  ITemplate,
   IPortView,
   ITextView,
   ITextElement,
@@ -588,7 +588,7 @@ export function useInteraction({
         if (!dataStr) return;
 
         const parsed = JSON.parse(dataStr) as {
-          template?: IMaterialTemplate;
+          template?: ITemplate;
           materialId?: string;
         };
 
@@ -601,7 +601,7 @@ export function useInteraction({
             fetchMaterial(parsed.materialId!)
               .then((res) => {
                 if (res.data) {
-                  actions.view.instantiateMaterial(res.data, { x, y });
+                  actions.view.instantiateTemplate(res.data.template, { x, y });
                 }
               })
               .catch((err) => {
@@ -609,7 +609,7 @@ export function useInteraction({
               });
           });
         } else if (parsed.template) {
-          actions.view.instantiateMaterial(parsed.template, { x, y });
+          actions.view.instantiateTemplate(parsed.template, { x, y });
         }
       } catch (error) {
         console.error("[useInteraction] 拖拽创建组件失败:", error);

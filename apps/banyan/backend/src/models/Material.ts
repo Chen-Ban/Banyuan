@@ -4,7 +4,7 @@ import type { IMaterialDocument } from './types/index.js'
 // ─── Material Schema ───────────────────────────────────────────────────────────
 //
 // 物料文档采用嵌套结构，与基础库 @banyuan/banvasgl 的 IMaterial 一致：
-//   { meta: IMaterialMeta, template: IMaterialTemplate }
+//   { meta: IMaterialMeta, template: ITemplate }
 // 后端在此之上附加 kind（render / client-flow / server-flow）与 applicationId 两个维度。
 
 type IMaterialDoc = IMaterialDocument & Document

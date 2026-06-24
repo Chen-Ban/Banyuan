@@ -13,7 +13,7 @@
  */
 
 import { Material } from '../models/index.js'
-import type { MaterialKind, IMaterialTemplate } from '../models/types/index.js'
+import type { MaterialKind, ITemplate } from '../models/types/index.js'
 
 // ─── 内置物料数据（从 @banyuan/banvasgl 生成脚本产出，迁移到此处） ──────────────
 //
@@ -29,7 +29,7 @@ interface BuiltinMaterialSeed {
   /** 缩略图（内置物料为 data:image/svg+xml Data URL，用 <img> 渲染） */
   thumbnail?: string
   version: string
-  template: IMaterialTemplate
+  template: ITemplate
 }
 
 const BUILTIN_MATERIALS: BuiltinMaterialSeed[] = [

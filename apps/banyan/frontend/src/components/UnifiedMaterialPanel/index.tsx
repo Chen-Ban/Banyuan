@@ -13,7 +13,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Input, Tooltip } from 'antd'
 import { SearchOutlined, DownOutlined, UpOutlined } from '@ant-design/icons'
-import type { IMaterial } from '@banyuan/banvasgl'
+import type { IMaterial } from '@/types'
 import { materialApi } from '@/api'
 import { useApplicationStore } from '@/stores/applicationStore'
 import MaterialThumbnail from './MaterialThumbnail'

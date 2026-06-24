@@ -1,18 +1,18 @@
 /**
  * 物料 API
  *
- * 三端统一使用基础库 @banyuan/banvasgl 的 IMaterial（meta + template 嵌套结构）。
+ * 三端统一使用前端 types 中的 IMaterial（meta + template 嵌套结构）。
  * 后端在 IMaterial 之上附加 kind / applicationId 两个持久化维度。
  */
 
 import { get, post, put, del } from '../client'
 import type { ApiResponse } from '../client'
-import type { IMaterial } from '@banyuan/banvasgl'
+import type { IMaterial } from '@/types'
 
 /** 物料种类（物料面板的三个分类维度） */
 export type MaterialKind = 'render' | 'client-flow' | 'server-flow'
 
-/** 物料文档 = 基础库 IMaterial + 后端持久化维度 */
+/** 物料文档 = IMaterial + 后端持久化维度 */
 export interface MaterialDocument extends IMaterial {
   kind: MaterialKind
   applicationId?: string

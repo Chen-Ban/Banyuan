@@ -9,7 +9,7 @@
  */
 
 import React from 'react'
-import type { IMaterial } from '@banyuan/banvasgl'
+import type { IMaterial } from '@/types'
 
 export interface MaterialThumbnailProps {
   material: IMaterial

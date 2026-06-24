@@ -1,27 +1,58 @@
 /**
  * 物料（Material）类型定义
  *
- * 三端（基础库 / 前端 / 后端）统一使用 @banyuan/banvasgl 定义的权威物料类型。
- * 基础库 IMaterial = { meta: IMaterialMeta, template: IMaterialTemplate }，
- * 由全量序列化数据包装而来，是最真实权威的来源。
+ * Material = Template（引擎提供） + Meta（应用层元信息）
  *
  * 后端在 IMaterial 之上附加两个持久化维度：
  * - kind：物料种类，用于物料面板分类（render / client-flow / server-flow）
  * - applicationId：物料归属的应用 ID（可由此查到租户与用户）
  */
 
-import type { IMaterial } from '@banyuan/banvasgl'
+import type {
+    ITemplate,
+    ITemplateParameter,
+    ITemplateAsset,
+    IInternalIdRef,
+    TemplateParameterType,
+} from '@banyuan/banvasgl'
+
+// ── 元数据（应用层定义，引擎不感知） ──
+
+/** 物料来源标识 */
+export type MaterialSource = 'builtin' | 'user' | 'team' | 'marketplace'
+
+/** 物料元数据 */
+export interface IMaterialMeta {
+    id: string
+    name: string
+    description?: string
+    tags?: string[]
+    thumbnail?: string
+    source: MaterialSource
+    creatorId?: string
+    createdAt?: string
+    updatedAt?: string
+    version: string
+    minEngineVersion?: string
+}
+
+/** 完整物料定义（元数据 + 模板） */
+export interface IMaterial {
+    meta: IMaterialMeta
+    template: ITemplate
+}
+
+// ── 引擎模板类型重导出（方便后端其他模块使用） ──
 
 export type {
-  IMaterial,
-  IMaterialMeta,
-  IMaterialTemplate,
-  IMaterialParameter,
-  IMaterialAsset,
-  IInternalIdRef,
-  MaterialSource,
-  MaterialParameterType,
-} from '@banyuan/banvasgl'
+    ITemplate,
+    ITemplateParameter,
+    ITemplateAsset,
+    IInternalIdRef,
+    TemplateParameterType,
+}
+
+// ── 后端扩展 ──
 
 /**
  * 物料种类（物料面板的三个分类维度）
@@ -32,7 +63,7 @@ export type {
 export type MaterialKind = 'render' | 'client-flow' | 'server-flow'
 
 /**
- * 物料文档接口 = 基础库 IMaterial + 后端持久化维度
+ * 物料文档接口 = IMaterial + 后端持久化维度
  */
 export interface IMaterialDocument extends IMaterial {
   /** 物料种类 */

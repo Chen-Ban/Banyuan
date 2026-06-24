@@ -4,7 +4,7 @@ import type {
   IMaterialDocument,
   MaterialSource,
   MaterialKind,
-  IMaterialTemplate,
+  ITemplate,
 } from '../models/types/index.js'
 
 // ─── Query 接口 ──────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ export interface ICreateMaterialData {
   source?: MaterialSource
   version?: string
   minEngineVersion?: string
-  template: IMaterialTemplate
+  template: ITemplate
   applicationId?: string
   creatorId?: string
 }
@@ -49,7 +49,7 @@ export interface IUpdateMaterialData {
   tags?: string[]
   thumbnail?: string
   version?: string
-  template?: IMaterialTemplate
+  template?: ITemplate
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────

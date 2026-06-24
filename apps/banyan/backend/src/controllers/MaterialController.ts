@@ -1,6 +1,6 @@
 import { Context } from 'koa'
 import materialService from '../services/MaterialService.js'
-import type { MaterialSource, MaterialKind, IMaterialTemplate } from '../models/types/index.js'
+import type { MaterialSource, MaterialKind, ITemplate } from '../models/types/index.js'
 
 /** POST/PUT /api/materials 请求体 */
 interface MaterialRequestBody {
@@ -12,7 +12,7 @@ interface MaterialRequestBody {
   source?: MaterialSource
   version?: string
   minEngineVersion?: string
-  template?: IMaterialTemplate
+  template?: ITemplate
   applicationId?: string
 }
 
