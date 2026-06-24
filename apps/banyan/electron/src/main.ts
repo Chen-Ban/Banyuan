@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { PreviewServerOrchestrator } from "./preview/PreviewServerOrchestrator.js";
 import type { PreviewServerInput } from "./preview/PreviewServerOrchestrator.js";
 
-const { app, BrowserWindow, Menu, ipcMain } = electron;
+const { app, BrowserWindow, Menu, ipcMain, globalShortcut } = electron;
 type BrowserWindow = InstanceType<typeof electron.BrowserWindow>;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -67,6 +67,9 @@ function createWindow() {
     };
 
     loadDevServer();
+
+    // 开发模式下自动打开 DevTools + 注册快捷键
+    mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, "../../frontend/dist/index.html"));
   }
@@ -86,6 +89,18 @@ app.on("ready", () => {
   Menu.setApplicationMenu(null);
   createWindow();
 
+  // 开发模式下注册 DevTools 快捷键（Menu.setApplicationMenu(null) 会移除默认快捷键）
+  if (isDev) {
+    globalShortcut.register('CommandOrControl+Shift+I', () => {
+      const win = BrowserWindow.getFocusedWindow();
+      if (win) win.webContents.toggleDevTools();
+    });
+    globalShortcut.register('F12', () => {
+      const win = BrowserWindow.getFocusedWindow();
+      if (win) win.webContents.toggleDevTools();
+    });
+  }
+
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
@@ -99,6 +114,7 @@ app.on("window-all-closed", () => {
 
 // 退出前清理所有 Preview Server 进程
 app.on("before-quit", () => {
+  globalShortcut.unregisterAll();
   previewOrchestrator.stopAll().catch((err) => {
     console.error("[PreviewServer] stopAll failed on quit:", err);
   });
