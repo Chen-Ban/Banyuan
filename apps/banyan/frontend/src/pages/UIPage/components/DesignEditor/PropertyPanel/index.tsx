@@ -3,7 +3,6 @@ import { Tabs } from "antd"
 import type { IBanvasActions } from "@banyuan/banvasgl"
 import { FieldSchemaMapEditor } from "./FieldSchemaMapEditor"
 import { PropertiesTab } from "./PropertiesTab"
-import { StyleTab } from "./StyleTab"
 import { DataTab } from "./DataTab"
 import { EventsTab } from "./EventsTab"
 import type { FlowEditorOpenRequest } from "./EventsTab"
@@ -27,9 +26,9 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     ? actions.view.getViewInstance(selectedViewId)
     : null
 
-  const [activeTab, setActiveTab] = useState("properties")
+  const [activeTab, setActiveTab] = useState("appearance")
   useEffect(() => {
-    setActiveTab(selectedViewId ? "properties" : "data")
+    setActiveTab(selectedViewId ? "appearance" : "data")
   }, [selectedViewId])
 
   const isEditingRef = useRef(false)
@@ -122,8 +121,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
   const tabItems = [
     {
-      key: "properties",
-      label: "属性",
+      key: "appearance",
+      label: "外观",
       children: (
         <PropertiesTab
           view={view}
@@ -133,11 +132,6 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           onBlur={handleBlur}
         />
       ),
-    },
-    {
-      key: "style",
-      label: "样式",
-      children: <StyleTab view={view} actions={actions} />,
     },
     {
       key: "data",

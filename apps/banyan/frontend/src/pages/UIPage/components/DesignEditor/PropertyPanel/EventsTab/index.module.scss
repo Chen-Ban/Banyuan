@@ -66,3 +66,39 @@
   min-width: 20px;
   color: var(--color-error-text);
 }
+
+.addEventBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 0;
+  width: 100%;
+  border: 1px dashed var(--color-border-hover);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--duration-normal), border-color var(--duration-normal);
+
+  &:hover {
+    color: var(--color-text-secondary);
+    border-color: var(--color-primary);
+  }
+}
+
+.eventCategory {
+  margin-bottom: 4px;
+}
+
+.categoryLabel {
+  font-size: $text-2xs;
+  color: var(--color-text-disabled);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 0 2px;
+  margin-top: 4px;
+}

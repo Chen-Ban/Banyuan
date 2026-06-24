@@ -3,11 +3,12 @@
 .wrapper {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .label {
   font-size: $text-2xs;
   color: var(--color-text-tertiary);
   font-weight: $font-medium;
+  min-height: 14px;
 }
