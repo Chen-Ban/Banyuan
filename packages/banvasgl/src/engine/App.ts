@@ -23,7 +23,12 @@ export class App implements ISerializable {
 
   // 基本属性
   public scenes: Scene[] = [];
-  public renderer: Renderer;
+  /**
+   * 渲染器（可为 null）。
+   * App.fromJSON 创建的无渲染器实例 renderer 为 null，
+   * 通过 setRenderer() / App.create() 绑定后方可渲染。
+   */
+  public renderer: Renderer | null;
   public pageStack: Scene[] = [];
   public readonly animationManager: AnimationManager =
     AnimationManager.getInstance();
@@ -96,7 +101,7 @@ export class App implements ISerializable {
    */
   public lifetimes: IAppLifetimes = { onLaunch: null, onUnlaunch: null };
 
-  constructor(renderer: Renderer, options: IAppOptions) {
+  constructor(renderer: Renderer | null, options: IAppOptions) {
     this.renderer = renderer;
     this._enablePageStack = options.enablePageStack !== false;
     this._maxPageStackSize = options.maxPageStackSize || 50;
@@ -456,6 +461,7 @@ export class App implements ISerializable {
 
   // 渲染
   public render(): App {
+    if (!this.renderer) return this;
     if (this._currentScene) {
       this.renderer.render(this._currentScene);
     } else {
@@ -644,7 +650,7 @@ export class App implements ISerializable {
   }
 
   // 渲染器管理
-  public getRenderer(): Renderer {
+  public getRenderer(): Renderer | null {
     return this.renderer;
   }
 
@@ -668,6 +674,7 @@ export class App implements ISerializable {
   // 调整画布尺寸（逻辑像素，渲染器内部乘以 dpr）
   // 引擎只关心逻辑尺寸，CSS 样式尺寸由外层控制
   public handleResize(width: number, height: number): App {
+    if (!this.renderer) return this;
     this.renderer.resize(width, height);
     return this;
   }
@@ -689,7 +696,9 @@ export class App implements ISerializable {
     this._designSize = { width, height };
 
     // 同步 canvas 物理像素（dpr 由平台层内部处理）
-    this.renderer.resize(width, height);
+    if (this.renderer) {
+      this.renderer.resize(width, height);
+    }
 
     // 同步当前 Scene 的 Camera bounds
     const scene = this.getCurrentScene();
@@ -710,7 +719,7 @@ export class App implements ISerializable {
   // 销毁应用
   public destroy(): App {
     this.unlaunch();
-    this.renderer.destroy();
+    this.renderer?.destroy();
     return this;
   }
 
@@ -728,31 +737,23 @@ export class App implements ISerializable {
   /**
    * 从序列化 JSON 字符串恢复 App 状态
    *
-   * Serializer.deserialize 会递归还原内部的 Scene/Camera/View 实例。
-   * 返回的是 { lifetimes, scenes: Scene[] } 纯数据，赋值给当前实例。
+   * 内部调用 App.fromJSON 创建临时 App 实例，
+   * 然后将其状态（designSize / lifetimes / scenes）合并到当前实例，
+   * 保留当前实例的 renderer / flowRunner 等运行时绑定。
    */
   public initFromSerialized(json: string): App {
     const serializer = Serializer.getInstance();
-    const appData = serializer.deserialize<{ designSize?: { width: number; height: number }; lifetimes: IAppLifetimes; scenes: Scene[] }>(json);
+    const restored = serializer.deserialize<App>(json);
 
-    // 恢复 designSize
-    if (appData.designSize) {
-      this._designSize = appData.designSize;
-    }
+    // 合并可序列化状态到当前实例
+    this._designSize = restored._designSize;
+    this.lifetimes = restored.lifetimes;
 
-    // 恢复 lifetimes
-    this.lifetimes = {
-      onLaunch: appData.lifetimes?.onLaunch ?? null,
-      onUnlaunch: appData.lifetimes?.onUnlaunch ?? null,
-    };
-
-    // 恢复 scenes
+    // 替换 scenes
     this.getScenes().forEach((scene) => this.removeScene(scene));
-    if (Array.isArray(appData.scenes)) {
-      appData.scenes.forEach((scene) => this.addScene(scene));
-      if (appData.scenes.length > 0) {
-        this.setCurrentScene(appData.scenes[0]);
-      }
+    restored.scenes.forEach((scene) => this.addScene(scene));
+    if (this.scenes.length > 0) {
+      this.setCurrentScene(this.scenes[0]);
     }
 
     return this;
@@ -782,23 +783,26 @@ export class App implements ISerializable {
   }
 
   /**
-   * 从 toJSON() 产出的纯数据恢复 App 状态（静态工厂）
+   * ISerializableClass 静态工厂：从纯数据恢复完整的 App 实例。
    *
    * 注意：data.scenes 在到达此方法前已被 Serializer 的 deserializeValue
    * 递归处理——$type/$value 包装已还原为 Scene 实例。
    *
-   * 此方法返回的是一个部分初始化的结构对象（不含 renderer），
-   * Serializer 内部使用。消费方应使用 app.initFromSerialized(json)。
+   * 返回的 App 实例 renderer 为 null，需要在 attach 到宿主后
+   * 通过 setRenderer() 绑定渲染器方可渲染。
+   * 消费方通常使用现有实例上的 initFromSerialized(json) 代替直接调用此方法。
    */
-  static fromJSON(data: any): { designSize?: { width: number; height: number }; lifetimes: IAppLifetimes; scenes: Scene[] } {
-    return {
-      designSize: data.designSize ?? undefined,
-      lifetimes: {
-        onLaunch: data.lifetimes?.onLaunch ?? null,
-        onUnlaunch: data.lifetimes?.onUnlaunch ?? null,
-      },
-      scenes: Array.isArray(data.scenes) ? data.scenes : [],
+  static fromJSON(data: any): App {
+    const app = new App(null, { flowEnabled: false });
+    app._designSize = data.designSize ?? { width: 1280, height: 800 };
+    app.lifetimes = {
+      onLaunch: data.lifetimes?.onLaunch ?? null,
+      onUnlaunch: data.lifetimes?.onUnlaunch ?? null,
     };
+    if (Array.isArray(data.scenes)) {
+      data.scenes.forEach((scene: Scene) => app.addScene(scene));
+    }
+    return app;
   }
 
   public toString(): string {
