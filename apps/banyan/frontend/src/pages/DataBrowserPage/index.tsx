@@ -149,30 +149,7 @@ const DataBrowserPage: React.FC = () => {
 
   if (!appId) return null
 
-  // ── 非 Electron / Preview Server 未就绪 → 降级提示 ──
-  if (!serverInfo || serverStatus === 'error') {
-    return (
-      <div className={styles.emptyContent}>
-        <Empty
-          image={<DesktopOutlined style={{ fontSize: 48, color: 'var(--color-text-quaternary)' }} />}
-          description={
-            serverStatus === 'error'
-              ? 'Preview Server 启动失败，无法浏览数据'
-              : '数据浏览需要在桌面客户端中使用'
-          }
-        />
-      </div>
-    )
-  }
-
-  if (serverStatus === 'starting') {
-    return (
-      <div className={styles.loadingWrapper}>
-        <Spin size="large" tip="Preview Server 启动中..." />
-      </div>
-    )
-  }
-
+  // ── 加载中 ──
   if (schemaLoading) {
     return (
       <div className={styles.loadingWrapper}>
@@ -180,6 +157,30 @@ const DataBrowserPage: React.FC = () => {
       </div>
     )
   }
+
+  // ── 无数据表：优先展示，不依赖 Preview Server ──
+  if (collections.length === 0) {
+    return (
+      <div className={styles.emptyContent}>
+        <Empty
+          image={<TableOutlined style={{ fontSize: 48, color: 'var(--color-text-quaternary)' }} />}
+          description="暂无数据表，请先在数据库页面创建"
+        />
+      </div>
+    )
+  }
+
+  // ── Preview Server 启动中 ──
+  if (serverStatus === 'starting') {
+    return (
+      <div className={styles.loadingWrapper}>
+        <Spin size="large" description="Preview Server 启动中..." />
+      </div>
+    )
+  }
+
+  // ── 非 Electron / Preview Server 未就绪 → 展示表列表但提示无法浏览数据 ──
+  const serverUnavailable = !serverInfo || serverStatus === 'error'
 
   return (
     <div className={styles.page}>
@@ -200,15 +201,23 @@ const DataBrowserPage: React.FC = () => {
               onSelect={() => setSelectedName(col.name)}
             />
           ))}
-          {collections.length === 0 && (
-            <div className={styles.emptyHint}>暂无数据表</div>
-          )}
         </div>
       </div>
 
-      {/* 右侧数据表格 */}
+      {/* 右侧内容区 */}
       <div className={styles.content}>
-        {selectedCollection ? (
+        {serverUnavailable ? (
+          <div className={styles.emptyContent}>
+            <Empty
+              image={<DesktopOutlined style={{ fontSize: 48, color: 'var(--color-text-quaternary)' }} />}
+              description={
+                serverStatus === 'error'
+                  ? 'Preview Server 启动失败，无法浏览数据'
+                  : '预览服务不可用，请在桌面客户端中打开'
+              }
+            />
+          </div>
+        ) : selectedCollection ? (
           <>
             <div className={styles.tableHeader}>
               <span className={styles.tableTitle}>
