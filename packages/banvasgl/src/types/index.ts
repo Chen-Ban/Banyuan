@@ -10,7 +10,8 @@
  *   ├── engine/    — App、Scene、Camera、Renderer、Animation
  *   ├── foundation/ — Style、Serializable、Transferable
  *   ├── graph/     — Graph 基元接口
- *   ├── view/      — View、Addon、Hook、Property
+ *   ├── view/      — View、Addon、Property
+ *   ├── actions/   — Actions 操作接口
  *   ├── guards.ts  — 跨层类型守卫
  *   └── index.ts   — 本文件（总 barrel）
  */
@@ -193,7 +194,10 @@ export type {
     IAnimationDescriptor,
     IAnimationAddon,
     Keyframe,
-} from './engine/animation'
+    PropertyClassification,
+    InterpolationHints,
+    ResolvedKeyframeSegment,
+} from './foundation/animation'
 
 // ── 序列化接口 ──
 export type { ISerializable, ISerializableClass } from './foundation/serializable'
@@ -229,31 +233,38 @@ export type {
   ITextMetrics,
 } from './foundation/text.js'
 
+// ── 样式基础类型 ──
+export type {
+  FillType,
+  StrokeType,
+  GradientStop,
+  PatternSize,
+  VideoRepeat,
+  VideoSize,
+} from './foundation/style'
+
 // ── 数学类型 ──
 export type { Matrix2DInit } from './foundation/math.js'
 
-// ── Hook 公共接口 ──
+// ── Actions 操作接口 ──
 export type {
     IViewActions,
     IPageActions,
     IAppActions,
     IBanvasActions,
-} from './hook/hook'
+} from './actions/actions'
 
-// ── 物料系统接口 ──
+// ── 模板系统接口 ──
 export type {
-    MaterialSource,
-    IMaterialMeta,
-    MaterialParameterType,
-    IMaterialParameter,
-    IMaterialAsset,
-    IMaterialTemplate,
+    TemplateParameterType,
+    ITemplateParameter,
+    ITemplateAsset,
+    ITemplate,
     IInternalIdRef,
-    IMaterial,
-    IMaterialActions,
-    IMaterialSerializeConfig,
-    IMaterialParameterBinding,
-} from './material/material'
+    ITemplateActions,
+    ITemplateSerializeConfig,
+    ITemplateParameterBinding,
+} from './template/template'
 
 // ── 平台抽象接口 ──
 export type {

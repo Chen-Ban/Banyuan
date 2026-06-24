@@ -1,14 +1,14 @@
 /**
  * View 级别操作
  *
- * 提供视图 CRUD、属性编辑、命中检测、物料序列化/实例化等操作。
- * 创建视图统一走 instantiateMaterial() 路径。
+ * 提供视图 CRUD、属性编辑、命中检测、模板序列化/实例化等操作。
+ * 创建视图统一走 instantiateTemplate() 路径。
  */
 
 import View from "@/view/View/View";
 import { clearAllStates, flattenViewTree } from "@/engine/scene/utils";
 import { adapterRegistry } from "@/view/property";
-import type { IViewActions } from "@/types/hook/hook";
+import type { IViewActions } from "@/types/actions/actions";
 import type {
   IFieldSchema,
   IFieldSchemaMap,
@@ -20,7 +20,7 @@ import type {
 } from "@/types/view/view";
 import { Point3, ViewType, Cursor } from "@/foundation";
 import type { App } from "@/engine/App";
-import { createMaterialActions as _createMaterialActions } from "@/engine/material/index.js";
+import { createTemplateActions as _createTemplateActions } from "@/engine/template/index.js";
 
 import type { IDrawingContext } from "@/types/platform/drawing.js";
 
@@ -35,7 +35,7 @@ export function getClipboard(): View | null {
 export function createViewActions(getApp: () => App | null): IViewActions {
   const getScene = () => getApp()?.getCurrentScene() ?? null;
   const notify = () => getApp()?.notify();
-  const materialActions = _createMaterialActions(getApp);
+  const templateActions = _createTemplateActions(getApp);
 
   return {
     select(viewId: string, multiple?: boolean): void {
@@ -464,7 +464,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
         content: null,
         extraData: null,
       };
-      if (!app || !scene) return empty;
+      if (!app || !scene || !app.renderer) return empty;
 
       const bufferCtx = app.renderer.getSurface().offscreen;
       let result: IInteractResult = empty;
@@ -480,7 +480,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
     hitTestAll(point: Point3): IInteractResult[] {
       const app = getApp();
       const scene = getScene();
-      if (!app || !scene) return [];
+      if (!app || !scene || !app.renderer) return [];
 
       const bufferCtx = app.renderer.getSurface().offscreen;
       const results: IInteractResult[] = [];
@@ -504,7 +504,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
         extraData: null,
         cursor: Cursor.Default,
       };
-      if (!app || !scene) return empty;
+      if (!app || !scene || !app.renderer) return empty;
 
       const bufferCtx = app.renderer.getSurface().offscreen;
       let result: IInteractResult & { cursor: Cursor } = empty;
@@ -519,7 +519,7 @@ export function createViewActions(getApp: () => App | null): IViewActions {
 
     getBufferContext(): IDrawingContext | null {
       const app = getApp();
-      if (!app) return null;
+      if (!app || !app.renderer) return null;
       return app.renderer.getSurface().offscreen;
     },
 
@@ -587,7 +587,8 @@ export function createViewActions(getApp: () => App | null): IViewActions {
     },
 
 
-    serializeMaterial: materialActions.serialize,
-    instantiateMaterial: materialActions.instantiate,
+    // ── 模板操作（从 ITemplateActions 合并） ──
+    serializeTemplate: templateActions.serialize,
+    instantiateTemplate: templateActions.instantiate,
   };
 }

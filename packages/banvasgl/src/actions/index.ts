@@ -2,10 +2,10 @@
  * Actions 入口 — BanvasGL 核心操作 API
  *
  * 提供 createBanvasActions 工厂函数，返回命名空间化的操作对象。
- * 物料创建统一走 instantiateMaterial() 路径。
+ * 视图创建统一走 instantiateTemplate() 路径。
  */
 
-import type { IBanvasActions } from "@/types/hook/hook";
+import type { IBanvasActions } from "@/types/actions/actions";
 import type { App } from "@/engine/App";
 
 // 内部使用的导入

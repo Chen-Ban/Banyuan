@@ -1,18 +1,18 @@
 /**
- * 物料占位符层 —— 收集与替换 ID / 参数 / 资源占位符的纯函数集合
+ * 模板占位符层 —— 收集与替换 ID / 参数 / 资源占位符的纯函数集合
  *
- * 物料模板在 serialize 阶段把易变信息（ID、可参数化字段、资源 URL）替换为占位符，
+ * 模板在 serialize 阶段把易变信息（ID、可参数化字段、资源 URL）替换为占位符，
  * 在 instantiate 阶段再填回真实值。本文件汇总这些无状态的递归遍历逻辑，
  * 与 Serializer 的"对象 ⇄ JSON"职责正交。
  */
 
 import { v4 as uuid } from 'uuid'
 import type {
-    IMaterialAsset,
-    IMaterialParameter,
-    IMaterialParameterBinding,
+    ITemplateAsset,
+    ITemplateParameter,
+    ITemplateParameterBinding,
     IInternalIdRef,
-} from '@/types/material/material.js'
+} from '@/types/template/template.js'
 import { getValueByPath, setValueByPath } from './pathUtils.js'
 
 // ── 占位符格式 ──
@@ -131,7 +131,7 @@ function isFlowSchemaPath(path: string): boolean {
  */
 export function extractAssets(
     obj: any,
-    assets: IMaterialAsset[],
+    assets: ITemplateAsset[],
     assetMap: Map<string, string>,
 ): void {
     if (obj === null || obj === undefined || typeof obj !== 'object') return
@@ -160,7 +160,7 @@ export function extractAssets(
 }
 
 /** 根据 URL 后缀推断资源类型 */
-function inferAssetType(url: string): IMaterialAsset['type'] {
+function inferAssetType(url: string): ITemplateAsset['type'] {
     const lower = url.toLowerCase()
     if (/\.(png|jpe?g|gif|webp|svg)/.test(lower)) return 'image'
     if (/\.(mp4|webm)/.test(lower)) return 'video'
@@ -200,8 +200,8 @@ export function replaceAssetUrls(obj: any, assetMap: Map<string, string>): void 
  */
 export function applyParameterBindings(
     root: Record<string, any>,
-    bindings: IMaterialParameterBinding[],
-    parameters: IMaterialParameter[],
+    bindings: ITemplateParameterBinding[],
+    parameters: ITemplateParameter[],
 ): void {
     for (const binding of bindings) {
         // 获取当前值作为默认值

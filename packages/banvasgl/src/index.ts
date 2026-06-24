@@ -208,7 +208,7 @@ export type {
     Keyframe,
 } from './types'
 
-// ── Hook 公共接口 ──
+// ── Actions 操作接口 ──
 export type {
 IViewActions,
 IPageActions,
@@ -216,19 +216,16 @@ IPageActions,
     IBanvasActions,
 } from './types'
 
-// ── 物料系统接口 ──
+// ── 模板系统接口 ──
 export type {
-    MaterialSource,
-    IMaterialMeta,
-    MaterialParameterType,
-    IMaterialParameter,
-    IMaterialAsset,
-    IMaterialTemplate,
+    TemplateParameterType,
+    ITemplateParameter,
+    ITemplateAsset,
+    ITemplate,
     IInternalIdRef,
-    IMaterial,
-    IMaterialActions,
-    IMaterialSerializeConfig,
-    IMaterialParameterBinding,
+    ITemplateActions,
+    ITemplateSerializeConfig,
+    ITemplateParameterBinding,
 } from './types'
 
 // ── 平台抽象接口 ──

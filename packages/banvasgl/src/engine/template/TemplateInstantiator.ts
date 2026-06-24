@@ -1,10 +1,10 @@
 /**
- * 物料实例化 —— 物料模板（IMaterialTemplate）→ View 实例
+ * 模板实例化 —— 模板（ITemplate）→ View 实例
  *
  * 与 serialize 对称：把占位符填回真实值（每次落地都重生成 ID），
  * 再复用 Serializer.deserialize() 还原 View 实例树。
  *
- * 注意 ID 语义：物料实例化要求每次生成全新 ID（模板复用语义），
+ * 注意 ID 语义：模板实例化要求每次生成全新 ID（模板复用语义），
  * 这与序列化模块用于 undo/redo 时"ID 保持不变"的诉求相反，
  * 因此 ID 重生成由本模板层负责，Serializer 只做纯粹的对象还原。
  *
@@ -21,7 +21,7 @@ import { Serializer } from '@/engine/serialization/Serializer.js'
 import { ViewType } from '@/foundation/constants.js'
 import NodeView from '@/view/FlowViews/NodeView.js'
 import type { FlowNode } from '@/types/index.js'
-import type { IMaterial, IMaterialTemplate } from '@/types/material/material.js'
+import type { ITemplate } from '@/types/template/template.js'
 import {
     replaceIdPlaceholders,
     replaceParamPlaceholders,
@@ -32,22 +32,20 @@ import {
 import { setValueByPath } from './pathUtils.js'
 
 /**
- * 将物料模板实例化为场景中的 View，并添加到当前场景
+ * 将模板实例化为场景中的 View，并添加到当前场景
  *
  * @returns 新建 View 的 ID；当场景/应用不存在或实例化失败时返回 null
  */
-export function instantiateMaterial(
+export function instantiateTemplate(
     app: App | null,
     scene: Scene | null,
-    material: IMaterial | IMaterialTemplate,
+    template: ITemplate,
     position: { x: number; y: number },
     params?: Record<string, unknown>,
 ): string | null {
     if (!scene || !app) return null
 
-    const template = 'template' in material ? material.template : material
-
-    // 1. 深拷贝模板 root（全量数据包装：{ $type, $value }）
+    // 1. 深拷贝模板 root（RawJSON：{ $type, $value }）
     const wrappedRoot = JSON.parse(JSON.stringify(template.root))
 
     // 2. 解包出裸子树做占位符替换；占位符/ref/参数/资源/位置的 path 基准
