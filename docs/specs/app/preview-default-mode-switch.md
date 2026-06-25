@@ -84,11 +84,11 @@
 
 ## 三态与页面/ hook 对应关系
 
-| 态 | 页面 | hook | flowEnabled | 编辑装备 | 数据源 | 后端 |
-|----|------|------|-------------|---------|--------|------|
-| 编辑态 | UIPage | `useDesignBanvas` | false | 物料/属性/右键/选中/canvas 调节 | 落库 appJSON | 不请求后端节点 |
-| 预览态 | PreviewPage | `useCanvasInit` | true | 无 | 同一份落库 appJSON | 本地 Preview Server（preview-local-backend.md） |
-| 线上态 | （deploy-agent 产物） | 产物内 runtime | true | 无 | 部署快照 | ECS 真实后端 |
+| 态     | 页面                  | hook              | flowEnabled | 编辑装备                        | 数据源             | 后端                                            |
+| ------ | --------------------- | ----------------- | ----------- | ------------------------------- | ------------------ | ----------------------------------------------- |
+| 编辑态 | UIPage                | `useDesignBanvas` | false       | 物料/属性/右键/选中/canvas 调节 | 落库 appJSON       | 不请求后端节点                                  |
+| 预览态 | PreviewPage           | `useCanvasInit`   | true        | 无                              | 同一份落库 appJSON | 本地 Preview Server（preview-local-backend.md） |
+| 线上态 | （deploy-agent 产物） | 产物内 runtime    | true        | 无                              | 部署快照           | ECS 真实后端                                    |
 
 三态同一前端工程、同 import `@banyuan/banvasgl`、同 appJSON 数据契约，差异仅在 hook 与运行宿主——完全符合 A8a「三态统一引擎」与 A5「前端同源」。
 
@@ -109,12 +109,12 @@
 
 ## 影响范围
 
-| 文件 / 模块 | 改动类型 |
-|------|---------|
-| `apps/banyan/frontend/src/pages/PreviewPage/` | 新建预览态页面（`useCanvasInit` + `flowEnabled: true`，无编辑装备） |
-| `apps/banyan/frontend/src/layouts/ApplicationLayout/index.tsx` | 顶部新增预览/编辑 toggle；preview 模式判断；渲染 PreviewPage；切预览前触发自动保存 |
-| `apps/banyan/frontend/src/pages/UIPage/index.tsx` | 暴露/复用序列化+保存链路供切换前调用（`getSerializedApp` + `saveAppContent`），编辑装备维持不变 |
-| `apps/banyan/frontend/src/routes/index.tsx` | 通配路由不变；如按需挂载方案，调整 PreviewPage 的挂载/卸载时机 |
+| 文件 / 模块                                                    | 改动类型                                                                                        |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `apps/banyan/frontend/src/pages/PreviewPage/`                  | 新建预览态页面（`useCanvasInit` + `flowEnabled: true`，无编辑装备）                             |
+| `apps/banyan/frontend/src/layouts/ApplicationLayout/index.tsx` | 顶部新增预览/编辑 toggle；preview 模式判断；渲染 PreviewPage；切预览前触发自动保存              |
+| `apps/banyan/frontend/src/pages/UIPage/index.tsx`              | 暴露/复用序列化+保存链路供切换前调用（`getSerializedApp` + `saveAppContent`），编辑装备维持不变 |
+| `apps/banyan/frontend/src/routes/index.tsx`                    | 通配路由不变；如按需挂载方案，调整 PreviewPage 的挂载/卸载时机                                  |
 
 ---
 

@@ -55,24 +55,44 @@ interface PointerInputBase {
   worldPoint: Point3
   clientX: number
   clientY: number
-  pointerId: number                       // G1：多指 / 多设备区分
-  pointerType: 'mouse' | 'touch' | 'pen'  // G1：硬件无关的设备标签
-  pressure?: number                       // G4：0~1，鼠标恒为 0.5/0，笔/触摸给真实压感
-  tiltX?: number                          // G4：触控笔倾角（绕 Y 轴）
-  tiltY?: number                          // G4：触控笔倾角（绕 X 轴）
+  pointerId: number // G1：多指 / 多设备区分
+  pointerType: 'mouse' | 'touch' | 'pen' // G1：硬件无关的设备标签
+  pressure?: number // G4：0~1，鼠标恒为 0.5/0，笔/触摸给真实压感
+  tiltX?: number // G4：触控笔倾角（绕 Y 轴）
+  tiltY?: number // G4：触控笔倾角（绕 X 轴）
 }
 
-interface PointerDownInput   extends PointerInputBase { type: 'pointerdown'; button?: number } // button 降级为可选（非缺口，G3 已说明）
-interface PointerMoveInput   extends PointerInputBase { type: 'pointermove' }                  // ❌ 不再含 canvasWidth/canvasHeight（外移）
-interface PointerUpInput     extends PointerInputBase { type: 'pointerup' }
-interface PointerCancelInput extends PointerInputBase { type: 'pointercancel' }                // G2：新增
+interface PointerDownInput extends PointerInputBase {
+  type: 'pointerdown'
+  button?: number
+} // button 降级为可选（非缺口，G3 已说明）
+interface PointerMoveInput extends PointerInputBase {
+  type: 'pointermove'
+} // ❌ 不再含 canvasWidth/canvasHeight（外移）
+interface PointerUpInput extends PointerInputBase {
+  type: 'pointerup'
+}
+interface PointerCancelInput extends PointerInputBase {
+  type: 'pointercancel'
+} // G2：新增
 
-interface KeyDownInput { type: 'keydown'; code: string; repeat: boolean }
-interface KeyUpInput   { type: 'keyup';   code: string }
+interface KeyDownInput {
+  type: 'keydown'
+  code: string
+  repeat: boolean
+}
+interface KeyUpInput {
+  type: 'keyup'
+  code: string
+}
 
 type InteractionInput =
-  | PointerDownInput | PointerMoveInput | PointerUpInput | PointerCancelInput
-  | KeyDownInput | KeyUpInput
+  | PointerDownInput
+  | PointerMoveInput
+  | PointerUpInput
+  | PointerCancelInput
+  | KeyDownInput
+  | KeyUpInput
 ```
 
 与三态 spec「目标 InteractionInput 草案」一致，差异仅在于：此处是 G3 已落地后的**最终落地形态**（草案里 PointerMoveInput 仍含 canvasWidth 是因为草案标注了「外移单独处理」，本 spec 即处理该外移）。
@@ -150,13 +170,13 @@ type InteractionInput =
 
 ## 影响范围
 
-| 文件 | 改动类型 |
-|------|---------|
-| `packages/banvasgl/src/types/interaction.ts` | `InteractionInput` 重构（G1/G2/G4 字段 + 删 canvasWidth）；`InteractionDelegate.panMove` 签名调整 |
-| `packages/banvasgl/src/engine/interaction/InteractionStateMachine.ts` | 新增 `onPointerCancel` 分支 + 判别分发；`panMove` 调用改读 Delegate 画布尺寸；多指不串扰保护 |
-| `packages/banvasgl/src/engine/...`（Delegate 实现处） | 同步 `panMove` 签名 + 画布尺寸入口 |
-| `apps/banyan/frontend/src/hooks/useInteraction.ts` | 构造原子事件补 pointerId/pointerType；删 canvasWidth 构造；pointercancel 映射（PC 退化适配） |
-| `packages/banvas-runtime/`（输入适配器） | touch/pen → InteractionInput 跨平台翻译（步骤 5，依赖移动端需求按需排期） |
+| 文件                                                                  | 改动类型                                                                                          |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `packages/banvasgl/src/types/interaction.ts`                          | `InteractionInput` 重构（G1/G2/G4 字段 + 删 canvasWidth）；`InteractionDelegate.panMove` 签名调整 |
+| `packages/banvasgl/src/engine/interaction/InteractionStateMachine.ts` | 新增 `onPointerCancel` 分支 + 判别分发；`panMove` 调用改读 Delegate 画布尺寸；多指不串扰保护      |
+| `packages/banvasgl/src/engine/...`（Delegate 实现处）                 | 同步 `panMove` 签名 + 画布尺寸入口                                                                |
+| `apps/banyan/frontend/src/hooks/useInteraction.ts`                    | 构造原子事件补 pointerId/pointerType；删 canvasWidth 构造；pointercancel 映射（PC 退化适配）      |
+| `packages/banvas-runtime/`（输入适配器）                              | touch/pen → InteractionInput 跨平台翻译（步骤 5，依赖移动端需求按需排期）                         |
 
 > 注意：本 spec 不改 `IViewEvents` / `View.events` 键集合，也不实现任何高级手势识别器；它只把原子事件层的字段入口补齐到「跨平台能力可在其上构建」的状态。
 

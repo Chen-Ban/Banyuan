@@ -73,7 +73,7 @@ async function main() {
         createdBy: DEFAULT_USER_ID,
         updatedAt: new Date(),
       },
-    }
+    },
   )
   console.log(`[migrate] 更新 Application 文档: ${result.modifiedCount} 条`)
 

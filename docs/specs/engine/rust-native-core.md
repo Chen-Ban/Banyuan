@@ -2,13 +2,13 @@
 
 ## 关联决策
 
-| 决策 | 状态 | 关联 |
-|------|------|------|
-| **A0** — 机制/策略分离契约 | ✅ 已实施 | 根定位：runtime ⊃ rendering，只提供机制不内置策略 |
-| **A8b** — 平台抽象层 (IDrawingContext/IDrawingSurface) | ✅ 已实施 | Rust 侧的天然 FFI 边界 |
-| **A9** — Rust 核心 Step 1：2D 全量改写并验证功能（提案） | 未实施 | 本方案的父决策 |
-| **P7** — 引擎纯净原则 | ✅ 已实施 | 核心不依赖 DOM/React |
-| **P7a** — Flow 子模块后端独立 | ✅ 已实施 | 后端只取 Flow 执行，不引入渲染代码 |
+| 决策                                                     | 状态      | 关联                                              |
+| -------------------------------------------------------- | --------- | ------------------------------------------------- |
+| **A0** — 机制/策略分离契约                               | ✅ 已实施 | 根定位：runtime ⊃ rendering，只提供机制不内置策略 |
+| **A8b** — 平台抽象层 (IDrawingContext/IDrawingSurface)   | ✅ 已实施 | Rust 侧的天然 FFI 边界                            |
+| **A9** — Rust 核心 Step 1：2D 全量改写并验证功能（提案） | 未实施    | 本方案的父决策                                    |
+| **P7** — 引擎纯净原则                                    | ✅ 已实施 | 核心不依赖 DOM/React                              |
+| **P7a** — Flow 子模块后端独立                            | ✅ 已实施 | 后端只取 Flow 执行，不引入渲染代码                |
 
 ---
 
@@ -18,56 +18,56 @@
 
 ### 项目结构相关
 
-| Rust 术语 | 通俗解释 | TypeScript 类比 |
-|-----------|---------|----------------|
-| **crate** | Rust 的"包"。一个 crate = 一个编译单元，产出库或可执行文件 | npm 包 |
-| **Cargo.toml** | crate 的配置文件。声明名称、版本、依赖 | `package.json` |
-| **Cargo workspace** | 把多个 crate 放在同一个仓库里统一管理，共享依赖版本和编译缓存 | pnpm workspace |
-| **`lib.rs`** | 库 crate 的入口文件 | `src/index.ts` |
-| **`main.rs`** | 可执行 crate 的入口文件 | `src/cli.ts` |
-| **`Cargo.lock`** | 锁定所有依赖的精确版本 | `pnpm-lock.yaml` |
-| **`rust-toolchain.toml`** | 固定项目使用的 Rust 编译器版本 | `.nvmrc` |
+| Rust 术语                 | 通俗解释                                                      | TypeScript 类比  |
+| ------------------------- | ------------------------------------------------------------- | ---------------- |
+| **crate**                 | Rust 的"包"。一个 crate = 一个编译单元，产出库或可执行文件    | npm 包           |
+| **Cargo.toml**            | crate 的配置文件。声明名称、版本、依赖                        | `package.json`   |
+| **Cargo workspace**       | 把多个 crate 放在同一个仓库里统一管理，共享依赖版本和编译缓存 | pnpm workspace   |
+| **`lib.rs`**              | 库 crate 的入口文件                                           | `src/index.ts`   |
+| **`main.rs`**             | 可执行 crate 的入口文件                                       | `src/cli.ts`     |
+| **`Cargo.lock`**          | 锁定所有依赖的精确版本                                        | `pnpm-lock.yaml` |
+| **`rust-toolchain.toml`** | 固定项目使用的 Rust 编译器版本                                | `.nvmrc`         |
 
 ### 编译产物相关
 
-| Rust 术语 | 通俗解释 | TypeScript 类比 |
-|-----------|---------|----------------|
-| **crate-type** | 声明「这个 crate 编译成什么格式」| tsup 的 `format: ["esm", "cjs"]` |
-| **`cdylib`** | C 动态库。编译成 `.so`/`.dylib`/`.dll`。是 napi-rs 编译 Node 原生模块的输出格式 | `.node` 文件 |
-| **`rlib`** | Rust 静态库。编译成 `.rlib`，只能被其他 Rust 代码链接 | 无直接类比（类似 `.a` 静态库） |
-| **target triple** | 描述「目标平台的 CPU 架构 + OS + C 运行时」的三段式标识符 | `darwin-arm64` / `linux-x64` 这类平台标签 |
-| **`.node` 文件** | Node.js 原生扩展的二进制文件。napi-rs 把 `cdylib` 重命名为 `.node` | `.node` 文件 |
-| **WASM** | WebAssembly。一种在浏览器/Node 中运行的二进制格式 | 浏览器可直接加载的 `.wasm` 文件 |
+| Rust 术语         | 通俗解释                                                                        | TypeScript 类比                           |
+| ----------------- | ------------------------------------------------------------------------------- | ----------------------------------------- |
+| **crate-type**    | 声明「这个 crate 编译成什么格式」                                               | tsup 的 `format: ["esm", "cjs"]`          |
+| **`cdylib`**      | C 动态库。编译成 `.so`/`.dylib`/`.dll`。是 napi-rs 编译 Node 原生模块的输出格式 | `.node` 文件                              |
+| **`rlib`**        | Rust 静态库。编译成 `.rlib`，只能被其他 Rust 代码链接                           | 无直接类比（类似 `.a` 静态库）            |
+| **target triple** | 描述「目标平台的 CPU 架构 + OS + C 运行时」的三段式标识符                       | `darwin-arm64` / `linux-x64` 这类平台标签 |
+| **`.node` 文件**  | Node.js 原生扩展的二进制文件。napi-rs 把 `cdylib` 重命名为 `.node`              | `.node` 文件                              |
+| **WASM**          | WebAssembly。一种在浏览器/Node 中运行的二进制格式                               | 浏览器可直接加载的 `.wasm` 文件           |
 
 ### 平台相关
 
-| Rust 术语 | 通俗解释 |
-|-----------|---------|
-| **glibc** | GNU C Library。标准 Linux 发行版（Ubuntu/Debian/CentOS）用的 C 运行时库 |
-| **musl** | 更小的 C 运行时库。Alpine Linux（Docker 常用）用它。与 glibc **不兼容** |
-| **MSVC** | Microsoft Visual C++ 运行时。Windows 上 Rust 默认链接它 |
-| **darwin** | Apple 操作系统（macOS/iOS）的内核名 |
+| Rust 术语            | 通俗解释                                                                       |
+| -------------------- | ------------------------------------------------------------------------------ |
+| **glibc**            | GNU C Library。标准 Linux 发行版（Ubuntu/Debian/CentOS）用的 C 运行时库        |
+| **musl**             | 更小的 C 运行时库。Alpine Linux（Docker 常用）用它。与 glibc **不兼容**        |
+| **MSVC**             | Microsoft Visual C++ 运行时。Windows 上 Rust 默认链接它                        |
+| **darwin**           | Apple 操作系统（macOS/iOS）的内核名                                            |
 | **aarch64 / x86_64** | CPU 架构。aarch64 = ARM 64 位（Apple Silicon M1-M4），x86_64 = Intel/AMD 64 位 |
 
 ### 绑定/桥接相关
 
-| Rust 术语 | 通俗解释 | 角色 |
-|-----------|---------|------|
-| **napi-rs** | 一个 Rust 框架，用 Rust 写 Node.js 原生扩展。`#[napi]` 宏暴露函数给 JS | Rust ↔ Node.js 桥 |
-| **wasm-bindgen** | 编译 Rust 到 WASM 并自动生成 JS 胶水代码 | Rust ↔ 浏览器/Node（WASM）桥 |
-| **wasm-pack** | 封装了 `wasm-bindgen` + 构建 + 打包 npm 的完整流程 | `tsup` 的 WASM 版本 |
-| **`#[napi]`** | napi-rs 的属性宏。写在函数/结构体上暴露给 JS | `export` 关键字 |
-| **`#[wasm_bindgen]`** | wasm-bindgen 的属性宏 | `export` 关键字 |
-| **trait** | Rust 的接口。定义一组方法签名，由具体类型实现 | `interface IDrawingContext` |
-| **impl Trait for Struct** | Rust 的"为某个结构体实现某个接口" | `class WebDrawingContext implements IDrawingContext` |
+| Rust 术语                 | 通俗解释                                                               | 角色                                                 |
+| ------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------- |
+| **napi-rs**               | 一个 Rust 框架，用 Rust 写 Node.js 原生扩展。`#[napi]` 宏暴露函数给 JS | Rust ↔ Node.js 桥                                    |
+| **wasm-bindgen**          | 编译 Rust 到 WASM 并自动生成 JS 胶水代码                               | Rust ↔ 浏览器/Node（WASM）桥                         |
+| **wasm-pack**             | 封装了 `wasm-bindgen` + 构建 + 打包 npm 的完整流程                     | `tsup` 的 WASM 版本                                  |
+| **`#[napi]`**             | napi-rs 的属性宏。写在函数/结构体上暴露给 JS                           | `export` 关键字                                      |
+| **`#[wasm_bindgen]`**     | wasm-bindgen 的属性宏                                                  | `export` 关键字                                      |
+| **trait**                 | Rust 的接口。定义一组方法签名，由具体类型实现                          | `interface IDrawingContext`                          |
+| **impl Trait for Struct** | Rust 的"为某个结构体实现某个接口"                                      | `class WebDrawingContext implements IDrawingContext` |
 
 ### 工具链相关
 
-| 工具 | 通俗解释 |
-|------|---------|
-| **cargo** | Rust 的包管理器 + 构建工具 + 测试运行器（三合一） | `pnpm` + `tsup` + `vitest` |
-| **rustup** | Rust 版本管理器。安装/切换/更新 Rust 编译器 | `nvm` |
-| **cargo-zigbuild** | 让 Rust 交叉编译 Linux 目标的工具（如 macOS → Linux .so） | - |
+| 工具               | 通俗解释                                                  |
+| ------------------ | --------------------------------------------------------- | -------------------------- |
+| **cargo**          | Rust 的包管理器 + 构建工具 + 测试运行器（三合一）         | `pnpm` + `tsup` + `vitest` |
+| **rustup**         | Rust 版本管理器。安装/切换/更新 Rust 编译器               | `nvm`                      |
+| **cargo-zigbuild** | 让 Rust 交叉编译 Linux 目标的工具（如 macOS → Linux .so） | -                          |
 
 ---
 
@@ -77,53 +77,53 @@
 
 ### 0.1 渲染循环 — `requestAnimationFrame` ✅ 已修复
 
-| 文件 | 原行号 | 代码 | 状态 |
-|------|--------|------|------|
-| `engine/App.ts` | 556 | ~~`requestAnimationFrame((timestamp) => ...)`~~ → `surface.requestFrame(callback)` (现 L574) | ✅ A8b 已修复 |
-| `engine/App.ts` | 490, 503 | ~~`cancelAnimationFrame(...)`~~ → `surface.cancelFrame(handle)` | ✅ A8b 已修复 |
+| 文件            | 原行号   | 代码                                                                                         | 状态          |
+| --------------- | -------- | -------------------------------------------------------------------------------------------- | ------------- |
+| `engine/App.ts` | 556      | ~~`requestAnimationFrame((timestamp) => ...)`~~ → `surface.requestFrame(callback)` (现 L574) | ✅ A8b 已修复 |
+| `engine/App.ts` | 490, 503 | ~~`cancelAnimationFrame(...)`~~ → `surface.cancelFrame(handle)`                              | ✅ A8b 已修复 |
 
 **当前方案**：`IDrawingSurface.requestFrame(callback)` 抽象了帧同步原语（Web 平台 = rAF，Node/headless = setTimeout）。Rust 侧无需改变——Host 在自有事件循环中调用 `engine.render_frame(timestamp)`。
 
 ### 0.2 DOM 元素创建 — `document.createElement` ✅ 已修复
 
-| 文件 | 原行号 | 代码 | 状态 |
-|------|--------|------|------|
-| `graph/media/ImageElement.ts` | 236 | ~~`document.createElement('canvas')`~~ → 已移除，pixel extraction 走 `ctx.getImageData()` | ✅ A8b 已修复 |
-| `graph/media/VideoElement.ts` | 110 | ~~`document.createElement("video")`~~ → `loadVideoWithContext(ctx)` 通过平台注入 | ✅ A8b 已修复 |
-| `graph/media/VideoElement.ts` | 424 | ~~`document.createElement("canvas")`~~ → 同上 | ✅ A8b 已修复 |
-| `foundation/style/Video.ts` | 269 | ~~`document.createElement('video')`~~ → 已改为 `ctx.loadVideoSource()` | ✅ A8b 已修复 |
+| 文件                          | 原行号 | 代码                                                                                      | 状态          |
+| ----------------------------- | ------ | ----------------------------------------------------------------------------------------- | ------------- |
+| `graph/media/ImageElement.ts` | 236    | ~~`document.createElement('canvas')`~~ → 已移除，pixel extraction 走 `ctx.getImageData()` | ✅ A8b 已修复 |
+| `graph/media/VideoElement.ts` | 110    | ~~`document.createElement("video")`~~ → `loadVideoWithContext(ctx)` 通过平台注入          | ✅ A8b 已修复 |
+| `graph/media/VideoElement.ts` | 424    | ~~`document.createElement("canvas")`~~ → 同上                                             | ✅ A8b 已修复 |
+| `foundation/style/Video.ts`   | 269    | ~~`document.createElement('video')`~~ → 已改为 `ctx.loadVideoSource()`                    | ✅ A8b 已修复 |
 
 **当前方案**：媒体加载统一走 `IDrawingContext.loadImageSource()` / `loadVideoSource()`，引擎只持有平台无关 `IImageSource` / `IVideoSource`。
 
 ### 0.3 浏览器构造函数 — `new Image()` ✅ 已修复
 
-| 文件 | 原行号 | 代码 | 状态 |
-|------|--------|------|------|
-| `graph/media/ImageElement.ts` | 108 | ~~`const img = new Image()`~~ → `loadImageWithContext(ctx)` | ✅ A8b 已修复 |
-| `foundation/style/Image.ts` | 166 | ~~`new globalThis.Image()`~~ → `setLoadedSource(source)` + `ctx.createPattern(...)` | ✅ A8b 已修复 |
+| 文件                          | 原行号 | 代码                                                                                | 状态          |
+| ----------------------------- | ------ | ----------------------------------------------------------------------------------- | ------------- |
+| `graph/media/ImageElement.ts` | 108    | ~~`const img = new Image()`~~ → `loadImageWithContext(ctx)`                         | ✅ A8b 已修复 |
+| `foundation/style/Image.ts`   | 166    | ~~`new globalThis.Image()`~~ → `setLoadedSource(source)` + `ctx.createPattern(...)` | ✅ A8b 已修复 |
 
 **当前方案**：平台通过 `ctx.loadImageSource()` 返回 `IImageSource`；`Image` 类通过 `setLoadedSource()` 接收。`createCanvasPattern()` 委托给 `ctx.createPattern(this._loadedSource, this.repeat)`。
 
 ### 0.4 DOM 类型泄露 ✅ 基本修复
 
-| 文件 | 原行号 | 泄露的类型 | 状态 |
-|------|--------|-----------|------|
-| `graph/media/VideoElement.ts` | 42 | ~~`HTMLVideoElement`~~ → 现为 `video: IImageSource \| null` | ✅ 已修复 |
-| `foundation/style/Video.ts` | 265 | ~~`HTMLVideoElement`~~ → 已移除 DOM 创建 | ✅ 已修复 |
-| `graph/media/ImageElement.ts` | 390 | ~~`HTMLCanvasElement`~~ 参数（@deprecated） | ✅ 已废弃 |
-| `graph/media/MediaElement.ts` | 304 | ~~`ImageData`~~ → `getImageData(): IImageSource \| null` | ✅ 已修复 |
-| `graph/media/ImageElement.ts` | 233 | ~~`ImageData`~~ → `IImageSource` | ✅ 已修复 |
-| `graph/media/VideoElement.ts` | 421 | ~~`ImageData`~~ → `IImageSource` | ✅ 已修复 |
-| `graph/media/ImageElement.ts` | 244 | ~~`CanvasImageSource`~~ 强转 → 已移除 | ✅ 已修复 |
+| 文件                          | 原行号 | 泄露的类型                                                  | 状态      |
+| ----------------------------- | ------ | ----------------------------------------------------------- | --------- |
+| `graph/media/VideoElement.ts` | 42     | ~~`HTMLVideoElement`~~ → 现为 `video: IImageSource \| null` | ✅ 已修复 |
+| `foundation/style/Video.ts`   | 265    | ~~`HTMLVideoElement`~~ → 已移除 DOM 创建                    | ✅ 已修复 |
+| `graph/media/ImageElement.ts` | 390    | ~~`HTMLCanvasElement`~~ 参数（@deprecated）                 | ✅ 已废弃 |
+| `graph/media/MediaElement.ts` | 304    | ~~`ImageData`~~ → `getImageData(): IImageSource \| null`    | ✅ 已修复 |
+| `graph/media/ImageElement.ts` | 233    | ~~`ImageData`~~ → `IImageSource`                            | ✅ 已修复 |
+| `graph/media/VideoElement.ts` | 421    | ~~`ImageData`~~ → `IImageSource`                            | ✅ 已修复 |
+| `graph/media/ImageElement.ts` | 244    | ~~`CanvasImageSource`~~ 强转 → 已移除                       | ✅ 已修复 |
 
 **残余**：部分 JSDoc 注释中仍使用 `HTMLImageElement`/`HTMLVideoElement` 作为概念描述（非代码路径），不影响实际类型安全。
 
 ### 0.5 其他
 
-| 文件 | 原行号 | 内容 | 状态 |
-|------|--------|------|------|
-| `view/View/View.ts` | 81 | ~~`localStorage.getItem()`~~ — debug 特性 | ✅ 已移除 |
-| `engine/renderer/Renderer.ts` | ~85 | `performance.now()` — FPS 统计 | 🟡 低优先级残留 |
+| 文件                          | 原行号 | 内容                                      | 状态            |
+| ----------------------------- | ------ | ----------------------------------------- | --------------- |
+| `view/View/View.ts`           | 81     | ~~`localStorage.getItem()`~~ — debug 特性 | ✅ 已移除       |
+| `engine/renderer/Renderer.ts` | ~85    | `performance.now()` — FPS 统计            | 🟡 低优先级残留 |
 
 **Rust 侧方案**：`performance.now()` 仅用于 renderer 内部 FPS 统计（`updateFPS`），不影响核心逻辑。Rust 侧使用 Host 传入的 `timestamp` 参数或 `std::time::Instant`。
 
@@ -157,14 +157,14 @@
 
 **Rust 核心只对外暴露 2 个 trait（平台注入）+ 数据 struct + 方法调用**：
 
-| 类别 | 名称 | 方向 | 职责 |
-|------|------|------|------|
-| **trait** | `DrawingContext` | Host → Rust | 2D 绘图命令（~40 方法），对应已有 TS `IDrawingContext` |
-| **trait** | `PlatformCanvas` | Host → Rust | 画布工厂 + 双缓冲 + composite，对应已有 TS `IDrawingSurface` |
-| **struct** | `PixelBuffer` | Host → Rust | RGBA8 像素数据（纯数据，非 trait），Host 解码后传入 |
-| **struct** | `InteractionInput` | Host → Rust | 已归一化的原子事件（已有 M10a 定义，纯数据） |
-| **方法** | `engine.render_frame(ts)` | Host → Rust | Host 在自有的帧循环中每帧调用 |
-| **方法** | `engine.handle_pointer_event(e)` | Host → Rust | Host 把归一化后的原子事件传给引擎 |
+| 类别       | 名称                             | 方向        | 职责                                                         |
+| ---------- | -------------------------------- | ----------- | ------------------------------------------------------------ |
+| **trait**  | `DrawingContext`                 | Host → Rust | 2D 绘图命令（~40 方法），对应已有 TS `IDrawingContext`       |
+| **trait**  | `PlatformCanvas`                 | Host → Rust | 画布工厂 + 双缓冲 + composite，对应已有 TS `IDrawingSurface` |
+| **struct** | `PixelBuffer`                    | Host → Rust | RGBA8 像素数据（纯数据，非 trait），Host 解码后传入          |
+| **struct** | `InteractionInput`               | Host → Rust | 已归一化的原子事件（已有 M10a 定义，纯数据）                 |
+| **方法**   | `engine.render_frame(ts)`        | Host → Rust | Host 在自有的帧循环中每帧调用                                |
+| **方法**   | `engine.handle_pointer_event(e)` | Host → Rust | Host 把归一化后的原子事件传给引擎                            |
 
 **为什么没有 FrameScheduler / ImageLoader / EventSource / FontProvider trait**：
 
@@ -311,68 +311,68 @@ packages/
 
 ### 2.1 迁移到 Rust 的模块
 
-| TS 模块 | Rust crate / module | Phase |
-|---------|---------------------|-------|
-| `foundation/math/*` | 直接使用 `glam` crate | 1 |
-| `graph/analytic/*` (6 种 + 1 基类 AnalyticGraph) | `graph/analytic/` — 纯几何计算 | 2 |
-| `graph/combined/*` (6 种 + 1 基类 CombinedGraph) | `graph/combined/` | 2 |
-| `graph/base/Bounds.ts` | `graph/bounds.rs` — AABB | 2 |
-| `graph/base/Graph.ts` | `graph/graph.rs` — 基类 | 2 |
-| `graph/text/*` | `graph/text/` | 2 |
-| `graph/media/MediaElement.ts` | `graph/media/` — 抽象基类 | 2 |
-| `graph/media/ImageElement.ts` | `graph/media/image.rs` | 2 |
-| `graph/media/VideoElement.ts` | `graph/media/video.rs` | 2 |
-| `graph/trajectory/*` | `graph/trajectory/` | 2 |
-| `graph/algorithm/IntersectionUtils.ts` | `graph/intersection.rs` | 2 |
-| `view/View/View.ts` | `view/view.rs` — View 基类 | 2 |
-| `view/View/constant.ts` | `view/view_constants.rs` | 2 |
-| `view/View/utils.ts` | `view/view_utils.rs` | 2 |
-| `view/ContainerView/` | `view/container.rs` | 2 |
-| `view/CombinedViews/*` | `view/combined.rs` | 2 |
-| `view/CombinedViews/layout/*` | `layout/` — 布局引擎 | 2 |
-| `view/addon/*` (6 addons) | `view/addon/` | 2 |
-| `view/FlowViews/*` | `view/flow_views/` | 3 |
-| `view/MediaViews/*` | `view/media_views/` | 3 |
-| `view/TextView/` | `view/text_view.rs` | 3 |
-| `engine/scene/Scene.ts` | `scene/scene.rs` | 2 |
-| `engine/scene/layer/` | `scene/layer.rs` | 2 |
-| `engine/scene/snap/` | `scene/snap/` | 2 |
-| `engine/scene/utils/ViewTree.ts` | `scene/view_tree.rs` | 2 |
-| `engine/scene/transaction/*` | `transaction/` | 3 |
-| `engine/renderer/Renderer.ts` | `renderer/` | 2 |
-| `engine/camera/*` | `engine/camera/` | 2 |
-| `engine/material/*` ⚠️ 当前未实施 | `material/` — 物料系统 | 3 |
-| `graph/DefaultStyleRegistry.ts` | `graph/default_style.rs` | 2 |
-| `foundation/utils.ts` | `foundation/utils.rs` | 2 |
-| `foundation/animation/*` | `animation/` | 3 |
-| `foundation/flow/*` | `flow/` — Flow 执行器 | 3 |
-| `foundation/style/*` | `style/` — 样式系统 | 2 |
-| `foundation/constants.ts` | `constants.rs` | 2 |
+| TS 模块                                          | Rust crate / module            | Phase |
+| ------------------------------------------------ | ------------------------------ | ----- |
+| `foundation/math/*`                              | 直接使用 `glam` crate          | 1     |
+| `graph/analytic/*` (6 种 + 1 基类 AnalyticGraph) | `graph/analytic/` — 纯几何计算 | 2     |
+| `graph/combined/*` (6 种 + 1 基类 CombinedGraph) | `graph/combined/`              | 2     |
+| `graph/base/Bounds.ts`                           | `graph/bounds.rs` — AABB       | 2     |
+| `graph/base/Graph.ts`                            | `graph/graph.rs` — 基类        | 2     |
+| `graph/text/*`                                   | `graph/text/`                  | 2     |
+| `graph/media/MediaElement.ts`                    | `graph/media/` — 抽象基类      | 2     |
+| `graph/media/ImageElement.ts`                    | `graph/media/image.rs`         | 2     |
+| `graph/media/VideoElement.ts`                    | `graph/media/video.rs`         | 2     |
+| `graph/trajectory/*`                             | `graph/trajectory/`            | 2     |
+| `graph/algorithm/IntersectionUtils.ts`           | `graph/intersection.rs`        | 2     |
+| `view/View/View.ts`                              | `view/view.rs` — View 基类     | 2     |
+| `view/View/constant.ts`                          | `view/view_constants.rs`       | 2     |
+| `view/View/utils.ts`                             | `view/view_utils.rs`           | 2     |
+| `view/ContainerView/`                            | `view/container.rs`            | 2     |
+| `view/CombinedViews/*`                           | `view/combined.rs`             | 2     |
+| `view/CombinedViews/layout/*`                    | `layout/` — 布局引擎           | 2     |
+| `view/addon/*` (6 addons)                        | `view/addon/`                  | 2     |
+| `view/FlowViews/*`                               | `view/flow_views/`             | 3     |
+| `view/MediaViews/*`                              | `view/media_views/`            | 3     |
+| `view/TextView/`                                 | `view/text_view.rs`            | 3     |
+| `engine/scene/Scene.ts`                          | `scene/scene.rs`               | 2     |
+| `engine/scene/layer/`                            | `scene/layer.rs`               | 2     |
+| `engine/scene/snap/`                             | `scene/snap/`                  | 2     |
+| `engine/scene/utils/ViewTree.ts`                 | `scene/view_tree.rs`           | 2     |
+| `engine/scene/transaction/*`                     | `transaction/`                 | 3     |
+| `engine/renderer/Renderer.ts`                    | `renderer/`                    | 2     |
+| `engine/camera/*`                                | `engine/camera/`               | 2     |
+| `engine/material/*` ⚠️ 当前未实施                | `material/` — 物料系统         | 3     |
+| `graph/DefaultStyleRegistry.ts`                  | `graph/default_style.rs`       | 2     |
+| `foundation/utils.ts`                            | `foundation/utils.rs`          | 2     |
+| `foundation/animation/*`                         | `animation/`                   | 3     |
+| `foundation/flow/*`                              | `flow/` — Flow 执行器          | 3     |
+| `foundation/style/*`                             | `style/` — 样式系统            | 2     |
+| `foundation/constants.ts`                        | `constants.rs`                 | 2     |
 
 ### 2.2 保留在 TypeScript 的模块
 
-| 模块 | 理由 |
-|------|------|
-| `engine/App.ts` | 编排层 — 组装 Rust 组件 + 宿主事件桥接 + `useSyncExternalStore` 协议 |
+| 模块                                                          | 理由                                                                                                        |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `engine/App.ts`                                               | 编排层 — 组装 Rust 组件 + 宿主事件桥接 + `useSyncExternalStore` 协议                                        |
 | `engine/serialization/*` (含 `rawjson/` + `template/` 子目录) | 序列化/反序列化 — Rust 侧通过 `serde` 自动序列化，TS 侧保留类型注册和 `fromJSON` 工厂；长期考虑 FlatBuffers |
-| `actions/*` | 高阶操作 API — 对 Rust 核心的 thin wrapper，透传即可 |
-| `types/*` | 纯类型定义 — 保留供 TS 消费 |
-| `foundation/guards.ts` | 类型守卫 — TS-only 特性 |
-| `view/property/*` | PropertyAdapter — 交互层的策略，非核心机制 |
-| `view/GraphViews/*` | SelectBoxView 等编辑态专属视图 — 上层编辑策略 |
+| `actions/*`                                                   | 高阶操作 API — 对 Rust 核心的 thin wrapper，透传即可                                                        |
+| `types/*`                                                     | 纯类型定义 — 保留供 TS 消费                                                                                 |
+| `foundation/guards.ts`                                        | 类型守卫 — TS-only 特性                                                                                     |
+| `view/property/*`                                             | PropertyAdapter — 交互层的策略，非核心机制                                                                  |
+| `view/GraphViews/*`                                           | SelectBoxView 等编辑态专属视图 — 上层编辑策略                                                               |
 
 ### 2.3 已抽象化 / 废弃的模块
 
 > 以下模块的 DOM 耦合部分已在 A8b 中通过平台注入模式解耦，Rust 迁移时不再需要特殊处理。
 
-| 模块 | 原因 |
-|------|------|
-| `graph/media/ImageElement.ts` (图片加载) | ✅ A8b 已解耦 → `loadImageWithContext(ctx)`；Rust 侧 Host 解码为 `PixelBuffer` |
-| `graph/media/VideoElement.ts` (视频加载) | ✅ A8b 已解耦 → `loadVideoWithContext(ctx)`；Rust 侧 Host 解码为 `PixelBuffer` |
-| `foundation/style/Image.ts` (图片图案) | ✅ A8b 已解耦 → `setLoadedSource()` + `ctx.createPattern()` |
-| `foundation/style/Video.ts` (视频源) | ✅ A8b 已解耦 → `ctx.loadVideoSource()` |
-| `view/View/View.ts` L81 localStorage | ✅ 已移除 |
-| `graph/media/ImageElement.ts` (CanvasImageSource cast) | ✅ A8b 已解耦 → 使用 `IImageSource` |
+| 模块                                                   | 原因                                                                           |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `graph/media/ImageElement.ts` (图片加载)               | ✅ A8b 已解耦 → `loadImageWithContext(ctx)`；Rust 侧 Host 解码为 `PixelBuffer` |
+| `graph/media/VideoElement.ts` (视频加载)               | ✅ A8b 已解耦 → `loadVideoWithContext(ctx)`；Rust 侧 Host 解码为 `PixelBuffer` |
+| `foundation/style/Image.ts` (图片图案)                 | ✅ A8b 已解耦 → `setLoadedSource()` + `ctx.createPattern()`                    |
+| `foundation/style/Video.ts` (视频源)                   | ✅ A8b 已解耦 → `ctx.loadVideoSource()`                                        |
+| `view/View/View.ts` L81 localStorage                   | ✅ 已移除                                                                      |
+| `graph/media/ImageElement.ts` (CanvasImageSource cast) | ✅ A8b 已解耦 → 使用 `IImageSource`                                            |
 
 ---
 
@@ -578,25 +578,53 @@ impl Engine {
 
 ```typescript
 // packages/banvasgl-native/src/adapter.ts
-import type { DrawingContext } from './index'; // napi-rs 自动生成
+import type { DrawingContext } from './index' // napi-rs 自动生成
 
 export function createCanvasAdapter(ctx: CanvasRenderingContext2D): DrawingContext {
   return {
-    save()              { ctx.save(); },
-    restore()           { ctx.restore(); },
-    beginPath()         { ctx.beginPath(); },
-    moveTo(x, y)        { ctx.moveTo(x, y); },
-    lineTo(x, y)        { ctx.lineTo(x, y); },
-    arc(x, y, r, sa, ea, ccw) { ctx.arc(x, y, r, sa, ea, ccw); },
-    setFillStyle(c)     { ctx.fillStyle = c; },
-    setStrokeStyle(c)   { ctx.strokeStyle = c; },
-    setLineWidth(w)     { ctx.lineWidth = w; },
-    fill()              { ctx.fill(); },
-    stroke()            { ctx.stroke(); },
-    fillRect(x, y, w, h){ ctx.fillRect(x, y, w, h); },
-    setTransform(a,b,c,d,e,f) { ctx.setTransform(a,b,c,d,e,f); },
-    fillText(text, x, y){ ctx.fillText(text, x, y); },
-  };
+    save() {
+      ctx.save()
+    },
+    restore() {
+      ctx.restore()
+    },
+    beginPath() {
+      ctx.beginPath()
+    },
+    moveTo(x, y) {
+      ctx.moveTo(x, y)
+    },
+    lineTo(x, y) {
+      ctx.lineTo(x, y)
+    },
+    arc(x, y, r, sa, ea, ccw) {
+      ctx.arc(x, y, r, sa, ea, ccw)
+    },
+    setFillStyle(c) {
+      ctx.fillStyle = c
+    },
+    setStrokeStyle(c) {
+      ctx.strokeStyle = c
+    },
+    setLineWidth(w) {
+      ctx.lineWidth = w
+    },
+    fill() {
+      ctx.fill()
+    },
+    stroke() {
+      ctx.stroke()
+    },
+    fillRect(x, y, w, h) {
+      ctx.fillRect(x, y, w, h)
+    },
+    setTransform(a, b, c, d, e, f) {
+      ctx.setTransform(a, b, c, d, e, f)
+    },
+    fillText(text, x, y) {
+      ctx.fillText(text, x, y)
+    },
+  }
 }
 ```
 
@@ -608,13 +636,13 @@ export function createCanvasAdapter(ctx: CanvasRenderingContext2D): DrawingConte
 <!-- test.html -->
 <canvas id="c" width="800" height="600"></canvas>
 <script type="module">
-  import init, { Engine } from './wasm/banvasgl_core.js';
-  import { createCanvasAdapter } from './src/adapter.js';
+  import init, { Engine } from './wasm/banvasgl_core.js'
+  import { createCanvasAdapter } from './src/adapter.js'
 
-  await init();
-  const ctx = document.getElementById('c').getContext('2d');
-  const engine = new Engine();
-  engine.render(createCanvasAdapter(ctx));
+  await init()
+  const ctx = document.getElementById('c').getContext('2d')
+  const engine = new Engine()
+  engine.render(createCanvasAdapter(ctx))
 </script>
 ```
 
@@ -737,6 +765,7 @@ impl Engine {
 **目标**：Rust → WASM 驱动 Canvas 渲染 1000 个图形，性能对比 TS 版。
 
 **交付物**：
+
 - Cargo workspace + `banvasgl-core` crate（math / graph / simple scene / DrawingContext trait / DrawingSurface trait）
 - `banvasgl-native` npm 包（wasm-pack 产出）
 - 性能对比报告（TS vs Rust WASM：场景创建、渲染帧时、内存）
@@ -747,21 +776,22 @@ impl Engine {
 
 **新文件清单**：
 
-| 文件 | 内容 |
-|------|------|
-| `Cargo.toml` | Cargo workspace 根配置 |
-| `rust-toolchain.toml` | 固定 Rust 版本 |
-| `crates/banvasgl-core/Cargo.toml` | 引擎核心 crate 配置 |
-| `crates/banvasgl-core/src/lib.rs` | 入口 |
-| `crates/banvasgl-core/src/platform/drawing.rs` | DrawingContext trait |
-| `crates/banvasgl-core/src/platform/surface.rs` | DrawingSurface trait |
-| `crates/banvasgl-core/src/media/pixel_buffer.rs` | PixelBuffer struct |
-| `crates/banvasgl-core/src/graph/circle.rs` | Circle 图形基元 |
-| `crates/banvasgl-core/src/math.rs` | Point2/Matrix4（用 glam） |
-| `crates/banvasgl-core/src/scene.rs` | Scene |
-| `crates/banvasgl-core/src/view.rs` | View |
+| 文件                                             | 内容                      |
+| ------------------------------------------------ | ------------------------- |
+| `Cargo.toml`                                     | Cargo workspace 根配置    |
+| `rust-toolchain.toml`                            | 固定 Rust 版本            |
+| `crates/banvasgl-core/Cargo.toml`                | 引擎核心 crate 配置       |
+| `crates/banvasgl-core/src/lib.rs`                | 入口                      |
+| `crates/banvasgl-core/src/platform/drawing.rs`   | DrawingContext trait      |
+| `crates/banvasgl-core/src/platform/surface.rs`   | DrawingSurface trait      |
+| `crates/banvasgl-core/src/media/pixel_buffer.rs` | PixelBuffer struct        |
+| `crates/banvasgl-core/src/graph/circle.rs`       | Circle 图形基元           |
+| `crates/banvasgl-core/src/math.rs`               | Point2/Matrix4（用 glam） |
+| `crates/banvasgl-core/src/scene.rs`              | Scene                     |
+| `crates/banvasgl-core/src/view.rs`               | View                      |
 
 **验证标准**：
+
 - `cargo test` 有 math / graph / scene 的单元测试
 - `wasm-pack build` 成功产出 < 500KB `.wasm`
 - 浏览器 Canvas 显示 1000 个彩色圆 + 矩形 + 文本，60fps
@@ -774,15 +804,15 @@ impl Engine {
 
 **目标**：Graph（17 种） → View 体系 → 布局引擎 → Camera → Renderer → Scene → Style。
 
-| 子阶段 | 内容 | Rust 模块 |
-|--------|------|-----------|
-| 2a: Graph | 17 种图形基元 + Bounds + 碰撞检测 | `graph/` |
-| 2b: View | View 基类 + ContainerView + CombinedView + Addon 管线 | `view/` |
-| 2c: Layout | FlexLayoutStrategy / ListLayoutStrategy / GridLayoutStrategy | `layout/` |
-| 2d: Camera | OrthographicCamera + PerspectiveCamera | `engine/camera/` |
-| 2e: Renderer | 渲染管线（双缓冲 + 优先级分层 + 视口裁剪 + 脏标记） | `renderer/` |
-| 2f: Scene | Scene 管理 + LayerManager + SnapSolver + ViewTree 工具 | `scene/` |
-| 2g: Style | Color / FillStyle / StrokeStyle / ShadowStyle / Gradient / Pattern | `style/` |
+| 子阶段       | 内容                                                               | Rust 模块        |
+| ------------ | ------------------------------------------------------------------ | ---------------- |
+| 2a: Graph    | 17 种图形基元 + Bounds + 碰撞检测                                  | `graph/`         |
+| 2b: View     | View 基类 + ContainerView + CombinedView + Addon 管线              | `view/`          |
+| 2c: Layout   | FlexLayoutStrategy / ListLayoutStrategy / GridLayoutStrategy       | `layout/`        |
+| 2d: Camera   | OrthographicCamera + PerspectiveCamera                             | `engine/camera/` |
+| 2e: Renderer | 渲染管线（双缓冲 + 优先级分层 + 视口裁剪 + 脏标记）                | `renderer/`      |
+| 2f: Scene    | Scene 管理 + LayerManager + SnapSolver + ViewTree 工具             | `scene/`         |
+| 2g: Style    | Color / FillStyle / StrokeStyle / ShadowStyle / Gradient / Pattern | `style/`         |
 
 **关键决策**：
 
@@ -802,13 +832,13 @@ impl Engine {
 
 **目标**：Flow 执行器（25 NodeKind） + 动画系统 + 事务系统 + 物料系统 + 流程视图。
 
-| 子阶段 | 内容 | Rust 模块 |
-|--------|------|-----------|
-| 3a: Flow | 25 NodeKind 执行器 + FlowRunner + FlowContext + FrameStack | `flow/` |
-| 3b: Animation | AnimationDescriptor + AnimationExecutor + AnimationManager | `animation/` |
-| 3c: Transaction | TransactionManager + OperationStack + DiffApplier | `transaction/` |
-| 3d: FlowViews | NodeView / EdgeView / PortView | `view/flow_views/` |
-| 3e: Material | MaterialInstantiator + MaterialSerializer + 占位符替换 | `material/` |
+| 子阶段          | 内容                                                       | Rust 模块          |
+| --------------- | ---------------------------------------------------------- | ------------------ |
+| 3a: Flow        | 25 NodeKind 执行器 + FlowRunner + FlowContext + FrameStack | `flow/`            |
+| 3b: Animation   | AnimationDescriptor + AnimationExecutor + AnimationManager | `animation/`       |
+| 3c: Transaction | TransactionManager + OperationStack + DiffApplier          | `transaction/`     |
+| 3d: FlowViews   | NodeView / EdgeView / PortView                             | `view/flow_views/` |
+| 3e: Material    | MaterialInstantiator + MaterialSerializer + 占位符替换     | `material/`        |
 
 **关键决策**：
 
@@ -823,6 +853,7 @@ impl Engine {
 **目标**：`@banyuan/banvasgl-native` npm 包发布 11 平台预编译二进制；`@banyuan/banvasgl` 变为 thin shell。
 
 **交付物**：
+
 - `banvasgl-native` CI 11 平台交叉编译矩阵（napi-rs 自动生成）
 - `@banyuan/banvasgl` v1.0 变为纯转发层（`export * from '@banyuan/banvasgl-native'`）
 - `banvasgl-react` 通过 `try { new NativeEngine() } catch { new TSEngine() }` 自动选择后端
@@ -833,23 +864,23 @@ impl Engine {
 
 ## 7. 审计问题解决对照表
 
-| 审计项 | TS 违规位置 | 当前状态 | Rust 侧根方案 | Phase |
-|--------|------------|---------|--------------|-------|
-| `requestAnimationFrame` | `engine/App.ts:556` | ✅ A8b 已修复 → `surface.requestFrame()` | Host 拥有帧循环，Rust 暴露 `render_frame(timestamp)` | 1 |
-| `cancelAnimationFrame` | `engine/App.ts:490,503` | ✅ A8b 已修复 → `surface.cancelFrame()` | Host 管理 rAF handle，Rust 不感知 | 1 |
-| `document.createElement('canvas')` | `graph/media/ImageElement.ts:236` | ✅ A8b 已修复 → `ctx.getImageData()` | `DrawingContext::create_image_data()` | 2 |
-| `document.createElement('canvas')` | `graph/media/VideoElement.ts:424` | ✅ A8b 已修复 → `loadVideoWithContext(ctx)` | 同上 | 2 |
-| `document.createElement('video')` | `graph/media/VideoElement.ts:110` | ✅ A8b 已修复 → `ctx.loadVideoSource()` | Host 解码为 `PixelBuffer`，`engine.update_video_frame()` | 2 |
-| `document.createElement('video')` | `foundation/style/Video.ts:269` | ✅ A8b 已修复 → `ctx.loadVideoSource()` | 同上 | 2 |
-| `new Image()` | `graph/media/ImageElement.ts:108` | ✅ A8b 已修复 → `loadImageWithContext(ctx)` | Host 解码为 `PixelBuffer`，`engine.add_image()` | 2 |
-| `new globalThis.Image()` | `foundation/style/Image.ts:166` | ✅ A8b 已修复 → `setLoadedSource()` + `ctx.createPattern()` | 同上 | 2 |
-| `localStorage.getItem()` | `view/View/View.ts:81` | ✅ 已移除 | `DebugOptions` struct 由 `Engine::create(opts)` 传入 | 2 |
-| `HTMLVideoElement` 类型 | `graph/media/VideoElement.ts:42` | ✅ A8b 已修复 → `video: IImageSource \| null` | 废弃 — Rust 只持有 `VideoId` + `PixelBuffer` | 2 |
-| `HTMLVideoElement` 返回类型 | `foundation/style/Video.ts:265` | ✅ A8b 已修复 → 返回 `IVideoSource` | 废弃 — 返回 `PixelBuffer` | 2 |
-| `HTMLCanvasElement` 参数 | `graph/media/ImageElement.ts:390` | ✅ 已 @deprecated — 不迁移 | - | - |
-| `CanvasImageSource` cast | `graph/media/ImageElement.ts:244` | ✅ A8b 已修复 → 使用 `IImageSource` | 废弃 — 使用 `PixelBuffer` | 2 |
-| `ImageData` 返回类型 | `graph/media/MediaElement.ts:304` | ✅ A8b 已修复 → `IImageSource \| null` | `PixelBuffer` struct（Rust 自有） | 2 |
-| `performance.now()` | `engine/renderer/Renderer.ts:~85` | 🟡 低优先级残留（仅 FPS 统计） | Host 传入的 timestamp 参数 / `std::time::Instant` | 2 |
+| 审计项                             | TS 违规位置                       | 当前状态                                                    | Rust 侧根方案                                            | Phase |
+| ---------------------------------- | --------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------- | ----- |
+| `requestAnimationFrame`            | `engine/App.ts:556`               | ✅ A8b 已修复 → `surface.requestFrame()`                    | Host 拥有帧循环，Rust 暴露 `render_frame(timestamp)`     | 1     |
+| `cancelAnimationFrame`             | `engine/App.ts:490,503`           | ✅ A8b 已修复 → `surface.cancelFrame()`                     | Host 管理 rAF handle，Rust 不感知                        | 1     |
+| `document.createElement('canvas')` | `graph/media/ImageElement.ts:236` | ✅ A8b 已修复 → `ctx.getImageData()`                        | `DrawingContext::create_image_data()`                    | 2     |
+| `document.createElement('canvas')` | `graph/media/VideoElement.ts:424` | ✅ A8b 已修复 → `loadVideoWithContext(ctx)`                 | 同上                                                     | 2     |
+| `document.createElement('video')`  | `graph/media/VideoElement.ts:110` | ✅ A8b 已修复 → `ctx.loadVideoSource()`                     | Host 解码为 `PixelBuffer`，`engine.update_video_frame()` | 2     |
+| `document.createElement('video')`  | `foundation/style/Video.ts:269`   | ✅ A8b 已修复 → `ctx.loadVideoSource()`                     | 同上                                                     | 2     |
+| `new Image()`                      | `graph/media/ImageElement.ts:108` | ✅ A8b 已修复 → `loadImageWithContext(ctx)`                 | Host 解码为 `PixelBuffer`，`engine.add_image()`          | 2     |
+| `new globalThis.Image()`           | `foundation/style/Image.ts:166`   | ✅ A8b 已修复 → `setLoadedSource()` + `ctx.createPattern()` | 同上                                                     | 2     |
+| `localStorage.getItem()`           | `view/View/View.ts:81`            | ✅ 已移除                                                   | `DebugOptions` struct 由 `Engine::create(opts)` 传入     | 2     |
+| `HTMLVideoElement` 类型            | `graph/media/VideoElement.ts:42`  | ✅ A8b 已修复 → `video: IImageSource \| null`               | 废弃 — Rust 只持有 `VideoId` + `PixelBuffer`             | 2     |
+| `HTMLVideoElement` 返回类型        | `foundation/style/Video.ts:265`   | ✅ A8b 已修复 → 返回 `IVideoSource`                         | 废弃 — 返回 `PixelBuffer`                                | 2     |
+| `HTMLCanvasElement` 参数           | `graph/media/ImageElement.ts:390` | ✅ 已 @deprecated — 不迁移                                  | -                                                        | -     |
+| `CanvasImageSource` cast           | `graph/media/ImageElement.ts:244` | ✅ A8b 已修复 → 使用 `IImageSource`                         | 废弃 — 使用 `PixelBuffer`                                | 2     |
+| `ImageData` 返回类型               | `graph/media/MediaElement.ts:304` | ✅ A8b 已修复 → `IImageSource \| null`                      | `PixelBuffer` struct（Rust 自有）                        | 2     |
+| `performance.now()`                | `engine/renderer/Renderer.ts:~85` | 🟡 低优先级残留（仅 FPS 统计）                              | Host 传入的 timestamp 参数 / `std::time::Instant`        | 2     |
 
 > **总计**：17 处违规中，15 处已在 A8b 中修复，1 处 @deprecated 不迁移，1 处低优先级残留（`performance.now()` 用于 FPS 统计，不影响核心逻辑）。
 
@@ -857,28 +888,28 @@ impl Engine {
 
 ## 8. 风险与缓解
 
-| 风险 | 等级 | 缓解 |
-|------|------|------|
-| WASM ↔ JS 数据传递开销抵消计算收益 | 🔴 高 | Phase 1 先基准测试；如超标，Phase 2 引入 FlatBuffers / shared memory |
-| 文本塑形精度不如浏览器 Canvas 2D | 🟡 中 | `cosmic-text` + `harfbuzz` 组合；Web 平台可继续用 Canvas text API + Rust 排版 |
-| 双代码库维护 | 🟡 中 | TS 版只修 bug 不加特性，新特性在 Rust 侧实现 |
-| Rust 学习曲线 | 🟡 中 | Phase 1 是学习期；术语表辅助；原型期不强制全体参与 |
-| banvasgl-react hook 重构 | 🟢 低 | hook 层很薄（~3 个 hook），已有 A8b 平台抽象基础 |
+| 风险                               | 等级  | 缓解                                                                          |
+| ---------------------------------- | ----- | ----------------------------------------------------------------------------- |
+| WASM ↔ JS 数据传递开销抵消计算收益 | 🔴 高 | Phase 1 先基准测试；如超标，Phase 2 引入 FlatBuffers / shared memory          |
+| 文本塑形精度不如浏览器 Canvas 2D   | 🟡 中 | `cosmic-text` + `harfbuzz` 组合；Web 平台可继续用 Canvas text API + Rust 排版 |
+| 双代码库维护                       | 🟡 中 | TS 版只修 bug 不加特性，新特性在 Rust 侧实现                                  |
+| Rust 学习曲线                      | 🟡 中 | Phase 1 是学习期；术语表辅助；原型期不强制全体参与                            |
+| banvasgl-react hook 重构           | 🟢 低 | hook 层很薄（~3 个 hook），已有 A8b 平台抽象基础                              |
 
 ---
 
 ## 9. 影响范围
 
-| 层级 | 变更 |
-|------|------|
-| 新文件 | `Cargo.toml` + `rust-toolchain.toml` + `crates/banvasgl-core/` (~40 .rs) + `crates/banvasgl-render/` (~6 .rs) |
-| `@banyuan/banvasgl` | 逐步变为 thin shell — 类型重导出 + 旧 API 兼容适配器 |
-| `@banyuan/banvasgl-react` | 无需新增适配器 — 已有 `WebDrawingContext` / `WebPlatformCanvas` 直接对应 2 个 trait（DrawingContext / DrawingSurface）；hook 层增加 rAF loop 调 `engine.render_frame()` |
-| `@banyuan/banvasgl-native` | 新建 npm 包 — napi-rs + wasm-pack 双出 |
-| `@banyuan/banvas-runtime` | 不变（运行策略层独立于引擎核心） |
-| `@banyuan/xiangdi-agent` | 不变（通过 AI Projection 与引擎交互，不直接依赖引擎实现） |
-| CI | `.github/workflows/banvasgl-native.yml`（napi-rs 自动生成） |
-| 依赖 | Rust: `glam`, `serde`, `wasm-bindgen`, `napi-derive`; JS: 无新增 |
+| 层级                       | 变更                                                                                                                                                                    |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 新文件                     | `Cargo.toml` + `rust-toolchain.toml` + `crates/banvasgl-core/` (~40 .rs) + `crates/banvasgl-render/` (~6 .rs)                                                           |
+| `@banyuan/banvasgl`        | 逐步变为 thin shell — 类型重导出 + 旧 API 兼容适配器                                                                                                                    |
+| `@banyuan/banvasgl-react`  | 无需新增适配器 — 已有 `WebDrawingContext` / `WebPlatformCanvas` 直接对应 2 个 trait（DrawingContext / DrawingSurface）；hook 层增加 rAF loop 调 `engine.render_frame()` |
+| `@banyuan/banvasgl-native` | 新建 npm 包 — napi-rs + wasm-pack 双出                                                                                                                                  |
+| `@banyuan/banvas-runtime`  | 不变（运行策略层独立于引擎核心）                                                                                                                                        |
+| `@banyuan/xiangdi-agent`   | 不变（通过 AI Projection 与引擎交互，不直接依赖引擎实现）                                                                                                               |
+| CI                         | `.github/workflows/banvasgl-native.yml`（napi-rs 自动生成）                                                                                                             |
+| 依赖                       | Rust: `glam`, `serde`, `wasm-bindgen`, `napi-derive`; JS: 无新增                                                                                                        |
 
 ---
 
@@ -931,6 +962,7 @@ napi build --platform --release
 ### 决策 8：媒体加载的「平台注入」模式
 
 引擎不持有解码器，只持有解码产物。具体路径：
+
 1. `IDrawingContext.loadImageSource(url, crossOrigin)` → 返回平台无关 `IImageSource`（Web = `ImageData`-like）
 2. `IDrawingContext.loadVideoSource(url, options)` → 返回平台无关 `IVideoSource`
 3. Graph 元素通过 `loadImageWithContext(ctx)` / `loadVideoWithContext(ctx)` 接收
@@ -976,6 +1008,7 @@ wasm-pack build --target web --out-dir ../../packages/banvasgl-native/wasm
 ```
 
 产物：
+
 - `banvasgl_core_bg.wasm` — 二进制 WASM
 - `banvasgl_core.js` — JS 胶水代码
 - `banvasgl_core.d.ts` — TypeScript 类型
@@ -986,11 +1019,11 @@ wasm-pack build --target web --out-dir ../../packages/banvasgl-native/wasm
 
 写 TS 代码实现相同 1000 圆场景，`performance.now()` 测量：
 
-| 指标 | TS 版 | Rust WASM 版 |
-|------|-------|-------------|
-| 场景创建耗时 | ? | ? |
-| 渲染耗时（1000 帧平均） | ? | ? |
-| 内存占用 | ? | ? |
+| 指标                    | TS 版 | Rust WASM 版 |
+| ----------------------- | ----- | ------------ |
+| 场景创建耗时            | ?     | ?            |
+| 渲染耗时（1000 帧平均） | ?     | ?            |
+| 内存占用                | ?     | ?            |
 
 预期 Rust WASM 2-5x 加速。差距不大则瓶颈在 JS↔WASM 边界调用，后续考虑 FlatBuffers。
 

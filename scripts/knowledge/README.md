@@ -36,9 +36,9 @@ scripts/knowledge/
 
 ## 与 `scripts/migrations/` 的关系
 
-| 维度 | migrations | knowledge |
-|------|-----------|-----------|
-| 触发时机 | 版本发布部署时 | 类型定义变更后 |
-| 操作对象 | MongoDB 中的 appJSON | LanceDB 向量库 |
-| 幂等性 | 是（版本对版本） | 是（id-based upsert） |
-| 回滚 | 需要 down 脚本 | 重新生成即可 |
+| 维度     | migrations           | knowledge             |
+| -------- | -------------------- | --------------------- |
+| 触发时机 | 版本发布部署时       | 类型定义变更后        |
+| 操作对象 | MongoDB 中的 appJSON | LanceDB 向量库        |
+| 幂等性   | 是（版本对版本）     | 是（id-based upsert） |
+| 回滚     | 需要 down 脚本       | 重新生成即可          |

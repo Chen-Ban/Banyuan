@@ -395,7 +395,7 @@ banvasgl 通过 `InteractionInput`（`packages/banvasgl/src/types/interaction.ts
 
 **约束：**
 
-- App._renderFrame 中：AnimationManager.tick(timestamp) → Scene.render()
+- App.\_renderFrame 中：AnimationManager.tick(timestamp) → Scene.render()
 - tick 遍历所有活跃 executor，计算当前帧值并应用到对应 View
 - 动画完成后自动从活跃列表移除
 - AnimationAddon 挂载在 View 上，负责采集 initialValues + 注册到 Manager

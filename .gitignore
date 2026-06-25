@@ -122,6 +122,7 @@ storage/
 
 # Electron
 dist_electron/
+apps/banyan/electron/release/
 
 # Local development
 .local

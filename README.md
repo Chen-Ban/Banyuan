@@ -142,13 +142,13 @@ pnpm dev:banyan
 
 ### 启动的服务
 
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| Banyan 前端 | :5174 | Vite 开发服务器 |
-| Banyan 后端 | :3001 | Koa 应用服务 |
-| XiangDi 服务 | :3002 | AI Agent 服务 |
-| Knowledge 服务 | :3003 | 知识检索服务 |
-| BanvasGL / XiangDi Agent | — | watch 模式自动重编译 |
+| 服务                     | 端口  | 说明                 |
+| ------------------------ | ----- | -------------------- |
+| Banyan 前端              | :5174 | Vite 开发服务器      |
+| Banyan 后端              | :3001 | Koa 应用服务         |
+| XiangDi 服务             | :3002 | AI Agent 服务        |
+| Knowledge 服务           | :3003 | 知识检索服务         |
+| BanvasGL / XiangDi Agent | —     | watch 模式自动重编译 |
 
 ---
 
@@ -190,17 +190,17 @@ Banyuan/
 
 ## 相关文档
 
-| 文档 | 说明 |
-|------|------|
-| [BanvasGL](./packages/banvasgl/README.md) | 面向声明式 UI 的 2D 图形运行时（含流程控制）· 平台无关核心 |
-| [BanvasGL React](./packages/banvasgl-react/README.md) | Web 平台注入（createWebDrawingContext + WebSurface）+ React Hook 集成 |
-| [Banvas React Runtime](./packages/banvas-react-runtime/README.md) | 运行策略层（交互识别 + 宿主适配 + React 集成） |
-| [XiangDi Agent](./packages/xiangdi-agent/README.md) | AI Agent 引擎（LangGraph 编排） |
-| [Deploy Agent](./packages/deploy-agent/README.md) | ECS 部署代理（WebSocket + Docker + Nginx） |
-| [Banyan](./apps/banyan/README.md) | 低代码平台（前端 + 后端 + 桌面） |
-| [XiangDi Server](./apps/xiangdi-server/README.md) | AI Agent HTTP 服务 |
-| [Knowledge Server](./apps/knowledge-server/README.md) | 知识检索微服务 |
-| [LunlunGlass](./examples/lunlunglass/README.md) | 示例应用：眼镜店管理系统 |
+| 文档                                                              | 说明                                                                  |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [BanvasGL](./packages/banvasgl/README.md)                         | 面向声明式 UI 的 2D 图形运行时（含流程控制）· 平台无关核心            |
+| [BanvasGL React](./packages/banvasgl-react/README.md)             | Web 平台注入（createWebDrawingContext + WebSurface）+ React Hook 集成 |
+| [Banvas React Runtime](./packages/banvas-react-runtime/README.md) | 运行策略层（交互识别 + 宿主适配 + React 集成）                        |
+| [XiangDi Agent](./packages/xiangdi-agent/README.md)               | AI Agent 引擎（LangGraph 编排）                                       |
+| [Deploy Agent](./packages/deploy-agent/README.md)                 | ECS 部署代理（WebSocket + Docker + Nginx）                            |
+| [Banyan](./apps/banyan/README.md)                                 | 低代码平台（前端 + 后端 + 桌面）                                      |
+| [XiangDi Server](./apps/xiangdi-server/README.md)                 | AI Agent HTTP 服务                                                    |
+| [Knowledge Server](./apps/knowledge-server/README.md)             | 知识检索微服务                                                        |
+| [LunlunGlass](./examples/lunlunglass/README.md)                   | 示例应用：眼镜店管理系统                                              |
 
 ---
 

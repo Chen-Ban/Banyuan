@@ -116,16 +116,16 @@ banyan 编辑器（Electron App）
 
 ## 影响范围
 
-| 文件 / 模块 | 改动类型 |
-|------|---------|
-| `apps/banyan/electron/`（主进程） | PreviewServerOrchestrator：IPC handler + 编排 scaffoldServer 进程 |
-| `apps/banyan/frontend/src/api/previewServer.ts` | 前端 IPC 封装（`startPreviewServer` / `stopPreviewServer` / `isElectron`） |
-| `apps/banyan/frontend/src/pages/PreviewPage/` | 调用 `actions.app.setBackendEndpoint(url)` 注入/回收端点 |
-| `packages/banvasgl/src/engine/App.ts` | 新增 `backendEndpoint` 属性 |
-| `packages/banvasgl/src/engine/scene/Scene.ts` | `triggerSchema` 中根据 `backendEndpoint` 注入 `env.callFlow` |
-| `packages/banvasgl/src/types/hook/hook.ts` + `src/actions/appActions.ts` | `IAppActions` 新增 `setBackendEndpoint` / `getBackendEndpoint` |
-| `packages/deploy-agent`（`scaffoldServer`） | 复用，按需暴露「本地起服务 + 连本地 Mongo」入口（不改 ECS 远程路径） |
-| 本地 Mongo 接入 | 编排器按 appId 管理连接与集合命名 |
+| 文件 / 模块                                                              | 改动类型                                                                   |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `apps/banyan/electron/`（主进程）                                        | PreviewServerOrchestrator：IPC handler + 编排 scaffoldServer 进程          |
+| `apps/banyan/frontend/src/api/previewServer.ts`                          | 前端 IPC 封装（`startPreviewServer` / `stopPreviewServer` / `isElectron`） |
+| `apps/banyan/frontend/src/pages/PreviewPage/`                            | 调用 `actions.app.setBackendEndpoint(url)` 注入/回收端点                   |
+| `packages/banvasgl/src/engine/App.ts`                                    | 新增 `backendEndpoint` 属性                                                |
+| `packages/banvasgl/src/engine/scene/Scene.ts`                            | `triggerSchema` 中根据 `backendEndpoint` 注入 `env.callFlow`               |
+| `packages/banvasgl/src/types/hook/hook.ts` + `src/actions/appActions.ts` | `IAppActions` 新增 `setBackendEndpoint` / `getBackendEndpoint`             |
+| `packages/deploy-agent`（`scaffoldServer`）                              | 复用，按需暴露「本地起服务 + 连本地 Mongo」入口（不改 ECS 远程路径）       |
+| 本地 Mongo 接入                                                          | 编排器按 appId 管理连接与集合命名                                          |
 
 ---
 
