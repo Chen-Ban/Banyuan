@@ -1,6 +1,7 @@
 import { DeepSeekClient, KimiClient, LLMRouter } from '@banyuan/xiangdi-agent'
 import type { LLMClient, RoutingSignal } from '@banyuan/xiangdi-agent'
 import { loadApiKey } from '../utils/loadApiKey.js'
+import { logger } from '../logger.js'
 
 /**
  * 根据环境变量组装 LLMClient
@@ -92,11 +93,23 @@ export async function getLLMRouter(): Promise<LLMRouter> {
     primary: { id: 'deepseek', client: deepseek, priority: 0 },
     fallbacks: [{ id: 'kimi', client: kimi, priority: 1 }],
     onSignal: (signal: RoutingSignal) => {
-      const level = signal.type === 'consecutive_failures' ? 'error' : 'warn'
-      console[level](
-        `[LLMRouter] signal=${signal.type} provider=${signal.providerId}` +
-          ` action=${signal.suggestedAction} msg="${signal.message}"`,
-      )
+      if (signal.type === 'consecutive_failures') {
+        logger.error('LLMRouter signal', undefined, {
+          signalType: signal.type,
+          provider: signal.providerId,
+          action: signal.suggestedAction,
+          message: signal.message,
+          timestamp: signal.timestamp,
+        })
+      } else {
+        logger.warn('LLMRouter signal', {
+          signalType: signal.type,
+          provider: signal.providerId,
+          action: signal.suggestedAction,
+          message: signal.message,
+          timestamp: signal.timestamp,
+        })
+      }
     },
     highLatencyThresholdMs: highLatencyMs,
     consecutiveFailureThreshold: consecutiveFailThreshold,

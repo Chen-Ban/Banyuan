@@ -10,6 +10,7 @@
 import crypto from 'node:crypto'
 import type { Context, Next } from 'koa'
 import { createRequestLogger } from '../logger.js'
+import { httpRequestDuration, httpRequestTotal } from '../metrics.js'
 
 export async function logger(ctx: Context, next: Next) {
   // 生成或提取 requestId
@@ -19,11 +20,14 @@ export async function logger(ctx: Context, next: Next) {
   // 设置响应头，方便调用方追踪
   ctx.set('X-Request-Id', requestId)
 
-  const reqLogger = createRequestLogger(requestId)
+  const reqLogger = createRequestLogger({ requestId })
   ctx.state.logger = reqLogger
 
+  const path = ctx.path
+  const method = ctx.method
+
   reqLogger.info('Request started', {
-    method: ctx.method,
+    method,
     url: ctx.url,
     userAgent: ctx.get('user-agent') || undefined,
   })
@@ -36,8 +40,12 @@ export async function logger(ctx: Context, next: Next) {
     throw err
   } finally {
     const ms = Date.now() - start
+    const statusCode = String(ctx.status)
+    httpRequestDuration.observe({ method, path, status_code: statusCode }, ms)
+    httpRequestTotal.inc({ method, path, status_code: statusCode })
+
     reqLogger.info('Request completed', {
-      method: ctx.method,
+      method,
       url: ctx.url,
       status: ctx.status,
       duration: ms,

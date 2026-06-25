@@ -122,7 +122,7 @@ function startHeartbeat(res: ServerResponse): () => void {
 
 interface ProxySSECallbacks {
   /** 流结束时回调：携带最终 UI 定义 JSON 和助手内容 */
-  onDone: (uiJSON: string, assistantContent: IAssistantContent[], summary: string | null) => Promise<void>
+  onDone: (uiJSON: string, assistantContent: IAssistantContent[], summary: string | null, tokenUsage?: { inputTokens: number; outputTokens: number }) => Promise<void>
   /** 错误时回调 */
   onError?: () => Promise<void>
   /** 收到 app_state 事件（包含 schema + cloudFunctions）时回调 */
@@ -131,6 +131,8 @@ interface ProxySSECallbacks {
 
 interface ProxySSEOptions {
   phaseCtrl?: PhaseController
+  /** 对话 ID（用于 XiangDi 回写 threadId 和 LangSmith 关联） */
+  dialogueId?: Types.ObjectId
 }
 
 function proxySSECore(
@@ -191,9 +193,25 @@ function proxySSECore(
     let finalUIJSON = ''
 
     const phaseCtrl = options?.phaseCtrl
+    const dialogueId = options?.dialogueId
 
     function dispatchEvent(currentEvent: string, dataStr: string): void {
       if (!currentEvent || !dataStr) return
+
+      // ── started：捕获 threadId 并持久化到 Dialogue ──
+      if (currentEvent === 'started') {
+        try {
+          const parsed = JSON.parse(dataStr) as { threadId?: string }
+          if (parsed.threadId && dialogueId && !settled) {
+            dialogueService.setThreadId(dialogueId, parsed.threadId).catch((err) => {
+              console.error('[AiService] 写入 threadId 失败:', err)
+            })
+          }
+        } catch {
+          /* ignore */
+        }
+        // started 事件透传给前端
+      }
 
       // ── text_delta：累积文字 + 透传 ──
       if (currentEvent === 'text_delta') {
@@ -261,15 +279,19 @@ function proxySSECore(
       // ── done：触发 onDone + Phase 推进 ──
       if (currentEvent === 'done') {
         try {
-          const parsed = JSON.parse(dataStr) as { summary?: string; artifacts?: unknown }
+          const parsed = JSON.parse(dataStr) as { summary?: string; artifacts?: unknown; tokenUsage?: { inputTokens: number; outputTokens: number } }
           summaryBuffer = parsed.summary ?? null
+          let tokenUsage: { inputTokens: number; outputTokens: number } | undefined
+          if (parsed.tokenUsage) {
+            tokenUsage = parsed.tokenUsage
+          }
           if (textBuffer) {
             assistantContentBuffer.unshift({ type: 'text', text: textBuffer })
           }
           assistantContentBuffer.push({ type: 'app_snapshot', uiJSON: finalUIJSON })
 
           callbacks
-            .onDone(finalUIJSON, assistantContentBuffer, summaryBuffer)
+            .onDone(finalUIJSON, assistantContentBuffer, summaryBuffer, tokenUsage)
             .then(async () => {
               if (phaseCtrl && !phaseCtrl.isTerminal()) {
                 const phase = phaseCtrl.getPhase()
@@ -519,12 +541,13 @@ class AiService {
     const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
     const { contextSummary, recentMessages: historyMessages } = layeredContext
 
-    // 4. 构造 requestBody（ADR-041 协议：无 threadId/requireApproval）
+    // 4. 构造 requestBody（ADR-041 协议：传入 dialogueId 用于 LangSmith 链路关联）
     const imageUrls = images.length > 0 ? images.map((img) => img.url) : undefined
     const requestBody = JSON.stringify({
       appId,
       prompt,
       mode: type,
+      dialogueId: dialogueId.toString(),
       previousMessages: historyMessages,
       ...(contextSummary ? { memoryHint: contextSummary } : {}),
       ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),
@@ -537,7 +560,7 @@ class AiService {
       requestBody,
       res,
       {
-        onDone: async (finalUIJSON, assistantContent, summary) => {
+        onDone: async (finalUIJSON, assistantContent, summary, tokenUsage) => {
           // 5a. 按版本号原地更新 UI 定义 JSON 草稿记录（所有模式共享）
           await uiDefinitionService.updateByVersion(appId, uiDefinitionVersion, finalUIJSON)
           await dialogueService.appendAssistantContent(dialogueId, assistantContent)
@@ -545,17 +568,23 @@ class AiService {
             await dialogueService.setRoundSummary(dialogueId, summary)
           }
 
-          // 5b. 估算 token 用量并记录 credit 消耗
-          // 输入 token 从 prompt 估算，输出 token 从 AI 响应文本 + finalUIJSON 估算
+          // 5b. 记录 credit 消耗：优先使用精确 token 值，fallback 到估算
           try {
-            const inputTokens = estimateTokens(prompt)
-            let outputText = ''
-            if (assistantContent.length > 0 && assistantContent[0].type === 'text') {
-              outputText = assistantContent[0].text + '\n' + finalUIJSON
+            let inputTokens: number
+            let outputTokens: number
+            if (tokenUsage) {
+              inputTokens = tokenUsage.inputTokens
+              outputTokens = tokenUsage.outputTokens
             } else {
-              outputText = finalUIJSON
+              inputTokens = estimateTokens(prompt)
+              let outputText = ''
+              if (assistantContent.length > 0 && assistantContent[0].type === 'text') {
+                outputText = assistantContent[0].text + '\n' + finalUIJSON
+              } else {
+                outputText = finalUIJSON
+              }
+              outputTokens = estimateTokens(outputText)
             }
-            const outputTokens = estimateTokens(outputText)
             const modelName = getActiveModelName()
             const sessionId = dialogueId.toString()
             await creditService.recordUsage(tenantId, sessionId, modelName, inputTokens, outputTokens)
@@ -595,7 +624,7 @@ class AiService {
         },
       },
       appId,
-      { phaseCtrl },
+      { phaseCtrl, dialogueId },
     )
   }
 

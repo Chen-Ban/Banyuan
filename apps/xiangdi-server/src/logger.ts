@@ -5,7 +5,10 @@
  *   - timestamp: ISO 8601 时间戳
  *   - level: debug | info | warn | error
  *   - message: 日志消息
- *   - requestId: 请求 ID（可选，由 createRequestLogger 绑定）
+ *   - trace_id: 链路追踪 ID（可选，关联 LangSmith trace）
+ *   - span_id: 当前 span ID（可选）
+ *   - service_name: 服务名称（默认 "xiangdi-server"）
+ *   - requestId: 请求 ID（可选）
  *   - error: 错误信息（可选）
  *   - meta: 附加元数据（可选）
  *
@@ -20,9 +23,18 @@ interface LogEntry {
   timestamp: string
   level: LogLevel
   message: string
+  service_name: string
+  trace_id?: string
+  span_id?: string
   requestId?: string
   error?: { message: string; stack?: string; name?: string }
   meta?: Record<string, unknown>
+}
+
+export interface LoggerOpts {
+  requestId?: string
+  traceId?: string
+  spanId?: string
 }
 
 export interface Logger {
@@ -48,6 +60,7 @@ function getConfiguredLevel(): LogLevel {
 }
 
 const configuredLevel = getConfiguredLevel()
+const SERVICE_NAME = process.env.SERVICE_NAME ?? 'xiangdi-server'
 
 function shouldLog(level: LogLevel): boolean {
   return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[configuredLevel]
@@ -79,15 +92,20 @@ function serializeError(err: Error | unknown): LogEntry['error'] {
 
 // ─── Logger 工厂 ─────────────────────────────────────────────────────────────
 
-function createLoggerInternal(requestId?: string): Logger {
+function createLoggerInternal(opts?: LoggerOpts): Logger {
+  const { requestId, traceId, spanId } = opts ?? {}
+
   const log = (level: LogLevel, message: string, err?: Error | unknown, meta?: Record<string, unknown>) => {
     if (!shouldLog(level)) return
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
       message,
+      service_name: SERVICE_NAME,
     }
     if (requestId) entry.requestId = requestId
+    if (traceId) entry.trace_id = traceId
+    if (spanId) entry.span_id = spanId
     if (err !== undefined) entry.error = serializeError(err)
     if (meta && Object.keys(meta).length > 0) entry.meta = meta
     writeLog(entry)
@@ -110,13 +128,19 @@ function createLoggerInternal(requestId?: string): Logger {
 }
 
 /**
- * 全局 logger（无 requestId 绑定）
+ * 全局 logger（无额外上下文绑定）
  */
 export const logger: Logger = createLoggerInternal()
 
 /**
- * 创建带 requestId 的子 logger
+ * 创建带上下文绑定的子 logger
+ *
+ * @param opts 可选上下文：requestId / traceId / spanId
  */
-export function createRequestLogger(requestId: string): Logger {
-  return createLoggerInternal(requestId)
+export function createRequestLogger(opts?: string | LoggerOpts): Logger {
+  if (typeof opts === 'string') {
+    // 兼容旧用法：createRequestLogger('req-123')
+    return createLoggerInternal({ requestId: opts })
+  }
+  return createLoggerInternal(opts)
 }

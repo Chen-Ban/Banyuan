@@ -10,6 +10,7 @@
 import { MemorySaver } from '@langchain/langgraph'
 import type { BaseCheckpointSaver } from '@langchain/langgraph'
 import type { CheckpointStore, ThreadStatus } from './types.js'
+import { logger } from '../logger.js'
 
 export class MemoryCheckpointStore implements CheckpointStore {
   readonly backend = 'memory'
@@ -29,7 +30,7 @@ export class MemoryCheckpointStore implements CheckpointStore {
   }
 
   start(): void {
-    console.log('[MemoryCheckpointStore] Started (in-memory, no persistence)')
+    logger.info('MemoryCheckpointStore started (in-memory, no persistence)')
   }
 
   async stop(): Promise<void> {

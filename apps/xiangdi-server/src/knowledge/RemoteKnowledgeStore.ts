@@ -27,6 +27,8 @@ export interface RemoteKnowledgeStoreConfig {
   internalToken?: string
   /** 请求超时（ms），默认 10000 */
   timeout?: number
+  /** 链路追踪 ID，会以 X-Trace-Id header 透传给知识服务 */
+  traceId?: string
 }
 
 // ─── 实现 ──────────────────────────────────────────────────────────────────────
@@ -35,11 +37,13 @@ export class RemoteKnowledgeStore implements KnowledgeStore {
   private readonly baseUrl: string
   private readonly internalToken?: string
   private readonly timeout: number
+  private readonly traceId?: string
 
   constructor(config: RemoteKnowledgeStoreConfig = {}) {
     this.baseUrl = config.baseUrl ?? process.env.KNOWLEDGE_URL ?? 'http://localhost:3003'
     this.internalToken = config.internalToken ?? process.env.KNOWLEDGE_INTERNAL_TOKEN
     this.timeout = config.timeout ?? 10000
+    this.traceId = config.traceId
   }
 
   async query(query: string, options?: KnowledgeQueryOptions): Promise<KnowledgeChunk[]> {
@@ -62,6 +66,7 @@ export class RemoteKnowledgeStore implements KnowledgeStore {
           'Content-Length': Buffer.byteLength(body),
           Accept: 'application/json',
           ...(this.internalToken ? { 'X-Internal-Token': this.internalToken } : {}),
+          ...(this.traceId ? { 'X-Trace-Id': this.traceId } : {}),
         },
         timeout: this.timeout,
       }

@@ -20,6 +20,8 @@ export interface SubAgentLLMCallConfig {
   model?: string
   maxTokens?: number
   temperature?: number
+  /** LangSmith trace run 名称 */
+  runName?: string
 }
 
 /**
@@ -32,6 +34,7 @@ export async function callSubAgentLLM(config: SubAgentLLMCallConfig): Promise<st
     system: config.systemPrompt,
     messages: [{ role: 'user', content: [{ type: 'text', text: config.userPrompt }] }],
     temperature: config.temperature ?? 0,
+    runName: config.runName,
   })
 
   const textBlock = response.content.find((c) => c.type === 'text')

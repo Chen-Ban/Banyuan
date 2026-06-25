@@ -127,6 +127,7 @@ export function createWorkerGraph(config: WorkerGraphConfig) {
         messages: state.messages,
         tools: toolDefs.length > 0 ? toolDefs : undefined,
         temperature,
+        runName: `${agentName}:think/${newIteration}`,
       },
       (token) => {
         streamedText += token

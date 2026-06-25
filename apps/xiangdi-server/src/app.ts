@@ -20,6 +20,10 @@ import { logger } from './middleware/logger'
 import { internalAuth } from './middleware/auth'
 import { healthRouter, aiRouter } from './routes'
 import { logger as structuredLogger } from './logger.js'
+import { initLangSmithTracing } from './tracing.js'
+
+// 启动时初始化 LangSmith Tracing（环境变量驱动）
+initLangSmithTracing()
 
 const app = new Koa()
 

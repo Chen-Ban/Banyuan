@@ -17,6 +17,8 @@ export interface LLMClient {
     messages: import('./types.js').Message[]
     tools?: unknown[]
     temperature?: number
+    /** LangSmith trace run 名称（用于区分同一 node 中的多次 LLM 调用） */
+    runName?: string
   }): Promise<LLMResponse>
 
   /**
@@ -36,6 +38,8 @@ export interface LLMClient {
       messages: import('./types.js').Message[]
       tools?: unknown[]
       temperature?: number
+      /** LangSmith trace run 名称 */
+      runName?: string
     },
     onToken: OnTokenCallback,
   ): Promise<LLMResponse>
@@ -47,4 +51,12 @@ export interface LLMResponse {
     | { type: 'text'; text: string }
     | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   >
+  /** LLM API 返回的精确 token 用量（DeepSeek / OpenAI 兼容协议） */
+  usage?: {
+    inputTokens: number
+    outputTokens: number
+    model: string
+    /** 缓存命中 token 数（DeepSeek 特有，可为 0） */
+    cachedInputTokens?: number
+  }
 }

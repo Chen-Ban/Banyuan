@@ -123,12 +123,23 @@ export class DeepSeekClient implements LLMClient {
       max_tokens: params.max_tokens,
       temperature: params.temperature ?? 0.7,
       stream: true,
+      stream_options: { include_usage: true },
     })
 
     let fullText = ''
     let finishReason: string | null = null
+    let usage: LLMResponse['usage'] = undefined
 
     for await (const chunk of stream) {
+      // 最后一个 chunk（usage 信息）：choices 可能为空，usage 携带总用量
+      if (chunk.usage) {
+        usage = {
+          inputTokens: chunk.usage.prompt_tokens,
+          outputTokens: chunk.usage.completion_tokens,
+          model: (chunk.model ?? params.model) || this.defaultModel,
+          cachedInputTokens: (chunk.usage as { prompt_tokens_details?: { cached_tokens?: number } }).prompt_tokens_details?.cached_tokens,
+        }
+      }
       const delta = chunk.choices[0]?.delta?.content
       if (delta) {
         fullText += delta
@@ -157,6 +168,7 @@ export class DeepSeekClient implements LLMClient {
     return {
       stop_reason: stopReason,
       content: fullText ? [{ type: 'text', text: fullText }] : [{ type: 'text', text: '' }],
+      usage,
     }
   }
 }
@@ -342,7 +354,17 @@ function convertToLLMResponse(completion: OpenAI.Chat.ChatCompletion): LLMRespon
       stopReason = choice.finish_reason ?? 'end_turn'
   }
 
-  return { stop_reason: stopReason, content }
+  // 提取精确 token 用量（DeepSeek/OpenAI 兼容协议）
+  const usage = completion.usage
+    ? {
+        inputTokens: completion.usage.prompt_tokens,
+        outputTokens: completion.usage.completion_tokens,
+        model: completion.model,
+        cachedInputTokens: (completion.usage as { prompt_tokens_details?: { cached_tokens?: number } }).prompt_tokens_details?.cached_tokens,
+      }
+    : undefined
+
+  return { stop_reason: stopReason, content, usage }
 }
 
 // ─── 工具格式转换 ──────────────────────────────────────────────────────────────
