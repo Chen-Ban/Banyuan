@@ -2,7 +2,7 @@ import { SnapAxis } from '@/foundation/constants'
 import type { AxisSnap, SnapResult } from '@/types/engine/snap'
 import { Point3 } from '@/foundation/math'
 import type Matrix4 from '@/foundation/math/Matrix4'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 /**
  * 在主画布上绘制对齐辅助线

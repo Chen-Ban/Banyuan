@@ -14,9 +14,9 @@ import type { AddonType, AddonCapability } from '@/foundation/constants'
 import type { Point3 } from '@/foundation/math'
 import type Bounds from '@/graph/base/Bounds'
 import type { Line, Rectangle, Circle } from '@/graph'
-import type { ITextFields, TextIndex } from '../graph/graph'
+import type { TextIndex } from '../graph/graph'
 import type { IComputedStyle, IViewStyle } from '../foundation/style'
-import type { IDrawingContext } from '../platform/drawing.js'
+import type { IDrawingContext } from '../platform/context.js'
 
 // AddonCapability 枚举值定义已迁移至 foundation/constants（打破 barrel 循环依赖），
 // 此处仅作为类型引用。

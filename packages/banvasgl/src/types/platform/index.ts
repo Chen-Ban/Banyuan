@@ -9,7 +9,7 @@
 // ── 绘图上下文（平台注入能力） ──
 export type {
   IDrawingContext,
-} from './drawing.js';
+} from './context.js';
 
 // ── 画布表面（平台注入能力） ──
 export type {

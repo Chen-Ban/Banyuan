@@ -5,7 +5,7 @@ import type { PatternSize } from '@/types/foundation/style'
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { IPattern } from '@/types/foundation/pattern.js'
 import type { IImageSource } from '@/types/foundation/media.js'
 

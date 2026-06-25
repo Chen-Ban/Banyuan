@@ -3,7 +3,7 @@ import { LinearGradient, RadialGradient, ConicGradient } from "./gradient/index"
 import Image from "./Image";
 import { StyleType } from '@/foundation/constants';
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { FillType } from '@/types/foundation/style'
 
 /**

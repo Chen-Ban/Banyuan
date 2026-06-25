@@ -9,7 +9,7 @@ import TextOptions from './TextOptions'
 import { isGraphType } from '@/foundation/guards'
 import type { ITextParagraph } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import { generateId } from '@/foundation/utils'
 
 export type TextParagraphContent = [
@@ -187,7 +187,7 @@ export default class TextParagraph extends Graph implements ITextParagraph, ISer
      * @param other 另一个图形
      * @returns 相交点数组（暂未实现）
      */
-    public intersect(other: Graph): Point3[] {
+    public intersect(_other: Graph): Point3[] {
         // 暂未实现
         return []
     }

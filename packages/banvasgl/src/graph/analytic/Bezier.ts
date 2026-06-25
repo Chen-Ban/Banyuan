@@ -6,7 +6,7 @@ import Bounds from "@/graph/base/Bounds";
 import Graph from "@/graph/base/Graph";
 import { intersect } from "@/graph/algorithm/IntersectionUtils";
 import type { IBezier } from '@/types/graph/graph'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 /**
  * 贝塞尔曲线抽象基类

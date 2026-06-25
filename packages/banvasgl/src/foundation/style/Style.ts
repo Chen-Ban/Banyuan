@@ -4,7 +4,7 @@ import StrokeStyle from "./StrokeStyle";
 import ShadowStyle from "./ShadowStyle";
 import { StyleType } from "@/foundation/constants";
 import type { ISerializable } from '@/types/foundation/serializable';
-import type { IDrawingContext } from '@/types/platform/drawing.js';
+import type { IDrawingContext } from '@/types/platform/context.js';
 
 /**
  * 综合样式容器

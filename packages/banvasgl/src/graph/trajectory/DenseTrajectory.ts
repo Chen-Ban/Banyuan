@@ -6,7 +6,7 @@ import Bounds from "@/graph/base/Bounds";
 import { Line } from "@/graph/analytic";
 import type { IDenseTrajectory } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { ITransferable, TransferableData } from '@/types/foundation/transferable'
 import { generateId } from "@/foundation/utils";
 
@@ -207,7 +207,7 @@ export default class DenseTrajectory
    * traj.isPointOnCurve(new Point3(50, 0, 0)); // false
    * ```
    */
-  public isPointOnCurve(p: Point3, tolerance: number = MathUtils.EPSILON): boolean {
+  public isPointOnCurve(_p: Point3, _tolerance: number = MathUtils.EPSILON): boolean {
     return false;
   }
 

@@ -13,8 +13,7 @@ import { createClientFlowRunner } from "@/foundation/flow/presets/client.js";
 import type { FlowRunner } from "@/foundation/flow/FlowRunner/index.js";
 import type { FrontendCapProxy } from "@/types/foundation/flow/context.js";
 import { AnimationManager } from "@/foundation/animation";
-import { flattenViewTree } from "@/engine/scene/utils";
-import type View from "@/view/View/View";
+
 import type { IDrawingSurface } from "@/types/platform/surface.js";
 
 export class App implements ISerializable {
@@ -265,7 +264,7 @@ export class App implements ISerializable {
     return this;
   }
 
-  public navigateBack(page?: Scene): App {
+  public navigateBack(_page?: Scene): App {
     if (
       !this._enablePageStack ||
       this.pageStack.length <= 1 ||
@@ -502,7 +501,7 @@ export class App implements ISerializable {
     this._renderLoop = false;
 
     if (this._animationFrameId !== null) {
-      cancelAnimationFrame(this._animationFrameId);
+      this.renderer?.getSurface().cancelFrame(this._animationFrameId);
       this._animationFrameId = null;
     }
 
@@ -515,7 +514,7 @@ export class App implements ISerializable {
    */
   public pauseRenderLoop(): App {
     if (this._animationFrameId !== null) {
-      cancelAnimationFrame(this._animationFrameId);
+      this.renderer?.getSurface().cancelFrame(this._animationFrameId);
       this._animationFrameId = null;
     }
     this._isRendering = false;
@@ -568,7 +567,10 @@ export class App implements ISerializable {
   private _requestAnimationFrame(): void {
     if (!this._renderLoop) return;
 
-    this._animationFrameId = requestAnimationFrame((timestamp) => {
+    const surface = this.renderer?.getSurface();
+    if (!surface) return;
+
+    this._animationFrameId = surface.requestFrame((timestamp) => {
       this._renderFrame(timestamp);
     });
   }

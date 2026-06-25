@@ -16,17 +16,13 @@
 import { ViewType } from '@/foundation/constants'
 import ContainerView from '@/view/ContainerView/index.js'
 import type View from '@/view/View/View.js'
-import type { ICombinedView, IContainerViewOptions, IFlexLayout } from '@/types/view/view'
+import type { ICombinedView, IContainerViewOptions } from '@/types/view/view'
 import type { ISerializable } from '@/types/foundation/serializable'
 import { generateId, generateName } from '@/foundation/utils'
-import Matrix4 from '@/foundation/math/Matrix4.js'
-import { BoundingBoxAddon } from '@/view/addon/index.js'
 import Bounds from '@/graph/base/Bounds.js'
 import { getLayoutStrategy } from './layout/index.js'
 import type { ILayoutContext } from './layout/index.js'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-import type { IGradient } from '@/types/foundation/gradient.js'
-import type { IPattern } from '@/types/foundation/pattern.js';
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 // ────────────────────────────────────────────
 //  CombinedView 实现
@@ -136,7 +132,6 @@ export default class CombinedView extends ContainerView implements ICombinedView
      * @returns 应插入的索引位置
      */
     public getInsertIndex(mainAxisPosition: number): number {
-        const layoutMode = this.style.layoutMode
         // 获取主轴方向（flex/list 有 direction，grid 始终按行优先）
         const direction = this._getMainDirection()
         const padding = this._getLayoutPadding()

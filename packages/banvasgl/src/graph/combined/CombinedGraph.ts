@@ -11,7 +11,7 @@ import Graph from "@/graph/base/Graph";
 import Bounds from "@/graph/base/Bounds";
 import type { ICombinedGraph } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import { generateId } from "@/foundation/utils";
 
 /**
@@ -180,7 +180,7 @@ export default class CombinedGraph
     const [endGraph, endT] = this.getTAtInnerGraph(tEnd);
     const startIndex = this.graphs.findIndex((g) => g === startGraph);
     const endIndex = this.graphs.findIndex((g) => g === endGraph);
-    const graphs = this.graphs.filter((g, i) => i > startIndex && i < endIndex);
+    const graphs = this.graphs.filter((_, i) => i > startIndex && i < endIndex);
     return (
       startGraph.getLength(startT, 1) +
       graphs.reduce((a, b) => a + b.getLength(0, 1), 0) +

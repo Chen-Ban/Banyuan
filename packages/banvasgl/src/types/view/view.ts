@@ -20,17 +20,11 @@ import type {
   ITextFields,
   TextIndex,
 } from "../graph/graph";
-import type {
-  LinearGradient,
-  RadialGradient,
-  ConicGradient,
-} from "@/foundation/style/gradient/index";
-import type Image from "@/foundation/style/Image";
+
 // IViewStyle、IComputedStyle 及辅助类型（IFillStyleOptions 等）已迁移到 ./style.ts。
 // 此处 import 供文件内部使用，同时 re-export 维持 types/index.ts 导出链。
-import type { IComputedStyle, IViewStyle } from "../foundation/style";
+import type { IViewStyle } from "../foundation/style";
 export type {
-  IComputedStyle,
   IViewStyle,
   IFlexLayout,
   IListLayout,
@@ -48,7 +42,7 @@ export type {
 import type { IAnimationAddon } from "../foundation/animation";
 export type { IAnimationAddon } from "../foundation/animation";
 
-import type { IDrawingContext } from "../platform/drawing.js";
+import type { IDrawingContext } from "../platform/context.js";
 
 // ────────────────────────────────────────────
 //  IFieldSchema —— data 的字段定义

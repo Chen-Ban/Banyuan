@@ -8,7 +8,7 @@
  *   App.create(surface, options) → App
  */
 
-import type { IDrawingContext } from './drawing.js';
+import type { IDrawingContext } from './context.js';
 
 /**
  * 平台注入的画布表面
@@ -50,4 +50,25 @@ export interface IDrawingSurface {
    * 非 Web 平台可返回 null 或不实现。
    */
   export?(type?: string, quality?: number): string | null;
+
+  /**
+   * 请求下一帧回调，返回句柄用于取消。
+   *
+   * 各平台使用自己的帧同步原语：
+   *   - Web: requestAnimationFrame
+   *   - Node/headless: setTimeout(fn, 16)
+   *   - React Native: requestAnimationFrame
+   *   - wgpu/Rust (未来): winit RedrawRequested 事件
+   *
+   * @param callback 帧回调，timestamp 为高精度时间戳（ms）
+   * @returns 帧句柄，用于 cancelFrame
+   */
+  requestFrame(callback: (timestamp: number) => void): number;
+
+  /**
+   * 取消已请求的帧回调。
+   *
+   * @param handle requestFrame 返回的句柄
+   */
+  cancelFrame(handle: number): void;
 }

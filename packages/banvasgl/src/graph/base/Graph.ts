@@ -4,7 +4,7 @@ import { MathUtils, Matrix4, Point3, Vector3 } from "@/foundation/math";
 import Bounds from "./Bounds";
 import type { IGraph } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 /**
  * 图形抽象基类

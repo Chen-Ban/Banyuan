@@ -4,7 +4,7 @@ import { Style } from '@/foundation/style'
 import Bounds from '@/graph/base/Bounds'
 import Rectangle from '@/graph/combined/Polygon/Rectangle'
 import type { IMediaElement } from '@/types/graph/graph'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { IImageSource } from '@/types/foundation/media.js'
 
 /**

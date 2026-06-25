@@ -42,9 +42,7 @@ import StrokeStyle from '@/foundation/style/StrokeStyle.js'
 import ShadowStyle from '@/foundation/style/ShadowStyle.js'
 import Style from '@/foundation/style/Style.js'
 import Color from '@/foundation/style/Color.js'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-import type { IGradient } from '@/types/foundation/gradient.js'
-import type { IPattern } from '@/types/foundation/pattern.js';
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 // ────────────────────────────────────────────
 //  BoxDecorationAddon 实现

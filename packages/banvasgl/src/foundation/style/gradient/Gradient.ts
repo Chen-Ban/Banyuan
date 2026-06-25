@@ -1,7 +1,7 @@
 import Color from '../Color.js'
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { IGradient } from '@/types/foundation/gradient.js'
 import type { GradientStop } from '@/types/foundation/style'
 

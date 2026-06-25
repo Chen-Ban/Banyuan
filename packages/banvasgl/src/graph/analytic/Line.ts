@@ -7,7 +7,7 @@ import Graph from "@/graph/base/Graph";
 import { intersect } from "@/graph/algorithm/IntersectionUtils";
 import type { ILine } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import { generateId } from "@/foundation/utils";
 
 /**
@@ -361,7 +361,7 @@ export default class Line
    * // Vector3(100, 50, 0)
    * ```
    */
-  public getTangentAt(t: number): Vector3 {
+  public getTangentAt(_t: number): Vector3 {
     const start = this.startPoint;
     const end = this.endPoint;
     return new Vector3(end.x - start.x, end.y - start.y, end.z - start.z);

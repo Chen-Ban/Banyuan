@@ -15,8 +15,7 @@ import type { ISerializable } from '@/types/foundation/serializable'
 import type { ISceneLifetimes } from '@/types/engine/scene'
 import type { IView, FlowSchema } from '@/types/view/view'
 import { isCombinedView, isContainerView } from "@/foundation/guards";
-import type { FlowRunner } from "@/foundation/flow/FlowRunner/index.js";
-import { AnimationDescriptor, AnimationManager } from "@/foundation/animation";
+import { AnimationDescriptor } from "@/foundation/animation";
 import AnimationAddon from "@/view/addon/AnimationAddon";
 import { SceneType } from "@/foundation/constants";
 import { SnapAlignManager } from "./snap";
@@ -345,7 +344,7 @@ export class Scene implements ISerializable {
    * @param eventArgs 事件参数列表（生命周期传空数组）
    */
   public triggerSchema(
-    view: IView,
+    _view: IView,
     schema: FlowSchema | null,
     eventArgs: unknown[] = [],
   ): void {

@@ -81,7 +81,6 @@ export type {
     IVertexAddon,
     IBoxDecorationOptions,
     IBoxDecorationAddon,
-    IComputedStyle,
     IFillStyleOptions,
     IStrokeStyleOptions,
     IShadowStyleOptions,
@@ -235,6 +234,7 @@ export type {
 
 // ── 样式基础类型 ──
 export type {
+  IComputedStyle,
   FillType,
   StrokeType,
   GradientStop,

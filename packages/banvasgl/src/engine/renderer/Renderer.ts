@@ -1,6 +1,5 @@
 import { Scene } from "@/engine/scene/Scene";
 import type { IDrawingSurface } from '@/types/platform/surface.js'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
 
 export class Renderer {
   // 渲染状态

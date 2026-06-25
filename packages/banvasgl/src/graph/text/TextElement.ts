@@ -7,7 +7,7 @@ import Bounds from '@/graph/base/Bounds'
 import { Rectangle } from '@/graph/combined'
 import type { ITextElement, IPrintableTextElement, INonPrintableTextElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import { generateId } from '@/foundation/utils'
 
 /**

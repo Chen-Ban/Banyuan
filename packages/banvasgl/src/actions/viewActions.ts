@@ -18,11 +18,9 @@ import type {
   IInteractResult,
   ViewTypeMap,
 } from "@/types/view/view";
-import { Point3, ViewType, Cursor } from "@/foundation";
+import { Point3, Cursor } from "@/foundation";
 import type { App } from "@/engine/App";
-import { createTemplateActions as _createTemplateActions } from "@/engine/serialization/template/index.js";
-
-import type { IDrawingContext } from "@/types/platform/drawing.js";
+import type { IDrawingContext } from "@/types/platform/context.js";
 
 /** 内部剪贴板（模块级单例） */
 let clipboard: View | null = null;
@@ -35,7 +33,6 @@ export function getClipboard(): View | null {
 export function createViewActions(getApp: () => App | null): IViewActions {
   const getScene = () => getApp()?.getCurrentScene() ?? null;
   const notify = () => getApp()?.notify();
-  const templateActions = _createTemplateActions(getApp);
 
   return {
     select(viewId: string, multiple?: boolean): void {
@@ -588,9 +585,5 @@ export function createViewActions(getApp: () => App | null): IViewActions {
       scene.snapAlign.end();
     },
 
-
-    // ── 模板操作（从 ITemplateActions 合并） ──
-    serializeTemplate: templateActions.serialize,
-    instantiateTemplate: templateActions.instantiate,
   };
 }

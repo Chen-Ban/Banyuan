@@ -1,11 +1,9 @@
 import MathUtils from '@/foundation/math/MathUtils'
-import Matrix4 from '@/foundation/math/Matrix4'
 import type AnimationDescriptor from './AnimationDescriptor'
 import type {
     AnimatableValue,
     KeyframeProps,
     EasingFunction,
-    IAnimationDescriptor,
     InterpolationHints,
     ResolvedKeyframeSegment,
 } from '@/types/foundation/animation'

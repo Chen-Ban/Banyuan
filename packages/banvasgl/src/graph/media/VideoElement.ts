@@ -3,7 +3,7 @@ import MediaElement from "./MediaElement";
 import { Style } from "@/foundation/style";
 import type { IVideoElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { IVideoSource, IVideoLoadOptions, IImageSource } from '@/types/foundation/media.js'
 import { generateId } from '@/foundation/utils';
 

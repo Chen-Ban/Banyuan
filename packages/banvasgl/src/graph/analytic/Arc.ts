@@ -7,7 +7,7 @@ import Graph from "@/graph/base/Graph";
 import { intersect } from "@/graph/algorithm/IntersectionUtils";
 import type { IArc } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import { generateId } from "@/foundation/utils";
 
 /**

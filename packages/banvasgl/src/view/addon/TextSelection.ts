@@ -1,8 +1,6 @@
 import { TextIndex } from '@/graph/text/TextFields'
 import { Rectangle } from '@/graph/combined/Polygon'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-import type { IGradient } from '@/types/foundation/gradient.js'
-import type { IPattern } from '@/types/foundation/pattern.js';
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 /**
  * 文本选区状态

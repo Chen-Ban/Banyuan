@@ -6,7 +6,7 @@ import Line from "@/graph/analytic/Line";
 import { isGraphType } from '@/foundation/guards'
 import type { IPolygon } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import { generateId } from '@/foundation/utils';
 
 /**

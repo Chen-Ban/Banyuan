@@ -4,12 +4,10 @@ import type { IAddonBase } from '@/types/view/addon'
 import { Graph, Line } from "@/graph";
 import type { IGraphView } from '@/types/view/view'
 import type { ISerializable } from '@/types/foundation/serializable'
-import { isAnalyticGraph, isCombinedGraph } from "@/foundation/guards";
 import { ViewType, GraphType, AddonCapability } from "@/foundation/constants";
 import { generateId, generateName } from "@/foundation/utils";
 import { Point3, Vector3 } from "@/foundation/math";
 import { VertexAddon } from "@/view/addon";
-import Bounds from "@/graph/base/Bounds";
 
 /**
  * 图形视图 - 专门处理Graph类型内容

@@ -17,88 +17,13 @@ import type {
   IContainerViewOptions,
   FlowNode,
 } from "@/types/index.js";
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-import type { IGradient } from '@/types/foundation/gradient.js'
-import type { IPattern } from '@/types/foundation/pattern.js';
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 // 节点默认尺寸
 const NODE_DEFAULT_WIDTH = 160;
 const NODE_DEFAULT_HEIGHT = 80;
-const PORT_RADIUS = 8;
 
 // ── 节点外观策略 ──
-
-type NodeShape = "rect" | "diamond" | "pill";
-
-interface NodeAppearance {
-  shape: NodeShape;
-  accentColor: string;
-  icon: string;
-}
-
-/** 根据 category + kind 推导外观 —— 全量 25 种 kind */
-function deriveAppearance(category: string, kind: string): NodeAppearance {
-  switch (category) {
-    case "control": {
-      switch (kind) {
-        case "condition":
-          return { shape: "diamond", accentColor: "#f59e0b", icon: "⟋" };
-        case "loop":
-          return { shape: "rect", accentColor: "#a855f7", icon: "⟳" };
-        case "parallel":
-          return { shape: "rect", accentColor: "#06b6d4", icon: "⫘" };
-        case "return":
-          return { shape: "pill", accentColor: "#ef4444", icon: "↩" };
-        default:
-          return { shape: "rect", accentColor: "#6b7280", icon: "◆" };
-      }
-    }
-    case "function": {
-      return { shape: "rect", accentColor: "#6366f1", icon: "⊞" };
-    }
-    case "action": {
-      switch (kind) {
-        case "setVariable":
-          return { shape: "rect", accentColor: "#6b7280", icon: "≔" };
-        case "setViewData":
-          return { shape: "rect", accentColor: "#8b5cf6", icon: "📋" };
-        case "setViewVisible":
-          return { shape: "rect", accentColor: "#8b5cf6", icon: "👁" };
-        case "playAnimation":
-          return { shape: "rect", accentColor: "#8b5cf6", icon: "▶" };
-        case "navigate":
-          return { shape: "rect", accentColor: "#3b82f6", icon: "→" };
-        case "cloudFunction":
-          return { shape: "rect", accentColor: "#f97316", icon: "⎇" };
-        case "httpRequest":
-          return { shape: "rect", accentColor: "#f97316", icon: "⇄" };
-        case "dbQuery":
-          return { shape: "rect", accentColor: "#10b981", icon: "⬡" };
-        case "dbInsert":
-          return { shape: "rect", accentColor: "#10b981", icon: "⬡" };
-        case "dbUpdate":
-          return { shape: "rect", accentColor: "#10b981", icon: "⬡" };
-        case "dbDelete":
-          return { shape: "rect", accentColor: "#10b981", icon: "⬡" };
-        default:
-          return { shape: "rect", accentColor: "#3b82f6", icon: "●" };
-      }
-    }
-    case "source": {
-      return {
-        shape: "pill",
-        accentColor: "#8b5cf6",
-        icon: kind === "literal" ? "📝" : "🔗",
-      };
-    }
-    case "compute": {
-      return { shape: "pill", accentColor: "#8b5cf6", icon: "◆" };
-    }
-    default: {
-      return { shape: "rect", accentColor: "#d1d5db", icon: "●" };
-    }
-  }
-}
 
 // ── 端口推导 ──
 
@@ -203,112 +128,6 @@ function deriveTitleFromSchema(schema: FlowNode): string {
   return KIND_TITLES[schema.kind] || schema.kind || "Node";
 }
 
-// ── 摘要行推导 ──
-
-/** 将 SlotValue 转为可读字符串 */
-function slotToString(slot: unknown): string {
-  if (slot === null || slot === undefined) return "null";
-  if (typeof slot === "string")
-    return slot.length > 12 ? `"${slot.slice(0, 12)}…"` : `"${slot}"`;
-  if (typeof slot === "number" || typeof slot === "boolean")
-    return String(slot);
-  if (typeof slot === "object") {
-    // DataRef 或普通对象
-    const obj = slot as Record<string, unknown>;
-    if ("nodeId" in obj && "field" in obj) {
-      return `↗ ${String(obj.field)}`;
-    }
-    return "{…}";
-  }
-  return "?";
-}
-
-function deriveSummaryFromSchema(schema: FlowNode): string | null {
-  const { category, kind } = schema;
-  const slot0 = schema.slots[0];
-
-  if (category === "source") {
-    if (kind === "literal") {
-      return slot0 ? slotToString((slot0 as { value: unknown }).value) : "?";
-    }
-    if (kind === "context") {
-      return slot0 ? ((slot0 as { path: string }).path ?? "?") : "?";
-    }
-  }
-
-  if (category === "compute") {
-    if (!slot0) return null;
-    const inp = (slot0 as { input: Record<string, unknown> }).input;
-    switch (kind) {
-      case "math":
-        return `${slotToString(inp.a)} ${inp.op} ${slotToString(inp.b)}`;
-      case "compare":
-        return `${slotToString(inp.a)} ${inp.op} ${slotToString(inp.b)}`;
-      case "logic":
-        return `${inp.op}(${slotToString(inp.a)}, ${slotToString(inp.b)})`;
-      case "concat":
-        return `${slotToString(inp.a)} + ${slotToString(inp.b)}`;
-      case "format":
-        return String(inp.template ?? "");
-      case "get":
-        return `${slotToString(inp.object)}.${inp.path}`;
-    }
-  }
-
-  if (category === "action") {
-    if (!slot0) return null;
-    const inp = (slot0 as { input: Record<string, unknown> }).input;
-    const s = slot0 as { next?: string; onError?: unknown };
-    switch (kind) {
-      case "setVariable":
-        return `${slotToString(inp.target)} = ${slotToString(inp.value)}`;
-      case "setViewData":
-        return `${slotToString(inp.viewId)}.${slotToString(inp.key)} ← ${slotToString(inp.value)}`;
-      case "setViewVisible":
-        return `${slotToString(inp.viewId)} ${inp.visible ? "显示" : "隐藏"}`;
-      case "playAnimation":
-        return `${slotToString(inp.viewId)} ▶ ${slotToString(inp.animationId)}`;
-      case "navigate":
-        return `→ ${slotToString(inp.target)}`;
-      case "cloudFunction":
-        return `📞 ${slotToString(inp.functionId)}`;
-      case "httpRequest":
-        return `${slotToString(inp.method) || "GET"} ${slotToString(inp.url)}`;
-      case "dbQuery":
-        return `${slotToString(inp.collection)} → rows`;
-      case "dbInsert":
-        return `${slotToString(inp.collection)} ← insert`;
-      case "dbUpdate":
-        return `${slotToString(inp.collection)} ← update`;
-      case "dbDelete":
-        return `${slotToString(inp.collection)} ← delete`;
-    }
-  }
-
-  if (category === "control") {
-    switch (kind) {
-      case "condition":
-        return `${schema.slots.length} 分支`;
-      case "loop":
-        return `while (…)`;
-      case "parallel": {
-        const ps = slot0 as { body?: unknown[]; mode?: string } | undefined;
-        const count = ps?.body?.length ?? 0;
-        return `${count} 分支${ps?.mode ? ` (${ps.mode})` : ""}`;
-      }
-      case "return":
-        return slot0 && Object.keys(slot0.input ?? {}).length > 0
-          ? "有返回值"
-          : "终止";
-    }
-  }
-
-  if (category === "function") {
-    return null;
-  }
-
-  return null;
-}
 
 // ── NodeView 类 ──
 
@@ -322,7 +141,6 @@ export default class NodeView extends ContainerView implements INodeView {
   public readonly type = ViewType.NODEVIEW;
   public nodeTitle: string;
   public schema: FlowNode;
-  private appearance: NodeAppearance;
 
   constructor(options: NodeViewOptions) {
     const w = options.style?.width ?? NODE_DEFAULT_WIDTH;
@@ -341,10 +159,7 @@ export default class NodeView extends ContainerView implements INodeView {
     });
 
     this.schema = options.schema;
-    const cat = options.schema.category;
-    const kind = options.schema.kind;
     this.nodeTitle = options.nodeTitle ?? deriveTitleFromSchema(options.schema);
-    this.appearance = deriveAppearance(cat, kind);
 
     // 自动推导端口
     const ports = options.ports ?? derivePortsFromSchema(options.schema);

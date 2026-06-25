@@ -15,7 +15,7 @@ import type { ISceneLifetimes, IScene } from '../engine/scene'
 import type { IAppLifetimes } from '../engine/app'
 import type { ITemplateActions } from '../template/template.js'
 
-import type { IDrawingContext } from '../platform/drawing.js'
+import type { IDrawingContext } from '../platform/context.js'
 
 // Re-export ITemplateActions 供外部类型引用
 export type { ITemplateActions }
@@ -236,26 +236,6 @@ select(viewId: string, multiple?: boolean): void
      * 结束对齐辅助线
      */
     snapAlignEnd(): void
-
-    // ── 模板操作（从 ITemplateActions 合并） ──
-
-    /**
-     * 将视图子树序列化为模板
-     *
-     * @param viewId - 要序列化的根视图 ID
-     * @param config - 序列化配置
-     * @returns 模板，失败返回 null
-     */
-    serializeTemplate: ITemplateActions['serialize']
-    /**
-     * 将模板实例化为视图并添加到当前场景
-     *
-     * @param template - 模板
-     * @param position - 放置位置
-     * @param params - 参数填充值（key 为 paramId）
-     * @returns 新创建的根视图 ID，失败返回 null
-     */
-    instantiateTemplate: ITemplateActions['instantiate']
 }
 
 /** 页面操作（含历史/事务） */
@@ -445,10 +425,11 @@ export interface IAppActions {
  * 命名空间化的操作对象
  *
  * 替代直接暴露 App 实例，提供安全的、白名单式的命令式 API。
- * 三维度模型：
+ * 四维度模型：
  * - app：全局生命周期、序列化、导出
  * - page：页面导航、数据、事务、历史（undo/redo）
- * - view：视图 CRUD、属性、命中检测、物料序列化/实例化
+ * - view：视图 CRUD、属性、命中检测
+ * - template：模板序列化/实例化（View ↔ ITemplate）
  *
  * 业务层通过 `actions.view.select(id)` 形式调用。
  */
@@ -456,4 +437,5 @@ export interface IBanvasActions {
     view: IViewActions
     page: IPageActions
     app: IAppActions
+    template: ITemplateActions
 }

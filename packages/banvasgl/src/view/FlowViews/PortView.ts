@@ -9,9 +9,7 @@ import type {
     IInteractResult,
     IViewOptions,
 } from '@/types/index.js'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-import type { IGradient } from '@/types/foundation/gradient.js'
-import type { IPattern } from '@/types/foundation/pattern.js';
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 // 端口圆形半径（逻辑像素）
 const PORT_RADIUS = 8

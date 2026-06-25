@@ -11,7 +11,7 @@ import TextOptions from "./TextOptions";
 import { isGraphType } from '@/foundation/guards'
 import type { ITextFields } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import { generateId } from "@/foundation/utils";
 
 //文本选区三元组： 段落号，字序号，字前｜字后
@@ -666,7 +666,7 @@ export default class TextFields
     return this;
   }
 
-  public intersect(other: Graph): Point3[] {
+  public intersect(_other: Graph): Point3[] {
     // 暂未实现
     return [];
   }

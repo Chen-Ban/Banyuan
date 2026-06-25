@@ -9,15 +9,12 @@ import type { IInteractResult, ITextViewOptions } from '@/types/view/view'
 import TextSelection from '@/view/addon/TextSelection.js'
 import { VerticalAlign, ViewType, Action, Cursor } from '@/foundation/constants'
 import { generateId, generateName } from '@/foundation/utils'
-import Bounds from '@/graph/base/Bounds'
 import { NonPrintableTextElement, PrintableTextElement } from '@/graph/text/TextElement'
 import TextFields from '@/graph/text/TextFields'
 import type { TextParagraphContent } from '@/graph/text/TextParagraph'
 import { TextIndex } from '@/graph/text/TextFields'
 import TextSelectionAddon from '@/view/addon/TextSelectionAddon.js'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-import type { IGradient } from '@/types/foundation/gradient.js'
-import type { IPattern } from '@/types/foundation/pattern.js';
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 /**
  * 文本视图

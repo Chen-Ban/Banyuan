@@ -1,4 +1,4 @@
-import type { Next, SlotValue } from "../common.js";
+import type { Next } from "../common.js";
 import type { FlowSchema } from "../schema.js";
 import type { SlotBase } from "./common.js";
 
