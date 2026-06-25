@@ -31,7 +31,6 @@ import type {
     CompositionStartInput,
     CompositionUpdateInput,
     CompositionEndInput,
-    Point3,
 } from "@banyuan/banvasgl";
 import type { EventAdapter, CoordinateTransform, EventAdapterOptions } from "./types.js";
 

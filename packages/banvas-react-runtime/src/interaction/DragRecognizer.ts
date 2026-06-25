@@ -11,13 +11,6 @@
  *   - pointercancel 时安全收尾（不产生 onDragEnd）
  */
 
-import type {
-    PointerDownInput,
-    PointerMoveInput,
-    PointerUpInput,
-    PointerCancelInput,
-    Point3,
-} from "@banyuan/banvasgl";
 import { InteractionRecognizer, type RecognizedInteraction } from "./InteractionRecognizer.js";
 
 // ════════════════════════════════════════════

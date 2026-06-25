@@ -16,7 +16,7 @@
 import { useEffect, useRef } from "react";
 import type { IBanvasActions, InteractionInput } from "@banyuan/banvasgl";
 import { screenToWorld } from "@banyuan/banvasgl-react";
-import type { EventAdapter, CoordinateTransform } from "../adapters/types.js";
+import type { EventAdapter } from "../adapters/types.js";
 import { ClickRecognizer } from "../interaction/ClickRecognizer.js";
 import { DragRecognizer } from "../interaction/DragRecognizer.js";
 import type { RecognizedInteraction } from "../interaction/InteractionRecognizer.js";
