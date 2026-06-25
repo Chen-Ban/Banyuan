@@ -2,6 +2,7 @@ import { EcsManager } from './EcsManager.js'
 import { DnsManager } from './DnsManager.js'
 import { EcsInstance } from '../models/EcsInstance.js'
 import crypto from 'crypto'
+import { logger } from '../utils/logger.js'
 
 export interface ProvisionResult {
   instanceId: string
@@ -42,7 +43,7 @@ export class TenantProvisionService {
 
     try {
       // Step 1: 创建 ECS 实例
-      console.log(`[Provision ${tenantId}] Step 1: Creating ECS instance...`)
+      logger.info(`[Provision ${tenantId}] Step 1: Creating ECS instance...`)
       const result = await this.ecsManager.createInstance(tenantId)
       instanceId = result.instanceId
 
@@ -56,37 +57,37 @@ export class TenantProvisionService {
       })
 
       // Step 2: 等待实例 Running
-      console.log(`[Provision ${tenantId}] Step 2: Waiting for instance ${instanceId} to be running...`)
+      logger.info(`[Provision ${tenantId}] Step 2: Waiting for instance ${instanceId} to be running...`)
       await this.ecsManager.waitInstanceRunning(instanceId)
       await EcsInstance.updateOne({ instanceId }, { $set: { status: 'running' } })
 
       // Step 3: 分配弹性公网 IP
-      console.log(`[Provision ${tenantId}] Step 3: Allocating EIP...`)
+      logger.info(`[Provision ${tenantId}] Step 3: Allocating EIP...`)
       const { allocationId, eipAddress } = await this.ecsManager.allocateEip()
       await EcsInstance.updateOne({ instanceId }, { $set: { status: 'allocating', eipAddress, eipAllocationId: allocationId } })
 
       // Step 4: 绑定 EIP 到实例
-      console.log(`[Provision ${tenantId}] Step 4: Binding EIP ${eipAddress} to instance ${instanceId}...`)
+      logger.info(`[Provision ${tenantId}] Step 4: Binding EIP ${eipAddress} to instance ${instanceId}...`)
       await this.ecsManager.bindEip(instanceId, allocationId)
 
       // Step 5: 添加 DNS 解析（subdomain + wildcard）
-      console.log(`[Provision ${tenantId}] Step 5: Configuring DNS for ${domain}...`)
+      logger.info(`[Provision ${tenantId}] Step 5: Configuring DNS for ${domain}...`)
       await this.dnsManager.addSubdomain(subdomain, eipAddress)
       await this.dnsManager.addWildcard(subdomain, eipAddress)
       await EcsInstance.updateOne({ instanceId }, { $set: { domain } })
 
       // Step 6: 执行初始化脚本
-      console.log(`[Provision ${tenantId}] Step 6: Running init script...`)
+      logger.info(`[Provision ${tenantId}] Step 6: Running init script...`)
       const initScript = this.generateInitScript(tenantId, domain)
       await this.ecsManager.runInitScript(instanceId, initScript)
 
       // Step 7: 执行 deploy-agent 部署脚本
-      console.log(`[Provision ${tenantId}] Step 7: Installing deploy-agent...`)
+      logger.info(`[Provision ${tenantId}] Step 7: Installing deploy-agent...`)
       const agentScript = this.generateAgentScript(tenantId, backendUrl, agentToken)
       await this.ecsManager.runInitScript(instanceId, agentScript)
 
       // Step 8: 更新 EcsInstance 记录——全部就绪
-      console.log(`[Provision ${tenantId}] Step 8: Updating EcsInstance record...`)
+      logger.info(`[Provision ${tenantId}] Step 8: Updating EcsInstance record...`)
       await EcsInstance.updateOne(
         { instanceId },
         {
@@ -97,10 +98,10 @@ export class TenantProvisionService {
         },
       )
 
-      console.log(`[Provision ${tenantId}] Provision completed successfully.`)
+      logger.info(`[Provision ${tenantId}] Provision completed successfully.`)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error(`[Provision ${tenantId}] Failed: ${message}`)
+      logger.error(`[Provision ${tenantId}] Failed: ${message}`)
       if (instanceId) {
         await EcsInstance.updateOne(
           { instanceId },

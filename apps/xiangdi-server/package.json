@@ -18,6 +18,7 @@
   "packageManager": "pnpm@10.10.0",
   "dependencies": {
     "@banyuan/banvasgl": "workspace:*",
+    "@banyuan/logger": "workspace:*",
     "@banyuan/xiangdi-agent": "workspace:*",
     "@koa/cors": "^5.0.0",
     "@koa/router": "^13.1.0",

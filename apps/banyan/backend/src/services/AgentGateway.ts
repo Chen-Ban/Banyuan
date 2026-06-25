@@ -3,6 +3,7 @@ import type { Server as HttpServer, IncomingMessage } from 'http'
 import crypto from 'crypto'
 import { EcsInstance } from '../models/EcsInstance.js'
 import type { IEcsInstance } from '../models/types/index.js'
+import { logger } from '../utils/logger.js'
 
 // ─── 消息协议（与 @banyuan/deploy-agent 对齐）────────────────────────────────────
 
@@ -147,7 +148,7 @@ export class AgentGateway {
 
       const token = url.searchParams.get('token')
       if (!token) {
-        console.warn('[AgentGateway] 连接缺少 token 参数，拒绝升级')
+        logger.warn('[AgentGateway] 连接缺少 token 参数，拒绝升级')
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
         socket.destroy()
         return
@@ -165,7 +166,7 @@ export class AgentGateway {
       this.handleNewConnection(ws, token)
     })
 
-    console.log(`[AgentGateway] WebSocket 服务已附加，路径: ${WS_PATH}`)
+    logger.info(`[AgentGateway] WebSocket 服务已附加，路径: ${WS_PATH}`)
   }
 
   /**
@@ -225,7 +226,7 @@ export class AgentGateway {
         }
       })
 
-      console.log(`[AgentGateway] 已向租户 ${tenantId} 发送部署指令，requestId=${requestId}`)
+      logger.info(`[AgentGateway] 已向租户 ${tenantId} 发送部署指令，requestId=${requestId}`)
     })
   }
 
@@ -247,7 +248,7 @@ export class AgentGateway {
   private handleNewConnection(ws: WebSocket, token: string): void {
     // 等待 auth 消息，超时则断开
     const authTimeout = setTimeout(() => {
-      console.warn('[AgentGateway] 连接认证超时，关闭连接')
+      logger.warn('[AgentGateway] 连接认证超时，关闭连接')
       ws.close(4001, 'Authentication timeout')
     }, AUTH_TIMEOUT_MS)
 
@@ -267,7 +268,7 @@ export class AgentGateway {
         const data: AgentMessage = JSON.parse(typeof raw === 'string' ? raw : raw.toString('utf-8'))
 
         if (data.type !== 'auth') {
-          console.warn('[AgentGateway] 首条消息非 auth 类型，关闭连接')
+          logger.warn('[AgentGateway] 首条消息非 auth 类型，关闭连接')
           ws.close(4002, 'First message must be auth')
           return
         }
@@ -276,7 +277,7 @@ export class AgentGateway {
         const { tenantId, agentToken } = data.payload as { tenantId: string; agentToken: string }
 
         if (!tenantId || !agentToken) {
-          console.warn('[AgentGateway] auth 消息缺少 tenantId 或 agentToken')
+          logger.warn('[AgentGateway] auth 消息缺少 tenantId 或 agentToken')
           const failMsg: ServerMessage = {
             type: 'auth:fail',
             payload: { reason: 'Missing tenantId or agentToken' },
@@ -288,7 +289,7 @@ export class AgentGateway {
 
         // 验证 token 一致性（URL token 与 auth payload agentToken 必须一致）
         if (token !== agentToken) {
-          console.warn(`[AgentGateway] 租户 ${tenantId} token 不匹配`)
+          logger.warn(`[AgentGateway] 租户 ${tenantId} token 不匹配`)
           const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'Token mismatch' } }
           ws.send(JSON.stringify(failMsg))
           ws.close(4004, 'Token mismatch')
@@ -301,21 +302,21 @@ export class AgentGateway {
           instance = await EcsInstance.findOne({ tenantId }).lean()
         } catch (dbErr) {
           const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
-          console.error(`[AgentGateway] 租户 ${tenantId} EcsInstance 查询失败: ${msg}`)
+          logger.error(`[AgentGateway] 租户 ${tenantId} EcsInstance 查询失败: ${msg}`)
           const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'Internal error' } }
           ws.send(JSON.stringify(failMsg))
           ws.close(1011, 'Internal error')
           return
         }
         if (!instance) {
-          console.warn(`[AgentGateway] 租户 ${tenantId} 未找到绑定的 ECS 实例`)
+          logger.warn(`[AgentGateway] 租户 ${tenantId} 未找到绑定的 ECS 实例`)
           const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'No ECS instance bound' } }
           ws.send(JSON.stringify(failMsg))
           ws.close(4005, 'No ECS instance bound')
           return
         }
         if (instance.agentToken !== agentToken) {
-          console.warn(`[AgentGateway] 租户 ${tenantId} agentToken 与 EcsInstance 不匹配`)
+          logger.warn(`[AgentGateway] 租户 ${tenantId} agentToken 与 EcsInstance 不匹配`)
           const failMsg: ServerMessage = {
             type: 'auth:fail',
             payload: { reason: 'Agent token mismatch with database' },
@@ -328,7 +329,7 @@ export class AgentGateway {
         // 如果该租户已有连接，关闭旧连接
         const existing = this.connections.get(tenantId)
         if (existing) {
-          console.log(`[AgentGateway] 租户 ${tenantId} 已有连接，关闭旧连接`)
+          logger.info(`[AgentGateway] 租户 ${tenantId} 已有连接，关闭旧连接`)
           this.cleanupConnection(tenantId)
         }
 
@@ -346,14 +347,14 @@ export class AgentGateway {
         // 注册后续消息处理
         this.handleConnection(ws, tenantId)
 
-        console.log(`[AgentGateway] 租户 ${tenantId} 认证成功，agent 已上线`)
+        logger.info(`[AgentGateway] 租户 ${tenantId} 认证成功，agent 已上线`)
 
         // 发送认证确认（auth:success）
         const ack: ServerMessage = { type: 'auth:success', payload: { tenantId } }
         ws.send(JSON.stringify(ack))
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e)
-        console.error(`[AgentGateway] 解析 auth 消息失败: ${errMsg}`)
+        logger.error(`[AgentGateway] 解析 auth 消息失败: ${errMsg}`)
         ws.close(4005, 'Invalid auth message')
       }
     }
@@ -373,19 +374,19 @@ export class AgentGateway {
         this.handleMessage(tenantId, data)
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e)
-        console.error(`[AgentGateway] 租户 ${tenantId} 消息解析失败: ${errMsg}`)
+        logger.error(`[AgentGateway] 租户 ${tenantId} 消息解析失败: ${errMsg}`)
       }
     })
 
     ws.on('close', (code, reason) => {
-      console.log(
+      logger.info(
         `[AgentGateway] 租户 ${tenantId} 连接关闭，code=${code}, reason=${reason.toString('utf-8')}`,
       )
       this.handleDisconnect(tenantId)
     })
 
     ws.on('error', (err) => {
-      console.error(`[AgentGateway] 租户 ${tenantId} 连接错误: ${err.message}`)
+      logger.error(`[AgentGateway] 租户 ${tenantId} 连接错误: ${err.message}`)
       this.handleDisconnect(tenantId)
     })
   }
@@ -425,7 +426,7 @@ export class AgentGateway {
             this.pendingRequests.delete(requestId)
             this.progressCallbacks.delete(requestId)
             pending.resolve(result)
-            console.log(
+            logger.info(
               `[AgentGateway] 租户 ${tenantId} 部署完成，requestId=${requestId}, success=${result.success}`,
             )
           }
@@ -434,7 +435,7 @@ export class AgentGateway {
       }
 
       default: {
-        console.warn(`[AgentGateway] 租户 ${tenantId} 收到未知消息类型: ${data.type}`)
+        logger.warn(`[AgentGateway] 租户 ${tenantId} 收到未知消息类型: ${data.type}`)
         break
       }
     }
@@ -453,7 +454,7 @@ export class AgentGateway {
       }
     }
 
-    console.log(`[AgentGateway] 租户 ${tenantId} 已断开，agent 离线`)
+    logger.info(`[AgentGateway] 租户 ${tenantId} 已断开，agent 离线`)
   }
 
   private cleanupConnection(tenantId: string): void {
@@ -477,7 +478,7 @@ export class AgentGateway {
 
     const elapsed = Date.now() - meta.lastHeartbeat
     if (elapsed > HEARTBEAT_INTERVAL_MS) {
-      console.warn(`[AgentGateway] 租户 ${tenantId} 心跳超时（${Math.round(elapsed / 1000)}s），断开连接`)
+      logger.warn(`[AgentGateway] 租户 ${tenantId} 心跳超时（${Math.round(elapsed / 1000)}s），断开连接`)
       meta.ws.close(4010, 'Heartbeat timeout')
       this.handleDisconnect(tenantId)
     }

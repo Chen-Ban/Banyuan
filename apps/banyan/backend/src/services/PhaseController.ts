@@ -11,7 +11,7 @@
  *   - PhaseController 与 Dialogue 1:1 绑定，随 SSE 流结束而销毁
  *
  * 容错策略：
- *   - transition 失败只 console.warn，不抛异常阻断主流程
+ *   - transition 失败只 logger.warn，不抛异常阻断主流程
  *   - SSE 发送失败（连接已关闭）静默忽略
  *
  * SSE 事件格式（与前端 AiPhaseChangeEvent 契约对齐）：
@@ -24,6 +24,7 @@ import type { Types } from 'mongoose'
 import dialogueService from './DialogueService.js'
 import type { DialoguePhase, DiscardReason } from '../models/types/index.js'
 import { PHASE_TRANSITIONS } from '../models/types/index.js'
+import { logger } from '../utils/logger.js'
 
 // ─── SSE 工具（复用 AiService 的 sseWrite 签名） ──────────────────────────────
 
@@ -86,13 +87,13 @@ export class PhaseController {
   async transition(targetPhase: DialoguePhase): Promise<boolean> {
     // 1. 快速校验
     if (TERMINAL_PHASES.has(this.currentPhase)) {
-      console.warn(`[PhaseController] 尝试从终态 "${this.currentPhase}" 转移到 "${targetPhase}"，已忽略`)
+      logger.warn(`[PhaseController] 尝试从终态 "${this.currentPhase}" 转移到 "${targetPhase}"，已忽略`)
       return false
     }
 
     const allowed = PHASE_TRANSITIONS[this.currentPhase]
     if (!allowed.includes(targetPhase)) {
-      console.warn(`[PhaseController] 非法转移: "${this.currentPhase}" → "${targetPhase}"，已忽略`)
+      logger.warn(`[PhaseController] 非法转移: "${this.currentPhase}" → "${targetPhase}"，已忽略`)
       return false
     }
 
@@ -100,7 +101,7 @@ export class PhaseController {
     try {
       await dialogueService.setPhase(this.dialogueId, targetPhase)
     } catch (err) {
-      console.warn(`[PhaseController] DB phase 转移失败 ("${this.currentPhase}" → "${targetPhase}"):`, err)
+      logger.warn(`[PhaseController] DB phase 转移失败 ("${this.currentPhase}" → "${targetPhase}"):`, err)
       return false
     }
 
@@ -127,14 +128,14 @@ export class PhaseController {
 
     // committing 阶段不允许中断：数据一致性优先
     if (this.currentPhase === 'committing') {
-      console.warn(`[PhaseController] 拒绝中断: Dialogue ${this.dialogueId} 处于 committing 阶段`)
+      logger.warn(`[PhaseController] 拒绝中断: Dialogue ${this.dialogueId} 处于 committing 阶段`)
       return
     }
 
     try {
       await dialogueService.interrupt(this.dialogueId, reason, this.currentPhase)
     } catch (err) {
-      console.warn('[PhaseController] interrupt 写入失败:', err)
+      logger.warn('[PhaseController] interrupt 写入失败:', err)
       return
     }
 

@@ -7,6 +7,7 @@
  */
 
 import crypto from 'crypto'
+import { logger } from '../utils/logger.js'
 
 // ─── OTP 内存存储（生产环境建议换 Redis）────────────────────────────────────────
 
@@ -67,7 +68,7 @@ export class SmsService {
     })
 
     if (this.isMock) {
-      console.log(`[SmsService Mock] 手机号 ${phone} 的验证码：${code}（5 分钟内有效）`)
+      logger.info(`[SmsService Mock] 手机号 ${phone} 的验证码：${code}（5 分钟内有效）`)
       return code
     }
 

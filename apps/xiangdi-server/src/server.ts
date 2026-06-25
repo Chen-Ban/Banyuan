@@ -2,6 +2,9 @@ import { config } from 'dotenv'
 // 在读取任何 process.env 之前加载 .env 文件（优先级低于 OS 环境变量）
 config()
 
+// 设置服务名称（@banyuan/logger 延迟读取，import 前设置即可生效）
+process.env.SERVICE_NAME = process.env.SERVICE_NAME ?? 'xiangdi-server'
+
 import app from './app'
 import { getStore } from './checkpoint/index.js'
 import { logger } from './logger.js'

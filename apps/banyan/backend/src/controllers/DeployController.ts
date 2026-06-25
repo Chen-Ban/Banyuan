@@ -4,6 +4,7 @@ import { Deployment } from '../models/Deployment.js'
 import { Application } from '../models/index.js'
 import { EcsInstance } from '../models/EcsInstance.js'
 import { agentGateway } from '../services/AgentGateway.js'
+import { logger } from '../utils/logger.js'
 import type { DeployRequest, CollectionDef, CloudFunctionDef } from '../services/AgentGateway.js'
 import uiDefinitionService from '../services/UIDefinitionService.js'
 import { SchemaService } from '../services/SchemaService.js'
@@ -185,7 +186,7 @@ export class DeployController {
 
     // 7. 异步发送部署指令（不阻塞响应）
     this._executeDeploy(tenantId, deployRequest, applicationId, deploymentId).catch((err) => {
-      console.error(`[Deploy ${deploymentId}] unexpected error:`, err)
+      logger.error(`[Deploy ${deploymentId}] unexpected error:`, err)
     })
 
     ctx.status = 201
@@ -300,7 +301,7 @@ export class DeployController {
     // 6. 异步执行部署
     this._executeDeploy(tenantId, deployRequest, targetDeployment.applicationId, rollbackDeploymentId).catch(
       (err) => {
-        console.error(`[Rollback ${rollbackDeploymentId}] unexpected error:`, err)
+        logger.error(`[Rollback ${rollbackDeploymentId}] unexpected error:`, err)
       },
     )
 

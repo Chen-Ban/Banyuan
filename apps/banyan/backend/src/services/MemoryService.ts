@@ -20,6 +20,7 @@
 import AgentMemory, { type IAgentMemoryDoc } from '../models/AgentMemory.js'
 import type { IEpisode, IFact, EpisodeOutcome, FactCategory } from '../models/types/index.js'
 import knowledgeClient from './KnowledgeClient.js'
+import { logger } from '../utils/logger.js'
 
 // ─── 输入类型（来自 SSE memory_update 事件）─────────────────────────────────────
 
@@ -192,7 +193,7 @@ class MemoryService {
       if (doc) doc.referenceCount++
     }
     // 异步保存，不阻塞返回
-    memory.save().catch((err) => console.error('[MemoryService] save recall updates failed:', err))
+    memory.save().catch((err) => logger.error('[MemoryService] save recall updates failed:', err))
 
     return this.formatMemoryContext(episodes, facts)
   }
@@ -311,7 +312,7 @@ class MemoryService {
 
     // 异步 fire-and-forget
     setImmediate(() => {
-      this.maintain(memory).catch((err) => console.error('[MemoryService] maintain failed:', err))
+      this.maintain(memory).catch((err) => logger.error('[MemoryService] maintain failed:', err))
     })
   }
 

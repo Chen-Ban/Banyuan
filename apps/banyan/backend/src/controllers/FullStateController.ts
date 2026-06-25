@@ -19,6 +19,7 @@ import applicationService from '../services/ApplicationService.js'
 import ossService from '../services/OssService.js'
 import { generateCover } from '../services/thumbnail/index.js'
 import type { ICollectionDef, ICloudFunctionDef } from '../models/types/index.js'
+import { logger } from '../utils/logger.js'
 
 export class FullStateController {
   /**
@@ -125,7 +126,7 @@ export class FullStateController {
           await applicationService.updateApplication(appId, { thumbnail: thumbnailUrl })
         })
         .catch((err) => {
-          console.warn(
+          logger.warn(
             '[FullStateController] 封面生成失败:',
             err instanceof Error ? err.message : String(err),
           )

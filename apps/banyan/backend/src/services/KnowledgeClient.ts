@@ -16,6 +16,7 @@
 
 import http from 'http'
 import https from 'https'
+import { logger } from '../utils/logger.js'
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
 
@@ -41,7 +42,7 @@ class KnowledgeClient {
       })
       return result.embeddings?.[0] ?? null
     } catch (err) {
-      console.error('[KnowledgeClient] embedQuery 失败:', err)
+      logger.error('[KnowledgeClient] embedQuery 失败:', err)
       return null
     }
   }
@@ -58,7 +59,7 @@ class KnowledgeClient {
       })
       return result.embeddings?.[0] ?? null
     } catch (err) {
-      console.error('[KnowledgeClient] embedPassage 失败:', err)
+      logger.error('[KnowledgeClient] embedPassage 失败:', err)
       return null
     }
   }
@@ -75,7 +76,7 @@ class KnowledgeClient {
       })
       return result.embeddings ?? null
     } catch (err) {
-      console.error('[KnowledgeClient] embedPassageBatch 失败:', err)
+      logger.error('[KnowledgeClient] embedPassageBatch 失败:', err)
       return null
     }
   }

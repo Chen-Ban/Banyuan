@@ -9,6 +9,7 @@
 
 import { App, OrthographicCamera } from '@banyuan/banvasgl'
 import { NodeSurface } from './NodePlatformCanvas.js'
+import { logger } from '../../utils/logger.js'
 
 /** 封面画布尺寸 */
 const COVER_WIDTH = 1280
@@ -57,7 +58,7 @@ export async function generateCover(uiJSON: string): Promise<Buffer | null> {
 
     return buffer
   } catch (err) {
-    console.warn('[ThumbnailService] 封面生成失败:', err instanceof Error ? err.message : String(err))
+    logger.warn('[ThumbnailService] 封面生成失败:', err instanceof Error ? err.message : String(err))
     return null
   }
 }

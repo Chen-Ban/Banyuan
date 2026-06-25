@@ -3,6 +3,7 @@ import { User } from '../models/User.js'
 import Conversation from '../models/Conversation.js'
 import Material from '../models/Material.js'
 import Application from '../models/Application.js'
+import { logger } from '../utils/logger.js'
 
 const MONGODB_HOST = process.env.MONGODB_HOST || 'localhost'
 const MONGODB_PORT = process.env.MONGODB_PORT || '27017'
@@ -16,7 +17,7 @@ const MONGODB_URI = process.env.MONGODB_URI || `mongodb://${MONGODB_HOST}:${MONG
 export async function connectDatabase() {
   try {
     await mongoose.connect(MONGODB_URI)
-    console.log(`📦 MongoDB connected: ${MONGODB_URI}`)
+    logger.info(`MongoDB connected: ${MONGODB_URI}`)
 
     // 同步索引：自动 drop 旧的非稀疏索引，重建为 Schema 中声明的索引
     await User.syncIndexes()
@@ -27,7 +28,7 @@ export async function connectDatabase() {
     // 清除旧版 tenantId_appSlug sparse 索引，替换为 partialFilterExpression
     await Application.syncIndexes()
   } catch (error) {
-    console.error('❌ MongoDB connection error:', error)
+    logger.error('MongoDB connection error', error)
     throw error
   }
 }
@@ -38,9 +39,9 @@ export async function connectDatabase() {
 export async function disconnectDatabase() {
   try {
     await mongoose.disconnect()
-    console.log('📦 MongoDB connection closed')
+    logger.info('MongoDB connection closed')
   } catch (error) {
-    console.error('❌ MongoDB disconnection error:', error)
+    logger.error('MongoDB disconnection error', error)
     throw error
   }
 }

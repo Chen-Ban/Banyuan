@@ -18,6 +18,7 @@ import { bundle } from './bundler.js'
 import { buildElectron } from './electron.js'
 import type { Platform } from './electron.js'
 import { PackageTaskModel } from '../../models/index.js'
+import { logger } from '../../utils/logger.js'
 
 export { scaffold, bundle, buildElectron }
 export type { Platform }
@@ -138,7 +139,7 @@ export async function startBuild(options: StartBuildOptions): Promise<string> {
 
   // 异步执行，不阻塞请求
   runBuild(taskId, options).catch((err) => {
-    console.error(`[Build ${taskId}] unexpected error:`, err)
+    logger.error(`[Build ${taskId}] unexpected error:`, err)
   })
 
   return taskId
@@ -156,7 +157,7 @@ async function runBuild(taskId: string, options: StartBuildOptions): Promise<voi
   /** 更新 MongoDB 中的任务状态 */
   const update = async (patch: Partial<{ status: TaskStatus; outputFile: string; error: string }>) => {
     await PackageTaskModel.updateOne({ taskId }, { $set: patch }).catch((err) => {
-      console.warn(`[Build ${taskId}] DB update failed:`, err)
+      logger.warn(`[Build ${taskId}] DB update failed:`, err)
     })
   }
 
@@ -165,13 +166,13 @@ async function runBuild(taskId: string, options: StartBuildOptions): Promise<voi
 
   try {
     await update({ status: 'running' })
-    console.log(`[Build ${taskId}] step 1/3 scaffold ...`)
+    logger.info(`[Build ${taskId}] step 1/3 scaffold ...`)
     await scaffold({ appJson, appName, outputDir: projectDir, canvasVersion })
 
-    console.log(`[Build ${taskId}] step 2/3 bundle ...`)
+    logger.info(`[Build ${taskId}] step 2/3 bundle ...`)
     await bundle({ projectDir, outputDir: distDir })
 
-    console.log(`[Build ${taskId}] step 3/3 electron-builder ...`)
+    logger.info(`[Build ${taskId}] step 3/3 electron-builder ...`)
     await buildElectron({ distDir, outputDir, appName, platform, width, height })
 
     // 找到生成的安装包文件，移动到持久化存储目录
@@ -185,11 +186,11 @@ async function runBuild(taskId: string, options: StartBuildOptions): Promise<voi
       fs.copyFileSync(tmpOutputFile, outputFile)
     }
     await update({ status: 'success', ...(outputFile ? { outputFile } : {}) })
-    console.log(`[Build ${taskId}] done → ${outputFile}`)
+    logger.info(`[Build ${taskId}] done → ${outputFile}`)
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     await update({ status: 'failed', error: message })
-    console.error(`[Build ${taskId}] failed:`, err)
+    logger.error(`[Build ${taskId}] failed:`, err)
   } finally {
     releaseSlot()
     // 清理工作目录（保留 output 中的产物，只删 project 目录）
@@ -205,11 +206,11 @@ function cleanWorkDir(workDir: string, taskId: string): void {
   try {
     if (fs.existsSync(workDir)) {
       fs.rmSync(workDir, { recursive: true, force: true })
-      console.log(`[Build ${taskId}] cleaned work dir`)
+      logger.info(`[Build ${taskId}] cleaned work dir`)
     }
   } catch (cleanErr) {
     // 清理失败不影响任务状态，只记录日志
-    console.warn(`[Build ${taskId}] cleanup failed:`, cleanErr)
+    logger.warn(`[Build ${taskId}] cleanup failed:`, cleanErr)
   }
 }
 
