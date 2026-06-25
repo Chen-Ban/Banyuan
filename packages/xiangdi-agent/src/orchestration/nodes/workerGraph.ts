@@ -105,7 +105,12 @@ export function createWorkerGraph(config: WorkerGraphConfig) {
     // 达到循环上限时强制结束（不带 tools 调用）
     if (newIteration > maxIterations) {
       return {
-        lastResponse: { stop_reason: 'end_turn', content: [{ type: 'text', text: `[Worker ${agentName}] 达到最大迭代次数 ${maxIterations}，强制结束。` }] },
+        lastResponse: {
+          stop_reason: 'end_turn',
+          content: [
+            { type: 'text', text: `[Worker ${agentName}] 达到最大迭代次数 ${maxIterations}，强制结束。` },
+          ],
+        },
         iteration: newIteration,
       }
     }
@@ -197,12 +202,14 @@ export function createWorkerGraph(config: WorkerGraphConfig) {
       // 构造 tool_result message（Anthropic 格式：role=user, content=[{type:tool_result}]）
       toolResultMessages.push({
         role: 'user',
-        content: [{
-          type: 'tool_result',
-          tool_use_id: tc.id,
-          content: resultStr,
-          is_error,
-        }] as unknown as MessageContent,
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: tc.id,
+            content: resultStr,
+            is_error,
+          },
+        ] as unknown as MessageContent,
       })
     }
 
@@ -257,7 +264,7 @@ export function extractFinalText(messages: Message[]): string {
           typeof b === 'object' && b !== null && 'type' in b && b.type === 'text',
       )
       if (textBlocks.length > 0) {
-        return textBlocks.map(b => b.text).join('\n')
+        return textBlocks.map((b) => b.text).join('\n')
       }
     }
   }

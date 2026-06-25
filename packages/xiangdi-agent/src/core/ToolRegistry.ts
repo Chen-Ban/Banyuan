@@ -9,23 +9,19 @@
  * LLM 推理轮次。
  */
 
-import type {
-  ToolDefinition,
-  ToolHandler,
-  RegisteredTool,
-} from "./types.js";
+import type { ToolDefinition, ToolHandler, RegisteredTool } from './types.js'
 
 // ─── 重试配置 ────────────────────────────────────────────────────────────────
 
 export interface RetryConfig {
   /** 最大重试次数（默认 3） */
-  maxRetries: number;
+  maxRetries: number
   /** 初始退避时间 ms（默认 500） */
-  initialDelayMs: number;
+  initialDelayMs: number
   /** 退避倍率（默认 2） */
-  backoffMultiplier: number;
+  backoffMultiplier: number
   /** 最大退避时间 ms（默认 5000） */
-  maxDelayMs: number;
+  maxDelayMs: number
 }
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
@@ -33,7 +29,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   initialDelayMs: 500,
   backoffMultiplier: 2,
   maxDelayMs: 5000,
-};
+}
 
 /**
  * 判断是否为瞬时可重试错误
@@ -43,55 +39,63 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
  * - ECONNRESET / ECONNREFUSED / ETIMEDOUT
  */
 function isTransientError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
+  if (!(err instanceof Error)) return false
 
-  const msg = err.message.toLowerCase();
-  const name = err.name.toLowerCase();
+  const msg = err.message.toLowerCase()
+  const name = err.name.toLowerCase()
 
   // 网络连接错误
   const networkPatterns = [
-    'econnreset', 'econnrefused', 'etimedout', 'enotfound',
-    'epipe', 'ehostunreach', 'enetunreach',
-    'socket hang up', 'network', 'timeout',
-    'aborted', 'connect',
-  ];
-  if (networkPatterns.some(p => msg.includes(p) || name.includes(p))) {
-    return true;
+    'econnreset',
+    'econnrefused',
+    'etimedout',
+    'enotfound',
+    'epipe',
+    'ehostunreach',
+    'enetunreach',
+    'socket hang up',
+    'network',
+    'timeout',
+    'aborted',
+    'connect',
+  ]
+  if (networkPatterns.some((p) => msg.includes(p) || name.includes(p))) {
+    return true
   }
 
   // HTTP 状态码类错误
-  const statusMatch = msg.match(/\b(4[0-9]{2}|5[0-9]{2})\b/);
+  const statusMatch = msg.match(/\b(4[0-9]{2}|5[0-9]{2})\b/)
   if (statusMatch) {
-    const status = parseInt(statusMatch[1]!, 10);
+    const status = parseInt(statusMatch[1]!, 10)
     // 429 限流 or 5xx 服务端错误
     if (status === 429 || (status >= 500 && status < 600)) {
-      return true;
+      return true
     }
   }
 
   // 含 'rate limit' 关键字
   if (msg.includes('rate limit') || msg.includes('ratelimit') || msg.includes('too many requests')) {
-    return true;
+    return true
   }
 
   // 含 'service unavailable' / 'temporarily unavailable'
   if (msg.includes('service unavailable') || msg.includes('temporarily unavailable')) {
-    return true;
+    return true
   }
 
-  return false;
+  return false
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export class ToolRegistry {
-  private tools = new Map<string, RegisteredTool>();
-  private retryConfig: RetryConfig;
+  private tools = new Map<string, RegisteredTool>()
+  private retryConfig: RetryConfig
 
   constructor(retryConfig?: Partial<RetryConfig>) {
-    this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
+    this.retryConfig = { ...DEFAULT_RETRY_CONFIG, ...retryConfig }
   }
 
   /**
@@ -99,40 +103,38 @@ export class ToolRegistry {
    */
   register<TInput extends Record<string, unknown>, TOutput>(
     definition: ToolDefinition,
-    handler: ToolHandler<TInput, TOutput>
+    handler: ToolHandler<TInput, TOutput>,
   ): this {
     if (this.tools.has(definition.name)) {
-      console.warn(
-        `[XiangDi] Tool "${definition.name}" is already registered. Overwriting.`
-      );
+      console.warn(`[XiangDi] Tool "${definition.name}" is already registered. Overwriting.`)
     }
     this.tools.set(definition.name, {
       definition,
       handler: handler as ToolHandler,
-    });
-    return this;
+    })
+    return this
   }
 
   /**
    * 注销一个工具
    */
   unregister(name: string): this {
-    this.tools.delete(name);
-    return this;
+    this.tools.delete(name)
+    return this
   }
 
   /**
    * 获取工具处理器
    */
   getHandler(name: string): ToolHandler | undefined {
-    return this.tools.get(name)?.handler;
+    return this.tools.get(name)?.handler
   }
 
   /**
    * 获取所有工具的 LLM 定义（用于传给模型）
    */
   getDefinitions(): ToolDefinition[] {
-    return Array.from(this.tools.values()).map((t) => t.definition);
+    return Array.from(this.tools.values()).map((t) => t.definition)
   }
 
   /**
@@ -144,66 +146,63 @@ export class ToolRegistry {
    */
   async execute(
     name: string,
-    input: Record<string, unknown>
+    input: Record<string, unknown>,
   ): Promise<{ result: unknown; is_error: boolean }> {
-    const tool = this.tools.get(name);
+    const tool = this.tools.get(name)
     if (!tool) {
       return {
         result: `Tool "${name}" not found in registry.`,
         is_error: true,
-      };
+      }
     }
 
-    const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = this.retryConfig;
-    let lastError: unknown = null;
+    const { maxRetries, initialDelayMs, backoffMultiplier, maxDelayMs } = this.retryConfig
+    let lastError: unknown = null
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const result = await tool.handler(input);
-        return { result, is_error: false };
+        const result = await tool.handler(input)
+        return { result, is_error: false }
       } catch (err) {
-        lastError = err;
+        lastError = err
 
         // 非瞬时错误：立即返回，不重试
         if (!isTransientError(err)) {
-          const message = err instanceof Error ? err.message : String(err);
-          return { result: message, is_error: true };
+          const message = err instanceof Error ? err.message : String(err)
+          return { result: message, is_error: true }
         }
 
         // 已用尽重试次数
         if (attempt >= maxRetries) {
-          break;
+          break
         }
 
         // 指数退避
-        const delay = Math.min(
-          initialDelayMs * Math.pow(backoffMultiplier, attempt),
-          maxDelayMs,
-        );
+        const delay = Math.min(initialDelayMs * Math.pow(backoffMultiplier, attempt), maxDelayMs)
         console.warn(
           `[XiangDi] Tool "${name}" transient error (attempt ${attempt + 1}/${maxRetries + 1}), ` +
-          `retrying in ${delay}ms: ${err instanceof Error ? err.message : String(err)}`
-        );
-        await sleep(delay);
+            `retrying in ${delay}ms: ${err instanceof Error ? err.message : String(err)}`,
+        )
+        await sleep(delay)
       }
     }
 
     // 所有重试均失败
-    const message = lastError instanceof Error ? lastError.message : String(lastError);
+    const message = lastError instanceof Error ? lastError.message : String(lastError)
     return {
       result: `Tool "${name}" failed after ${maxRetries + 1} attempts (transient error): ${message}`,
       is_error: true,
-    };
+    }
   }
 
   /**
    * 是否有已注册的工具
    */
   get isEmpty(): boolean {
-    return this.tools.size === 0;
+    return this.tools.size === 0
   }
 
   get size(): number {
-    return this.tools.size;
+    return this.tools.size
   }
 }

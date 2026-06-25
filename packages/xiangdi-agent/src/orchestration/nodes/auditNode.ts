@@ -60,7 +60,7 @@ function runProgrammaticChecks(
   const failures: AuditFailReason[] = []
 
   // ─── 云函数覆盖度：契约中每个 functionId 在后端产出中有实现 ───
-  const backendFunctionIds = new Set(backend.cloudFunctions.map(cf => cf.functionId))
+  const backendFunctionIds = new Set(backend.cloudFunctions.map((cf) => cf.functionId))
   for (const fn of contract.cloudFunctions) {
     if (!backendFunctionIds.has(fn.functionId)) {
       failures.push({
@@ -72,7 +72,7 @@ function runProgrammaticChecks(
   }
 
   // ─── 集合覆盖度：契约中每个 collection.name 在后端产出中有定义 ───
-  const backendCollectionNames = new Set(backend.collections.map(c => c.name))
+  const backendCollectionNames = new Set(backend.collections.map((c) => c.name))
   for (const col of contract.collections) {
     if (!backendCollectionNames.has(col.name)) {
       failures.push({
@@ -85,9 +85,9 @@ function runProgrammaticChecks(
 
   // ─── 数据表字段匹配：后端 collections 字段覆盖契约必填字段 ───
   for (const contractCol of contract.collections) {
-    const backendCol = backend.collections.find(c => c.name === contractCol.name)
+    const backendCol = backend.collections.find((c) => c.name === contractCol.name)
     if (!backendCol) continue // 上面已经报过缺失
-    const backendFieldNames = new Set(backendCol.fields.map(f => f.name))
+    const backendFieldNames = new Set(backendCol.fields.map((f) => f.name))
     for (const field of contractCol.fields) {
       if (field.required && !backendFieldNames.has(field.name)) {
         failures.push({
@@ -100,7 +100,7 @@ function runProgrammaticChecks(
   }
 
   // ─── 页面覆盖度：契约 binding 的每个 pageId 在前端产出中存在 ───
-  const frontendPageIds = new Set(frontend.pages.map(p => p.pageId))
+  const frontendPageIds = new Set(frontend.pages.map((p) => p.pageId))
   for (const binding of contract.bindings) {
     if (!frontendPageIds.has(binding.frontend.pageId)) {
       failures.push({
@@ -155,18 +155,18 @@ function extractCallFlowFunctionIds(flowSchema: { nodes: Array<Record<string, un
  */
 function inferSuggestedTarget(failures: AuditFailReason[]): SubAgentName {
   // 如果有同时涉及 frontend 和 backend 的问题，说明契约层有问题
-  const hasMultiArtifact = failures.some(f => f.involvedArtifacts.length > 1)
+  const hasMultiArtifact = failures.some((f) => f.involvedArtifacts.length > 1)
   if (hasMultiArtifact) return 'contract'
 
   // 纯后端问题 → 退到 backend
-  const allBackend = failures.every(f =>
-    f.involvedArtifacts.length === 1 && f.involvedArtifacts[0] === 'backend'
+  const allBackend = failures.every(
+    (f) => f.involvedArtifacts.length === 1 && f.involvedArtifacts[0] === 'backend',
   )
   if (allBackend) return 'backend'
 
   // 纯前端问题 → 退到 frontend
-  const allFrontend = failures.every(f =>
-    f.involvedArtifacts.length === 1 && f.involvedArtifacts[0] === 'frontend'
+  const allFrontend = failures.every(
+    (f) => f.involvedArtifacts.length === 1 && f.involvedArtifacts[0] === 'frontend',
   )
   if (allFrontend) return 'frontend'
 
@@ -224,25 +224,32 @@ function buildSemanticAuditUserPrompt(
   backend: BackendArtifacts,
 ): string {
   // 前端摘要：页面列表 + 每页组件数 + clientFlows 事件绑定
-  const frontendSummary = frontend.pages.map(page => {
-    const flowBindings = page.clientFlows.map(f => `${f.viewId}.${f.event}`).join(', ')
-    return `  - 页面 "${page.pageId}": ${page.scene.nodes.length} 个视图节点, 事件绑定: [${flowBindings}]`
-  }).join('\n')
+  const frontendSummary = frontend.pages
+    .map((page) => {
+      const flowBindings = page.clientFlows.map((f) => `${f.viewId}.${f.event}`).join(', ')
+      return `  - 页面 "${page.pageId}": ${page.scene.nodes.length} 个视图节点, 事件绑定: [${flowBindings}]`
+    })
+    .join('\n')
 
   // 后端摘要：集合 + 云函数
-  const collectionsSummary = backend.collections.map(c => {
-    const fields = c.fields.map(f => `${f.name}(${f.type}${f.required ? ',必填' : ''})`).join(', ')
-    return `  - 集合 "${c.name}": [${fields}]`
-  }).join('\n')
+  const collectionsSummary = backend.collections
+    .map((c) => {
+      const fields = c.fields.map((f) => `${f.name}(${f.type}${f.required ? ',必填' : ''})`).join(', ')
+      return `  - 集合 "${c.name}": [${fields}]`
+    })
+    .join('\n')
 
-  const functionsSummary = backend.cloudFunctions.map(cf =>
-    `  - "${cf.name}" (${cf.functionId}): ${cf.description}`
-  ).join('\n')
+  const functionsSummary = backend.cloudFunctions
+    .map((cf) => `  - "${cf.name}" (${cf.functionId}): ${cf.description}`)
+    .join('\n')
 
   // 契约摘要
-  const bindingsSummary = contract.bindings.map(b =>
-    `  - ${b.description}: ${b.frontend.pageId}/${b.frontend.componentId}.${b.frontend.event} → ${b.backend.functionId}`
-  ).join('\n')
+  const bindingsSummary = contract.bindings
+    .map(
+      (b) =>
+        `  - ${b.description}: ${b.frontend.pageId}/${b.frontend.componentId}.${b.frontend.event} → ${b.backend.functionId}`,
+    )
+    .join('\n')
 
   return `## 结构化需求
 
@@ -273,11 +280,15 @@ import { z } from 'zod'
 
 const SemanticAuditResultSchema = z.object({
   passed: z.boolean(),
-  issues: z.array(z.object({
-    category: z.enum(['requirement_coverage', 'semantic_inconsistency']),
-    description: z.string(),
-    involvedArtifacts: z.array(z.enum(['requirements', 'uiDesign', 'contract', 'frontend', 'backend'])),
-  })).optional(),
+  issues: z
+    .array(
+      z.object({
+        category: z.enum(['requirement_coverage', 'semantic_inconsistency']),
+        description: z.string(),
+        involvedArtifacts: z.array(z.enum(['requirements', 'uiDesign', 'contract', 'frontend', 'backend'])),
+      }),
+    )
+    .optional(),
   suggestedTarget: z.enum(['requirements', 'uiDesign', 'contract', 'frontend', 'backend']).optional(),
 })
 
@@ -328,7 +339,7 @@ export function createAuditNode(config: AuditNodeConfig) {
       if (!artifacts.frontend) missingWorkers.push('frontend')
       if (!artifacts.backend) missingWorkers.push('backend')
 
-      const failReasons: AuditFailReason[] = missingWorkers.map(w => ({
+      const failReasons: AuditFailReason[] = missingWorkers.map((w) => ({
         category: 'worker_failure' as AuditFailCategory,
         description: `${w} Worker 未产出结果`,
         involvedArtifacts: [w],
@@ -351,11 +362,13 @@ export function createAuditNode(config: AuditNodeConfig) {
       return {
         auditResult: {
           passed: false,
-          failReasons: [{
-            category: 'reference_integrity',
-            description: '契约（IntegrationContract）缺失，无法执行审计',
-            involvedArtifacts: ['contract'],
-          }],
+          failReasons: [
+            {
+              category: 'reference_integrity',
+              description: '契约（IntegrationContract）缺失，无法执行审计',
+              involvedArtifacts: ['contract'],
+            },
+          ],
           suggestedTarget: 'contract',
         },
         executions: [buildExecution('frontend', startedAt, 'completed')],
@@ -395,16 +408,10 @@ export function createAuditNode(config: AuditNodeConfig) {
       }
     }
 
-    const semanticResult = await runSemanticAudit(
-      config,
-      artifacts.requirements,
-      contract,
-      frontend,
-      backend,
-    )
+    const semanticResult = await runSemanticAudit(config, artifacts.requirements, contract, frontend, backend)
 
     if (!semanticResult.passed) {
-      const failReasons: AuditFailReason[] = (semanticResult.issues ?? []).map(issue => ({
+      const failReasons: AuditFailReason[] = (semanticResult.issues ?? []).map((issue) => ({
         category: issue.category as AuditFailCategory,
         description: issue.description,
         involvedArtifacts: issue.involvedArtifacts as SubAgentName[],

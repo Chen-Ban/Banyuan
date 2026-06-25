@@ -7,17 +7,17 @@
 // ─── 最小化 Anthropic SDK 类型（避免强依赖，运行时由调用方注入）─────────────
 
 /** 流式调用时每个 token 到达时的回调 */
-export type OnTokenCallback = (token: string) => void;
+export type OnTokenCallback = (token: string) => void
 
 export interface LLMClient {
   createMessage(params: {
-    model: string;
-    max_tokens: number;
-    system?: string;
-    messages: import("./types.js").Message[];
-    tools?: unknown[];
-    temperature?: number;
-  }): Promise<LLMResponse>;
+    model: string
+    max_tokens: number
+    system?: string
+    messages: import('./types.js').Message[]
+    tools?: unknown[]
+    temperature?: number
+  }): Promise<LLMResponse>
 
   /**
    * 流式 LLM 调用。
@@ -30,22 +30,21 @@ export interface LLMClient {
    */
   createMessageStream(
     params: {
-      model: string;
-      max_tokens: number;
-      system?: string;
-      messages: import("./types.js").Message[];
-      tools?: unknown[];
-      temperature?: number;
+      model: string
+      max_tokens: number
+      system?: string
+      messages: import('./types.js').Message[]
+      tools?: unknown[]
+      temperature?: number
     },
-    onToken: OnTokenCallback
-  ): Promise<LLMResponse>;
+    onToken: OnTokenCallback,
+  ): Promise<LLMResponse>
 }
 
 export interface LLMResponse {
-  stop_reason: "end_turn" | "tool_use" | "max_tokens" | string;
+  stop_reason: 'end_turn' | 'tool_use' | 'max_tokens' | string
   content: Array<
-    | { type: "text"; text: string }
-    | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  >;
+    | { type: 'text'; text: string }
+    | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  >
 }
-

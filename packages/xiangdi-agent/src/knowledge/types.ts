@@ -28,13 +28,13 @@
  */
 export interface KnowledgeChunk {
   /** 文本内容 */
-  content: string;
+  content: string
   /** 来源标识，如 "Button 组件文档"、"海报排版规范" */
-  source: string;
+  source: string
   /** 相关性分数（0-1），由检索引擎给出 */
-  score: number;
+  score: number
   /** 可选的元数据，由实现方决定内容 */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown>
 }
 
 // ─── KnowledgeStore 接口 ───────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ export interface KnowledgeStore {
    * @param options 可选的检索参数
    * @returns 按相关性降序排列的知识片段数组
    */
-  query(query: string, options?: KnowledgeQueryOptions): Promise<KnowledgeChunk[]>;
+  query(query: string, options?: KnowledgeQueryOptions): Promise<KnowledgeChunk[]>
 }
 
 /**
@@ -62,11 +62,11 @@ export interface KnowledgeStore {
  */
 export interface KnowledgeQueryOptions {
   /** 最多返回的片段数量，默认 5 */
-  topK?: number;
+  topK?: number
   /** 最低相关性分数阈值（0-1），低于此分数的片段会被过滤 */
-  minScore?: number;
+  minScore?: number
   /** 可选的过滤条件，按 metadata 字段过滤 */
-  filter?: Record<string, unknown>;
+  filter?: Record<string, unknown>
 }
 
 // ─── 知识条目（写入用）─────────────────────────────────────────────────────────
@@ -76,13 +76,13 @@ export interface KnowledgeQueryOptions {
  */
 export interface KnowledgeEntry {
   /** 条目唯一标识 */
-  id: string;
+  id: string
   /** 文本内容 */
-  content: string;
+  content: string
   /** 来源标识 */
-  source: string;
+  source: string
   /** 可选的元数据 */
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown>
 }
 
 // ─── 可写知识库接口（扩展）────────────────────────────────────────────────────
@@ -94,13 +94,13 @@ export interface KnowledgeEntry {
  */
 export interface MutableKnowledgeStore extends KnowledgeStore {
   /** 添加知识条目 */
-  add(entries: KnowledgeEntry[]): Promise<void>;
+  add(entries: KnowledgeEntry[]): Promise<void>
   /** 删除知识条目 */
-  remove(ids: string[]): Promise<void>;
+  remove(ids: string[]): Promise<void>
   /** 清空所有条目 */
-  clear(): Promise<void>;
+  clear(): Promise<void>
   /** 当前条目总数 */
-  size(): Promise<number>;
+  size(): Promise<number>
 }
 
 // ─── 图检索接口（GraphRAG）────────────────────────────────────────────────────
@@ -110,15 +110,15 @@ export interface MutableKnowledgeStore extends KnowledgeStore {
  */
 export interface GraphEntity {
   /** 实体唯一标识 */
-  id: string;
+  id: string
   /** 实体类型（如 "page"、"component"、"style"、"layout"） */
-  type: string;
+  type: string
   /** 实体名称 */
-  name: string;
+  name: string
   /** 实体描述/内容 */
-  description?: string;
+  description?: string
   /** 附加属性 */
-  properties?: Record<string, unknown>;
+  properties?: Record<string, unknown>
 }
 
 /**
@@ -126,25 +126,25 @@ export interface GraphEntity {
  */
 export interface GraphRelation {
   /** 关系唯一标识 */
-  id: string;
+  id: string
   /** 源实体 ID */
-  sourceId: string;
+  sourceId: string
   /** 目标实体 ID */
-  targetId: string;
+  targetId: string
   /** 关系类型（如 "contains"、"references"、"depends_on"、"styled_by"） */
-  type: string;
+  type: string
   /** 关系描述 */
-  description?: string;
+  description?: string
   /** 关系权重（0-1） */
-  weight?: number;
+  weight?: number
 }
 
 /**
  * 图检索结果——子图
  */
 export interface SubGraph {
-  entities: GraphEntity[];
-  relations: GraphRelation[];
+  entities: GraphEntity[]
+  relations: GraphRelation[]
 }
 
 /**
@@ -155,45 +155,45 @@ export interface SubGraph {
  */
 export interface GraphKnowledgeStore {
   /** 添加实体 */
-  addEntities(entities: GraphEntity[]): Promise<void>;
+  addEntities(entities: GraphEntity[]): Promise<void>
   /** 添加关系 */
-  addRelations(relations: GraphRelation[]): Promise<void>;
+  addRelations(relations: GraphRelation[]): Promise<void>
   /** 删除实体（级联删除相关的关系） */
-  removeEntities(ids: string[]): Promise<void>;
+  removeEntities(ids: string[]): Promise<void>
 
   /**
    * 根据查询获取相关子图
    * 先语义匹配找到入口实体，再沿关系边扩展 N 跳
    */
-  querySubGraph(query: string, options?: GraphQueryOptions): Promise<SubGraph>;
+  querySubGraph(query: string, options?: GraphQueryOptions): Promise<SubGraph>
 
   /**
    * 影响分析：给定一组实体 ID，找出所有受影响的实体
    */
-  analyzeImpact(entityIds: string[], options?: ImpactAnalysisOptions): Promise<SubGraph>;
+  analyzeImpact(entityIds: string[], options?: ImpactAnalysisOptions): Promise<SubGraph>
 
   /** 获取实体的直接邻居 */
-  getNeighbors(entityId: string, depth?: number): Promise<SubGraph>;
+  getNeighbors(entityId: string, depth?: number): Promise<SubGraph>
 }
 
 export interface GraphQueryOptions {
   /** 从入口实体扩展的跳数，默认 2 */
-  maxHops?: number;
+  maxHops?: number
   /** 最多返回的实体数，默认 20 */
-  maxEntities?: number;
+  maxEntities?: number
   /** 关系类型过滤 */
-  relationTypes?: string[];
+  relationTypes?: string[]
   /** 实体类型过滤 */
-  entityTypes?: string[];
+  entityTypes?: string[]
 }
 
 export interface ImpactAnalysisOptions {
   /** 遍历方向：forward（正向依赖）、backward（被依赖）、both */
-  direction?: "forward" | "backward" | "both";
+  direction?: 'forward' | 'backward' | 'both'
   /** 最大遍历深度，默认 3 */
-  maxDepth?: number;
+  maxDepth?: number
   /** 只考虑这些关系类型 */
-  relationTypes?: string[];
+  relationTypes?: string[]
 }
 
 // ─── 检索路由（GraphRAG 场景）─────────────────────────────────────────────────
@@ -201,32 +201,32 @@ export interface ImpactAnalysisOptions {
 /**
  * 检索策略类型
  */
-export type RetrievalStrategy = "vector" | "graph" | "hybrid";
+export type RetrievalStrategy = 'vector' | 'graph' | 'hybrid'
 
 /**
  * 路由决策结果
  */
 export interface RoutingDecision {
   /** 选择的策略 */
-  strategy: RetrievalStrategy;
+  strategy: RetrievalStrategy
   /** 路由理由 */
-  reasoning: string;
+  reasoning: string
   /** 若为 graph 策略，提取的入口实体关键词 */
-  graphEntryHints?: string[];
+  graphEntryHints?: string[]
 }
 
 /**
  * 检索路由器接口
  */
 export interface RetrievalRouter {
-  route(query: string, context?: RouterContext): Promise<RoutingDecision>;
+  route(query: string, context?: RouterContext): Promise<RoutingDecision>
 }
 
 export interface RouterContext {
   /** 变更提案描述 */
-  proposal?: string;
+  proposal?: string
   /** 是否涉及多页面 */
-  multiPage?: boolean;
+  multiPage?: boolean
   /** 涉及的实体类型提示 */
-  entityHints?: string[];
+  entityHints?: string[]
 }

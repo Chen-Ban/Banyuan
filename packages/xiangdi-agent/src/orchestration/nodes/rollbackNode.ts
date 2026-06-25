@@ -85,12 +85,12 @@ function buildArtifactsSummary(artifacts: ArtifactStore): Record<string, string>
   const summary: Record<string, string> = {}
 
   if (artifacts.requirements) {
-    const featureNames = artifacts.requirements.features.map(f => f.title).join('、')
+    const featureNames = artifacts.requirements.features.map((f) => f.title).join('、')
     summary.requirements = `${artifacts.requirements.features.length} 个功能：${featureNames}`
   }
 
   if (artifacts.uiDesign) {
-    const pageNames = artifacts.uiDesign.pages.map(p => p.name).join('、')
+    const pageNames = artifacts.uiDesign.pages.map((p) => p.name).join('、')
     summary.uiDesign = `${artifacts.uiDesign.pages.length} 个页面：${pageNames}`
   }
 
@@ -99,12 +99,12 @@ function buildArtifactsSummary(artifacts: ArtifactStore): Record<string, string>
   }
 
   if (artifacts.frontend) {
-    const pageIds = artifacts.frontend.pages.map(p => p.pageId).join('、')
+    const pageIds = artifacts.frontend.pages.map((p) => p.pageId).join('、')
     summary.frontend = `${artifacts.frontend.pages.length} 个页面产出：${pageIds}`
   }
 
   if (artifacts.backend) {
-    const fnNames = artifacts.backend.cloudFunctions.map(cf => cf.name).join('、')
+    const fnNames = artifacts.backend.cloudFunctions.map((cf) => cf.name).join('、')
     summary.backend = `${artifacts.backend.collections.length} 个数据表、${artifacts.backend.cloudFunctions.length} 个云函数：${fnNames}`
   }
 
@@ -127,16 +127,17 @@ function buildUserPrompt(
   previousRollbacks: PreviousRollback[],
 ): string {
   const failReasonsText = (auditResult.failReasons ?? [])
-    .map(r => `- [${r.category}] ${r.description}（涉及：${r.involvedArtifacts.join(', ')}）`)
+    .map((r) => `- [${r.category}] ${r.description}（涉及：${r.involvedArtifacts.join(', ')}）`)
     .join('\n')
 
   const artifactsText = Object.entries(artifactsSummary)
     .map(([key, val]) => `- ${key}: ${val}`)
     .join('\n')
 
-  const previousText = previousRollbacks.length > 0
-    ? previousRollbacks.map(r => `- 退到 ${r.target}：${r.reason}`).join('\n')
-    : '无'
+  const previousText =
+    previousRollbacks.length > 0
+      ? previousRollbacks.map((r) => `- 退到 ${r.target}：${r.reason}`).join('\n')
+      : '无'
 
   return `## 审计失败原因
 
@@ -191,10 +192,12 @@ function extractPreviousRollbacks(state: OrchestratorState): PreviousRollback[] 
   // 当前架构中 rollbackResult 每次被覆盖，所以用 executions 中 rollback 节点的记录间接推导
   // 但最直接的方式是：如果有上一次的 rollbackResult 且本次审计又失败了，说明上一次回退没解决问题
   if (state.rollbackResult) {
-    return [{
-      target: state.rollbackResult.target,
-      reason: state.rollbackResult.reasoning,
-    }]
+    return [
+      {
+        target: state.rollbackResult.target,
+        reason: state.rollbackResult.reasoning,
+      },
+    ]
   }
   return []
 }
@@ -266,9 +269,7 @@ export function createRollbackNode(config: RollbackNodeConfig) {
       rollbackResult = {
         target: auditResult.suggestedTarget ?? 'requirements',
         reasoning: `LLM 仲裁解析失败，降级采用审计建议: ${parseResult.error}`,
-        feedbackForTarget: (auditResult.failReasons ?? [])
-          .map(r => r.description)
-          .join('; '),
+        feedbackForTarget: (auditResult.failReasons ?? []).map((r) => r.description).join('; '),
       }
     }
 

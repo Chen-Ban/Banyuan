@@ -48,7 +48,7 @@ function buildSummarizeUserPrompt(
   const parts: string[] = []
 
   if (artifacts.requirements) {
-    const features = artifacts.requirements.features.map(f => f.title).join('、')
+    const features = artifacts.requirements.features.map((f) => f.title).join('、')
     parts.push(`需求功能：${features}`)
   }
 
@@ -65,7 +65,7 @@ function buildSummarizeUserPrompt(
   }
 
   if (artifacts.uiDesign) {
-    const pageNames = artifacts.uiDesign.pages.map(p => p.name).join('、')
+    const pageNames = artifacts.uiDesign.pages.map((p) => p.name).join('、')
     parts.push(`UI 设计页面：${pageNames}`)
   }
 

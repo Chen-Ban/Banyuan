@@ -11,7 +11,7 @@ import type { ZodSchema } from 'zod'
 // ─── SubAgent 名称枚举 ─────────────────────────────────────────────────────
 
 export const SUBAGENT_NAMES = ['requirements', 'uiDesign', 'contract', 'frontend', 'backend'] as const
-export type SubAgentName = typeof SUBAGENT_NAMES[number]
+export type SubAgentName = (typeof SUBAGENT_NAMES)[number]
 
 // ─── SubAgent 描述符（声明式注册）──────────────────────────────────────────
 
@@ -71,11 +71,7 @@ export interface SubAgentMetadata {
 
 // ─── SubAgent 错误协议 ─────────────────────────────────────────────────────
 
-export type SubAgentErrorPhase =
-  | 'llm_call'
-  | 'tool_execution'
-  | 'output_validation'
-  | 'timeout'
+export type SubAgentErrorPhase = 'llm_call' | 'tool_execution' | 'output_validation' | 'timeout'
 
 export interface SubAgentError {
   /** 出错的 SubAgent */
@@ -127,7 +123,11 @@ export function getDependents(target: SubAgentName): SubAgentName[] {
 
 /** SOP 流水线拓扑序（正向执行顺序） */
 export const SUBAGENT_TOPO_ORDER: SubAgentName[] = [
-  'requirements', 'uiDesign', 'contract', 'frontend', 'backend',
+  'requirements',
+  'uiDesign',
+  'contract',
+  'frontend',
+  'backend',
 ]
 
 /**

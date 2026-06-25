@@ -58,12 +58,14 @@ export const NavigationFlowSchema = z.object({
   trigger: z.string().describe('触发条件'),
 })
 
-export const DesignTokenOverridesSchema = z.object({
-  primaryColor: z.string().optional().describe('主题色'),
-  backgroundColor: z.string().optional().describe('背景色'),
-  fontFamily: z.string().optional().describe('字体族'),
-  borderRadius: z.number().optional().describe('圆角值'),
-}).passthrough()
+export const DesignTokenOverridesSchema = z
+  .object({
+    primaryColor: z.string().optional().describe('主题色'),
+    backgroundColor: z.string().optional().describe('背景色'),
+    fontFamily: z.string().optional().describe('字体族'),
+    borderRadius: z.number().optional().describe('圆角值'),
+  })
+  .passthrough()
 
 export const UIDesignSpecSchema = z.object({
   pages: z.array(PageSpecSchema).min(1).describe('页面规格列表'),
@@ -87,7 +89,8 @@ export type UIDesignSpec = z.infer<typeof UIDesignSpecSchema>
 export const FieldContractSchema = z.object({
   name: z.string().describe('字段英文名（camelCase）'),
   displayName: z.string().describe('字段中文显示名'),
-  type: z.enum(['string', 'number', 'boolean', 'date', 'enum', 'ref', 'array', 'object'])
+  type: z
+    .enum(['string', 'number', 'boolean', 'date', 'enum', 'ref', 'array', 'object'])
     .describe('字段类型（与 banyan 后端 IFieldDef 对齐）'),
   required: z.boolean().describe('是否必填'),
   defaultValue: z.unknown().optional().describe('默认值'),
@@ -170,10 +173,13 @@ export type IntegrationContract = z.infer<typeof IntegrationContractSchema>
  * 客户端 FlowSchema 的 Zod 验证放宽为 passthrough object。
  * FlowSchema 结构复杂且由 @banyuan/flow 定义，精确验证由 flow 包的校验函数负责。
  */
-export const FlowSchemaZod = z.object({
-  nodes: z.array(z.object({}).passthrough()),
-  edges: z.array(z.object({}).passthrough()),
-}).passthrough().describe('FlowSchema（节点图）')
+export const FlowSchemaZod = z
+  .object({
+    nodes: z.array(z.object({}).passthrough()),
+    edges: z.array(z.object({}).passthrough()),
+  })
+  .passthrough()
+  .describe('FlowSchema（节点图）')
 
 export const ClientFlowBindingSchema = z.object({
   viewId: z.string().describe('绑定到哪个 View'),
@@ -185,24 +191,31 @@ export const ClientFlowBindingSchema = z.object({
  * AIProjectionScene 的 Zod 验证放宽为 passthrough object。
  * 精确验证由 fromAIProjection() 负责（包含完整的结构校验和类型映射）。
  */
-export const AIProjectionSceneZod = z.object({
-  id: z.string(),
-  name: z.string(),
-  nodes: z.array(z.object({}).passthrough()),
-}).passthrough().describe('AIProjectionScene（页面完整视图结构）')
+export const AIProjectionSceneZod = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    nodes: z.array(z.object({}).passthrough()),
+  })
+  .passthrough()
+  .describe('AIProjectionScene（页面完整视图结构）')
 
 /**
  * AIProjectionApp 的 Zod 验证（App 级投影顶层结构）。
  * lifetimes 为可选（省略表示全 null）。
  */
-export const AIProjectionAppZod = z.object({
-  version: z.string(),
-  lifetimes: z.object({
-    onLaunch: z.unknown().optional(),
-    onUnlaunch: z.unknown().optional(),
-  }).optional(),
-  scenes: z.array(AIProjectionSceneZod),
-}).describe('AIProjectionApp（应用级完整投影结构）')
+export const AIProjectionAppZod = z
+  .object({
+    version: z.string(),
+    lifetimes: z
+      .object({
+        onLaunch: z.unknown().optional(),
+        onUnlaunch: z.unknown().optional(),
+      })
+      .optional(),
+    scenes: z.array(AIProjectionSceneZod),
+  })
+  .describe('AIProjectionApp（应用级完整投影结构）')
 
 export const PageArtifactSchema = z.object({
   pageId: z.string().describe('页面 ID（对应 UIDesignSpec.pages[].id / Scene ID）'),
@@ -225,7 +238,9 @@ export type FrontendArtifacts = z.infer<typeof FrontendArtifactsSchema>
 export const CollectionFieldSchema = z.object({
   name: z.string().describe('字段英文名'),
   displayName: z.string().describe('字段中文显示名'),
-  type: z.enum(['string', 'number', 'boolean', 'date', 'enum', 'ref', 'array', 'object']).describe('字段类型'),
+  type: z
+    .enum(['string', 'number', 'boolean', 'date', 'enum', 'ref', 'array', 'object'])
+    .describe('字段类型'),
   required: z.boolean().describe('是否必填'),
   defaultValue: z.unknown().optional().describe('默认值'),
   refCollection: z.string().optional().describe('关联集合'),
@@ -244,7 +259,10 @@ export const CollectionDefinitionSchema = z.object({
 })
 
 export const CloudFunctionEntrySchema = z.object({
-  functionId: z.string().uuid().describe('函数 ID（与 IntegrationContract.FunctionContract.functionId 一致）'),
+  functionId: z
+    .string()
+    .uuid()
+    .describe('函数 ID（与 IntegrationContract.FunctionContract.functionId 一致）'),
   name: z.string().describe('函数名（唯一标识）'),
   displayName: z.string().describe('中文显示名'),
   description: z.string().describe('功能描述'),

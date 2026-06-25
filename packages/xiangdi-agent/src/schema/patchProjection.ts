@@ -131,21 +131,24 @@ export function patchProjection(
  * 这是 Orchestrator commit 阶段的主要调用入口。
  */
 export async function patchProjectionViaAdapter(
-  adapter: { getAppJSON(): Promise<string>; setAppJSON(json: string): Promise<void>; getAppMeta(): Promise<{ version: string }> },
+  adapter: {
+    getAppJSON(): Promise<string>
+    setAppJSON(json: string): Promise<void>
+    getAppMeta(): Promise<{ version: string }>
+  },
   input: PatchProjectionInput,
 ): Promise<PatchProjectionResult> {
-  const [fetchedJSON, meta] = await Promise.all([
-    adapter.getAppJSON(),
-    adapter.getAppMeta(),
-  ])
+  const [fetchedJSON, meta] = await Promise.all([adapter.getAppJSON(), adapter.getAppMeta()])
 
   // 空应用时构造最小 App 结构
-  const appJSON = fetchedJSON || JSON.stringify({
-    type: 'APP',
-    version: meta.version,
-    data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
-    metadata: { timestamp: Date.now(), source: 'AI Projection Patch' },
-  })
+  const appJSON =
+    fetchedJSON ||
+    JSON.stringify({
+      type: 'APP',
+      version: meta.version,
+      data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
+      metadata: { timestamp: Date.now(), source: 'AI Projection Patch' },
+    })
 
   const { uiJSON: patchedJSON, result } = patchProjection(appJSON, input, meta.version)
   await adapter.setAppJSON(patchedJSON)

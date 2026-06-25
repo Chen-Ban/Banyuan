@@ -17,4 +17,4 @@ export type {
   GraphKnowledgeStore,
   GraphQueryOptions,
   ImpactAnalysisOptions,
-} from "./types.js";
+} from './types.js'

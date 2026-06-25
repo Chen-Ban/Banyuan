@@ -23,21 +23,21 @@
  * ```
  */
 
-import OpenAI from "openai";
-import type { LLMClient, LLMResponse, OnTokenCallback } from "../core/llmTypes.js";
-import type { Message } from "../core/types.js";
+import OpenAI from 'openai'
+import type { LLMClient, LLMResponse, OnTokenCallback } from '../core/llmTypes.js'
+import type { Message } from '../core/types.js'
 
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
 
 export interface KimiConfig {
   /** API Key（从 https://platform.moonshot.cn 获取） */
-  apiKey: string;
+  apiKey: string
   /** 模型名称，默认 "kimi-k2.6" */
-  model?: string;
+  model?: string
   /** API 基础 URL，默认 "https://api.moonshot.ai/v1" */
-  baseUrl?: string;
+  baseUrl?: string
   /** 请求超时（毫秒），默认 120000 */
-  timeout?: number;
+  timeout?: number
 }
 
 // ─── KimiClient ────────────────────────────────────────────────────────────────
@@ -49,60 +49,60 @@ export interface KimiConfig {
  * 内部通过 openai SDK 调用 Kimi OpenAI-compatible API。
  */
 export class KimiClient implements LLMClient {
-  private readonly openai: OpenAI;
-  private readonly defaultModel: string;
+  private readonly openai: OpenAI
+  private readonly defaultModel: string
 
   constructor(config: KimiConfig) {
-    this.defaultModel = config.model ?? "kimi-k2.6";
+    this.defaultModel = config.model ?? 'kimi-k2.6'
     this.openai = new OpenAI({
       apiKey: config.apiKey,
-      baseURL: config.baseUrl ?? "https://api.moonshot.ai/v1",
+      baseURL: config.baseUrl ?? 'https://api.moonshot.ai/v1',
       timeout: config.timeout ?? 120_000,
-    });
+    })
   }
 
   async createMessage(params: {
-    model: string;
-    max_tokens: number;
-    system?: string;
-    messages: Message[];
-    tools?: unknown[];
-    temperature?: number;
+    model: string
+    max_tokens: number
+    system?: string
+    messages: Message[]
+    tools?: unknown[]
+    temperature?: number
   }): Promise<LLMResponse> {
-    const openAIMessages = buildOpenAIMessages(params.system, params.messages);
+    const openAIMessages = buildOpenAIMessages(params.system, params.messages)
 
     const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
       model: params.model || this.defaultModel,
       messages: openAIMessages,
       max_tokens: params.max_tokens,
       temperature: params.temperature ?? 0.7,
-    };
+    }
 
     // 工具调用支持
     if (params.tools && params.tools.length > 0) {
-      requestParams.tools = convertToOpenAITools(params.tools);
-      requestParams.tool_choice = "auto";
+      requestParams.tools = convertToOpenAITools(params.tools)
+      requestParams.tool_choice = 'auto'
     }
 
-    const completion = await this.openai.chat.completions.create(requestParams);
-    return convertToLLMResponse(completion);
+    const completion = await this.openai.chat.completions.create(requestParams)
+    return convertToLLMResponse(completion)
   }
 
   async createMessageStream(
     params: {
-      model: string;
-      max_tokens: number;
-      system?: string;
-      messages: Message[];
-      tools?: unknown[];
-      temperature?: number;
+      model: string
+      max_tokens: number
+      system?: string
+      messages: Message[]
+      tools?: unknown[]
+      temperature?: number
     },
-    onToken: OnTokenCallback
+    onToken: OnTokenCallback,
   ): Promise<LLMResponse> {
-    const openAIMessages = buildOpenAIMessages(params.system, params.messages);
+    const openAIMessages = buildOpenAIMessages(params.system, params.messages)
 
     // 有工具调用时降级为非流式（工具参数需要完整 JSON，逐字流式无法可靠解析）
-    const hasTools = params.tools && params.tools.length > 0;
+    const hasTools = params.tools && params.tools.length > 0
     if (hasTools) {
       const requestParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
         model: params.model || this.defaultModel,
@@ -110,12 +110,12 @@ export class KimiClient implements LLMClient {
         max_tokens: params.max_tokens,
         temperature: params.temperature ?? 0.7,
         tools: convertToOpenAITools(params.tools!),
-        tool_choice: "auto",
-      };
-      const completion = await this.openai.chat.completions.create(requestParams);
-      const textContent = completion.choices[0]?.message?.content ?? "";
-      if (textContent) onToken(textContent);
-      return convertToLLMResponse(completion);
+        tool_choice: 'auto',
+      }
+      const completion = await this.openai.chat.completions.create(requestParams)
+      const textContent = completion.choices[0]?.message?.content ?? ''
+      if (textContent) onToken(textContent)
+      return convertToLLMResponse(completion)
     }
 
     // 纯文本：流式调用，逐 token 回调
@@ -125,33 +125,40 @@ export class KimiClient implements LLMClient {
       max_tokens: params.max_tokens,
       temperature: params.temperature ?? 0.7,
       stream: true,
-    });
+    })
 
-    let fullText = "";
-    let finishReason: string | null = null;
+    let fullText = ''
+    let finishReason: string | null = null
 
     for await (const chunk of stream) {
-      const delta = chunk.choices[0]?.delta?.content;
+      const delta = chunk.choices[0]?.delta?.content
       if (delta) {
-        fullText += delta;
-        onToken(delta);
+        fullText += delta
+        onToken(delta)
       }
-      const reason = chunk.choices[0]?.finish_reason;
-      if (reason) finishReason = reason;
+      const reason = chunk.choices[0]?.finish_reason
+      if (reason) finishReason = reason
     }
 
-    let stopReason: string;
+    let stopReason: string
     switch (finishReason) {
-      case "stop": stopReason = "end_turn"; break;
-      case "tool_calls": stopReason = "tool_use"; break;
-      case "length": stopReason = "max_tokens"; break;
-      default: stopReason = finishReason ?? "end_turn";
+      case 'stop':
+        stopReason = 'end_turn'
+        break
+      case 'tool_calls':
+        stopReason = 'tool_use'
+        break
+      case 'length':
+        stopReason = 'max_tokens'
+        break
+      default:
+        stopReason = finishReason ?? 'end_turn'
     }
 
     return {
       stop_reason: stopReason,
-      content: fullText ? [{ type: "text", text: fullText }] : [{ type: "text", text: "" }],
-    };
+      content: fullText ? [{ type: 'text', text: fullText }] : [{ type: 'text', text: '' }],
+    }
   }
 }
 
@@ -159,209 +166,202 @@ export class KimiClient implements LLMClient {
 
 function buildOpenAIMessages(
   system: string | undefined,
-  messages: Message[]
+  messages: Message[],
 ): OpenAI.Chat.ChatCompletionMessageParam[] {
-  const result: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+  const result: OpenAI.Chat.ChatCompletionMessageParam[] = []
 
   if (system) {
-    result.push({ role: "system", content: system });
+    result.push({ role: 'system', content: system })
   }
 
   for (const msg of messages) {
-    if (msg.role === "user") {
+    if (msg.role === 'user') {
       // MasterGraph 以 Anthropic 风格将 ToolResultContent[] 作为 role:"user" 推入上下文。
       // OpenAI 协议要求这些作为独立的 role:"tool" 消息紧跟在含 tool_calls 的 assistant 消息之后。
       if (isToolResultArray(msg.content)) {
-        const toolResults = msg.content as ToolResultContentLike[];
+        const toolResults = msg.content as ToolResultContentLike[]
         for (const tr of toolResults) {
           const contentStr =
-            typeof tr.content === "string"
+            typeof tr.content === 'string'
               ? tr.content
               : Array.isArray(tr.content)
-                ? tr.content.map((c) => c.text).join("\n")
-                : "";
+                ? tr.content.map((c) => c.text).join('\n')
+                : ''
           result.push({
-            role: "tool",
+            role: 'tool',
             content: contentStr,
             tool_call_id: tr.tool_use_id,
-          });
+          })
         }
       } else {
-        result.push({ role: "user", content: extractTextContent(msg.content) });
+        result.push({ role: 'user', content: extractTextContent(msg.content) })
       }
-    } else if (msg.role === "assistant") {
-      result.push(convertAssistantMessage(msg.content));
-    } else if (msg.role === "tool") {
+    } else if (msg.role === 'assistant') {
+      result.push(convertAssistantMessage(msg.content))
+    } else if (msg.role === 'tool') {
       result.push({
-        role: "tool",
+        role: 'tool',
         content: extractTextContent(msg.content),
         tool_call_id: extractToolCallId(msg.content),
-      });
+      })
     }
   }
 
-  return result;
+  return result
 }
 
 /** ToolResultContent 的轻量类型守卫（避免直接 import 循环） */
 interface ToolResultContentLike {
-  type: "tool_result";
-  tool_use_id: string;
-  content: string | { type: "text"; text: string }[];
-  is_error?: boolean;
+  type: 'tool_result'
+  tool_use_id: string
+  content: string | { type: 'text'; text: string }[]
+  is_error?: boolean
 }
 
 /**
  * 判断 message.content 是否为 ToolResultContent[]
  * MasterGraph 推入时的实际形态：数组且每个元素 type === "tool_result"
  */
-function isToolResultArray(content: Message["content"]): boolean {
-  if (!Array.isArray(content)) return false;
-  if (content.length === 0) return false;
-  return content.every(
-    (item) =>
-      typeof item === "object" && item !== null && item.type === "tool_result"
-  );
+function isToolResultArray(content: Message['content']): boolean {
+  if (!Array.isArray(content)) return false
+  if (content.length === 0) return false
+  return content.every((item) => typeof item === 'object' && item !== null && item.type === 'tool_result')
 }
 
-function extractTextContent(content: Message["content"]): string {
-  if (typeof content === "string") return content;
-  if (!Array.isArray(content)) return "";
+function extractTextContent(content: Message['content']): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
 
   return content
     .map((part) => {
-      if (part.type === "text") return part.text;
-      if (part.type === "tool_result") return part.content ?? "";
-      return "";
+      if (part.type === 'text') return part.text
+      if (part.type === 'tool_result') return part.content ?? ''
+      return ''
     })
     .filter(Boolean)
-    .join("\n");
+    .join('\n')
 }
 
-function extractToolCallId(content: Message["content"]): string {
-  if (!Array.isArray(content)) return "";
+function extractToolCallId(content: Message['content']): string {
+  if (!Array.isArray(content)) return ''
   for (const part of content) {
-    if (part.type === "tool_result" && part.tool_use_id) {
-      return part.tool_use_id;
+    if (part.type === 'tool_result' && part.tool_use_id) {
+      return part.tool_use_id
     }
   }
-  return "";
+  return ''
 }
 
 function convertAssistantMessage(
-  content: Message["content"]
+  content: Message['content'],
 ): OpenAI.Chat.ChatCompletionAssistantMessageParam {
-  if (typeof content === "string") {
-    return { role: "assistant", content };
+  if (typeof content === 'string') {
+    return { role: 'assistant', content }
   }
   if (!Array.isArray(content)) {
-    return { role: "assistant", content: "" };
+    return { role: 'assistant', content: '' }
   }
 
-  const textParts: string[] = [];
-  const toolCalls: OpenAI.Chat.ChatCompletionMessageToolCall[] = [];
+  const textParts: string[] = []
+  const toolCalls: OpenAI.Chat.ChatCompletionMessageToolCall[] = []
 
   for (const part of content) {
-    if (part.type === "text") {
-      textParts.push(part.text);
-    } else if (part.type === "tool_use") {
+    if (part.type === 'text') {
+      textParts.push(part.text)
+    } else if (part.type === 'tool_use') {
       toolCalls.push({
         id: part.id,
-        type: "function",
+        type: 'function',
         function: {
           name: part.name,
           arguments: JSON.stringify(part.input),
         },
-      });
+      })
     }
   }
 
   const msg: OpenAI.Chat.ChatCompletionAssistantMessageParam = {
-    role: "assistant",
-    content: textParts.length > 0 ? textParts.join("\n") : null,
-  };
-
-  if (toolCalls.length > 0) {
-    msg.tool_calls = toolCalls;
+    role: 'assistant',
+    content: textParts.length > 0 ? textParts.join('\n') : null,
   }
 
-  return msg;
+  if (toolCalls.length > 0) {
+    msg.tool_calls = toolCalls
+  }
+
+  return msg
 }
 
 // ─── 格式转换：OpenAI ChatCompletion → LLMResponse ────────────────────────────
 
-function convertToLLMResponse(
-  completion: OpenAI.Chat.ChatCompletion
-): LLMResponse {
-  const choice = completion.choices[0];
+function convertToLLMResponse(completion: OpenAI.Chat.ChatCompletion): LLMResponse {
+  const choice = completion.choices[0]
   if (!choice) {
-    return { stop_reason: "end_turn", content: [{ type: "text", text: "" }] };
+    return { stop_reason: 'end_turn', content: [{ type: 'text', text: '' }] }
   }
 
-  const content: LLMResponse["content"] = [];
+  const content: LLMResponse['content'] = []
 
   if (choice.message.content) {
-    content.push({ type: "text", text: choice.message.content });
+    content.push({ type: 'text', text: choice.message.content })
   }
 
   if (choice.message.tool_calls) {
     for (const tc of choice.message.tool_calls) {
-      let input: Record<string, unknown> = {};
+      let input: Record<string, unknown> = {}
       try {
-        input = JSON.parse(tc.function.arguments) as Record<string, unknown>;
+        input = JSON.parse(tc.function.arguments) as Record<string, unknown>
       } catch {
-        input = { raw: tc.function.arguments };
+        input = { raw: tc.function.arguments }
       }
       content.push({
-        type: "tool_use",
+        type: 'tool_use',
         id: tc.id,
         name: tc.function.name,
         input,
-      });
+      })
     }
   }
 
   if (content.length === 0) {
-    content.push({ type: "text", text: "" });
+    content.push({ type: 'text', text: '' })
   }
 
   // 转换 finish_reason → XiangDi stop_reason
-  let stopReason: string;
+  let stopReason: string
   switch (choice.finish_reason) {
-    case "stop":
-      stopReason = "end_turn";
-      break;
-    case "tool_calls":
-      stopReason = "tool_use";
-      break;
-    case "length":
-      stopReason = "max_tokens";
-      break;
+    case 'stop':
+      stopReason = 'end_turn'
+      break
+    case 'tool_calls':
+      stopReason = 'tool_use'
+      break
+    case 'length':
+      stopReason = 'max_tokens'
+      break
     default:
-      stopReason = choice.finish_reason ?? "end_turn";
+      stopReason = choice.finish_reason ?? 'end_turn'
   }
 
-  return { stop_reason: stopReason, content };
+  return { stop_reason: stopReason, content }
 }
 
 // ─── 工具格式转换 ──────────────────────────────────────────────────────────────
 
-function convertToOpenAITools(
-  tools: unknown[]
-): OpenAI.Chat.ChatCompletionTool[] {
+function convertToOpenAITools(tools: unknown[]): OpenAI.Chat.ChatCompletionTool[] {
   return tools.map((tool) => {
     const t = tool as {
-      name?: string;
-      description?: string;
-      input_schema?: OpenAI.FunctionParameters;
-    };
+      name?: string
+      description?: string
+      input_schema?: OpenAI.FunctionParameters
+    }
     return {
-      type: "function" as const,
+      type: 'function' as const,
       function: {
-        name: t.name ?? "unknown",
-        description: t.description ?? "",
-        parameters: t.input_schema ?? { type: "object", properties: {} },
+        name: t.name ?? 'unknown',
+        description: t.description ?? '',
+        parameters: t.input_schema ?? { type: 'object', properties: {} },
       },
-    };
-  });
+    }
+  })
 }

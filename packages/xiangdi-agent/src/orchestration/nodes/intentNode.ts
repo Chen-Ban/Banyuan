@@ -108,9 +108,13 @@ async function classifyViaLLM(
   })
 
   // 解析 LLM 返回的 JSON
-  const textContent = response.content.find(c => c.type === 'text')
+  const textContent = response.content.find((c) => c.type === 'text')
   if (!textContent || textContent.type !== 'text') {
-    return { startFrom: 'requirements', contextStrategy: 'fresh', reasoning: 'LLM 无文本输出，默认从 requirements 开始' }
+    return {
+      startFrom: 'requirements',
+      contextStrategy: 'fresh',
+      reasoning: 'LLM 无文本输出，默认从 requirements 开始',
+    }
   }
 
   try {
@@ -127,7 +131,11 @@ async function classifyViaLLM(
       correctionHint: parsed.correctionHint,
     }
   } catch {
-    return { startFrom: 'requirements', contextStrategy: 'fresh', reasoning: 'JSON 解析失败，默认从 requirements 开始' }
+    return {
+      startFrom: 'requirements',
+      contextStrategy: 'fresh',
+      reasoning: 'JSON 解析失败，默认从 requirements 开始',
+    }
   }
 }
 

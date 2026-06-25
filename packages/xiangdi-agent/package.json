@@ -18,6 +18,8 @@
   "scripts": {
     "build": "tsup --config tsup.config.ts",
     "dev": "tsup --config tsup.config.ts --watch",
+    "lint": "pnpm exec eslint . --max-warnings 1000",
+    "lint:fix": "pnpm exec eslint . --fix",
     "prepublishOnly": "npm run build"
   },
   "keywords": [

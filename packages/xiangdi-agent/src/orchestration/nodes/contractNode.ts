@@ -14,6 +14,7 @@ import type { OrchestratorState } from '../orchestratorGraph.js'
 import type { OrchestratorSSECallback } from '../events.js'
 import { IntegrationContractSchema } from '../schemas.js'
 import { callSubAgentLLM, parseWithRetry, buildExecution, emitProgress } from './shared.js'
+import { ContextProvider, CONTRACT_DECLARATION } from '../context/index.js'
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 配置
@@ -23,78 +24,6 @@ export interface ContractNodeConfig {
   llm: LLMClient
   sseCallback?: OrchestratorSSECallback
 }
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// System Prompt
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const CONTRACT_SYSTEM_PROMPT = `你是一位全栈架构师，正在为低代码应用设计前后端集成契约。
-
-你将收到需求文档（StructuredRequirements）和 UI 设计（UIDesignSpec），需要产出：
-1. 数据表结构定义（collections）
-2. 云函数签名（cloudFunctions）
-3. 前后端绑定映射（bindings）— 描述 UI 事件如何触发后端函数
-
-输出 JSON 格式：
-{
-  "collections": [
-    {
-      "name": "collectionName",
-      "displayName": "中文名",
-      "description": "用途",
-      "fields": [
-        {
-          "name": "fieldName",
-          "displayName": "字段中文名",
-          "type": "string|number|boolean|date|enum|ref|array|object",
-          "required": true,
-          "defaultValue": null,
-          "refCollection": null,
-          "enumValues": null
-        }
-      ]
-    }
-  ],
-  "cloudFunctions": [
-    {
-      "functionId": "UUID（请生成真实 UUID v4）",
-      "name": "functionName",
-      "displayName": "中文名",
-      "description": "功能描述",
-      "input": [{ "name": "paramName", "type": "string", "required": true, "description": "说明" }],
-      "output": [{ "name": "resultField", "type": "object", "required": true, "description": "说明" }],
-      "sideEffects": [{ "collection": "collectionName", "operation": "create|read|update|delete" }]
-    }
-  ],
-  "bindings": [
-    {
-      "id": "bind-xxx",
-      "description": "用户点击提交按钮时创建订单",
-      "frontend": {
-        "pageId": "page-xxx",
-        "componentId": "comp-xxx",
-        "event": "onClick"
-      },
-      "backend": {
-        "functionId": "对应云函数的 functionId",
-        "paramMapping": [
-          { "source": "表单字段 username", "target": "userName" }
-        ]
-      }
-    }
-  ]
-}
-
-规则：
-1. functionId 必须是合法 UUID v4（如 "550e8400-e29b-41d4-a716-446655440000"）
-2. 每个 interaction（UIDesignSpec 中的 interactions）至少对应一个 binding
-3. sideEffects.collection 必须引用 collections 中定义的 name
-4. bindings.frontend.pageId 和 componentId 必须引用 UIDesignSpec 中的 ID
-5. bindings.backend.functionId 必须引用 cloudFunctions 中的 functionId
-6. 每个集合至少有 _id（自动生成，无需声明）和 createdAt/updatedAt 时间戳字段
-7. 云函数的 input/output 描述的是业务参数，不含系统参数
-
-只返回 JSON，不要其他内容。`
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 节点工厂
@@ -107,17 +36,12 @@ export function createContractNode(config: ContractNodeConfig) {
 
     emitProgress(sseCallback, 'contract', 'planning', '正在定义前后端契约...')
 
+    // ─── 使用 ContextProvider 按需拉取上下文 ────────────────────────────────
+    const ctx = ContextProvider.resolve(CONTRACT_DECLARATION, state)
+
     // ─── 组装 user prompt ──────────────────────────────────────────────────
     const parts: string[] = []
-    parts.push(`用户原始需求:\n${state.userMessage}`)
-
-    if (state.artifacts.requirements) {
-      parts.push(`\n结构化需求文档:\n${JSON.stringify(state.artifacts.requirements, null, 2)}`)
-    }
-
-    if (state.artifacts.uiDesign) {
-      parts.push(`\nUI 设计规格:\n${JSON.stringify(state.artifacts.uiDesign, null, 2)}`)
-    }
+    parts.push(`用户原始需求:\n${ctx.userMessage}`)
 
     // inherit 模式：注入旧 contract
     const intent = state.intentResult
@@ -135,7 +59,7 @@ export function createContractNode(config: ContractNodeConfig) {
     try {
       const rawText = await callSubAgentLLM({
         llm,
-        systemPrompt: CONTRACT_SYSTEM_PROMPT,
+        systemPrompt: ctx.systemPrompt,
         userPrompt,
         maxTokens: 8192, // 契约内容可能较长
       })
@@ -144,7 +68,7 @@ export function createContractNode(config: ContractNodeConfig) {
         rawText,
         schema: IntegrationContractSchema,
         llm,
-        systemPrompt: CONTRACT_SYSTEM_PROMPT,
+        systemPrompt: ctx.systemPrompt,
         userPrompt,
       })
 
