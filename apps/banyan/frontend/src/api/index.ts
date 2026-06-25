@@ -69,3 +69,4 @@ export type {
   AssistantContent,
   ImageItem,
 } from './ai/conversations'
+export type { DeploymentRecord, DeployStatus, DeployType, PublishResult, AgentStatus } from './delivery/deploy'

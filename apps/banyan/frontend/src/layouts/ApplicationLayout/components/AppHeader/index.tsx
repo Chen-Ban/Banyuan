@@ -19,6 +19,7 @@ import { useShallow } from 'zustand/shallow'
 import DevicePicker from '../DevicePicker'
 import TabCapsule from '../TabCapsule'
 import BuildActions from '../BuildActions'
+import ProvisionStatus from '../ProvisionStatus'
 import styles from '../../index.module.scss'
 
 interface AppHeaderProps {
@@ -61,8 +62,10 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onSave }) => {
       {/* 右侧弹性占位 */}
       <div className={styles.headerSpacer} />
 
-      {/* 操作胶囊：保存 / 生成应用 */}
+      {/* 操作胶囊：环境状态 / 保存 / 生成应用 */}
       <div className={styles.actionCapsule}>
+        <ProvisionStatus />
+        <div className={styles.capsuleDivider} />
         <Tooltip title={saveTooltip}>
           <button className={styles.actionBtn} onClick={onSave} disabled={isSaving || !isDirty}>
             {isSaving ? <span className={styles.actionSpinner} /> : <SaveOutlined />}
