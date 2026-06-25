@@ -15,16 +15,24 @@
   &:hover {
     background: var(--color-bg-hover-md);
 
-    .deleteBtn { opacity: 1; }
+    .deleteBtn {
+      opacity: 1;
+    }
   }
 }
 
 .itemActive {
   background: var(--eli-active-bg, var(--color-brand-subtle));
 
-  .displayName { color: var(--eli-active-text, var(--color-brand-primary)); }
-  .name        { color: var(--eli-active-text-dim, var(--color-brand-text-dim-50)); }
-  .icon        { color: var(--eli-active-text, var(--color-brand-primary)); }
+  .displayName {
+    color: var(--eli-active-text, var(--color-brand-primary));
+  }
+  .name {
+    color: var(--eli-active-text-dim, var(--color-brand-text-dim-50));
+  }
+  .icon {
+    color: var(--eli-active-text, var(--color-brand-primary));
+  }
 }
 
 .itemEditing {
@@ -67,7 +75,9 @@
   font-size: $text-sm;
   color: var(--color-text-disabled);
   flex-shrink: 0;
-  transition: opacity var(--duration-normal), color var(--duration-normal);
+  transition:
+    opacity var(--duration-normal),
+    color var(--duration-normal);
   padding: 2px;
   border-radius: var(--radius-xs);
 

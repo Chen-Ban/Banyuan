@@ -44,7 +44,13 @@ export interface PaginatedResponse<T> {
 export class ApiError extends Error {
   status: number
   /** 结构化错误载荷（如果后端返回了 ErrorPayload 格式） */
-  payload?: { code: string; category: string; message: string; retryable: boolean; details?: Record<string, unknown> }
+  payload?: {
+    code: string
+    category: string
+    message: string
+    retryable: boolean
+    details?: Record<string, unknown>
+  }
 
   constructor(message: string, status: number, payload?: ApiError['payload']) {
     super(message)
@@ -124,10 +130,7 @@ function buildHeaders(options: RequestInit): Record<string, string> {
  * 统一请求方法（JSON 请求/响应）
  * 遇到 401 自动刷新 token 并重试一次
  */
-async function request<T>(
-  url: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const fullUrl = `${BASE_URL}${url}`
 
   const doFetch = async () => {
@@ -214,10 +217,7 @@ export function del<T>(url: string): Promise<T> {
  * 与 request() 相同的认证和 401 刷新处理，但不解析 JSON，
  * 直接返回原始 Response 供调用方读取 ReadableStream。
  */
-export async function stream(
-  url: string,
-  options: RequestInit = {}
-): Promise<Response> {
+export async function stream(url: string, options: RequestInit = {}): Promise<Response> {
   const fullUrl = `${BASE_URL}${url}`
 
   const doFetch = async () => {

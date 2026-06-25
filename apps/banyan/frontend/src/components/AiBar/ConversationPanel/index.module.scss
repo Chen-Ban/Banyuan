@@ -13,12 +13,18 @@
   flex-direction: column;
   gap: 6px;
 
-  &::-webkit-scrollbar { width: 4px; }
-  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
   &::-webkit-scrollbar-thumb {
     background: var(--color-bg-input);
     border-radius: 2px;
-    &:hover { background: var(--color-bg-hover-md); }
+    &:hover {
+      background: var(--color-bg-hover-md);
+    }
   }
 }
 
@@ -45,8 +51,12 @@
   max-width: 100%;
 }
 
-.bubbleRowUser      { justify-content: flex-end; }
-.bubbleRowAssistant { justify-content: flex-start; }
+.bubbleRowUser {
+  justify-content: flex-end;
+}
+.bubbleRowAssistant {
+  justify-content: flex-start;
+}
 
 // ─── 气泡本体 ─────────────────────────────────────────────────────────────────
 
@@ -81,10 +91,24 @@
 
   // Markdown 渲染内容样式
   :global {
-    p { margin: 0 0 0.4em; &:last-child { margin-bottom: 0; } }
-    strong { font-weight: 600; color: var(--color-text-primary); }
-    ul, ol { margin: 0.3em 0; padding-left: 1.4em; }
-    li { margin: 0.15em 0; }
+    p {
+      margin: 0 0 0.4em;
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+    strong {
+      font-weight: 600;
+      color: var(--color-text-primary);
+    }
+    ul,
+    ol {
+      margin: 0.3em 0;
+      padding-left: 1.4em;
+    }
+    li {
+      margin: 0.15em 0;
+    }
     code {
       background: var(--color-bg-hover-md);
       padding: 1px 4px;
@@ -97,7 +121,10 @@
       border-radius: 4px;
       overflow-x: auto;
       margin: 0.4em 0;
-      code { background: none; padding: 0; }
+      code {
+        background: none;
+        padding: 0;
+      }
     }
   }
 }
@@ -115,7 +142,9 @@
   line-height: 1.4;
   user-select: none;
 
-  &:hover { opacity: 0.75; }
+  &:hover {
+    opacity: 0.75;
+  }
 }
 
 // 流式输出光标
@@ -129,8 +158,13 @@
 }
 
 @keyframes blink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }
 
 // ─── 工具调用进度行 ───────────────────────────────────────────────────────────
@@ -179,14 +213,29 @@
   padding: 2px 4px;
 }
 
-.statusRowError   { color: var(--color-error-text); }
-.statusRowAborted { color: var(--color-text-secondary); }
+.statusRowError {
+  color: var(--color-error-text);
+}
+.statusRowAborted {
+  color: var(--color-text-secondary);
+}
 
-.doneIcon  { color: var(--color-success-text); font-size: $text-sm; }
-.doneText  { color: var(--color-success-text); }
-.phaseText { color: var(--color-text-tertiary); font-style: italic; }
+.doneIcon {
+  color: var(--color-success-text);
+  font-size: $text-sm;
+}
+.doneText {
+  color: var(--color-success-text);
+}
+.phaseText {
+  color: var(--color-text-tertiary);
+  font-style: italic;
+}
 
-.thinkingIcon { color: var(--color-brand-primary); font-size: $text-sm; }
+.thinkingIcon {
+  color: var(--color-brand-primary);
+  font-size: $text-sm;
+}
 
 // ─── 错误卡片样式 ─────────────────────────────────────────────────────────────
 

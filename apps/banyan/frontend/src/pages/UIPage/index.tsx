@@ -20,63 +20,60 @@
  * 设计决策来源：docs/specs/app/metadata-dataflow.md 步骤 7
  */
 
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
-import { useParams } from "react-router-dom";
-import useDesignBanvas from "@/hooks/useDesignBanvas";
-import { useApplicationStore } from "@/stores/applicationStore";
-import { DesignContextMenu } from "./components/DesignEditor/DesignContextMenu";
-import { Drawer, Tooltip } from "antd";
-import { AppstoreOutlined } from "@ant-design/icons";
-import UnifiedMaterialPanel from "@/components/UnifiedMaterialPanel";
-import { FlowEditorPanel } from "@/components/FlowKit/FlowEditorPanel";
-import type { FlowEditorOpenRequest } from "./components/DesignEditor/PropertyPanel/EventsTab";
-import type { ExtractedFlowSchema } from "@/components/FlowKit/extractSchema";
-import { FLOW_SCHEMA_VERSION } from "@banyuan/banvasgl";
-import PropertyDrawer from "./components/PropertyDrawer";
-import SaveMaterialModal from "@/components/SaveMaterialModal";
-import CanvasDecoration, { getCanvasMargin } from "@/components/CanvasDecoration";
-import styles from "./index.module.scss";
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { useParams } from 'react-router-dom'
+import useDesignBanvas from '@/hooks/useDesignBanvas'
+import { useApplicationStore } from '@/stores/applicationStore'
+import { DesignContextMenu } from './components/DesignEditor/DesignContextMenu'
+import { Drawer, Tooltip } from 'antd'
+import { AppstoreOutlined } from '@ant-design/icons'
+import UnifiedMaterialPanel from '@/components/UnifiedMaterialPanel'
+import { FlowEditorPanel } from '@/components/FlowKit/FlowEditorPanel'
+import type { FlowEditorOpenRequest } from './components/DesignEditor/PropertyPanel/EventsTab'
+import type { ExtractedFlowSchema } from '@/components/FlowKit/extractSchema'
+import { FLOW_SCHEMA_VERSION } from '@banyuan/banvasgl'
+import PropertyDrawer from './components/PropertyDrawer'
+import SaveMaterialModal from '@/components/SaveMaterialModal'
+import CanvasDecoration, { getCanvasMargin } from '@/components/CanvasDecoration'
+import styles from './index.module.scss'
 
 /** FlowEditorPanel 的状态 */
 interface FlowEditorState {
-  open: boolean;
-  title: string;
-  initialSchema: ExtractedFlowSchema;
-  onSave: (schema: ExtractedFlowSchema) => void;
+  open: boolean
+  title: string
+  initialSchema: ExtractedFlowSchema
+  onSave: (schema: ExtractedFlowSchema) => void
 }
 
 const CLOSED_FLOW_EDITOR: FlowEditorState = {
   open: false,
-  title: "",
+  title: '',
   initialSchema: {
     version: FLOW_SCHEMA_VERSION,
-    entry: "",
+    entry: '',
     nodes: {},
     layout: {},
   },
   onSave: () => {},
-};
+}
 
 const UIPage = () => {
-  const { id: application_id } = useParams<{ id: string }>();
+  const { id: application_id } = useParams<{ id: string }>()
 
   // canvasSection 容器，作为两个抽屉的挂载容器（仅覆盖画布区域）
-  const [canvasSectionEl, setCanvasSectionEl] = useState<HTMLDivElement | null>(
-    null,
-  );
+  const [canvasSectionEl, setCanvasSectionEl] = useState<HTMLDivElement | null>(null)
   const canvasSectionRef = useCallback((el: HTMLDivElement | null) => {
-    setCanvasSectionEl(el);
-  }, []);
+    setCanvasSectionEl(el)
+  }, [])
 
   // ── 设备类型（驱动画布装饰） ──
-  const deviceType = useApplicationStore((s) => s.deviceType);
+  const deviceType = useApplicationStore((s) => s.deviceType)
 
   // 根据设备类型计算画布所需外边距，为设备框装饰预留空间
-  const canvasMargin = useMemo(() => getCanvasMargin(deviceType), [deviceType]);
+  const canvasMargin = useMemo(() => getCanvasMargin(deviceType), [deviceType])
 
   // ── 流程编辑面板状态（从 EventsTab 提升） ────────────────────────────────────
-  const [flowEditor, setFlowEditor] =
-    useState<FlowEditorState>(CLOSED_FLOW_EDITOR);
+  const [flowEditor, setFlowEditor] = useState<FlowEditorState>(CLOSED_FLOW_EDITOR)
 
   const handleOpenFlowEditor = useCallback((request: FlowEditorOpenRequest) => {
     setFlowEditor({
@@ -84,18 +81,18 @@ const UIPage = () => {
       title: request.title,
       initialSchema: request.initialSchema,
       onSave: request.onSave,
-    });
+    })
     // 唤出流程面板时关闭属性抽屉，避免视觉拥挤
-    setRightOpen(false);
-  }, []);
+    setRightOpen(false)
+  }, [])
 
   const handleCloseFlowEditor = useCallback(() => {
-    setFlowEditor(CLOSED_FLOW_EDITOR);
-  }, []);
+    setFlowEditor(CLOSED_FLOW_EDITOR)
+  }, [])
 
-  const [rightOpen, setRightOpen] = useState(true);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const prevSelectedViewIdRef = useRef<string>("");
+  const [rightOpen, setRightOpen] = useState(true)
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const prevSelectedViewIdRef = useRef<string>('')
 
   // 稳定引用（空依赖：仅创建一次，避免因 canvasMargin 变化导致 App 不必要重建）
   const stableAppOptions = useMemo(
@@ -105,12 +102,9 @@ const UIPage = () => {
       flowEnabled: false,
     }),
     [],
-  );
+  )
 
-  const stableRendererOptions = useMemo(
-    () => ({ clearColor: "#fff" }),
-    [],
-  );
+  const stableRendererOptions = useMemo(() => ({ clearColor: '#fff' }), [])
 
   // banvasOptions 仅含配置（appOptions/rendererOptions）
   const banvasOptions = useMemo(
@@ -120,29 +114,22 @@ const UIPage = () => {
       canvasMargin,
     }),
     [stableAppOptions, stableRendererOptions, canvasMargin],
-  );
+  )
 
-  const {
-    Banvas,
-    currentPageId,
-    selectedViewId,
-    actions,
-    contextMenu,
-    saveMaterial,
-    canvasNode,
-  } = useDesignBanvas(banvasOptions);
+  const { Banvas, currentPageId, selectedViewId, actions, contextMenu, saveMaterial, canvasNode } =
+    useDesignBanvas(banvasOptions)
 
   useEffect(() => {
-    if (selectedViewId !== "") {
-      setRightOpen(true);
-    } else if (prevSelectedViewIdRef.current === "") {
-      setRightOpen(false);
+    if (selectedViewId !== '') {
+      setRightOpen(true)
+    } else if (prevSelectedViewIdRef.current === '') {
+      setRightOpen(false)
     }
-    prevSelectedViewIdRef.current = selectedViewId;
-  }, [selectedViewId]);
+    prevSelectedViewIdRef.current = selectedViewId
+  }, [selectedViewId])
 
   if (!application_id) {
-    return <div style={{ padding: 40, textAlign: "center" }}>缺少应用 ID</div>;
+    return <div style={{ padding: 40, textAlign: 'center' }}>缺少应用 ID</div>
   }
 
   return (
@@ -154,15 +141,16 @@ const UIPage = () => {
           {Banvas}
 
           {/* 画布设备框装饰（overlay 在画布外围，pointer-events: none） */}
-          <CanvasDecoration deviceType={deviceType} canvasNode={canvasNode} canvasSectionEl={canvasSectionEl} />
+          <CanvasDecoration
+            deviceType={deviceType}
+            canvasNode={canvasNode}
+            canvasSectionEl={canvasSectionEl}
+          />
 
           {/* 物料面板触发按钮（overlay 在画布左上角，抽屉打开时向右偏移） */}
-          <Tooltip
-            title={paletteOpen ? "收起组件" : "组件物料"}
-            placement="right"
-          >
+          <Tooltip title={paletteOpen ? '收起组件' : '组件物料'} placement="right">
             <button
-              className={`${styles.paletteToggleBtn}${paletteOpen ? ` ${styles.paletteToggleBtnOpen}` : ""}`}
+              className={`${styles.paletteToggleBtn}${paletteOpen ? ` ${styles.paletteToggleBtnOpen}` : ''}`}
               onClick={() => setPaletteOpen((v) => !v)}
               aria-label="打开组件面板"
             >
@@ -181,27 +169,27 @@ const UIPage = () => {
             classNames={{ body: styles.drawerBody }}
             getContainer={canvasSectionEl ?? false}
             rootStyle={{
-              position: "absolute",
+              position: 'absolute',
               top: 0,
               bottom: 0,
               left: 0,
               right: 0,
-              height: "100%",
+              height: '100%',
             }}
             styles={{
               wrapper: {
                 top: 12,
                 bottom: 12,
                 left: 12,
-                height: "calc(100% - 24px)",
+                height: 'calc(100% - 24px)',
                 borderRadius: 12,
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                overflow: "hidden",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                overflow: 'hidden',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
               },
               section: {
                 borderRadius: 12,
-                overflow: "hidden",
+                overflow: 'hidden',
               },
             }}
           >
@@ -215,7 +203,7 @@ const UIPage = () => {
             container={canvasSectionEl}
             selectedViewId={selectedViewId}
             actions={actions}
-            currentPageId={currentPageId || ""}
+            currentPageId={currentPageId || ''}
             onOpenFlowEditor={handleOpenFlowEditor}
           />
         </div>
@@ -242,7 +230,7 @@ const UIPage = () => {
         />
       )}
     </div>
-  );
-};
+  )
+}
 
-export default UIPage;
+export default UIPage

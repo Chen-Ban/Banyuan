@@ -51,7 +51,8 @@ const DataBrowserPage: React.FC = () => {
   useEffect(() => {
     if (!appId) return
     setSchemaLoading(true)
-    schemaApi.fetchDataSchema(appId)
+    schemaApi
+      .fetchDataSchema(appId)
       .then((res) => {
         const cols = res.data?.collections ?? []
         setCollections(cols)
@@ -64,23 +65,26 @@ const DataBrowserPage: React.FC = () => {
   }, [appId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 加载数据（从 Preview Server） ──
-  const loadData = useCallback(async (collectionName: string, pageNum: number) => {
-    if (!serverInfo?.url) return
-    setDataLoading(true)
-    try {
-      const res = await listDocuments(serverInfo.url, collectionName, {
-        limit: PAGE_SIZE,
-        skip: (pageNum - 1) * PAGE_SIZE,
-        sort: { _id: -1 },
-      })
-      setData(res.data ?? [])
-      setTotal(res.pagination?.total ?? 0)
-    } catch {
-      message.error('加载数据失败')
-    } finally {
-      setDataLoading(false)
-    }
-  }, [serverInfo?.url, message])
+  const loadData = useCallback(
+    async (collectionName: string, pageNum: number) => {
+      if (!serverInfo?.url) return
+      setDataLoading(true)
+      try {
+        const res = await listDocuments(serverInfo.url, collectionName, {
+          limit: PAGE_SIZE,
+          skip: (pageNum - 1) * PAGE_SIZE,
+          sort: { _id: -1 },
+        })
+        setData(res.data ?? [])
+        setTotal(res.pagination?.total ?? 0)
+      } catch {
+        message.error('加载数据失败')
+      } finally {
+        setDataLoading(false)
+      }
+    },
+    [serverInfo?.url, message],
+  )
 
   useEffect(() => {
     if (selectedName && serverInfo?.url && serverStatus === 'running') {
@@ -120,7 +124,8 @@ const DataBrowserPage: React.FC = () => {
         key: field.name,
         ellipsis: true,
         render: (value: unknown) => {
-          if (value === null || value === undefined) return <span style={{ color: 'var(--color-text-quaternary)' }}>null</span>
+          if (value === null || value === undefined)
+            return <span style={{ color: 'var(--color-text-quaternary)' }}>null</span>
           if (typeof value === 'object') return JSON.stringify(value)
           return String(value)
         },
@@ -246,10 +251,7 @@ const DataBrowserPage: React.FC = () => {
           </>
         ) : (
           <div className={styles.emptyContent}>
-            <Empty
-              description="请在左侧选择一个数据表"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
+            <Empty description="请在左侧选择一个数据表" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </div>
         )}
       </div>

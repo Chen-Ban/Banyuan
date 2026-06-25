@@ -22,70 +22,64 @@
  * 所有共享状态通过 useApplicationStore 读写。
  */
 
-import React, { useCallback, useEffect } from "react";
-import { useParams, Outlet } from "react-router-dom";
-import { App, Spin } from "antd";
-import { applicationApi } from "@/api";
-import { getErrorMessage } from "@/utils/error";
-import { useApplicationStore } from "@/stores/applicationStore";
-import { usePreviewServerStore } from "@/stores/previewServerStore";
-import AppHeader from "./components/AppHeader";
-import styles from "./index.module.scss";
+import React, { useCallback, useEffect } from 'react'
+import { useParams, Outlet } from 'react-router-dom'
+import { App, Spin } from 'antd'
+import { applicationApi } from '@/api'
+import { getErrorMessage } from '@/utils/error'
+import { useApplicationStore } from '@/stores/applicationStore'
+import { usePreviewServerStore } from '@/stores/previewServerStore'
+import AppHeader from './components/AppHeader'
+import styles from './index.module.scss'
 
 const ApplicationLayout: React.FC = () => {
-  const { id: application_id } = useParams<{ id: string }>();
-  const { message } = App.useApp();
+  const { id: application_id } = useParams<{ id: string }>()
+  const { message } = App.useApp()
 
   // ── ApplicationStore ────────────────────────────────────────────────────────
-  const {
-    isSaving,
-    dataLoading,
-    setAppName,
-    reset: resetStore,
-    load: loadStore,
-  } = useApplicationStore();
+  const { isSaving, dataLoading, setAppName, reset: resetStore, load: loadStore } = useApplicationStore()
 
   // ── 加载应用元数据 + 业务数据 ─────────────────────────────────────────────
   useEffect(() => {
-    if (!application_id) return;
+    if (!application_id) return
     // 切换应用时重置 store
 
-    resetStore();
-    usePreviewServerStore.getState().reset();
+    resetStore()
+    usePreviewServerStore.getState().reset()
 
     // 加载应用元数据（名称）
     applicationApi
       .fetchApplication(application_id)
       .then((res) => {
-        setAppName(res.data!.name);
+        setAppName(res.data!.name)
       })
       .catch((err) => {
-        message.error(getErrorMessage(err));
-      });
+        message.error(getErrorMessage(err))
+      })
 
     // 加载业务数据（uiJSON/dataSchema/cloudFunctions）到 store
-    loadStore(application_id);
-  }, [application_id, setAppName, resetStore, loadStore]);
+    loadStore(application_id)
+  }, [application_id, setAppName, resetStore, loadStore])
 
   // ── Preview Server 生命周期管理（应用级） ─────────────────────────────────
   useEffect(() => {
-    if (!application_id) return;
-    const store = usePreviewServerStore.getState();
-    store.start(application_id);
+    if (!application_id) return
+    const store = usePreviewServerStore.getState()
+    store.start(application_id)
     return () => {
-      store.stop(application_id);
-    };
-  }, [application_id]);
+      store.stop(application_id)
+    }
+  }, [application_id])
 
   // ── 保存应用 ──────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     const result = await useApplicationStore.getState().save()
     if (result.success) {
-      message.success(result.saved.length > 0 ? "已保存" : "没有需要保存的更改")
+      message.success(result.saved.length > 0 ? '已保存' : '没有需要保存的更改')
     } else if (result.error !== 'ALREADY_SAVING') {
-      message.error(result.error || "保存失败")
+      message.error(result.error || '保存失败')
     }
-  }, [message]);
+  }, [message])
 
   return (
     <div className={styles.layout}>
@@ -110,7 +104,7 @@ const ApplicationLayout: React.FC = () => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default ApplicationLayout;
+export default ApplicationLayout

@@ -27,7 +27,15 @@ import { dialoguesToFlatMessages } from '@/api/ai/conversations'
 
 // ─── 进度消息类型 ─────────────────────────────────────────────────────────────
 
-export type ProgressMessageType = 'text' | 'tool_activity' | 'agent_progress' | 'audit' | 'done' | 'error' | 'aborted' | 'phase_change'
+export type ProgressMessageType =
+  | 'text'
+  | 'tool_activity'
+  | 'agent_progress'
+  | 'audit'
+  | 'done'
+  | 'error'
+  | 'aborted'
+  | 'phase_change'
 
 /** 重试上下文（仅 retryable 的 error 消息携带） */
 export interface RetryContext {
@@ -108,7 +116,11 @@ export interface UseXiangDiReturn {
   /** pending 对话详情（非 null 时前端应显示确认/撤销按钮） */
   pendingDialogue: import('@/api').PendingDialogueInfo | null
   /** 发送指令（type 默认 task） */
-  sendPrompt: (prompt: string, type?: DialogueType, images?: Array<{ url: string; alt?: string }>) => Promise<void>
+  sendPrompt: (
+    prompt: string,
+    type?: DialogueType,
+    images?: Array<{ url: string; alt?: string }>,
+  ) => Promise<void>
   /** 中止当前请求 */
   abort: () => void
   /** 清空进度消息列表（不清空历史） */
@@ -168,31 +180,29 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     setHistoryLoading(true)
 
     // 并行加载对话历史和 pending 状态
-    Promise.all([
-      conversationApi.getDialogues(appId),
-      aiApi.getPendingDialogue(appId),
-    ]).then(([dialogueResult, pendingResult]) => {
-      if (cancelled) return
-      setDialogues(dialogueResult)
-      if (pendingResult.hasPending && pendingResult.pending) {
-        setHasPendingTask(true)
-        setPendingDialogue(pendingResult.pending)
-      }
-      setHistoryLoading(false)
-    }).catch(() => {
-      if (!cancelled) setHistoryLoading(false)
-    })
+    Promise.all([conversationApi.getDialogues(appId), aiApi.getPendingDialogue(appId)])
+      .then(([dialogueResult, pendingResult]) => {
+        if (cancelled) return
+        setDialogues(dialogueResult)
+        if (pendingResult.hasPending && pendingResult.pending) {
+          setHasPendingTask(true)
+          setPendingDialogue(pendingResult.pending)
+        }
+        setHistoryLoading(false)
+      })
+      .catch(() => {
+        if (!cancelled) setHistoryLoading(false)
+      })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [appId])
 
   // ─── 消息操作 ──────────────────────────────────────────────────────────────
 
   const addMessage = useCallback((msg: Omit<ProgressMessage, 'id' | 'timestamp'>) => {
-    setMessages((prev) => [
-      ...prev,
-      { ...msg, id: nextMsgId(), timestamp: Date.now() },
-    ])
+    setMessages((prev) => [...prev, { ...msg, id: nextMsgId(), timestamp: Date.now() }])
   }, [])
 
   /**
@@ -213,254 +223,266 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
    * 统一的 SSE 事件处理回调。
    * 处理 ADR-041 Orchestrator 事件协议。
    */
-  const handleEvent = useCallback((event: AiStreamEvent) => {
-    switch (event.type) {
-      case 'started': {
-        // 流开始，可用于记录 threadId（目前无需特殊处理）
-        break
-      }
-      case 'text_delta': {
-        currentTextRef.current += event.delta
-        allTextRef.current += event.delta
-        setCurrentText(currentTextRef.current)
-        break
-      }
-      case 'phase_change': {
-        setCurrentPhase(event.to)
-        addMessage({
-          type: 'phase_change',
-          content: `阶段切换：${event.from} → ${event.to}`,
-        })
-        break
-      }
-      case 'agent_progress': {
-        setAgentSteps((prev) => {
-          // 更新已存在的 agent 或追加新的
-          const existing = prev.find((s) => s.agent === event.agent)
-          if (existing) {
-            return prev.map((s) =>
-              s.agent === event.agent
-                ? { ...s, status: event.status, message: event.message, timestamp: event.timestamp }
-                : s
-            )
-          }
-          return [...prev, {
-            agent: event.agent,
-            status: event.status,
-            message: event.message,
-            timestamp: event.timestamp,
-          }]
-        })
-        if (event.status === 'started') {
-          addMessage({
-            type: 'agent_progress',
-            content: event.message || `${event.agent} 开始执行`,
-            agentName: event.agent,
-          })
-        } else if (event.status === 'error') {
-          addMessage({
-            type: 'agent_progress',
-            content: event.message || `${event.agent} 执行失败`,
-            agentName: event.agent,
-            isError: true,
-          })
+  const handleEvent = useCallback(
+    (event: AiStreamEvent) => {
+      switch (event.type) {
+        case 'started': {
+          // 流开始，可用于记录 threadId（目前无需特殊处理）
+          break
         }
-        break
-      }
-      case 'tool_activity': {
-        if (event.status === 'started') {
-          // 冻结之前的文字段落，再追加工具活动
-          freezeCurrentText()
-          const friendlyName = formatToolName(event.tool)
-          addMessage({
-            type: 'tool_activity',
-            content: `正在执行：${friendlyName}`,
-            toolName: event.tool,
-            agentName: event.agent,
-          })
-        } else if (event.status === 'completed') {
-          // 标记对应工具为已完成
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.type === 'tool_activity' && m.toolName === event.tool && !m.completed
-                ? { ...m, completed: true }
-                : m
-            )
-          )
-        } else if (event.status === 'error') {
-          addMessage({
-            type: 'tool_activity',
-            content: `操作失败：${event.error ?? event.tool}`,
-            toolName: event.tool,
-            agentName: event.agent,
-            isError: true,
-          })
+        case 'text_delta': {
+          currentTextRef.current += event.delta
+          allTextRef.current += event.delta
+          setCurrentText(currentTextRef.current)
+          break
         }
-        break
-      }
-      case 'audit_progress': {
-        addMessage({
-          type: 'audit',
-          content: event.status === 'started'
-            ? '正在审计...'
-            : event.status === 'passed'
-              ? '审计通过'
-              : `审计失败：${event.message ?? ''}`,
-          isError: event.status === 'failed',
-        })
-        break
-      }
-      case 'done': {
-        // 冻结最后剩余的文字
-        freezeCurrentText()
-        setCurrentPhase(event.finalPhase)
-
-        const assistantText = allTextRef.current.trim()
-
-        if (currentTypeRef.current === 'task') {
-          // task 模式：进入 pending confirm 状态
-          setHasPendingTask(true)
-          setPendingDialogue({
-            dialogueId: `pending_${Date.now()}`,
-            type: 'task',
-            status: 'done',
-            userContent: '',
-            assistantContent: assistantText || null,
-            createdAt: new Date().toISOString(),
-          })
+        case 'phase_change': {
+          setCurrentPhase(event.to)
           addMessage({
-            type: 'done',
-            content: event.summary || '任务完成，请确认或撤销修改',
+            type: 'phase_change',
+            content: `阶段切换：${event.from} → ${event.to}`,
           })
-        } else {
-          // chat 模式：直接追加 assistant 回复到 dialogues
-          if (assistantText) {
-            setDialogues((prev) => {
-              if (prev.length === 0) return prev
-              const updated = prev.slice(0, -1)
-              const lastDialogue = prev[prev.length - 1]
-              updated.push({
-                ...lastDialogue,
-                messages: [
-                  ...lastDialogue.messages,
-                  {
-                    role: 'assistant',
-                    assistantContent: [{ type: 'text', text: assistantText }],
-                    createdAt: new Date().toISOString(),
-                  },
-                ],
-              })
-              return updated
+          break
+        }
+        case 'agent_progress': {
+          setAgentSteps((prev) => {
+            // 更新已存在的 agent 或追加新的
+            const existing = prev.find((s) => s.agent === event.agent)
+            if (existing) {
+              return prev.map((s) =>
+                s.agent === event.agent
+                  ? { ...s, status: event.status, message: event.message, timestamp: event.timestamp }
+                  : s,
+              )
+            }
+            return [
+              ...prev,
+              {
+                agent: event.agent,
+                status: event.status,
+                message: event.message,
+                timestamp: event.timestamp,
+              },
+            ]
+          })
+          if (event.status === 'started') {
+            addMessage({
+              type: 'agent_progress',
+              content: event.message || `${event.agent} 开始执行`,
+              agentName: event.agent,
+            })
+          } else if (event.status === 'error') {
+            addMessage({
+              type: 'agent_progress',
+              content: event.message || `${event.agent} 执行失败`,
+              agentName: event.agent,
+              isError: true,
             })
           }
+          break
+        }
+        case 'tool_activity': {
+          if (event.status === 'started') {
+            // 冻结之前的文字段落，再追加工具活动
+            freezeCurrentText()
+            const friendlyName = formatToolName(event.tool)
+            addMessage({
+              type: 'tool_activity',
+              content: `正在执行：${friendlyName}`,
+              toolName: event.tool,
+              agentName: event.agent,
+            })
+          } else if (event.status === 'completed') {
+            // 标记对应工具为已完成
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.type === 'tool_activity' && m.toolName === event.tool && !m.completed
+                  ? { ...m, completed: true }
+                  : m,
+              ),
+            )
+          } else if (event.status === 'error') {
+            addMessage({
+              type: 'tool_activity',
+              content: `操作失败：${event.error ?? event.tool}`,
+              toolName: event.tool,
+              agentName: event.agent,
+              isError: true,
+            })
+          }
+          break
+        }
+        case 'audit_progress': {
           addMessage({
-            type: 'done',
-            content: event.summary || '完成',
+            type: 'audit',
+            content:
+              event.status === 'started'
+                ? '正在审计...'
+                : event.status === 'passed'
+                  ? '审计通过'
+                  : `审计失败：${event.message ?? ''}`,
+            isError: event.status === 'failed',
+          })
+          break
+        }
+        case 'done': {
+          // 冻结最后剩余的文字
+          freezeCurrentText()
+          setCurrentPhase(event.finalPhase)
+
+          const assistantText = allTextRef.current.trim()
+
+          if (currentTypeRef.current === 'task') {
+            // task 模式：进入 pending confirm 状态
+            setHasPendingTask(true)
+            setPendingDialogue({
+              dialogueId: `pending_${Date.now()}`,
+              type: 'task',
+              status: 'done',
+              userContent: '',
+              assistantContent: assistantText || null,
+              createdAt: new Date().toISOString(),
+            })
+            addMessage({
+              type: 'done',
+              content: event.summary || '任务完成，请确认或撤销修改',
+            })
+          } else {
+            // chat 模式：直接追加 assistant 回复到 dialogues
+            if (assistantText) {
+              setDialogues((prev) => {
+                if (prev.length === 0) return prev
+                const updated = prev.slice(0, -1)
+                const lastDialogue = prev[prev.length - 1]
+                updated.push({
+                  ...lastDialogue,
+                  messages: [
+                    ...lastDialogue.messages,
+                    {
+                      role: 'assistant',
+                      assistantContent: [{ type: 'text', text: assistantText }],
+                      createdAt: new Date().toISOString(),
+                    },
+                  ],
+                })
+                return updated
+              })
+            }
+            addMessage({
+              type: 'done',
+              content: event.summary || '完成',
+            })
+          }
+          break
+        }
+        case 'error': {
+          // 冻结之前的文字
+          freezeCurrentText()
+          sseErrorHandledRef.current = true
+          addMessage({
+            type: 'error',
+            content: event.error.message,
+            isError: true,
+            errorPayload: event.error,
+            retryContext: event.error.retryable ? (lastSendRef.current ?? undefined) : undefined,
+          })
+          break
+        }
+      }
+    },
+    [addMessage, freezeCurrentText],
+  )
+
+  const sendPrompt = useCallback(
+    async (prompt: string, type: DialogueType = 'task', images: ImageItem[] = []) => {
+      // 同步互斥：sendingRef 是即时生效的，比 loading state 更可靠
+      if (sendingRef.current) return
+      sendingRef.current = true
+      currentTypeRef.current = type
+      lastSendRef.current = { prompt, type, images }
+
+      // 乐观追加 user 消息到 dialogues（创建一个临时 Dialogue）
+      const tempDialogue: Dialogue = {
+        _id: `temp_${Date.now()}`,
+        type,
+        phase: 'idle',
+        messages: [
+          {
+            role: 'user',
+            userContent: { prompt, images },
+            createdAt: new Date().toISOString(),
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+      setDialogues((prev) => [...prev, tempDialogue])
+
+      // 重置当前轮次状态
+      setLoading(true)
+      setMessages([])
+      setCurrentText('')
+      currentTextRef.current = ''
+      allTextRef.current = ''
+      sseErrorHandledRef.current = false
+      setAgentSteps([])
+      setCurrentPhase(null)
+
+      // 创建新的 AbortController
+      const controller = new AbortController()
+      abortControllerRef.current = controller
+
+      // 发送前先保存当前应用状态，确保 DB 是最新快照
+      if (onBeforeSend) {
+        try {
+          await onBeforeSend()
+        } catch {
+          // 保存失败不阻断 AI 请求（DB 中已有上次保存的状态）
+        }
+      }
+
+      try {
+        const summary = await aiApi.aiChat({
+          appId,
+          prompt,
+          type,
+          images,
+          onEvent: handleEvent,
+          signal: controller.signal,
+        })
+        onDone?.(summary)
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return
+        // SSE error 事件已通过 handleEvent 追加了错误消息并 reject Promise。
+        // 此处仅在非 SSE 场景（fetch 失败、网络断开等）补充追加。
+        if (!sseErrorHandledRef.current) {
+          let payload: ErrorPayload
+          if (err instanceof ApiError && err.payload) {
+            // 后端返回了结构化 ErrorPayload
+            payload = err.payload as ErrorPayload
+          } else {
+            // 网络错误等兜底
+            const msg = err instanceof Error ? err.message : String(err)
+            payload = { code: 'NETWORK_ERROR', category: 'upstream', message: msg, retryable: true }
+          }
+          addMessage({
+            type: 'error',
+            content: payload.message,
+            isError: true,
+            errorPayload: payload,
+            retryContext: payload.retryable ? (lastSendRef.current ?? undefined) : undefined,
           })
         }
-        break
+        const msg = err instanceof Error ? err.message : String(err)
+        onError?.(msg)
+      } finally {
+        setLoading(false)
+        sendingRef.current = false
+        abortControllerRef.current = null
       }
-      case 'error': {
-        // 冻结之前的文字
-        freezeCurrentText()
-        sseErrorHandledRef.current = true
-        addMessage({
-          type: 'error',
-          content: event.error.message,
-          isError: true,
-          errorPayload: event.error,
-          retryContext: event.error.retryable ? (lastSendRef.current ?? undefined) : undefined,
-        })
-        break
-      }
-    }
-  }, [addMessage, freezeCurrentText])
-
-  const sendPrompt = useCallback(async (prompt: string, type: DialogueType = 'task', images: ImageItem[] = []) => {
-    // 同步互斥：sendingRef 是即时生效的，比 loading state 更可靠
-    if (sendingRef.current) return
-    sendingRef.current = true
-    currentTypeRef.current = type
-    lastSendRef.current = { prompt, type, images }
-
-    // 乐观追加 user 消息到 dialogues（创建一个临时 Dialogue）
-    const tempDialogue: Dialogue = {
-      _id: `temp_${Date.now()}`,
-      type,
-      phase: 'idle',
-      messages: [{
-        role: 'user',
-        userContent: { prompt, images },
-        createdAt: new Date().toISOString(),
-      }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-    setDialogues((prev) => [...prev, tempDialogue])
-
-    // 重置当前轮次状态
-    setLoading(true)
-    setMessages([])
-    setCurrentText('')
-    currentTextRef.current = ''
-    allTextRef.current = ''
-    sseErrorHandledRef.current = false
-    setAgentSteps([])
-    setCurrentPhase(null)
-
-    // 创建新的 AbortController
-    const controller = new AbortController()
-    abortControllerRef.current = controller
-
-    // 发送前先保存当前应用状态，确保 DB 是最新快照
-    if (onBeforeSend) {
-      try {
-        await onBeforeSend()
-      } catch {
-        // 保存失败不阻断 AI 请求（DB 中已有上次保存的状态）
-      }
-    }
-
-    try {
-      const summary = await aiApi.aiChat({
-        appId,
-        prompt,
-        type,
-        images,
-        onEvent: handleEvent,
-        signal: controller.signal,
-      })
-      onDone?.(summary)
-    } catch (err) {
-      if ((err as Error).name === 'AbortError') return
-      // SSE error 事件已通过 handleEvent 追加了错误消息并 reject Promise。
-      // 此处仅在非 SSE 场景（fetch 失败、网络断开等）补充追加。
-      if (!sseErrorHandledRef.current) {
-        let payload: ErrorPayload
-        if (err instanceof ApiError && err.payload) {
-          // 后端返回了结构化 ErrorPayload
-          payload = err.payload as ErrorPayload
-        } else {
-          // 网络错误等兜底
-          const msg = err instanceof Error ? err.message : String(err)
-          payload = { code: 'NETWORK_ERROR', category: 'upstream', message: msg, retryable: true }
-        }
-        addMessage({
-          type: 'error',
-          content: payload.message,
-          isError: true,
-          errorPayload: payload,
-          retryContext: payload.retryable ? (lastSendRef.current ?? undefined) : undefined,
-        })
-      }
-      const msg = err instanceof Error ? err.message : String(err)
-      onError?.(msg)
-    } finally {
-      setLoading(false)
-      sendingRef.current = false
-      abortControllerRef.current = null
-    }
-  }, [appId, onBeforeSend, addMessage, handleEvent, onDone, onError])
+    },
+    [appId, onBeforeSend, addMessage, handleEvent, onDone, onError],
+  )
 
   // ─── 对话事务控制：confirm / discard ─────────────────────────────────────────
 
@@ -471,7 +493,12 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
       setHasPendingTask(false)
       setPendingDialogue(null)
       // 确认成功后重新加载对话历史（确保 _id 等字段是 DB 真实值）
-      conversationApi.getDialogues(appId).then(setDialogues).catch(() => { /* ignore */ })
+      conversationApi
+        .getDialogues(appId)
+        .then(setDialogues)
+        .catch(() => {
+          /* ignore */
+        })
       onConfirmed?.(result.dialogueId)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -514,7 +541,9 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
     if (!abortControllerRef.current) return
     abortControllerRef.current.abort()
     // 通知后端将 Dialogue 转为 discarded，释放编辑锁
-    aiApi.stopDialogue(appId).catch(() => { /* 静默失败 */ })
+    aiApi.stopDialogue(appId).catch(() => {
+      /* 静默失败 */
+    })
     addMessage({ type: 'aborted', content: '已停止' })
     setLoading(false)
     sendingRef.current = false
@@ -543,17 +572,20 @@ export function useXiangDi(options: UseXiangDiOptions): UseXiangDiReturn {
   }, [])
 
   // 重试错误消息：移除该错误消息，重新发送原始 prompt
-  const retryError = useCallback((messageId: string) => {
-    setMessages(prev => {
-      const target = prev.find(m => m.id === messageId)
-      if (!target?.retryContext) return prev
-      const { prompt, type, images } = target.retryContext
-      // 异步触发重发（避免在 setState 中发起副作用）
-      setTimeout(() => sendPrompt(prompt, type, images), 0)
-      // 移除该错误消息
-      return prev.filter(m => m.id !== messageId)
-    })
-  }, [sendPrompt])
+  const retryError = useCallback(
+    (messageId: string) => {
+      setMessages((prev) => {
+        const target = prev.find((m) => m.id === messageId)
+        if (!target?.retryContext) return prev
+        const { prompt, type, images } = target.retryContext
+        // 异步触发重发（避免在 setState 中发起副作用）
+        setTimeout(() => sendPrompt(prompt, type, images), 0)
+        // 移除该错误消息
+        return prev.filter((m) => m.id !== messageId)
+      })
+    },
+    [sendPrompt],
+  )
 
   return {
     loading,

@@ -50,7 +50,10 @@ export function sendSmsCode(phone: string): Promise<ApiResponse<{ code?: string 
  */
 export function loginByPhone(
   phone: string,
-  code: string
+  code: string,
 ): Promise<ApiResponse<{ user: AuthUser; tokens: TokenPair; isNewUser: boolean }>> {
-  return post<ApiResponse<{ user: AuthUser; tokens: TokenPair; isNewUser: boolean }>>('/auth/sms/verify', { phone, code })
+  return post<ApiResponse<{ user: AuthUser; tokens: TokenPair; isNewUser: boolean }>>('/auth/sms/verify', {
+    phone,
+    code,
+  })
 }

@@ -41,8 +41,7 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  font-family:
-    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
   font-size: 11px;
   font-weight: 600;
   color: #333;
@@ -146,7 +145,7 @@
   align-items: center;
   justify-content: center;
   width: 46px;
-  font-family: "Segoe UI", "Segoe MDL2 Assets", sans-serif;
+  font-family: 'Segoe UI', 'Segoe MDL2 Assets', sans-serif;
   font-size: 10px;
   color: #555;
   transition: background 0.1s;
@@ -243,14 +242,10 @@
   width: 13px;
   height: 9px;
   background:
-    linear-gradient(to top, #555 3px, transparent 3px) 0 100% / 2.2px 3px
-      no-repeat,
-    linear-gradient(to top, #555 6px, transparent 6px) 3.3px 100% / 2.2px 6px
-      no-repeat,
-    linear-gradient(to top, #555 7.5px, transparent 7.5px) 6.6px 100% / 2.2px
-      9px no-repeat,
-    linear-gradient(to top, #555 8px, transparent 8px) 10px 100% / 2.2px 9px
-      no-repeat;
+    linear-gradient(to top, #555 3px, transparent 3px) 0 100% / 2.2px 3px no-repeat,
+    linear-gradient(to top, #555 6px, transparent 6px) 3.3px 100% / 2.2px 6px no-repeat,
+    linear-gradient(to top, #555 7.5px, transparent 7.5px) 6.6px 100% / 2.2px 9px no-repeat,
+    linear-gradient(to top, #555 8px, transparent 8px) 10px 100% / 2.2px 9px no-repeat;
 }
 
 .statusWifi {
@@ -258,20 +253,8 @@
   width: 12px;
   height: 9px;
   background:
-    radial-gradient(
-      circle at 50% 100%,
-      transparent 2.5px,
-      #555 3px,
-      #555 3.5px,
-      transparent 3.5px
-    ),
-    radial-gradient(
-      circle at 50% 100%,
-      transparent 5.5px,
-      #555 6px,
-      #555 6.5px,
-      transparent 6.5px
-    );
+    radial-gradient(circle at 50% 100%, transparent 2.5px, #555 3px, #555 3.5px, transparent 3.5px),
+    radial-gradient(circle at 50% 100%, transparent 5.5px, #555 6px, #555 6.5px, transparent 6.5px);
 }
 
 .statusBattery {
@@ -283,7 +266,7 @@
   position: relative;
 
   &::after {
-    content: "";
+    content: '';
     position: absolute;
     right: -2.2px;
     top: 50%;

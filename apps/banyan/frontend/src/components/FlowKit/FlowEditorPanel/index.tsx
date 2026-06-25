@@ -43,13 +43,7 @@ export const FlowEditorPanel: React.FC<FlowEditorPanelProps> = ({
     setCanvasContainerEl(el)
   }, [])
 
-  const {
-    Canvas,
-    getSchema,
-    selectedNode,
-    updateNodeSchema,
-    contextMenuState,
-  } = useFlowBanvas(
+  const { Canvas, getSchema, selectedNode, updateNodeSchema, contextMenuState } = useFlowBanvas(
     {
       // 自适应模式：不传 width/height，画布跟随容器 ResizeObserver 动态调整
       backgroundColor: 'transparent',
@@ -91,7 +85,9 @@ export const FlowEditorPanel: React.FC<FlowEditorPanelProps> = ({
             </button>
             <span className={styles.titleText}>{title}</span>
             <div className={styles.titleActions}>
-              <Button size="small" type="primary" onClick={handleSave}>保存</Button>
+              <Button size="small" type="primary" onClick={handleSave}>
+                保存
+              </Button>
             </div>
           </div>
         </div>

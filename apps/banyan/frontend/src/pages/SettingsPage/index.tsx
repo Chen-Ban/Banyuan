@@ -49,20 +49,24 @@ const SettingsPage: React.FC = () => {
   useEffect(() => {
     if (!appId) return
     setLoading(true)
-    planningApi.listPrompts(appId).then((configs: AgentPromptConfig[]) => {
-      const promptMap = { ...prompts }
-      const customMap = { ...customized }
-      for (const config of configs) {
-        promptMap[config.agent] = config.promptText
-        customMap[config.agent] = config.isCustomized
-      }
-      setPrompts(promptMap)
-      setCustomized(customMap)
-    }).catch(() => {
-      message.warning('加载 AI 配置失败')
-    }).finally(() => {
-      setLoading(false)
-    })
+    planningApi
+      .listPrompts(appId)
+      .then((configs: AgentPromptConfig[]) => {
+        const promptMap = { ...prompts }
+        const customMap = { ...customized }
+        for (const config of configs) {
+          promptMap[config.agent] = config.promptText
+          customMap[config.agent] = config.isCustomized
+        }
+        setPrompts(promptMap)
+        setCustomized(customMap)
+      })
+      .catch(() => {
+        message.warning('加载 AI 配置失败')
+      })
+      .finally(() => {
+        setLoading(false)
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appId])
 
@@ -70,46 +74,58 @@ const SettingsPage: React.FC = () => {
     setPrompts((prev) => ({ ...prev, [role]: value }))
   }, [])
 
-  const handleSave = useCallback(async (role: FullAgentRole) => {
-    if (!appId) return
-    setSaving(true)
-    try {
-      await planningApi.upsertPrompt(appId, role, prompts[role])
-      setCustomized((prev) => ({ ...prev, [role]: true }))
-      message.success(`${ROLE_META.find(r => r.role === role)?.label} 配置已保存`)
-    } catch {
-      message.error('保存失败')
-    } finally {
-      setSaving(false)
-    }
-  }, [appId, prompts])
+  const handleSave = useCallback(
+    async (role: FullAgentRole) => {
+      if (!appId) return
+      setSaving(true)
+      try {
+        await planningApi.upsertPrompt(appId, role, prompts[role])
+        setCustomized((prev) => ({ ...prev, [role]: true }))
+        message.success(`${ROLE_META.find((r) => r.role === role)?.label} 配置已保存`)
+      } catch {
+        message.error('保存失败')
+      } finally {
+        setSaving(false)
+      }
+    },
+    [appId, prompts],
+  )
 
-  const handleReset = useCallback(async (role: FullAgentRole) => {
-    if (!appId) return
-    setSaving(true)
-    try {
-      await planningApi.resetPrompt(appId, role)
-      setPrompts((prev) => ({ ...prev, [role]: '' }))
-      setCustomized((prev) => ({ ...prev, [role]: false }))
-      message.success('已重置为系统默认')
-    } catch {
-      message.error('重置失败')
-    } finally {
-      setSaving(false)
-    }
-  }, [appId])
+  const handleReset = useCallback(
+    async (role: FullAgentRole) => {
+      if (!appId) return
+      setSaving(true)
+      try {
+        await planningApi.resetPrompt(appId, role)
+        setPrompts((prev) => ({ ...prev, [role]: '' }))
+        setCustomized((prev) => ({ ...prev, [role]: false }))
+        message.success('已重置为系统默认')
+      } catch {
+        message.error('重置失败')
+      } finally {
+        setSaving(false)
+      }
+    },
+    [appId],
+  )
 
   const tabItems = ROLE_META.map(({ role, label, description }) => ({
     key: role,
     label: (
       <span>
         {label}
-        {customized[role] && <Tag color="blue" className={styles.customTag}>已定制</Tag>}
+        {customized[role] && (
+          <Tag color="blue" className={styles.customTag}>
+            已定制
+          </Tag>
+        )}
       </span>
     ),
     children: (
       <div className={styles.rolePanel}>
-        <Text type="secondary" className={styles.roleDesc}>{description}</Text>
+        <Text type="secondary" className={styles.roleDesc}>
+          {description}
+        </Text>
         <TextArea
           value={prompts[role]}
           onChange={(e) => handlePromptChange(role, e.target.value)}
@@ -128,12 +144,7 @@ const SettingsPage: React.FC = () => {
             保存
           </Button>
           {customized[role] && (
-            <Button
-              icon={<UndoOutlined />}
-              onClick={() => handleReset(role)}
-              loading={saving}
-              danger
-            >
+            <Button icon={<UndoOutlined />} onClick={() => handleReset(role)} loading={saving} danger>
               重置为默认
             </Button>
           )}
@@ -145,10 +156,14 @@ const SettingsPage: React.FC = () => {
   return (
     <div className={styles.page}>
       <div className={styles.content}>
-        <Title level={3} className={styles.title}>设置</Title>
+        <Title level={3} className={styles.title}>
+          设置
+        </Title>
 
         <section className={styles.section}>
-          <Title level={5} className={styles.sectionTitle}>AI 角色配置</Title>
+          <Title level={5} className={styles.sectionTitle}>
+            AI 角色配置
+          </Title>
           <Text type="secondary" className={styles.sectionDesc}>
             为每个 AI Agent 角色定制 system prompt，影响 AI 的行为和输出风格。留空则使用系统默认值。
           </Text>

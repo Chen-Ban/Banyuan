@@ -1,7 +1,7 @@
 // FlowEditorPanel — 右侧流程编辑面板样式
 // flex item + 渐入动画 + 圆角卡片
-@use "../../../styles/tokens/typography" as *;
-@use "../../../styles/mixins" as *;
+@use '../../../styles/tokens/typography' as *;
+@use '../../../styles/mixins' as *;
 
 // ── 外层包裹（控制宽度动画，避免突兀挤压画布） ────────────────────────────────
 

@@ -80,7 +80,9 @@
   color: var(--color-brand-text);
   font-size: $text-base;
   cursor: pointer;
-  transition: background var(--duration-normal), border-color var(--duration-normal);
+  transition:
+    background var(--duration-normal),
+    border-color var(--duration-normal);
 
   &:hover {
     background: var(--color-brand-subtle-hover);
@@ -109,7 +111,9 @@
     border-color: var(--color-brand-border);
     background: var(--color-brand-subtle);
 
-    .deleteBtn { opacity: 1; }
+    .deleteBtn {
+      opacity: 1;
+    }
   }
 }
 
@@ -167,7 +171,10 @@
   justify-content: center;
   font-size: $text-base;
   opacity: 0;
-  transition: opacity var(--duration-normal), color var(--duration-normal), background var(--duration-normal);
+  transition:
+    opacity var(--duration-normal),
+    color var(--duration-normal),
+    background var(--duration-normal);
 
   &:hover {
     color: var(--color-error-text);

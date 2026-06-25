@@ -1,9 +1,4 @@
-import React, {
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-} from 'react'
+import React, { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useAdaptiveCanvasInit } from '@banyuan/banvasgl-react'
 import type { SelectedViewPos } from '@banyuan/banvasgl-react'
 import type { FlowNode } from '@banyuan/banvasgl'
@@ -11,55 +6,52 @@ import { useInteraction } from './useInteraction'
 import { useFlowContextMenu } from './useFlowContextMenu'
 import { extractSchema } from '../components/FlowKit/extractSchema'
 import type { ExtractedFlowSchema } from '../components/FlowKit/extractSchema'
-import {
-    NodeView,
-    EdgeView,
-} from '@banyuan/banvasgl'
+import { NodeView, EdgeView } from '@banyuan/banvasgl'
 import type { FlowContextMenuState } from '../components/FlowKit/FlowContextMenu'
 import { useApplicationStore } from '@/stores/applicationStore'
 
 // ── 公共配置类型 ──
 
 export interface UseFlowBanvasOptions {
-    /** 画布背景色 */
-    backgroundColor?: string
+  /** 画布背景色 */
+  backgroundColor?: string
 }
 
 export interface UseFlowBanvasResult {
-    /** 渲染好的 Canvas React 元素 */
-    Canvas: React.ReactElement
-    /**
-     * 获取当前画布的 FlowSchema 快照（含 layout 布局信息）
-     *
-     * 按需调用（如保存时），而非实时派生。
-     * 内部遍历视图树序列化为纯数据结构。
-     */
-    getSchema: () => ExtractedFlowSchema
-    /**
-     * 当前选中的视图 ID（空字符串表示无选中）
-     */
-    selectedViewId: string
-    /**
-     * 当前选中视图在 viewport 中的 CSS 坐标和尺寸（null 表示无选中）
-     *
-     * 消费方可直接用于 Popover / 属性面板浮层的绝对定位。
-     */
-    selectedViewPos: SelectedViewPos | null
-    /**
-     * 当前选中节点的完整 FlowNode schema（null 表示无选中或选中非 NodeView）
-     */
-    selectedNode: FlowNode | null
-    /**
-     * 更新当前选中节点的 FlowNode schema，触发画布重绘。
-     * 仅当 selectedNode 非 null 时有效。
-     */
-    updateNodeSchema: (updated: FlowNode) => void
-    /**
-     * 右键菜单状态
-     *
-     * 业务方将此状态传给 `<FlowContextMenu state={contextMenuState} />` 即可渲染右键菜单。
-     */
-    contextMenuState: FlowContextMenuState
+  /** 渲染好的 Canvas React 元素 */
+  Canvas: React.ReactElement
+  /**
+   * 获取当前画布的 FlowSchema 快照（含 layout 布局信息）
+   *
+   * 按需调用（如保存时），而非实时派生。
+   * 内部遍历视图树序列化为纯数据结构。
+   */
+  getSchema: () => ExtractedFlowSchema
+  /**
+   * 当前选中的视图 ID（空字符串表示无选中）
+   */
+  selectedViewId: string
+  /**
+   * 当前选中视图在 viewport 中的 CSS 坐标和尺寸（null 表示无选中）
+   *
+   * 消费方可直接用于 Popover / 属性面板浮层的绝对定位。
+   */
+  selectedViewPos: SelectedViewPos | null
+  /**
+   * 当前选中节点的完整 FlowNode schema（null 表示无选中或选中非 NodeView）
+   */
+  selectedNode: FlowNode | null
+  /**
+   * 更新当前选中节点的 FlowNode schema，触发画布重绘。
+   * 仅当 selectedNode 非 null 时有效。
+   */
+  updateNodeSchema: (updated: FlowNode) => void
+  /**
+   * 右键菜单状态
+   *
+   * 业务方将此状态传给 `<FlowContextMenu state={contextMenuState} />` 即可渲染右键菜单。
+   */
+  contextMenuState: FlowContextMenuState
 }
 
 /**
@@ -79,133 +71,134 @@ export interface UseFlowBanvasResult {
  * @param initialSchema 初始加载的 FlowSchema + layout（组件挂载时一次性加载）
  */
 export default function useFlowBanvas(
-    options: UseFlowBanvasOptions,
-    initialSchema?: ExtractedFlowSchema,
+  options: UseFlowBanvasOptions,
+  initialSchema?: ExtractedFlowSchema,
 ): UseFlowBanvasResult {
-    const { backgroundColor } = options
+  const { backgroundColor } = options
 
-    // ── 初始化：自适应模式画布 + 无限画布交互 ──
-    const rendererOptions = useMemo(
-        () => backgroundColor
-            ? { backgroundColor, clearColor: backgroundColor }
-            : undefined,
-        [backgroundColor],
-    );
-    const designDpr = useApplicationStore((s) => s.designDpr);
-    const { actions, elements, derived } = useAdaptiveCanvasInit({
-        rendererOptions,
-        dpr: designDpr,
-    })
+  // ── 初始化：自适应模式画布 + 无限画布交互 ──
+  const rendererOptions = useMemo(
+    () => (backgroundColor ? { backgroundColor, clearColor: backgroundColor } : undefined),
+    [backgroundColor],
+  )
+  const designDpr = useApplicationStore((s) => s.designDpr)
+  const { actions, elements, derived } = useAdaptiveCanvasInit({
+    rendererOptions,
+    dpr: designDpr,
+  })
 
-    const { selectedViewId, selectedViewPos, canvas } = derived
+  const { selectedViewId, selectedViewPos, canvas } = derived
 
-    // ── 初始化加载 ──
-    const initializedRef = useRef(false)
-    const initialSchemaRef = useRef(initialSchema)
-    initialSchemaRef.current = initialSchema
+  // ── 初始化加载 ──
+  const initializedRef = useRef(false)
+  const initialSchemaRef = useRef(initialSchema)
+  initialSchemaRef.current = initialSchema
 
-    useEffect(() => {
-        if (!actions || initializedRef.current) return
-        initializedRef.current = true
+  useEffect(() => {
+    if (!actions || initializedRef.current) return
+    initializedRef.current = true
 
-        const schema = initialSchemaRef.current
-        if (!schema || Object.keys(schema.nodes).length === 0) return
+    const schema = initialSchemaRef.current
+    if (!schema || Object.keys(schema.nodes).length === 0) return
 
-        const layout = schema.layout ?? {}
-        const nodeEntries = Object.entries(schema.nodes)
+    const layout = schema.layout ?? {}
+    const nodeEntries = Object.entries(schema.nodes)
 
-        // 创建 NodeView
-        for (const [nodeId, node] of nodeEntries) {
-            const nodeView = new NodeView({
-                schema: node,
-                style: { width: 140, height: 60 },
-            })
-            const pos = layout[nodeId]
-            nodeView.translate(pos?.x ?? 20, pos?.y ?? 20, 0)
-            actions.view.addTempChild(nodeView)
-        }
-
-        // 从 slots[*].next 创建 EdgeView
-        for (const [nodeId, node] of nodeEntries) {
-            const category = node.category
-            const kind = node.kind
-
-            for (let i = 0; i < (node.slots?.length ?? 0); i++) {
-                const slot = node.slots[i] as unknown as Record<string, unknown>
-                const next = slot.next as string | undefined
-                if (!next) continue
-
-                // 确定源端口 ID
-                let fromPortId: string
-                if (kind === 'condition') {
-                    fromPortId = `${nodeId}_${i}`
-                } else if (category === 'source' || category === 'compute') {
-                    fromPortId = `${nodeId}_value`
-                } else {
-                    fromPortId = `${nodeId}_out`
-                }
-
-                const toPortId = `${next}_in`
-
-                const edgeView = new EdgeView({
-                    fromPortId,
-                    toPortId,
-                })
-                actions.view.addTempChild(edgeView)
-            }
-        }
-
-        actions.app.notify()
-    }, [actions])
-
-    // ── getSchema：按需获取当前画布快照 ──
-    const getSchema = useCallback((): ExtractedFlowSchema => {
-        if (!actions) {
-            return { version: '2.0.0', entry: '', nodes: {}, layout: {} }
-        }
-        const children = actions.page.getTopLevelViews()
-        if (children.length === 0) {
-            return { version: '2.0.0', entry: '', nodes: {}, layout: {} }
-        }
-        return extractSchema(children)
-    }, [actions])
-
-    // ── 选中节点的 FlowNode schema ──
-    const selectedNode = useMemo((): FlowNode | null => {
-        if (!actions || !selectedViewId) return null
-        const view = actions.view.getViewInstance(selectedViewId)
-        if (view instanceof NodeView) return view.schema
-        return null
-    }, [actions, selectedViewId])
-
-    // ── 更新选中节点 schema ──
-    const updateNodeSchema = useCallback((updated: FlowNode) => {
-        if (!actions || !selectedViewId) return
-        const view = actions.view.getViewInstance(selectedViewId)
-        if (view instanceof NodeView) {
-            view.schema = updated
-            actions.app.notify()
-        }
-    }, [actions, selectedViewId])
-
-    // ── 右键菜单 ──
-    const { contextMenuState, onContextMenu } = useFlowContextMenu(actions)
-
-    // ── 统一交互 Hook（Flow 模式） ──
-    useInteraction({
-        canvas,
-        actions,
-        mode: 'flow',
-        onContextMenu,
-    })
-
-    return {
-        Canvas: elements.container,
-        getSchema,
-        selectedViewId,
-        selectedViewPos,
-        selectedNode,
-        updateNodeSchema,
-        contextMenuState,
+    // 创建 NodeView
+    for (const [nodeId, node] of nodeEntries) {
+      const nodeView = new NodeView({
+        schema: node,
+        style: { width: 140, height: 60 },
+      })
+      const pos = layout[nodeId]
+      nodeView.translate(pos?.x ?? 20, pos?.y ?? 20, 0)
+      actions.view.addTempChild(nodeView)
     }
+
+    // 从 slots[*].next 创建 EdgeView
+    for (const [nodeId, node] of nodeEntries) {
+      const category = node.category
+      const kind = node.kind
+
+      for (let i = 0; i < (node.slots?.length ?? 0); i++) {
+        const slot = node.slots[i] as unknown as Record<string, unknown>
+        const next = slot.next as string | undefined
+        if (!next) continue
+
+        // 确定源端口 ID
+        let fromPortId: string
+        if (kind === 'condition') {
+          fromPortId = `${nodeId}_${i}`
+        } else if (category === 'source' || category === 'compute') {
+          fromPortId = `${nodeId}_value`
+        } else {
+          fromPortId = `${nodeId}_out`
+        }
+
+        const toPortId = `${next}_in`
+
+        const edgeView = new EdgeView({
+          fromPortId,
+          toPortId,
+        })
+        actions.view.addTempChild(edgeView)
+      }
+    }
+
+    actions.app.notify()
+  }, [actions])
+
+  // ── getSchema：按需获取当前画布快照 ──
+  const getSchema = useCallback((): ExtractedFlowSchema => {
+    if (!actions) {
+      return { version: '2.0.0', entry: '', nodes: {}, layout: {} }
+    }
+    const children = actions.page.getTopLevelViews()
+    if (children.length === 0) {
+      return { version: '2.0.0', entry: '', nodes: {}, layout: {} }
+    }
+    return extractSchema(children)
+  }, [actions])
+
+  // ── 选中节点的 FlowNode schema ──
+  const selectedNode = useMemo((): FlowNode | null => {
+    if (!actions || !selectedViewId) return null
+    const view = actions.view.getViewInstance(selectedViewId)
+    if (view instanceof NodeView) return view.schema
+    return null
+  }, [actions, selectedViewId])
+
+  // ── 更新选中节点 schema ──
+  const updateNodeSchema = useCallback(
+    (updated: FlowNode) => {
+      if (!actions || !selectedViewId) return
+      const view = actions.view.getViewInstance(selectedViewId)
+      if (view instanceof NodeView) {
+        view.schema = updated
+        actions.app.notify()
+      }
+    },
+    [actions, selectedViewId],
+  )
+
+  // ── 右键菜单 ──
+  const { contextMenuState, onContextMenu } = useFlowContextMenu(actions)
+
+  // ── 统一交互 Hook（Flow 模式） ──
+  useInteraction({
+    canvas,
+    actions,
+    mode: 'flow',
+    onContextMenu,
+  })
+
+  return {
+    Canvas: elements.container,
+    getSchema,
+    selectedViewId,
+    selectedViewPos,
+    selectedNode,
+    updateNodeSchema,
+    contextMenuState,
+  }
 }

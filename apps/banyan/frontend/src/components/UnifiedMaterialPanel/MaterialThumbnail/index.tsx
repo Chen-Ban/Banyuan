@@ -19,12 +19,7 @@ export interface MaterialThumbnailProps {
   style?: React.CSSProperties
 }
 
-const MaterialThumbnail: React.FC<MaterialThumbnailProps> = ({
-  material,
-  size = 20,
-  className,
-  style,
-}) => {
+const MaterialThumbnail: React.FC<MaterialThumbnailProps> = ({ material, size = 20, className, style }) => {
   const { thumbnail, name } = material.meta
 
   if (thumbnail) {

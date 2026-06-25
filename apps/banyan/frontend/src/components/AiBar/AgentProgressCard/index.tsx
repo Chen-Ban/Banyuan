@@ -8,12 +8,7 @@
  *   - error: 红色叉号
  */
 
-import {
-  CheckOutlined,
-  CloseOutlined,
-  LoadingOutlined,
-  NodeIndexOutlined,
-} from '@ant-design/icons'
+import { CheckOutlined, CloseOutlined, LoadingOutlined, NodeIndexOutlined } from '@ant-design/icons'
 import type { AgentStep } from '@/hooks/useXiangDi'
 import styles from './index.module.scss'
 
@@ -48,9 +43,7 @@ const AgentProgressCard: React.FC<AgentProgressCardProps> = ({ steps }) => {
             {index > 0 && (
               <div
                 className={`${styles.connector} ${
-                  step.status === 'completed' || step.status === 'started'
-                    ? styles.connectorActive
-                    : ''
+                  step.status === 'completed' || step.status === 'started' ? styles.connectorActive : ''
                 } ${step.status === 'completed' ? styles.connectorCompleted : ''}`}
               />
             )}

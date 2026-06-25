@@ -61,9 +61,7 @@ const CollapsibleGrid: React.FC<{
 }> = ({ materials, onDragStart }) => {
   const [expanded, setExpanded] = useState(false)
   const needsCollapse = materials.length > MAX_VISIBLE
-  const visibleMaterials = needsCollapse && !expanded
-    ? materials.slice(0, MAX_VISIBLE)
-    : materials
+  const visibleMaterials = needsCollapse && !expanded ? materials.slice(0, MAX_VISIBLE) : materials
 
   return (
     <>
@@ -75,11 +73,7 @@ const CollapsibleGrid: React.FC<{
             placement="right"
             mouseEnterDelay={0.4}
           >
-            <div
-              className={styles.card}
-              draggable
-              onDragStart={(e) => onDragStart(e, material)}
-            >
+            <div className={styles.card} draggable onDragStart={(e) => onDragStart(e, material)}>
               <span className={styles.cardIcon}>
                 <MaterialThumbnail material={material} size={18} />
               </span>
@@ -89,14 +83,15 @@ const CollapsibleGrid: React.FC<{
         ))}
       </div>
       {needsCollapse && (
-        <button
-          className={styles.expandBtn}
-          onClick={() => setExpanded((v) => !v)}
-        >
+        <button className={styles.expandBtn} onClick={() => setExpanded((v) => !v)}>
           {expanded ? (
-            <><UpOutlined /> 收起</>
+            <>
+              <UpOutlined /> 收起
+            </>
           ) : (
-            <><DownOutlined /> 展开全部 ({materials.length})</>
+            <>
+              <DownOutlined /> 展开全部 ({materials.length})
+            </>
           )}
         </button>
       )}
@@ -106,11 +101,7 @@ const CollapsibleGrid: React.FC<{
 
 // ── 组件实现 ──
 
-const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
-  mode,
-  className,
-  style,
-}) => {
+const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({ mode, className, style }) => {
   const appId = useApplicationStore((s) => s.appId)
   const [builtinMaterials, setBuiltinMaterials] = useState<IMaterial[]>([])
   const [customMaterials, setCustomMaterials] = useState<IMaterial[]>([])
@@ -147,7 +138,9 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
         if (!cancelled) setLoading(false)
       })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [mode])
 
   // ── 获取自定义物料 ──
@@ -175,20 +168,25 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
       })
       .catch(() => {})
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [mode, appId])
 
   // ── 搜索过滤 ──
-  const filterMaterials = useCallback((materials: IMaterial[]) => {
-    if (!keyword.trim()) return materials
-    const kw = keyword.trim().toLowerCase()
-    return materials.filter(
-      (m) =>
-        m.meta.name.toLowerCase().includes(kw) ||
-        m.meta.description?.toLowerCase().includes(kw) ||
-        m.meta.tags?.some((t) => t.toLowerCase().includes(kw)),
-    )
-  }, [keyword])
+  const filterMaterials = useCallback(
+    (materials: IMaterial[]) => {
+      if (!keyword.trim()) return materials
+      const kw = keyword.trim().toLowerCase()
+      return materials.filter(
+        (m) =>
+          m.meta.name.toLowerCase().includes(kw) ||
+          m.meta.description?.toLowerCase().includes(kw) ||
+          m.meta.tags?.some((t) => t.toLowerCase().includes(kw)),
+      )
+    },
+    [keyword],
+  )
 
   // ── 内置物料分组 ──
   const builtinGroups: MaterialGroup[] = useMemo(() => {
@@ -210,10 +208,7 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
 
   // ── 拖拽处理 ──
   const handleDragStart = useCallback((e: React.DragEvent, material: IMaterial) => {
-    e.dataTransfer.setData(
-      'application/json',
-      JSON.stringify({ materialId: material.meta.id }),
-    )
+    e.dataTransfer.setData('application/json', JSON.stringify({ materialId: material.meta.id }))
     e.dataTransfer.effectAllowed = 'copy'
   }, [])
 
@@ -234,28 +229,21 @@ const UnifiedMaterialPanel: React.FC<UnifiedMaterialPanelProps> = ({
 
       <div className={styles.content}>
         {/* 内置物料 */}
-        {loading && (
-          <div className={styles.placeholder}>加载中...</div>
-        )}
+        {loading && <div className={styles.placeholder}>加载中...</div>}
 
-        {!loading && builtinGroups.map((group) => (
-          <div key={group.key} className={styles.group}>
-            <div className={styles.groupTitle}>{group.title}</div>
-            <CollapsibleGrid
-              materials={group.materials}
-              onDragStart={handleDragStart}
-            />
-          </div>
-        ))}
+        {!loading &&
+          builtinGroups.map((group) => (
+            <div key={group.key} className={styles.group}>
+              <div className={styles.groupTitle}>{group.title}</div>
+              <CollapsibleGrid materials={group.materials} onDragStart={handleDragStart} />
+            </div>
+          ))}
 
         {/* 自定义物料 */}
         {filteredCustom.length > 0 && (
           <div className={styles.group}>
             <div className={styles.groupTitle}>自定义物料</div>
-            <CollapsibleGrid
-              materials={filteredCustom}
-              onDragStart={handleDragStart}
-            />
+            <CollapsibleGrid materials={filteredCustom} onDragStart={handleDragStart} />
           </div>
         )}
 

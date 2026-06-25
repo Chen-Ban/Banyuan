@@ -6,43 +6,43 @@
  */
 
 export interface PreviewServerInput {
-  appId: string;
-  appSlug?: string;
-  uiJSON: Record<string, unknown>;
-  collectionSchemas: unknown[];
-  cloudFunctions: unknown[];
+  appId: string
+  appSlug?: string
+  uiJSON: Record<string, unknown>
+  collectionSchemas: unknown[]
+  cloudFunctions: unknown[]
 }
 
 export interface PreviewServerInfo {
-  appId: string;
-  port: number;
-  status: 'starting' | 'running' | 'stopping' | 'stopped' | 'error';
-  url: string;
-  createdAt: number;
-  updatedAt: number;
-  error?: string;
+  appId: string
+  port: number
+  status: 'starting' | 'running' | 'stopping' | 'stopped' | 'error'
+  url: string
+  createdAt: number
+  updatedAt: number
+  error?: string
 }
 
 export interface HotUpdatePatch {
-  collections?: unknown[];
-  cloudFunctions?: unknown[];
+  collections?: unknown[]
+  cloudFunctions?: unknown[]
 }
 
 export interface ElectronPreviewAPI {
-  start: (input: PreviewServerInput) => Promise<PreviewServerInfo>;
-  stop: (appId: string) => Promise<void>;
-  hotUpdate: (appId: string, patch: HotUpdatePatch) => Promise<void>;
-  getStatus: (appId: string) => Promise<PreviewServerInfo | null>;
-  listAll: () => Promise<PreviewServerInfo[]>;
+  start: (input: PreviewServerInput) => Promise<PreviewServerInfo>
+  stop: (appId: string) => Promise<void>
+  hotUpdate: (appId: string, patch: HotUpdatePatch) => Promise<void>
+  getStatus: (appId: string) => Promise<PreviewServerInfo | null>
+  listAll: () => Promise<PreviewServerInfo[]>
 }
 
 export interface ElectronAPI {
-  preview: ElectronPreviewAPI;
-  platform: string;
+  preview: ElectronPreviewAPI
+  platform: string
 }
 
 declare global {
   interface Window {
-    electronAPI?: ElectronAPI;
+    electronAPI?: ElectronAPI
   }
 }

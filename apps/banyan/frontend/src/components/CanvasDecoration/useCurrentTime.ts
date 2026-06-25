@@ -5,24 +5,24 @@
  * 用于设备框装饰中的状态栏时间显示。
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
 export function useCurrentTime(): string {
-  const [time, setTime] = useState(() => formatTime());
+  const [time, setTime] = useState(() => formatTime())
 
   useEffect(() => {
     const id = setInterval(() => {
-      setTime(formatTime());
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
+      setTime(formatTime())
+    }, 1000)
+    return () => clearInterval(id)
+  }, [])
 
-  return time;
+  return time
 }
 
 function formatTime(): string {
-  const now = new Date();
-  const h = now.getHours().toString().padStart(2, '0');
-  const m = now.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m}`;
+  const now = new Date()
+  const h = now.getHours().toString().padStart(2, '0')
+  const m = now.getMinutes().toString().padStart(2, '0')
+  return `${h}:${m}`
 }

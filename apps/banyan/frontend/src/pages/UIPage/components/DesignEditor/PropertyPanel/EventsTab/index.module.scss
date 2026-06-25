@@ -82,7 +82,9 @@
   font-size: 13px;
   line-height: 1;
   cursor: pointer;
-  transition: color var(--duration-normal), border-color var(--duration-normal);
+  transition:
+    color var(--duration-normal),
+    border-color var(--duration-normal);
 
   &:hover {
     color: var(--color-text-secondary);

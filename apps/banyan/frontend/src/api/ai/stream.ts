@@ -38,8 +38,12 @@ export async function getModels(): Promise<ModelsResponse> {
 /**
  * 切换激活的 LLM provider
  */
-export async function switchModel(provider: string): Promise<{ success: boolean; activeProvider?: string; error?: string }> {
-  return post<{ success: boolean; activeProvider?: string; error?: string }>('/ai/models/switch', { provider })
+export async function switchModel(
+  provider: string,
+): Promise<{ success: boolean; activeProvider?: string; error?: string }> {
+  return post<{ success: boolean; activeProvider?: string; error?: string }>('/ai/models/switch', {
+    provider,
+  })
 }
 
 // ─── SSE 事件类型（ADR-041 Orchestrator 协议）─────────────────────────────────
@@ -101,7 +105,14 @@ export interface AiDoneEvent {
 }
 
 /** 统一错误载荷类型（与后端 ErrorPayload 对齐） */
-export type ErrorCategory = 'validation' | 'auth' | 'upstream' | 'resource' | 'budget' | 'concurrency' | 'internal'
+export type ErrorCategory =
+  | 'validation'
+  | 'auth'
+  | 'upstream'
+  | 'resource'
+  | 'budget'
+  | 'concurrency'
+  | 'internal'
 
 export interface ErrorPayload {
   code: string
@@ -223,7 +234,9 @@ export async function discardDialogue(appId: string): Promise<void> {
 /**
  * 获取当前 pending 对话数据。
  */
-export async function getPendingDialogue(appId: string): Promise<{ hasPending: boolean; pending?: PendingDialogueInfo }> {
+export async function getPendingDialogue(
+  appId: string,
+): Promise<{ hasPending: boolean; pending?: PendingDialogueInfo }> {
   return get<{ hasPending: boolean; pending?: PendingDialogueInfo }>(`/ai/${appId}/pending`)
 }
 
@@ -255,7 +268,9 @@ export async function aiChat(options: AiChatOptions): Promise<string> {
     function settle(fn: () => void): void {
       if (settled) return
       settled = true
-      reader.cancel().catch(() => { /* 忽略 cancel 本身的错误 */ })
+      reader.cancel().catch(() => {
+        /* 忽略 cancel 本身的错误 */
+      })
       fn()
     }
 
@@ -337,7 +352,12 @@ export async function aiChat(options: AiChatOptions): Promise<string> {
             })
             break
           case 'done': {
-            const doneData = data as { finalPhase?: string; summary?: string; artifacts?: AiDoneEvent['artifacts']; timestamp?: number }
+            const doneData = data as {
+              finalPhase?: string
+              summary?: string
+              artifacts?: AiDoneEvent['artifacts']
+              timestamp?: number
+            }
             onEvent({
               type: 'done',
               finalPhase: doneData.finalPhase ?? 'done',

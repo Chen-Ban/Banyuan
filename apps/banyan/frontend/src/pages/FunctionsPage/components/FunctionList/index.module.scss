@@ -27,7 +27,9 @@
 
 .addBtn {
   color: var(--color-text-tertiary);
-  &:hover { color: var(--color-brand-primary); }
+  &:hover {
+    color: var(--color-brand-primary);
+  }
 }
 
 .functionItems {
@@ -50,15 +52,23 @@
   &:hover {
     background: var(--color-bg-hover-md);
 
-    .functionDeleteBtn { opacity: 1; }
+    .functionDeleteBtn {
+      opacity: 1;
+    }
   }
 
   &.functionItemActive {
     background: var(--color-brand-subtle);
 
-    .functionItemDisplay { color: var(--color-brand-primary); }
-    .functionItemName    { color: var(--color-brand-text-dim-50); }
-    .functionItemIcon    { color: var(--color-brand-primary); }
+    .functionItemDisplay {
+      color: var(--color-brand-primary);
+    }
+    .functionItemName {
+      color: var(--color-brand-text-dim-50);
+    }
+    .functionItemIcon {
+      color: var(--color-brand-primary);
+    }
   }
 }
 
@@ -95,7 +105,9 @@
   font-size: $text-sm;
   color: var(--color-text-disabled);
   flex-shrink: 0;
-  transition: opacity var(--duration-normal), color var(--duration-normal);
+  transition:
+    opacity var(--duration-normal),
+    color var(--duration-normal);
   padding: 2px;
   border-radius: var(--radius-xs);
 

@@ -1,22 +1,22 @@
-import React from "react";
-import { Drawer, Tooltip } from "antd";
-import { PropertyPanel } from "../DesignEditor/PropertyPanel";
-import { SettingOutlined } from "@ant-design/icons";
-import type useDesignBanvas from "@/hooks/useDesignBanvas";
-import type { FlowEditorOpenRequest } from "../DesignEditor/PropertyPanel/EventsTab";
-import styles from "./index.module.scss";
+import React from 'react'
+import { Drawer, Tooltip } from 'antd'
+import { PropertyPanel } from '../DesignEditor/PropertyPanel'
+import { SettingOutlined } from '@ant-design/icons'
+import type useDesignBanvas from '@/hooks/useDesignBanvas'
+import type { FlowEditorOpenRequest } from '../DesignEditor/PropertyPanel/EventsTab'
+import styles from './index.module.scss'
 
-type DesignBanvasReturn = ReturnType<typeof useDesignBanvas>;
+type DesignBanvasReturn = ReturnType<typeof useDesignBanvas>
 
 export interface PropertyDrawerProps {
-  open: boolean;
-  onToggle: () => void;
-  container: HTMLDivElement | null;
-  selectedViewId: string;
-  actions: DesignBanvasReturn["actions"];
-  currentPageId: string;
+  open: boolean
+  onToggle: () => void
+  container: HTMLDivElement | null
+  selectedViewId: string
+  actions: DesignBanvasReturn['actions']
+  currentPageId: string
   /** 请求打开流程编辑面板（状态提升到 UIPage） */
-  onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void;
+  onOpenFlowEditor?: (request: FlowEditorOpenRequest) => void
 }
 
 const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
@@ -31,9 +31,9 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
   return (
     <>
       {/* 触发按钮：fix 在画布右上角，抽屉打开时向左偏移 */}
-      <Tooltip title={open ? "收起属性" : "属性面板"} placement="left">
+      <Tooltip title={open ? '收起属性' : '属性面板'} placement="left">
         <button
-          className={`${styles.toggleBtn}${open ? ` ${styles.toggleBtnOpen}` : ""}`}
+          className={`${styles.toggleBtn}${open ? ` ${styles.toggleBtnOpen}` : ''}`}
           onClick={onToggle}
           aria-label="属性面板"
         >
@@ -49,12 +49,12 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
         closable={false}
         getContainer={container ?? false}
         rootStyle={{
-          position: "absolute",
+          position: 'absolute',
           top: 0,
           bottom: 0,
           left: 0,
           right: 0,
-          height: "100%",
+          height: '100%',
         }}
         styles={{
           wrapper: {
@@ -62,13 +62,13 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
             top: 12,
             bottom: 12,
             right: 12,
-            height: "calc(100% - 24px)",
+            height: 'calc(100% - 24px)',
             borderRadius: 12,
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            overflow: "hidden",
-            boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.55)',
           },
-          body: { padding: 0, background: "#16161e", overflowY: "auto" },
+          body: { padding: 0, background: '#16161e', overflowY: 'auto' },
         }}
         size={300}
         push={false}
@@ -81,7 +81,7 @@ const PropertyDrawer: React.FC<PropertyDrawerProps> = ({
         />
       </Drawer>
     </>
-  );
-};
+  )
+}
 
-export default PropertyDrawer;
+export default PropertyDrawer

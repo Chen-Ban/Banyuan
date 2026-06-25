@@ -1,10 +1,5 @@
 // Moved to dataSchema/collections.ts — re-export for backward compatibility
-export type {
-  FieldType,
-  FieldDef,
-  CollectionDef,
-  DataSchemaDefinition,
-} from '../dataSchema/collections'
+export type { FieldType, FieldDef, CollectionDef, DataSchemaDefinition } from '../dataSchema/collections'
 export {
   fetchDataSchema,
   addCollection,

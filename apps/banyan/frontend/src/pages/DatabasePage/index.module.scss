@@ -83,7 +83,9 @@
 
 .addBtn {
   color: var(--color-text-tertiary);
-  &:hover { color: var(--color-text-secondary); }
+  &:hover {
+    color: var(--color-text-secondary);
+  }
 }
 
 .collectionItems {
@@ -167,11 +169,11 @@
   @include scrollbar-dark;
 }
 
-$col-field-name:    180px;
-$col-display-name:  180px;
-$col-type:          120px;
-$col-required:      60px;
-$col-actions:       1fr;
+$col-field-name: 180px;
+$col-display-name: 180px;
+$col-type: 120px;
+$col-required: 60px;
+$col-actions: 1fr;
 
 .fieldTableHead {
   display: grid;
@@ -197,8 +199,12 @@ $col-actions:       1fr;
   gap: 12px;
   transition: background var(--duration-fast);
 
-  &:last-child { border-bottom: none; }
-  &:hover { background: var(--color-bg-hover); }
+  &:last-child {
+    border-bottom: none;
+  }
+  &:hover {
+    background: var(--color-bg-hover);
+  }
 
   &.fieldRowBuiltin {
     background: var(--color-bg-hover);
@@ -213,11 +219,26 @@ $col-actions:       1fr;
   border-top: 1px dashed var(--color-divider-dashed);
 }
 
-.colFieldName   { min-width: 0; }
-.colDisplayName { min-width: 0; }
-.colType        { min-width: 0; }
-.colRequired    { display: flex; align-items: center; justify-content: center; }
-.colActions     { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.colFieldName {
+  min-width: 0;
+}
+.colDisplayName {
+  min-width: 0;
+}
+.colType {
+  min-width: 0;
+}
+.colRequired {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.colActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+}
 
 .fieldNameText {
   font-size: $text-base;
@@ -240,7 +261,9 @@ $col-actions:       1fr;
   @include text-mono;
 }
 
-.typeSelect { width: 100%; }
+.typeSelect {
+  width: 100%;
+}
 
 .builtinBadge {
   font-size: $text-2xs;
@@ -253,7 +276,11 @@ $col-actions:       1fr;
 .deleteFieldBtn {
   opacity: 0.3;
   transition: opacity var(--duration-normal);
-  &:hover { opacity: 1; }
+  &:hover {
+    opacity: 1;
+  }
 }
 
-.fieldInput { width: 100%; }
+.fieldInput {
+  width: 100%;
+}

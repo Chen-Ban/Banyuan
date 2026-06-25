@@ -51,11 +51,12 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: left var(--duration-drawer) var(--easing-default),
-              background var(--duration-normal),
-              border-color var(--duration-normal),
-              color var(--duration-normal),
-              transform var(--duration-fast);
+  transition:
+    left var(--duration-drawer) var(--easing-default),
+    background var(--duration-normal),
+    border-color var(--duration-normal),
+    color var(--duration-normal),
+    transform var(--duration-fast);
 
   &:hover {
     background: var(--color-info-subtle-hover);
@@ -63,7 +64,9 @@
     color: var(--color-info-text);
   }
 
-  &:active { transform: scale(0.92); }
+  &:active {
+    transform: scale(0.92);
+  }
 }
 
 .paletteToggleBtnOpen {

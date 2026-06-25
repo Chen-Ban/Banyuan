@@ -18,67 +18,65 @@
  *   unmount → 清除 endpoint（Preview Server 由 ApplicationLayout 管理，不在此停止）
  */
 
-import { useEffect, useMemo } from "react";
-import { useRuntimeBanvas } from "@banyuan/banvas-react-runtime";
-import { useApplicationStore } from "@/stores/applicationStore";
-import { usePreviewServerStore } from "@/stores/previewServerStore";
-import styles from "./index.module.scss";
+import { useEffect, useMemo } from 'react'
+import { useRuntimeBanvas } from '@banyuan/banvas-react-runtime'
+import { useApplicationStore } from '@/stores/applicationStore'
+import { usePreviewServerStore } from '@/stores/previewServerStore'
+import styles from './index.module.scss'
 
 const PreviewPage: React.FC = () => {
-  const { registerActions, setDesignSize, designSize, designDpr } = useApplicationStore();
-  const uiJSON = useApplicationStore((s) => s.uiJSON);
-  const serverInfo = usePreviewServerStore((s) => s.serverInfo);
-  const serverStatus = usePreviewServerStore((s) => s.status);
+  const { registerActions, setDesignSize, designSize, designDpr } = useApplicationStore()
+  const uiJSON = useApplicationStore((s) => s.uiJSON)
+  const serverInfo = usePreviewServerStore((s) => s.serverInfo)
+  const serverStatus = usePreviewServerStore((s) => s.status)
 
   // ── 画布初始化（运行策略：useRuntimeBanvas = 机制底座 + 交互识别 + FlowSchema 触发） ──
   // designSize 通过 actions.app.setDesignSize() 命令式注入
-  const rendererOptions = useMemo(() => ({ clearColor: "#fff" }), []);
-  const { Banvas, actions } = useRuntimeBanvas({ rendererOptions, dpr: designDpr });
+  const rendererOptions = useMemo(() => ({ clearColor: '#fff' }), [])
+  const { Banvas, actions } = useRuntimeBanvas({ rendererOptions, dpr: designDpr })
 
   // ── designSize 命令式注入引擎 ──
   useEffect(() => {
     if (actions?.app) {
-      actions.app.setDesignSize(designSize.width, designSize.height);
+      actions.app.setDesignSize(designSize.width, designSize.height)
     }
-  }, [actions, designSize.width, designSize.height]);
+  }, [actions, designSize.width, designSize.height])
 
   // ── uiJSON 注入引擎（store 数据就绪时） ──────────────────────────────────
   useEffect(() => {
     if (actions?.app && uiJSON) {
-      actions.app.loadAppJSON(uiJSON);
+      actions.app.loadAppJSON(uiJSON)
     }
-  }, [uiJSON, actions]);
+  }, [uiJSON, actions])
 
   // ── 挂载画布引擎实例到 store + 同步初始 designSize ────────────────────
   useEffect(() => {
-    if (!actions?.app) return;
-    const unregister = registerActions(actions);
+    if (!actions?.app) return
+    const unregister = registerActions(actions)
     // uiJSON 加载后同步引擎当前 designSize 到 store
-    const ds = actions.app.getDesignSize();
-    setDesignSize({ width: ds.width, height: ds.height });
-    return unregister;
-  }, [registerActions, setDesignSize, actions]);
+    const ds = actions.app.getDesignSize()
+    setDesignSize({ width: ds.width, height: ds.height })
+    return unregister
+  }, [registerActions, setDesignSize, actions])
 
   // ── 设置 backendEndpoint（指向 Preview Server） ─────────────────────────────
   useEffect(() => {
-    if (!actions?.app) return;
+    if (!actions?.app) return
 
-    if (serverInfo && serverStatus === "running") {
-      actions.app.setBackendEndpoint(serverInfo.url);
+    if (serverInfo && serverStatus === 'running') {
+      actions.app.setBackendEndpoint(serverInfo.url)
     }
 
     return () => {
-      actions.app.setBackendEndpoint(undefined);
-    };
-  }, [actions, serverInfo, serverStatus]);
+      actions.app.setBackendEndpoint(undefined)
+    }
+  }, [actions, serverInfo, serverStatus])
 
   return (
     <div className={styles.page}>
-      <div className={styles.canvasContainer}>
-        {Banvas}
-      </div>
+      <div className={styles.canvasContainer}>{Banvas}</div>
     </div>
-  );
-};
+  )
+}
 
-export default PreviewPage;
+export default PreviewPage

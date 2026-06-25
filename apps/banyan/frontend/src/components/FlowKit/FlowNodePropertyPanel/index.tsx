@@ -9,12 +9,7 @@
  */
 
 import { useMemo } from 'react'
-import {
-  Input,
-  Select,
-  Switch,
-  Divider,
-} from 'antd'
+import { Input, Select, Switch, Divider } from 'antd'
 import { CloseOutlined } from '@ant-design/icons'
 import type { FlowNode } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
@@ -50,7 +45,10 @@ function getSlotField(node: FlowNode, field: string): unknown {
 function updateSlotInput(node: FlowNode, inputUpdates: Record<string, unknown>): FlowNode {
   const slots = [...node.slots]
   const oldSlot = (slots[0] as unknown as Record<string, unknown>) ?? {}
-  slots[0] = { ...oldSlot, input: { ...(oldSlot.input as Record<string, unknown> ?? {}), ...inputUpdates } } as unknown as typeof slots[0]
+  slots[0] = {
+    ...oldSlot,
+    input: { ...((oldSlot.input as Record<string, unknown>) ?? {}), ...inputUpdates },
+  } as unknown as (typeof slots)[0]
   return { ...node, slots } as FlowNode
 }
 
@@ -58,7 +56,7 @@ function updateSlotInput(node: FlowNode, inputUpdates: Record<string, unknown>):
 function updateSlotField(node: FlowNode, field: string, value: unknown): FlowNode {
   const slots = [...node.slots]
   const oldSlot = (slots[0] as unknown as Record<string, unknown>) ?? {}
-  slots[0] = { ...oldSlot, [field]: value } as unknown as typeof slots[0]
+  slots[0] = { ...oldSlot, [field]: value } as unknown as (typeof slots)[0]
   return { ...node, slots } as FlowNode
 }
 
@@ -153,17 +151,14 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
       case 'condition': {
         const slots = node.slots as unknown as Array<Record<string, unknown>>
         return (
-          <div className={styles.infoText}>
-            {slots.length} 条条件分支。在画布上通过连线配置分支目标。
-          </div>
+          <div className={styles.infoText}>{slots.length} 条条件分支。在画布上通过连线配置分支目标。</div>
         )
       }
 
       case 'loop':
         return (
           <div className={styles.infoText}>
-            循环节点：while (filter) 执行 body 子图。
-            filter 和 body 通过 SlotValue 编辑器配置。
+            循环节点：while (filter) 执行 body 子图。 filter 和 body 通过 SlotValue 编辑器配置。
           </div>
         )
 
@@ -172,7 +167,7 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
           <>
             <FormField label="收敛模式">
               <Select
-                value={getSlotField(node, 'mode') as string ?? 'all'}
+                value={(getSlotField(node, 'mode') as string) ?? 'all'}
                 onChange={(v) => onChange(updateSlotField(node, 'mode', v))}
                 size="small"
                 className={styles.fullWidth}
@@ -186,19 +181,11 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
         )
 
       case 'return':
-        return (
-          <div className={styles.infoText}>
-            返回节点：终止子图执行。可收集 inputs 作为返回值。
-          </div>
-        )
+        return <div className={styles.infoText}>返回节点：终止子图执行。可收集 inputs 作为返回值。</div>
 
       // ── function ──
       case 'function':
-        return (
-          <div className={styles.infoText}>
-            内联函数节点：创建新作用域执行 body 子图。
-          </div>
-        )
+        return <div className={styles.infoText}>内联函数节点：创建新作用域执行 body 子图。</div>
 
       // ── action ──
       case 'setVariable':
@@ -318,7 +305,7 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
                 size="small"
                 className={styles.fullWidth}
                 placeholder="选择云函数"
-                options={flowOptions.map(f => ({ label: f.name, value: f.id }))}
+                options={flowOptions.map((f) => ({ label: f.name, value: f.id }))}
                 showSearch
                 allowClear
               />
@@ -373,7 +360,7 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
                 size="small"
                 className={styles.fullWidth}
                 placeholder="选择集合"
-                options={collectionOptions.map(c => ({ label: c, value: c }))}
+                options={collectionOptions.map((c) => ({ label: c, value: c }))}
                 showSearch
                 allowClear
               />
@@ -390,7 +377,7 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
               size="small"
               className={styles.fullWidth}
               placeholder="选择集合"
-              options={collectionOptions.map(c => ({ label: c, value: c }))}
+              options={collectionOptions.map((c) => ({ label: c, value: c }))}
               showSearch
             />
           </FormField>
@@ -405,7 +392,7 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
               size="small"
               className={styles.fullWidth}
               placeholder="选择集合"
-              options={collectionOptions.map(c => ({ label: c, value: c }))}
+              options={collectionOptions.map((c) => ({ label: c, value: c }))}
               showSearch
             />
           </FormField>
@@ -420,7 +407,7 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
               size="small"
               className={styles.fullWidth}
               placeholder="选择集合"
-              options={collectionOptions.map(c => ({ label: c, value: c }))}
+              options={collectionOptions.map((c) => ({ label: c, value: c }))}
               showSearch
               allowClear
             />
@@ -633,7 +620,9 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
       <div className={styles.panelHeader}>
         <div className={styles.headerLeft}>
           <span className={styles.kindBadge}>{kindLabel}</span>
-          <span className={styles.nodeId} title={node.id}>{node.id.slice(0, 8)}</span>
+          <span className={styles.nodeId} title={node.id}>
+            {node.id.slice(0, 8)}
+          </span>
         </div>
         <button className={styles.closeBtn} onClick={onClose} aria-label="关闭属性面板">
           <CloseOutlined />
@@ -643,9 +632,7 @@ export const FlowNodePropertyPanel: React.FC<FlowNodePropertyPanelProps> = ({
       <Divider className={styles.headerDivider} />
 
       {/* 表单体 */}
-      <div className={styles.panelBody}>
-        {formBody}
-      </div>
+      <div className={styles.panelBody}>{formBody}</div>
     </div>
   )
 }

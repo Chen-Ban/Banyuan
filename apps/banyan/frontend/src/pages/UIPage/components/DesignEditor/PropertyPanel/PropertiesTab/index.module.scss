@@ -82,7 +82,9 @@
   border-radius: var(--radius-sm);
   color: var(--color-text-tertiary);
   cursor: pointer;
-  transition: background var(--duration-normal), color var(--duration-normal);
+  transition:
+    background var(--duration-normal),
+    color var(--duration-normal);
   font-size: 11px;
 
   &:hover {

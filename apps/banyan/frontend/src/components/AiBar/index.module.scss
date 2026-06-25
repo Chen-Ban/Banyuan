@@ -38,7 +38,9 @@
   color: var(--color-text-tertiary);
   white-space: nowrap;
   line-height: 1;
-  transition: color var(--duration-fast), background var(--duration-fast);
+  transition:
+    color var(--duration-fast),
+    background var(--duration-fast);
 
   &:hover {
     color: var(--color-text-secondary);
@@ -60,7 +62,9 @@
   border-radius: var(--radius-2xl);
   overflow: hidden;
   flex-shrink: 0;
-  transition: border-color var(--duration-normal), box-shadow var(--duration-normal);
+  transition:
+    border-color var(--duration-normal),
+    box-shadow var(--duration-normal);
 
   &:focus-within {
     border-color: var(--color-brand-border-focus);
@@ -71,7 +75,8 @@
 // ─── SSE 加载呼吸灯动画 ────────────────────────────────────────────────────────
 
 @keyframes breathing-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: none;
     border-color: var(--color-border);
   }
@@ -208,7 +213,9 @@
   font-size: $text-md;
   padding: 0;
   flex-shrink: 0;
-  transition: background var(--duration-fast), color var(--duration-fast);
+  transition:
+    background var(--duration-fast),
+    color var(--duration-fast);
 
   &:hover {
     background: var(--color-bg-active);
@@ -263,7 +270,10 @@
   justify-content: center;
   font-size: $text-lg;
   padding: 0;
-  transition: background var(--duration-fast), transform 0.1s, opacity var(--duration-fast);
+  transition:
+    background var(--duration-fast),
+    transform 0.1s,
+    opacity var(--duration-fast);
   flex-shrink: 0;
 
   &:active {

@@ -1,12 +1,12 @@
-import React from "react";
-import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
-import type { IBanvasActions, IAppOptions } from "@banyuan/banvasgl";
-import type { WebSurfaceOptions } from "@banyuan/banvasgl-react";
-import { useInteraction } from "@/hooks/useInteraction";
-import { useDesignContextMenu } from "./useDesignContextMenu";
-import type { UseDesignContextMenuResult } from "./useDesignContextMenu";
-import type { IContextMenuState } from "@/types/contextMenu";
-import { useApplicationStore } from "@/stores/applicationStore";
+import React from 'react'
+import { useFixedCanvasInit } from '@banyuan/banvasgl-react'
+import type { IBanvasActions, IAppOptions } from '@banyuan/banvasgl'
+import type { WebSurfaceOptions } from '@banyuan/banvasgl-react'
+import { useInteraction } from '@/hooks/useInteraction'
+import { useDesignContextMenu } from './useDesignContextMenu'
+import type { UseDesignContextMenuResult } from './useDesignContextMenu'
+import type { IContextMenuState } from '@/types/contextMenu'
+import { useApplicationStore } from '@/stores/applicationStore'
 
 /**
  * useDesignBanvas Hook 的返回值类型
@@ -20,56 +20,50 @@ import { useApplicationStore } from "@/stores/applicationStore";
  */
 export interface IUseBanvasResult<TElement = unknown> {
   /** Canvas 渲染元素（React.ReactElement 或其他 UI 框架元素） */
-  Banvas: TElement;
+  Banvas: TElement
   /** 当前活跃页面 ID */
-  currentPageId: string | null;
+  currentPageId: string | null
   /** 当前选中视图 ID（空字符串表示未选中） */
-  selectedViewId: string;
+  selectedViewId: string
   /** 命名空间化的操作接口 */
-  actions: IBanvasActions;
+  actions: IBanvasActions
   /** 右键菜单上下文 */
-  contextMenu: IContextMenuState;
+  contextMenu: IContextMenuState
   /** 保存为物料弹窗控制 */
-  saveMaterial: UseDesignContextMenuResult['saveMaterial'];
+  saveMaterial: UseDesignContextMenuResult['saveMaterial']
   /** canvas DOM 节点，供 CanvasDecoration 实时获取 CSS 位置和尺寸 */
-  canvasNode: HTMLCanvasElement | null;
+  canvasNode: HTMLCanvasElement | null
 }
 
 export interface UseDesignBanvasOptions {
-  appOptions?: Partial<IAppOptions>;
-  rendererOptions?: WebSurfaceOptions;
+  appOptions?: Partial<IAppOptions>
+  rendererOptions?: WebSurfaceOptions
   /** 画布外边距（px），透传给 useFixedCanvasInit，默认 36 */
-  canvasMargin?: number;
+  canvasMargin?: number
 }
 
 export default function useDesignBanvas(
   options: UseDesignBanvasOptions,
 ): IUseBanvasResult<React.ReactElement> {
-  const { appOptions, rendererOptions, canvasMargin } = options;
+  const { appOptions, rendererOptions, canvasMargin } = options
 
   // ── Store 桥接源 ──
-  const designSize = useApplicationStore((s) => s.designSize);
-  const designDpr = useApplicationStore((s) => s.designDpr);
-  const uiJSON = useApplicationStore((s) => s.uiJSON);
-  const { registerActions, setDesignSize } = useApplicationStore();
+  const designSize = useApplicationStore((s) => s.designSize)
+  const designDpr = useApplicationStore((s) => s.designDpr)
+  const uiJSON = useApplicationStore((s) => s.uiJSON)
+  const { registerActions, setDesignSize } = useApplicationStore()
 
   // ── 初始化：固定模式画布 + textInput ──
   // flowEnabled: false — 编辑态禁止 FlowSchema 执行（显式传值，不依赖隐式约定）
-  const appOptionsStable = React.useMemo(
-    () => ({ flowEnabled: false, ...appOptions }),
-    [appOptions],
-  );
-  const fallbackRendererOptions = React.useMemo(
-    () => ({ clearColor: "#fff" }),
-    [],
-  );
+  const appOptionsStable = React.useMemo(() => ({ flowEnabled: false, ...appOptions }), [appOptions])
+  const fallbackRendererOptions = React.useMemo(() => ({ clearColor: '#fff' }), [])
   const { actions, elements, derived } = useFixedCanvasInit({
     appOptions: appOptionsStable,
     rendererOptions: rendererOptions ?? fallbackRendererOptions,
     textInput: true,
     canvasMargin,
     dpr: designDpr,
-  });
+  })
 
   // ════════════════════════════════════════════════════════════════
   // Store ↔ 引擎 桥接
@@ -78,44 +72,44 @@ export default function useDesignBanvas(
   // ① designSize: store → 引擎
   React.useEffect(() => {
     if (actions?.app) {
-      actions.app.setDesignSize(designSize.width, designSize.height);
+      actions.app.setDesignSize(designSize.width, designSize.height)
     }
-  }, [actions, designSize.width, designSize.height]);
+  }, [actions, designSize.width, designSize.height])
 
   // ② 挂载 actions 到 store + 同步设计尺寸: 引擎 → store
   React.useEffect(() => {
-    if (!actions?.app) return;
-    const unregister = registerActions(actions);
-    const ds = actions.app.getDesignSize();
-    setDesignSize({ width: ds.width, height: ds.height });
-    return unregister;
-  }, [registerActions, setDesignSize, actions]);
+    if (!actions?.app) return
+    const unregister = registerActions(actions)
+    const ds = actions.app.getDesignSize()
+    setDesignSize({ width: ds.width, height: ds.height })
+    return unregister
+  }, [registerActions, setDesignSize, actions])
 
   // ③ 引擎变更 → 标记 UI 脏
   React.useEffect(() => {
-    if (!actions?.app) return;
+    if (!actions?.app) return
     return actions.app.subscribe(() => {
-      useApplicationStore.getState().markUIDirty();
-    });
-  }, [actions]);
+      useApplicationStore.getState().markUIDirty()
+    })
+  }, [actions])
 
   // ④ uiJSON: store → 引擎
   React.useEffect(() => {
     if (actions?.app && uiJSON) {
-      actions.app.loadAppJSON(uiJSON);
+      actions.app.loadAppJSON(uiJSON)
     }
-  }, [uiJSON, actions]);
+  }, [uiJSON, actions])
 
   // ── 右键菜单 ──
-  const { contextMenu, onContextMenu, saveMaterial } = useDesignContextMenu(actions);
+  const { contextMenu, onContextMenu, saveMaterial } = useDesignContextMenu(actions)
 
   useInteraction({
     canvas: derived.canvas,
     actions,
-    mode: "design",
+    mode: 'design',
     inputElement: derived.inputElement,
     onContextMenu,
-  });
+  })
 
   return {
     Banvas: elements.container,
@@ -125,5 +119,5 @@ export default function useDesignBanvas(
     contextMenu,
     saveMaterial,
     canvasNode: derived.canvas,
-  };
+  }
 }

@@ -37,7 +37,9 @@
 .group {
   margin-bottom: 16px;
 
-  &:last-child { margin-bottom: 0; }
+  &:last-child {
+    margin-bottom: 0;
+  }
 }
 
 .groupTitle {
@@ -64,7 +66,9 @@
   background: var(--color-bg-hover);
   border: 1px solid transparent;
   cursor: grab;
-  transition: background var(--duration-normal), border-color var(--duration-normal);
+  transition:
+    background var(--duration-normal),
+    border-color var(--duration-normal);
   user-select: none;
 
   &:hover {
@@ -115,7 +119,9 @@
   background: none;
   width: 100%;
   border-radius: var(--radius-sm);
-  transition: color var(--duration-normal), background var(--duration-normal);
+  transition:
+    color var(--duration-normal),
+    background var(--duration-normal);
 
   &:hover {
     color: var(--color-info-text);

@@ -5,68 +5,70 @@
  * API 不可用时降级为模拟满电状态。
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
 export interface BatteryInfo {
   /** 电量百分比 0-100 */
-  level: number;
+  level: number
   /** 是否正在充电 */
-  charging: boolean;
+  charging: boolean
   /** 电池图标颜色 */
-  color: string;
+  color: string
 }
 
 function getColor(level: number, charging: boolean): string {
-  if (charging) return '#4cd964';
-  if (level <= 10) return '#ff3b30';
-  if (level <= 20) return '#ff9500';
-  return '#fff';
+  if (charging) return '#4cd964'
+  if (level <= 10) return '#ff3b30'
+  if (level <= 20) return '#ff9500'
+  return '#fff'
 }
 
-const FALLBACK: BatteryInfo = { level: 75, charging: false, color: '#fff' };
+const FALLBACK: BatteryInfo = { level: 75, charging: false, color: '#fff' }
 
 export function useBatteryStatus(): BatteryInfo {
-  const [info, setInfo] = useState<BatteryInfo>(FALLBACK);
+  const [info, setInfo] = useState<BatteryInfo>(FALLBACK)
 
   useEffect(() => {
     // Battery Status API 仅在 secure context 且浏览器支持时可用
     const nav = navigator as Navigator & {
       getBattery?: () => Promise<{
-        level: number;
-        charging: boolean;
-        addEventListener: (type: string, fn: () => void) => void;
-        removeEventListener: (type: string, fn: () => void) => void;
-      }>;
-    };
+        level: number
+        charging: boolean
+        addEventListener: (type: string, fn: () => void) => void
+        removeEventListener: (type: string, fn: () => void) => void
+      }>
+    }
 
-    if (!nav.getBattery) return;
+    if (!nav.getBattery) return
 
-    let cancelled = false;
+    let cancelled = false
 
     const update = (battery: { level: number; charging: boolean }) => {
-      if (cancelled) return;
-      const level = Math.round(battery.level * 100);
-      setInfo({ level, charging: battery.charging, color: getColor(level, battery.charging) });
-    };
+      if (cancelled) return
+      const level = Math.round(battery.level * 100)
+      setInfo({ level, charging: battery.charging, color: getColor(level, battery.charging) })
+    }
 
     nav.getBattery().then((battery) => {
-      if (cancelled) return;
-      update(battery);
+      if (cancelled) return
+      update(battery)
 
-      const onCharging = () => update(battery);
-      const onLevel = () => update(battery);
-      battery.addEventListener('chargingchange', onCharging);
-      battery.addEventListener('levelchange', onLevel);
+      const onCharging = () => update(battery)
+      const onLevel = () => update(battery)
+      battery.addEventListener('chargingchange', onCharging)
+      battery.addEventListener('levelchange', onLevel)
 
       return () => {
-        cancelled = true;
-        battery.removeEventListener('chargingchange', onCharging);
-        battery.removeEventListener('levelchange', onLevel);
-      };
-    });
+        cancelled = true
+        battery.removeEventListener('chargingchange', onCharging)
+        battery.removeEventListener('levelchange', onLevel)
+      }
+    })
 
-    return () => { cancelled = true; };
-  }, []);
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
-  return info;
+  return info
 }

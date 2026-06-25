@@ -27,17 +27,17 @@ const DevicePicker: React.FC = () => {
         icon: <GroupIcon />,
         label: `${preset.label}（${preset.width}×${preset.height}）`,
         onClick: () => {
-          changeDesignSize({ width: preset.width, height: preset.height }, preset.dpr);
-          setDeviceType(preset.deviceType);
+          changeDesignSize({ width: preset.width, height: preset.height }, preset.dpr)
+          setDeviceType(preset.deviceType)
         },
       })),
     ]
   })
 
   // 当前选中的设备标签
-  const currentDeviceLabel = ALL_DEVICE_PRESETS.find(
-    (p) => p.width === designSize.width && p.height === designSize.height,
-  )?.label ?? `${designSize.width}×${designSize.height}`
+  const currentDeviceLabel =
+    ALL_DEVICE_PRESETS.find((p) => p.width === designSize.width && p.height === designSize.height)?.label ??
+    `${designSize.width}×${designSize.height}`
 
   return (
     <Dropdown
@@ -50,7 +50,9 @@ const DevicePicker: React.FC = () => {
       <button className={styles.devicePicker}>
         <LaptopOutlined />
         <span className={styles.deviceLabel}>{currentDeviceLabel}</span>
-        <DownOutlined className={`${styles.deviceArrow}${deviceDropdownOpen ? ` ${styles.deviceArrowOpen}` : ''}`} />
+        <DownOutlined
+          className={`${styles.deviceArrow}${deviceDropdownOpen ? ` ${styles.deviceArrowOpen}` : ''}`}
+        />
       </button>
     </Dropdown>
   )

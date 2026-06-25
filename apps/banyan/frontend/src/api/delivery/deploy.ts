@@ -9,7 +9,15 @@ import type { ApiResponse } from '../client'
 
 export type DeployStatus = 'pending' | 'building' | 'deploying' | 'success' | 'failed'
 export type DeployType = 'static' | 'fullstack'
-export type ProvisionStatus = 'none' | 'pending' | 'creating_ecs' | 'configuring_dns' | 'initializing' | 'installing_agent' | 'ready' | 'failed'
+export type ProvisionStatus =
+  | 'none'
+  | 'pending'
+  | 'creating_ecs'
+  | 'configuring_dns'
+  | 'initializing'
+  | 'installing_agent'
+  | 'ready'
+  | 'failed'
 
 export interface DeploymentRecord {
   deploymentId: string

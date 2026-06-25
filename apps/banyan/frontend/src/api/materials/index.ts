@@ -111,6 +111,9 @@ export function deleteMaterial(materialId: string, applicationId?: string): Prom
 /**
  * 搜索物料
  */
-export function searchMaterials(keyword: string, limit?: number): Promise<ApiResponse<Partial<MaterialDocument>[]>> {
+export function searchMaterials(
+  keyword: string,
+  limit?: number,
+): Promise<ApiResponse<Partial<MaterialDocument>[]>> {
   return get<ApiResponse<Partial<MaterialDocument>[]>>('/materials/search', { keyword, limit })
 }

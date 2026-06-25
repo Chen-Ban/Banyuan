@@ -69,94 +69,92 @@ const initialState: PreviewServerState = {
 
 // ── Store ───────────────────────────────────────────────────────────────────────
 
-export const usePreviewServerStore = create<PreviewServerState & PreviewServerActions>()(
-  (set, get) => ({
-    ...initialState,
+export const usePreviewServerStore = create<PreviewServerState & PreviewServerActions>()((set, get) => ({
+  ...initialState,
 
-    start: async (appId) => {
-      console.log('[previewServerStore] start called, isElectron:', isElectron(), 'appId:', appId)
+  start: async (appId) => {
+    console.log('[previewServerStore] start called, isElectron:', isElectron(), 'appId:', appId)
 
-      if (!isElectron()) {
-        console.warn('[previewServerStore] 非 Electron 环境，跳过 Preview Server 启动')
+    if (!isElectron()) {
+      console.warn('[previewServerStore] 非 Electron 环境，跳过 Preview Server 启动')
+      return
+    }
+
+    const gen = get()._startGen + 1
+    set({ status: 'starting', errorMessage: '', _startGen: gen })
+
+    try {
+      // 并行加载启动所需数据
+      console.log('[previewServerStore] 加载应用数据...')
+      const [appRes, schemaRes, functionsRes] = await Promise.all([
+        applicationApi.fetchApplication(appId),
+        schemaApi.fetchDataSchema(appId),
+        cloudFunctionApi.listFunctions(appId),
+      ])
+      console.log('[previewServerStore] 数据加载完成')
+
+      // 检查是否已被取消（stop/reset/新 start 覆盖了 gen）
+      if (get()._startGen !== gen) {
+        console.warn('[previewServerStore] 启动已取消（gen 不匹配）')
         return
       }
 
-      const gen = get()._startGen + 1
-      set({ status: 'starting', errorMessage: '', _startGen: gen })
+      const uiJSON = appRes.data?.uiJSON ? JSON.parse(appRes.data.uiJSON) : {}
+      const collections = schemaRes.data?.collections || []
+      const cloudFunctions = functionsRes.data || []
 
-      try {
-        // 并行加载启动所需数据
-        console.log('[previewServerStore] 加载应用数据...')
-        const [appRes, schemaRes, functionsRes] = await Promise.all([
-          applicationApi.fetchApplication(appId),
-          schemaApi.fetchDataSchema(appId),
-          cloudFunctionApi.listFunctions(appId),
-        ])
-        console.log('[previewServerStore] 数据加载完成')
+      console.log('[previewServerStore] 调用 startPreviewServer IPC...')
+      const info = await startPreviewServer({
+        appId,
+        uiJSON,
+        collectionSchemas: collections,
+        cloudFunctions,
+      })
 
-        // 检查是否已被取消（stop/reset/新 start 覆盖了 gen）
-        if (get()._startGen !== gen) {
-          console.warn('[previewServerStore] 启动已取消（gen 不匹配）')
-          return
-        }
-
-        const uiJSON = appRes.data?.uiJSON ? JSON.parse(appRes.data.uiJSON) : {}
-        const collections = schemaRes.data?.collections || []
-        const cloudFunctions = functionsRes.data || []
-
-        console.log('[previewServerStore] 调用 startPreviewServer IPC...')
-        const info = await startPreviewServer({
-          appId,
-          uiJSON,
-          collectionSchemas: collections,
-          cloudFunctions,
-        })
-
-        if (get()._startGen !== gen) {
-          // 启动完成但已被取消 —— 停止刚启动的服务
-          console.warn('[previewServerStore] 启动完成但已被取消')
-          stopPreviewServer(appId).catch(() => {})
-          return
-        }
-
-        console.log('[previewServerStore] Preview Server 启动成功:', info.url)
-        set({ serverInfo: info, status: 'running' })
-      } catch (err: unknown) {
-        if (get()._startGen !== gen) return
-        const msg = err instanceof Error ? err.message : String(err)
-        console.error('[previewServerStore] 启动失败:', msg)
-        set({
-          status: 'error',
-          errorMessage: msg,
-        })
+      if (get()._startGen !== gen) {
+        // 启动完成但已被取消 —— 停止刚启动的服务
+        console.warn('[previewServerStore] 启动完成但已被取消')
+        stopPreviewServer(appId).catch(() => {})
+        return
       }
-    },
 
-    stop: async (appId) => {
-      // 立即递增 gen 以取消所有在途 start()——必须在 await 之前同步执行，
-      // 否则 React StrictMode 下第二次 start() 的 gen 会被异步 set 覆盖
-      const nextGen = get()._startGen + 1
-      set({ _startGen: nextGen })
+      console.log('[previewServerStore] Preview Server 启动成功:', info.url)
+      set({ serverInfo: info, status: 'running' })
+    } catch (err: unknown) {
+      if (get()._startGen !== gen) return
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('[previewServerStore] 启动失败:', msg)
+      set({
+        status: 'error',
+        errorMessage: msg,
+      })
+    }
+  },
 
-      if (isElectron()) {
-        await stopPreviewServer(appId).catch(() => {})
-      }
-      // 重置状态（gen 不可覆盖，已在上面设置）
-      set({ serverInfo: null, status: 'idle', errorMessage: '' })
-    },
+  stop: async (appId) => {
+    // 立即递增 gen 以取消所有在途 start()——必须在 await 之前同步执行，
+    // 否则 React StrictMode 下第二次 start() 的 gen 会被异步 set 覆盖
+    const nextGen = get()._startGen + 1
+    set({ _startGen: nextGen })
 
-    hotUpdate: async (patch) => {
-      const { serverInfo, status } = get()
-      if (!serverInfo || status !== 'running') return
-      if (!isElectron()) return
+    if (isElectron()) {
+      await stopPreviewServer(appId).catch(() => {})
+    }
+    // 重置状态（gen 不可覆盖，已在上面设置）
+    set({ serverInfo: null, status: 'idle', errorMessage: '' })
+  },
 
-      try {
-        await hotUpdatePreviewServer(serverInfo.appId, patch)
-      } catch (err: unknown) {
-        console.warn('[previewServerStore] hotUpdate failed:', err)
-      }
-    },
+  hotUpdate: async (patch) => {
+    const { serverInfo, status } = get()
+    if (!serverInfo || status !== 'running') return
+    if (!isElectron()) return
 
-    reset: () => set({ ...initialState, _startGen: get()._startGen + 1 }),
-  }),
-)
+    try {
+      await hotUpdatePreviewServer(serverInfo.appId, patch)
+    } catch (err: unknown) {
+      console.warn('[previewServerStore] hotUpdate failed:', err)
+    }
+  },
+
+  reset: () => set({ ...initialState, _startGen: get()._startGen + 1 }),
+}))
