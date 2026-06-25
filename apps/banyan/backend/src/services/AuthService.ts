@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
 import { User, type IUserDoc } from '../models/User.js'
+import { Tenant } from '../models/Tenant.js'
 import { Membership } from '../models/Membership.js'
 import type { IUser, MembershipRole, MembershipStatus } from '../models/types/index.js'
 import { RefreshToken } from '../models/RefreshToken.js'
@@ -119,10 +120,11 @@ export class AuthService {
   /**
    * 手机号验证码登录/注册
    *
-   * 与旧版的关键区别：
-   * - 注册时不再自动创建 Tenant
-   * - 注册成功后返回纯 User 实体，不携带 tenantId
-   * - 前端收到 isNewUser=true 后，引导用户创建或加入租户
+   * 新用户注册时自动创建：
+   *   - 个人默认租户（name = "{username}的个人空间", plan='free', planId='plan_free'）
+   *   - Membership（role='owner'）
+   *   - JWT 直接携带 tenantId，前端无需额外引导
+   * 已有用户直接登录，JWT 不携带 tenantId（需通过 /auth/switch-tenant 切换）
    */
   async loginByPhone(
     phone: string,
@@ -136,15 +138,38 @@ export class AuthService {
     let isNewUser = false
 
     if (!user) {
-      // 仅创建 User，不创建 Tenant
+      // 创建 User + 默认个人租户 + Membership(role=owner) + 关联 plan_free
       isNewUser = true
       const userId = generateId('user')
+      const tenantId = generateId('tenant')
+      const membershipId = generateId('ms')
+      const username = `用户${phone.slice(-4)}`
+
       user = await User.create({
         userId,
         phone,
-        username: `用户${phone.slice(-4)}`,
+        username,
         status: 'active',
       })
+
+      await Tenant.create({
+        tenantId,
+        name: `${username}的个人空间`,
+        plan: 'free',
+        planId: 'plan_free',
+      })
+
+      await Membership.create({
+        membershipId,
+        userId,
+        tenantId,
+        role: 'owner',
+        status: 'active',
+        joinedAt: new Date(),
+      })
+
+      const tokens = await this._issueTokens(userId, tenantId)
+      return { user: this._sanitizeUser(user), tokens, isNewUser }
     }
 
     if (user.status === 'disabled') {
@@ -177,7 +202,6 @@ export class AuthService {
 
     if (memberships.length === 0) return []
 
-    const { Tenant } = await import('../models/Tenant.js')
     const tenantIds = memberships.map((m) => m.tenantId)
     const tenants = await Tenant.find({ tenantId: { $in: tenantIds } }).lean()
     const tenantMap = new Map(tenants.map((t) => [t.tenantId, t]))

@@ -56,6 +56,11 @@ const ApplicationSchema = new Schema<IApplicationDoc>(
       default: '',
       trim: true,
     },
+    visibility: {
+      type: String,
+      enum: ['private', 'team'],
+      default: 'private',
+    },
 
     // Web 发布相关（ADR-028）
     appSlug: {

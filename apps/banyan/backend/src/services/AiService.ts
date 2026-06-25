@@ -67,6 +67,7 @@ import {
   AiNoConfirmableDialogueError,
 } from '../errors/index.js'
 import { sseWriteError } from '../errors/sse.js'
+import { creditService } from './CreditService.js'
 
 // XiangDi 服务地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
@@ -464,7 +465,7 @@ class AiService {
       if (!app) throw new AiAppNotFoundError(appId)
 
       await conversationService.getOrCreate(appId)
-      await this._runDialogue(appId, prompt, type, images, res)
+      await this._runDialogue(appId, app.tenantId, prompt, type, images, res)
     } catch (err) {
       if (err instanceof ContextBudgetOverflowError) {
         sseWriteError(res, new AiContextBudgetError(err.details))
@@ -483,6 +484,7 @@ class AiService {
    */
   private async _runDialogue(
     appId: string,
+    tenantId: string,
     prompt: string,
     type: DialogueType,
     images: Array<{ url: string; alt?: string }>,
@@ -543,7 +545,25 @@ class AiService {
             await dialogueService.setRoundSummary(dialogueId, summary)
           }
 
-          // 5b. chat 模式：无需确认，直接扭转到 done（内容已按版本号写入三表）
+          // 5b. 估算 token 用量并记录 credit 消耗
+          // 输入 token 从 prompt 估算，输出 token 从 AI 响应文本 + finalUIJSON 估算
+          try {
+            const inputTokens = estimateTokens(prompt)
+            let outputText = ''
+            if (assistantContent.length > 0 && assistantContent[0].type === 'text') {
+              outputText = assistantContent[0].text + '\n' + finalUIJSON
+            } else {
+              outputText = finalUIJSON
+            }
+            const outputTokens = estimateTokens(outputText)
+            const modelName = getActiveModelName()
+            const sessionId = dialogueId.toString()
+            await creditService.recordUsage(tenantId, sessionId, modelName, inputTokens, outputTokens)
+          } catch (err) {
+            console.error('[AiService] credit 记录失败:', err)
+          }
+
+          // 5c. chat 模式：无需确认，直接扭转到 done（内容已按版本号写入三表）
           if (type === 'chat') {
             await conversationService.registerDialogue(appId, dialogueId)
             if (summary) {

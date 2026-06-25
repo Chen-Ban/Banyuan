@@ -10,6 +10,7 @@ interface UpdateApplicationRequest {
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
+  visibility?: 'private' | 'team'
 }
 
 class ApplicationController {
@@ -33,8 +34,8 @@ class ApplicationController {
       let query: import('../services/ApplicationService').IApplicationQuery
 
       if (user.membershipRole === 'member') {
-        // 成员：仅看同租户下自己的应用
-        query = { ...baseQuery, tenantId: user.tenantId, createdBy: user.userId }
+        // 成员：看同租户下自己的应用 + team 可见的应用
+        query = { ...baseQuery, createdOrVisibleToTeam: { tenantId: user.tenantId, userId: user.userId } }
       } else {
         // admin / owner：看租户内所有应用
         query = { ...baseQuery, tenantId: user.tenantId }
