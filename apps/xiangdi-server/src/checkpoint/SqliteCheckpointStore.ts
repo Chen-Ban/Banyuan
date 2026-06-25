@@ -14,6 +14,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 import type { CheckpointStore, ThreadStatus, CleanupConfig } from './types.js'
 import { DEFAULT_CLEANUP_CONFIG } from './types.js'
+import { logger } from '../logger.js'
 
 // ─── 内部类型 ────────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ export class SqliteCheckpointStore implements CheckpointStore {
       ).run(threadId, status, Date.now())
     } catch (err) {
       // 不应阻塞主流程
-      console.warn('[SqliteCheckpointStore] Failed to record activity:', err)
+      logger.warn('Failed to record activity', { error: err instanceof Error ? err.message : String(err), threadId })
     }
   }
 
@@ -78,17 +79,17 @@ export class SqliteCheckpointStore implements CheckpointStore {
 
     this.cleanupTimer = setInterval(() => {
       this.cleanupExpiredThreads().catch((err) => {
-        console.error('[SqliteCheckpointStore] Cleanup error:', err)
+        logger.error('Cleanup error', err)
       })
     }, interval)
     this.cleanupTimer.unref()
 
-    console.log(
-      `[SqliteCheckpointStore] Started (path=${this.dbPath}, ` +
-        `completedTTL=${this.cleanupConfig.completedTTL}ms, ` +
-        `interruptedTTL=${this.cleanupConfig.interruptedTTL}ms, ` +
-        `interval=${interval}ms)`,
-    )
+    logger.info('SqliteCheckpointStore started', {
+      dbPath: this.dbPath,
+      completedTTL: this.cleanupConfig.completedTTL,
+      interruptedTTL: this.cleanupConfig.interruptedTTL,
+      interval,
+    })
   }
 
   async stop(): Promise<void> {
@@ -165,9 +166,10 @@ CREATE TABLE IF NOT EXISTS thread_activity (
     const transaction = db.transaction(deleteBatch as (...args: unknown[]) => unknown)
     transaction(expiredThreadIds)
 
-    console.log(
-      `[SqliteCheckpointStore] Cleaned ${expiredThreadIds.length} expired threads ` +
-        `(${expiredCompleted.length} completed, ${expiredOther.length} interrupted/running)`,
-    )
+    logger.info('Cleaned expired checkpoint threads', {
+      count: expiredThreadIds.length,
+      completed: expiredCompleted.length,
+      interruptedOrRunning: expiredOther.length,
+    })
   }
 }

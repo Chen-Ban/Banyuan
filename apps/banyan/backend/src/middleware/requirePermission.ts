@@ -5,7 +5,7 @@
  *   router.post('/deploy/publish', requirePermission('deploy:publish'), handler)
  *
  * 原理：从 JWT 解析 tenantId → 查 Tenant.planId → 查 Plan.permissions
- * 如果权限列表中不包含所需 permission，返回 403。
+ * 如果 JWT 不携带 tenantId（用户未选择租户上下文），返回 403。
  *
  * 缓存策略：每次请求查库（Plan 表极少变更，后续可加内存缓存）。
  */
@@ -54,6 +54,16 @@ export function requirePermission(permission: string): Middleware {
       return
     }
 
+    if (!user.tenantId) {
+      ctx.status = 403
+      ctx.body = {
+        success: false,
+        message: '请先创建或加入一个团队',
+        code: 'NO_TENANT_CONTEXT',
+      }
+      return
+    }
+
     const perms = await getPlanPermissions(user.tenantId)
     if (!perms.includes(permission)) {
       ctx.status = 403
@@ -62,6 +72,34 @@ export function requirePermission(permission: string): Middleware {
         message: '当前套餐不支持此操作，请升级套餐',
         code: 'PERMISSION_DENIED',
         requiredPermission: permission,
+      }
+      return
+    }
+
+    await next()
+  }
+}
+
+/**
+ * requireTenant — 强制要求 JWT 携带 tenantId
+ * 用于所有需要租户上下文的接口。
+ * 必须在 authMiddleware 之后使用。
+ */
+export function requireTenant(): Middleware {
+  return async (ctx, next) => {
+    const user = ctx.state.user
+    if (!user) {
+      ctx.status = 401
+      ctx.body = { success: false, message: '未认证' }
+      return
+    }
+
+    if (!user.tenantId) {
+      ctx.status = 403
+      ctx.body = {
+        success: false,
+        message: '请先创建或加入一个团队',
+        code: 'NO_TENANT_CONTEXT',
       }
       return
     }

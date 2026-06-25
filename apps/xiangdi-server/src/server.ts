@@ -1,13 +1,23 @@
+import { config } from 'dotenv'
+// 在读取任何 process.env 之前加载 .env 文件（优先级低于 OS 环境变量）
+config()
+
+// 设置服务名称（@banyuan/logger 延迟读取，import 前设置即可生效）
+process.env.SERVICE_NAME = process.env.SERVICE_NAME ?? 'xiangdi-server'
+
 import app from './app'
 import { getStore } from './checkpoint/index.js'
 import { logger } from './logger.js'
+import { getLangSmithConfig } from './tracing.js'
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3002
 
 const server = app.listen(PORT, () => {
+  const lsConfig = getLangSmithConfig()
   logger.info('XiangDi Server started', {
     port: PORT,
     endpoints: ['POST /ai/run', 'POST /ai/resume', 'GET  /ai/thread/:threadId/status'],
+    langsmith: lsConfig.enabled ? { enabled: true, project: lsConfig.project } : { enabled: false },
   })
 
   // 启动 CheckpointStore（含 TTL 清理定时任务）

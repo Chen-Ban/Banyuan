@@ -56,6 +56,8 @@ export interface BanyanClientConfig {
   internalToken?: string
   /** 请求超时（ms），默认 10000 */
   timeout?: number
+  /** 链路追踪 ID，会以 X-Trace-Id header 透传给 banyan 后端 */
+  traceId?: string
 }
 
 // ─── 实现 ─────────────────────────────────────────────────────────────────────
@@ -64,11 +66,13 @@ export class BanyanClient {
   private readonly baseUrl: string
   private readonly internalToken?: string
   private readonly timeout: number
+  private readonly traceId?: string
 
   constructor(config: BanyanClientConfig = {}) {
     this.baseUrl = config.baseUrl ?? process.env.BANYAN_URL ?? 'http://localhost:3001'
-    this.internalToken = config.internalToken ?? process.env.INTERNAL_API_TOKEN ?? '__dev_internal_token__'
+    this.internalToken = config.internalToken ?? process.env.INTERNAL_API_TOKEN
     this.timeout = config.timeout ?? 10000
+    this.traceId = config.traceId
   }
 
   /**
@@ -218,6 +222,7 @@ export class BanyanClient {
         headers: {
           Accept: 'application/json',
           ...(this.internalToken ? { 'X-Internal-Token': this.internalToken } : {}),
+          ...(this.traceId ? { 'X-Trace-Id': this.traceId } : {}),
         },
         timeout: this.timeout,
       }

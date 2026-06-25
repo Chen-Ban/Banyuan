@@ -67,6 +67,8 @@ import {
   AiNoConfirmableDialogueError,
 } from '../errors/index.js'
 import { sseWriteError } from '../errors/sse.js'
+import { creditService } from './CreditService.js'
+import { logger } from '../utils/logger.js'
 
 // XiangDi 服务地址
 const XIANGDI_BASE_URL = process.env.XIANGDI_URL ?? 'http://localhost:3002'
@@ -121,7 +123,7 @@ function startHeartbeat(res: ServerResponse): () => void {
 
 interface ProxySSECallbacks {
   /** 流结束时回调：携带最终 UI 定义 JSON 和助手内容 */
-  onDone: (uiJSON: string, assistantContent: IAssistantContent[], summary: string | null) => Promise<void>
+  onDone: (uiJSON: string, assistantContent: IAssistantContent[], summary: string | null, tokenUsage?: { inputTokens: number; outputTokens: number }) => Promise<void>
   /** 错误时回调 */
   onError?: () => Promise<void>
   /** 收到 app_state 事件（包含 schema + cloudFunctions）时回调 */
@@ -130,6 +132,8 @@ interface ProxySSECallbacks {
 
 interface ProxySSEOptions {
   phaseCtrl?: PhaseController
+  /** 对话 ID（用于 XiangDi 回写 threadId 和 LangSmith 关联） */
+  dialogueId?: Types.ObjectId
 }
 
 function proxySSECore(
@@ -190,9 +194,25 @@ function proxySSECore(
     let finalUIJSON = ''
 
     const phaseCtrl = options?.phaseCtrl
+    const dialogueId = options?.dialogueId
 
     function dispatchEvent(currentEvent: string, dataStr: string): void {
       if (!currentEvent || !dataStr) return
+
+      // ── started：捕获 threadId 并持久化到 Dialogue ──
+      if (currentEvent === 'started') {
+        try {
+          const parsed = JSON.parse(dataStr) as { threadId?: string }
+          if (parsed.threadId && dialogueId && !settled) {
+            dialogueService.setThreadId(dialogueId, parsed.threadId).catch((err) => {
+              logger.error('[AiService] 写入 threadId 失败:', err)
+            })
+          }
+        } catch {
+          /* ignore */
+        }
+        // started 事件透传给前端
+      }
 
       // ── text_delta：累积文字 + 透传 ──
       if (currentEvent === 'text_delta') {
@@ -260,15 +280,19 @@ function proxySSECore(
       // ── done：触发 onDone + Phase 推进 ──
       if (currentEvent === 'done') {
         try {
-          const parsed = JSON.parse(dataStr) as { summary?: string; artifacts?: unknown }
+          const parsed = JSON.parse(dataStr) as { summary?: string; artifacts?: unknown; tokenUsage?: { inputTokens: number; outputTokens: number } }
           summaryBuffer = parsed.summary ?? null
+          let tokenUsage: { inputTokens: number; outputTokens: number } | undefined
+          if (parsed.tokenUsage) {
+            tokenUsage = parsed.tokenUsage
+          }
           if (textBuffer) {
             assistantContentBuffer.unshift({ type: 'text', text: textBuffer })
           }
           assistantContentBuffer.push({ type: 'app_snapshot', uiJSON: finalUIJSON })
 
           callbacks
-            .onDone(finalUIJSON, assistantContentBuffer, summaryBuffer)
+            .onDone(finalUIJSON, assistantContentBuffer, summaryBuffer, tokenUsage)
             .then(async () => {
               if (phaseCtrl && !phaseCtrl.isTerminal()) {
                 const phase = phaseCtrl.getPhase()
@@ -280,7 +304,7 @@ function proxySSECore(
               }
             })
             .catch((err) => {
-              console.error('[AiService] onDone 回调或 phase 转移失败:', err)
+              logger.error('[AiService] onDone 回调或 phase 转移失败:', err)
               if (phaseCtrl && !phaseCtrl.isTerminal()) {
                 phaseCtrl.fail().catch(() => {})
               }
@@ -295,19 +319,19 @@ function proxySSECore(
         try {
           const parsed = JSON.parse(dataStr) as { message?: string; code?: string }
           const agentErr = new AiAgentError(parsed.message ?? '未知错误', parsed.code)
-          console.error('[AiService] XiangDi upstream error:', parsed.message, parsed.code)
+          logger.error('[AiService] XiangDi upstream error:', parsed.message, parsed.code)
           assistantContentBuffer.push({ type: 'error', message: agentErr.userMessage })
           // 重新序列化为统一格式写给前端（用户看到通用提示，不看到技术细节）
           sseWriteError(clientRes, agentErr)
         } catch {
-          console.error('[AiService] XiangDi upstream error (unparseable):', dataStr)
+          logger.error('[AiService] XiangDi upstream error (unparseable):', dataStr)
           sseWriteError(clientRes, new AiAgentError('未知错误'))
         }
         if (phaseCtrl && !phaseCtrl.isTerminal()) {
           phaseCtrl.fail().catch(() => {})
         }
         callbacks.onError?.().catch((err) => {
-          console.error('[AiService] onError 回调失败:', err)
+          logger.error('[AiService] onError 回调失败:', err)
         })
         // 已经通过 sseWriteError 写给前端了，不再透传原始 dataStr
         return
@@ -464,7 +488,7 @@ class AiService {
       if (!app) throw new AiAppNotFoundError(appId)
 
       await conversationService.getOrCreate(appId)
-      await this._runDialogue(appId, prompt, type, images, res)
+      await this._runDialogue(appId, app.tenantId, prompt, type, images, res)
     } catch (err) {
       if (err instanceof ContextBudgetOverflowError) {
         sseWriteError(res, new AiContextBudgetError(err.details))
@@ -483,6 +507,7 @@ class AiService {
    */
   private async _runDialogue(
     appId: string,
+    tenantId: string,
     prompt: string,
     type: DialogueType,
     images: Array<{ url: string; alt?: string }>,
@@ -517,12 +542,13 @@ class AiService {
     const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
     const { contextSummary, recentMessages: historyMessages } = layeredContext
 
-    // 4. 构造 requestBody（ADR-041 协议：无 threadId/requireApproval）
+    // 4. 构造 requestBody（ADR-041 协议：传入 dialogueId 用于 LangSmith 链路关联）
     const imageUrls = images.length > 0 ? images.map((img) => img.url) : undefined
     const requestBody = JSON.stringify({
       appId,
       prompt,
       mode: type,
+      dialogueId: dialogueId.toString(),
       previousMessages: historyMessages,
       ...(contextSummary ? { memoryHint: contextSummary } : {}),
       ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),
@@ -535,7 +561,7 @@ class AiService {
       requestBody,
       res,
       {
-        onDone: async (finalUIJSON, assistantContent, summary) => {
+        onDone: async (finalUIJSON, assistantContent, summary, tokenUsage) => {
           // 5a. 按版本号原地更新 UI 定义 JSON 草稿记录（所有模式共享）
           await uiDefinitionService.updateByVersion(appId, uiDefinitionVersion, finalUIJSON)
           await dialogueService.appendAssistantContent(dialogueId, assistantContent)
@@ -543,12 +569,36 @@ class AiService {
             await dialogueService.setRoundSummary(dialogueId, summary)
           }
 
-          // 5b. chat 模式：无需确认，直接扭转到 done（内容已按版本号写入三表）
+          // 5b. 记录 credit 消耗：优先使用精确 token 值，fallback 到估算
+          try {
+            let inputTokens: number
+            let outputTokens: number
+            if (tokenUsage) {
+              inputTokens = tokenUsage.inputTokens
+              outputTokens = tokenUsage.outputTokens
+            } else {
+              inputTokens = estimateTokens(prompt)
+              let outputText = ''
+              if (assistantContent.length > 0 && assistantContent[0].type === 'text') {
+                outputText = assistantContent[0].text + '\n' + finalUIJSON
+              } else {
+                outputText = finalUIJSON
+              }
+              outputTokens = estimateTokens(outputText)
+            }
+            const modelName = getActiveModelName()
+            const sessionId = dialogueId.toString()
+            await creditService.recordUsage(tenantId, sessionId, modelName, inputTokens, outputTokens)
+          } catch (err) {
+            logger.error('[AiService] credit 记录失败:', err)
+          }
+
+          // 5c. chat 模式：无需确认，直接扭转到 done（内容已按版本号写入三表）
           if (type === 'chat') {
             await conversationService.registerDialogue(appId, dialogueId)
             if (summary) {
               this.persistDialogueSummary(appId, dialogueId, summary).catch((err) => {
-                console.error('[AiService] 对话摘要持久化失败:', err)
+                logger.error('[AiService] 对话摘要持久化失败:', err)
               })
             }
           }
@@ -561,7 +611,7 @@ class AiService {
           // Schema 变更：按版本号原地更新草稿记录
           if (Array.isArray(state.schema) && state.schema.length > 0) {
             SchemaService.updateByVersion(appId, schemaVersion, state.schema).catch((err) => {
-              console.error('[AiService] Schema 按版本号更新失败:', err)
+              logger.error('[AiService] Schema 按版本号更新失败:', err)
             })
           }
 
@@ -569,13 +619,13 @@ class AiService {
           if (Array.isArray(state.cloudFunctions) && state.cloudFunctions.length > 0) {
             const cfDefs = state.cloudFunctions as ICloudFunctionDef[]
             cloudFunctionService.updateByVersion(appId, cloudFunctionVersion, cfDefs).catch((err) => {
-              console.error('[AiService] CloudFunction 按版本号更新失败:', err)
+              logger.error('[AiService] CloudFunction 按版本号更新失败:', err)
             })
           }
         },
       },
       appId,
-      { phaseCtrl },
+      { phaseCtrl, dialogueId },
     )
   }
 
@@ -618,7 +668,7 @@ class AiService {
     // 2. 对话摘要向量化
     if (dlg.summary?.text) {
       this.persistDialogueSummary(appId, dlgId, dlg.summary.text).catch((err) => {
-        console.error('[AiService] 对话摘要持久化失败:', err)
+        logger.error('[AiService] 对话摘要持久化失败:', err)
       })
     }
 
@@ -652,7 +702,7 @@ class AiService {
       if (!dlg) return
 
       if (dlg.phase === 'committing') {
-        console.warn(`[AiService] stopDialogue: 对话 ${dlg._id} 处于 committing 阶段，拒绝中断`)
+        logger.warn(`[AiService] stopDialogue: 对话 ${dlg._id} 处于 committing 阶段，拒绝中断`)
         return
       }
 
@@ -725,7 +775,7 @@ class AiService {
     const embedding = await knowledgeClient.embedPassage(summary)
 
     if (!embedding) {
-      console.warn('[AiService] Embedding 生成失败（知识服务不可用），dialogue 将无向量')
+      logger.warn('[AiService] Embedding 生成失败（知识服务不可用），dialogue 将无向量')
     }
 
     await dialogueService.setSummary(dialogueId, {

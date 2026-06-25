@@ -34,7 +34,6 @@ export class AuthController {
   /**
    * POST /api/auth/sms/send
    * Body: { phone }
-   * 开发环境（Mock 模式）下会在响应中返回验证码，方便调试
    */
   async sendSmsCode(ctx: Context): Promise<void> {
     const { phone } = ctx.request.body as Record<string, string>
@@ -55,6 +54,9 @@ export class AuthController {
   /**
    * POST /api/auth/sms/verify
    * Body: { phone, code }
+   *
+   * 注册成功后返回的 user 不携带 tenantId。
+   * 新用户需要创建或加入租户后才能使用大部分功能。
    */
   async loginByPhone(ctx: Context): Promise<void> {
     const { phone, code } = ctx.request.body as Record<string, string>
@@ -81,6 +83,35 @@ export class AuthController {
       return
     }
     ctx.body = { success: true, data: user }
+  }
+
+  /**
+   * GET /api/auth/tenants
+   * 返回当前用户可用的租户列表
+   */
+  async listTenants(ctx: Context): Promise<void> {
+    const { userId } = ctx.state.user!
+    const tenants = await authService.getUserTenants(userId)
+    ctx.body = { success: true, data: tenants }
+  }
+
+  /**
+   * POST /api/auth/switch-tenant
+   * Body: { tenantId }
+   * 切换当前会话的租户上下文，重新签发 token pair
+   */
+  async switchTenant(ctx: Context): Promise<void> {
+    const { userId } = ctx.state.user!
+    const { tenantId } = ctx.request.body as Record<string, string>
+
+    if (!tenantId) {
+      ctx.status = 400
+      ctx.body = { success: false, message: '缺少 tenantId' }
+      return
+    }
+
+    const tokens = await authService.switchTenant(userId, tenantId)
+    ctx.body = { success: true, data: tokens }
   }
 }
 

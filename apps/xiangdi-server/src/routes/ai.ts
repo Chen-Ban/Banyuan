@@ -37,9 +37,12 @@ import type { BaseMessage } from '@langchain/core/messages'
 import { createLLMClient, getModelsInfo, switchProvider, PROVIDER_CATALOG } from '../llm/createLLMClient.js'
 import { ServiceUnavailableError } from '../errors.js'
 import { createRequestLogger } from '../logger.js'
+import { createTraceMetadata } from '../tracing.js'
 import { buildFrontendToolHandlers, buildBackendToolHandlers } from './orchestrateHandlers.js'
 import type { AppRuntimeState } from './orchestrateHandlers.js'
 import { getStore } from '../checkpoint/index.js'
+import { agentRunTotal, agentRunDuration, providerSwitchTotal } from '../metrics.js'
+import { logger } from '../logger.js'
 
 const router = new Router({ prefix: '/ai' })
 
@@ -80,10 +83,15 @@ function startSSEHeartbeat(res: ServerResponse): () => void {
   return cleanup
 }
 
-// ─── 共享实例 ─────────────────────────────────────────────────────────────────
+// ─── 工厂函数（请求级实例，注入 traceId）────────────────────────────────────
 
-const knowledgeStore = new RemoteKnowledgeStore()
-const banyanClient = new BanyanClient()
+function createBanyanClient(traceId?: string): BanyanClient {
+  return new BanyanClient({ traceId })
+}
+
+function createKnowledgeStore(traceId?: string): RemoteKnowledgeStore {
+  return new RemoteKnowledgeStore({ traceId })
+}
 
 // ─── SSE Bridge: OrchestratorSSECallback → HTTP SSE ──────────────────────────
 
@@ -101,6 +109,7 @@ router.post('/run', async (ctx) => {
     prompt,
     mode,
     threadId: clientThreadId,
+    dialogueId,
     previousMessages,
     agentMemory,
     memoryHint,
@@ -110,6 +119,7 @@ router.post('/run', async (ctx) => {
     prompt?: string
     mode?: OrchestratorMode
     threadId?: string
+    dialogueId?: string
     previousMessages?: Array<{ role: 'user' | 'assistant'; content: unknown }>
     agentMemory?: string
     memoryHint?: string
@@ -128,8 +138,13 @@ router.post('/run', async (ctx) => {
   }
 
   const threadId = clientThreadId ?? crypto.randomUUID()
-  const reqLogger = createRequestLogger(threadId)
+  const traceId = crypto.randomUUID()
+  const reqLogger = createRequestLogger({ requestId: threadId, traceId })
   reqLogger.info('Orchestrator run started', { appId, threadId, mode: mode ?? 'task' })
+
+  // 创建请求级客户端实例（注入 traceId 作为 X-Trace-Id header，实现跨服务链路追踪）
+  const knowledgeStore = createKnowledgeStore(traceId)
+  const banyanClient = createBanyanClient(traceId)
 
   // 切换为 SSE 模式
   const res = ctx.res as ServerResponse
@@ -151,6 +166,11 @@ router.post('/run', async (ctx) => {
 
   // 发送 started 事件
   sseWrite(res, 'started', { threadId })
+
+  // 定义 Agent 执行指标变量（在 try 块之外，finally 块可访问）
+  const agentMode = mode ?? 'task'
+  const agentStartTime = Date.now()
+  let agentStatus: 'completed' | 'failed' | 'interrupted' = 'completed'
 
   try {
     // 1. 初始化 LLM
@@ -234,55 +254,71 @@ router.post('/run', async (ctx) => {
 
     // 7. 执行 Orchestrator Graph
     //    configurable.thread_id 是 Checkpoint 的恢复键，LangGraph 据此加载/保存 state。
+    //    metadata 注入对话上下文到 LangSmith trace，实现 trace ↔ dialogue 双向关联。
     checkpointStore.recordActivity(threadId, 'running')
     const systemPrompt = buildSystemPrompt()
-    await graph.invoke(
-      {
-        mode: (mode ?? 'task') as OrchestratorMode,
-        userMessage: prompt,
-        messages: initialMessages,
-        systemPrompt,
-        agentMemory: agentMemory ?? '',
-        contextSummary: memoryHint ?? '',
-      },
-      {
-        recursionLimit: 100,
-        signal: abortController.signal,
-        configurable: { thread_id: threadId },
-      },
-    )
-    checkpointStore.recordActivity(threadId, 'completed')
-
-    // 8. done 事件已由 summarizeNode 通过 sseCallback 推送
-    //    额外推送最终 UI 定义 JSON（banyan 后端需要写回 MongoDB）
-    sseWrite(res, 'app_state', {
-      uiJSON: runtimeState.uiJSON,
-      schema: runtimeState.schema,
-      cloudFunctions: runtimeState.cloudFunctions,
-    })
-  } catch (err) {
-    // 异常/中断：标记 thread 为 interrupted，交由 TTL 清理策略按 interruptedTTL 处理。
+    const langsmithMetadata = createTraceMetadata({ appId, dialogueId, mode: mode ?? 'task' })
     try {
-      getStore().recordActivity(threadId, 'interrupted')
-    } catch {
-      /* 不阻塞错误处理 */
-    }
-    if (abortController.signal.aborted) {
-      // 客户端主动断开，静默处理
-      reqLogger.info('Client disconnected, aborting')
-    } else if (err instanceof ServiceUnavailableError) {
-      reqLogger.error('Service unavailable during orchestrator run', err, { service: err.service, appId })
-      sseWrite(res, 'error', {
-        message: `Service unavailable: ${err.message}`,
-        code: 'SERVICE_UNAVAILABLE',
-        service: err.service,
+      await graph.invoke(
+        {
+          mode: agentMode as OrchestratorMode,
+          userMessage: prompt,
+          messages: initialMessages,
+          systemPrompt,
+          agentMemory: agentMemory ?? '',
+          contextSummary: memoryHint ?? '',
+        },
+        {
+          recursionLimit: 100,
+          signal: abortController.signal,
+          configurable: { thread_id: threadId },
+          metadata: langsmithMetadata,
+        },
+      )
+      checkpointStore.recordActivity(threadId, 'completed')
+
+      // 8. done 事件已由 summarizeNode 通过 sseCallback 推送
+      //    额外推送最终 UI 定义 JSON（banyan 后端需要写回 MongoDB）
+      sseWrite(res, 'app_state', {
+        uiJSON: runtimeState.uiJSON,
+        schema: runtimeState.schema,
+        cloudFunctions: runtimeState.cloudFunctions,
       })
-    } else {
-      const message = err instanceof Error ? err.message : String(err)
-      reqLogger.error('Orchestrator run failed', err)
-      sseWrite(res, 'error', { message })
+    } catch (err) {
+      // 异常时根据原因设置 status
+      if (abortController.signal.aborted) {
+        agentStatus = 'interrupted'
+      } else {
+        agentStatus = 'failed'
+      }
+      // 异常/中断：标记 thread 为 interrupted，交由 TTL 清理策略按 interruptedTTL 处理。
+      try {
+        checkpointStore.recordActivity(threadId, 'interrupted')
+      } catch {
+        /* 不阻塞错误处理 */
+      }
+      if (abortController.signal.aborted) {
+        // 客户端主动断开，静默处理
+        reqLogger.info('Client disconnected, aborting')
+      } else if (err instanceof ServiceUnavailableError) {
+        reqLogger.error('Service unavailable during orchestrator run', err, { service: err.service, appId })
+        sseWrite(res, 'error', {
+          message: `Service unavailable: ${err.message}`,
+          code: 'SERVICE_UNAVAILABLE',
+          service: err.service,
+        })
+      } else {
+        const message = err instanceof Error ? err.message : String(err)
+        reqLogger.error('Orchestrator run failed', err)
+        sseWrite(res, 'error', { message })
+      }
     }
   } finally {
+    // 记录 Agent 执行指标
+    const agentDuration = Date.now() - agentStartTime
+    agentRunTotal.inc({ mode: agentMode, status: agentStatus })
+    agentRunDuration.observe({ mode: agentMode }, agentDuration)
+
     res.removeListener('close', onClientAbort)
     stopHeartbeat()
     sseDone(res)
@@ -323,12 +359,26 @@ router.post('/models/switch', async (ctx) => {
     return
   }
 
+  // 审计日志：记录 provider 切换
+  const currentModels = await getModelsInfo()
+  const fromProvider = currentModels.find((m) => m.active)?.provider ?? 'unknown'
+
   const switched = await switchProvider(provider)
   if (!switched) {
     ctx.status = 500
     ctx.body = { success: false, error: `Failed to switch to provider "${provider}"` }
     return
   }
+
+  // metric
+  providerSwitchTotal.inc({ from: fromProvider, to: provider })
+
+  // 审计日志
+  logger.info('Provider switched', {
+    event: 'provider.switch',
+    from: fromProvider,
+    to: provider,
+  })
 
   ctx.body = { success: true, activeProvider: provider }
 })

@@ -17,6 +17,7 @@
 import type { CheckpointStore } from './types.js'
 import { SqliteCheckpointStore } from './SqliteCheckpointStore.js'
 import { MemoryCheckpointStore } from './MemoryCheckpointStore.js'
+import { logger } from '../logger.js'
 
 export type { CheckpointStore, ThreadStatus, CleanupConfig } from './types.js'
 
@@ -49,7 +50,7 @@ function createStore(): CheckpointStore {
       return new SqliteCheckpointStore()
 
     default:
-      console.warn(`[checkpoint] Unknown CHECKPOINT_BACKEND="${backend}", falling back to sqlite`)
+      logger.warn(`Unknown CHECKPOINT_BACKEND="${backend}", falling back to sqlite`)
       return new SqliteCheckpointStore()
   }
 }

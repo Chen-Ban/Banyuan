@@ -24,6 +24,9 @@ export interface IApplication {
   /** 最后修改者 */
   updatedBy: string
 
+  /** 应用可见性：private=仅创建者可见，team=同租户成员可见 */
+  visibility: 'private' | 'team'
+
   // ─── Web 发布相关 ─────────────────────────────────────────────────────────
   /** 应用 URL slug（用于子域名路由，如 my-app → my-app.tenant.banyuan.club） */
   appSlug?: string

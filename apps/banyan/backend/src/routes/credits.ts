@@ -12,6 +12,12 @@ creditRouter.get('/usage', async (ctx) => {
     return
   }
 
+  if (!user.tenantId) {
+    ctx.status = 403
+    ctx.body = { success: false, message: '请先创建或加入一个团队' }
+    return
+  }
+
   const usage = await creditService.getMonthlyUsage(user.tenantId)
   ctx.body = { success: true, data: usage }
 })

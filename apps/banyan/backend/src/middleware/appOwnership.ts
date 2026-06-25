@@ -27,6 +27,10 @@ export async function appOwnership(ctx: Context, next: Next): Promise<void> {
     throw new AuthTokenInvalidError('未认证')
   }
 
+  if (!user.tenantId) {
+    throw new AuthForbiddenError('无权访问该应用')
+  }
+
   const application = await Application.findOne({ application_id: appId }).select('tenantId').lean()
 
   if (!application) {

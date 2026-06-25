@@ -59,7 +59,7 @@ export function createUIDesignNode(config: UIDesignNodeConfig) {
 
     // ─── LLM 调用 ─────────────────────────────────────────────────────────
     try {
-      const rawText = await callSubAgentLLM({
+      const { text: rawText } = await callSubAgentLLM({
         llm,
         systemPrompt: ctx.systemPrompt,
         userPrompt,

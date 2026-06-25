@@ -150,7 +150,7 @@ class MaterialController {
         return
       }
       // member 必须传入与物料归属一致的 applicationId 才可修改；管理员不受限
-      if (user.role === 'member') {
+      if (user.membershipRole === 'member') {
         if (!body.applicationId || existing.applicationId !== body.applicationId) {
           ctx.status = 403
           ctx.body = { success: false, message: '无权修改该物料' }
@@ -198,7 +198,7 @@ class MaterialController {
         return
       }
       // member 必须传入与物料归属一致的 applicationId 才可删除；管理员不受限
-      if (user.role === 'member') {
+      if (user.membershipRole === 'member') {
         if (!applicationId || existing.applicationId !== applicationId) {
           ctx.status = 403
           ctx.body = { success: false, message: '无权删除该物料' }

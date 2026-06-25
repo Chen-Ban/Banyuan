@@ -1,17 +1,17 @@
 import Koa from 'koa'
 import { koaBody } from 'koa-body'
 import json from 'koa-json'
-import logger from 'koa-logger'
 import cors from '@koa/cors'
 import router from './routes'
 import authRouter from './routes/auth.js'
 import { errorHandler } from './middleware/errorHandler.js'
+import { httpLogger } from './middleware/httpLogger.js'
 
 const app = new Koa()
 
 // 中间件
 app.use(cors())
-app.use(logger())
+app.use(httpLogger)
 app.use(json())
 
 // 使用 koa-body 替代 koa-bodyparser，支持 multipart 文件上传

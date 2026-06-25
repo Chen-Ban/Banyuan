@@ -105,6 +105,7 @@ async function classifyViaLLM(
     system: INTENT_SYSTEM_PROMPT,
     messages: [{ role: 'user', content: [{ type: 'text', text: userPrompt }] }],
     temperature: 0,
+    runName: `intent:evaluate`,
   })
 
   // 解析 LLM 返回的 JSON

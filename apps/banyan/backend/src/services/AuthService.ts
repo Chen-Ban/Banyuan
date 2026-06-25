@@ -1,11 +1,11 @@
 import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
-import { Tenant } from '../models/Tenant.js'
 import { User, type IUserDoc } from '../models/User.js'
-import type { IUser, UserRole } from '../models/types/index.js'
+import { Tenant } from '../models/Tenant.js'
+import { Membership } from '../models/Membership.js'
+import type { IUser, MembershipRole, MembershipStatus } from '../models/types/index.js'
 import { RefreshToken } from '../models/RefreshToken.js'
 import { smsService } from './SmsService.js'
-import { tenantProvisionService } from './TenantProvisionService.js'
 
 // ─── 环境变量 ─────────────────────────────────────────────────────────────────
 
@@ -20,10 +20,24 @@ export interface TokenPair {
   refreshToken: string
 }
 
+/**
+ * JWT 载荷
+ * tenantId 为可选：用户注册后尚未加入任何租户时，JWT 只携带 userId。
+ * 前端检测到无 tenantId 时，引导用户创建或加入租户。
+ */
 export interface AuthPayload {
   userId: string
+  tenantId?: string
+  membershipRole?: MembershipRole
+}
+
+/** 用户可用的租户列表项 */
+export interface TenantInfo {
   tenantId: string
-  role: UserRole
+  name: string
+  plan: 'free' | 'pro'
+  role: MembershipRole
+  status: MembershipStatus
 }
 
 // ─── 工具函数 ─────────────────────────────────────────────────────────────────
@@ -36,19 +50,23 @@ function generateAccessToken(payload: AuthPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions)
 }
 
-async function generateRefreshToken(userId: string, tenantId: string): Promise<string> {
+async function generateRefreshToken(userId: string, tenantId?: string): Promise<string> {
   const tokenId = generateId('rt')
   const rawToken = crypto.randomBytes(64).toString('hex')
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_EXPIRES_DAYS)
 
-  await RefreshToken.create({
+  const doc: Record<string, unknown> = {
     tokenId,
     userId,
-    tenantId,
     token: rawToken,
     expiresAt,
-  })
+  }
+  if (tenantId) {
+    doc.tenantId = tenantId
+  }
+
+  await RefreshToken.create(doc)
 
   return rawToken
 }
@@ -78,7 +96,8 @@ export class AuthService {
     // 吊销旧 token（rotation 策略）
     await RefreshToken.updateOne({ tokenId: record.tokenId }, { revokedAt: new Date() })
 
-    return this._issueTokens(user.userId, user.tenantId, user.role)
+    // 从原 refresh token 中继承 tenant context
+    return this._issueTokens(user.userId, record.tenantId)
   }
 
   /**
@@ -93,7 +112,6 @@ export class AuthService {
 
   /**
    * 发送手机验证码
-   * Mock 模式下返回验证码字符串，生产模式返回 undefined
    */
   async sendSmsCode(phone: string): Promise<string | undefined> {
     return smsService.sendOtp(phone)
@@ -101,8 +119,12 @@ export class AuthService {
 
   /**
    * 手机号验证码登录/注册
-   * - 手机号已存在 → 直接登录
-   * - 手机号不存在 → 自动注册（创建租户 + owner 用户）
+   *
+   * 新用户注册时自动创建：
+   *   - 个人默认租户（name = "{username}的个人空间", plan='free', planId='plan_free'）
+   *   - Membership（role='owner'）
+   *   - JWT 直接携带 tenantId，前端无需额外引导
+   * 已有用户直接登录，JWT 不携带 tenantId（需通过 /auth/switch-tenant 切换）
    */
   async loginByPhone(
     phone: string,
@@ -116,38 +138,45 @@ export class AuthService {
     let isNewUser = false
 
     if (!user) {
-      // 自动注册：创建租户 + owner 用户
+      // 创建 User + 默认个人租户 + Membership(role=owner) + 关联 plan_free
       isNewUser = true
-      const tenantId = generateId('tenant')
-      const agentToken = crypto.randomBytes(32).toString('hex')
-      await Tenant.create({
-        tenantId,
-        name: `用户${phone.slice(-4)}的空间`,
-        plan: 'free',
-        agentToken,
-        provisionStatus: 'pending',
-      })
       const userId = generateId('user')
+      const tenantId = generateId('tenant')
+      const membershipId = generateId('ms')
+      const username = `用户${phone.slice(-4)}`
+
       user = await User.create({
         userId,
-        tenantId,
         phone,
-        username: `用户${phone.slice(-4)}`,
-        role: 'owner',
+        username,
         status: 'active',
       })
 
-      // 异步触发租户环境开通（不阻塞登录响应）
-      tenantProvisionService.provision(tenantId).catch((err) => {
-        console.error(`[Auth] tenant provision failed for ${tenantId}:`, err)
+      await Tenant.create({
+        tenantId,
+        name: `${username}的个人空间`,
+        plan: 'free',
+        planId: 'plan_free',
       })
+
+      await Membership.create({
+        membershipId,
+        userId,
+        tenantId,
+        role: 'owner',
+        status: 'active',
+        joinedAt: new Date(),
+      })
+
+      const tokens = await this._issueTokens(userId, tenantId)
+      return { user: this._sanitizeUser(user), tokens, isNewUser }
     }
 
     if (user.status === 'disabled') {
       throw Object.assign(new Error('账号已被禁用'), { statusCode: 403 })
     }
 
-    const tokens = await this._issueTokens(user.userId, user.tenantId, user.role)
+    const tokens = await this._issueTokens(user.userId)
     return { user: this._sanitizeUser(user), tokens, isNewUser }
   }
 
@@ -157,16 +186,65 @@ export class AuthService {
   verifyAccessToken(token: string): AuthPayload {
     try {
       const payload = jwt.verify(token, JWT_SECRET) as AuthPayload & jwt.JwtPayload
-      return { userId: payload.userId, tenantId: payload.tenantId, role: payload.role }
+      return { userId: payload.userId, tenantId: payload.tenantId, membershipRole: payload.membershipRole }
     } catch {
       throw Object.assign(new Error('Token 无效或已过期'), { statusCode: 401 })
     }
   }
 
+  // ─── 多租户相关 ─────────────────────────────────────────────────────────────
+
+  /**
+   * 查询用户可用的租户列表
+   */
+  async getUserTenants(userId: string): Promise<TenantInfo[]> {
+    const memberships = await Membership.find({ userId, status: 'active' }).lean()
+
+    if (memberships.length === 0) return []
+
+    const tenantIds = memberships.map((m) => m.tenantId)
+    const tenants = await Tenant.find({ tenantId: { $in: tenantIds } }).lean()
+    const tenantMap = new Map(tenants.map((t) => [t.tenantId, t]))
+
+    return memberships.map((m) => {
+      const t = tenantMap.get(m.tenantId)
+      return {
+        tenantId: m.tenantId,
+        name: t?.name ?? '未知团队',
+        plan: t?.plan ?? 'free',
+        role: m.role as MembershipRole,
+        status: m.status as MembershipStatus,
+      }
+    })
+  }
+
+  /**
+   * 切换当前会话的租户上下文，签发新 token
+   */
+  async switchTenant(userId: string, tenantId: string): Promise<TokenPair> {
+    const membership = await Membership.findOne({ userId, tenantId, status: 'active' }).lean()
+    if (!membership) {
+      throw Object.assign(new Error('你不在该租户中或已被禁用'), { statusCode: 403 })
+    }
+
+    const accessToken = generateAccessToken({
+      userId,
+      tenantId: membership.tenantId,
+      membershipRole: membership.role as MembershipRole,
+    })
+    const refreshToken = await generateRefreshToken(userId, membership.tenantId)
+
+    return { accessToken, refreshToken }
+  }
+
   // ─── 私有方法 ───────────────────────────────────────────────────────────────
 
-  private async _issueTokens(userId: string, tenantId: string, role: UserRole): Promise<TokenPair> {
-    const accessToken = generateAccessToken({ userId, tenantId, role })
+  private async _issueTokens(userId: string, tenantId?: string): Promise<TokenPair> {
+    const payload: AuthPayload = { userId }
+    if (tenantId) {
+      payload.tenantId = tenantId
+    }
+    const accessToken = generateAccessToken(payload)
     const refreshToken = await generateRefreshToken(userId, tenantId)
     return { accessToken, refreshToken }
   }

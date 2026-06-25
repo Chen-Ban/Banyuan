@@ -14,6 +14,8 @@ export interface IApplicationQuery {
   tags?: string
   createdBy?: string
   tenantId?: string
+  /** 成员视角：同租户下自己创建或标记为 team 可见的应用 */
+  createdOrVisibleToTeam?: { tenantId: string; userId: string }
 }
 
 export interface IApplicationListResult {
@@ -28,6 +30,7 @@ export interface IUpdateApplicationData {
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
+  visibility?: 'private' | 'team'
 }
 
 /**
@@ -63,8 +66,13 @@ class ApplicationService {
     if (query.tags) {
       filter.tags = { $in: [query.tags] }
     }
-    if (query.tenantId && query.createdBy) {
-      // 成员视角：同一租户下仅看自己的应用
+    if (query.createdOrVisibleToTeam) {
+      // 成员视角：同租户下自己创建或 team 可见的应用
+      const { tenantId, userId } = query.createdOrVisibleToTeam
+      filter.tenantId = tenantId
+      filter.$or = [{ createdBy: userId }, { visibility: 'team' }]
+    } else if (query.tenantId && query.createdBy) {
+      // 旧成员视角：同一租户下仅看自己的应用
       filter.tenantId = query.tenantId
       filter.createdBy = query.createdBy
     } else if (query.tenantId) {
@@ -189,6 +197,7 @@ class ApplicationService {
     if (updateData.thumbnail !== undefined) application.thumbnail = updateData.thumbnail
     if (updateData.tags !== undefined) application.tags = updateData.tags
     if (updateData.updatedBy !== undefined) application.updatedBy = updateData.updatedBy
+    if (updateData.visibility !== undefined) application.visibility = updateData.visibility
 
     application.version = (application.version || 0) + 1
 

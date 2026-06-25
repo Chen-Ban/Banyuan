@@ -1,7 +1,8 @@
 import { EcsManager } from './EcsManager.js'
 import { DnsManager } from './DnsManager.js'
-import { Tenant } from '../models/Tenant.js'
-import type { ProvisionStatus } from '../models/types/index.js'
+import { EcsInstance } from '../models/EcsInstance.js'
+import crypto from 'crypto'
+import { logger } from '../utils/logger.js'
 
 export interface ProvisionResult {
   instanceId: string
@@ -15,6 +16,12 @@ export class TenantProvisionService {
 
   /**
    * 为租户开通完整环境
+   *
+   * 与旧版的关键区别：
+   * - ECS 资源信息写入 EcsInstance 表而非 Tenant 表
+   * - Tenant 表不再持有任何 ECS 相关字段
+   * - 通过 EcsInstance.tenantId 关联到租户
+   *
    * 步骤：
    * 1. 创建 ECS 实例
    * 2. 等待实例 Running
@@ -23,98 +30,102 @@ export class TenantProvisionService {
    * 5. 添加 DNS 解析（subdomain + wildcard）
    * 6. 执行初始化脚本（安装 Docker、MongoDB、Node.js、Nginx、acme.sh）
    * 7. 执行 deploy-agent 部署脚本
-   * 8. 更新 Tenant 记录
+   * 8. 更新 EcsInstance 记录
    */
   async provision(tenantId: string): Promise<void> {
     const subdomain = tenantId.slice(-8)
     const baseDomain = process.env.DNS_DOMAIN || ''
     const domain = `${subdomain}.${baseDomain}`
     const backendUrl = process.env.BACKEND_PUBLIC_URL || 'http://localhost:3001'
+    const agentToken = crypto.randomBytes(32).toString('hex')
+
+    let instanceId = ''
 
     try {
       // Step 1: 创建 ECS 实例
-      console.log(`[Provision ${tenantId}] Step 1: Creating ECS instance...`)
-      await this.updateStatus(tenantId, 'creating_ecs')
-      const { instanceId, privateIp } = await this.ecsManager.createInstance(tenantId)
+      logger.info(`[Provision ${tenantId}] Step 1: Creating ECS instance...`)
+      const result = await this.ecsManager.createInstance(tenantId)
+      instanceId = result.instanceId
+
+      // 写入 EcsInstance 记录（初始状态）
+      await EcsInstance.create({
+        instanceId,
+        tenantId,
+        ecsPrivateIp: result.privateIp,
+        agentToken,
+        status: 'creating',
+      })
 
       // Step 2: 等待实例 Running
-      console.log(`[Provision ${tenantId}] Step 2: Waiting for instance ${instanceId} to be running...`)
+      logger.info(`[Provision ${tenantId}] Step 2: Waiting for instance ${instanceId} to be running...`)
       await this.ecsManager.waitInstanceRunning(instanceId)
+      await EcsInstance.updateOne({ instanceId }, { $set: { status: 'running' } })
 
       // Step 3: 分配弹性公网 IP
-      console.log(`[Provision ${tenantId}] Step 3: Allocating EIP...`)
+      logger.info(`[Provision ${tenantId}] Step 3: Allocating EIP...`)
       const { allocationId, eipAddress } = await this.ecsManager.allocateEip()
+      await EcsInstance.updateOne({ instanceId }, { $set: { status: 'allocating', eipAddress, eipAllocationId: allocationId } })
 
       // Step 4: 绑定 EIP 到实例
-      console.log(`[Provision ${tenantId}] Step 4: Binding EIP ${eipAddress} to instance ${instanceId}...`)
+      logger.info(`[Provision ${tenantId}] Step 4: Binding EIP ${eipAddress} to instance ${instanceId}...`)
       await this.ecsManager.bindEip(instanceId, allocationId)
 
       // Step 5: 添加 DNS 解析（subdomain + wildcard）
-      console.log(`[Provision ${tenantId}] Step 5: Configuring DNS for ${domain}...`)
-      await this.updateStatus(tenantId, 'configuring_dns')
+      logger.info(`[Provision ${tenantId}] Step 5: Configuring DNS for ${domain}...`)
       await this.dnsManager.addSubdomain(subdomain, eipAddress)
       await this.dnsManager.addWildcard(subdomain, eipAddress)
+      await EcsInstance.updateOne({ instanceId }, { $set: { domain } })
 
       // Step 6: 执行初始化脚本
-      console.log(`[Provision ${tenantId}] Step 6: Running init script...`)
-      await this.updateStatus(tenantId, 'initializing')
+      logger.info(`[Provision ${tenantId}] Step 6: Running init script...`)
       const initScript = this.generateInitScript(tenantId, domain)
       await this.ecsManager.runInitScript(instanceId, initScript)
 
       // Step 7: 执行 deploy-agent 部署脚本
-      console.log(`[Provision ${tenantId}] Step 7: Installing deploy-agent...`)
-      await this.updateStatus(tenantId, 'installing_agent')
-      const agentScript = this.generateAgentScript(tenantId, backendUrl)
+      logger.info(`[Provision ${tenantId}] Step 7: Installing deploy-agent...`)
+      const agentScript = this.generateAgentScript(tenantId, backendUrl, agentToken)
       await this.ecsManager.runInitScript(instanceId, agentScript)
 
-      // Step 8: 更新 Tenant 记录
-      console.log(`[Provision ${tenantId}] Step 8: Updating tenant record...`)
-      await Tenant.updateOne(
-        { tenantId },
+      // Step 8: 更新 EcsInstance 记录——全部就绪
+      logger.info(`[Provision ${tenantId}] Step 8: Updating EcsInstance record...`)
+      await EcsInstance.updateOne(
+        { instanceId },
         {
           $set: {
-            ecsInstanceId: instanceId,
-            ecsPrivateIp: privateIp,
-            eipAddress,
-            eipAllocationId: allocationId,
-            domain,
-            provisionStatus: 'ready' as ProvisionStatus,
+            status: 'ready',
             provisionedAt: new Date(),
           },
         },
       )
 
-      console.log(`[Provision ${tenantId}] Provision completed successfully.`)
+      logger.info(`[Provision ${tenantId}] Provision completed successfully.`)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      console.error(`[Provision ${tenantId}] Failed: ${message}`)
-      await Tenant.updateOne(
-        { tenantId },
-        {
-          $set: {
-            provisionStatus: 'failed' as ProvisionStatus,
-            provisionError: message,
+      logger.error(`[Provision ${tenantId}] Failed: ${message}`)
+      if (instanceId) {
+        await EcsInstance.updateOne(
+          { instanceId },
+          {
+            $set: {
+              status: 'failed' as const,
+              provisionError: message,
+            },
           },
-        },
-      ).catch(() => {})
+        ).catch(() => {})
+      }
     }
   }
 
   /**
-   * 获取开通状态
+   * 获取开通状态——从 EcsInstance 读取
    */
-  async getProvisionStatus(tenantId: string): Promise<ProvisionStatus> {
-    const tenant = await Tenant.findOne({ tenantId }).lean()
-    if (!tenant) {
-      throw new Error(`Tenant ${tenantId} not found`)
-    }
-    return tenant.provisionStatus || 'none'
+  async getProvisionStatus(tenantId: string): Promise<string> {
+    const instance = await EcsInstance.findOne({ tenantId }).lean()
+    return instance?.status ?? 'none'
   }
 
   /**
    * 生成初始化 shell 脚本
-   * 安装：Docker CE、MongoDB 7、Node.js 22 (via NodeSource)、pnpm、Nginx、acme.sh
-   * 配置：nginx 基础配置、SSL 证书申请（通配符）
    */
   private generateInitScript(tenantId: string, domain: string): string {
     const dnsDomain = process.env.DNS_DOMAIN || ''
@@ -202,8 +213,7 @@ echo "[Provision ${tenantId}] Initialization completed."
    * 生成 deploy-agent 安装脚本
    * 从 npm registry 安装 @banyuan/deploy-agent，配置 systemd 服务
    */
-  private generateAgentScript(tenantId: string, backendUrl: string): string {
-    // 从 Tenant 记录中获取 agentToken（已在创建时写入）
+  private generateAgentScript(tenantId: string, backendUrl: string, agentToken: string): string {
     const wsUrl = backendUrl.replace(/^http/, 'ws') + '/ws/agent'
 
     return `#!/bin/bash
@@ -232,6 +242,7 @@ Restart=always
 RestartSec=10
 Environment=NODE_ENV=production
 Environment=TENANT_ID=${tenantId}
+Environment=AGENT_TOKEN=${agentToken}
 Environment=BACKEND_WS_URL=${wsUrl}
 Environment=DEPLOY_ROOT=/opt/banyuan/apps
 Environment=NGINX_SITES_DIR=/etc/nginx/sites-enabled
@@ -248,13 +259,6 @@ systemctl start deploy-agent
 
 echo "[Provision ${tenantId}] Deploy-agent installed and started."
 `
-  }
-
-  /**
-   * 更新租户的 provisionStatus 字段
-   */
-  private async updateStatus(tenantId: string, status: ProvisionStatus): Promise<void> {
-    await Tenant.updateOne({ tenantId }, { $set: { provisionStatus: status } })
   }
 }
 

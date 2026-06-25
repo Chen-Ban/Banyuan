@@ -37,6 +37,7 @@
 import Dialogue, { type IDialogueDoc } from '../models/Dialogue.js'
 import type { IMessage } from '../models/types/index.js'
 import knowledgeClient from './KnowledgeClient.js'
+import { logger } from '../utils/logger.js'
 
 // ─── 模型上下文窗口配置 ──────────────────────────────────────────────────────────
 
@@ -271,7 +272,7 @@ class ContextBuilder {
       if (err instanceof ContextBudgetOverflowError) {
         throw err
       }
-      console.error('[ContextBuilder] 按需检索失败，回退到时间窗口模式:', err)
+      logger.error('[ContextBuilder] 按需检索失败，回退到时间窗口模式:', err)
       return this.buildFallback(dialogues, options)
     }
   }

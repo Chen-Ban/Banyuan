@@ -91,13 +91,14 @@ export function createSummarizeNode(config: SummarizeNodeConfig) {
 
     let summary: string
     try {
-      summary = await callSubAgentLLM({
+      const summaryResult = await callSubAgentLLM({
         llm: config.llm,
         systemPrompt: SUMMARIZE_SYSTEM_PROMPT,
         userPrompt,
         temperature: 0.3,
         maxTokens: 512,
       })
+      summary = summaryResult.text
     } catch {
       // LLM 失败时用程序化兜底摘要
       summary = buildFallbackSummary(commitArtifacts)
@@ -133,6 +134,9 @@ export function createSummarizeNode(config: SummarizeNodeConfig) {
       finalPhase: 'done',
       summary,
       artifacts: commitArtifacts ?? undefined,
+      tokenUsage: state.totalTokenUsage.inputTokens > 0 || state.totalTokenUsage.outputTokens > 0
+        ? state.totalTokenUsage
+        : undefined,
       timestamp: Date.now(),
     })
 

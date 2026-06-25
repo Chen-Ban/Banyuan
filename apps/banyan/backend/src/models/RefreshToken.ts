@@ -7,7 +7,7 @@ const RefreshTokenSchema = new Schema<IRefreshTokenDoc>(
   {
     tokenId: { type: String, required: true, unique: true, index: true },
     userId: { type: String, required: true, index: true },
-    tenantId: { type: String, required: true },
+    tenantId: { type: String, default: undefined },
     token: { type: String, required: true, unique: true },
     expiresAt: { type: Date, required: true },
     revokedAt: { type: Date },

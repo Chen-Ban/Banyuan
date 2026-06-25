@@ -15,4 +15,8 @@ router.post('/logout', authController.logout.bind(authController))
 // 需要认证的接口
 router.get('/me', authMiddleware, authController.me.bind(authController))
 
+// 多租户管理
+router.get('/tenants', authMiddleware, authController.listTenants.bind(authController))
+router.post('/switch-tenant', authMiddleware, authController.switchTenant.bind(authController))
+
 export default router

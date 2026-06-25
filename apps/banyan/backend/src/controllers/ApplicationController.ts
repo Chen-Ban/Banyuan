@@ -10,6 +10,7 @@ interface UpdateApplicationRequest {
   thumbnail?: string
   tags?: string[]
   updatedBy?: string
+  visibility?: 'private' | 'team'
 }
 
 class ApplicationController {
@@ -17,6 +18,12 @@ class ApplicationController {
     try {
       const { name, application_id, tags, page = '1', pageSize = '12' } = ctx.query
       const user = ctx.state.user!
+
+      if (!user.tenantId) {
+        ctx.status = 200
+        ctx.body = { success: true, data: { applications: [], total: 0, page: 1, pageSize: 12 } }
+        return
+      }
 
       const baseQuery = {
         name: name as string | undefined,
@@ -26,9 +33,9 @@ class ApplicationController {
 
       let query: import('../services/ApplicationService').IApplicationQuery
 
-      if (user.role === 'member') {
-        // 成员：仅看同租户下自己的应用
-        query = { ...baseQuery, tenantId: user.tenantId, createdBy: user.userId }
+      if (user.membershipRole === 'member') {
+        // 成员：看同租户下自己的应用 + team 可见的应用
+        query = { ...baseQuery, createdOrVisibleToTeam: { tenantId: user.tenantId, userId: user.userId } }
       } else {
         // admin / owner：看租户内所有应用
         query = { ...baseQuery, tenantId: user.tenantId }
@@ -93,6 +100,11 @@ class ApplicationController {
   async createApplication(ctx: Context) {
     try {
       const user = ctx.state.user!
+      if (!user.tenantId) {
+        ctx.status = 403
+        ctx.body = { success: false, message: '请先创建或加入一个团队' }
+        return
+      }
       const application = await applicationService.createApplication(user.userId, user.tenantId)
 
       ctx.status = 201

@@ -97,6 +97,11 @@ export interface DoneSSEEvent {
   summary: string
   /** 产出概览 */
   artifacts?: DoneArtifactsOverview
+  /** 全局 token 消耗总量（精确值，来自 LLM API） */
+  tokenUsage?: {
+    inputTokens: number
+    outputTokens: number
+  }
   timestamp: number
 }
 
