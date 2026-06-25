@@ -5,7 +5,7 @@
 ## 设计原则
 
 - **独立工具，非构建钩子** — 不绑定任何包的 build 生命周期，按需手动或 CI 驱动执行
-- **只读源码，只写种子** — 读取 banvasgl/flow/agent 的类型定义，产出 JSON 种子文件
+- **只读源码，只写种子** — 读取 banvasgl 的类型定义，产出 JSON 种子文件
 - **与数据迁移同级隔离** — `scripts/knowledge/` 与 `scripts/migrations/` 并列，职责分离
 
 ## 目录结构
@@ -14,8 +14,6 @@
 scripts/knowledge/
 ├── README.md                    # 本文件
 ├── generate-schema-seeds.ts     # [ui] Primitive 种子生成
-├── generate-flow-seeds.ts       # [flow] Primitive 种子生成（待建）
-├── generate-data-seeds.ts       # [data] Primitive 种子生成（待建）
 └── utils/
     └── upsert.ts                # 共享：knowledge-server HTTP 写入工具
 ```
@@ -24,8 +22,7 @@ scripts/knowledge/
 
 ```bash
 # 在仓库根目录执行
-pnpm knowledge:generate          # 生成全部种子
-pnpm knowledge:generate:schema   # 仅生成 schema(UI) 种子
+pnpm knowledge:schema            # 生成 UI Schema 种子
 ```
 
 ## 依赖方向
@@ -33,7 +30,6 @@ pnpm knowledge:generate:schema   # 仅生成 schema(UI) 种子
 ```
 scripts/knowledge/
   ├──读取──▶ packages/banvasgl (package.json version)
-  ├──读取──▶ packages/flow (类型定义，待建)
   └──写入──▶ knowledge-server HTTP API (:3003)
   └──写入──▶ packages/xiangdi-agent/src/knowledge/seeds/ (JSON 文件)
 ```

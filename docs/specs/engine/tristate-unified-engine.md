@@ -23,7 +23,7 @@
 
 **一句话推论**：三态共享同一套机制（banvasgl），差异仅是「注入哪种策略 + `flowEnabled` 取何值」。编辑态注入编辑策略且 `flowEnabled=false`；预览/线上态注入运行策略且 `flowEnabled=true`，预览与线上再以注入配置（数据来源 / callFlow 端点）区分。
 
-> **关键澄清（本次修订重点）**：运行态「把原子事件解释成高级交互并派发到 View.events」是**运行策略**，与编辑态的 InteractionStateMachine 完全对称——一个把原子事件解释成「设计稿编辑动作」，一个把原子事件解释成「终端用户交互语义」。两者都不属于 banvasgl 机制层。因此承载它的 hook **不能**放在 banvasgl，而必须随运行策略包 `@banyuan/banvas-runtime` 一起进入用户产物。banvasgl 的 hook 层只提供纯机制的 `useCanvasInit`（初始化画布、暴露 actions 与原子事件回调）。
+> **关键澄清（本次修订重点）**：运行态「把原子事件解释成高级交互并派发到 View.events」是**运行策略**，与编辑态的 InteractionStateMachine 完全对称——一个把原子事件解释成「设计稿编辑动作」，一个把原子事件解释成「终端用户交互语义」。两者都不属于 banvasgl 机制层。因此承载它的 hook **不能**放在 banvasgl，而必须随运行策略包 `@banyuan/banvas-runtime` 一起进入用户产物。`@banyuan/banvasgl-react` 提供纯机制的 `useCanvasInit`（初始化画布、暴露 actions 与原子事件回调）。
 
 ---
 
@@ -233,7 +233,7 @@ pointermove 跨命中边界(仅mouse) →  解释为 enter/leave           →  
 | 维度                             | 编辑态（design）                         | 预览态（preview）                                                                       | 线上态（production）                                  |
 | -------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | 入口 hook                        | `useDesignBanvas`（banyan 应用层）       | `useRuntimeBanvas`（banvas-runtime）                                                    | `useRuntimeBanvas`（banvas-runtime）                  |
-| 底层机制 hook                    | `useCanvasInit`（banvasgl）              | `useCanvasInit`（banvasgl）                                                             | `useCanvasInit`（banvasgl）                           |
+| 底层机制 hook                    | `useCanvasInit`（banvasgl-react）       | `useCanvasInit`（banvasgl-react）                                                      | `useCanvasInit`（banvasgl-react）                    |
 | 数据来源                         | 最近非 discard 对话引用的 AppContent     | 落库 appJSON（切预览前由编辑态自动保存）+ 本地后端服务返回的动态数据                                   | 已发布版本快照（`/app.json`）+ 线上后端返回的动态数据 |
 | 注入的策略                       | InteractionStateMachine 全集（编辑策略） | 运行态高级交互识别（运行策略）                                                          | 运行态高级交互识别（运行策略）                        |
 | FlowSchema 执行                  | **禁用**（`flowEnabled: false`）         | **启用**（`flowEnabled: true`）                                                         | **启用**（`flowEnabled: true`）                       |
@@ -242,7 +242,7 @@ pointermove 跨命中边界(仅mouse) →  解释为 enter/leave           →  
 
 > 预览态后端节点目标列只标了「本地后端服务 + 本地 Mongo」的**结果**，其编排实现（scaffoldServer 本地起服务、进程管理、热更新、运行时端点注入）见 **`docs/specs/app/preview-local-backend.md`**（决策 app/A5）。本 spec 的引擎视角只关心「预览态后端节点请求打到本地端点」这一事实，不关心该端点如何被拉起。
 
-**核心观察（引擎视角）**：编辑态 ↔ 运行态的本质区别，从引擎机制看只有两点——「注入编辑策略 + `flowEnabled=false`」对「注入运行策略 + `flowEnabled=true`」。三态共用 banvasgl 的 `useCanvasInit` 机制底座。预览态在引擎侧与线上态完全一致（同一套 `useRuntimeBanvas` 运行策略 + `flowEnabled=true`），它与线上态的差异**不在引擎层**，而在后端服务拓扑（本地服务 + 本地 Mongo vs ECS + 真实业务库）与前端是否部署——这部分是 **app 域**职责，由 app/A5 决策、`docs/specs/app/preview-local-backend.md` 承载，本引擎 spec 不展开。
+**核心观察（引擎视角）**：编辑态 ↔ 运行态的本质区别，从引擎机制看只有两点——「注入编辑策略 + `flowEnabled=false`」对「注入运行策略 + `flowEnabled=true`」。三态共用 `@banyuan/banvasgl-react` 的 `useCanvasInit` 机制底座。预览态在引擎侧与线上态完全一致（同一套 `useRuntimeBanvas` 运行策略 + `flowEnabled=true`），它与线上态的差异**不在引擎层**，而在后端服务拓扑（本地服务 + 本地 Mongo vs ECS + 真实业务库）与前端是否部署——这部分是 **app 域**职责，由 app/A5 决策、`docs/specs/app/preview-local-backend.md` 承载，本引擎 spec 不展开。
 
 > **预览态全貌（一句话定位，细节见 app spec）**：预览态是「banyan 前端工程内的 PreviewPage（`useRuntimeBanvas` 同源、不部署第二套前端、不 iframe）+ 本地起的真实后端」的前后端异源混合态。其中：前端交互形态（默认预览态、UIPage/PreviewPage 拆分、顶部 switch、独立预览路由、切预览前自动保存）见 **`docs/specs/app/preview-default-mode-switch.md`**（决策 app/P5）；本地后端编排与覆盖边界（不覆盖前端构建产物、不覆盖部署正确性与数据真实性，「预览通过 ≠ 可上线」）见 **`docs/specs/app/preview-local-backend.md`**（决策 app/A5）。
 
@@ -269,12 +269,13 @@ pointermove 跨命中边界(仅mouse) →  解释为 enter/leave           →  
 ### 三层分工（机制在内核，策略分两端）
 
 ```
-@banyuan/banvasgl       运行时机制：原子事件(pointer/key) / 命中检测 / 几何变换 / FlowSchema 执行 / flowEnabled gate / useCanvasInit
+@banyuan/banvasgl       运行时机制：原子事件(pointer/key) / 命中检测 / 几何变换 / FlowSchema 执行 / flowEnabled gate
+@banyuan/banvasgl-react Web 平台注入 + React Hook：useCanvasInit / useCanvasCamera / WebDrawingContext / WebSurface
 @banyuan/banvas-runtime 运行策略：高级交互识别(click/dblclick/drag/focus…) + useRuntimeBanvas + 事件→triggerSchema 派发（进用户产物）
 banyan/frontend         编辑策略：InteractionStateMachine 装配 + useDesignBanvas + useInteraction（不进用户产物）
 ```
 
-`banvas-runtime` 与 `banyan/frontend` 都依赖 banvasgl 暴露的同一套机制原语（`useCanvasInit` + 原子事件 + hitTest + triggerSchema），二者互不依赖，可独立演进。
+`banvas-runtime` 与 `banyan/frontend` 都依赖 `@banyuan/banvasgl-react` 暴露的同一套机制底座（`useCanvasInit` + 原子事件 + hitTest + triggerSchema），二者互不依赖，可独立演进。
 
 ---
 
@@ -312,11 +313,11 @@ public triggerSchema(view: IView, schema: FlowSchema | null, eventArgs: unknown[
 
 ---
 
-## hook 分层：useCanvasInit（机制，banvasgl）vs useRuntimeBanvas（策略，banvas-runtime）
+## hook 分层：useCanvasInit（机制，banvasgl-react）vs useRuntimeBanvas（策略，banvas-runtime）
 
-### banvasgl 侧：保持 useCanvasInit 不变
+### banvasgl-react 侧：useCanvasInit 是机制底座
 
-`packages/banvasgl/src/hook/useCanvasInit.tsx` 已是纯机制底座，入参 `UseCanvasOptions { width?, height?, appOptions?, rendererOptions?, textInput? }`，返回 `{ actions, elements, derived }`。本方案**不在 banvasgl 新增 useRuntimeBanvas**。banvasgl hook 层维持现状（`useCanvasInit` + `useCanvasCamera`）。
+`packages/banvasgl-react/src/hooks/useCanvasInit.tsx` 是纯机制底座，入参 `UseCanvasOptions { width?, height?, appOptions?, rendererOptions?, textInput? }`，返回 `{ actions, elements, derived }`。本方案**不在 banvasgl-react 新增 useRuntimeBanvas**。banvasgl-react hook 层维持现状（`useCanvasInit` + `useCanvasCamera`）。
 
 ### banvas-runtime 侧：新增 useRuntimeBanvas
 
@@ -324,7 +325,7 @@ public triggerSchema(view: IView, schema: FlowSchema | null, eventArgs: unknown[
 
 ```ts
 // packages/banvas-runtime/src/hook/useRuntimeBanvas.tsx
-import { useCanvasInit } from "@banyuan/banvasgl/react";
+import { useCanvasInit } from "@banyuan/banvasgl-react";
 import type { UseCanvasOptions } from "@banyuan/banvasgl";
 
 export interface UseRuntimeOptions extends UseCanvasOptions {
@@ -337,7 +338,7 @@ export interface UseRuntimeOptions extends UseCanvasOptions {
 }
 
 export function useRuntimeBanvas(appJSON: string, options: UseRuntimeOptions) {
-  // 1. 复用 banvasgl 机制底座 useCanvasInit，flowEnabled = true，textInput = false
+  // 1. 复用 banvasgl-react 机制底座 useCanvasInit，flowEnabled = true，textInput = false
   const { actions, elements, derived } = useCanvasInit(appJSON, {
     ...options,
     appOptions: { ...options.appOptions, flowEnabled: true },
@@ -365,7 +366,7 @@ export function useRuntimeBanvas(appJSON: string, options: UseRuntimeOptions) {
 
 |             | useDesignBanvas                                             | useRuntimeBanvas                                        |
 | ----------- | ----------------------------------------------------------- | ------------------------------------------------------- |
-| 底座        | `useCanvasInit`（banvasgl）                                 | `useCanvasInit`（banvasgl，同一个）                     |
+| 底座        | `useCanvasInit`（banvasgl-react）                          | `useCanvasInit`（banvasgl-react，同一个）              |
 | flowEnabled | false                                                       | true                                                    |
 | 注入策略    | InteractionStateMachine（编辑策略，经 useInteraction 装配） | 高级交互识别（运行策略，经 useRuntimeInteraction 装配） |
 | textInput   | true                                                        | false                                                   |
@@ -526,7 +527,7 @@ export function App() {
 }
 ```
 
-注意：`useRuntimeBanvas` 现从 `@banyuan/banvas-runtime` 导入（不再是 `@banyuan/banvasgl/react`），且 `flowEnabled: true` 已由 `useRuntimeBanvas` 内部固定注入，无需在 scaffold 重复传。
+注意：`useRuntimeBanvas` 现从 `@banyuan/banvas-runtime` 导入（不再是 `@banyuan/banvasgl-react`），且 `flowEnabled: true` 已由 `useRuntimeBanvas` 内部固定注入，无需在 scaffold 重复传。
 
 同时 `generatePackageJson` 需要加入 `@banyuan/banvas-runtime`：
 
@@ -672,7 +673,7 @@ private get keepAspect(): boolean { return this._modifiers.ctrl }
 - 创建 `packages/banvas-runtime/` 目录结构（`packages/*` 已被 pnpm-workspace 通配匹配，无需改 workspace 配置）
 - 写入 `package.json`（peerDep banvasgl + react）、`tsconfig.json`、`tsup.config.ts`
 - 实现 `InteractionRecognizer` 基类 + `ClickRecognizer`（最小可用）+ `useRuntimeInteraction` hook（click 派发）
-- 实现 `useRuntimeBanvas`（复用 banvasgl 的 `useCanvasInit`，注入 `flowEnabled: true` + 装配 `useRuntimeInteraction`），从 `src/index.ts` 导出
+- 实现 `useRuntimeBanvas`（复用 banvasgl-react 的 `useCanvasInit`，注入 `flowEnabled: true` + 装配 `useRuntimeInteraction`），从 `src/index.ts` 导出
 
 **步骤 4：scaffold 产物修复（deploy-agent）**
 
@@ -706,7 +707,7 @@ private get keepAspect(): boolean { return this._modifiers.ctrl }
 | `packages/banvas-runtime/`                           | 新建包（useRuntimeBanvas + 交互识别器骨架 + click 最小实现）      |
 | `packages/deploy-agent/src/scaffold.ts`              | `generateAppTsx` 改用 banvas-runtime 的 useRuntimeBanvas + 加依赖 |
 
-注意：banvasgl 的 `hook/index.ts` 与包根 `index.ts` **不再**新增 `useRuntimeBanvas` 导出（该 hook 移至 banvas-runtime）。
+注意：`@banyuan/banvasgl-react` 的 hook 导出 **不再**新增 `useRuntimeBanvas`（该 hook 移至 banvas-runtime）。
 
 ---
 

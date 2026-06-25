@@ -26,7 +26,7 @@
 非目标（本方案不处理）：
 
 - 预览态**后端**如何起、连什么库、进程怎么管、热更新（属 app/A5 + `preview-local-backend.md`）
-- 运行态画布 hook 的实现（引擎层已提供 `useCanvasInit` + `flowEnabled` 配置，本方案直接使用）
+- 运行态画布 hook 的实现（`@banyuan/banvasgl-react` 已提供 `useCanvasInit` + `flowEnabled` 配置，本方案直接使用）
 - 线上态发布流程本身（既有 handleBuild / deploy-agent Production Mode，不在本方案改动范围）
 
 ---
@@ -46,7 +46,7 @@
 
 ## 实施步骤（可执行）
 
-**前置依赖**：`useCanvasInit` hook 已支持 `flowEnabled: true` 配置（引擎层已提供）。本地 Preview Server（`preview-local-backend.md`）就绪后后端节点才能真实执行。在 Preview Server 就绪前，PreviewPage 可先搭壳运行——前端 FlowSchema 正常执行，仅 `callFlow` 节点因 `env.callFlow` 为 undefined 而静默跳过。
+**前置依赖**：`useCanvasInit` hook 已支持 `flowEnabled: true` 配置（`@banyuan/banvasgl-react` 已提供）。本地 Preview Server（`preview-local-backend.md`）就绪后后端节点才能真实执行。在 Preview Server 就绪前，PreviewPage 可先搭壳运行——前端 FlowSchema 正常执行，仅 `callFlow` 节点因 `env.callFlow` 为 undefined 而静默跳过。
 
 **步骤 1：新建 PreviewPage（预览态页面）** ✅ 已落地
 

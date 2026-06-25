@@ -572,16 +572,17 @@ InteractionStateMachine 通过 `InteractionDelegate` 接口声明所有外部能
 
 ## 宿主集成协议
 
-### C11. 引擎 ↔ 宿主 Hook 层通信协议
+### C11. 引擎 ↔ 宿主集成通信协议
 
 **✅ 已实施**
 
-React hook 通过 `useRef` 持有 App 实例，通过 `useEffect` 管理生命周期。hook 向引擎传递 Canvas DOM 元素和配置，引擎通过回调通知宿主状态变化。
+引擎核心零 DOM / 零 React 依赖，通过 `subscribe` / `getVersion` / `notify` 三件套暴露外部状态订阅能力。React hook（`useCanvasInit` / `useCanvasCamera`）在独立包 `@banyuan/banvasgl-react` 中，通过 `useRef` 持有 App 实例，通过 `useEffect` 管理生命周期。hook 向引擎传递 Canvas DOM 元素和配置，引擎通过回调通知宿主状态变化。
 
-**决策链：** 引擎不依赖 React，但需要与 React 宿主协同 → hook 是 React 端的集成层 → 通过 ref 持有实例避免重复创建。
+**决策链：** 引擎不依赖 React，但需要与 React 宿主协同 → hook 是 React 端的集成层 → 抽取为独立包 banvasgl-react 使 banvasgl 核心保持平台无关 → 通过 ref 持有实例避免重复创建。
 
 **约束：**
 
+- `@banyuan/banvasgl-react` 导出 useCanvasInit 和 useCanvasCamera
 - useCanvasInit 返回：`{ actions, elements: { container }, derived: { revision, selectedViewId, currentPageId, selectedViewPos, canvas, inputElement } }`
 - useCanvasCamera：仅自适应模式启用，通过 `syncCameraToContainer(width, height, dpr)` 同步相机边界
 - hook unmount 时调用 App.destroy() 清理资源
