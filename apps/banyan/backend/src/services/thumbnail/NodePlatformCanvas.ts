@@ -95,6 +95,28 @@ export class NodeSurface implements IDrawingSurface {
     }
   }
 
+  // ── 帧调度（Node.js headless，使用 setTimeout 模拟帧循环）──
+
+  private _frameHandleSeq = 0;
+  private _frameHandles = new Map<number, ReturnType<typeof setTimeout>>();
+
+  requestFrame(callback: (timestamp: number) => void): number {
+    const id = ++this._frameHandleSeq;
+    this._frameHandles.set(id, setTimeout(() => {
+      this._frameHandles.delete(id);
+      callback(performance.now());
+    }, 16));
+    return id;
+  }
+
+  cancelFrame(handle: number): void {
+    const timer = this._frameHandles.get(handle);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this._frameHandles.delete(handle);
+    }
+  }
+
   // ── Node 特定方法 ──
 
   /** 获取底层 node-canvas 实例 */

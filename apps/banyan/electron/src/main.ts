@@ -12,6 +12,12 @@ const __dirname = path.dirname(__filename);
 
 const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
 
+// 开发模式下抑制 Vite HMR eval 导致的 CSP 安全警告
+// 生产打包后不存在 eval 调用，无需此抑制
+if (isDev) {
+  process.env.ELECTRON_DISABLE_SECURITY_WARNINGS = 'true'
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 // ─── Preview Server 编排器（单例） ────────────────────────────────────────────
