@@ -1,4 +1,4 @@
-# Banyan —— 低代码可视化设计平台
+﻿# Banyan —— 低代码可视化设计平台
 
 Banyan 是 Banyuan 的主应用，提供完整的低代码应用构建体验。用户在这里设计界面、定义数据、编排逻辑、对话 AI、构建部署。
 
@@ -72,6 +72,8 @@ pnpm dev:banyan
 
 ```
 Banyan frontend  ──依赖──▶  @banyuan/banvasgl（画布渲染）
+                 ──依赖──▶  @banyuan/banvasgl-react（Web 平台注入 + React Hook）
+                 ──依赖──▶  @banyuan/banvas-react-runtime（运行策略层）
 Banyan backend   ──依赖──▶  @banyuan/banvasgl/flow/server（FlowSchema 类型/存储）
 Banyan backend   ──HTTP SSE─▶  XiangDi Server(:3002)（AI 代理）
 Banyan backend   ── ws ───▶  租户 ECS deploy-agent（部署）

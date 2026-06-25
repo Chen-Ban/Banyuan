@@ -71,10 +71,12 @@ pnpm build && pnpm start
 |------|--------|------|
 | `PORT` | 3002 | 服务端口 |
 | `DEEPSEEK_API_KEY` | — | DeepSeek API Key |
+| `DEEPSEEK_MODEL` | deepseek-v4-pro | DeepSeek 模型名 |
+| `DEEPSEEK_BASE_URL` | https://api.deepseek.com | DeepSeek API 基础 URL |
 | `KIMI_API_KEY` | — | Kimi API Key（备用） |
 | `BANYAN_URL` | http://localhost:3001 | Banyan 后端地址（Pull 数据用） |
 | `KNOWLEDGE_URL` | http://localhost:3003 | 知识服务地址 |
-| `INTERNAL_TOKEN` | — | 内部服务间认证 token |
+| `XIANGDI_INTERNAL_TOKEN` | — | 内部服务间认证 token |
 
 ---
 
