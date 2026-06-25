@@ -15,59 +15,59 @@ import type { Cursor, Action } from '@/foundation/constants'
 // ────────────────────────────────────────────
 
 interface ExtraDataBase {
-    cursorStyle: Cursor
+  cursorStyle: Cursor
 }
 
 export interface MoveData extends ExtraDataBase {
-    action: Action.MOVE
+  action: Action.MOVE
 }
 
 export interface ResizeData extends ExtraDataBase {
-    action: Action.RESIZE
-    resizeFixedIndex: number
-    resizeDynamicIndex: number
+  action: Action.RESIZE
+  resizeFixedIndex: number
+  resizeDynamicIndex: number
 }
 
 export interface RotateData extends ExtraDataBase {
-    action: Action.ROTATE
+  action: Action.ROTATE
 }
 
 export interface EditPointData extends ExtraDataBase {
-    action: Action.EDIT_POINT
-    editPoint: Point3
+  action: Action.EDIT_POINT
+  editPoint: Point3
 }
 
 export interface EditViewportData extends ExtraDataBase {
-    action: Action.EDIT_VIEWPORT
-    viewPortPoint: Point3
+  action: Action.EDIT_VIEWPORT
+  viewPortPoint: Point3
 }
 
 export interface SelectData extends ExtraDataBase {
-    action: Action.SELECT
+  action: Action.SELECT
 }
 
 export interface TextSelectionData extends ExtraDataBase {
-    action: Action.TEXT_SELECTION
+  action: Action.TEXT_SELECTION
 }
 
 export interface NoneData extends ExtraDataBase {
-    action: Action.NONE
+  action: Action.NONE
 }
 
 export interface ConnectData extends ExtraDataBase {
-    action: Action.CONNECT
-    /** 触发连线的源端口 View id */
-    portViewId: string
+  action: Action.CONNECT
+  /** 触发连线的源端口 View id */
+  portViewId: string
 }
 
 /** 交互结果数据 —— 判别联合，通过 action 字段收窄类型 */
 export type ExtraData =
-    | MoveData
-    | ResizeData
-    | RotateData
-    | EditPointData
-    | EditViewportData
-    | SelectData
-    | TextSelectionData
-    | ConnectData
-    | NoneData
+  | MoveData
+  | ResizeData
+  | RotateData
+  | EditPointData
+  | EditViewportData
+  | SelectData
+  | TextSelectionData
+  | ConnectData
+  | NoneData

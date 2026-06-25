@@ -1,17 +1,17 @@
-import View from "@/view/View/View";
-import CombinedView from "@/view/CombinedViews";
+import View from '@/view/View/View'
+import CombinedView from '@/view/CombinedViews'
 import type { ISceneNode, IContainerView } from '@/types/view/view'
-import { isTextView, isCombinedView } from "@/foundation/guards";
+import { isTextView, isCombinedView } from '@/foundation/guards'
 
 /**
  * 视图树节点：可以是 Scene（ISceneNode）或容器视图（IContainerView）或普通 View。
  * 注意：叶子 View 不再具备 children 属性，遍历时需要类型守卫。
  */
-type TreeNode = ISceneNode | IContainerView | View;
+type TreeNode = ISceneNode | IContainerView | View
 
 /** 判断节点是否拥有 children （Scene 或 ContainerView） */
 function hasChildren(node: TreeNode): node is ISceneNode | IContainerView {
-    return 'children' in node && Array.isArray((node as any).children)
+  return 'children' in node && Array.isArray((node as any).children)
 }
 
 /**
@@ -21,19 +21,19 @@ function hasChildren(node: TreeNode): node is ISceneNode | IContainerView {
  * @returns 扁平化的视图列表
  */
 export function flattenViewTree(root: TreeNode): View[] {
-  const views: View[] = [];
+  const views: View[] = []
 
   const traverse = (node: TreeNode) => {
     if (hasChildren(node)) {
       for (const child of node.children) {
-        views.push(child as View);
-        traverse(child as TreeNode);
+        views.push(child as View)
+        traverse(child as TreeNode)
       }
     }
-  };
+  }
 
-  traverse(root);
-  return views;
+  traverse(root)
+  return views
 }
 
 /**
@@ -43,22 +43,22 @@ export function flattenViewTree(root: TreeNode): View[] {
  * @returns 从根节点到目标视图的路径，如果未找到返回null
  */
 export function findViewPath(root: TreeNode, targetView: View): View[] | null {
-  const path: View[] = [];
+  const path: View[] = []
 
   const findPath = (node: TreeNode, target: View): boolean => {
     if (hasChildren(node)) {
       for (const child of node.children) {
-        path.push(child as View);
+        path.push(child as View)
         if (child === target || findPath(child as TreeNode, target)) {
-          return true;
+          return true
         }
-        path.pop();
+        path.pop()
       }
     }
-    return false;
-  };
+    return false
+  }
 
-  return findPath(root, targetView) ? path : null;
+  return findPath(root, targetView) ? path : null
 }
 
 /**
@@ -68,7 +68,7 @@ export function findViewPath(root: TreeNode, targetView: View): View[] | null {
  * @returns 如果视图在树中返回true，否则返回false
  */
 export function isViewInTree(root: TreeNode, targetView: View): boolean {
-  return flattenViewTree(root).includes(targetView);
+  return flattenViewTree(root).includes(targetView)
 }
 
 /**
@@ -77,19 +77,19 @@ export function isViewInTree(root: TreeNode, targetView: View): boolean {
  * @returns 视图深度映射表
  */
 export function getViewDepths(root: TreeNode): Map<View, number> {
-  const depths = new Map<View, number>();
+  const depths = new Map<View, number>()
 
   const calculateDepth = (node: TreeNode, depth: number = 0) => {
     if (hasChildren(node)) {
       for (const child of node.children) {
-        depths.set(child as View, depth);
-        calculateDepth(child as TreeNode, depth + 1);
+        depths.set(child as View, depth)
+        calculateDepth(child as TreeNode, depth + 1)
       }
     }
-  };
+  }
 
-  calculateDepth(root);
-  return depths;
+  calculateDepth(root)
+  return depths
 }
 
 /**
@@ -98,7 +98,7 @@ export function getViewDepths(root: TreeNode): Map<View, number> {
  * @returns 激活的视图列表
  */
 export function getActiveViews(root: TreeNode): View[] {
-  return flattenViewTree(root).filter((view) => view.actived);
+  return flattenViewTree(root).filter((view) => view.actived)
 }
 
 /**
@@ -107,7 +107,7 @@ export function getActiveViews(root: TreeNode): View[] {
  * @returns 选中的视图列表
  */
 export function getSelectedViews(root: TreeNode): View[] {
-  return flattenViewTree(root).filter((view) => view.selected);
+  return flattenViewTree(root).filter((view) => view.selected)
 }
 
 /**
@@ -116,8 +116,8 @@ export function getSelectedViews(root: TreeNode): View[] {
  */
 export function clearActiveStates(root: TreeNode): void {
   flattenViewTree(root).forEach((view) => {
-    view.setActived(false);
-  });
+    view.setActived(false)
+  })
 }
 
 /**
@@ -127,9 +127,9 @@ export function clearActiveStates(root: TreeNode): void {
  */
 export function clearSelectedStates(root: TreeNode, excludeView: View | undefined = undefined): void {
   flattenViewTree(root).forEach((v) => {
-    if (v === excludeView) return;
-    v.setSelected(false);
-  });
+    if (v === excludeView) return
+    v.setSelected(false)
+  })
 }
 
 /**
@@ -139,14 +139,14 @@ export function clearSelectedStates(root: TreeNode, excludeView: View | undefine
  */
 export function clearAllStates(root: TreeNode, excludeView: View | undefined = undefined): void {
   flattenViewTree(root).forEach((v) => {
-    if (v === excludeView) return;
-    v.setActived(false);
-    v.setSelected(false);
+    if (v === excludeView) return
+    v.setActived(false)
+    v.setSelected(false)
 
     if (isTextView(v)) {
-      (v as any).setSelection(undefined, undefined);
+      ;(v as any).setSelection(undefined, undefined)
     }
-  });
+  })
 }
 
 // ==================== 组合/取消组合（纯树操作） ====================
@@ -167,65 +167,61 @@ export interface GroupResult {
  * @param vpMatrix VP 矩阵，用于设置组合视图的视图投影矩阵
  * @returns 组合结果，或 null（不满足条件时）
  */
-export function groupViews(
-  views: View[],
-  combined: CombinedView,
-  vpMatrix: any
-): GroupResult | null {
-  if (views.length < 2) return null;
+export function groupViews(views: View[], combined: CombinedView, vpMatrix: any): GroupResult | null {
+  if (views.length < 2) return null
 
   // 校验：所有 view 必须拥有同一个父容器
-  const parent = views[0].parent;
-  if (!parent || !views.every((v) => v.parent === parent)) return null;
+  const parent = views[0].parent
+  if (!parent || !views.every((v) => v.parent === parent)) return null
 
   // parent 可能是 Scene（ISceneNode）或 ContainerView（IView）
   const parentHasChildren = 'children' in parent && Array.isArray((parent as any).children)
   if (!parentHasChildren) return null
-  const children = (parent as unknown as { children: View[] }).children;
+  const children = (parent as unknown as { children: View[] }).children
 
   // 过滤出确实在当前 children 中的 view
-  const validViews = views.filter((v) => children.includes(v));
-  if (validViews.length < 2) return null;
+  const validViews = views.filter((v) => children.includes(v))
+  if (validViews.length < 2) return null
 
   // 找到最高层级位置（最大 index），用于确定插入点
-  let maxIndex = -1;
+  let maxIndex = -1
   for (const v of validViews) {
-    const idx = children.indexOf(v);
-    if (idx > maxIndex) maxIndex = idx;
+    const idx = children.indexOf(v)
+    if (idx > maxIndex) maxIndex = idx
   }
 
   // 从 children 中移除这些 view
   for (const v of validViews) {
-    const idx = children.indexOf(v);
+    const idx = children.indexOf(v)
     if (idx > -1) {
-      children.splice(idx, 1);
-      v.parent = null;
+      children.splice(idx, 1)
+      v.parent = null
     }
   }
 
   // 将 view 添加到 CombinedView
   for (const v of validViews) {
-    combined.addChild(v);
+    combined.addChild(v)
   }
 
   // 根据子 View 计算组合容器的 viewport（子 View 的联合包围盒）
-  const childrenBounds = combined.measureChildren();
+  const childrenBounds = combined.measureChildren()
   if (childrenBounds.width > 0 || childrenBounds.height > 0) {
-    combined.viewport.x = childrenBounds.x;
-    combined.viewport.y = childrenBounds.y;
-    combined.viewport.width = childrenBounds.width;
-    combined.viewport.height = childrenBounds.height;
-    combined.boundingBox?.updateSize();
+    combined.viewport.x = childrenBounds.x
+    combined.viewport.y = childrenBounds.y
+    combined.viewport.width = childrenBounds.width
+    combined.viewport.height = childrenBounds.height
+    combined.boundingBox?.updateSize()
   }
 
   // 在原最高位置插入（考虑移除后 index 可能变小）
-  const insertIndex = Math.min(maxIndex, children.length);
-  children.splice(insertIndex, 0, combined);
-  combined.parent = parent;
-  combined.setVPMatrix(vpMatrix);
-  combined.onAttach();
+  const insertIndex = Math.min(maxIndex, children.length)
+  children.splice(insertIndex, 0, combined)
+  combined.parent = parent
+  combined.setVPMatrix(vpMatrix)
+  combined.onAttach()
 
-  return { combined, insertIndex };
+  return { combined, insertIndex }
 }
 
 /** ungroupView 的返回结果 */
@@ -243,42 +239,39 @@ export interface UngroupResult {
  * @param vpMatrix VP 矩阵，用于设置解散后子视图的视图投影矩阵
  * @returns 解散结果，或 null
  */
-export function ungroupView(
-  view: View,
-  vpMatrix: any
-): UngroupResult | null {
-  if (!isCombinedView(view)) return null;
+export function ungroupView(view: View, vpMatrix: any): UngroupResult | null {
+  if (!isCombinedView(view)) return null
 
-  const parent = view.parent;
-  if (!parent) return null;
+  const parent = view.parent
+  if (!parent) return null
 
   // parent 可能是 Scene（ISceneNode）或 ContainerView（IView）
   const parentHasChildren = 'children' in parent && Array.isArray((parent as any).children)
   if (!parentHasChildren) return null
-  const parentChildren = (parent as unknown as { children: View[] }).children;
-  if (!parentChildren.includes(view)) return null;
+  const parentChildren = (parent as unknown as { children: View[] }).children
+  if (!parentChildren.includes(view)) return null
 
-  const index = parentChildren.indexOf(view);
-  const childViews = [...view.children] as View[];
+  const index = parentChildren.indexOf(view)
+  const childViews = [...view.children] as View[]
 
   // 从 CombinedView 中移除子 view
   for (const child of childViews) {
-    (view as any).removeChild(child);
+    ;(view as any).removeChild(child)
   }
 
   // 从 children 中移除 CombinedView
-  parentChildren.splice(index, 1);
-  view.parent = null;
+  parentChildren.splice(index, 1)
+  view.parent = null
 
   // 将子 view 按顺序插入到原位置
   for (let i = 0; i < childViews.length; i++) {
-    const child = childViews[i];
-    const insertAt = Math.min(index + i, parentChildren.length);
-    parentChildren.splice(insertAt, 0, child);
-    child.parent = parent;
-    child.setVPMatrix(vpMatrix);
-    child.onAttach();
+    const child = childViews[i]
+    const insertAt = Math.min(index + i, parentChildren.length)
+    parentChildren.splice(insertAt, 0, child)
+    child.parent = parent
+    child.setVPMatrix(vpMatrix)
+    child.onAttach()
   }
 
-  return { children: childViews, index };
+  return { children: childViews, index }
 }

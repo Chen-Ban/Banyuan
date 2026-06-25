@@ -54,13 +54,7 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
    * );
    * ```
    */
-  constructor(
-    startPoint: Point3,
-    controlPoint: Point3,
-    endPoint: Point3,
-    _style?: Style,
-    id?: string
-  ) {
+  constructor(startPoint: Point3, controlPoint: Point3, endPoint: Point3, _style?: Style, id?: string) {
     super([startPoint, controlPoint, endPoint], _style, id)
     if (!id) this.id = generateId(this.type)
   }
@@ -133,18 +127,9 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
     const twoTOneMinusT = 2 * clampedT * oneMinusT
     const tSquared = clampedT * clampedT
 
-    const x =
-      oneMinusTSquared * start.x +
-      twoTOneMinusT * control.x +
-      tSquared * end.x
-    const y =
-      oneMinusTSquared * start.y +
-      twoTOneMinusT * control.y +
-      tSquared * end.y
-    const z =
-      oneMinusTSquared * start.z +
-      twoTOneMinusT * control.z +
-      tSquared * end.z
+    const x = oneMinusTSquared * start.x + twoTOneMinusT * control.x + tSquared * end.x
+    const y = oneMinusTSquared * start.y + twoTOneMinusT * control.y + tSquared * end.y
+    const z = oneMinusTSquared * start.z + twoTOneMinusT * control.z + tSquared * end.z
 
     return new Point3(x, y, z)
   }
@@ -174,15 +159,9 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
 
     // 切线公式: B'(t) = 2(1-t)(P₁-P₀) + 2t(P₂-P₁)
     const oneMinusT = 1 - clampedT
-    const dx =
-      2 * oneMinusT * (control.x - start.x) +
-      2 * clampedT * (end.x - control.x)
-    const dy =
-      2 * oneMinusT * (control.y - start.y) +
-      2 * clampedT * (end.y - control.y)
-    const dz =
-      2 * oneMinusT * (control.z - start.z) +
-      2 * clampedT * (end.z - control.z)
+    const dx = 2 * oneMinusT * (control.x - start.x) + 2 * clampedT * (end.x - control.x)
+    const dy = 2 * oneMinusT * (control.y - start.y) + 2 * clampedT * (end.y - control.y)
+    const dz = 2 * oneMinusT * (control.z - start.z) + 2 * clampedT * (end.z - control.z)
 
     return new Vector3(dx, dy, dz)
   }
@@ -207,7 +186,7 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
     return {
       id: this.id,
       type: this.type,
-      controlPoints: this.controlPoints.map(p => p.toJSON()),
+      controlPoints: this.controlPoints.map((p) => p.toJSON()),
     }
   }
 
@@ -229,10 +208,10 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
    * ```
    */
   static fromJSON(data: any): QuadraticBezier {
-    const points = data.controlPoints.map((p: any) => Point3.fromJSON(p));
-    const qb = new QuadraticBezier(points[0], points[1], points[2]);
-    qb.id = data.id;
-    return qb;
+    const points = data.controlPoints.map((p: any) => Point3.fromJSON(p))
+    const qb = new QuadraticBezier(points[0], points[1], points[2])
+    qb.id = data.id
+    return qb
   }
 
   /**
@@ -252,8 +231,7 @@ export default class QuadraticBezier extends Bezier implements IQuadraticBezier,
     return new QuadraticBezier(
       this.controlPoints[0].copy(),
       this.controlPoints[1].copy(),
-      this.controlPoints[2].copy()
+      this.controlPoints[2].copy(),
     ) as this
   }
-
 }

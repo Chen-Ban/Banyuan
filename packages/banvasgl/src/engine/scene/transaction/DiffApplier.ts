@@ -28,9 +28,7 @@ export class DiffApplier {
    * undo 时逆序遍历 diffs（后执行的先撤销），redo 时正序遍历。
    */
   apply(operation: Operation, direction: ApplyDirection): void {
-    const diffs = direction === 'undo'
-      ? [...operation.diffs].reverse()
-      : operation.diffs
+    const diffs = direction === 'undo' ? [...operation.diffs].reverse() : operation.diffs
 
     for (const diff of diffs) {
       this.applyDiff(diff, direction)
@@ -159,7 +157,7 @@ export class DiffApplier {
             return serializer.deserialize(child)
           })
           for (const child of children) {
-            view.addChild(child)  // addChild 内部已调用 markLayoutDirty
+            view.addChild(child) // addChild 内部已调用 markLayoutDirty
           }
         }
         break

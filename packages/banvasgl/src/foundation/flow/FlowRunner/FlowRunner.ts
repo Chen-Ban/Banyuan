@@ -1,15 +1,15 @@
-import type { FlowSchema } from "@/types/foundation/flow/schema.js";
-import type { FlowNode } from "@/types/foundation/flow/index.js";
-import { NodeKind, CompareOp, LogicOp } from "@/types/foundation/flow/enums.js";
-import type { SlotValue, DataRef, Filter, Condition, ConditionGroup } from "@/types/foundation/flow/common.js";
-import { isDataRef } from "@/types/foundation/flow/common.js";
-import type { CapProxy, IFlowRunner } from "../context/index.js";
-import type { IRunnerCtx } from "@/types/foundation/flow/context.js";
-import { FrameStack } from "../context/index.js";
-import type { NodeExecutor, NodeEvalResult, ExecutorRegistry } from "@/types/foundation/flow/executor.js";
+import type { FlowSchema } from '@/types/foundation/flow/schema.js'
+import type { FlowNode } from '@/types/foundation/flow/index.js'
+import { NodeKind, CompareOp, LogicOp } from '@/types/foundation/flow/enums.js'
+import type { SlotValue, DataRef, Filter, Condition, ConditionGroup } from '@/types/foundation/flow/common.js'
+import { isDataRef } from '@/types/foundation/flow/common.js'
+import type { CapProxy, IFlowRunner } from '../context/index.js'
+import type { IRunnerCtx } from '@/types/foundation/flow/context.js'
+import { FrameStack } from '../context/index.js'
+import type { NodeExecutor, NodeEvalResult, ExecutorRegistry } from '@/types/foundation/flow/executor.js'
 
 /** Push-Pull 混合调度步数安全阀：单次 `run()` 调用最多执行 1000 步，防止无限循环耗尽宿主线程 */
-const MAX_STEPS = 1000;
+const MAX_STEPS = 1000
 
 // ── 单步执行结果 ──
 
@@ -102,10 +102,10 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * 每个字段的 node 参数类型由 `NodeForKind` 自动推导，
    * 消除 executor 导出时的 as 断言。前后端 preset 各自填充不同子集。
    */
-  readonly executors: ExecutorRegistry<C>;
+  readonly executors: ExecutorRegistry<C>
 
   /** 全局能力代理 —— 整个执行链共享同一引用，executor 通过此字段访问外部效应 */
-  readonly cap: C;
+  readonly cap: C
 
   // ── IRunnerCtx 字段 ──
 
@@ -115,7 +115,7 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * Parallel 分支各自持有独立 FrameStack，避免竞态。
    * 每次 enter/leave 成对调用，保证帧状态不泄漏。
    */
-  stack: FrameStack = new FrameStack();
+  stack: FrameStack = new FrameStack()
 
   /**
    * 构造 FlowRunner 实例。
@@ -127,8 +127,8 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * @param cap - 全局能力代理（前端或后端）
    */
   constructor(executors: ExecutorRegistry<C>, cap: C) {
-    this.executors = executors;
-    this.cap = cap;
+    this.executors = executors
+    this.cap = cap
   }
 
   /**
@@ -142,9 +142,9 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * @param inputs - 顶层入参，进入帧后可通过 `Context` 节点按路径读取
    */
   async run(graph: FlowSchema, inputs: Record<string, unknown> = {}): Promise<void> {
-    this.stack.enter(inputs, graph);
-    await this.runGraph();
-    this.stack.leave();
+    this.stack.enter(inputs, graph)
+    await this.runGraph()
+    this.stack.leave()
   }
 
   /**
@@ -156,36 +156,33 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * @param stack - 可选：显式指定帧栈（Parallel 分支传入独立 FrameStack 避免竞态）
    * @returns 帧的返回值（`returnRef.value`，由 Return 节点写入）
    */
-  private async runGraph(
-    stack?: FrameStack,
-  ): Promise<Record<string, unknown>> {
-    const s = stack ?? this.stack;
+  private async runGraph(stack?: FrameStack): Promise<Record<string, unknown>> {
+    const s = stack ?? this.stack
 
-    let node: FlowNode | null = s.nodes[s.entry] ?? null;
+    let node: FlowNode | null = s.nodes[s.entry] ?? null
 
     while (node != null) {
-      if (++s.steps > MAX_STEPS) throw new Error("Max steps exceeded");
-      const step = await this.stepNode(node, s);
+      if (++s.steps > MAX_STEPS) throw new Error('Max steps exceeded')
+      const step = await this.stepNode(node, s)
       if (step.error) {
         // Action / Function 节点可能带有 onError 子图
-        const errorSchema = (node.slots as Array<{ onError?: FlowSchema }>).find((slot) => slot.onError)?.onError;
+        const errorSchema = (node.slots as Array<{ onError?: FlowSchema }>).find(
+          (slot) => slot.onError,
+        )?.onError
         if (errorSchema) {
-          s.enter(
-            { error: step.error, partialOutputs: step.outputs ?? {} },
-            errorSchema,
-          );
+          s.enter({ error: step.error, partialOutputs: step.outputs ?? {} }, errorSchema)
           try {
-            await this.runGraph(s);
+            await this.runGraph(s)
           } finally {
-            s.leave();
+            s.leave()
           }
         } else {
-          throw step.error;
+          throw step.error
         }
       }
-      node = step.next;
+      node = step.next
     }
-    return s.returnRef.value;
+    return s.returnRef.value
   }
 
   /**
@@ -201,35 +198,32 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * @param s - 当前帧栈
    * @returns StepResult（含 outputs / error / next）
    */
-  private async stepNode(
-    node: FlowNode,
-    s: FrameStack,
-  ): Promise<StepResult> {
-    const cached = s.getOutput(node.id);
+  private async stepNode(node: FlowNode, s: FrameStack): Promise<StepResult> {
+    const cached = s.getOutput(node.id)
     if (cached) {
       return {
         outputs: cached.outputs,
         error: cached.error,
-        next: cached.nextNodeId ? s.nodes[cached.nextNodeId] ?? null : null,
-      };
+        next: cached.nextNodeId ? (s.nodes[cached.nextNodeId] ?? null) : null,
+      }
     }
 
-    let result: NodeEvalResult;
+    let result: NodeEvalResult
     try {
-      result = await this.dispatch(node, s);
+      result = await this.dispatch(node, s)
     } catch (err) {
       result = {
         error: err instanceof Error ? err : new Error(String(err)),
         nextNodeId: null,
-      };
+      }
     }
 
-    s.setOutput(node.id, result);
+    s.setOutput(node.id, result)
     return {
       outputs: result.outputs,
       error: result.error,
-      next: result.nextNodeId ? s.nodes[result.nextNodeId] ?? null : null,
-    };
+      next: result.nextNodeId ? (s.nodes[result.nextNodeId] ?? null) : null,
+    }
   }
 
   /**
@@ -247,69 +241,69 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
     switch (node.kind) {
       // ── Source ──
       case NodeKind.Literal:
-        return this.execSource(this.executors[NodeKind.Literal], node);
+        return this.execSource(this.executors[NodeKind.Literal], node)
       case NodeKind.Context:
-        return this.execSource(this.executors[NodeKind.Context], node);
+        return this.execSource(this.executors[NodeKind.Context], node)
 
       // ── Compute ──
       case NodeKind.Math:
-        return this.exec(this.executors[NodeKind.Math], node, s);
+        return this.exec(this.executors[NodeKind.Math], node, s)
       case NodeKind.Compare:
-        return this.exec(this.executors[NodeKind.Compare], node, s);
+        return this.exec(this.executors[NodeKind.Compare], node, s)
       case NodeKind.Logic:
-        return this.exec(this.executors[NodeKind.Logic], node, s);
+        return this.exec(this.executors[NodeKind.Logic], node, s)
       case NodeKind.Concat:
-        return this.exec(this.executors[NodeKind.Concat], node, s);
+        return this.exec(this.executors[NodeKind.Concat], node, s)
       case NodeKind.Format:
-        return this.exec(this.executors[NodeKind.Format], node, s);
+        return this.exec(this.executors[NodeKind.Format], node, s)
       case NodeKind.Get:
-        return this.exec(this.executors[NodeKind.Get], node, s);
+        return this.exec(this.executors[NodeKind.Get], node, s)
 
       // ── Action（共享）──
       case NodeKind.SetVariable:
-        return this.exec(this.executors[NodeKind.SetVariable], node, s);
+        return this.exec(this.executors[NodeKind.SetVariable], node, s)
 
       // ── Action（前端）──
       case NodeKind.SetViewData:
-        return this.exec(this.executors[NodeKind.SetViewData], node, s);
+        return this.exec(this.executors[NodeKind.SetViewData], node, s)
       case NodeKind.SetViewVisible:
-        return this.exec(this.executors[NodeKind.SetViewVisible], node, s);
+        return this.exec(this.executors[NodeKind.SetViewVisible], node, s)
       case NodeKind.PlayAnimation:
-        return this.exec(this.executors[NodeKind.PlayAnimation], node, s);
+        return this.exec(this.executors[NodeKind.PlayAnimation], node, s)
       case NodeKind.Navigate:
-        return this.exec(this.executors[NodeKind.Navigate], node, s);
+        return this.exec(this.executors[NodeKind.Navigate], node, s)
       case NodeKind.CloudFunction:
-        return this.exec(this.executors[NodeKind.CloudFunction], node, s);
+        return this.exec(this.executors[NodeKind.CloudFunction], node, s)
 
       // ── Action（后端）──
       case NodeKind.HttpRequest:
-        return this.exec(this.executors[NodeKind.HttpRequest], node, s);
+        return this.exec(this.executors[NodeKind.HttpRequest], node, s)
       case NodeKind.DbQuery:
-        return this.exec(this.executors[NodeKind.DbQuery], node, s);
+        return this.exec(this.executors[NodeKind.DbQuery], node, s)
       case NodeKind.DbInsert:
-        return this.exec(this.executors[NodeKind.DbInsert], node, s);
+        return this.exec(this.executors[NodeKind.DbInsert], node, s)
       case NodeKind.DbUpdate:
-        return this.exec(this.executors[NodeKind.DbUpdate], node, s);
+        return this.exec(this.executors[NodeKind.DbUpdate], node, s)
       case NodeKind.DbDelete:
-        return this.exec(this.executors[NodeKind.DbDelete], node, s);
+        return this.exec(this.executors[NodeKind.DbDelete], node, s)
 
       // ── Control ──
       case NodeKind.Condition:
-        return this.exec(this.executors[NodeKind.Condition], node, s);
+        return this.exec(this.executors[NodeKind.Condition], node, s)
       case NodeKind.Loop:
-        return this.exec(this.executors[NodeKind.Loop], node, s);
+        return this.exec(this.executors[NodeKind.Loop], node, s)
       case NodeKind.Parallel:
-        return this.exec(this.executors[NodeKind.Parallel], node, s);
+        return this.exec(this.executors[NodeKind.Parallel], node, s)
       case NodeKind.Return:
-        return this.exec(this.executors[NodeKind.Return], node, s);
+        return this.exec(this.executors[NodeKind.Return], node, s)
 
       // ── Function ──
       case NodeKind.Function:
-        return this.exec(this.executors[NodeKind.Function], node, s);
+        return this.exec(this.executors[NodeKind.Function], node, s)
 
       default: {
-        const _exhaustive: never = node;
-        throw new Error("Unhandled node kind: " + (_exhaustive as FlowNode).kind);
+        const _exhaustive: never = node
+        throw new Error('Unhandled node kind: ' + (_exhaustive as FlowNode).kind)
       }
     }
   }
@@ -328,8 +322,8 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
     ex: NodeExecutor<N, C> | undefined,
     node: N,
   ): Promise<NodeEvalResult> {
-    if (!ex) throw new Error(`Executor not registered for ${node.kind}`);
-    return ex(node, {}, this);
+    if (!ex) throw new Error(`Executor not registered for ${node.kind}`)
+    return ex(node, {}, this)
   }
 
   /**
@@ -348,9 +342,9 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
     node: N,
     s: FrameStack,
   ): Promise<NodeEvalResult> {
-    if (!ex) throw new Error(`Executor not registered for ${node.kind}`);
-    const inputs = await this.pullSlots(s, node);
-    return ex(node, inputs, this);
+    if (!ex) throw new Error(`Executor not registered for ${node.kind}`)
+    const inputs = await this.pullSlots(s, node)
+    return ex(node, inputs, this)
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -368,14 +362,14 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * @returns 解析后的具体值
    */
   private async pull(slot: SlotValue, stack?: FrameStack): Promise<unknown> {
-    const s = stack ?? this.stack;
-    if (!isDataRef(slot)) return slot;
-    const ref = slot as DataRef;
-    const upstream = s.nodes[ref.nodeId];
-    if (!upstream) throw new Error("DataRef target not found: " + ref.nodeId);
-    const step = await this.stepNode(upstream, s);
-    if (step.error) throw step.error;
-    return (step.outputs ?? {})[ref.field];
+    const s = stack ?? this.stack
+    if (!isDataRef(slot)) return slot
+    const ref = slot as DataRef
+    const upstream = s.nodes[ref.nodeId]
+    if (!upstream) throw new Error('DataRef target not found: ' + ref.nodeId)
+    const step = await this.stepNode(upstream, s)
+    if (step.error) throw step.error
+    return (step.outputs ?? {})[ref.field]
   }
 
   /**
@@ -389,14 +383,14 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * @returns 已解析的输入键值对
    */
   private async pullSlots(stack: FrameStack, node: FlowNode): Promise<Record<string, unknown>> {
-    const result: Record<string, unknown> = {};
+    const result: Record<string, unknown> = {}
     for (const s of node.slots ?? []) {
-      const input: Record<string, SlotValue> = s.input ?? {};
+      const input: Record<string, SlotValue> = s.input ?? {}
       for (const [name, slot] of Object.entries(input)) {
-        result[name] = await this.pull(slot, stack);
+        result[name] = await this.pull(slot, stack)
       }
     }
-    return result;
+    return result
   }
 
   /**
@@ -411,10 +405,14 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * @param stack - 可选的帧栈（默认当前帧栈，Parallel 分支传入独立 FrameStack）
    * @returns 子图返回值（Return 节点写入 `returnRef.value`）
    */
-  async runSubGraph(schema: FlowSchema, inputs: Record<string, unknown>, stack?: FrameStack): Promise<Record<string, unknown>> {
-    const s = stack ?? this.stack;
-    s.enter(inputs, schema);
-    return this.runGraph(s).finally(() => s.leave());
+  async runSubGraph(
+    schema: FlowSchema,
+    inputs: Record<string, unknown>,
+    stack?: FrameStack,
+  ): Promise<Record<string, unknown>> {
+    const s = stack ?? this.stack
+    s.enter(inputs, schema)
+    return this.runGraph(s).finally(() => s.leave())
   }
 
   // ── Filter 求值（供 control executor 调用）──
@@ -430,7 +428,7 @@ export class FlowRunner<C extends CapProxy = CapProxy> implements IFlowRunner, I
    * @returns 条件是否成立
    */
   async evaluateFilter(filter: Filter): Promise<boolean> {
-    return evaluateFilterImpl(filter, (slot) => this.pull(slot));
+    return evaluateFilterImpl(filter, (slot) => this.pull(slot))
   }
 }
 
@@ -452,11 +450,7 @@ async function evaluateFilterImpl(
 ): Promise<boolean> {
   if ('left' in filter && 'right' in filter) {
     const cond = filter as Condition
-    return compareEval(
-      await resolve(cond.left),
-      cond.op,
-      await resolve(cond.right),
-    )
+    return compareEval(await resolve(cond.left), cond.op, await resolve(cond.right))
   }
   if ('conditions' in filter) {
     const group = filter as ConditionGroup
@@ -484,13 +478,11 @@ async function logicEval(
 ): Promise<boolean> {
   switch (op) {
     case LogicOp.And: {
-      for (const c of conditions)
-        if (!(await evaluateFilterImpl(c, resolve))) return false
+      for (const c of conditions) if (!(await evaluateFilterImpl(c, resolve))) return false
       return true
     }
     case LogicOp.Or: {
-      for (const c of conditions)
-        if (await evaluateFilterImpl(c, resolve)) return true
+      for (const c of conditions) if (await evaluateFilterImpl(c, resolve)) return true
       return false
     }
     case LogicOp.Not:
@@ -513,13 +505,21 @@ async function logicEval(
  */
 function compareEval(left: unknown, op: CompareOp, right: unknown): boolean {
   switch (op) {
-    case CompareOp.Eq:  return (left as any) == (right as any)
-    case CompareOp.Neq: return (left as any) != (right as any)
-    case CompareOp.Gt:  return (left as any) > (right as any)
-    case CompareOp.Gte: return (left as any) >= (right as any)
-    case CompareOp.Lt:  return (left as any) < (right as any)
-    case CompareOp.Lte: return (left as any) <= (right as any)
-    case CompareOp.Contains: return String(left).includes(String(right))
-    default: return false
+    case CompareOp.Eq:
+      return (left as any) == (right as any)
+    case CompareOp.Neq:
+      return (left as any) != (right as any)
+    case CompareOp.Gt:
+      return (left as any) > (right as any)
+    case CompareOp.Gte:
+      return (left as any) >= (right as any)
+    case CompareOp.Lt:
+      return (left as any) < (right as any)
+    case CompareOp.Lte:
+      return (left as any) <= (right as any)
+    case CompareOp.Contains:
+      return String(left).includes(String(right))
+    default:
+      return false
   }
 }

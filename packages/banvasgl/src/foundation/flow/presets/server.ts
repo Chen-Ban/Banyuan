@@ -31,10 +31,10 @@
  * ```
  */
 
-import { FlowRunner } from "../FlowRunner/index.js";
-import type { BackendCapProxy } from "@/types/foundation/flow/context.js";
-import type { ExecutorRegistry } from "@/types/foundation/flow/executor.js";
-import { sourceExecutor } from "../executors/source.js";
+import { FlowRunner } from '../FlowRunner/index.js'
+import type { BackendCapProxy } from '@/types/foundation/flow/context.js'
+import type { ExecutorRegistry } from '@/types/foundation/flow/executor.js'
+import { sourceExecutor } from '../executors/source.js'
 import {
   mathExecutor,
   compareExecutor,
@@ -42,7 +42,7 @@ import {
   concatExecutor,
   formatExecutor,
   getExecutor,
-} from "../executors/compute.js";
+} from '../executors/compute.js'
 import {
   setVariableExecutor,
   httpRequestExecutor,
@@ -50,15 +50,10 @@ import {
   dbInsertExecutor,
   dbUpdateExecutor,
   dbDeleteExecutor,
-} from "../executors/action.js";
-import {
-  conditionExecutor,
-  loopExecutor,
-  parallelExecutor,
-  returnExecutor,
-} from "../executors/control.js";
-import { functionExecutor } from "../executors/function.js";
-import { NodeKind } from "@/types/foundation/flow/enums.js";
+} from '../executors/action.js'
+import { conditionExecutor, loopExecutor, parallelExecutor, returnExecutor } from '../executors/control.js'
+import { functionExecutor } from '../executors/function.js'
+import { NodeKind } from '@/types/foundation/flow/enums.js'
 
 export function createServerFlowRunner(cap: BackendCapProxy): FlowRunner<BackendCapProxy> {
   const registry: ExecutorRegistry<BackendCapProxy> = {
@@ -81,7 +76,7 @@ export function createServerFlowRunner(cap: BackendCapProxy): FlowRunner<Backend
     [NodeKind.Parallel]: parallelExecutor,
     [NodeKind.Return]: returnExecutor,
     [NodeKind.Function]: functionExecutor,
-  };
+  }
 
-  return new FlowRunner(registry, cap);
+  return new FlowRunner(registry, cap)
 }

@@ -20,39 +20,25 @@ import type { TextAlign, TextBaseline, ITextMetrics } from '../foundation/text.j
 
 export interface IDrawingContext {
   // ── 状态管理 ──
-  save(): void;
-  restore(): void;
+  save(): void
+  restore(): void
 
   // ── 变换矩阵 ──
-  setTransform(
-    a: number,
-    b: number,
-    c: number,
-    d: number,
-    e: number,
-    f: number,
-  ): void;
-  transform(
-    a: number,
-    b: number,
-    c: number,
-    d: number,
-    e: number,
-    f: number,
-  ): void;
-  translate(x: number, y: number): void;
-  scale(x: number, y: number): void;
-  rotate(angle: number): void;
+  setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void
+  transform(a: number, b: number, c: number, d: number, e: number, f: number): void
+  translate(x: number, y: number): void
+  scale(x: number, y: number): void
+  rotate(angle: number): void
 
   // ── 全局合成 ──
-  globalAlpha: number;
-  globalCompositeOperation: string;
+  globalAlpha: number
+  globalCompositeOperation: string
 
   // ── 路径 ──
-  beginPath(): void;
-  closePath(): void;
-  moveTo(x: number, y: number): void;
-  lineTo(x: number, y: number): void;
+  beginPath(): void
+  closePath(): void
+  moveTo(x: number, y: number): void
+  lineTo(x: number, y: number): void
   arc(
     x: number,
     y: number,
@@ -60,28 +46,10 @@ export interface IDrawingContext {
     startAngle: number,
     endAngle: number,
     counterclockwise?: boolean,
-  ): void;
-  arcTo(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    radius: number,
-  ): void;
-  bezierCurveTo(
-    cp1x: number,
-    cp1y: number,
-    cp2x: number,
-    cp2y: number,
-    x: number,
-    y: number,
-  ): void;
-  quadraticCurveTo(
-    cpx: number,
-    cpy: number,
-    x: number,
-    y: number,
-  ): void;
+  ): void
+  arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void
+  bezierCurveTo(cp1x: number, cp1y: number, cp2x: number, cp2y: number, x: number, y: number): void
+  quadraticCurveTo(cpx: number, cpy: number, x: number, y: number): void
   ellipse(
     x: number,
     y: number,
@@ -91,75 +59,44 @@ export interface IDrawingContext {
     startAngle: number,
     endAngle: number,
     counterclockwise?: boolean,
-  ): void;
-  rect(x: number, y: number, w: number, h: number): void;
-  roundRect(
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    radii?: number | number[],
-  ): void;
+  ): void
+  rect(x: number, y: number, w: number, h: number): void
+  roundRect(x: number, y: number, w: number, h: number, radii?: number | number[]): void
 
   // ── 填充与描边 ──
-  fill(fillRule?: FillRule): void;
-  stroke(): void;
-  fillRect(x: number, y: number, w: number, h: number): void;
-  strokeRect(x: number, y: number, w: number, h: number): void;
-  clearRect(x: number, y: number, w: number, h: number): void;
-  clip(fillRule?: FillRule): void;
+  fill(fillRule?: FillRule): void
+  stroke(): void
+  fillRect(x: number, y: number, w: number, h: number): void
+  strokeRect(x: number, y: number, w: number, h: number): void
+  clearRect(x: number, y: number, w: number, h: number): void
+  clip(fillRule?: FillRule): void
 
   // ── 样式属性 ──
-  fillStyle: string | IGradient | IPattern;
-  strokeStyle: string | IGradient | IPattern;
-  lineWidth: number;
-  lineCap: LineCap;
-  lineJoin: LineJoin;
-  miterLimit: number;
-  lineDashOffset: number;
-  setLineDash(segments: number[]): void;
-  getLineDash(): number[];
+  fillStyle: string | IGradient | IPattern
+  strokeStyle: string | IGradient | IPattern
+  lineWidth: number
+  lineCap: LineCap
+  lineJoin: LineJoin
+  miterLimit: number
+  lineDashOffset: number
+  setLineDash(segments: number[]): void
+  getLineDash(): number[]
 
   // ── 阴影 ──
-  shadowBlur: number;
-  shadowColor: string;
-  shadowOffsetX: number;
-  shadowOffsetY: number;
+  shadowBlur: number
+  shadowColor: string
+  shadowOffsetX: number
+  shadowOffsetY: number
 
   // ── 渐变与图案 ──
-  createLinearGradient(
-    x0: number,
-    y0: number,
-    x1: number,
-    y1: number,
-  ): IGradient;
-  createRadialGradient(
-    x0: number,
-    y0: number,
-    r0: number,
-    x1: number,
-    y1: number,
-    r1: number,
-  ): IGradient;
-  createConicGradient(
-    startAngle: number,
-    x: number,
-    y: number,
-  ): IGradient;
-  createPattern(
-    image: IImageSource,
-    repetition: PatternRepeat | null,
-  ): IPattern | null;
+  createLinearGradient(x0: number, y0: number, x1: number, y1: number): IGradient
+  createRadialGradient(x0: number, y0: number, r0: number, x1: number, y1: number, r1: number): IGradient
+  createConicGradient(startAngle: number, x: number, y: number): IGradient
+  createPattern(image: IImageSource, repetition: PatternRepeat | null): IPattern | null
 
   // ── 图像 ──
-  drawImage(image: IImageSource, dx: number, dy: number): void;
-  drawImage(
-    image: IImageSource,
-    dx: number,
-    dy: number,
-    dw: number,
-    dh: number,
-  ): void;
+  drawImage(image: IImageSource, dx: number, dy: number): void
+  drawImage(image: IImageSource, dx: number, dy: number, dw: number, dh: number): void
   drawImage(
     image: IImageSource,
     sx: number,
@@ -170,42 +107,30 @@ export interface IDrawingContext {
     dy: number,
     dw: number,
     dh: number,
-  ): void;
+  ): void
 
   // ── 图像平滑 ──
-  imageSmoothingEnabled: boolean;
-  imageSmoothingQuality: ImageSmoothingQuality;
+  imageSmoothingEnabled: boolean
+  imageSmoothingQuality: ImageSmoothingQuality
 
   // ── 文字 ──
-  font: string;
-  textAlign: TextAlign;
-  textBaseline: TextBaseline;
-  fillText(text: string, x: number, y: number, maxWidth?: number): void;
-  strokeText(text: string, x: number, y: number, maxWidth?: number): void;
-  measureText(text: string): ITextMetrics;
+  font: string
+  textAlign: TextAlign
+  textBaseline: TextBaseline
+  fillText(text: string, x: number, y: number, maxWidth?: number): void
+  strokeText(text: string, x: number, y: number, maxWidth?: number): void
+  measureText(text: string): ITextMetrics
 
   // ── 像素操作 ──
-  getImageData(
-    sx: number,
-    sy: number,
-    sw: number,
-    sh: number,
-  ): IImageSource;
-  putImageData(
-    imagedata: IImageSource,
-    dx: number,
-    dy: number,
-  ): void;
-  createImageData(sw: number, sh: number): IImageSource;
+  getImageData(sx: number, sy: number, sw: number, sh: number): IImageSource
+  putImageData(imagedata: IImageSource, dx: number, dy: number): void
+  createImageData(sw: number, sh: number): IImageSource
 
   // ── 命中测试 ──
-  isPointInPath(x: number, y: number, fillRule?: FillRule): boolean;
-  isPointInStroke(x: number, y: number): boolean;
+  isPointInPath(x: number, y: number, fillRule?: FillRule): boolean
+  isPointInStroke(x: number, y: number): boolean
 
   // ── 平台媒体源创建 ──
-  loadImageSource(src: string, crossOrigin?: string): Promise<IImageSource>;
-  loadVideoSource(
-    src: string,
-    options?: IVideoLoadOptions,
-  ): Promise<IVideoSource>;
+  loadImageSource(src: string, crossOrigin?: string): Promise<IImageSource>
+  loadVideoSource(src: string, options?: IVideoLoadOptions): Promise<IVideoSource>
 }

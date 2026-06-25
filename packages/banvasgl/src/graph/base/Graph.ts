@@ -1,7 +1,7 @@
-import { GraphType } from "@/foundation/constants";
-import Style from "@/foundation/style/Style";
-import { MathUtils, Matrix4, Point3, Vector3 } from "@/foundation/math";
-import Bounds from "./Bounds";
+import { GraphType } from '@/foundation/constants'
+import Style from '@/foundation/style/Style'
+import { MathUtils, Matrix4, Point3, Vector3 } from '@/foundation/math'
+import Bounds from './Bounds'
 import type { IGraph } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
 import type { IDrawingContext } from '@/types/platform/context.js'
@@ -34,12 +34,12 @@ export default abstract class Graph implements IGraph, ISerializable {
   /**
    * 图形唯一标识符
    */
-  public id: string;
+  public id: string
 
   /**
    * 图形类型标识，由子类实现
    */
-  public abstract type: GraphType;
+  public abstract type: GraphType
 
   /**
    * 图形控制点数组，由子类实现。
@@ -50,12 +50,12 @@ export default abstract class Graph implements IGraph, ISerializable {
    * - `QuadraticBezier`：`[startPoint, controlPoint, endPoint]`
    * - `CubicBezier`：`[startPoint, controlPoint1, controlPoint2, endPoint]`
    */
-  public abstract controlPoints: Point3[] | Float32Array;
+  public abstract controlPoints: Point3[] | Float32Array
 
   /**
    * 图形包围盒（轴对齐边界框）
    */
-  public abstract bounds: Bounds;
+  public abstract bounds: Bounds
 
   /**
    * 创建一个图形实例
@@ -73,7 +73,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * ```
    */
   constructor(id?: string) {
-    this.id = id ?? "";
+    this.id = id ?? ''
   }
 
   // ── 序列化（子类必须实现） ──
@@ -85,7 +85,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    *
    * @returns {any} 可 JSON 化的纯对象
    */
-  public abstract toJSON(): any;
+  public abstract toJSON(): any
 
   /**
    * 描绘路径
@@ -103,10 +103,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * graph.renderPath(ctx, false); // 追加到当前路径
    * ```
    */
-  public abstract renderPath(
-    ctx: IDrawingContext,
-    dependent: Boolean,
-  ): void;
+  public abstract renderPath(ctx: IDrawingContext, dependent: boolean): void
 
   /**
    * 渲染图形
@@ -125,8 +122,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * graph.render(ctx, style);
    * ```
    */
-  public abstract render(ctx: IDrawingContext, style: Style): void;
-
+  public abstract render(ctx: IDrawingContext, style: Style): void
 
   /**
    * 复制图形
@@ -140,7 +136,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const copy = graph.copy();
    * ```
    */
-  public abstract copy(): this;
+  public abstract copy(): this
 
   /**
    * 更新图形包围盒
@@ -155,7 +151,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const bounds = graph.updateBounds();
    * ```
    */
-  public abstract updateBounds(): Bounds;
+  public abstract updateBounds(): Bounds
 
   /**
    * 约束布局（可选重写）
@@ -193,7 +189,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * line.isClosed();   // false
    * ```
    */
-  public abstract isClosed(): boolean;
+  public abstract isClosed(): boolean
 
   /**
    * 判断点是否在图形内部
@@ -215,19 +211,16 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const isIn = graph.isPointInPath(new Point3(50, 50, 0), bufferCtx);
    * ```
    */
-  public isPointInPath(
-    p: Point3,
-    bufferCtx?: IDrawingContext | null,
-  ): Boolean {
-    const ctx = bufferCtx;
-    if (!ctx) throw new Error("isPointInPath: 需要传入 bufferCtx");
-    ctx.save();
-    this.renderPath(ctx, true);
-    const isIn = ctx.isPointInPath(p.x, p.y, "nonzero");
-    ctx.strokeStyle = "#F00";
-    ctx.stroke();
-    ctx.restore();
-    return isIn;
+  public isPointInPath(p: Point3, bufferCtx?: IDrawingContext | null): boolean {
+    const ctx = bufferCtx
+    if (!ctx) throw new Error('isPointInPath: 需要传入 bufferCtx')
+    ctx.save()
+    this.renderPath(ctx, true)
+    const isIn = ctx.isPointInPath(p.x, p.y, 'nonzero')
+    ctx.strokeStyle = '#F00'
+    ctx.stroke()
+    ctx.restore()
+    return isIn
   }
 
   /**
@@ -247,7 +240,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const point = graph.getPointAt(0.5); // 图形中点
    * ```
    */
-  public abstract getPointAt(t: number): Point3;
+  public abstract getPointAt(t: number): Point3
 
   /**
    * 获取图形上指定参数 t 处的切线向量
@@ -260,7 +253,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const tangent = graph.getTangentAt(0.5);
    * ```
    */
-  public abstract getTangentAt(t: number): Vector3;
+  public abstract getTangentAt(t: number): Vector3
 
   /**
    * 获取图形上指定参数 t 处的法向量
@@ -275,7 +268,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const normal = graph.getNormalAt(0.5);
    * ```
    */
-  public abstract getNormalAt(t: number): Vector3;
+  public abstract getNormalAt(t: number): Vector3
 
   /**
    * 计算点到图形的最短距离，并返回最近点信息
@@ -293,10 +286,10 @@ export default abstract class Graph implements IGraph, ISerializable {
    * ```
    */
   public abstract getClosestPoint(point: Point3): {
-    distance: number;
-    closestPoint: Point3;
-    parameter: number;
-  };
+    distance: number
+    closestPoint: Point3
+    parameter: number
+  }
 
   /**
    * 计算图形在指定参数范围内的弧长
@@ -310,7 +303,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const length = graph.getLength(0, 0.5); // 前半段弧长
    * ```
    */
-  public abstract getLength(tStart: number, tEnd: number): number;
+  public abstract getLength(tStart: number, tEnd: number): number
 
   /**
    * 计算图形的总长度
@@ -326,7 +319,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * ```
    */
   public getTotalLength(): number {
-    return this.getLength(0, 1);
+    return this.getLength(0, 1)
   }
 
   /**
@@ -348,8 +341,8 @@ export default abstract class Graph implements IGraph, ISerializable {
    * ```
    */
   public isPointOnCurve(point: Point3, tolerance: number = MathUtils.EPSILON): boolean {
-    const { distance } = this.getClosestPoint(point);
-    return distance <= tolerance;
+    const { distance } = this.getClosestPoint(point)
+    return distance <= tolerance
   }
 
   /**
@@ -366,7 +359,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * line.getArea();   // 抛出 Error
    * ```
    */
-  public abstract getArea(): number;
+  public abstract getArea(): number
 
   /**
    * 计算图形的质心
@@ -378,7 +371,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const centroid = graph.getCentroid();
    * ```
    */
-  public abstract getCentroid(): Point3;
+  public abstract getCentroid(): Point3
 
   /**
    * 应用变换矩阵到图形
@@ -395,7 +388,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * graph.transform(matrix); // 图形向右平移 50
    * ```
    */
-  public abstract transform(matrix: Matrix4): Graph;
+  public abstract transform(matrix: Matrix4): Graph
 
   /**
    * 计算与另一个图形的相交点
@@ -408,7 +401,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * const intersections = graph1.intersect(graph2);
    * ```
    */
-  public abstract intersect(other: Graph): Point3[];
+  public abstract intersect(other: Graph): Point3[]
 
   /**
    * 按比例缩放调整图形尺寸
@@ -429,11 +422,7 @@ export default abstract class Graph implements IGraph, ISerializable {
    * );
    * ```
    */
-  public abstract resize(
-    fixedPoint: Point3,
-    dynamicPoint: Point3,
-    resizeVector: Vector3,
-  ): void;
+  public abstract resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void
 
   /**
    * 设置指定索引的控制点，并触发图形内部状态更新
@@ -449,5 +438,5 @@ export default abstract class Graph implements IGraph, ISerializable {
    * graph.setControlPoint(0, new Point3(10, 20, 0)); // 设置第一个控制点
    * ```
    */
-  public abstract setControlPoint(index: number, point: Point3): void;
+  public abstract setControlPoint(index: number, point: Point3): void
 }

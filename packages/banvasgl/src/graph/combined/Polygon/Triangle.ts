@@ -1,7 +1,7 @@
-import { GraphType } from "@/foundation/constants";
-import Style from "@/foundation/style/Style";
-import { MathUtils, Point3, GeometryUtils } from "@/foundation/math";
-import Polygon from "./Polygon";
+import { GraphType } from '@/foundation/constants'
+import Style from '@/foundation/style/Style'
+import { MathUtils, Point3, GeometryUtils } from '@/foundation/math'
+import Polygon from './Polygon'
 import type { ITriangle } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
 
@@ -45,7 +45,7 @@ import type { ISerializable } from '@/types/foundation/serializable'
  */
 export default class Triangle extends Polygon implements ITriangle, ISerializable {
   /** 图形类型标识 */
-  public type: GraphType = GraphType.TRIANGLE;
+  public type: GraphType = GraphType.TRIANGLE
 
   /**
    * 创建一个三角形实例。
@@ -66,7 +66,7 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    * ```
    */
   constructor(p1: Point3, p2: Point3, p3: Point3, _style?: Style) {
-    super([p1, p2, p3], undefined, true);
+    super([p1, p2, p3], undefined, true)
   }
 
   /**
@@ -85,7 +85,7 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
       p1: this.controlPoints[0].copy(),
       p2: this.controlPoints[1].copy(),
       p3: this.controlPoints[2].copy(),
-    };
+    }
   }
 
   /**
@@ -106,9 +106,9 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    * ```
    */
   public setVertices(p1: Point3, p2: Point3, p3: Point3): Triangle {
-    this.controlPoints = [p1.copy(), p2.copy(), p3.copy()];
-    this.rebuildEdges();
-    return this;
+    this.controlPoints = [p1.copy(), p2.copy(), p3.copy()]
+    this.rebuildEdges()
+    return this
   }
 
   /**
@@ -131,11 +131,14 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
     const [p0, p1, p2] = this.controlPoints
     let base0: Point3, base1: Point3
     if (vertex.isSame(p0)) {
-      base0 = p1; base1 = p2
+      base0 = p1
+      base1 = p2
     } else if (vertex.isSame(p1)) {
-      base0 = p0; base1 = p2
+      base0 = p0
+      base1 = p2
     } else if (vertex.isSame(p2)) {
-      base0 = p0; base1 = p1
+      base0 = p0
+      base1 = p1
     } else {
       throw new Error('传入的 vertex 不是三角形的顶点')
     }
@@ -172,8 +175,7 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
 
     const isRight = Math.abs(a * a + b * b - c * c) < MathUtils.EPSILON
     const isEquilateral =
-      Math.abs(side1 - side2) < MathUtils.EPSILON &&
-      Math.abs(side2 - side3) < MathUtils.EPSILON
+      Math.abs(side1 - side2) < MathUtils.EPSILON && Math.abs(side2 - side3) < MathUtils.EPSILON
     const isIsosceles =
       Math.abs(side1 - side2) < MathUtils.EPSILON ||
       Math.abs(side2 - side3) < MathUtils.EPSILON ||
@@ -205,10 +207,10 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
   public getCentroid(): Point3 {
     // 防御性检查：构造期 super() 链中 controlPoints 尚未赋值时，fallback 到父类实现
     if (!this.controlPoints || this.controlPoints.length < 3) {
-      return super.getCentroid();
+      return super.getCentroid()
     }
     const [p0, p1, p2] = this.controlPoints
-    return new Point3((p0.x + p1.x + p2.x) / 3, (p0.y + p1.y + p2.y) / 3, (p0.z + p1.z + p2.z) / 3);
+    return new Point3((p0.x + p1.x + p2.x) / 3, (p0.y + p1.y + p2.y) / 3, (p0.z + p1.z + p2.z) / 3)
   }
 
   /**
@@ -237,23 +239,28 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
   public getCircumcenter(): Point3 {
     const [p0, p1, p2] = this.controlPoints
 
-    const ax = p0.x, ay = p0.y
-    const bx = p1.x, by = p1.y
-    const cx = p2.x, cy = p2.y
+    const ax = p0.x,
+      ay = p0.y
+    const bx = p1.x,
+      by = p1.y
+    const cx = p2.x,
+      cy = p2.y
 
-    const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by));
+    const d = 2 * (ax * (by - cy) + bx * (cy - ay) + cx * (ay - by))
 
     if (Math.abs(d) < MathUtils.EPSILON) {
       // 三点共线，返回重心
-      return this.getCentroid();
+      return this.getCentroid()
     }
 
     const ux =
-      ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) / d;
+      ((ax * ax + ay * ay) * (by - cy) + (bx * bx + by * by) * (cy - ay) + (cx * cx + cy * cy) * (ay - by)) /
+      d
     const uy =
-      ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) / d;
+      ((ax * ax + ay * ay) * (cx - bx) + (bx * bx + by * by) * (ax - cx) + (cx * cx + cy * cy) * (bx - ax)) /
+      d
 
-    return new Point3(ux, uy, (p0.z + p1.z + p2.z) / 3);
+    return new Point3(ux, uy, (p0.z + p1.z + p2.z) / 3)
   }
 
   // ── 序列化 ──
@@ -273,7 +280,7 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
     return {
       id: this.id,
       type: this.type,
-      controlPoints: this.controlPoints.map(v => v.toJSON()),
+      controlPoints: this.controlPoints.map((v) => v.toJSON()),
     }
   }
 
@@ -312,7 +319,7 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    */
   public copy(): this {
     const [p0, p1, p2] = this.controlPoints
-    return new Triangle(p0.copy(), p1.copy(), p2.copy(), undefined) as this;
+    return new Triangle(p0.copy(), p1.copy(), p2.copy(), undefined) as this
   }
 
   /**
@@ -332,11 +339,11 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    * ```
    */
   public static createEquilateral(center: Point3, sideLength: number, _style?: Style): Triangle {
-    const height = (sideLength * Math.sqrt(3)) / 2;
-    const p1 = new Point3(center.x, center.y - (height * 2) / 3, center.z);
-    const p2 = new Point3(center.x - sideLength / 2, center.y + (height * 1) / 3, center.z);
-    const p3 = new Point3(center.x + sideLength / 2, center.y + (height * 1) / 3, center.z);
-    return new Triangle(p1, p2, p3, undefined);
+    const height = (sideLength * Math.sqrt(3)) / 2
+    const p1 = new Point3(center.x, center.y - (height * 2) / 3, center.z)
+    const p2 = new Point3(center.x - sideLength / 2, center.y + (height * 1) / 3, center.z)
+    const p3 = new Point3(center.x + sideLength / 2, center.y + (height * 1) / 3, center.z)
+    return new Triangle(p1, p2, p3, undefined)
   }
 
   /**
@@ -357,10 +364,10 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    * ```
    */
   public static createIsosceles(center: Point3, base: number, height: number, _style?: Style): Triangle {
-    const p1 = new Point3(center.x, center.y - height / 2, center.z);
-    const p2 = new Point3(center.x - base / 2, center.y + height / 2, center.z);
-    const p3 = new Point3(center.x + base / 2, center.y + height / 2, center.z);
-    return new Triangle(p1, p2, p3, undefined);
+    const p1 = new Point3(center.x, center.y - height / 2, center.z)
+    const p2 = new Point3(center.x - base / 2, center.y + height / 2, center.z)
+    const p3 = new Point3(center.x + base / 2, center.y + height / 2, center.z)
+    return new Triangle(p1, p2, p3, undefined)
   }
 
   /**
@@ -381,9 +388,9 @@ export default class Triangle extends Polygon implements ITriangle, ISerializabl
    * ```
    */
   public static createRight(center: Point3, width: number, height: number, _style?: Style): Triangle {
-    const p1 = new Point3(center.x - width / 2, center.y - height / 2, center.z);
-    const p2 = new Point3(center.x + width / 2, center.y - height / 2, center.z);
-    const p3 = new Point3(center.x - width / 2, center.y + height / 2, center.z);
-    return new Triangle(p1, p2, p3, undefined);
+    const p1 = new Point3(center.x - width / 2, center.y - height / 2, center.z)
+    const p2 = new Point3(center.x + width / 2, center.y - height / 2, center.z)
+    const p3 = new Point3(center.x - width / 2, center.y + height / 2, center.z)
+    return new Triangle(p1, p2, p3, undefined)
   }
 }

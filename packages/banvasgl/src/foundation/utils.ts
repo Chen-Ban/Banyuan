@@ -22,9 +22,9 @@ export function generateId(type?: GraphType | ViewType | SceneType): string {
 const nameCounters: Record<string, number> = {}
 
 export function generateName(type: ViewType | SceneType): string {
-    if (!nameCounters[type]) {
-        nameCounters[type] = 0
-    }
-    nameCounters[type]++
-    return `${type}#${nameCounters[type]}`
+  if (!nameCounters[type]) {
+    nameCounters[type] = 0
+  }
+  nameCounters[type]++
+  return `${type}#${nameCounters[type]}`
 }

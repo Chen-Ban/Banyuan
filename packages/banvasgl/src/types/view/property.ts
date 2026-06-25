@@ -29,50 +29,50 @@ export type PropertyCategory = 'spatial' | 'size' | 'direct'
  * 每个适配器负责一个语义属性与引擎数据结构之间的双向转换。
  */
 export interface PropertyAdapter {
-    /** 属性类别 */
-    category: PropertyCategory
+  /** 属性类别 */
+  category: PropertyCategory
 
-    /**
-     * 从 View 读取当前语义属性值
-     *
-     * @param view 目标 View
-     * @param relativeMatrix 可选，参考系模式下 View 到参考系的变换矩阵
-     * @returns 属性的当前值（数值类型）
-     */
-    get(view: View, relativeMatrix?: Matrix4): number
+  /**
+   * 从 View 读取当前语义属性值
+   *
+   * @param view 目标 View
+   * @param relativeMatrix 可选，参考系模式下 View 到参考系的变换矩阵
+   * @returns 属性的当前值（数值类型）
+   */
+  get(view: View, relativeMatrix?: Matrix4): number
 
-    /**
-     * 将语义属性值写回 View
-     *
-     * 写入策略：先从 matrix 分解出完整 TRS，修改目标分量，再合成回 matrix。
-     * 这样保证修改单个属性不会影响其他属性。
-     *
-     * @param view 目标 View
-     * @param value 要设置的值
-     */
-    set(view: View, value: number): void
+  /**
+   * 将语义属性值写回 View
+   *
+   * 写入策略：先从 matrix 分解出完整 TRS，修改目标分量，再合成回 matrix。
+   * 这样保证修改单个属性不会影响其他属性。
+   *
+   * @param view 目标 View
+   * @param value 要设置的值
+   */
+  set(view: View, value: number): void
 }
 
 /**
  * 属性值描述（用于面板展示）
  */
 export interface PropertyDescriptor {
-    /** 属性名 */
-    name: string
-    /** 属性类别 */
-    category: PropertyCategory
-    /** 显示标签 */
-    label: string
-    /** 单位（用于面板展示） */
-    unit?: 'px' | 'deg' | 'rad' | '%' | ''
-    /** 精度（小数位数） */
-    precision?: number
-    /** 最小值 */
-    min?: number
-    /** 最大值 */
-    max?: number
-    /** 步进值 */
-    step?: number
+  /** 属性名 */
+  name: string
+  /** 属性类别 */
+  category: PropertyCategory
+  /** 显示标签 */
+  label: string
+  /** 单位（用于面板展示） */
+  unit?: 'px' | 'deg' | 'rad' | '%' | ''
+  /** 精度（小数位数） */
+  precision?: number
+  /** 最小值 */
+  min?: number
+  /** 最大值 */
+  max?: number
+  /** 步进值 */
+  step?: number
 }
 
 /**
@@ -80,6 +80,6 @@ export interface PropertyDescriptor {
  * 同组中的属性不能同时被动画驱动（但面板中可以联动展示）
  */
 export interface ConflictGroup {
-    properties: string[]
-    message: string
+  properties: string[]
+  message: string
 }

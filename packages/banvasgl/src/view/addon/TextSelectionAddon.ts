@@ -28,10 +28,7 @@ import type { IDrawingContext } from '@/types/platform/context.js'
  */
 export default class TextSelectionAddon implements ITextSelectionAddon {
   public readonly type = AddonType.TEXT_SELECTION
-  public capabilities = [
-    AddonCapability.RENDER,
-    AddonCapability.LOGIC,
-  ]
+  public capabilities = [AddonCapability.RENDER, AddonCapability.LOGIC]
   /** 优先级 5：在 BoundingBoxAddon(0) 之后渲染 */
   public readonly priority = 5
 
@@ -63,10 +60,7 @@ export default class TextSelectionAddon implements ITextSelectionAddon {
    * @param fixedIndex   固定光标；两者均为 undefined 时清空选区
    * @param dynamicIndex 动态光标；仅传 fixedIndex 时表示光标模式
    */
-  public setSelection(
-    fixedIndex: TextIndex | undefined,
-    dynamicIndex: TextIndex | undefined,
-  ): void {
+  public setSelection(fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void {
     this.selection.fixedIndex = fixedIndex
     this.selection.dynamicIndex = dynamicIndex
     this._selectionDirty = true
@@ -161,8 +155,7 @@ export default class TextSelectionAddon implements ITextSelectionAddon {
    * cursorOpacity 优先读取动画系统的驱动值。
    */
   public render(ctx: IDrawingContext): void {
-    const cursorOpacity =
-      (this._view.getAnimatedValue('cursorOpacity') as number) ?? this.cursorOpacity
+    const cursorOpacity = (this._view.getAnimatedValue('cursorOpacity') as number) ?? this.cursorOpacity
     this.selection.render(ctx, cursorOpacity)
   }
 

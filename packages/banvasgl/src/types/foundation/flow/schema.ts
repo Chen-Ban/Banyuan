@@ -19,12 +19,12 @@ import type { FlowNode } from './nodes/index.js'
  */
 export interface FlowSchema {
   /** Schema 版本（用于版本迁移），当前为 "2.0.0" */
-  version: string;
+  version: string
   /** 入口节点 ID（必须是 control 或 action 节点） */
-  entry: string;
+  entry: string
   /** 节点注册表（key = nodeId） */
-  nodes: Record<string, FlowNode>;
+  nodes: Record<string, FlowNode>
 }
 
 /** 当前 FlowSchema 规范版本 */
-export const FLOW_SCHEMA_VERSION = "2.0.0";
+export const FLOW_SCHEMA_VERSION = '2.0.0'

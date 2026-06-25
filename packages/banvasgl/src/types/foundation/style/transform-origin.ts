@@ -22,15 +22,15 @@ import type { Point3 } from '@/foundation/math'
  * - 'bottomRight': 视口右下角
  */
 export type TransformOriginKeyword =
-    | 'center'
-    | 'topLeft'
-    | 'top'
-    | 'topRight'
-    | 'left'
-    | 'right'
-    | 'bottomLeft'
-    | 'bottom'
-    | 'bottomRight'
+  | 'center'
+  | 'topLeft'
+  | 'top'
+  | 'topRight'
+  | 'left'
+  | 'right'
+  | 'bottomLeft'
+  | 'bottom'
+  | 'bottomRight'
 
 /** 变换原点：可以是关键字或自定义坐标点 */
 export type TransformOrigin = TransformOriginKeyword | Point3

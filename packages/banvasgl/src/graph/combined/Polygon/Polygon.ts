@@ -1,13 +1,13 @@
-import { GraphType } from "@/foundation/constants";
-import Style from "@/foundation/style/Style";
-import { Point3, Vector3, Matrix4 } from "@/foundation/math";
-import CombinedGraph from "@/graph/combined/CombinedGraph";
-import Line from "@/graph/analytic/Line";
+import { GraphType } from '@/foundation/constants'
+import Style from '@/foundation/style/Style'
+import { Point3, Vector3, Matrix4 } from '@/foundation/math'
+import CombinedGraph from '@/graph/combined/CombinedGraph'
+import Line from '@/graph/analytic/Line'
 import { isGraphType } from '@/foundation/guards'
 import type { IPolygon } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
 import type { IDrawingContext } from '@/types/platform/context.js'
-import { generateId } from '@/foundation/utils';
+import { generateId } from '@/foundation/utils'
 
 /**
  * 多边形图形基类 —— 基于顶点序列构建的闭合/开放多边形。
@@ -40,10 +40,10 @@ import { generateId } from '@/foundation/utils';
  */
 export default class Polygon extends CombinedGraph implements IPolygon, ISerializable {
   /** 图形类型标识 */
-  public type: GraphType = GraphType.POLYGON;
+  public type: GraphType = GraphType.POLYGON
 
   /** 是否为闭合多边形，`true` 时首尾顶点自动连线 */
-  public closed: boolean = true;
+  public closed: boolean = true
 
   /**
    * 判断多边形是否闭合。
@@ -57,7 +57,7 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * ```
    */
   public override isClosed(): boolean {
-    return this.closed;
+    return this.closed
   }
 
   /**
@@ -80,19 +80,19 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    */
   constructor(points: Point3[] = [], _style?: Style, closed: boolean = true) {
     // 先根据传入顶点临时构建线段，避免初始bounds为空
-    const vs = points.map((v) => v.copy());
-    const lines: Line[] = [];
+    const vs = points.map((v) => v.copy())
+    const lines: Line[] = []
     if (vs.length >= 2) {
       for (let i = 0; i < vs.length; i++) {
-        const current = vs[i];
-        const next = vs[(i + 1) % vs.length];
-        if (!closed && i === vs.length - 1) break;
-        lines.push(new Line(current, next));
+        const current = vs[i]
+        const next = vs[(i + 1) % vs.length]
+        if (!closed && i === vs.length - 1) break
+        lines.push(new Line(current, next))
       }
     }
-    super(lines);
-    this.controlPoints = vs;
-    this.closed = closed;
+    super(lines)
+    this.controlPoints = vs
+    this.closed = closed
     this.id = generateId(this.type)
   }
 
@@ -111,24 +111,24 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
   protected rebuildEdges(): void {
     // 快照顶点：addGraph 内部的 syncControlPoints 会覆写 this.controlPoints，
     // 必须在循环前保存副本，否则循环边界和索引会被中途破坏（只生成 2 条边的 bug 根因）
-    const vertices = this.controlPoints.slice();
-    this.graphs = [];
+    const vertices = this.controlPoints.slice()
+    this.graphs = []
     if (vertices.length < 2) {
-      return;
+      return
     }
     // 直接 push 到 this.graphs，跳过 addGraph 的中间 syncControlPoints 触发
     for (let i = 0; i < vertices.length; i++) {
       // 如果不是闭合多边形且是最后一条边，跳过
       if (!this.closed && i === vertices.length - 1) {
-        break;
+        break
       }
-      const current = vertices[i];
-      const next = vertices[(i + 1) % vertices.length];
-      this.graphs.push(new Line(current, next));
+      const current = vertices[i]
+      const next = vertices[(i + 1) % vertices.length]
+      this.graphs.push(new Line(current, next))
     }
     // 边重建完毕后统一同步控制点和包围盒
-    this.syncControlPoints();
-    this.bounds = this.updateBounds();
+    this.syncControlPoints()
+    this.bounds = this.updateBounds()
   }
 
   /**
@@ -146,9 +146,9 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * ```
    */
   public override transform(matrix: Matrix4): this {
-    super.transform(matrix);
-    this.syncControlPoints();
-    return this;
+    super.transform(matrix)
+    this.syncControlPoints()
+    return this
   }
 
   /**
@@ -164,17 +164,16 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * ```
    */
   public override syncControlPoints(): void {
-    const points: Point3[] = [];
+    const points: Point3[] = []
     for (const graph of this.graphs) {
       for (const p of graph.controlPoints as Point3[]) {
-        if (!points.some(existing => existing.isSame(p))) {
-          points.push(p);
+        if (!points.some((existing) => existing.isSame(p))) {
+          points.push(p)
         }
       }
     }
-    this.controlPoints = points;
+    this.controlPoints = points
   }
-
 
   /**
    * 获取多边形的几何中心（顶点坐标的算术平均值）。
@@ -191,14 +190,18 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    */
   public getPolygonCenter(): Point3 {
     if (this.controlPoints.length === 0) {
-      return new Point3(0, 0, 0);
+      return new Point3(0, 0, 0)
     }
 
-    const sumX = this.controlPoints.reduce((sum, vertex) => sum + vertex.x, 0);
-    const sumY = this.controlPoints.reduce((sum, vertex) => sum + vertex.y, 0);
-    const sumZ = this.controlPoints.reduce((sum, vertex) => sum + vertex.z, 0);
+    const sumX = this.controlPoints.reduce((sum, vertex) => sum + vertex.x, 0)
+    const sumY = this.controlPoints.reduce((sum, vertex) => sum + vertex.y, 0)
+    const sumZ = this.controlPoints.reduce((sum, vertex) => sum + vertex.z, 0)
 
-    return new Point3(sumX / this.controlPoints.length, sumY / this.controlPoints.length, sumZ / this.controlPoints.length);
+    return new Point3(
+      sumX / this.controlPoints.length,
+      sumY / this.controlPoints.length,
+      sumZ / this.controlPoints.length,
+    )
   }
 
   /**
@@ -221,19 +224,19 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    */
   public getArea(): number {
     if (!this.isClosed()) {
-      throw new Error('Polygon 未闭合，不具有面积');
+      throw new Error('Polygon 未闭合，不具有面积')
     }
     if (this.controlPoints.length < 3) {
-      throw new Error('Polygon 顶点不足 3 个，无法计算面积');
+      throw new Error('Polygon 顶点不足 3 个，无法计算面积')
     }
 
-    let area = 0;
+    let area = 0
     for (let i = 0; i < this.controlPoints.length; i++) {
-      const current = this.controlPoints[i];
-      const next = this.controlPoints[(i + 1) % this.controlPoints.length];
-      area += current.x * next.y - next.x * current.y;
+      const current = this.controlPoints[i]
+      const next = this.controlPoints[(i + 1) % this.controlPoints.length]
+      area += current.x * next.y - next.x * current.y
     }
-    return Math.abs(area) / 2;
+    return Math.abs(area) / 2
   }
 
   /**
@@ -250,19 +253,19 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    */
   public getPerimeter(): number {
     if (this.controlPoints.length < 2) {
-      return 0;
+      return 0
     }
 
-    const edgeCount = this.closed ? this.controlPoints.length : this.controlPoints.length - 1;
-    let perimeter = 0;
+    const edgeCount = this.closed ? this.controlPoints.length : this.controlPoints.length - 1
+    let perimeter = 0
     for (let i = 0; i < edgeCount; i++) {
-      const current = this.controlPoints[i];
-      const next = this.controlPoints[(i + 1) % this.controlPoints.length];
-      const dx = next.x - current.x;
-      const dy = next.y - current.y;
-      perimeter += Math.sqrt(dx * dx + dy * dy);
+      const current = this.controlPoints[i]
+      const next = this.controlPoints[(i + 1) % this.controlPoints.length]
+      const dx = next.x - current.x
+      const dy = next.y - current.y
+      perimeter += Math.sqrt(dx * dx + dy * dy)
     }
-    return perimeter;
+    return perimeter
   }
 
   /**
@@ -279,13 +282,13 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * ```
    */
   public getClosestPoint(point: Point3): {
-    distance: number;
-    closestPoint: Point3;
-    parameter: number;
+    distance: number
+    closestPoint: Point3
+    parameter: number
   } {
-    const closets = this.graphs.map((line) => line.getClosestPoint(point));
-    const minDistance = Math.min(...closets.map((item) => item.distance));
-    return closets.find((item) => item.distance === minDistance)!;
+    const closets = this.graphs.map((line) => line.getClosestPoint(point))
+    const minDistance = Math.min(...closets.map((item) => item.distance))
+    return closets.find((item) => item.distance === minDistance)!
   }
 
   /**
@@ -305,19 +308,22 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    */
   public containsPoint(point: Point3): boolean {
     if (this.controlPoints.length < 3) {
-      return false;
+      return false
     }
 
-    let inside = false;
+    let inside = false
     for (let i = 0, j = this.controlPoints.length - 1; i < this.controlPoints.length; j = i++) {
-      const vi = this.controlPoints[i];
-      const vj = this.controlPoints[j];
+      const vi = this.controlPoints[i]
+      const vj = this.controlPoints[j]
 
-      if (vi.y > point.y !== vj.y > point.y && point.x < ((vj.x - vi.x) * (point.y - vi.y)) / (vj.y - vi.y) + vi.x) {
-        inside = !inside;
+      if (
+        vi.y > point.y !== vj.y > point.y &&
+        point.x < ((vj.x - vi.x) * (point.y - vi.y)) / (vj.y - vi.y) + vi.x
+      ) {
+        inside = !inside
       }
     }
-    return inside;
+    return inside
   }
 
   /**
@@ -374,25 +380,25 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    */
   public render(ctx: IDrawingContext, style: Style): void {
     if (this.controlPoints.length < 2) {
-      return;
+      return
     }
-    const bounds = this.bounds;
+    const bounds = this.bounds
 
-    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
+    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
 
-    ctx.beginPath();
-    ctx.moveTo(this.controlPoints[0].x, this.controlPoints[0].y);
+    ctx.beginPath()
+    ctx.moveTo(this.controlPoints[0].x, this.controlPoints[0].y)
 
     for (let i = 1; i < this.controlPoints.length; i++) {
-      ctx.lineTo(this.controlPoints[i].x, this.controlPoints[i].y);
+      ctx.lineTo(this.controlPoints[i].x, this.controlPoints[i].y)
     }
 
     if (this.closed) {
-      ctx.closePath();
+      ctx.closePath()
     }
 
-    ctx.fill();
-    ctx.stroke();
+    ctx.fill()
+    ctx.stroke()
   }
 
   /**
@@ -413,7 +419,7 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    */
   public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
     const graphs = this.graphs
-    if (!graphs.every(graph => isGraphType(graph, GraphType.LINE))) throw new Error("多边形边只能为Line")
+    if (!graphs.every((graph) => isGraphType(graph, GraphType.LINE))) throw new Error('多边形边只能为Line')
     for (const graph of graphs) {
       graph.resize(fixedPoint, dynamicPoint, resizeVector)
     }
@@ -438,7 +444,7 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
     return {
       id: this.id,
       type: this.type,
-      controlPoints: this.controlPoints.map(v => v.toJSON()),
+      controlPoints: this.controlPoints.map((v) => v.toJSON()),
       closed: this.closed,
     }
   }
@@ -478,6 +484,6 @@ export default class Polygon extends CombinedGraph implements IPolygon, ISeriali
    * ```
    */
   public copy(): this {
-    return new Polygon(this.controlPoints, undefined, this.closed) as this;
+    return new Polygon(this.controlPoints, undefined, this.closed) as this
   }
 }

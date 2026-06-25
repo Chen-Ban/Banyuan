@@ -1,15 +1,15 @@
-import { BaseCamera, BaseCameraOptions } from "./BaseCamera.js";
-import Matrix4 from "@/foundation/math/Matrix4";
-import Point3 from "@/foundation/math/Point3";
-import { CameraType } from "@/foundation/constants";
+import { BaseCamera, BaseCameraOptions } from './BaseCamera.js'
+import Matrix4 from '@/foundation/math/Matrix4'
+import Point3 from '@/foundation/math/Point3'
+import { CameraType } from '@/foundation/constants'
 
 export interface OrthographicCameraOptions extends BaseCameraOptions {
-  left?: number;
-  right?: number;
-  bottom?: number;
-  top?: number;
-  near?: number;
-  far?: number;
+  left?: number
+  right?: number
+  bottom?: number
+  top?: number
+  near?: number
+  far?: number
 }
 
 /**
@@ -37,65 +37,85 @@ export interface OrthographicCameraOptions extends BaseCameraOptions {
  *   屏幕坐标（clientX/Y）到世界坐标的完整转换由 cameraUtils 负责。
  */
 export class OrthographicCamera extends BaseCamera {
-  public readonly type: CameraType = CameraType.ORTHOGRAPHIC;
-  private _left: number;
-  private _right: number;
-  private _bottom: number;
-  private _top: number;
+  public readonly type: CameraType = CameraType.ORTHOGRAPHIC
+  private _left: number
+  private _right: number
+  private _bottom: number
+  private _top: number
 
   constructor(options: OrthographicCameraOptions = {}) {
-    super(options);
+    super(options)
 
-    this._left = options.left ?? -10;
-    this._right = options.right ?? 10;
-    this._bottom = options.bottom ?? 10;
-    this._top = options.top ?? -10;
+    this._left = options.left ?? -10
+    this._right = options.right ?? 10
+    this._bottom = options.bottom ?? 10
+    this._top = options.top ?? -10
 
-    if (options.near != null) this._near = options.near;
-    if (options.far != null) this._far = options.far;
+    if (options.near != null) this._near = options.near
+    if (options.far != null) this._far = options.far
 
-    this.updateMatrices();
+    this.updateMatrices()
   }
 
   // ── 边界 ──
 
-  get left(): number { return this._left; }
-  set left(value: number) { this._left = value; this._dirty = true; }
+  get left(): number {
+    return this._left
+  }
+  set left(value: number) {
+    this._left = value
+    this._dirty = true
+  }
 
-  get right(): number { return this._right; }
-  set right(value: number) { this._right = value; this._dirty = true; }
+  get right(): number {
+    return this._right
+  }
+  set right(value: number) {
+    this._right = value
+    this._dirty = true
+  }
 
-  get bottom(): number { return this._bottom; }
-  set bottom(value: number) { this._bottom = value; this._dirty = true; }
+  get bottom(): number {
+    return this._bottom
+  }
+  set bottom(value: number) {
+    this._bottom = value
+    this._dirty = true
+  }
 
-  get top(): number { return this._top; }
-  set top(value: number) { this._top = value; this._dirty = true; }
+  get top(): number {
+    return this._top
+  }
+  set top(value: number) {
+    this._top = value
+    this._dirty = true
+  }
 
   setBounds(left: number, right: number, bottom: number, top: number): this {
-    this._left = left;
-    this._right = right;
-    this._bottom = bottom;
-    this._top = top;
-    this._dirty = true;
-    return this;
+    this._left = left
+    this._right = right
+    this._bottom = bottom
+    this._top = top
+    this._dirty = true
+    return this
   }
 
   getBounds(): { left: number; right: number; bottom: number; top: number } {
-    return { left: this._left, right: this._right, bottom: this._bottom, top: this._top };
+    return { left: this._left, right: this._right, bottom: this._bottom, top: this._top }
   }
 
   // ── 视口尺寸（实现基类抽象方法）──
 
   getSize(): { width: number; height: number } {
-    return { width: this._right - this._left, height: this._bottom - this._top };
+    return { width: this._right - this._left, height: this._bottom - this._top }
   }
 
   getViewportSize(): { width: number; height: number } {
-    return this.getSize();
+    return this.getSize()
   }
 
   get aspect(): number {
-    return (this._right - this._left) / (this._bottom - this._top);
+    return (this._right - this._left) / (this._bottom - this._top)
   }
 
   // ── 视口操作 ──
@@ -104,79 +124,78 @@ export class OrthographicCamera extends BaseCamera {
    * 设置视口尺寸（保持中心点不变）。
    */
   setViewportSize(width: number, height: number): this {
-    const centerX = (this._left + this._right) / 2;
-    const centerY = (this._top + this._bottom) / 2;
-    this._left = centerX - width / 2;
-    this._right = centerX + width / 2;
-    this._top = centerY - height / 2;
-    this._bottom = centerY + height / 2;
-    this._dirty = true;
-    return this;
+    const centerX = (this._left + this._right) / 2
+    const centerY = (this._top + this._bottom) / 2
+    this._left = centerX - width / 2
+    this._right = centerX + width / 2
+    this._top = centerY - height / 2
+    this._bottom = centerY + height / 2
+    this._dirty = true
+    return this
   }
 
   setAspect(aspect: number): this {
-    const centerX = (this._left + this._right) / 2;
-    const height = this._bottom - this._top;
-    const width = height * aspect;
-    this._left = centerX - width / 2;
-    this._right = centerX + width / 2;
-    this._dirty = true;
-    return this;
+    const centerX = (this._left + this._right) / 2
+    const height = this._bottom - this._top
+    const width = height * aspect
+    this._left = centerX - width / 2
+    this._right = centerX + width / 2
+    this._dirty = true
+    return this
   }
 
   zoom(factor: number): this {
-    const centerX = (this._left + this._right) / 2;
-    const centerY = (this._top + this._bottom) / 2;
-    const width = (this._right - this._left) * factor;
-    const height = (this._bottom - this._top) * factor;
-    this._left = centerX - width / 2;
-    this._right = centerX + width / 2;
-    this._top = centerY - height / 2;
-    this._bottom = centerY + height / 2;
-    this._dirty = true;
-    return this;
+    const centerX = (this._left + this._right) / 2
+    const centerY = (this._top + this._bottom) / 2
+    const width = (this._right - this._left) * factor
+    const height = (this._bottom - this._top) * factor
+    this._left = centerX - width / 2
+    this._right = centerX + width / 2
+    this._top = centerY - height / 2
+    this._bottom = centerY + height / 2
+    this._dirty = true
+    return this
   }
 
   pan(deltaX: number, deltaY: number): this {
-    this._left += deltaX;
-    this._right += deltaX;
-    this._top += deltaY;
-    this._bottom += deltaY;
-    this._dirty = true;
-    return this;
+    this._left += deltaX
+    this._right += deltaX
+    this._top += deltaY
+    this._bottom += deltaY
+    this._dirty = true
+    return this
   }
 
   fitToBounds(
     bounds: { left: number; right: number; bottom: number; top: number },
     padding: number = 0,
   ): this {
-    const contentWidth = bounds.right - bounds.left;
-    const contentHeight = bounds.bottom - bounds.top;
-    const contentCenterX = (bounds.left + bounds.right) / 2;
-    const contentCenterY = (bounds.top + bounds.bottom) / 2;
-    const viewportWidth = contentWidth + padding * 2;
-    const viewportHeight = contentHeight + padding * 2;
-    this._left = contentCenterX - viewportWidth / 2;
-    this._right = contentCenterX + viewportWidth / 2;
-    this._top = contentCenterY - viewportHeight / 2;
-    this._bottom = contentCenterY + viewportHeight / 2;
-    this._dirty = true;
-    return this;
+    const contentWidth = bounds.right - bounds.left
+    const contentHeight = bounds.bottom - bounds.top
+    const contentCenterX = (bounds.left + bounds.right) / 2
+    const contentCenterY = (bounds.top + bounds.bottom) / 2
+    const viewportWidth = contentWidth + padding * 2
+    const viewportHeight = contentHeight + padding * 2
+    this._left = contentCenterX - viewportWidth / 2
+    this._right = contentCenterX + viewportWidth / 2
+    this._top = contentCenterY - viewportHeight / 2
+    this._bottom = contentCenterY + viewportHeight / 2
+    this._dirty = true
+    return this
   }
 
   // ── 视口边界 ──
 
   getViewportBounds(): { left: number; right: number; bottom: number; top: number } {
-    return { left: this._left, right: this._right, bottom: this._bottom, top: this._top };
+    return { left: this._left, right: this._right, bottom: this._bottom, top: this._top }
   }
 
   // ── 可见性检测 ──
 
   isPointInViewport(point: [number, number, number]): boolean {
     return (
-      point[0] >= this._left && point[0] <= this._right &&
-      point[1] >= this._top && point[1] <= this._bottom
-    );
+      point[0] >= this._left && point[0] <= this._right && point[1] >= this._top && point[1] <= this._bottom
+    )
   }
 
   isRectInViewport(rect: { left: number; right: number; bottom: number; top: number }): boolean {
@@ -185,7 +204,7 @@ export class OrthographicCamera extends BaseCamera {
       rect.left > this._right ||
       rect.bottom < this._top ||
       rect.top > this._bottom
-    );
+    )
   }
 
   // ── 矩阵更新 ──
@@ -202,9 +221,9 @@ export class OrthographicCamera extends BaseCamera {
    * lookAt 或 TRS 逆矩阵即可，下游 VP 矩阵语义不变。
    */
   protected override updateViewMatrix(): void {
-    const centerX = (this._left + this._right) / 2;
-    const centerY = (this._top + this._bottom) / 2;
-    this._viewMatrix = Matrix4.translation(-centerX, -centerY, 0);
+    const centerX = (this._left + this._right) / 2
+    const centerY = (this._top + this._bottom) / 2
+    this._viewMatrix = Matrix4.translation(-centerX, -centerY, 0)
   }
 
   /**
@@ -237,10 +256,10 @@ export class OrthographicCamera extends BaseCamera {
    * 这里使用标准公式求解，保证未来引入缩放/非对称视锥时自动正确。
    */
   protected override updateProjectionMatrix(): void {
-    const width = this._right - this._left;
-    const height = this._bottom - this._top;
-    const halfW = width / 2;
-    const halfH = height / 2;
+    const width = this._right - this._left
+    const height = this._bottom - this._top
+    const halfW = width / 2
+    const halfH = height / 2
 
     // 2D 正交投影：相机空间 [-halfW, halfW] × [-halfH, halfH] → 画布逻辑像素 [0, width] × [0, height]
     //
@@ -250,7 +269,7 @@ export class OrthographicCamera extends BaseCamera {
     //
     // z 行保持恒等映射（z_out = z_in），避免 near/far 深度变换引入异常 z 分量，
     // 确保 VP 逆矩阵不会在 2D 交互中产生非零 z 值。
-    this._projectionMatrix = Matrix4.translation(halfW, halfH, 0);
+    this._projectionMatrix = Matrix4.translation(halfW, halfH, 0)
   }
 
   // ── 序列化 ──
@@ -264,7 +283,7 @@ export class OrthographicCamera extends BaseCamera {
       top: this._top,
       near: this._near,
       far: this._far,
-    };
+    }
   }
 
   static fromJSON(data: any): OrthographicCamera {
@@ -277,7 +296,7 @@ export class OrthographicCamera extends BaseCamera {
       top: data.top,
       near: data.near,
       far: data.far,
-    });
+    })
   }
 
   copy(): OrthographicCamera {
@@ -291,16 +310,16 @@ export class OrthographicCamera extends BaseCamera {
       top: this._top,
       near: this._near,
       far: this._far,
-    });
+    })
   }
 
   override reset(): this {
-    super.reset();
-    this._left = -10;
-    this._right = 10;
-    this._top = -10;
-    this._bottom = 10;
-    this._dirty = true;
-    return this;
+    super.reset()
+    this._left = -10
+    this._right = 10
+    this._top = -10
+    this._bottom = 10
+    this._dirty = true
+    return this
   }
 }

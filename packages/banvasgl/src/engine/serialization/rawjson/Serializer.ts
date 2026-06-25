@@ -33,10 +33,7 @@ import ImageElement from '@/graph/media/ImageElement'
 import VideoElement from '@/graph/media/VideoElement'
 import TextFields from '@/graph/text/TextFields'
 import TextParagraph from '@/graph/text/TextParagraph'
-import {
-    PrintableTextElement,
-    NonPrintableTextElement,
-} from '@/graph/text/TextElement'
+import { PrintableTextElement, NonPrintableTextElement } from '@/graph/text/TextElement'
 import DenseTrajectory from '@/graph/trajectory/DenseTrajectory'
 
 // 容器类型
@@ -55,52 +52,60 @@ import { PerspectiveCamera } from '@/engine/camera/PerspectiveCamera'
 
 // ISerializable
 import type { ISerializable, ISerializableClass } from '@/types/foundation/serializable'
-import { AppType, MathType, StyleType, GraphType, ViewType, SceneType, CameraType } from '@/foundation/constants'
+import {
+  AppType,
+  MathType,
+  StyleType,
+  GraphType,
+  ViewType,
+  SceneType,
+  CameraType,
+} from '@/foundation/constants'
 
 /**
  * 序列化配置选项
  */
 export interface SerializerOptions {
-    /** 是否包含函数 */
-    includeFunctions?: boolean
-    /** 是否包含私有属性 */
-    includePrivate?: boolean
-    /** 是否处理循环引用 */
-    handleCircularRefs?: boolean
-    /** 最大序列化深度 */
-    maxDepth?: number
-    /** 自定义序列化器映射 */
-    customSerializers?: Map<string, (obj: any) => any>
-    /** 自定义反序列化器映射 */
-    customDeserializers?: Map<string, (data: any) => any>
+  /** 是否包含函数 */
+  includeFunctions?: boolean
+  /** 是否包含私有属性 */
+  includePrivate?: boolean
+  /** 是否处理循环引用 */
+  handleCircularRefs?: boolean
+  /** 最大序列化深度 */
+  maxDepth?: number
+  /** 自定义序列化器映射 */
+  customSerializers?: Map<string, (obj: any) => any>
+  /** 自定义反序列化器映射 */
+  customDeserializers?: Map<string, (data: any) => any>
 }
 
 /**
  * 序列化数据接口
  */
 export interface SerializedData {
-    /** 类型标识 */
-    type: string
-    /** 版本号 */
-    version: string
-    /** 数据内容 */
-    data: any
-    /** 元数据 */
-    metadata?: {
-        timestamp: number
-        source: string
-        [key: string]: any
-    }
+  /** 类型标识 */
+  type: string
+  /** 版本号 */
+  version: string
+  /** 数据内容 */
+  data: any
+  /** 元数据 */
+  metadata?: {
+    timestamp: number
+    source: string
+    [key: string]: any
+  }
 }
 
 /**
  * 类型注册信息
  */
 interface TypeRegistry {
-    type: string
-    constructor: new (...args: any[]) => any
-    serializer?: (obj: any) => any
-    deserializer?: (data: any) => any
+  type: string
+  constructor: new (...args: any[]) => any
+  serializer?: (obj: any) => any
+  deserializer?: (data: any) => any
 }
 
 /**
@@ -110,325 +115,296 @@ interface TypeRegistry {
  * 自动使用 toJSON()/fromJSON() 进行序列化和反序列化。
  */
 export class Serializer {
-    private static instance: Serializer
-    private typeRegistry: Map<string, TypeRegistry> = new Map()
-    private circularRefs: Map<any, string> = new Map()
-    private refCounter: number = 0
-    private defaultOptions: SerializerOptions = {
-        includeFunctions: false,
-        includePrivate: false,
-        handleCircularRefs: true,
-        maxDepth: 29,
+  private static instance: Serializer
+  private typeRegistry: Map<string, TypeRegistry> = new Map()
+  private circularRefs: Map<any, string> = new Map()
+  private refCounter: number = 0
+  private defaultOptions: SerializerOptions = {
+    includeFunctions: false,
+    includePrivate: false,
+    handleCircularRefs: true,
+    maxDepth: 29,
+  }
+
+  private constructor() {
+    this.registerDefaultTypes()
+  }
+
+  /**
+   * 获取单例实例
+   */
+  public static getInstance(): Serializer {
+    if (!Serializer.instance) {
+      Serializer.instance = new Serializer()
+    }
+    return Serializer.instance
+  }
+
+  // ========== 类型注册 ==========
+
+  /**
+   * 注册实现了 ISerializable 的类（自动使用 toJSON/fromJSON）
+   */
+  private registerSerializable(typeName: string, ctor: ISerializableClass): void {
+    this.typeRegistry.set(typeName, {
+      type: typeName,
+      constructor: ctor,
+      serializer: (obj: ISerializable) => obj.toJSON(),
+      deserializer: (data: any) => ctor.fromJSON(data),
+    })
+  }
+
+  /**
+   * 注册所有默认类型。
+   * 所有类型均已实现 ISerializable，使用 registerSerializable 一行注册。
+   */
+  private registerDefaultTypes(): void {
+    // key 使用各类的 type 枚举值，与实例上的 type 属性一一对应
+
+    // 数学
+    this.registerSerializable(MathType.MATRIX4, Matrix4)
+    this.registerSerializable(MathType.POINT3, Point3)
+    this.registerSerializable(MathType.VECTOR3, Vector3)
+    this.registerSerializable(MathType.BOUNDS, Bounds)
+    // 样式
+    this.registerSerializable(StyleType.COLOR, Color)
+    this.registerSerializable(StyleType.LINEAR_GRADIENT, LinearGradient)
+    this.registerSerializable(StyleType.RADIAL_GRADIENT, RadialGradient)
+    this.registerSerializable(StyleType.CONIC_GRADIENT, ConicGradient)
+    this.registerSerializable(StyleType.IMAGE_PATTERN, ImagePattern)
+    this.registerSerializable(StyleType.VIDEO_PATTERN, VideoPattern)
+    this.registerSerializable(StyleType.FILL_STYLE, FillStyle)
+    this.registerSerializable(StyleType.STROKE_STYLE, StrokeStyle)
+    this.registerSerializable(StyleType.SHADOW_STYLE, ShadowStyle)
+    this.registerSerializable(StyleType.STYLE, Style)
+    // 图形
+    this.registerSerializable(GraphType.LINE, Line)
+    this.registerSerializable(GraphType.ARC, Arc)
+    this.registerSerializable(GraphType.CIRCLE, Circle)
+    this.registerSerializable(GraphType.QUADRATIC_BEZIER, QuadraticBezier)
+    this.registerSerializable(GraphType.CUBIC_BEZIER, CubicBezier)
+    this.registerSerializable(GraphType.COMBINED_GRAPH, CombinedGraph)
+    this.registerSerializable(GraphType.POLYGON, Polygon)
+    this.registerSerializable(GraphType.TRIANGLE, Triangle)
+    this.registerSerializable(GraphType.RECTANGLE, Rectangle)
+    this.registerSerializable(GraphType.REGULAR_POLYGON, RegularPolygon)
+    this.registerSerializable(GraphType.ROUNDED_RECT, RoundedRect)
+    this.registerSerializable(GraphType.IMAGE, ImageElement)
+    this.registerSerializable(GraphType.VIDEO, VideoElement)
+    this.registerSerializable(GraphType.TEXTFIELDS, TextFields)
+    this.registerSerializable(GraphType.TEXTPARAGRAPH, TextParagraph)
+    this.registerSerializable(GraphType.PRINTABLE_TEXTELEMENT, PrintableTextElement)
+    this.registerSerializable(GraphType.NONPRINTABLE_TEXTELEMENT, NonPrintableTextElement)
+    this.registerSerializable(GraphType.DENSETRAJECTORY, DenseTrajectory)
+    // 容器
+    this.registerSerializable(ViewType.COMBINEDVIEW, CombinedView)
+    this.registerSerializable(ViewType.GRAPHVIEW, GraphView)
+    this.registerSerializable(ViewType.TEXTVIEW, TextView)
+    this.registerSerializable(ViewType.IMAGEVIEW, ImageView)
+    this.registerSerializable(ViewType.VIDEOVIEW, VideoView)
+    // 流程图视图
+    this.registerSerializable(ViewType.NODEVIEW, NodeView)
+    this.registerSerializable(ViewType.EDGEVIEW, EdgeView)
+    this.registerSerializable(ViewType.PORTVIEW, PortView)
+    // 应用
+    this.registerSerializable(AppType.APP, App)
+    // 场景
+    this.registerSerializable(SceneType.SCENE, Scene)
+    // 相机
+    this.registerSerializable(CameraType.ORTHOGRAPHIC, OrthographicCamera)
+    this.registerSerializable(CameraType.PERSPECTIVE, PerspectiveCamera)
+  }
+
+  // ========== 核心序列化/反序列化 ==========
+
+  /**
+   * 序列化对象为JSON字符串
+   */
+  public serialize(obj: any, options: Partial<SerializerOptions> = {}): string {
+    const opts = { ...this.defaultOptions, ...options }
+    this.circularRefs.clear()
+    this.refCounter = 0
+
+    const serializedData: SerializedData = {
+      type: this.getObjectType(obj),
+      version: BANVASGL_VERSION,
+      data: this.serializeValue(obj, opts, 0),
+      metadata: {
+        timestamp: Date.now(),
+        source: 'BanvasGL Serializer',
+      },
     }
 
-    private constructor() {
-        this.registerDefaultTypes()
+    return JSON.stringify(serializedData, null, 2)
+  }
+
+  /**
+   * 反序列化为对象实例
+   *
+   * 统一入口，支持两种输入：
+   * 1. JSON 字符串（SerializedData 格式）：JSON.parse → migrate → deserializeValue
+   * 2. 纯数据对象（{ $type, $value } 包装或普通值）：直接 deserializeValue
+   *
+   * 这样 undo/redo 快照（字符串）和属性级恢复（对象）都走同一个方法。
+   */
+  public deserialize<T = any>(input: string | object, options: Partial<SerializerOptions> = {}): T {
+    const opts = { ...this.defaultOptions, ...options }
+
+    if (typeof input === 'string') {
+      // ── 字符串路径：完整的 SerializedData JSON ──
+      const serializedData: SerializedData = JSON.parse(input)
+
+      if (!serializedData.type || !serializedData.data) {
+        throw new Error('Invalid serialized data format')
+      }
+
+      return this.deserializeValue(serializedData.data, opts) as T
     }
 
-    /**
-     * 获取单例实例
-     */
-    public static getInstance(): Serializer {
-        if (!Serializer.instance) {
-            Serializer.instance = new Serializer()
-        }
-        return Serializer.instance
+    // ── 对象路径：{ $type, $value } 包装或普通值 ──
+    return this.deserializeValue(input, opts) as T
+  }
+
+  /**
+   * 序列化值（递归核心）
+   */
+  private serializeValue(value: any, options: SerializerOptions, depth: number): any {
+    if (depth > options.maxDepth!) {
+      return '[Max Depth Reached]'
     }
 
-    // ========== 类型注册 ==========
-
-    /**
-     * 注册实现了 ISerializable 的类（自动使用 toJSON/fromJSON）
-     */
-    private registerSerializable(
-        typeName: string,
-        ctor: ISerializableClass,
-    ): void {
-        this.typeRegistry.set(typeName, {
-            type: typeName,
-            constructor: ctor,
-            serializer: (obj: ISerializable) => obj.toJSON(),
-            deserializer: (data: any) => ctor.fromJSON(data),
-        })
+    if (value === null || value === undefined) {
+      return value
     }
 
-    /**
-     * 注册所有默认类型。
-     * 所有类型均已实现 ISerializable，使用 registerSerializable 一行注册。
-     */
-    private registerDefaultTypes(): void {
-        // key 使用各类的 type 枚举值，与实例上的 type 属性一一对应
-
-        // 数学
-        this.registerSerializable(MathType.MATRIX4, Matrix4)
-        this.registerSerializable(MathType.POINT3, Point3)
-        this.registerSerializable(MathType.VECTOR3, Vector3)
-        this.registerSerializable(MathType.BOUNDS, Bounds)
-        // 样式
-        this.registerSerializable(StyleType.COLOR, Color)
-        this.registerSerializable(StyleType.LINEAR_GRADIENT, LinearGradient)
-        this.registerSerializable(StyleType.RADIAL_GRADIENT, RadialGradient)
-        this.registerSerializable(StyleType.CONIC_GRADIENT, ConicGradient)
-        this.registerSerializable(StyleType.IMAGE_PATTERN, ImagePattern)
-        this.registerSerializable(StyleType.VIDEO_PATTERN, VideoPattern)
-        this.registerSerializable(StyleType.FILL_STYLE, FillStyle)
-        this.registerSerializable(StyleType.STROKE_STYLE, StrokeStyle)
-        this.registerSerializable(StyleType.SHADOW_STYLE, ShadowStyle)
-        this.registerSerializable(StyleType.STYLE, Style)
-        // 图形
-        this.registerSerializable(GraphType.LINE, Line)
-        this.registerSerializable(GraphType.ARC, Arc)
-        this.registerSerializable(GraphType.CIRCLE, Circle)
-        this.registerSerializable(GraphType.QUADRATIC_BEZIER, QuadraticBezier)
-        this.registerSerializable(GraphType.CUBIC_BEZIER, CubicBezier)
-        this.registerSerializable(GraphType.COMBINED_GRAPH, CombinedGraph)
-        this.registerSerializable(GraphType.POLYGON, Polygon)
-        this.registerSerializable(GraphType.TRIANGLE, Triangle)
-        this.registerSerializable(GraphType.RECTANGLE, Rectangle)
-        this.registerSerializable(GraphType.REGULAR_POLYGON, RegularPolygon)
-        this.registerSerializable(GraphType.ROUNDED_RECT, RoundedRect)
-        this.registerSerializable(GraphType.IMAGE, ImageElement)
-        this.registerSerializable(GraphType.VIDEO, VideoElement)
-        this.registerSerializable(GraphType.TEXTFIELDS, TextFields)
-        this.registerSerializable(GraphType.TEXTPARAGRAPH, TextParagraph)
-        this.registerSerializable(GraphType.PRINTABLE_TEXTELEMENT, PrintableTextElement)
-        this.registerSerializable(GraphType.NONPRINTABLE_TEXTELEMENT, NonPrintableTextElement)
-        this.registerSerializable(GraphType.DENSETRAJECTORY, DenseTrajectory)
-        // 容器
-        this.registerSerializable(ViewType.COMBINEDVIEW, CombinedView)
-        this.registerSerializable(ViewType.GRAPHVIEW, GraphView)
-        this.registerSerializable(ViewType.TEXTVIEW, TextView)
-        this.registerSerializable(ViewType.IMAGEVIEW, ImageView)
-        this.registerSerializable(ViewType.VIDEOVIEW, VideoView)
-        // 流程图视图
-        this.registerSerializable(ViewType.NODEVIEW, NodeView)
-        this.registerSerializable(ViewType.EDGEVIEW, EdgeView)
-        this.registerSerializable(ViewType.PORTVIEW, PortView)
-        // 应用
-        this.registerSerializable(AppType.APP, App)
-        // 场景
-        this.registerSerializable(SceneType.SCENE, Scene)
-        // 相机
-        this.registerSerializable(CameraType.ORTHOGRAPHIC, OrthographicCamera)
-        this.registerSerializable(CameraType.PERSPECTIVE, PerspectiveCamera)
-
+    // 处理循环引用
+    if (options.handleCircularRefs && typeof value === 'object' && this.circularRefs.has(value)) {
+      return { $ref: this.circularRefs.get(value) }
     }
 
-    // ========== 核心序列化/反序列化 ==========
-
-    /**
-     * 序列化对象为JSON字符串
-     */
-    public serialize(
-        obj: any,
-        options: Partial<SerializerOptions> = {}
-    ): string {
-        const opts = { ...this.defaultOptions, ...options }
-        this.circularRefs.clear()
-        this.refCounter = 0
-
-        const serializedData: SerializedData = {
-            type: this.getObjectType(obj),
-            version: BANVASGL_VERSION,
-            data: this.serializeValue(obj, opts, 0),
-            metadata: {
-                timestamp: Date.now(),
-                source: 'BanvasGL Serializer',
-            },
-        }
-
-        return JSON.stringify(serializedData, null, 2)
+    // 基本类型
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return value
     }
 
-    /**
-     * 反序列化为对象实例
-     *
-     * 统一入口，支持两种输入：
-     * 1. JSON 字符串（SerializedData 格式）：JSON.parse → migrate → deserializeValue
-     * 2. 纯数据对象（{ $type, $value } 包装或普通值）：直接 deserializeValue
-     *
-     * 这样 undo/redo 快照（字符串）和属性级恢复（对象）都走同一个方法。
-     */
-    public deserialize<T = any>(
-        input: string | object,
-        options: Partial<SerializerOptions> = {}
-    ): T {
-        const opts = { ...this.defaultOptions, ...options }
-
-        if (typeof input === 'string') {
-            // ── 字符串路径：完整的 SerializedData JSON ──
-            let serializedData: SerializedData = JSON.parse(input)
-
-            if (!serializedData.type || !serializedData.data) {
-                throw new Error('Invalid serialized data format')
-            }
-
-            return this.deserializeValue(serializedData.data, opts) as T
-        }
-
-        // ── 对象路径：{ $type, $value } 包装或普通值 ──
-        return this.deserializeValue(input, opts) as T
+    // 数组
+    if (Array.isArray(value)) {
+      if (options.handleCircularRefs) {
+        this.circularRefs.set(value, `ref_${++this.refCounter}`)
+      }
+      return value.map((item) => this.serializeValue(item, options, depth + 1))
     }
 
-    /**
-     * 序列化值（递归核心）
-     */
-    private serializeValue(
-        value: any,
-        options: SerializerOptions,
-        depth: number
-    ): any {
-        if (depth > options.maxDepth!) {
-            return '[Max Depth Reached]'
-        }
-
-        if (value === null || value === undefined) {
-            return value
-        }
-
-        // 处理循环引用
-        if (
-            options.handleCircularRefs &&
-            typeof value === 'object' &&
-            this.circularRefs.has(value)
-        ) {
-            return { $ref: this.circularRefs.get(value) }
-        }
-
-        // 基本类型
-        if (
-            typeof value === 'string' ||
-            typeof value === 'number' ||
-            typeof value === 'boolean'
-        ) {
-            return value
-        }
-
-        // 数组
-        if (Array.isArray(value)) {
-            if (options.handleCircularRefs) {
-                this.circularRefs.set(value, `ref_${++this.refCounter}`)
-            }
-            return value.map((item) =>
-                this.serializeValue(item, options, depth + 1)
-            )
-        }
-
-        // Date
-        if (value instanceof Date) {
-            return { $type: 'Date', $value: value.toISOString() }
-        }
-
-        // 函数 — 默认跳过
-        if (typeof value === 'function') {
-            return undefined
-        }
-
-        // 已注册的类型（优先使用注册的 serializer）
-        const typeName = this.getObjectType(value)
-        const typeInfo = this.typeRegistry.get(typeName)
-        if (typeInfo && typeInfo.serializer) {
-            if (options.handleCircularRefs) {
-                this.circularRefs.set(value, `ref_${++this.refCounter}`)
-            }
-            return {
-                $type: typeName,
-                $value: typeInfo.serializer(value),
-            }
-        }
-
-        // 实现了 ISerializable 但未注册的对象（兜底）
-        if (typeof value === 'object' && typeof value.toJSON === 'function') {
-            if (options.handleCircularRefs) {
-                this.circularRefs.set(value, `ref_${++this.refCounter}`)
-            }
-            return {
-                $type: typeName,
-                $value: value.toJSON(),
-            }
-        }
-
-        // 普通对象 — 浅遍历 entries
-        if (typeof value === 'object') {
-            if (options.handleCircularRefs) {
-                this.circularRefs.set(value, `ref_${++this.refCounter}`)
-            }
-
-            const result: any = {}
-            for (const [key, val] of Object.entries(value)) {
-                if (!options.includePrivate && key.startsWith('_')) {
-                    continue
-                }
-                const serializedVal = this.serializeValue(
-                    val,
-                    options,
-                    depth + 1
-                )
-                if (serializedVal !== undefined) {
-                    result[key] = serializedVal
-                }
-            }
-            return result
-        }
-
-        return value
+    // Date
+    if (value instanceof Date) {
+      return { $type: 'Date', $value: value.toISOString() }
     }
 
-    /**
-     * 反序列化值（递归核心）
-     */
-    private deserializeValue(value: any, options: SerializerOptions): any {
-        if (value === null || value === undefined) {
-            return value
-        }
-
-        // 循环引用占位
-        if (value.$ref) {
-            return value
-        }
-
-        // $type/$value 包装
-        if (value.$type) {
-            if (value.$type === 'Date') {
-                return new Date(value.$value)
-            }
-
-            const typeInfo = this.typeRegistry.get(value.$type)
-            if (typeInfo && typeInfo.deserializer) {
-                // 先递归反序列化 $value 内部的嵌套结构，再交给 fromJSON
-                const resolvedValue = this.deserializeValue(value.$value, options)
-                return typeInfo.deserializer(resolvedValue)
-            }
-            // 未注册的 $type 原样返回 $value
-            return this.deserializeValue(value.$value, options)
-        }
-
-        // 数组
-        if (Array.isArray(value)) {
-            return value.map((item) => this.deserializeValue(item, options))
-        }
-
-        // 对象 — 递归属性
-        if (typeof value === 'object') {
-            const result: any = {}
-            for (const [key, val] of Object.entries(value)) {
-                result[key] = this.deserializeValue(val, options)
-            }
-            return result
-        }
-
-        return value
+    // 函数 — 默认跳过
+    if (typeof value === 'function') {
+      return undefined
     }
 
-    /**
-     * 获取对象类型名
-     * 优先使用对象的 type 枚举属性（稳定标识），回退到 constructor.name
-     */
-    private getObjectType(obj: any): string {
-        if (obj === null || obj === undefined) return 'null'
-        if (typeof obj.type === 'string' && obj.type) return obj.type
-        if (obj.constructor && obj.constructor.name) return obj.constructor.name
-        return typeof obj
+    // 已注册的类型（优先使用注册的 serializer）
+    const typeName = this.getObjectType(value)
+    const typeInfo = this.typeRegistry.get(typeName)
+    if (typeInfo && typeInfo.serializer) {
+      if (options.handleCircularRefs) {
+        this.circularRefs.set(value, `ref_${++this.refCounter}`)
+      }
+      return {
+        $type: typeName,
+        $value: typeInfo.serializer(value),
+      }
     }
 
+    // 实现了 ISerializable 但未注册的对象（兜底）
+    if (typeof value === 'object' && typeof value.toJSON === 'function') {
+      if (options.handleCircularRefs) {
+        this.circularRefs.set(value, `ref_${++this.refCounter}`)
+      }
+      return {
+        $type: typeName,
+        $value: value.toJSON(),
+      }
+    }
+
+    // 普通对象 — 浅遍历 entries
+    if (typeof value === 'object') {
+      if (options.handleCircularRefs) {
+        this.circularRefs.set(value, `ref_${++this.refCounter}`)
+      }
+
+      const result: any = {}
+      for (const [key, val] of Object.entries(value)) {
+        if (!options.includePrivate && key.startsWith('_')) {
+          continue
+        }
+        const serializedVal = this.serializeValue(val, options, depth + 1)
+        if (serializedVal !== undefined) {
+          result[key] = serializedVal
+        }
+      }
+      return result
+    }
+
+    return value
+  }
+
+  /**
+   * 反序列化值（递归核心）
+   */
+  private deserializeValue(value: any, options: SerializerOptions): any {
+    if (value === null || value === undefined) {
+      return value
+    }
+
+    // 循环引用占位
+    if (value.$ref) {
+      return value
+    }
+
+    // $type/$value 包装
+    if (value.$type) {
+      if (value.$type === 'Date') {
+        return new Date(value.$value)
+      }
+
+      const typeInfo = this.typeRegistry.get(value.$type)
+      if (typeInfo && typeInfo.deserializer) {
+        // 先递归反序列化 $value 内部的嵌套结构，再交给 fromJSON
+        const resolvedValue = this.deserializeValue(value.$value, options)
+        return typeInfo.deserializer(resolvedValue)
+      }
+      // 未注册的 $type 原样返回 $value
+      return this.deserializeValue(value.$value, options)
+    }
+
+    // 数组
+    if (Array.isArray(value)) {
+      return value.map((item) => this.deserializeValue(item, options))
+    }
+
+    // 对象 — 递归属性
+    if (typeof value === 'object') {
+      const result: any = {}
+      for (const [key, val] of Object.entries(value)) {
+        result[key] = this.deserializeValue(val, options)
+      }
+      return result
+    }
+
+    return value
+  }
+
+  /**
+   * 获取对象类型名
+   * 优先使用对象的 type 枚举属性（稳定标识），回退到 constructor.name
+   */
+  private getObjectType(obj: any): string {
+    if (obj === null || obj === undefined) return 'null'
+    if (typeof obj.type === 'string' && obj.type) return obj.type
+    if (obj.constructor && obj.constructor.name) return obj.constructor.name
+    return typeof obj
+  }
 }

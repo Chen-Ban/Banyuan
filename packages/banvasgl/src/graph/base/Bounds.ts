@@ -1,5 +1,5 @@
-import Point3 from "@/foundation/math/Point3";
-import { MathType } from "@/foundation/constants";
+import Point3 from '@/foundation/math/Point3'
+import { MathType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
@@ -34,27 +34,27 @@ export default class Bounds implements ISerializable {
   /**
    * 类型标识，固定为 `MathType.BOUNDS`
    */
-  public readonly type: MathType = MathType.BOUNDS;
+  public readonly type: MathType = MathType.BOUNDS
 
   /**
    * 边界框左上角的 x 坐标（当 width > 0 时）或右下角的 x 坐标（当 width < 0 时）
    */
-  public x: number;
+  public x: number
 
   /**
    * 边界框左上角的 y 坐标（当 height > 0 时）或右下角的 y 坐标（当 height < 0 时）
    */
-  public y: number;
+  public y: number
 
   /**
    * 边界框的宽度。正值表示向右扩展，负值表示向左扩展
    */
-  public width: number;
+  public width: number
 
   /**
    * 边界框的高度。正值表示向下扩展，负值表示向上扩展
    */
-  public height: number;
+  public height: number
 
   /**
    * 创建一个边界框
@@ -70,16 +70,11 @@ export default class Bounds implements ISerializable {
    * const empty = new Bounds(); // (0, 0, 0, 0)
    * ```
    */
-  constructor(
-    x: number = 0,
-    y: number = 0,
-    width: number = 0,
-    height: number = 0,
-  ) {
-    this.x = x;
-    this.y = y;
-    this.width = width;
-    this.height = height;
+  constructor(x: number = 0, y: number = 0, width: number = 0, height: number = 0) {
+    this.x = x
+    this.y = y
+    this.width = width
+    this.height = height
   }
 
   /**
@@ -98,9 +93,9 @@ export default class Bounds implements ISerializable {
    * ```
    */
   setPosition(x: number, y: number): Bounds {
-    this.x = x;
-    this.y = y;
-    return this;
+    this.x = x
+    this.y = y
+    return this
   }
 
   /**
@@ -119,9 +114,9 @@ export default class Bounds implements ISerializable {
    * ```
    */
   setSize(width: number, height: number): Bounds {
-    this.width = width;
-    this.height = height;
-    return this;
+    this.width = width
+    this.height = height
+    return this
   }
 
   /**
@@ -141,7 +136,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   get right(): number {
-    return this.x + this.width;
+    return this.x + this.width
   }
 
   /**
@@ -161,7 +156,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   get bottom(): number {
-    return this.y + this.height;
+    return this.y + this.height
   }
 
   /**
@@ -178,7 +173,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   get midX(): number {
-    return this.x + this.width / 2;
+    return this.x + this.width / 2
   }
 
   /**
@@ -195,7 +190,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   get midY(): number {
-    return this.y + this.height / 2;
+    return this.y + this.height / 2
   }
 
   /**
@@ -225,28 +220,28 @@ export default class Bounds implements ISerializable {
    * ```
    */
   expandToInclude(x: number, y: number): Bounds {
-    const minX = Math.min(this.x, this.right, x);
-    const maxX = Math.max(this.x, this.right, x);
-    const minY = Math.min(this.y, this.bottom, y);
-    const maxY = Math.max(this.y, this.bottom, y);
+    const minX = Math.min(this.x, this.right, x)
+    const maxX = Math.max(this.x, this.right, x)
+    const minY = Math.min(this.y, this.bottom, y)
+    const maxY = Math.max(this.y, this.bottom, y)
 
     if (this.x < this.right) {
-      this.x = minX;
-      this.width = maxX - minX;
+      this.x = minX
+      this.width = maxX - minX
     } else {
-      this.x = maxX;
-      this.width = minX - maxX;
+      this.x = maxX
+      this.width = minX - maxX
     }
 
     if (this.y < this.bottom) {
-      this.y = minY;
-      this.height = maxY - minY;
+      this.y = minY
+      this.height = maxY - minY
     } else {
-      this.y = maxY;
-      this.height = minY - maxY;
+      this.y = maxY
+      this.height = minY - maxY
     }
 
-    return this;
+    return this
   }
 
   /**
@@ -267,9 +262,9 @@ export default class Bounds implements ISerializable {
    * ```
    */
   expandToIncludeBounds(other: Bounds): Bounds {
-    this.expandToInclude(other.x, other.y);
-    this.expandToInclude(other.right, other.bottom);
-    return this;
+    this.expandToInclude(other.x, other.y)
+    this.expandToInclude(other.right, other.bottom)
+    return this
   }
 
   /**
@@ -289,7 +284,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   get area(): number {
-    return Math.abs(this.width * this.height);
+    return Math.abs(this.width * this.height)
   }
 
   /**
@@ -307,7 +302,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   get isEmpty(): boolean {
-    return this.width === 0 || this.height === 0;
+    return this.width === 0 || this.height === 0
   }
 
   // ── 序列化 ──
@@ -324,7 +319,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   toJSON(): { x: number; y: number; width: number; height: number } {
-    return { x: this.x, y: this.y, width: this.width, height: this.height };
+    return { x: this.x, y: this.y, width: this.width, height: this.height }
   }
 
   /**
@@ -338,13 +333,8 @@ export default class Bounds implements ISerializable {
    * const bounds = Bounds.fromJSON({ x: 10, y: 20, width: 100, height: 50 });
    * ```
    */
-  static fromJSON(data: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }): Bounds {
-    return new Bounds(data.x, data.y, data.width, data.height);
+  static fromJSON(data: { x: number; y: number; width: number; height: number }): Bounds {
+    return new Bounds(data.x, data.y, data.width, data.height)
   }
 
   /**
@@ -362,7 +352,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   copy(): Bounds {
-    return new Bounds(this.x, this.y, this.width, this.height);
+    return new Bounds(this.x, this.y, this.width, this.height)
   }
 
   /**
@@ -379,7 +369,7 @@ export default class Bounds implements ISerializable {
    * ```
    */
   static empty(): Bounds {
-    return new Bounds(0, 0, 0, 0);
+    return new Bounds(0, 0, 0, 0)
   }
 
   /**
@@ -410,40 +400,36 @@ export default class Bounds implements ISerializable {
    * // { x: 100, y: 80, width: -90, height: -60 }
    * ```
    */
-  static fromPoints(
-    points: Point3[],
-    orientationX: boolean = true,
-    orientationY: boolean = true,
-  ): Bounds {
+  static fromPoints(points: Point3[], orientationX: boolean = true, orientationY: boolean = true): Bounds {
     if (points.length === 0) {
-      return Bounds.empty();
+      return Bounds.empty()
     }
 
-    let minX = points[0].x;
-    let maxX = points[0].x;
-    let minY = points[0].y;
-    let maxY = points[0].y;
+    let minX = points[0].x
+    let maxX = points[0].x
+    let minY = points[0].y
+    let maxY = points[0].y
 
     for (const point of points) {
-      minX = Math.min(minX, point.x);
-      maxX = Math.max(maxX, point.x);
-      minY = Math.min(minY, point.y);
-      maxY = Math.max(maxY, point.y);
+      minX = Math.min(minX, point.x)
+      maxX = Math.max(maxX, point.x)
+      minY = Math.min(minY, point.y)
+      maxY = Math.max(maxY, point.y)
     }
-    let x = minX;
-    let y = minY;
-    let width = maxX - minX;
-    let height = maxY - minY;
+    let x = minX
+    let y = minY
+    let width = maxX - minX
+    let height = maxY - minY
     if (!orientationX) {
-      x = maxX;
-      width = -width;
+      x = maxX
+      width = -width
     }
     if (!orientationY) {
-      y = maxY;
-      height = -height;
+      y = maxY
+      height = -height
     }
 
-    return new Bounds(x, y, width, height);
+    return new Bounds(x, y, width, height)
   }
 
   /**
@@ -476,14 +462,14 @@ export default class Bounds implements ISerializable {
    */
   static union(...bounds: Bounds[]): Bounds {
     if (bounds.length === 0) {
-      return Bounds.empty();
+      return Bounds.empty()
     }
 
-    const result = bounds[0].copy();
+    const result = bounds[0].copy()
     for (let i = 1; i < bounds.length; i++) {
-      result.expandToIncludeBounds(bounds[i]);
+      result.expandToIncludeBounds(bounds[i])
     }
 
-    return result;
+    return result
   }
 }

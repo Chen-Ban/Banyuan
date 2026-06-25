@@ -179,8 +179,10 @@ export default abstract class Gradient implements ISerializable {
   protected stopsEqual(other: Gradient): boolean {
     if (this.stops.length !== other.stops.length) return false
     for (let i = 0; i < this.stops.length; i++) {
-      if (!this.stops[i].color.equals(other.stops[i].color) ||
-          this.stops[i].position !== other.stops[i].position) {
+      if (
+        !this.stops[i].color.equals(other.stops[i].color) ||
+        this.stops[i].position !== other.stops[i].position
+      ) {
         return false
       }
     }
@@ -204,7 +206,7 @@ export default abstract class Gradient implements ISerializable {
    * ```
    */
   protected applyStops(gradient: IGradient): void {
-    this.stops.forEach(stop => {
+    this.stops.forEach((stop) => {
       gradient.addColorStop(stop.position, stop.color.rgba)
     })
   }
@@ -226,7 +228,7 @@ export default abstract class Gradient implements ISerializable {
    * ```
    */
   protected serializeStops(): { color: any; position: number }[] {
-    return this.stops.map(s => ({ color: s.color.toJSON(), position: s.position }))
+    return this.stops.map((s) => ({ color: s.color.toJSON(), position: s.position }))
   }
 
   /**
@@ -248,7 +250,6 @@ export default abstract class Gradient implements ISerializable {
    * ```
    */
   static deserializeStops(data: any[]): GradientStop[] {
-    return data.map(s => ({ color: Color.fromJSON(s.color), position: s.position }))
+    return data.map((s) => ({ color: Color.fromJSON(s.color), position: s.position }))
   }
-
 }

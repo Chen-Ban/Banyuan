@@ -1,14 +1,14 @@
-import { GraphType } from "@/foundation/constants";
-import AnalyticGraph from "./AnalyticGraph";
-import { Point3, Vector3, Matrix4, GeometryUtils } from "@/foundation/math";
-import { Style } from "@/foundation/style";
-import Bounds from "@/graph/base/Bounds";
-import Graph from "@/graph/base/Graph";
-import { intersect } from "@/graph/algorithm/IntersectionUtils";
+import { GraphType } from '@/foundation/constants'
+import AnalyticGraph from './AnalyticGraph'
+import { Point3, Vector3, Matrix4, GeometryUtils } from '@/foundation/math'
+import { Style } from '@/foundation/style'
+import Bounds from '@/graph/base/Bounds'
+import Graph from '@/graph/base/Graph'
+import { intersect } from '@/graph/algorithm/IntersectionUtils'
 import type { ILine } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
 import type { IDrawingContext } from '@/types/platform/context.js'
-import { generateId } from "@/foundation/utils";
+import { generateId } from '@/foundation/utils'
 
 /**
  * 直线图形
@@ -29,14 +29,11 @@ import { generateId } from "@/foundation/utils";
  * const tangent = line.getTangentAt(0.5);
  * ```
  */
-export default class Line
-  extends AnalyticGraph
-  implements ILine, ISerializable
-{
+export default class Line extends AnalyticGraph implements ILine, ISerializable {
   /**
    * 图形类型标识，固定为 `GraphType.LINE`
    */
-  public type: GraphType = GraphType.LINE;
+  public type: GraphType = GraphType.LINE
 
   /**
    * 控制点数组，`[startPoint, endPoint]`
@@ -44,12 +41,12 @@ export default class Line
    * - `controlPoints[0]`：线段起点
    * - `controlPoints[1]`：线段终点
    */
-  public controlPoints: Point3[];
+  public controlPoints: Point3[]
 
   /**
    * 线条的轴对齐包围盒（AABB）
    */
-  public bounds: Bounds;
+  public bounds: Bounds
 
   /**
    * 创建一条直线
@@ -68,18 +65,13 @@ export default class Line
    * );
    * ```
    */
-  constructor(
-    startPoint: Point3,
-    endPoint: Point3,
-    _style?: Style,
-    id?: string,
-  ) {
-    super(id);
-    this.controlPoints = [startPoint, endPoint];
+  constructor(startPoint: Point3, endPoint: Point3, _style?: Style, id?: string) {
+    super(id)
+    this.controlPoints = [startPoint, endPoint]
 
     // 在构造函数中立即计算边界框，确保View能获取到正确的初始尺寸
-    this.bounds = this.updateBounds();
-    if (!id) this.id = generateId(this.type);
+    this.bounds = this.updateBounds()
+    if (!id) this.id = generateId(this.type)
   }
 
   /**
@@ -96,7 +88,7 @@ export default class Line
    * ```
    */
   public isClosed(): boolean {
-    return false;
+    return false
   }
 
   /**
@@ -111,7 +103,7 @@ export default class Line
    * ```
    */
   get startPoint(): Point3 {
-    return this.controlPoints[0];
+    return this.controlPoints[0]
   }
 
   /**
@@ -126,7 +118,7 @@ export default class Line
    * ```
    */
   get endPoint(): Point3 {
-    return this.controlPoints[1];
+    return this.controlPoints[1]
   }
 
   /**
@@ -142,8 +134,8 @@ export default class Line
    * ```
    */
   set startPoint(point: Point3) {
-    this.controlPoints[0] = point;
-    this.updateBounds();
+    this.controlPoints[0] = point
+    this.updateBounds()
   }
 
   /**
@@ -159,8 +151,8 @@ export default class Line
    * ```
    */
   set endPoint(point: Point3) {
-    this.controlPoints[1] = point;
-    this.updateBounds();
+    this.controlPoints[1] = point
+    this.updateBounds()
   }
 
   /**
@@ -179,9 +171,9 @@ export default class Line
    * ```
    */
   public setControlPoint(index: number, point: Point3): void {
-    if (index < 0 || index >= this.controlPoints.length) return;
-    this.controlPoints[index] = point.copy();
-    this.bounds = this.updateBounds();
+    if (index < 0 || index >= this.controlPoints.length) return
+    this.controlPoints[index] = point.copy()
+    this.bounds = this.updateBounds()
   }
 
   /**
@@ -199,7 +191,7 @@ export default class Line
    * ```
    */
   public updateBounds(): Bounds {
-    return Bounds.fromPoints(this.controlPoints);
+    return Bounds.fromPoints(this.controlPoints)
   }
 
   /**
@@ -218,10 +210,10 @@ export default class Line
    * line.renderPath(ctx, false); // 追加到当前路径
    * ```
    */
-  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
-    dependent && ctx.beginPath();
-    ctx.moveTo(this.startPoint.x, this.startPoint.y);
-    ctx.lineTo(this.endPoint.x, this.endPoint.y);
+  public renderPath(ctx: IDrawingContext, dependent: boolean): void {
+    dependent && ctx.beginPath()
+    ctx.moveTo(this.startPoint.x, this.startPoint.y)
+    ctx.lineTo(this.endPoint.x, this.endPoint.y)
   }
 
   /**
@@ -239,16 +231,12 @@ export default class Line
    * ```
    */
   public render(ctx: IDrawingContext, style: Style): void {
-    ctx.save();
-    const bounds = this.bounds;
-    style.applyToContext(
-      ctx,
-      Math.abs(bounds.width),
-      Math.abs(bounds.height),
-    );
-    this.renderPath(ctx, true);
-    ctx.stroke();
-    ctx.restore();
+    ctx.save()
+    const bounds = this.bounds
+    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
+    this.renderPath(ctx, true)
+    ctx.stroke()
+    ctx.restore()
   }
 
   // ── 序列化 ──
@@ -271,7 +259,7 @@ export default class Line
       id: this.id,
       type: this.type,
       controlPoints: this.controlPoints.map((p) => p.toJSON()),
-    };
+    }
   }
 
   /**
@@ -291,10 +279,10 @@ export default class Line
    * ```
    */
   static fromJSON(data: any): Line {
-    const points = data.controlPoints.map((p: any) => Point3.fromJSON(p));
-    const line = new Line(points[0], points[1]);
-    line.id = data.id;
-    return line;
+    const points = data.controlPoints.map((p: any) => Point3.fromJSON(p))
+    const line = new Line(points[0], points[1])
+    line.id = data.id
+    return line
   }
 
   /**
@@ -311,10 +299,7 @@ export default class Line
    * ```
    */
   public copy(): this {
-    return new Line(
-      this.startPoint.copy(),
-      this.endPoint.copy(),
-    ) as this;
+    return new Line(this.startPoint.copy(), this.endPoint.copy()) as this
   }
 
   // ========== AnalyticGraph 抽象方法实现 ==========
@@ -337,13 +322,13 @@ export default class Line
    * ```
    */
   public getPointAt(t: number): Point3 {
-    const start = this.startPoint;
-    const end = this.endPoint;
+    const start = this.startPoint
+    const end = this.endPoint
     return new Point3(
       start.x + t * (end.x - start.x),
       start.y + t * (end.y - start.y),
       start.z + t * (end.z - start.z),
-    );
+    )
   }
 
   /**
@@ -362,9 +347,9 @@ export default class Line
    * ```
    */
   public getTangentAt(_t: number): Vector3 {
-    const start = this.startPoint;
-    const end = this.endPoint;
-    return new Vector3(end.x - start.x, end.y - start.y, end.z - start.z);
+    const start = this.startPoint
+    const end = this.endPoint
+    return new Vector3(end.x - start.x, end.y - start.y, end.z - start.z)
   }
 
   /**
@@ -384,8 +369,8 @@ export default class Line
    * ```
    */
   public getNormalAt(t: number): Vector3 {
-    const tangent = this.getTangentAt(t);
-    return new Vector3(-tangent.y, tangent.x, 0).normalized;
+    const tangent = this.getTangentAt(t)
+    return new Vector3(-tangent.y, tangent.x, 0).normalized
   }
 
   /**
@@ -409,27 +394,27 @@ export default class Line
    * ```
    */
   public getClosestPoint(point: Point3): {
-    distance: number;
-    closestPoint: Point3;
-    parameter: number;
+    distance: number
+    closestPoint: Point3
+    parameter: number
   } {
-    const t = GeometryUtils.projectT(point, this.startPoint, this.endPoint);
+    const t = GeometryUtils.projectT(point, this.startPoint, this.endPoint)
     // 线段退化为点时，直接返回起点
     if (t === null) {
       return {
         distance: point.distance(this.startPoint),
         closestPoint: this.startPoint.copy(),
         parameter: 0,
-      };
+      }
     }
     // 将 t 限制在 [0, 1] 内，确保最近点在线段上
-    const clampedT = Math.max(0, Math.min(1, t));
-    const closestPoint = this.getPointAt(clampedT);
+    const clampedT = Math.max(0, Math.min(1, t))
+    const closestPoint = this.getPointAt(clampedT)
     return {
       distance: point.distance(closestPoint),
       closestPoint,
       parameter: clampedT,
-    };
+    }
   }
 
   /**
@@ -449,9 +434,9 @@ export default class Line
    * ```
    */
   public getLength(tStart: number, tEnd: number): number {
-    const startPoint = this.getPointAt(tStart);
-    const endPoint = this.getPointAt(tEnd);
-    return startPoint.distance(endPoint);
+    const startPoint = this.getPointAt(tStart)
+    const endPoint = this.getPointAt(tEnd)
+    return startPoint.distance(endPoint)
   }
 
   /**
@@ -469,7 +454,7 @@ export default class Line
    * ```
    */
   public getArea(): number {
-    throw new Error("Line 是开放路径，不具有面积");
+    throw new Error('Line 是开放路径，不具有面积')
   }
 
   /**
@@ -490,7 +475,7 @@ export default class Line
       (this.startPoint.x + this.endPoint.x) / 2,
       (this.startPoint.y + this.endPoint.y) / 2,
       (this.startPoint.z + this.endPoint.z) / 2,
-    );
+    )
   }
 
   /**
@@ -509,10 +494,10 @@ export default class Line
    * ```
    */
   public transform(matrix: Matrix4): AnalyticGraph {
-    this.controlPoints[0] = matrix.multiply(this.startPoint);
-    this.controlPoints[1] = matrix.multiply(this.endPoint);
-    this.bounds = this.updateBounds();
-    return this;
+    this.controlPoints[0] = matrix.multiply(this.startPoint)
+    this.controlPoints[1] = matrix.multiply(this.endPoint)
+    this.bounds = this.updateBounds()
+    return this
   }
 
   /**
@@ -535,10 +520,10 @@ export default class Line
   public intersect(other: Graph): Point3[] {
     // 如果另一个图形也是可分析图形，使用精确的相交计算方法
     if (other instanceof AnalyticGraph) {
-      return intersect(this, other);
+      return intersect(this, other)
     }
     // 对于其他类型的图形，使用其他图形的相交计算方法
-    return other.intersect(this);
+    return other.intersect(this)
   }
 
   /**
@@ -560,28 +545,20 @@ export default class Line
    * );
    * ```
    */
-  public resize(
-    fixedPoint: Point3,
-    dynamicPoint: Point3,
-    resizeVector: Vector3,
-  ): void {
-    const referenceVector = dynamicPoint.subtract(fixedPoint);
-    const width = Math.abs(referenceVector.x) || Infinity;
-    const height = Math.abs(referenceVector.y) || Infinity;
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    const width = Math.abs(referenceVector.x) || Infinity
+    const height = Math.abs(referenceVector.y) || Infinity
 
     for (let i = 0; i < this.controlPoints.length; i++) {
-      const p = this.controlPoints[i];
-      const scaleX = Math.abs(p.x - fixedPoint.x) / width;
-      const scaleY = Math.abs(p.y - fixedPoint.y) / height;
+      const p = this.controlPoints[i]
+      const scaleX = Math.abs(p.x - fixedPoint.x) / width
+      const scaleY = Math.abs(p.y - fixedPoint.y) / height
 
       // 带方向并且按照介质尺寸缩放的移动量
-      this.controlPoints[i] = new Point3(
-        p.x + resizeVector.x * scaleX,
-        p.y + resizeVector.y * scaleY,
-        p.z
-      );
+      this.controlPoints[i] = new Point3(p.x + resizeVector.x * scaleX, p.y + resizeVector.y * scaleY, p.z)
     }
 
-    this.bounds = this.updateBounds();
+    this.bounds = this.updateBounds()
   }
 }

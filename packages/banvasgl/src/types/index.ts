@@ -18,116 +18,116 @@
 
 // ── Graph 接口 ──
 export type {
-    IGraph,
-    IAnalyticGraph,
-    ILine,
-    IArc,
-    ICircle,
-    IBezier,
-    IQuadraticBezier,
-    ICubicBezier,
-    ICombinedGraph,
-    IPolygon,
-    ITriangle,
-    IQuadrilateral,
-    IRectangle,
-    IRegularPolygon,
-    IRoundedRect,
-    IDenseTrajectory,
-    IMediaElement,
-    IImageElement,
-    IVideoElement,
-    ITextElement,
-    IPrintableTextElement,
-    INonPrintableTextElement,
-    ITextParagraphContent,
-    ITextParagraph,
-    ITextFields,
-    GraphTypeMap,
-    TextIndex,
+  IGraph,
+  IAnalyticGraph,
+  ILine,
+  IArc,
+  ICircle,
+  IBezier,
+  IQuadraticBezier,
+  ICubicBezier,
+  ICombinedGraph,
+  IPolygon,
+  ITriangle,
+  IQuadrilateral,
+  IRectangle,
+  IRegularPolygon,
+  IRoundedRect,
+  IDenseTrajectory,
+  IMediaElement,
+  IImageElement,
+  IVideoElement,
+  ITextElement,
+  IPrintableTextElement,
+  INonPrintableTextElement,
+  ITextParagraphContent,
+  ITextParagraph,
+  ITextFields,
+  GraphTypeMap,
+  TextIndex,
 } from './graph/graph'
 
 // ── View 接口 ──
 export type {
-    FieldType,
-    IFieldSchema,
-    IFieldSchemaMap,
-    // Flow 类型（从内部 flow 模块统一透传）
-    // 共享节点
-    FlowConditionNode,
-    FlowControlNode,
-    FlowLoopNode,
-    FlowParallelNode,
-    FlowFunctionNode,
-    // 前端 Action 节点
-    FlowSetVariableNode,
-    FlowNavigateNode,
-    // 后端节点
-    FlowDbQueryNode,
-    FlowDbInsertNode,
-    FlowDbUpdateNode,
-    FlowDbDeleteNode,
-    FlowHttpRequestNode,
-    // Schema 结构
-    FlowActionNode,
-    FlowNode,
-    FlowSchema,
-    // FlowContext
-    EventHandler,
-    IViewEvents,
-    IViewLifetimes,
-    IAddonBase,
-    IBoundingBoxAddon,
-    IVertexAddon,
-    IBoxDecorationOptions,
-    IBoxDecorationAddon,
-    IFillStyleOptions,
-    IStrokeStyleOptions,
-    IShadowStyleOptions,
-    ITextSelectionAddon,
-    IViewAddon,
-    ExtraData,
-    MoveData,
-    ResizeData,
-    RotateData,
-    EditPointData,
-    EditViewportData,
-    SelectData,
-    TextSelectionData,
-    ConnectData,
-    NoneData,
-    IInteractResult,
-    IViewOptions,
-    IContainerViewOptions,
-    IGraphViewOptions,
-    ISelectBoxViewOptions,
-    IImageViewOptions,
-    IVideoViewOptions,
-    ITextViewOptions,
-    IViewStyle,
-    IFlexLayout,
-    IListLayout,
-    IGridLayout,
-    IScrollLayout,
-    LayoutMode,
-    TransformOriginKeyword,
-    TransformOrigin,
-    IView,
-    ISceneNode,
-    IGraphView,
-    ISelectBoxView,
-    IImageView,
-    IVideoView,
-    ITextView,
-    IContainerView,
-    ICombinedView,
-    ITextSelection,
-    ViewTypeMap,
-    // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
-    PortDirection,
-    IPortView,
-    INodeView,
-    IEdgeView,
+  FieldType,
+  IFieldSchema,
+  IFieldSchemaMap,
+  // Flow 类型（从内部 flow 模块统一透传）
+  // 共享节点
+  FlowConditionNode,
+  FlowControlNode,
+  FlowLoopNode,
+  FlowParallelNode,
+  FlowFunctionNode,
+  // 前端 Action 节点
+  FlowSetVariableNode,
+  FlowNavigateNode,
+  // 后端节点
+  FlowDbQueryNode,
+  FlowDbInsertNode,
+  FlowDbUpdateNode,
+  FlowDbDeleteNode,
+  FlowHttpRequestNode,
+  // Schema 结构
+  FlowActionNode,
+  FlowNode,
+  FlowSchema,
+  // FlowContext
+  EventHandler,
+  IViewEvents,
+  IViewLifetimes,
+  IAddonBase,
+  IBoundingBoxAddon,
+  IVertexAddon,
+  IBoxDecorationOptions,
+  IBoxDecorationAddon,
+  IFillStyleOptions,
+  IStrokeStyleOptions,
+  IShadowStyleOptions,
+  ITextSelectionAddon,
+  IViewAddon,
+  ExtraData,
+  MoveData,
+  ResizeData,
+  RotateData,
+  EditPointData,
+  EditViewportData,
+  SelectData,
+  TextSelectionData,
+  ConnectData,
+  NoneData,
+  IInteractResult,
+  IViewOptions,
+  IContainerViewOptions,
+  IGraphViewOptions,
+  ISelectBoxViewOptions,
+  IImageViewOptions,
+  IVideoViewOptions,
+  ITextViewOptions,
+  IViewStyle,
+  IFlexLayout,
+  IListLayout,
+  IGridLayout,
+  IScrollLayout,
+  LayoutMode,
+  TransformOriginKeyword,
+  TransformOrigin,
+  IView,
+  ISceneNode,
+  IGraphView,
+  ISelectBoxView,
+  IImageView,
+  IVideoView,
+  ITextView,
+  IContainerView,
+  ICombinedView,
+  ITextSelection,
+  ViewTypeMap,
+  // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
+  PortDirection,
+  IPortView,
+  INodeView,
+  IEdgeView,
 } from './view/view'
 
 // 注：AddonCapability / Cursor / Action / cursorMap 枚举值已迁移至 foundation/constants，
@@ -137,30 +137,24 @@ export type {
 // 这些值的公开 API 由 src/index.ts 直接从各自归属模块统一导出。
 
 // ── Camera 接口 ──
-export type {
-    ICamera,
-    IOrthographicCamera,
-    IPerspectiveCamera,
-} from './engine/camera'
+export type { ICamera, IOrthographicCamera, IPerspectiveCamera } from './engine/camera'
 
 // ── Renderer 接口 ──
-export type {
-    IRenderer,
-} from './engine/renderer'
+export type { IRenderer } from './engine/renderer'
 
 // ── Scene 接口 ──
 export type {
-    ISceneLifetimes,
-    IOperationStack,
-    IScene,
-    SceneAccessor,
-    Diff,
-    ModifyDiff,
-    AddDiff,
-    RemoveDiff,
-    ReorderDiff,
-    PropChange,
-    ApplyDirection,
+  ISceneLifetimes,
+  IOperationStack,
+  IScene,
+  SceneAccessor,
+  Diff,
+  ModifyDiff,
+  AddDiff,
+  RemoveDiff,
+  ReorderDiff,
+  PropChange,
+  ApplyDirection,
 } from './engine/scene'
 
 // DiffType / Operation 为值，归属 @/engine/scene，由 src/index.ts 直接导出。
@@ -170,32 +164,25 @@ export type {
 export type { AxisSnap, SnapResult } from './engine/snap'
 
 // ── App 接口 ──
-export type {
-    IPage,
-    IAppOptions,
-    IAppLifetimes,
-    INavigationOptions,
-    IApp,
-    IAppStatic,
-} from './engine/app'
+export type { IPage, IAppOptions, IAppLifetimes, INavigationOptions, IApp, IAppStatic } from './engine/app'
 
 // ── Animation 接口 ──
 export type {
-    EasingFunction,
-    FillMode,
-    PlaybackDirection,
-    AnimationState,
-    AnimatableValue,
-    KeyframeProps,
-    KeyframeDefinition,
-    AnimationOptions,
-    Interpolator,
-    IAnimationDescriptor,
-    IAnimationAddon,
-    Keyframe,
-    PropertyClassification,
-    InterpolationHints,
-    ResolvedKeyframeSegment,
+  EasingFunction,
+  FillMode,
+  PlaybackDirection,
+  AnimationState,
+  AnimatableValue,
+  KeyframeProps,
+  KeyframeDefinition,
+  AnimationOptions,
+  Interpolator,
+  IAnimationDescriptor,
+  IAnimationAddon,
+  Keyframe,
+  PropertyClassification,
+  InterpolationHints,
+  ResolvedKeyframeSegment,
 } from './foundation/animation'
 
 // ── 序列化接口 ──
@@ -208,29 +195,15 @@ export * from './foundation/flow/index.js'
 export type { ITransferable, TransferableData } from './foundation/transferable'
 
 // ── 媒体源（引擎自有像素数据） ──
-export type {
-  IImageSource,
-  IVideoSource,
-  IVideoLoadOptions,
-  PatternRepeat,
-} from './foundation/media.js'
+export type { IImageSource, IVideoSource, IVideoLoadOptions, PatternRepeat } from './foundation/media.js'
 
 // ── 绘制枚举（引擎自有，替代 lib.dom 中的 Canvas* 类型） ──
-export type {
-  FillRule,
-  LineCap,
-  LineJoin,
-  ImageSmoothingQuality,
-} from './foundation/drawing.js'
+export type { FillRule, LineCap, LineJoin, ImageSmoothingQuality } from './foundation/drawing.js'
 
 // ── 渐变 / 图案 / 文本度量（引擎自有类型） ──
 export type { IGradient } from './foundation/gradient.js'
 export type { IPattern } from './foundation/pattern.js'
-export type {
-  TextAlign,
-  TextBaseline,
-  ITextMetrics,
-} from './foundation/text.js'
+export type { TextAlign, TextBaseline, ITextMetrics } from './foundation/text.js'
 
 // ── 样式基础类型 ──
 export type {
@@ -247,72 +220,59 @@ export type {
 export type { Matrix2DInit } from './foundation/math.js'
 
 // ── Actions 操作接口 ──
-export type {
-    IViewActions,
-    IPageActions,
-    IAppActions,
-    IBanvasActions,
-} from './actions/actions'
+export type { IViewActions, IPageActions, IAppActions, IBanvasActions } from './actions/actions'
 
 // ── 模板系统接口 ──
 export type {
-    TemplateParameterType,
-    ITemplateParameter,
-    ITemplateAsset,
-    ITemplate,
-    IInternalIdRef,
-    ITemplateActions,
-    ITemplateSerializeConfig,
-    ITemplateParameterBinding,
+  TemplateParameterType,
+  ITemplateParameter,
+  ITemplateAsset,
+  ITemplate,
+  IInternalIdRef,
+  ITemplateActions,
+  ITemplateSerializeConfig,
+  ITemplateParameterBinding,
 } from './template/template'
 
 // ── 平台抽象接口 ──
-export type {
-    IDrawingContext,
-    IDrawingSurface,
-} from './platform/index'
+export type { IDrawingContext, IDrawingSurface } from './platform/index'
 
 // ── PropertyAdapter 接口 ──
-export type {
-    PropertyCategory,
-    PropertyAdapter,
-    PropertyDescriptor,
-    ConflictGroup,
-} from './view/property'
+export type { PropertyCategory, PropertyAdapter, PropertyDescriptor, ConflictGroup } from './view/property'
 
 // ── 原子事件输入类型 ──
 export type {
-    // 指针事件
-    PointerInputBase,
-    PointerDownInput,
-    PointerMoveInput,
-    PointerUpInput,
-    PointerCancelInput,
-    PointerEnterInput,
-    PointerLeaveInput,
-    PointerInput,
-    // 键盘事件
-    KeyDownInput,
-    KeyUpInput,
-    KeyboardInput,
-    // 滚轮事件
-    WheelInput,
-    // 焦点事件
-    FocusInput,
-    BlurInput,
-    // 拖拽事件（引擎内语义）
-    DragInputBase,
-    DragStartInput,
-    DragMoveInput,
-    DragEndInput,
-    DragInput,
-    // IME 组合事件
-    CompositionStartInput,
-    CompositionUpdateInput,
-    CompositionEndInput,
-    CompositionInput,
-    // 全量联合
-    InteractionInput,
+  // 指针事件
+  PointerInputBase,
+  PointerDownInput,
+  PointerMoveInput,
+  PointerUpInput,
+  PointerCancelInput,
+  PointerEnterInput,
+  PointerLeaveInput,
+  PointerInput,
+  // 键盘事件
+  KeyDownInput,
+  KeyUpInput,
+  KeyboardInput,
+  // 滚轮事件
+  WheelInput,
+  // 焦点事件
+  FocusInput,
+  BlurInput,
+  // 拖拽事件（引擎内语义）
+  DragInputBase,
+  DragStartInput,
+  DragMoveInput,
+  DragEndInput,
+  DragInput,
+  // IME 组合事件
+  CompositionStartInput,
+  CompositionUpdateInput,
+  CompositionEndInput,
+  CompositionInput,
+  // 全量联合
+  InteractionInput,
 } from './foundation/event'
 
 // ── 统一类型守卫 ──

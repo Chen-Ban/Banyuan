@@ -2,7 +2,7 @@
 
 > BanvasGL —— 以 Canvas 为纸，以代码为笔。
 
-BanvasGL 是 Banyuan 平台**面向声明式 UI 的 2D 图形运行时（含流程控制）**——*A 2D graphics runtime for declarative UI, with built-in flow control*。它提供完整的画布渲染、视图管理、动画系统、FlowSchema 执行和交互机制，是整个低代码平台的图形基础。作为运行时，它只提供机制（原子事件 / 几何变换 / FlowSchema 执行），高层交互策略由上层注入（定位详见 docs/adr/engine/architecture.md A0）。
+BanvasGL 是 Banyuan 平台**面向声明式 UI 的 2D 图形运行时（含流程控制）**——_A 2D graphics runtime for declarative UI, with built-in flow control_。它提供完整的画布渲染、视图管理、动画系统、FlowSchema 执行和交互机制，是整个低代码平台的图形基础。作为运行时，它只提供机制（原子事件 / 几何变换 / FlowSchema 执行），高层交互策略由上层注入（定位详见 docs/adr/engine/architecture.md A0）。
 
 **平台无关**：BanvasGL 核心零 React、零 DOM 依赖。通过 `IDrawingContext` / `IDrawingSurface` 两个平台抽象接口，同一套引擎代码可运行在 Web、iOS、Android、Node.js 等多种平台。Web 平台的具体实现在 [`@banyuan/banvasgl-react`](../banvasgl-react/README.md) 包中。
 
@@ -36,11 +36,11 @@ BanvasGL 解决的问题是：**让同一套渲染逻辑在浏览器、桌面端
 
 BanvasGL 通过子路径导出提供不同能力：
 
-| 导入路径 | 用途 |
-|----------|------|
-| `@banyuan/banvasgl` | 核心图形引擎 + Flow 类型 + 平台抽象接口（App、Scene、View、FlowSchema、FlowNode 等 25 种 NodeKind、IDrawingContext / IDrawingSurface） |
-| `@banyuan/banvasgl/flow/client` | 前端 FlowRunner 工厂（`createClientFlowRunner()`） |
-| `@banyuan/banvasgl/flow/server` | 后端 FlowRunner 工厂（`createServerFlowRunner()`） |
+| 导入路径                        | 用途                                                                                                                                   |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `@banyuan/banvasgl`             | 核心图形引擎 + Flow 类型 + 平台抽象接口（App、Scene、View、FlowSchema、FlowNode 等 25 种 NodeKind、IDrawingContext / IDrawingSurface） |
+| `@banyuan/banvasgl/flow/client` | 前端 FlowRunner 工厂（`createClientFlowRunner()`）                                                                                     |
+| `@banyuan/banvasgl/flow/server` | 后端 FlowRunner 工厂（`createServerFlowRunner()`）                                                                                     |
 
 仅有 3 个导出路径，不存在公开的 `./flow` 子路径——内部组件（FlowRunner 类、NodeExecutor 注册表、各求值器）不对外暴露，只暴露预组装工厂。
 
@@ -60,10 +60,10 @@ View 是带有流程控制语义的对象——渲染和交互逻辑天然内聚
 
 BanvasGL 通过两个核心接口实现平台无关：
 
-| 接口 | 定义位置 | 职责 | Web 实现（banvasgl-react） |
-|------|---------|------|---------------------------|
-| `IDrawingContext` | `types/platform/context.ts` | 平台无关 2D 绘图上下文（~50 方法） | `createWebDrawingContext()` |
-| `IDrawingSurface` | `types/platform/surface.ts` | 画布表面注入：持有主/离屏上下文，管理尺寸/DPR/双缓冲合成/帧调度/生命周期 | `WebSurface` |
+| 接口              | 定义位置                    | 职责                                                                     | Web 实现（banvasgl-react）  |
+| ----------------- | --------------------------- | ------------------------------------------------------------------------ | --------------------------- |
+| `IDrawingContext` | `types/platform/context.ts` | 平台无关 2D 绘图上下文（~50 方法）                                       | `createWebDrawingContext()` |
+| `IDrawingSurface` | `types/platform/surface.ts` | 画布表面注入：持有主/离屏上下文，管理尺寸/DPR/双缓冲合成/帧调度/生命周期 | `WebSurface`                |
 
 引擎通过 `App.create(surface, options)` 工厂接收平台注入。`IDrawingSurface` 统一了旧版 `IPlatformCanvas` 和 `ICanvasHost` 的职责——既是画布工厂，也是双缓冲合成宿主。引擎内部不再直接引用 `HTMLCanvasElement` 或 `CanvasRenderingContext2D`。DOM lib 仅保留用于媒体加载（`Image` / `FontFace`）和 `requestAnimationFrame`。
 

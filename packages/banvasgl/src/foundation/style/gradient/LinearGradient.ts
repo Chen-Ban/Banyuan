@@ -98,10 +98,10 @@ export default class LinearGradient extends Gradient {
    */
   createCanvasGradient(ctx: IDrawingContext, width: number = 100, height: number = 100): IGradient {
     const gradient = ctx.createLinearGradient(
-      this.x0 * width / 100,
-      this.y0 * height / 100,
-      this.x1 * width / 100,
-      this.y1 * height / 100
+      (this.x0 * width) / 100,
+      (this.y0 * height) / 100,
+      (this.x1 * width) / 100,
+      (this.y1 * height) / 100,
     )
     this.applyStops(gradient)
     return gradient
@@ -124,7 +124,10 @@ export default class LinearGradient extends Gradient {
     return {
       type: this.type,
       stops: this.serializeStops(),
-      x0: this.x0, y0: this.y0, x1: this.x1, y1: this.y1,
+      x0: this.x0,
+      y0: this.y0,
+      x1: this.x1,
+      y1: this.y1,
     }
   }
 
@@ -183,9 +186,13 @@ export default class LinearGradient extends Gradient {
    */
   equals(other: Gradient): boolean {
     if (!(other instanceof LinearGradient)) return false
-    return this.x0 === other.x0 && this.y0 === other.y0 &&
-           this.x1 === other.x1 && this.y1 === other.y1 &&
-           this.stopsEqual(other)
+    return (
+      this.x0 === other.x0 &&
+      this.y0 === other.y0 &&
+      this.x1 === other.x1 &&
+      this.y1 === other.y1 &&
+      this.stopsEqual(other)
+    )
   }
 
   // 预定义线性渐变
@@ -195,7 +202,7 @@ export default class LinearGradient extends Gradient {
     { color: Color.GREEN, position: 0.4 },
     { color: Color.CYAN, position: 0.6 },
     { color: Color.BLUE, position: 0.8 },
-    { color: Color.MAGENTA, position: 1 }
+    { color: Color.MAGENTA, position: 1 },
   ])
 
   static readonly VERTICAL_RAINBOW = new LinearGradient(0, 0, 0, 100, [
@@ -204,7 +211,7 @@ export default class LinearGradient extends Gradient {
     { color: Color.GREEN, position: 0.4 },
     { color: Color.CYAN, position: 0.6 },
     { color: Color.BLUE, position: 0.8 },
-    { color: Color.MAGENTA, position: 1 }
+    { color: Color.MAGENTA, position: 1 },
   ])
 
   static readonly DIAGONAL_RAINBOW = new LinearGradient(0, 0, 100, 100, [
@@ -213,18 +220,18 @@ export default class LinearGradient extends Gradient {
     { color: Color.GREEN, position: 0.4 },
     { color: Color.CYAN, position: 0.6 },
     { color: Color.BLUE, position: 0.8 },
-    { color: Color.MAGENTA, position: 1 }
+    { color: Color.MAGENTA, position: 1 },
   ])
 
   static readonly SUNSET = new LinearGradient(0, 0, 0, 100, [
     { color: new Color(255, 94, 77), position: 0 },
     { color: new Color(255, 154, 0), position: 0.5 },
-    { color: new Color(255, 206, 84), position: 1 }
+    { color: new Color(255, 206, 84), position: 1 },
   ])
 
   static readonly OCEAN = new LinearGradient(0, 0, 0, 100, [
     { color: new Color(0, 119, 190), position: 0 },
     { color: new Color(0, 180, 216), position: 0.5 },
-    { color: new Color(144, 224, 239), position: 1 }
+    { color: new Color(144, 224, 239), position: 1 },
   ])
 }

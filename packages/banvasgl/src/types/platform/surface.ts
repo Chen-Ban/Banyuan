@@ -8,7 +8,7 @@
  *   App.create(surface, options) → App
  */
 
-import type { IDrawingContext } from './context.js';
+import type { IDrawingContext } from './context.js'
 
 /**
  * 平台注入的画布表面
@@ -18,38 +18,38 @@ import type { IDrawingContext } from './context.js';
  */
 export interface IDrawingSurface {
   /** 主绘图上下文（直接绘制到屏幕） */
-  readonly main: IDrawingContext;
+  readonly main: IDrawingContext
 
   /** 离屏双缓冲上下文 */
-  readonly offscreen: IDrawingContext;
+  readonly offscreen: IDrawingContext
 
   /** 画布物理像素宽度 */
-  readonly width: number;
+  readonly width: number
 
   /** 画布物理像素高度 */
-  readonly height: number;
+  readonly height: number
 
   /** 设备像素比（可读写） */
-  dpr: number;
+  dpr: number
 
   /** 调整画布逻辑尺寸（内部 × dpr 得到物理像素） */
-  resize(logicalWidth: number, logicalHeight: number): void;
+  resize(logicalWidth: number, logicalHeight: number): void
 
   /** 清空主画布和离屏缓冲区 */
-  clear(): void;
+  clear(): void
 
   /** 将离屏缓冲区合成到主画布 */
-  present(): void;
+  present(): void
 
   /** 销毁资源 */
-  dispose(): void;
+  dispose(): void
 
   /**
    * 导出为图片（可选，Web 平台为 toDataURL）
    *
    * 非 Web 平台可返回 null 或不实现。
    */
-  export?(type?: string, quality?: number): string | null;
+  export?(type?: string, quality?: number): string | null
 
   /**
    * 请求下一帧回调，返回句柄用于取消。
@@ -63,12 +63,12 @@ export interface IDrawingSurface {
    * @param callback 帧回调，timestamp 为高精度时间戳（ms）
    * @returns 帧句柄，用于 cancelFrame
    */
-  requestFrame(callback: (timestamp: number) => void): number;
+  requestFrame(callback: (timestamp: number) => void): number
 
   /**
    * 取消已请求的帧回调。
    *
    * @param handle requestFrame 返回的句柄
    */
-  cancelFrame(handle: number): void;
+  cancelFrame(handle: number): void
 }

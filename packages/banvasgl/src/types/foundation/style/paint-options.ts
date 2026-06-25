@@ -16,46 +16,46 @@ import type Image from '@/foundation/style/Image'
  *   compute() 时内部通过 Color.fromCSSString() 解析
  */
 export interface IFillStyleOptions {
-    fillType?: 'color' | 'linearGradient' | 'radialGradient' | 'conicGradient' | 'image'
-    /** 纯色填充色（CSS 色值） */
-    color?: string
-    linearGradient?: LinearGradient
-    radialGradient?: RadialGradient
-    conicGradient?: ConicGradient
-    image?: Image
+  fillType?: 'color' | 'linearGradient' | 'radialGradient' | 'conicGradient' | 'image'
+  /** 纯色填充色（CSS 色值） */
+  color?: string
+  linearGradient?: LinearGradient
+  radialGradient?: RadialGradient
+  conicGradient?: ConicGradient
+  image?: Image
 }
 
 /**
  * Graph 描边描述（对标 StrokeStyle 构造参数，POJO 可直接序列化）
  */
 export interface IStrokeStyleOptions {
-    strokeType?: 'color' | 'linearGradient' | 'radialGradient' | 'conicGradient' | 'image'
-    /** 纯色描边色（CSS 色值） */
-    color?: string
-    linearGradient?: LinearGradient
-    radialGradient?: RadialGradient
-    conicGradient?: ConicGradient
-    pattern?: Image
-    width?: number
-    /** 描边透明度（0-1），默认 1 */
-    opacity?: number
-    lineCap?: 'butt' | 'round' | 'square'
-    lineJoin?: 'miter' | 'round' | 'bevel'
-    miterLimit?: number
-    dashArray?: number[]
-    dashOffset?: number
+  strokeType?: 'color' | 'linearGradient' | 'radialGradient' | 'conicGradient' | 'image'
+  /** 纯色描边色（CSS 色值） */
+  color?: string
+  linearGradient?: LinearGradient
+  radialGradient?: RadialGradient
+  conicGradient?: ConicGradient
+  pattern?: Image
+  width?: number
+  /** 描边透明度（0-1），默认 1 */
+  opacity?: number
+  lineCap?: 'butt' | 'round' | 'square'
+  lineJoin?: 'miter' | 'round' | 'bevel'
+  miterLimit?: number
+  dashArray?: number[]
+  dashOffset?: number
 }
 
 /**
  * Graph 阴影描述（对标 ShadowStyle 构造参数，POJO 可直接序列化）
  */
 export interface IShadowStyleOptions {
-    /** 阴影色（CSS 色值），默认 '#000000' */
-    color?: string
-    offsetX?: number
-    offsetY?: number
-    blur?: number
-    /** 阴影透明度（0-1），默认 0.5 */
-    opacity?: number
-    enabled?: boolean
+  /** 阴影色（CSS 色值），默认 '#000000' */
+  color?: string
+  offsetX?: number
+  offsetY?: number
+  blur?: number
+  /** 阴影透明度（0-1），默认 0.5 */
+  opacity?: number
+  enabled?: boolean
 }

@@ -18,8 +18,15 @@ import type { ExecutorRegistry } from './executor.js'
 /** 能力代理基类——两端通用 */
 interface CapBase {
   httpClient: {
-    request(method: string, url: string, headers?: Record<string, string>, body?: string | object): Promise<{
-      status: number; body: unknown; headers: Record<string, string>
+    request(
+      method: string,
+      url: string,
+      headers?: Record<string, string>,
+      body?: string | object,
+    ): Promise<{
+      status: number
+      body: unknown
+      headers: Record<string, string>
     }>
   }
 }
@@ -69,13 +76,17 @@ export interface IFlowRunner {
 /** 运行时执行上下文——FlowRunner 实现此接口供工具函数消费 */
 export interface IRunnerCtx<C extends CapProxy = CapProxy> {
   /** 帧栈（含 nodes / returnRef / steps / outputCache） */
-  stack: IFrameStack;
+  stack: IFrameStack
   /** 节点执行器注册表（stepNode 按 NodeKind switch 分发） */
-  readonly executors: ExecutorRegistry<C>;
+  readonly executors: ExecutorRegistry<C>
   /** 全局能力代理（整个执行链共享同一引用，executor 通过此字段访问外部效应） */
-  readonly cap: C;
+  readonly cap: C
   /** 执行子图：在指定帧栈（默认当前帧栈）上 enter → runGraph → leave，返回 returnRef.value */
-  runSubGraph(schema: FlowSchema, inputs: Record<string, unknown>, stack?: IFrameStack): Promise<Record<string, unknown>>;
+  runSubGraph(
+    schema: FlowSchema,
+    inputs: Record<string, unknown>,
+    stack?: IFrameStack,
+  ): Promise<Record<string, unknown>>
   /** 求值 Filter（含短路语义），executor 用于条件/循环分支选择 */
-  evaluateFilter(filter: Filter): Promise<boolean>;
+  evaluateFilter(filter: Filter): Promise<boolean>
 }

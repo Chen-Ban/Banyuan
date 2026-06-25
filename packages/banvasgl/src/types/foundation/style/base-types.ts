@@ -14,14 +14,14 @@ export type StrokeType = 'color' | 'linearGradient' | 'radialGradient' | 'conicG
 
 /** 渐变色标 */
 export type GradientStop = {
-    color: Color
-    position: number // 0-1
+  color: Color
+  position: number // 0-1
 }
 
 /** 图片图案尺寸 */
 export interface PatternSize {
-    width: number
-    height: number
+  width: number
+  height: number
 }
 
 /** 视频图案平铺模式 */
@@ -29,6 +29,6 @@ export type VideoRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat'
 
 /** 视频尺寸 */
 export interface VideoSize {
-    width: number
-    height: number
+  width: number
+  height: number
 }

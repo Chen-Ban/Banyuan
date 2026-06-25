@@ -1,10 +1,10 @@
-import Color from "./Color";
-import FillStyle from "./FillStyle";
-import StrokeStyle from "./StrokeStyle";
-import ShadowStyle from "./ShadowStyle";
-import { StyleType } from "@/foundation/constants";
-import type { ISerializable } from '@/types/foundation/serializable';
-import type { IDrawingContext } from '@/types/platform/context.js';
+import Color from './Color'
+import FillStyle from './FillStyle'
+import StrokeStyle from './StrokeStyle'
+import ShadowStyle from './ShadowStyle'
+import { StyleType } from '@/foundation/constants'
+import type { ISerializable } from '@/types/foundation/serializable'
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 /**
  * 综合样式容器
@@ -22,10 +22,10 @@ import type { IDrawingContext } from '@/types/platform/context.js';
  * ```
  */
 export default class Style implements ISerializable {
-  public readonly type: StyleType = StyleType.STYLE;
-  fillStyle: FillStyle;
-  strokeStyle: StrokeStyle;
-  shadowStyle: ShadowStyle;
+  public readonly type: StyleType = StyleType.STYLE
+  fillStyle: FillStyle
+  strokeStyle: StrokeStyle
+  shadowStyle: ShadowStyle
 
   /**
    * 构造综合样式
@@ -48,24 +48,24 @@ export default class Style implements ISerializable {
    */
   constructor(
     options: {
-      fillStyle?: FillStyle;
-      strokeStyle?: StrokeStyle;
-      shadowStyle?: ShadowStyle;
+      fillStyle?: FillStyle
+      strokeStyle?: StrokeStyle
+      shadowStyle?: ShadowStyle
     } = {},
   ) {
     const {
-      fillStyle = new FillStyle({ fillType: "color", color: Color.WHITE }),
+      fillStyle = new FillStyle({ fillType: 'color', color: Color.WHITE }),
       strokeStyle = new StrokeStyle({
-        strokeType: "color",
+        strokeType: 'color',
         color: Color.BLACK,
         width: 1,
       }),
       shadowStyle = ShadowStyle.NONE,
-    } = options;
+    } = options
 
-    this.fillStyle = fillStyle;
-    this.strokeStyle = strokeStyle;
-    this.shadowStyle = shadowStyle;
+    this.fillStyle = fillStyle
+    this.strokeStyle = strokeStyle
+    this.shadowStyle = shadowStyle
   }
 
   /**
@@ -85,19 +85,15 @@ export default class Style implements ISerializable {
    * ctx.strokeRect(0, 0, rect.width, rect.height)
    * ```
    */
-  applyToContext(
-    ctx: IDrawingContext,
-    width: number = 100,
-    height: number = 100,
-  ): void {
+  applyToContext(ctx: IDrawingContext, width: number = 100, height: number = 100): void {
     // 应用阴影样式
-    this.shadowStyle.applyToContext(ctx);
+    this.shadowStyle.applyToContext(ctx)
 
     // 应用描边样式
-    this.strokeStyle.applyToContext(ctx, width, height);
+    this.strokeStyle.applyToContext(ctx, width, height)
 
     // 应用填充样式
-    this.fillStyle.applyToContext(ctx, width, height);
+    this.fillStyle.applyToContext(ctx, width, height)
   }
 
   /**
@@ -113,8 +109,8 @@ export default class Style implements ISerializable {
    * ```
    */
   setFillStyle(fillStyle: FillStyle): Style {
-    this.fillStyle = fillStyle;
-    return this;
+    this.fillStyle = fillStyle
+    return this
   }
 
   /**
@@ -130,8 +126,8 @@ export default class Style implements ISerializable {
    * ```
    */
   setStrokeStyle(strokeStyle: StrokeStyle): Style {
-    this.strokeStyle = strokeStyle;
-    return this;
+    this.strokeStyle = strokeStyle
+    return this
   }
 
   /**
@@ -147,8 +143,8 @@ export default class Style implements ISerializable {
    * ```
    */
   setShadowStyle(shadowStyle: ShadowStyle): Style {
-    this.shadowStyle = shadowStyle;
-    return this;
+    this.shadowStyle = shadowStyle
+    return this
   }
 
   /**
@@ -164,8 +160,8 @@ export default class Style implements ISerializable {
    * ```
    */
   setFillColor(color: Color): Style {
-    this.fillStyle.setColor(color);
-    return this;
+    this.fillStyle.setColor(color)
+    return this
   }
 
   /**
@@ -181,8 +177,8 @@ export default class Style implements ISerializable {
    * ```
    */
   setStrokeColor(color: Color): Style {
-    this.strokeStyle.setColor(color);
-    return this;
+    this.strokeStyle.setColor(color)
+    return this
   }
 
   /**
@@ -198,8 +194,8 @@ export default class Style implements ISerializable {
    * ```
    */
   setStrokeWidth(width: number): Style {
-    this.strokeStyle.setWidth(width);
-    return this;
+    this.strokeStyle.setWidth(width)
+    return this
   }
 
   /**
@@ -217,14 +213,9 @@ export default class Style implements ISerializable {
    * style.enableShadow(4, 4, 8, 0.5)
    * ```
    */
-  enableShadow(
-    offsetX: number = 2,
-    offsetY: number = 2,
-    blur: number = 4,
-    opacity: number = 0.3,
-  ): Style {
-    this.shadowStyle = ShadowStyle.dropShadow(offsetX, offsetY, blur, opacity);
-    return this;
+  enableShadow(offsetX: number = 2, offsetY: number = 2, blur: number = 4, opacity: number = 0.3): Style {
+    this.shadowStyle = ShadowStyle.dropShadow(offsetX, offsetY, blur, opacity)
+    return this
   }
 
   /**
@@ -239,8 +230,8 @@ export default class Style implements ISerializable {
    * ```
    */
   disableShadow(): Style {
-    this.shadowStyle = ShadowStyle.NONE;
-    return this;
+    this.shadowStyle = ShadowStyle.NONE
+    return this
   }
 
   /**
@@ -260,7 +251,7 @@ export default class Style implements ISerializable {
       fillStyle: this.fillStyle.toJSON(),
       strokeStyle: this.strokeStyle.toJSON(),
       shadowStyle: this.shadowStyle.toJSON(),
-    };
+    }
   }
 
   /**
@@ -283,7 +274,7 @@ export default class Style implements ISerializable {
       fillStyle: FillStyle.fromJSON(data.fillStyle),
       strokeStyle: StrokeStyle.fromJSON(data.strokeStyle),
       shadowStyle: ShadowStyle.fromJSON(data.shadowStyle),
-    });
+    })
   }
 
   /**
@@ -303,7 +294,7 @@ export default class Style implements ISerializable {
       fillStyle: this.fillStyle.copy(),
       strokeStyle: this.strokeStyle.copy(),
       shadowStyle: this.shadowStyle.copy(),
-    });
+    })
   }
 
   /**
@@ -325,7 +316,7 @@ export default class Style implements ISerializable {
       this.fillStyle.equals(other.fillStyle) &&
       this.strokeStyle.equals(other.strokeStyle) &&
       this.shadowStyle.equals(other.shadowStyle)
-    );
+    )
   }
 
   /**
@@ -347,50 +338,50 @@ export default class Style implements ISerializable {
    * ```
    */
   withOverrides(overrides: {
-    fill?: FillStyle | null;
-    stroke?: StrokeStyle | null;
-    shadow?: ShadowStyle | null;
+    fill?: FillStyle | null
+    stroke?: StrokeStyle | null
+    shadow?: ShadowStyle | null
   }): Style {
     return new Style({
       fillStyle: overrides.fill ?? this.fillStyle,
       strokeStyle: overrides.stroke ?? this.strokeStyle,
       shadowStyle: overrides.shadow ?? this.shadowStyle,
-    });
+    })
   }
 
   // ── 预定义样式 ──
-  static readonly DEFAULT = new Style();
+  static readonly DEFAULT = new Style()
   static readonly FILL_ONLY = new Style({
-    fillStyle: new FillStyle({ fillType: "color", color: Color.WHITE }),
+    fillStyle: new FillStyle({ fillType: 'color', color: Color.WHITE }),
     strokeStyle: new StrokeStyle({
-      strokeType: "color",
+      strokeType: 'color',
       color: Color.TRANSPARENT,
       width: 0,
     }),
-  });
+  })
   static readonly STROKE_ONLY = new Style({
-    fillStyle: new FillStyle({ fillType: "color", color: Color.TRANSPARENT }),
+    fillStyle: new FillStyle({ fillType: 'color', color: Color.TRANSPARENT }),
     strokeStyle: new StrokeStyle({
-      strokeType: "color",
+      strokeType: 'color',
       color: Color.BLACK,
       width: 1,
     }),
-  });
+  })
   static readonly FILL_AND_STROKE = new Style({
-    fillStyle: new FillStyle({ fillType: "color", color: Color.WHITE }),
+    fillStyle: new FillStyle({ fillType: 'color', color: Color.WHITE }),
     strokeStyle: new StrokeStyle({
-      strokeType: "color",
+      strokeType: 'color',
       color: Color.BLACK,
       width: 1,
     }),
-  });
+  })
   static readonly WITH_SHADOW = new Style({
-    fillStyle: new FillStyle({ fillType: "color", color: Color.WHITE }),
+    fillStyle: new FillStyle({ fillType: 'color', color: Color.WHITE }),
     strokeStyle: new StrokeStyle({
-      strokeType: "color",
+      strokeType: 'color',
       color: Color.BLACK,
       width: 1,
     }),
     shadowStyle: ShadowStyle.SOFT_DROP,
-  });
+  })
 }

@@ -42,14 +42,14 @@ import type { ExtraData } from './interaction'
  * - render/interact 方法仅在 capabilities 包含对应职责时被管线调用
  */
 export interface IAddonBase {
-    readonly type: AddonType
-    /** addon 职责声明，管线据此决定是否调用 render/interact */
-    capabilities: AddonCapability[]
-    /** 管线内执行优先级（数值越小越先执行，默认 0） */
-    readonly priority: number
-    render(ctx: IDrawingContext): void
-    copy(): IAddonBase
-    interact(p: Point3, bufferCtx?: IDrawingContext): ExtraData | null
+  readonly type: AddonType
+  /** addon 职责声明，管线据此决定是否调用 render/interact */
+  capabilities: AddonCapability[]
+  /** 管线内执行优先级（数值越小越先执行，默认 0） */
+  readonly priority: number
+  render(ctx: IDrawingContext): void
+  copy(): IAddonBase
+  interact(p: Point3, bufferCtx?: IDrawingContext): ExtraData | null
 }
 
 // ────────────────────────────────────────────
@@ -58,59 +58,59 @@ export interface IAddonBase {
 
 /** TextSelection 公共接口（选区状态） */
 export interface ITextSelection {
-    fixedIndex: TextIndex | undefined
-    dynamicIndex: TextIndex | undefined
-    readonly isSelection: boolean
+  fixedIndex: TextIndex | undefined
+  dynamicIndex: TextIndex | undefined
+  readonly isSelection: boolean
 }
 
 /** TextSelectionAddon 的公共接口 */
 export interface ITextSelectionAddon extends IAddonBase {
-    readonly type: AddonType.TEXT_SELECTION
-    readonly selection: ITextSelection
-    cursorOpacity: number
-    setSelection(fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void
-    computeSelectionBoxes(): void
-    stopCursorAnimation(): void
-    copy(): ITextSelectionAddon
+  readonly type: AddonType.TEXT_SELECTION
+  readonly selection: ITextSelection
+  cursorOpacity: number
+  setSelection(fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void
+  computeSelectionBoxes(): void
+  stopCursorAnimation(): void
+  copy(): ITextSelectionAddon
 }
 
 /** BoundingBoxAddon 的公共接口 */
 export interface IBoundingBoxAddon extends IAddonBase {
-    readonly type: AddonType.BOUNDING_BOX
-    region: Rectangle
-    handles: Rectangle[]
-    rotate: [Line, Circle]
-    getBounds(): Bounds
-    updateSize(): IBoundingBoxAddon
-    /** 更新 viewport 引用并重建几何，用于 viewport 对象整体替换场景 */
-    updateViewport(viewport: Bounds): IBoundingBoxAddon
-    copy(): IBoundingBoxAddon
+  readonly type: AddonType.BOUNDING_BOX
+  region: Rectangle
+  handles: Rectangle[]
+  rotate: [Line, Circle]
+  getBounds(): Bounds
+  updateSize(): IBoundingBoxAddon
+  /** 更新 viewport 引用并重建几何，用于 viewport 对象整体替换场景 */
+  updateViewport(viewport: Bounds): IBoundingBoxAddon
+  copy(): IBoundingBoxAddon
 }
 
 /** VertexAddon 的公共接口 */
 export interface IVertexAddon extends IAddonBase {
-    readonly type: AddonType.VERTEX
-    vertices: Point3[]
-    activeVertex: Point3 | null
-    isEditing: boolean
-    /** 从此索引开始为圆角控制点，-1 表示无 */
-    radiusControlStartIndex: number
-    /** 边中点索引列表（如 [1,3,5,7]） */
-    midpointIndices: number[]
-    getVertexCount(): number
-    getVertex(index: number): Point3 | null
-    setVertex(index: number, vertex: Point3): boolean
-    copy(): IVertexAddon
+  readonly type: AddonType.VERTEX
+  vertices: Point3[]
+  activeVertex: Point3 | null
+  isEditing: boolean
+  /** 从此索引开始为圆角控制点，-1 表示无 */
+  radiusControlStartIndex: number
+  /** 边中点索引列表（如 [1,3,5,7]） */
+  midpointIndices: number[]
+  getVertexCount(): number
+  getVertex(index: number): Point3 | null
+  setVertex(index: number, vertex: Point3): boolean
+  copy(): IVertexAddon
 }
 
 /** BoxDecoration 构造选项 —— 纯数据接口（用户传入的原始装饰参数） */
 export interface IBoxDecorationOptions {
-    backgroundColor?: string
-    borderWidth?: number
-    borderColor?: string
-    borderRadius?: number | [number, number, number, number]
-    clipContent?: boolean
-    opacity?: number
+  backgroundColor?: string
+  borderWidth?: number
+  borderColor?: string
+  borderRadius?: number | [number, number, number, number]
+  clipContent?: boolean
+  opacity?: number
 }
 
 /**
@@ -132,38 +132,38 @@ export interface IBoxDecorationOptions {
  * - compute()：兼容入口，内部依次调用 resolveVisual + resolveLayout
  */
 export interface IBoxDecorationAddon extends IAddonBase {
-    readonly type: AddonType.BOX_DECORATION
-    /** 装饰原始配置（用户传入值，序列化来源） */
-    decoration: IBoxDecorationOptions
-    /** 计算样式（渲染和逻辑的唯一数据源） */
-    readonly computedStyle: IComputedStyle
-    /** 渲染背景填充和边框（在 content 之前调用） */
-    renderBackground(ctx: IDrawingContext, viewport: Bounds): void
-    /** 渲染滚动条（在 renderPlugins 管线中调用） */
-    renderScrollBars(ctx: IDrawingContext): void
-    /** 构建圆角裁剪路径（computedStyle.clipContent = true 时使用） */
-    buildClipPath(ctx: IDrawingContext, viewport: Bounds): void
-    /** 装饰层是否有视觉效果（false 时 renderBackground 零开销跳过） */
-    hasDecoration(): boolean
-    /**
-     * 阶段 A：解析与布局无关的视觉样式（容器装饰域 + 图形绘制域）。
-     * 仅依赖 rawStyle 声明值，不需要几何信息。
-     * 由 View.resolveVisualStyle() 在布局前调用。
-     */
-    resolveVisual(rawStyle: IViewStyle): void
-    /**
-     * 阶段 B：解析依赖布局结果的样式（overflow、scrollOffset、滚动条）。
-     * 需要布局后的 viewport 和 layoutArea 几何信息。
-     * 由 View.resolveLayoutStyle() 在布局后调用。
-     */
-    resolveLayout(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void
-    /**
-     * 兼容入口：依次调用 resolveVisual + resolveLayout。
-     * @deprecated 新代码应直接调用 resolveVisual / resolveLayout
-     */
-    compute(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void
-    copy(): IBoxDecorationAddon
-    toJSON(): any
+  readonly type: AddonType.BOX_DECORATION
+  /** 装饰原始配置（用户传入值，序列化来源） */
+  decoration: IBoxDecorationOptions
+  /** 计算样式（渲染和逻辑的唯一数据源） */
+  readonly computedStyle: IComputedStyle
+  /** 渲染背景填充和边框（在 content 之前调用） */
+  renderBackground(ctx: IDrawingContext, viewport: Bounds): void
+  /** 渲染滚动条（在 renderPlugins 管线中调用） */
+  renderScrollBars(ctx: IDrawingContext): void
+  /** 构建圆角裁剪路径（computedStyle.clipContent = true 时使用） */
+  buildClipPath(ctx: IDrawingContext, viewport: Bounds): void
+  /** 装饰层是否有视觉效果（false 时 renderBackground 零开销跳过） */
+  hasDecoration(): boolean
+  /**
+   * 阶段 A：解析与布局无关的视觉样式（容器装饰域 + 图形绘制域）。
+   * 仅依赖 rawStyle 声明值，不需要几何信息。
+   * 由 View.resolveVisualStyle() 在布局前调用。
+   */
+  resolveVisual(rawStyle: IViewStyle): void
+  /**
+   * 阶段 B：解析依赖布局结果的样式（overflow、scrollOffset、滚动条）。
+   * 需要布局后的 viewport 和 layoutArea 几何信息。
+   * 由 View.resolveLayoutStyle() 在布局后调用。
+   */
+  resolveLayout(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void
+  /**
+   * 兼容入口：依次调用 resolveVisual + resolveLayout。
+   * @deprecated 新代码应直接调用 resolveVisual / resolveLayout
+   */
+  compute(rawStyle: IViewStyle, viewport: Bounds, layoutArea: Bounds): void
+  copy(): IBoxDecorationAddon
+  toJSON(): any
 }
 
 // ────────────────────────────────────────────

@@ -1,10 +1,10 @@
-import { GraphType } from "@/foundation/constants";
-import Bezier from "./Bezier";
-import { MathUtils, Point3, Vector3 } from "@/foundation/math";
-import { Style } from "@/foundation/style";
+import { GraphType } from '@/foundation/constants'
+import Bezier from './Bezier'
+import { MathUtils, Point3, Vector3 } from '@/foundation/math'
+import { Style } from '@/foundation/style'
 import type { ICubicBezier } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import { generateId } from "@/foundation/utils";
+import { generateId } from '@/foundation/utils'
 
 /**
  * 三次贝塞尔曲线
@@ -37,14 +37,11 @@ import { generateId } from "@/foundation/utils";
  * cubic.getInflectionPoints(); // 拐点列表
  * ```
  */
-export default class CubicBezier
-  extends Bezier
-  implements ICubicBezier, ISerializable
-{
+export default class CubicBezier extends Bezier implements ICubicBezier, ISerializable {
   /**
    * 图形类型标识，固定为 `GraphType.CUBIC_BEZIER`
    */
-  public type: GraphType = GraphType.CUBIC_BEZIER;
+  public type: GraphType = GraphType.CUBIC_BEZIER
 
   /**
    * 创建一条三次贝塞尔曲线
@@ -74,8 +71,8 @@ export default class CubicBezier
     _style?: Style,
     id?: string,
   ) {
-    super([startPoint, controlPoint1, controlPoint2, endPoint], _style, id);
-    if (!id) this.id = generateId(this.type);
+    super([startPoint, controlPoint1, controlPoint2, endPoint], _style, id)
+    if (!id) this.id = generateId(this.type)
   }
 
   /**
@@ -93,7 +90,7 @@ export default class CubicBezier
    * ```
    */
   get controlPoint1(): Point3 {
-    return this.controlPoints[1];
+    return this.controlPoints[1]
   }
 
   /**
@@ -111,7 +108,7 @@ export default class CubicBezier
    * ```
    */
   get controlPoint2(): Point3 {
-    return this.controlPoints[2];
+    return this.controlPoints[2]
   }
 
   /**
@@ -128,8 +125,8 @@ export default class CubicBezier
    * ```
    */
   setControlPoint1(controlPoint1: Point3): CubicBezier {
-    this.controlPoints[1] = controlPoint1;
-    return this;
+    this.controlPoints[1] = controlPoint1
+    return this
   }
 
   /**
@@ -146,8 +143,8 @@ export default class CubicBezier
    * ```
    */
   setControlPoint2(controlPoint2: Point3): CubicBezier {
-    this.controlPoints[2] = controlPoint2;
-    return this;
+    this.controlPoints[2] = controlPoint2
+    return this
   }
 
   /**
@@ -166,9 +163,9 @@ export default class CubicBezier
    */
   public override setControlPoint(index: number, point: Point3): void {
     if (index >= 0 && index < this.controlPoints.length) {
-      this.controlPoints[index] = point.copy();
+      this.controlPoints[index] = point.copy()
     }
-    this.bounds = this.updateBounds();
+    this.bounds = this.updateBounds()
   }
 
   /**
@@ -191,36 +188,36 @@ export default class CubicBezier
    * ```
    */
   public getPointAt(t: number): Point3 {
-    const clampedT = Math.max(0, Math.min(1, t));
-    const start = this.controlPoints[0];
-    const control1 = this.controlPoints[1];
-    const control2 = this.controlPoints[2];
-    const end = this.controlPoints[3];
+    const clampedT = Math.max(0, Math.min(1, t))
+    const start = this.controlPoints[0]
+    const control1 = this.controlPoints[1]
+    const control2 = this.controlPoints[2]
+    const end = this.controlPoints[3]
 
     // 三次贝塞尔曲线公式: B(t) = (1-t)³P₀ + 3(1-t)²tP₁ + 3(1-t)t²P₂ + t³P₃
-    const oneMinusT = 1 - clampedT;
-    const oneMinusTCubed = oneMinusT * oneMinusT * oneMinusT;
-    const threeOneMinusTSquaredT = 3 * oneMinusT * oneMinusT * clampedT;
-    const threeOneMinusTTsquared = 3 * oneMinusT * clampedT * clampedT;
-    const tCubed = clampedT * clampedT * clampedT;
+    const oneMinusT = 1 - clampedT
+    const oneMinusTCubed = oneMinusT * oneMinusT * oneMinusT
+    const threeOneMinusTSquaredT = 3 * oneMinusT * oneMinusT * clampedT
+    const threeOneMinusTTsquared = 3 * oneMinusT * clampedT * clampedT
+    const tCubed = clampedT * clampedT * clampedT
 
     const x =
       oneMinusTCubed * start.x +
       threeOneMinusTSquaredT * control1.x +
       threeOneMinusTTsquared * control2.x +
-      tCubed * end.x;
+      tCubed * end.x
     const y =
       oneMinusTCubed * start.y +
       threeOneMinusTSquaredT * control1.y +
       threeOneMinusTTsquared * control2.y +
-      tCubed * end.y;
+      tCubed * end.y
     const z =
       oneMinusTCubed * start.z +
       threeOneMinusTSquaredT * control1.z +
       threeOneMinusTTsquared * control2.z +
-      tCubed * end.z;
+      tCubed * end.z
 
-    return new Point3(x, y, z);
+    return new Point3(x, y, z)
   }
 
   /**
@@ -241,32 +238,32 @@ export default class CubicBezier
    * ```
    */
   public getTangentAt(t: number): Vector3 {
-    const clampedT = Math.max(0, Math.min(1, t));
-    const start = this.controlPoints[0];
-    const control1 = this.controlPoints[1];
-    const control2 = this.controlPoints[2];
-    const end = this.controlPoints[3];
+    const clampedT = Math.max(0, Math.min(1, t))
+    const start = this.controlPoints[0]
+    const control1 = this.controlPoints[1]
+    const control2 = this.controlPoints[2]
+    const end = this.controlPoints[3]
 
     // 切线公式: B'(t) = 3(1-t)²(P₁-P₀) + 6(1-t)t(P₂-P₁) + 3t²(P₃-P₂)
-    const oneMinusT = 1 - clampedT;
-    const threeOneMinusTSquared = 3 * oneMinusT * oneMinusT;
-    const sixOneMinusTT = 6 * oneMinusT * clampedT;
-    const threeTSquared = 3 * clampedT * clampedT;
+    const oneMinusT = 1 - clampedT
+    const threeOneMinusTSquared = 3 * oneMinusT * oneMinusT
+    const sixOneMinusTT = 6 * oneMinusT * clampedT
+    const threeTSquared = 3 * clampedT * clampedT
 
     const dx =
       threeOneMinusTSquared * (control1.x - start.x) +
       sixOneMinusTT * (control2.x - control1.x) +
-      threeTSquared * (end.x - control2.x);
+      threeTSquared * (end.x - control2.x)
     const dy =
       threeOneMinusTSquared * (control1.y - start.y) +
       sixOneMinusTT * (control2.y - control1.y) +
-      threeTSquared * (end.y - control2.y);
+      threeTSquared * (end.y - control2.y)
     const dz =
       threeOneMinusTSquared * (control1.z - start.z) +
       sixOneMinusTT * (control2.z - control1.z) +
-      threeTSquared * (end.z - control2.z);
+      threeTSquared * (end.z - control2.z)
 
-    return new Vector3(dx, dy, dz);
+    return new Vector3(dx, dy, dz)
   }
 
   /**
@@ -294,45 +291,45 @@ export default class CubicBezier
    * ```
    */
   getInflectionPoints(): Point3[] {
-    const start = this.controlPoints[0];
-    const control1 = this.controlPoints[1];
-    const control2 = this.controlPoints[2];
-    const end = this.controlPoints[3];
+    const start = this.controlPoints[0]
+    const control1 = this.controlPoints[1]
+    const control2 = this.controlPoints[2]
+    const end = this.controlPoints[3]
 
     // 计算拐点的t值
     // 拐点出现在二阶导数为0的地方
-    const a = end.x - 3 * control2.x + 3 * control1.x - start.x;
-    const b = 3 * (control2.x - 2 * control1.x + start.x);
-    const c = 3 * (control1.x - start.x);
+    const a = end.x - 3 * control2.x + 3 * control1.x - start.x
+    const b = 3 * (control2.x - 2 * control1.x + start.x)
+    const c = 3 * (control1.x - start.x)
 
-    const inflectionPoints: Point3[] = [];
+    const inflectionPoints: Point3[] = []
 
     if (Math.abs(a) < MathUtils.FLOAT_EPSILON) {
       // 二次方程情况
       if (Math.abs(b) > MathUtils.FLOAT_EPSILON) {
-        const t = -c / b;
+        const t = -c / b
         if (t >= 0 && t <= 1) {
-          inflectionPoints.push(this.getPointAt(t));
+          inflectionPoints.push(this.getPointAt(t))
         }
       }
     } else {
       // 三次方程情况
-      const discriminant = b * b - 4 * a * c;
+      const discriminant = b * b - 4 * a * c
       if (discriminant >= 0) {
-        const sqrtDiscriminant = Math.sqrt(discriminant);
-        const t1 = (-b + sqrtDiscriminant) / (2 * a);
-        const t2 = (-b - sqrtDiscriminant) / (2 * a);
+        const sqrtDiscriminant = Math.sqrt(discriminant)
+        const t1 = (-b + sqrtDiscriminant) / (2 * a)
+        const t2 = (-b - sqrtDiscriminant) / (2 * a)
 
         if (t1 >= 0 && t1 <= 1) {
-          inflectionPoints.push(this.getPointAt(t1));
+          inflectionPoints.push(this.getPointAt(t1))
         }
         if (t2 >= 0 && t2 <= 1) {
-          inflectionPoints.push(this.getPointAt(t2));
+          inflectionPoints.push(this.getPointAt(t2))
         }
       }
     }
 
-    return inflectionPoints;
+    return inflectionPoints
   }
 
   // ── 序列化 ──
@@ -356,7 +353,7 @@ export default class CubicBezier
       id: this.id,
       type: this.type,
       controlPoints: this.controlPoints.map((p) => p.toJSON()),
-    };
+    }
   }
 
   /**
@@ -382,15 +379,10 @@ export default class CubicBezier
    * ```
    */
   static fromJSON(data: any): CubicBezier {
-    const points = data.controlPoints.map((p: any) => Point3.fromJSON(p));
-    const cb = new CubicBezier(
-      points[0],
-      points[1],
-      points[2],
-      points[3],
-    );
-    cb.id = data.id;
-    return cb;
+    const points = data.controlPoints.map((p: any) => Point3.fromJSON(p))
+    const cb = new CubicBezier(points[0], points[1], points[2], points[3])
+    cb.id = data.id
+    return cb
   }
 
   /**
@@ -412,6 +404,6 @@ export default class CubicBezier
       this.controlPoints[1].copy(),
       this.controlPoints[2].copy(),
       this.controlPoints[3].copy(),
-    ) as this;
+    ) as this
   }
 }

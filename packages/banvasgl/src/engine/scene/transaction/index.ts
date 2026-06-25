@@ -1,8 +1,4 @@
-export {
-  DiffType,
-  Operation,
-  OperationStack,
-} from './OperationStack'
+export { DiffType, Operation, OperationStack } from './OperationStack'
 
 export type {
   PropChange,

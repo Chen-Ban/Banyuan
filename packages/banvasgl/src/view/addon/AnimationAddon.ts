@@ -96,10 +96,7 @@ export default class AnimationAddon implements IAnimationAddon {
    * // 任意自定义属性（由任意消费者通过 getAnimatedValue 读取）
    * view.animation.animate({ to: { cursorOpacity: 0 } }, { duration: 530, iterations: Infinity, direction: 'alternate' })
    */
-  animate(
-    definition: KeyframeDefinition,
-    options: AnimationOptions,
-  ): AnimationDescriptor {
+  animate(definition: KeyframeDefinition, options: AnimationOptions): AnimationDescriptor {
     // ── 0. 解析属性列表（从 definition 中提取所有涉及的属性名） ──
     const allProps = this._extractProperties(definition)
 
@@ -245,16 +242,14 @@ export default class AnimationAddon implements IAnimationAddon {
 
     // 从当前 View 的真实 matrix 分解出基值
     const realMatrix = this._view.matrix
-const baseTranslation = MathUtils.extractTranslation(realMatrix)
-const baseRotation = MathUtils.extractRotationZ(realMatrix)
+    const baseTranslation = MathUtils.extractTranslation(realMatrix)
+    const baseRotation = MathUtils.extractRotationZ(realMatrix)
 
     const finalX = animX ?? baseTranslation.x
     const finalY = animY ?? baseTranslation.y
     const finalRotation = animRotation ?? baseRotation
 
-    return Matrix4.identity()
-      .translate(finalX, finalY, 0)
-      .rotateZ(finalRotation)
+    return Matrix4.identity().translate(finalX, finalY, 0).rotateZ(finalRotation)
   }
 
   // ==================== 内部：属性解析与分类 ====================
@@ -319,9 +314,9 @@ const baseRotation = MathUtils.extractRotationZ(realMatrix)
 
     if (category === 'spatial') {
       const matrix = this._view.matrix
-if (prop === 'x') return MathUtils.extractTranslation(matrix).x
-if (prop === 'y') return MathUtils.extractTranslation(matrix).y
-if (prop === 'rotation') return MathUtils.extractRotationZ(matrix)
+      if (prop === 'x') return MathUtils.extractTranslation(matrix).x
+      if (prop === 'y') return MathUtils.extractTranslation(matrix).y
+      if (prop === 'rotation') return MathUtils.extractRotationZ(matrix)
       return 0
     }
 
@@ -423,16 +418,14 @@ if (prop === 'rotation') return MathUtils.extractRotationZ(matrix)
 
     if (!hasX && !hasY && !hasRotation) return
 
-const baseTranslation = MathUtils.extractTranslation(this._view.matrix)
-const baseRotation = MathUtils.extractRotationZ(this._view.matrix)
+    const baseTranslation = MathUtils.extractTranslation(this._view.matrix)
+    const baseRotation = MathUtils.extractRotationZ(this._view.matrix)
 
     const finalX = (desc.computedValues['x'] as number) ?? baseTranslation.x
     const finalY = (desc.computedValues['y'] as number) ?? baseTranslation.y
     const finalRotation = (desc.computedValues['rotation'] as number) ?? baseRotation
 
-    this._view.matrix = Matrix4.identity()
-      .translate(finalX, finalY, 0)
-      .rotateZ(finalRotation)
+    this._view.matrix = Matrix4.identity().translate(finalX, finalY, 0).rotateZ(finalRotation)
   }
 
   /** 提交 size 属性（width/height → viewport + 子树） */
@@ -462,11 +455,7 @@ const baseRotation = MathUtils.extractRotationZ(this._view.matrix)
 
     if (this._view.content) {
       const fixedPoint = new Point3(viewport.x, viewport.y, 0)
-      const dynamicPoint = new Point3(
-        viewport.x + oldWidth,
-        viewport.y + oldHeight,
-        0,
-      )
+      const dynamicPoint = new Point3(viewport.x + oldWidth, viewport.y + oldHeight, 0)
       const resizeVector = new Vector3(deltaX, deltaY, 0)
       this._view.content.resize(fixedPoint, dynamicPoint, resizeVector)
       this._view.markLayoutDirty()

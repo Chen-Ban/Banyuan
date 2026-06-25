@@ -1,10 +1,10 @@
-import { GraphType } from "@/foundation/constants";
-import AnalyticGraph from "./AnalyticGraph";
-import { Matrix4, MathUtils, Point3, Vector3 } from "@/foundation/math";
-import { Style } from "@/foundation/style";
-import Bounds from "@/graph/base/Bounds";
-import Graph from "@/graph/base/Graph";
-import { intersect } from "@/graph/algorithm/IntersectionUtils";
+import { GraphType } from '@/foundation/constants'
+import AnalyticGraph from './AnalyticGraph'
+import { Matrix4, MathUtils, Point3, Vector3 } from '@/foundation/math'
+import { Style } from '@/foundation/style'
+import Bounds from '@/graph/base/Bounds'
+import Graph from '@/graph/base/Graph'
+import { intersect } from '@/graph/algorithm/IntersectionUtils'
 import type { IBezier } from '@/types/graph/graph'
 import type { IDrawingContext } from '@/types/platform/context.js'
 
@@ -39,7 +39,7 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
   /**
    * 图形类型标识，固定为 `GraphType.BEZIER`
    */
-  public type: GraphType = GraphType.BEZIER;
+  public type: GraphType = GraphType.BEZIER
 
   /**
    * 控制点数组
@@ -47,12 +47,12 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * - 二次贝塞尔：`[startPoint, controlPoint, endPoint]`（3 个点）
    * - 三次贝塞尔：`[startPoint, controlPoint1, controlPoint2, endPoint]`（4 个点）
    */
-  public controlPoints: Point3[];
+  public controlPoints: Point3[]
 
   /**
    * 贝塞尔曲线的轴对齐包围盒（AABB）
    */
-  public bounds: Bounds;
+  public bounds: Bounds
 
   /**
    * 创建一条贝塞尔曲线
@@ -72,8 +72,8 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   constructor(controlPoints: Point3[], _style?: Style, id?: string) {
-    super(id);
-    this.controlPoints = controlPoints;
+    super(id)
+    this.controlPoints = controlPoints
     this.bounds = this.updateBounds()
   }
 
@@ -95,10 +95,10 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public isClosed(): boolean {
-    if (this.controlPoints.length < 2) return false;
-    const first = this.controlPoints[0];
-    const last = this.controlPoints[this.controlPoints.length - 1];
-    return first.distance(last) < MathUtils.EPSILON;
+    if (this.controlPoints.length < 2) return false
+    const first = this.controlPoints[0]
+    const last = this.controlPoints[this.controlPoints.length - 1]
+    return first.distance(last) < MathUtils.EPSILON
   }
 
   /**
@@ -120,14 +120,14 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    */
   public updateBounds(): Bounds {
     if (this.controlPoints.length === 0) {
-      return Bounds.empty();
+      return Bounds.empty()
     }
 
-    const length = this.getTotalLength();
-    const points: Point3[] = [];
+    const length = this.getTotalLength()
+    const points: Point3[] = []
     for (const i of Array.from({ length }).map((_, i) => i)) {
-      const point = this.getPointAt(i / length);
-      points.push(point);
+      const point = this.getPointAt(i / length)
+      points.push(point)
     }
     points.push(this.getPointAt(1))
     return Bounds.fromPoints(points)
@@ -145,7 +145,7 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   get startPoint(): Point3 {
-    return this.controlPoints[0];
+    return this.controlPoints[0]
   }
 
   /**
@@ -160,7 +160,7 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   get endPoint(): Point3 {
-    return this.controlPoints[this.controlPoints.length - 1];
+    return this.controlPoints[this.controlPoints.length - 1]
   }
 
   /**
@@ -177,9 +177,9 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   setControlPoints(controlPoints: Point3[]): Bezier {
-    this.controlPoints = controlPoints;
+    this.controlPoints = controlPoints
     this.bounds = this.updateBounds()
-    return this;
+    return this
   }
 
   /**
@@ -217,9 +217,9 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    */
   getControlPoint(index: number): Point3 | null {
     if (index < 0 || index >= this.controlPoints.length) {
-      return null;
+      return null
     }
-    return this.controlPoints[index];
+    return this.controlPoints[index]
   }
 
   /**
@@ -242,54 +242,59 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public getLength(tStart: number, tEnd: number): number {
-    const clampedStart = Math.max(0, Math.min(1, tStart));
-    const clampedEnd = Math.max(0, Math.min(1, tEnd));
-    if (clampedStart >= clampedEnd) return 0;
+    const clampedStart = Math.max(0, Math.min(1, tStart))
+    const clampedEnd = Math.max(0, Math.min(1, tEnd))
+    if (clampedStart >= clampedEnd) return 0
 
     // 被积函数 ds/dt = |dP/dt|
     const speed = (t: number): number => {
-      const dt = MathUtils.DERIVATIVE_STEP;
-      const t0 = Math.max(clampedStart, t - dt);
-      const t1 = Math.min(clampedEnd, t + dt);
-      const p0 = this.getPointAt(t0);
-      const p1 = this.getPointAt(t1);
-      const dx = p1.x - p0.x;
-      const dy = p1.y - p0.y;
-      return Math.sqrt(dx * dx + dy * dy) / (t1 - t0);
-    };
+      const dt = MathUtils.DERIVATIVE_STEP
+      const t0 = Math.max(clampedStart, t - dt)
+      const t1 = Math.min(clampedEnd, t + dt)
+      const p0 = this.getPointAt(t0)
+      const p1 = this.getPointAt(t1)
+      const dx = p1.x - p0.x
+      const dy = p1.y - p0.y
+      return Math.sqrt(dx * dx + dy * dy) / (t1 - t0)
+    }
 
     const simpson = (a: number, b: number, fa: number, fm: number, fb: number): number => {
-      return ((b - a) / 6) * (fa + 4 * fm + fb);
-    };
+      return ((b - a) / 6) * (fa + 4 * fm + fb)
+    }
 
     const adaptiveSimpson = (
-      a: number, b: number,
-      fa: number, fm: number, fb: number,
-      whole: number, eps: number, depth: number,
+      a: number,
+      b: number,
+      fa: number,
+      fm: number,
+      fb: number,
+      whole: number,
+      eps: number,
+      depth: number,
     ): number => {
-      const m = (a + b) / 2;
-      const lm = (a + m) / 2;
-      const rm = (m + b) / 2;
-      const flm = speed(lm);
-      const frm = speed(rm);
-      const left = simpson(a, m, fa, flm, fm);
-      const right = simpson(m, b, fm, frm, fb);
-      const refined = left + right;
+      const m = (a + b) / 2
+      const lm = (a + m) / 2
+      const rm = (m + b) / 2
+      const flm = speed(lm)
+      const frm = speed(rm)
+      const left = simpson(a, m, fa, flm, fm)
+      const right = simpson(m, b, fm, frm, fb)
+      const refined = left + right
       if (depth <= 0 || Math.abs(refined - whole) <= 15 * eps) {
-        return refined + (refined - whole) / 15;
+        return refined + (refined - whole) / 15
       }
       return (
         adaptiveSimpson(a, m, fa, flm, fm, left, eps / 2, depth - 1) +
         adaptiveSimpson(m, b, fm, frm, fb, right, eps / 2, depth - 1)
-      );
-    };
+      )
+    }
 
-    const fa = speed(clampedStart);
-    const fb = speed(clampedEnd);
-    const fm = speed((clampedStart + clampedEnd) / 2);
-    const whole = simpson(clampedStart, clampedEnd, fa, fm, fb);
+    const fa = speed(clampedStart)
+    const fb = speed(clampedEnd)
+    const fm = speed((clampedStart + clampedEnd) / 2)
+    const whole = simpson(clampedStart, clampedEnd, fa, fm, fb)
 
-    return adaptiveSimpson(clampedStart, clampedEnd, fa, fm, fb, whole, MathUtils.INTEGRATION_TOLERANCE, 12);
+    return adaptiveSimpson(clampedStart, clampedEnd, fa, fm, fb, whole, MathUtils.INTEGRATION_TOLERANCE, 12)
   }
 
   /**
@@ -306,8 +311,8 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public getNormalAt(t: number): Vector3 {
-    const tangent = this.getTangentAt(t);
-    return new Vector3(-tangent.y, tangent.x, 0);
+    const tangent = this.getTangentAt(t)
+    return new Vector3(-tangent.y, tangent.x, 0)
   }
 
   /**
@@ -333,19 +338,19 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    */
   public getArea(): number {
     if (!this.isClosed()) {
-      throw new Error('Bezier 是开放路径，不具有面积');
+      throw new Error('Bezier 是开放路径，不具有面积')
     }
     // Shoelace 公式的参数化版本
-    const steps = 200;
-    let area = 0;
+    const steps = 200
+    let area = 0
     for (let i = 0; i < steps; i++) {
-      const t0 = i / steps;
-      const t1 = (i + 1) / steps;
-      const p0 = this.getPointAt(t0);
-      const p1 = this.getPointAt(t1);
-      area += (p0.x * p1.y - p1.x * p0.y);
+      const t0 = i / steps
+      const t1 = (i + 1) / steps
+      const p0 = this.getPointAt(t0)
+      const p1 = this.getPointAt(t1)
+      area += p0.x * p1.y - p1.x * p0.y
     }
-    return Math.abs(area) / 2;
+    return Math.abs(area) / 2
   }
 
   /**
@@ -376,17 +381,17 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public isLinear(): boolean {
-    if (this.controlPoints.length < 3) return true;
-    const start = this.controlPoints[0];
-    const end = this.controlPoints[this.controlPoints.length - 1];
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
+    if (this.controlPoints.length < 3) return true
+    const start = this.controlPoints[0]
+    const end = this.controlPoints[this.controlPoints.length - 1]
+    const dx = end.x - start.x
+    const dy = end.y - start.y
     for (let i = 1; i < this.controlPoints.length - 1; i++) {
-      const cp = this.controlPoints[i];
-      const cross = (cp.x - start.x) * dy - (cp.y - start.y) * dx;
-      if (Math.abs(cross) >= MathUtils.FLOAT_EPSILON) return false;
+      const cp = this.controlPoints[i]
+      const cross = (cp.x - start.x) * dy - (cp.y - start.y) * dx
+      if (Math.abs(cross) >= MathUtils.FLOAT_EPSILON) return false
     }
-    return true;
+    return true
   }
 
   /**
@@ -409,26 +414,26 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public getClosestPoint(point: Point3): {
-    distance: number;
-    closestPoint: Point3;
-    parameter: number;
+    distance: number
+    closestPoint: Point3
+    parameter: number
   } {
-    let closestPoint = this.getPointAt(0);
-    let closestT = 0;
-    let minDistance = Infinity;
-    const steps = 100;
+    let closestPoint = this.getPointAt(0)
+    let closestT = 0
+    let minDistance = Infinity
+    const steps = 100
 
     for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const curvePoint = this.getPointAt(t);
-      const dx = point.x - curvePoint.x;
-      const dy = point.y - curvePoint.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+      const t = i / steps
+      const curvePoint = this.getPointAt(t)
+      const dx = point.x - curvePoint.x
+      const dy = point.y - curvePoint.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
 
       if (distance < minDistance) {
-        minDistance = distance;
-        closestPoint = curvePoint;
-        closestT = t;
+        minDistance = distance
+        closestPoint = curvePoint
+        closestT = t
       }
     }
 
@@ -436,7 +441,7 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
       closestPoint: closestPoint,
       parameter: closestT,
       distance: minDistance,
-    };
+    }
   }
 
   /**
@@ -456,14 +461,14 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * bezier.renderPath(ctx, false); // 追加到当前路径
    * ```
    */
-  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
-    dependent && ctx.beginPath();
-    ctx.moveTo(this.startPoint.x, this.startPoint.y);
+  public renderPath(ctx: IDrawingContext, dependent: boolean): void {
+    dependent && ctx.beginPath()
+    ctx.moveTo(this.startPoint.x, this.startPoint.y)
 
     // 使用二次贝塞尔曲线或三次贝塞尔曲线
     if (this.controlPoints.length === 3) {
       // 二次贝塞尔曲线
-      ctx.quadraticCurveTo(this.controlPoints[1].x, this.controlPoints[1].y, this.endPoint.x, this.endPoint.y);
+      ctx.quadraticCurveTo(this.controlPoints[1].x, this.controlPoints[1].y, this.endPoint.x, this.endPoint.y)
     } else if (this.controlPoints.length === 4) {
       // 三次贝塞尔曲线
       ctx.bezierCurveTo(
@@ -472,8 +477,8 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
         this.controlPoints[2].x,
         this.controlPoints[2].y,
         this.endPoint.x,
-        this.endPoint.y
-      );
+        this.endPoint.y,
+      )
     }
   }
 
@@ -492,12 +497,12 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public render(ctx: IDrawingContext, style: Style): void {
-    ctx.save();
-    const bounds = this.bounds;
-    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
-    this.renderPath(ctx, true);
-    ctx.stroke();
-    ctx.restore();
+    ctx.save()
+    const bounds = this.bounds
+    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
+    this.renderPath(ctx, true)
+    ctx.stroke()
+    ctx.restore()
   }
 
   /**
@@ -520,7 +525,11 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public getBezierType(): string {
-    return this.controlPoints.length === 3 ? "quadratic" : this.controlPoints.length === 4 ? "cubic" : "unknown";
+    return this.controlPoints.length === 3
+      ? 'quadratic'
+      : this.controlPoints.length === 4
+        ? 'cubic'
+        : 'unknown'
   }
 
   /**
@@ -542,17 +551,17 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public getCentroid(): Point3 {
-    if (this.controlPoints.length === 0) return new Point3(0, 0, 0);
+    if (this.controlPoints.length === 0) return new Point3(0, 0, 0)
     let sumX = 0,
       sumY = 0,
-      sumZ = 0;
+      sumZ = 0
     for (const p of this.controlPoints) {
-      sumX += p.x;
-      sumY += p.y;
-      sumZ += p.z;
+      sumX += p.x
+      sumY += p.y
+      sumZ += p.z
     }
-    const n = this.controlPoints.length;
-    return new Point3(sumX / n, sumY / n, sumZ / n);
+    const n = this.controlPoints.length
+    return new Point3(sumX / n, sumY / n, sumZ / n)
   }
 
   /**
@@ -574,10 +583,10 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
   public intersect(other: Graph): Point3[] {
     // 如果另一个图形也是可分析图形，使用精确的相交计算方法
     if (other instanceof AnalyticGraph) {
-      return intersect(this, other);
+      return intersect(this, other)
     }
     // 对于其他类型的图形，使用其他图形的相交计算方法
-    return other.intersect(this);
+    return other.intersect(this)
   }
 
   /**
@@ -597,10 +606,10 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    */
   public transform(matrix: Matrix4): Graph {
     for (const [i] of this.controlPoints.entries()) {
-      this.controlPoints[i] = matrix.multiply(this.controlPoints[i]);
+      this.controlPoints[i] = matrix.multiply(this.controlPoints[i])
     }
     this.bounds = this.updateBounds()
-    return this;
+    return this
   }
 
   /**
@@ -623,18 +632,17 @@ export default abstract class Bezier extends AnalyticGraph implements IBezier {
    * ```
    */
   public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
-
-    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
-    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
+    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity
+    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity
 
     for (const [i, p] of this.controlPoints.entries()) {
       // 变化比例，TOFIX： 缩放比例应该和坐标无关（需要将referenceVector拆分成两个点，这样甚至不用判断，直接取固定点）
-      const scaleX = Math.abs(p.x - fixedPoint.x) / width;
-      const scaleY = Math.abs(p.y - fixedPoint.y) / height;
+      const scaleX = Math.abs(p.x - fixedPoint.x) / width
+      const scaleY = Math.abs(p.y - fixedPoint.y) / height
 
       // 带方向并且按照介质尺寸缩放的移动量
-      const dx = resizeVector.x * scaleX;
-      const dy = resizeVector.y * scaleY;
+      const dx = resizeVector.x * scaleX
+      const dy = resizeVector.y * scaleY
 
       this.controlPoints[i] = p.add(new Vector3(dx, dy, 0))
     }

@@ -1,6 +1,6 @@
-import { GraphType } from "@/foundation/constants";
-import Graph from "@/graph/base/Graph";
-import type { Point3 } from '@/foundation/math';
+import { GraphType } from '@/foundation/constants'
+import Graph from '@/graph/base/Graph'
+import type { Point3 } from '@/foundation/math'
 import type { IAnalyticGraph } from '@/types/graph/graph'
 
 /**
@@ -36,7 +36,7 @@ export default abstract class AnalyticGraph extends Graph implements IAnalyticGr
   /**
    * 图形类型标识，固定为 `GraphType.ANALYTICGRAPH`
    */
-  public type: GraphType = GraphType.ANALYTICGRAPH;
+  public type: GraphType = GraphType.ANALYTICGRAPH
 
   /**
    * 控制点数组，由子类定义具体含义
@@ -48,5 +48,5 @@ export default abstract class AnalyticGraph extends Graph implements IAnalyticGr
    *
    * 控制点参与包围盒计算，也可用于顶点编辑交互。
    */
-  public abstract controlPoints: Point3[];
+  public abstract controlPoints: Point3[]
 }

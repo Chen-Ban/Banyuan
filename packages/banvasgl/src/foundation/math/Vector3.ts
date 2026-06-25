@@ -1,4 +1,4 @@
-import { MathType } from "@/foundation/constants";
+import { MathType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
@@ -16,8 +16,8 @@ import type { ISerializable } from '@/types/foundation/serializable'
  * ```
  */
 export default class Vector3 implements ISerializable {
-  public readonly type: MathType = MathType.VECTOR3;
-  private transform: Float32Array;
+  public readonly type: MathType = MathType.VECTOR3
+  private transform: Float32Array
   /**
    * 构造三维向量
    *
@@ -35,10 +35,10 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   constructor(x: number, y: number, z: number) {
-    this.transform = new Float32Array(3);
-    this.transform[0] = x;
-    this.transform[1] = y;
-    this.transform[2] = z;
+    this.transform = new Float32Array(3)
+    this.transform[0] = x
+    this.transform[1] = y
+    this.transform[2] = z
   }
   /**
    * 获取 x 分量
@@ -54,7 +54,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   get x(): number {
-    return this.transform[0];
+    return this.transform[0]
   }
   /**
    * 获取 y 分量
@@ -70,7 +70,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   get y(): number {
-    return this.transform[1];
+    return this.transform[1]
   }
   /**
    * 获取 z 分量
@@ -86,7 +86,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   get z(): number {
-    return this.transform[2];
+    return this.transform[2]
   }
   /**
    * 获取向量模长
@@ -102,7 +102,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   get length(): number {
-    return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+    return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z)
   }
   /**
    * 获取单位向量
@@ -121,9 +121,9 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   get normalized(): Vector3 {
-    const length = this.length;
-    if (length === 0) return new Vector3(0, 0, 0);
-    return new Vector3(this.x / length, this.y / length, this.z / length);
+    const length = this.length
+    if (length === 0) return new Vector3(0, 0, 0)
+    return new Vector3(this.x / length, this.y / length, this.z / length)
   }
   /**
    * 向量加法
@@ -142,7 +142,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   add(v: Vector3): Vector3 {
-    return new Vector3(this.x + v.x, this.y + v.y, this.z + v.z);
+    return new Vector3(this.x + v.x, this.y + v.y, this.z + v.z)
   }
   /**
    * 标量乘法
@@ -160,7 +160,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   scale(s: number): Vector3 {
-    return new Vector3(this.x * s, this.y * s, this.z * s);
+    return new Vector3(this.x * s, this.y * s, this.z * s)
   }
   /**
    * 向量减法
@@ -179,7 +179,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   subtract(v: Vector3): Vector3 {
-    return new Vector3(this.x - v.x, this.y - v.y, this.z - v.z);
+    return new Vector3(this.x - v.x, this.y - v.y, this.z - v.z)
   }
   /**
    * 取反向量
@@ -196,7 +196,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   inverse(): Vector3 {
-    return new Vector3(-this.x, -this.y, -this.z);
+    return new Vector3(-this.x, -this.y, -this.z)
   }
   /**
    * 点积（内积）
@@ -219,7 +219,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   dot(v: Vector3): number {
-    return this.x * v.x + this.y * v.y + this.z * v.z;
+    return this.x * v.x + this.y * v.y + this.z * v.z
   }
   /**
    * 叉积（外积）
@@ -239,11 +239,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   cross(v: Vector3): Vector3 {
-    return new Vector3(
-      this.y * v.z - this.z * v.y,
-      this.z * v.x - this.x * v.z,
-      this.x * v.y - this.y * v.x,
-    );
+    return new Vector3(this.y * v.z - this.z * v.y, this.z * v.x - this.x * v.z, this.x * v.y - this.y * v.x)
   }
   /**
    * 序列化为 JSON
@@ -260,7 +256,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   toJSON(): { x: number; y: number; z: number } {
-    return { x: this.x, y: this.y, z: this.z };
+    return { x: this.x, y: this.y, z: this.z }
   }
   /**
    * 从 JSON 反序列化
@@ -277,7 +273,7 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   static fromJSON(data: { x: number; y: number; z: number }): Vector3 {
-    return new Vector3(data.x, data.y, data.z);
+    return new Vector3(data.x, data.y, data.z)
   }
 
   /**
@@ -296,6 +292,6 @@ export default class Vector3 implements ISerializable {
    * ```
    */
   copy(): Vector3 {
-    return new Vector3(this.x, this.y, this.z);
+    return new Vector3(this.x, this.y, this.z)
   }
 }

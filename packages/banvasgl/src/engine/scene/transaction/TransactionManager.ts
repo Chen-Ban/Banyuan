@@ -22,9 +22,16 @@ interface ViewSnapshot {
 
 /** 需要快照的属性路径列表 */
 const SNAPSHOT_PATHS: (keyof ViewSnapshot)[] = [
-  'matrix', 'viewport', 'content',
-  'visible', 'freezed', 'style', 'data', 'children',
-  'editable', 'verticalAlign',
+  'matrix',
+  'viewport',
+  'content',
+  'visible',
+  'freezed',
+  'style',
+  'data',
+  'children',
+  'editable',
+  'verticalAlign',
 ]
 
 /** 进行中的事务 */
@@ -221,7 +228,7 @@ export class TransactionManager {
    */
   recordReorder(changes: ReorderChange[]): void {
     if (changes.length === 0) return
-    const effectiveChanges = changes.filter(c => c.before !== c.after)
+    const effectiveChanges = changes.filter((c) => c.before !== c.after)
     if (effectiveChanges.length === 0) return
 
     const diff: ReorderDiff = {

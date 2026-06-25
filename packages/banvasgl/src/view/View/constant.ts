@@ -58,15 +58,15 @@ export function createDefaultLifetimes(): IViewLifetimes {
  * width/height 为 true 表示该方向参与尺寸变化
  */
 export const RESIZE_SIZE_MAP = [
-  { width: true, height: true },   // 0: 左上角
-  { width: false, height: true },  // 1: 上中
-  { width: true, height: true },   // 2: 右上角
-  { width: true, height: false },  // 3: 右中
+  { width: true, height: true }, // 0: 左上角
+  { width: false, height: true }, // 1: 上中
+  { width: true, height: true }, // 2: 右上角
+  { width: true, height: false }, // 3: 右中
 
-  { width: true, height: true },   // 4: 右下角
-  { width: false, height: true },  // 5: 下中
-  { width: true, height: true },   // 6: 左下角
-  { width: true, height: false },  // 7: 左中
+  { width: true, height: true }, // 4: 右下角
+  { width: false, height: true }, // 5: 下中
+  { width: true, height: true }, // 6: 左下角
+  { width: true, height: false }, // 7: 左中
 ] as const
 
 /**
@@ -78,14 +78,14 @@ export const RESIZE_SIZE_MAP = [
  * 索引与 RESIZE_SIZE_MAP 一一对应。
  */
 export const RESIZE_ORIGIN_MAP = [
-  { x: true, y: true },   // 0: 左上角 → 起点x和y都要反向偏移
-  { x: false, y: true },  // 1: 上中 → 只偏移y
-  { x: false, y: true },  // 2: 右上角 → 只偏移y
+  { x: true, y: true }, // 0: 左上角 → 起点x和y都要反向偏移
+  { x: false, y: true }, // 1: 上中 → 只偏移y
+  { x: false, y: true }, // 2: 右上角 → 只偏移y
   { x: false, y: false }, // 3: 右中 → 不偏移
   { x: false, y: false }, // 4: 右下角 → 不偏移
   { x: false, y: false }, // 5: 下中 → 不偏移
-  { x: true, y: false },  // 6: 左下角 → 只偏移x
-  { x: true, y: false },  // 7: 左中 → 只偏移x
+  { x: true, y: false }, // 6: 左下角 → 只偏移x
+  { x: true, y: false }, // 7: 左中 → 只偏移x
 ] as const
 
 // ── 滚动条 ───────────────────────────────────────────────────────────────────

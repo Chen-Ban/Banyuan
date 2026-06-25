@@ -1,7 +1,7 @@
-import { GraphType } from "@/foundation/constants";
-import Arc from "./Arc";
-import { MathUtils, Point3, Vector3 } from "@/foundation/math";
-import { Style } from "@/foundation/style";
+import { GraphType } from '@/foundation/constants'
+import Arc from './Arc'
+import { MathUtils, Point3, Vector3 } from '@/foundation/math'
+import { Style } from '@/foundation/style'
 import type { ICircle } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
 import type { IDrawingContext } from '@/types/platform/context.js'
@@ -33,7 +33,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
   /**
    * 图形类型标识，固定为 `GraphType.CIRCLE`
    */
-  public type: GraphType = GraphType.CIRCLE;
+  public type: GraphType = GraphType.CIRCLE
 
   /**
    * 创建一个圆形
@@ -53,7 +53,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
   constructor(center: Point3, radius: number, _style?: Style) {
     // 调用父类构造函数，创建完整圆（0 到 2π）
     // 对于圆，xRadius 和 yRadius 相等，rotation 为 0
-    super(center, radius, radius, 0, 0, 2 * Math.PI, false);
+    super(center, radius, radius, 0, 0, 2 * Math.PI, false)
   }
 
   /**
@@ -70,11 +70,11 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   setRadius(radius: number): Circle {
-    this.xRadius = Math.max(0, radius);
-    this.yRadius = Math.max(0, radius);
-    this.controlPoints = this.calculateControlPoints();
-    this.bounds = this.updateBounds();
-    return this;
+    this.xRadius = Math.max(0, radius)
+    this.yRadius = Math.max(0, radius)
+    this.controlPoints = this.calculateControlPoints()
+    this.bounds = this.updateBounds()
+    return this
   }
 
   /**
@@ -91,7 +91,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   get diameter(): number {
-    return 2 * this.xRadius;
+    return 2 * this.xRadius
   }
 
   /**
@@ -112,7 +112,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   public getLength(tStart: number, tEnd: number): number {
-    return 2 * Math.PI * this.xRadius * Math.abs(tEnd - tStart);
+    return 2 * Math.PI * this.xRadius * Math.abs(tEnd - tStart)
   }
 
   /**
@@ -134,38 +134,34 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * );
    * ```
    */
-  public resize(
-    fixedPoint: Point3,
-    dynamicPoint: Point3,
-    resizeVector: Vector3,
-  ): void {
-    const referenceVector = dynamicPoint.subtract(fixedPoint);
-    const width = Math.abs(referenceVector.x) || Infinity;
-    const height = Math.abs(referenceVector.y) || Infinity;
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    const width = Math.abs(referenceVector.x) || Infinity
+    const height = Math.abs(referenceVector.y) || Infinity
 
     // center 按其到 fixedPoint 的距离比例缩放
-    const scaleX = Math.abs(this.center.x - fixedPoint.x) / width;
-    const scaleY = Math.abs(this.center.y - fixedPoint.y) / height;
+    const scaleX = Math.abs(this.center.x - fixedPoint.x) / width
+    const scaleY = Math.abs(this.center.y - fixedPoint.y) / height
 
     this.center = new Point3(
       this.center.x + resizeVector.x * scaleX,
       this.center.y + resizeVector.y * scaleY,
       this.center.z,
-    );
+    )
 
     // 半径取两轴缩放比的均值，保持圆形
-    const newWidth = width + resizeVector.x * Math.sign(referenceVector.x);
-    const newHeight = height + resizeVector.y * Math.sign(referenceVector.y);
-    const ratioX = Math.abs(newWidth / width);
-    const ratioY = Math.abs(newHeight / height);
-    const ratio = (ratioX + ratioY) / 2;
+    const newWidth = width + resizeVector.x * Math.sign(referenceVector.x)
+    const newHeight = height + resizeVector.y * Math.sign(referenceVector.y)
+    const ratioX = Math.abs(newWidth / width)
+    const ratioY = Math.abs(newHeight / height)
+    const ratio = (ratioX + ratioY) / 2
 
-    const newRadius = Math.max(0, this.xRadius * ratio);
-    this.xRadius = newRadius;
-    this.yRadius = newRadius;
+    const newRadius = Math.max(0, this.xRadius * ratio)
+    this.xRadius = newRadius
+    this.yRadius = newRadius
 
-    this.controlPoints = this.calculateControlPoints();
-    this.bounds = this.updateBounds();
+    this.controlPoints = this.calculateControlPoints()
+    this.bounds = this.updateBounds()
   }
 
   /**
@@ -182,15 +178,15 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   public render(ctx: IDrawingContext, style: Style): void {
-    ctx.save();
-    const bounds = this.bounds;
-    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
+    ctx.save()
+    const bounds = this.bounds
+    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
 
-    ctx.beginPath();
-    this.renderPath(ctx, true);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
+    ctx.beginPath()
+    this.renderPath(ctx, true)
+    ctx.fill()
+    ctx.stroke()
+    ctx.restore()
   }
 
   // ── 序列化 ──
@@ -239,12 +235,9 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   static fromJSON(data: any): Circle {
-    const circle = new Circle(
-      Point3.fromJSON(data.center),
-      data.radius ?? data.xRadius,
-    );
-    circle.id = data.id;
-    return circle;
+    const circle = new Circle(Point3.fromJSON(data.center), data.radius ?? data.xRadius)
+    circle.id = data.id
+    return circle
   }
 
   /**
@@ -261,7 +254,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   public copy(): this {
-    return new Circle(this.center.copy(), this.xRadius) as this;
+    return new Circle(this.center.copy(), this.xRadius) as this
   }
 
   // ── 静态工厂方法 ──
@@ -280,12 +273,8 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * const circle = Circle.fromCenterAndRadius(100, 100, 50);
    * ```
    */
-  static fromCenterAndRadius(
-    centerX: number,
-    centerY: number,
-    radius: number,
-  ): Circle {
-    return new Circle(new Point3(centerX, centerY, 0), radius);
+  static fromCenterAndRadius(centerX: number, centerY: number, radius: number): Circle {
+    return new Circle(new Point3(centerX, centerY, 0), radius)
   }
 
   /**
@@ -303,7 +292,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   static fromDiameter(centerX: number, centerY: number, diameter: number): Circle {
-    return new Circle(new Point3(centerX, centerY, 0), diameter / 2);
+    return new Circle(new Point3(centerX, centerY, 0), diameter / 2)
   }
 
   /**
@@ -322,13 +311,9 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * const circle = Circle.fromCircumference(100, 100, 314.16); // 半径 ≈ 50
    * ```
    */
-  static fromCircumference(
-    centerX: number,
-    centerY: number,
-    circumference: number,
-  ): Circle {
-    const radius = circumference / (2 * Math.PI);
-    return new Circle(new Point3(centerX, centerY, 0), radius);
+  static fromCircumference(centerX: number, centerY: number, circumference: number): Circle {
+    const radius = circumference / (2 * Math.PI)
+    return new Circle(new Point3(centerX, centerY, 0), radius)
   }
 
   /**
@@ -348,8 +333,8 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   static fromArea(centerX: number, centerY: number, area: number): Circle {
-    const radius = Math.sqrt(area / Math.PI);
-    return new Circle(new Point3(centerX, centerY, 0), radius);
+    const radius = Math.sqrt(area / Math.PI)
+    return new Circle(new Point3(centerX, centerY, 0), radius)
   }
 
   /**
@@ -371,9 +356,9 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * ```
    */
   static fromTwoPoints(point1: Point3, point2: Point3): Circle {
-    const center = new Point3((point1.x + point2.x) / 2, (point1.y + point2.y) / 2, (point1.z + point2.z) / 2);
-    const radius = Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)) / 2;
-    return new Circle(center, radius);
+    const center = new Point3((point1.x + point2.x) / 2, (point1.y + point2.y) / 2, (point1.z + point2.z) / 2)
+    const radius = Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2)) / 2
+    return new Circle(center, radius)
   }
 
   /**
@@ -402,26 +387,28 @@ export default class Circle extends Arc implements ICircle, ISerializable {
   static fromThreePoints(point1: Point3, point2: Point3, point3: Point3): Circle {
     // 计算三点确定的圆的中心点和半径
     const x1 = point1.x,
-      y1 = point1.y;
+      y1 = point1.y
     const x2 = point2.x,
-      y2 = point2.y;
+      y2 = point2.y
     const x3 = point3.x,
-      y3 = point3.y;
+      y3 = point3.y
 
-    const a = x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2);
-    const b = (x1 * x1 + y1 * y1) * (y3 - y2) + (x2 * x2 + y2 * y2) * (y1 - y3) + (x3 * x3 + y3 * y3) * (y2 - y1);
-    const c = (x1 * x1 + y1 * y1) * (x2 - x3) + (x2 * x2 + y2 * y2) * (x3 - x1) + (x3 * x3 + y3 * y3) * (x1 - x2);
+    const a = x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)
+    const b =
+      (x1 * x1 + y1 * y1) * (y3 - y2) + (x2 * x2 + y2 * y2) * (y1 - y3) + (x3 * x3 + y3 * y3) * (y2 - y1)
+    const c =
+      (x1 * x1 + y1 * y1) * (x2 - x3) + (x2 * x2 + y2 * y2) * (x3 - x1) + (x3 * x3 + y3 * y3) * (x1 - x2)
 
     if (Math.abs(a) < MathUtils.FLOAT_EPSILON) {
       // 三点共线，返回一个很小的圆
-      return new Circle(new Point3(0, 0, 0), 0.1);
+      return new Circle(new Point3(0, 0, 0), 0.1)
     }
 
-    const centerX = -b / (2 * a);
-    const centerY = -c / (2 * a);
-    const radius = Math.sqrt(Math.pow(x1 - centerX, 2) + Math.pow(y1 - centerY, 2));
+    const centerX = -b / (2 * a)
+    const centerY = -c / (2 * a)
+    const radius = Math.sqrt(Math.pow(x1 - centerX, 2) + Math.pow(y1 - centerY, 2))
 
-    return new Circle(new Point3(centerX, centerY, 0), radius);
+    return new Circle(new Point3(centerX, centerY, 0), radius)
   }
 
   // ── 预定义圆形 ──
@@ -435,7 +422,7 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * unit.xRadius; // 1
    * ```
    */
-  static readonly UNIT_CIRCLE = new Circle(new Point3(0, 0, 0), 1);
+  static readonly UNIT_CIRCLE = new Circle(new Point3(0, 0, 0), 1)
 
   /**
    * 空圆：圆心在原点，半径为 0
@@ -446,5 +433,5 @@ export default class Circle extends Arc implements ICircle, ISerializable {
    * empty.xRadius; // 0
    * ```
    */
-  static readonly EMPTY_CIRCLE = new Circle(new Point3(0, 0, 0), 0);
+  static readonly EMPTY_CIRCLE = new Circle(new Point3(0, 0, 0), 0)
 }

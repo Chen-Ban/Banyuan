@@ -7,14 +7,14 @@ export { default as AnimationManager } from './AnimationManager'
 export const Easings = MathUtils.Easings
 
 export type {
-    EasingFunction,
-    FillMode,
-    PlaybackDirection,
-    AnimationState,
-    AnimatableValue,
-    KeyframeDefinition,
-    AnimationOptions,
-    Interpolator,
-    PropertyClassification,
-    InterpolationHints,
+  EasingFunction,
+  FillMode,
+  PlaybackDirection,
+  AnimationState,
+  AnimatableValue,
+  KeyframeDefinition,
+  AnimationOptions,
+  Interpolator,
+  PropertyClassification,
+  InterpolationHints,
 } from '@/types/foundation/animation'

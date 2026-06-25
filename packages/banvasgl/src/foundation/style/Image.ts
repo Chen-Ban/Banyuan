@@ -22,7 +22,7 @@ import type { IImageSource } from '@/types/foundation/media.js'
  * ```
  */
 export default class Image implements ISerializable {
-  public readonly type: StyleType = StyleType.IMAGE_PATTERN;
+  public readonly type: StyleType = StyleType.IMAGE_PATTERN
   src: string | null
   size: PatternSize | null
   repeat: PatternRepeat
@@ -136,7 +136,7 @@ export default class Image implements ISerializable {
    * console.log(info.src, info.size, info.repeat)
    * ```
    */
-  getPatternInfo(): { src: string | null; size: PatternSize | null; repeat: PatternRepeat; } {
+  getPatternInfo(): { src: string | null; size: PatternSize | null; repeat: PatternRepeat } {
     return {
       src: this.src,
       size: this.size,
@@ -237,9 +237,7 @@ export default class Image implements ISerializable {
    * ```
    */
   equals(other: Image): boolean {
-    return this.src === other.src &&
-           this.size === other.size &&
-           this.repeat === other.repeat
+    return this.src === other.src && this.size === other.size && this.repeat === other.repeat
   }
 
   /**

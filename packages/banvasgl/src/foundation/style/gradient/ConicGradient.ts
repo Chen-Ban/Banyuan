@@ -77,8 +77,8 @@ export default class ConicGradient extends Gradient {
    * ```
    */
   createCanvasGradient(ctx: IDrawingContext, width: number = 100, height: number = 100): IGradient {
-    const centerX = this.cx * width / 100
-    const centerY = this.cy * height / 100
+    const centerX = (this.cx * width) / 100
+    const centerY = (this.cy * height) / 100
 
     // createConicGradient 在 Chrome 99+ / Firefox 113+ / Safari 16.1+ 中已原生支持
     // 若运行环境不支持，降级为径向渐变近似
@@ -88,10 +88,7 @@ export default class ConicGradient extends Gradient {
     if (typeof anyCtx.createConicGradient === 'function') {
       gradient = anyCtx.createConicGradient(this.angle, centerX, centerY)
     } else {
-      gradient = ctx.createRadialGradient(
-        centerX, centerY, 0,
-        centerX, centerY, Math.min(width, height) / 2
-      )
+      gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, Math.min(width, height) / 2)
     }
 
     this.applyStops(gradient)
@@ -116,7 +113,8 @@ export default class ConicGradient extends Gradient {
       type: this.type,
       stops: this.serializeStops(),
       angle: this.angle,
-      cx: this.cx, cy: this.cy,
+      cx: this.cx,
+      cy: this.cy,
     }
   }
 
@@ -175,8 +173,8 @@ export default class ConicGradient extends Gradient {
    */
   equals(other: Gradient): boolean {
     if (!(other instanceof ConicGradient)) return false
-    return this.angle === other.angle &&
-           this.cx === other.cx && this.cy === other.cy &&
-           this.stopsEqual(other)
+    return (
+      this.angle === other.angle && this.cx === other.cx && this.cy === other.cy && this.stopsEqual(other)
+    )
   }
 }
