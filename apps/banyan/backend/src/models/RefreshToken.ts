@@ -12,7 +12,7 @@ const RefreshTokenSchema = new Schema<IRefreshTokenDoc>(
     expiresAt: { type: Date, required: true },
     revokedAt: { type: Date },
   },
-  { timestamps: true, collection: 'refreshtokens' }
+  { timestamps: true, collection: 'refreshtokens' },
 )
 
 // TTL 索引：过期后自动删除

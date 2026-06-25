@@ -29,7 +29,7 @@ class ConversationService {
     const conv = await Conversation.findOneAndUpdate(
       { appId },
       { $setOnInsert: { appId, dialogueIds: [] } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, new: true, setDefaultsOnInsert: true },
     )
     if (!conv) throw new Error(`getOrCreate 返回 null（appId=${appId}）`)
     return conv
@@ -51,10 +51,7 @@ class ConversationService {
    * 使用 $addToSet 保证幂等（重复调用不会产生重复 ID）。
    */
   async registerDialogue(appId: string, dialogueId: Types.ObjectId): Promise<void> {
-    await Conversation.updateOne(
-      { appId },
-      { $addToSet: { dialogueIds: dialogueId } }
-    )
+    await Conversation.updateOne({ appId }, { $addToSet: { dialogueIds: dialogueId } })
   }
 
   // ─── 读取接口 ──────────────────────────────────────────────────────────────
@@ -80,11 +77,19 @@ class ConversationService {
    * 获取所有对话的摘要和向量（用于 ContextBuilder 语义检索）
    */
   async getDialogueSummaries(
-    appId: string
-  ): Promise<Array<{ dialogueId: Types.ObjectId; summary: string; embedding: number[] | null; type: string; createdAt: Date }>> {
-    const dialogues = await Dialogue.find(
-      { appId, 'summary.text': { $exists: true } }
-    ).select('summary type createdAt').lean()
+    appId: string,
+  ): Promise<
+    Array<{
+      dialogueId: Types.ObjectId
+      summary: string
+      embedding: number[] | null
+      type: string
+      createdAt: Date
+    }>
+  > {
+    const dialogues = await Dialogue.find({ appId, 'summary.text': { $exists: true } })
+      .select('summary type createdAt')
+      .lean()
 
     return dialogues.map((d) => ({
       dialogueId: d._id as Types.ObjectId,
@@ -101,7 +106,7 @@ class ConversationService {
    */
   async getRecentMessages(
     appId: string,
-    maxDialogues = 5
+    maxDialogues = 5,
   ): Promise<Array<{ role: 'user' | 'assistant'; content: string }>> {
     const dialogues = await Dialogue.find({ appId })
       .sort({ createdAt: -1 })

@@ -14,7 +14,7 @@ const UserSchema = new Schema<IUserDoc>(
     role: { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
     status: { type: String, enum: ['active', 'invited', 'disabled'], default: 'active' },
   },
-  { timestamps: true, collection: 'users' }
+  { timestamps: true, collection: 'users' },
 )
 
 // 稀疏唯一索引（允许多个文档的该字段为 null/不存在）

@@ -7,7 +7,12 @@ import crypto from 'crypto'
 /**
  * 后端 → Agent 的消息类型
  */
-export type ServerToAgentType = 'deploy:start' | 'deploy:cancel' | 'heartbeat:ack' | 'auth:success' | 'auth:fail'
+export type ServerToAgentType =
+  | 'deploy:start'
+  | 'deploy:cancel'
+  | 'heartbeat:ack'
+  | 'auth:success'
+  | 'auth:fail'
 
 /**
  * Agent → 后端的消息类型
@@ -270,7 +275,10 @@ export class AgentGateway {
 
         if (!tenantId || !agentToken) {
           console.warn('[AgentGateway] auth 消息缺少 tenantId 或 agentToken')
-          const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'Missing tenantId or agentToken' } }
+          const failMsg: ServerMessage = {
+            type: 'auth:fail',
+            payload: { reason: 'Missing tenantId or agentToken' },
+          }
           ws.send(JSON.stringify(failMsg))
           ws.close(4003, 'Missing tenantId or agentToken')
           return
@@ -341,7 +349,9 @@ export class AgentGateway {
     })
 
     ws.on('close', (code, reason) => {
-      console.log(`[AgentGateway] 租户 ${tenantId} 连接关闭，code=${code}, reason=${reason.toString('utf-8')}`)
+      console.log(
+        `[AgentGateway] 租户 ${tenantId} 连接关闭，code=${code}, reason=${reason.toString('utf-8')}`,
+      )
       this.handleDisconnect(tenantId)
     })
 
@@ -386,7 +396,9 @@ export class AgentGateway {
             this.pendingRequests.delete(requestId)
             this.progressCallbacks.delete(requestId)
             pending.resolve(result)
-            console.log(`[AgentGateway] 租户 ${tenantId} 部署完成，requestId=${requestId}, success=${result.success}`)
+            console.log(
+              `[AgentGateway] 租户 ${tenantId} 部署完成，requestId=${requestId}, success=${result.success}`,
+            )
           }
         }
         break

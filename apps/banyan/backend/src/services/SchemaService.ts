@@ -29,9 +29,7 @@ function getCacheKey(appId: string, collectionName: string): string {
 /**
  * 根据 ICollectionDef 构建 Mongoose SchemaDefinition
  */
-function buildMongooseSchemaDefinition(
-  fields: IFieldDef[],
-): mongoose.SchemaDefinition {
+function buildMongooseSchemaDefinition(fields: IFieldDef[]): mongoose.SchemaDefinition {
   const def: mongoose.SchemaDefinition = {}
 
   for (const field of fields) {
@@ -42,9 +40,7 @@ function buildMongooseSchemaDefinition(
           type: String,
           required: field.required,
           default: field.defaultValue ?? undefined,
-          ...(field.type === 'enum' && field.enumValues?.length
-            ? { enum: field.enumValues }
-            : {}),
+          ...(field.type === 'enum' && field.enumValues?.length ? { enum: field.enumValues } : {}),
         }
         break
       case 'number':
@@ -159,21 +155,34 @@ export class SchemaService {
    *
    * 优先从新表读取最新版本。
    */
-  static async getSchema(appId: string): Promise<{ appId: string; collections: ICollectionDef[]; version: number }> {
+  static async getSchema(
+    appId: string,
+  ): Promise<{ appId: string; collections: ICollectionDef[]; version: number }> {
     const doc = await CollectionSchemaModel.findOne({ appId }).sort({ version: -1 }).lean()
     if (!doc) {
       return { appId, collections: [], version: 0 }
     }
-    return { appId: doc.appId, collections: doc.collections as unknown as ICollectionDef[], version: doc.version }
+    return {
+      appId: doc.appId,
+      collections: doc.collections as unknown as ICollectionDef[],
+      version: doc.version,
+    }
   }
 
   /**
    * 获取指定版本的 Schema
    */
-  static async getByVersion(appId: string, version: number): Promise<{ appId: string; collections: ICollectionDef[]; version: number } | null> {
+  static async getByVersion(
+    appId: string,
+    version: number,
+  ): Promise<{ appId: string; collections: ICollectionDef[]; version: number } | null> {
     const doc = await CollectionSchemaModel.findOne({ appId, version }).lean()
     if (!doc) return null
-    return { appId: doc.appId, collections: doc.collections as unknown as ICollectionDef[], version: doc.version }
+    return {
+      appId: doc.appId,
+      collections: doc.collections as unknown as ICollectionDef[],
+      version: doc.version,
+    }
   }
 
   /**
@@ -227,11 +236,7 @@ export class SchemaService {
    *
    * 同时清除该应用的所有动态 Model 缓存（集合/字段可能变更）。
    */
-  static async updateByVersion(
-    appId: string,
-    version: number,
-    collections: ICollectionDef[],
-  ): Promise<void> {
+  static async updateByVersion(appId: string, version: number, collections: ICollectionDef[]): Promise<void> {
     invalidateAllDynamicModels(appId)
     await CollectionSchemaModel.updateOne({ appId, version }, { $set: { collections } })
   }
@@ -239,10 +244,7 @@ export class SchemaService {
   /**
    * 新增 Collection（产生新版本）
    */
-  static async addCollection(
-    appId: string,
-    collection: ICollectionDef,
-  ) {
+  static async addCollection(appId: string, collection: ICollectionDef) {
     const { collections, version: currentVersion } = await this.getSchema(appId)
 
     const exists = collections.some((c) => c.name === collection.name)
@@ -301,11 +303,7 @@ export class SchemaService {
   /**
    * 新增字段到 Collection（产生新版本）
    */
-  static async addField(
-    appId: string,
-    collectionName: string,
-    field: IFieldDef,
-  ) {
+  static async addField(appId: string, collectionName: string, field: IFieldDef) {
     const { collections, version: currentVersion } = await this.getSchema(appId)
 
     const collectionIdx = collections.findIndex((c) => c.name === collectionName)
@@ -364,11 +362,7 @@ export class SchemaService {
   /**
    * 删除字段（产生新版本）
    */
-  static async deleteField(
-    appId: string,
-    collectionName: string,
-    fieldName: string,
-  ) {
+  static async deleteField(appId: string, collectionName: string, fieldName: string) {
     const { collections, version: currentVersion } = await this.getSchema(appId)
 
     const collectionIdx = collections.findIndex((c) => c.name === collectionName)
@@ -442,7 +436,11 @@ export class SchemaService {
   }
 
   /** 计算新增字段后的数组（集合不存在 404 / 字段重复 409） */
-  static computeAddField(collections: ICollectionDef[], collectionName: string, field: IFieldDef): ICollectionDef[] {
+  static computeAddField(
+    collections: ICollectionDef[],
+    collectionName: string,
+    field: IFieldDef,
+  ): ICollectionDef[] {
     validateIdentifier(field.name, '字段名')
     const idx = collections.findIndex((c) => c.name === collectionName)
     if (idx === -1) {
@@ -479,7 +477,11 @@ export class SchemaService {
   }
 
   /** 计算删除字段后的数组（集合/字段不存在均抛 404） */
-  static computeDeleteField(collections: ICollectionDef[], collectionName: string, fieldName: string): ICollectionDef[] {
+  static computeDeleteField(
+    collections: ICollectionDef[],
+    collectionName: string,
+    fieldName: string,
+  ): ICollectionDef[] {
     const idx = collections.findIndex((c) => c.name === collectionName)
     if (idx === -1) {
       throw Object.assign(new Error(`Collection "${collectionName}" not found`), { status: 404 })

@@ -9,11 +9,11 @@
  */
 
 import type {
-    ITemplate,
-    ITemplateParameter,
-    ITemplateAsset,
-    IInternalIdRef,
-    TemplateParameterType,
+  ITemplate,
+  ITemplateParameter,
+  ITemplateAsset,
+  IInternalIdRef,
+  TemplateParameterType,
 } from '@banyuan/banvasgl'
 
 // ── 元数据（应用层定义，引擎不感知） ──
@@ -23,34 +23,28 @@ export type MaterialSource = 'builtin' | 'user' | 'team' | 'marketplace'
 
 /** 物料元数据 */
 export interface IMaterialMeta {
-    id: string
-    name: string
-    description?: string
-    tags?: string[]
-    thumbnail?: string
-    source: MaterialSource
-    creatorId?: string
-    createdAt?: string
-    updatedAt?: string
-    version: string
-    minEngineVersion?: string
+  id: string
+  name: string
+  description?: string
+  tags?: string[]
+  thumbnail?: string
+  source: MaterialSource
+  creatorId?: string
+  createdAt?: string
+  updatedAt?: string
+  version: string
+  minEngineVersion?: string
 }
 
 /** 完整物料定义（元数据 + 模板） */
 export interface IMaterial {
-    meta: IMaterialMeta
-    template: ITemplate
+  meta: IMaterialMeta
+  template: ITemplate
 }
 
 // ── 引擎模板类型重导出（方便后端其他模块使用） ──
 
-export type {
-    ITemplate,
-    ITemplateParameter,
-    ITemplateAsset,
-    IInternalIdRef,
-    TemplateParameterType,
-}
+export type { ITemplate, ITemplateParameter, ITemplateAsset, IInternalIdRef, TemplateParameterType }
 
 // ── 后端扩展 ──
 

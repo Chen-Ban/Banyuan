@@ -24,9 +24,9 @@ import * as fs from 'fs'
 import * as path from 'path'
 
 export interface ScaffoldOptions {
-  appJson: string      // App 级别序列化 JSON（SerializedData 格式，包含 lifetimes + scenes）
-  appName: string      // 应用名称，用于 package.json name 和 HTML title
-  outputDir: string    // 生成项目的目标目录（绝对路径）
+  appJson: string // App 级别序列化 JSON（SerializedData 格式，包含 lifetimes + scenes）
+  appName: string // 应用名称，用于 package.json name 和 HTML title
+  outputDir: string // 生成项目的目标目录（绝对路径）
   /** 设计尺寸宽度（px），仅供 Electron 窗口初始大小参考，应用内容运行时自适应容器 */
   width?: number
   /** 设计尺寸高度（px） */
@@ -58,12 +58,8 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
   fs.mkdirSync(path.join(outputDir, 'public'), { recursive: true })
 
   // 2. .npmrc — 固定 pnpm 行为，后续切换私有 registry 只需改这里
-  const npmrc = [
-    '# 由 Banyuan 构建器自动生成',
-    'prefer-offline=true',
-    'fund=false',
-    'audit=false',
-  ].join('\n') + '\n'
+  const npmrc =
+    ['# 由 Banyuan 构建器自动生成', 'prefer-offline=true', 'fund=false', 'audit=false'].join('\n') + '\n'
   fs.writeFileSync(path.join(outputDir, '.npmrc'), npmrc, 'utf-8')
 
   // 3. index.html
@@ -111,11 +107,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
       vite: '^6.3.5',
     },
   }
-  fs.writeFileSync(
-    path.join(outputDir, 'package.json'),
-    JSON.stringify(packageJson, null, 2),
-    'utf-8'
-  )
+  fs.writeFileSync(path.join(outputDir, 'package.json'), JSON.stringify(packageJson, null, 2), 'utf-8')
 
   // 5. vite.config.ts — outDir 与 ScaffoldOptions.distDir 保持一致
   const viteConfig = `import { defineConfig } from 'vite'
@@ -146,11 +138,7 @@ export default defineConfig({
     },
     include: ['src'],
   }
-  fs.writeFileSync(
-    path.join(outputDir, 'tsconfig.json'),
-    JSON.stringify(tsconfig, null, 2),
-    'utf-8'
-  )
+  fs.writeFileSync(path.join(outputDir, 'tsconfig.json'), JSON.stringify(tsconfig, null, 2), 'utf-8')
 
   // 7. src/main.tsx
   const mainTsx = `import React from 'react'

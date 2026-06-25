@@ -61,7 +61,9 @@ export class SchemaController {
       ctx.body = { success: false, message: '表名不能为空' }
       return
     }
-    try { validateIdentifier(body.name, '表名') } catch (e: any) {
+    try {
+      validateIdentifier(body.name, '表名')
+    } catch (e: any) {
       ctx.status = 400
       ctx.body = { success: false, message: e.message }
       return
@@ -78,10 +80,8 @@ export class SchemaController {
       fields: Array.isArray(body.fields) ? body.fields : [],
     }
 
-    await SchemaController.runSchemaEdit(
-      appId,
-      `新增数据表「${collection.displayName}」`,
-      (collections) => SchemaService.computeAddCollection(collections, collection),
+    await SchemaController.runSchemaEdit(appId, `新增数据表「${collection.displayName}」`, (collections) =>
+      SchemaService.computeAddCollection(collections, collection),
     )
     ctx.status = 201
     ctx.body = { success: true, data: collection }
@@ -103,10 +103,8 @@ export class SchemaController {
   // ── DELETE /api/apps/:appId/schema/collections/:collectionName ───────────────
   static async deleteCollection(ctx: Context) {
     const { appId, collectionName } = ctx.params as { appId: string; collectionName: string }
-    await SchemaController.runSchemaEdit(
-      appId,
-      `删除数据表「${collectionName}」`,
-      (collections) => SchemaService.computeDeleteCollection(collections, collectionName),
+    await SchemaController.runSchemaEdit(appId, `删除数据表「${collectionName}」`, (collections) =>
+      SchemaService.computeDeleteCollection(collections, collectionName),
     )
     ctx.body = { success: true, data: { name: collectionName } }
   }
@@ -121,7 +119,9 @@ export class SchemaController {
       ctx.body = { success: false, message: '字段名不能为空' }
       return
     }
-    try { validateIdentifier(body.name, '字段名') } catch (e: any) {
+    try {
+      validateIdentifier(body.name, '字段名')
+    } catch (e: any) {
       ctx.status = 400
       ctx.body = { success: false, message: e.message }
       return

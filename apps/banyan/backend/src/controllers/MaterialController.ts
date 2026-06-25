@@ -33,9 +33,12 @@ class MaterialController {
       } = {
         keyword: keyword as string | undefined,
         tags: tags
-          ? (Array.isArray(tags)
-            ? tags as string[]
-            : (tags as string).split(',').map(t => t.trim()).filter(Boolean))
+          ? Array.isArray(tags)
+            ? (tags as string[])
+            : (tags as string)
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean)
           : undefined,
         kind: kind as MaterialKind | undefined,
         source: source as MaterialSource | undefined,
@@ -225,10 +228,7 @@ class MaterialController {
         return
       }
 
-      const materials = await materialService.searchMaterials(
-        q as string,
-        parseInt(limit as string, 10),
-      )
+      const materials = await materialService.searchMaterials(q as string, parseInt(limit as string, 10))
 
       ctx.status = 200
       ctx.body = { success: true, data: materials }

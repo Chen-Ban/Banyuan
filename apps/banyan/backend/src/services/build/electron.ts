@@ -77,10 +77,7 @@ app.on('activate', () => {
     directories: {
       output: outputDir,
     },
-    files: [
-      'dist/**/*',
-      'electron/**/*',
-    ],
+    files: ['dist/**/*', 'electron/**/*'],
     mac: { target: 'dmg' },
     win: { target: 'nsis' },
     linux: { target: 'AppImage' },
@@ -100,13 +97,9 @@ app.on('activate', () => {
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), 'utf-8')
 
   // 4. 执行 electron-builder（需全局安装或通过 npx）
-  await execFileAsync(
-    'npx',
-    ['electron-builder', PLATFORM_FLAG[platform], '--config', builderConfigPath],
-    {
-      cwd: path.dirname(distDir),
-      timeout: 10 * 60 * 1000, // 10 分钟超时
-      env: { ...process.env, ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true' },
-    }
-  )
+  await execFileAsync('npx', ['electron-builder', PLATFORM_FLAG[platform], '--config', builderConfigPath], {
+    cwd: path.dirname(distDir),
+    timeout: 10 * 60 * 1000, // 10 分钟超时
+    env: { ...process.env, ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'true' },
+  })
 }

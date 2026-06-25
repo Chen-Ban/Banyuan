@@ -39,7 +39,7 @@ const DialogueSummarySchema = new Schema<IDialogueSummary>(
     viewIds: { type: [String], default: [] },
     changeTags: { type: [String], default: [] },
   },
-  { _id: false }
+  { _id: false },
 )
 
 const InterruptMetadataSchema = new Schema<IInterruptMetadata>(
@@ -52,8 +52,14 @@ const InterruptMetadataSchema = new Schema<IInterruptMetadata>(
     interruptedAtPhase: {
       type: String,
       enum: [
-        'start', 'requirements', 'ui_design', 'contract', 'building',
-        'awaiting_confirm', 'committing', 'responding',
+        'start',
+        'requirements',
+        'ui_design',
+        'contract',
+        'building',
+        'awaiting_confirm',
+        'committing',
+        'responding',
       ],
       required: true,
     },
@@ -62,10 +68,8 @@ const InterruptMetadataSchema = new Schema<IInterruptMetadata>(
       default: () => new Date(),
     },
   },
-  { _id: false }
+  { _id: false },
 )
-
-
 
 /**
  * 消息子文档 Schema
@@ -78,8 +82,14 @@ const AssistantContentSchema = new Schema(
     type: {
       type: String,
       enum: [
-        'text', 'tool_call', 'tool_result', 'app_snapshot',
-        'schema_update', 'disambiguation', 'planning_progress', 'error',
+        'text',
+        'tool_call',
+        'tool_result',
+        'app_snapshot',
+        'schema_update',
+        'disambiguation',
+        'planning_progress',
+        'error',
       ],
       required: true,
     },
@@ -87,18 +97,23 @@ const AssistantContentSchema = new Schema(
   {
     _id: false,
     strict: false, // 允许存储 type 之外的动态字段
-  }
+  },
 )
 
 const UserContentSchema = new Schema(
   {
     prompt: { type: String, required: true },
     images: {
-      type: [new Schema({ url: { type: String, required: true }, alt: { type: String, default: undefined } }, { _id: false })],
+      type: [
+        new Schema(
+          { url: { type: String, required: true }, alt: { type: String, default: undefined } },
+          { _id: false },
+        ),
+      ],
       default: [],
     },
   },
-  { _id: false }
+  { _id: false },
 )
 
 const MessageSchema = new Schema(
@@ -120,7 +135,7 @@ const MessageSchema = new Schema(
       type: Date,
       default: () => new Date(),
     },
-  }
+  },
   // NOTE: 不设置 { _id: false }，让 mongoose 为每条消息自动生成 _id
 )
 
@@ -143,9 +158,17 @@ const DialogueSchema = new Schema<IDialogueDoc>(
     phase: {
       type: String,
       enum: [
-        'start', 'requirements', 'ui_design', 'contract', 'building',
-        'awaiting_confirm', 'committing', 'responding',
-        'done', 'discarded', 'failed',
+        'start',
+        'requirements',
+        'ui_design',
+        'contract',
+        'building',
+        'awaiting_confirm',
+        'committing',
+        'responding',
+        'done',
+        'discarded',
+        'failed',
       ],
       required: true,
       default: 'start',
@@ -175,23 +198,25 @@ const DialogueSchema = new Schema<IDialogueDoc>(
 
     // ─── 规划产物 ──────────────────────────────────────────────────────────
     planningEntries: {
-      type: [new Schema(
-        {
-          agent: { type: String, required: true },
-          output: { type: Schema.Types.Mixed, default: null },
-          reasoning: { type: String, default: undefined },
-          tokenUsage: {
-            type: new Schema(
-              { input: { type: Number, default: 0 }, output: { type: Number, default: 0 } },
-              { _id: false }
-            ),
-            default: () => ({ input: 0, output: 0 }),
+      type: [
+        new Schema(
+          {
+            agent: { type: String, required: true },
+            output: { type: Schema.Types.Mixed, default: null },
+            reasoning: { type: String, default: undefined },
+            tokenUsage: {
+              type: new Schema(
+                { input: { type: Number, default: 0 }, output: { type: Number, default: 0 } },
+                { _id: false },
+              ),
+              default: () => ({ input: 0, output: 0 }),
+            },
+            durationMs: { type: Number, default: 0 },
+            createdAt: { type: Date, default: () => new Date() },
           },
-          durationMs: { type: Number, default: 0 },
-          createdAt: { type: Date, default: () => new Date() },
-        },
-        { _id: false }
-      )],
+          { _id: false },
+        ),
+      ],
       default: [],
     },
     // ─── Agent 记忆暂存 ───────────────────────────────────────────────────
@@ -215,7 +240,7 @@ const DialogueSchema = new Schema<IDialogueDoc>(
   {
     timestamps: true,
     collection: 'dialogues',
-  }
+  },
 )
 
 // ─── 索引 ─────────────────────────────────────────────────────────────────────

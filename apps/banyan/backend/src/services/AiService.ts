@@ -153,7 +153,7 @@ function proxySSECore(
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(requestBody),
-        'Accept': 'text/event-stream',
+        Accept: 'text/event-stream',
         ...(XIANGDI_INTERNAL_TOKEN ? { 'X-Internal-Token': XIANGDI_INTERNAL_TOKEN } : {}),
       },
     }
@@ -200,32 +200,59 @@ function proxySSECore(
           const parsed = JSON.parse(dataStr) as { delta?: string; text?: string }
           const text = parsed.delta ?? parsed.text ?? ''
           if (text) textBuffer += text
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       // ── tool_activity：收集工具调用记录 + 透传 ──
       if (currentEvent === 'tool_activity') {
         try {
-          const parsed = JSON.parse(dataStr) as { agent?: string; tool?: string; status?: string; inputSummary?: string; outputSummary?: string; error?: string }
-          if (parsed.status === 'started') {
-            assistantContentBuffer.push({ type: 'tool_call', id: `${parsed.agent}_${parsed.tool}_${Date.now()}`, name: parsed.tool ?? '', input: parsed.inputSummary ?? '' })
-          } else if (parsed.status === 'completed' || parsed.status === 'error') {
-            assistantContentBuffer.push({ type: 'tool_result', id: `${parsed.agent}_${parsed.tool}_${Date.now()}`, result: parsed.outputSummary ?? parsed.error ?? '', isError: parsed.status === 'error' })
+          const parsed = JSON.parse(dataStr) as {
+            agent?: string
+            tool?: string
+            status?: string
+            inputSummary?: string
+            outputSummary?: string
+            error?: string
           }
-        } catch { /* ignore */ }
+          if (parsed.status === 'started') {
+            assistantContentBuffer.push({
+              type: 'tool_call',
+              id: `${parsed.agent}_${parsed.tool}_${Date.now()}`,
+              name: parsed.tool ?? '',
+              input: parsed.inputSummary ?? '',
+            })
+          } else if (parsed.status === 'completed' || parsed.status === 'error') {
+            assistantContentBuffer.push({
+              type: 'tool_result',
+              id: `${parsed.agent}_${parsed.tool}_${Date.now()}`,
+              result: parsed.outputSummary ?? parsed.error ?? '',
+              isError: parsed.status === 'error',
+            })
+          }
+        } catch {
+          /* ignore */
+        }
       }
 
       // ── app_state：拦截，不透传给前端 ──
       if (currentEvent === 'app_state') {
         try {
-          const parsed = JSON.parse(dataStr) as { uiJSON?: string; schema?: ICollectionDef[]; cloudFunctions?: unknown[] }
+          const parsed = JSON.parse(dataStr) as {
+            uiJSON?: string
+            schema?: ICollectionDef[]
+            cloudFunctions?: unknown[]
+          }
           finalUIJSON = parsed.uiJSON ?? ''
           callbacks.onAppState?.({
             uiJSON: finalUIJSON,
             schema: parsed.schema ?? [],
             cloudFunctions: parsed.cloudFunctions ?? [],
           })
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         // 不透传：return 提前退出
         return
       }
@@ -240,22 +267,27 @@ function proxySSECore(
           }
           assistantContentBuffer.push({ type: 'app_snapshot', uiJSON: finalUIJSON })
 
-          callbacks.onDone(finalUIJSON, assistantContentBuffer, summaryBuffer).then(async () => {
-            if (phaseCtrl && !phaseCtrl.isTerminal()) {
-              const phase = phaseCtrl.getPhase()
-              if (phase === 'responding') {
-                await phaseCtrl.transition('done')
-              } else if (phase === 'building') {
-                await phaseCtrl.transition('awaiting_confirm')
+          callbacks
+            .onDone(finalUIJSON, assistantContentBuffer, summaryBuffer)
+            .then(async () => {
+              if (phaseCtrl && !phaseCtrl.isTerminal()) {
+                const phase = phaseCtrl.getPhase()
+                if (phase === 'responding') {
+                  await phaseCtrl.transition('done')
+                } else if (phase === 'building') {
+                  await phaseCtrl.transition('awaiting_confirm')
+                }
               }
-            }
-          }).catch((err) => {
-            console.error('[AiService] onDone 回调或 phase 转移失败:', err)
-            if (phaseCtrl && !phaseCtrl.isTerminal()) {
-              phaseCtrl.fail().catch(() => {})
-            }
-          })
-        } catch { /* ignore */ }
+            })
+            .catch((err) => {
+              console.error('[AiService] onDone 回调或 phase 转移失败:', err)
+              if (phaseCtrl && !phaseCtrl.isTerminal()) {
+                phaseCtrl.fail().catch(() => {})
+              }
+            })
+        } catch {
+          /* ignore */
+        }
       }
 
       // ── error：Phase → failed，拦截 XiangDi 错误，给用户通用提示，原始错误仅日志 ──
@@ -376,15 +408,19 @@ const appLockMap = new Map<string, Promise<void>>()
 function withAppLock<T>(appId: string, fn: () => Promise<T>): Promise<T> {
   const prev = appLockMap.get(appId) ?? Promise.resolve()
   let releaseLock!: () => void
-  const lockPromise = new Promise<void>((resolve) => { releaseLock = resolve })
+  const lockPromise = new Promise<void>((resolve) => {
+    releaseLock = resolve
+  })
   appLockMap.set(appId, lockPromise)
 
-  return prev.then(() => fn()).finally(() => {
-    if (appLockMap.get(appId) === lockPromise) {
-      appLockMap.delete(appId)
-    }
-    releaseLock()
-  })
+  return prev
+    .then(() => fn())
+    .finally(() => {
+      if (appLockMap.get(appId) === lockPromise) {
+        appLockMap.delete(appId)
+      }
+      releaseLock()
+    })
 }
 
 // ─── AiService ────────────────────────────────────────────────────────────────
@@ -417,7 +453,7 @@ class AiService {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
+        Connection: 'keep-alive',
         'X-Accel-Buffering': 'no',
       })
     }
@@ -482,7 +518,7 @@ class AiService {
     const { contextSummary, recentMessages: historyMessages } = layeredContext
 
     // 4. 构造 requestBody（ADR-041 协议：无 threadId/requireApproval）
-    const imageUrls = images.length > 0 ? images.map(img => img.url) : undefined
+    const imageUrls = images.length > 0 ? images.map((img) => img.url) : undefined
     const requestBody = JSON.stringify({
       appId,
       prompt,
@@ -494,46 +530,53 @@ class AiService {
     })
 
     // 5. proxySSECore — 回调统一写 Dialogue
-    await proxySSECore('/ai/run', requestBody, res, {
-      onDone: async (finalUIJSON, assistantContent, summary) => {
-        // 5a. 按版本号原地更新 UI 定义 JSON 草稿记录（所有模式共享）
-        await uiDefinitionService.updateByVersion(appId, uiDefinitionVersion, finalUIJSON)
-        await dialogueService.appendAssistantContent(dialogueId, assistantContent)
-        if (summary) {
-          await dialogueService.setRoundSummary(dialogueId, summary)
-        }
-
-        // 5b. chat 模式：无需确认，直接扭转到 done（内容已按版本号写入三表）
-        if (type === 'chat') {
-          await conversationService.registerDialogue(appId, dialogueId)
+    await proxySSECore(
+      '/ai/run',
+      requestBody,
+      res,
+      {
+        onDone: async (finalUIJSON, assistantContent, summary) => {
+          // 5a. 按版本号原地更新 UI 定义 JSON 草稿记录（所有模式共享）
+          await uiDefinitionService.updateByVersion(appId, uiDefinitionVersion, finalUIJSON)
+          await dialogueService.appendAssistantContent(dialogueId, assistantContent)
           if (summary) {
-            this.persistDialogueSummary(appId, dialogueId, summary).catch(err => {
-              console.error('[AiService] 对话摘要持久化失败:', err)
+            await dialogueService.setRoundSummary(dialogueId, summary)
+          }
+
+          // 5b. chat 模式：无需确认，直接扭转到 done（内容已按版本号写入三表）
+          if (type === 'chat') {
+            await conversationService.registerDialogue(appId, dialogueId)
+            if (summary) {
+              this.persistDialogueSummary(appId, dialogueId, summary).catch((err) => {
+                console.error('[AiService] 对话摘要持久化失败:', err)
+              })
+            }
+          }
+          // task 模式：phase 自动驱动到 awaiting_confirm，等用户 confirm
+        },
+        onError: async () => {
+          // Phase 由 dispatchEvent 中自动驱动到 failed
+        },
+        onAppState: (state) => {
+          // Schema 变更：按版本号原地更新草稿记录
+          if (Array.isArray(state.schema) && state.schema.length > 0) {
+            SchemaService.updateByVersion(appId, schemaVersion, state.schema).catch((err) => {
+              console.error('[AiService] Schema 按版本号更新失败:', err)
             })
           }
-        }
-        // task 模式：phase 自动驱动到 awaiting_confirm，等用户 confirm
-      },
-      onError: async () => {
-        // Phase 由 dispatchEvent 中自动驱动到 failed
-      },
-      onAppState: (state) => {
-        // Schema 变更：按版本号原地更新草稿记录
-        if (Array.isArray(state.schema) && state.schema.length > 0) {
-          SchemaService.updateByVersion(appId, schemaVersion, state.schema).catch(err => {
-            console.error('[AiService] Schema 按版本号更新失败:', err)
-          })
-        }
 
-        // CloudFunctions 变更：按版本号原地更新草稿记录
-        if (Array.isArray(state.cloudFunctions) && state.cloudFunctions.length > 0) {
-          const cfDefs = state.cloudFunctions as ICloudFunctionDef[]
-          cloudFunctionService.updateByVersion(appId, cloudFunctionVersion, cfDefs).catch(err => {
-            console.error('[AiService] CloudFunction 按版本号更新失败:', err)
-          })
-        }
+          // CloudFunctions 变更：按版本号原地更新草稿记录
+          if (Array.isArray(state.cloudFunctions) && state.cloudFunctions.length > 0) {
+            const cfDefs = state.cloudFunctions as ICloudFunctionDef[]
+            cloudFunctionService.updateByVersion(appId, cloudFunctionVersion, cfDefs).catch((err) => {
+              console.error('[AiService] CloudFunction 按版本号更新失败:', err)
+            })
+          }
+        },
       },
-    }, appId, { phaseCtrl })
+      appId,
+      { phaseCtrl },
+    )
   }
 
   // ─── Confirm / Discard（事务确认/撤销）──────────────────────────────────────
@@ -574,7 +617,7 @@ class AiService {
 
     // 2. 对话摘要向量化
     if (dlg.summary?.text) {
-      this.persistDialogueSummary(appId, dlgId, dlg.summary.text).catch(err => {
+      this.persistDialogueSummary(appId, dlgId, dlg.summary.text).catch((err) => {
         console.error('[AiService] 对话摘要持久化失败:', err)
       })
     }
@@ -600,7 +643,10 @@ class AiService {
    *
    * 保护策略：committing 阶段不允许中断（数据一致性优先）。
    */
-  async stopDialogue(appId: string, reason: 'user_aborted' | 'connection_lost' = 'user_aborted'): Promise<void> {
+  async stopDialogue(
+    appId: string,
+    reason: 'user_aborted' | 'connection_lost' = 'user_aborted',
+  ): Promise<void> {
     return withAppLock(appId, async () => {
       const dlg = await dialogueService.getActiveByApp(appId)
       if (!dlg) return
@@ -610,11 +656,7 @@ class AiService {
         return
       }
 
-      await dialogueService.interrupt(
-        dlg._id as Types.ObjectId,
-        reason,
-        dlg.phase
-      )
+      await dialogueService.interrupt(dlg._id as Types.ObjectId, reason, dlg.phase)
     })
   }
 
@@ -623,7 +665,9 @@ class AiService {
   /**
    * 查询应用当前的 AI 执行状态
    */
-  async getStatus(appId: string): Promise<{ dialogueId: string; threadId: string; status: string; canConfirm: boolean } | null> {
+  async getStatus(
+    appId: string,
+  ): Promise<{ dialogueId: string; threadId: string; status: string; canConfirm: boolean } | null> {
     let dlg = await dialogueService.getActiveByApp(appId)
 
     if (!dlg) {
@@ -675,7 +719,7 @@ class AiService {
   private async persistDialogueSummary(
     _appId: string,
     dialogueId: Types.ObjectId,
-    summary: string
+    summary: string,
   ): Promise<void> {
     const { default: knowledgeClient } = await import('./KnowledgeClient.js')
     const embedding = await knowledgeClient.embedPassage(summary)
@@ -711,7 +755,7 @@ class AiService {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
           ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
           ...(XIANGDI_INTERNAL_TOKEN ? { 'X-Internal-Token': XIANGDI_INTERNAL_TOKEN } : {}),
         },
@@ -719,7 +763,9 @@ class AiService {
 
       const req = transport.request(options, (res: IncomingMessage) => {
         let data = ''
-        res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+        res.on('data', (chunk: Buffer) => {
+          data += chunk.toString()
+        })
         res.on('end', () => {
           try {
             resolve(JSON.parse(data))

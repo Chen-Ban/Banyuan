@@ -25,10 +25,7 @@ export function validateIdentifier(name: string, label: string): string {
     throw Object.assign(new Error(`${label}不能为空`), { status: 400 })
   }
   if (!NAME_REGEX.test(trimmed)) {
-    throw Object.assign(
-      new Error(`${label}只允许英文字母、数字、下划线，且必须以字母开头`),
-      { status: 400 },
-    )
+    throw Object.assign(new Error(`${label}只允许英文字母、数字、下划线，且必须以字母开头`), { status: 400 })
   }
   return trimmed
 }

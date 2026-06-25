@@ -23,7 +23,7 @@ export const CloudFunctionDefSchema = new Schema<ICloudFunctionDef>(
     description: { type: String, default: '', trim: true, maxlength: 500 },
     flowSchema: { type: Schema.Types.Mixed, default: { nodes: [], edges: [] } },
   },
-  { _id: false }
+  { _id: false },
 )
 
 // ─── 顶层 Schema（append-only 版本化集合）──────────────────────────────────────
@@ -37,7 +37,7 @@ const CloudFunctionSchema = new Schema<ICloudFunctionGroup>(
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
-  }
+  },
 )
 
 // 联合唯一索引：同一 app 的版本号不可重复

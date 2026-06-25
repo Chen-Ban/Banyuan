@@ -43,7 +43,7 @@ const AgentPromptSchema = new Schema<IAgentPromptDoc>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 // ─── 索引 ─────────────────────────────────────────────────────────────────────

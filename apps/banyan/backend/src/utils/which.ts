@@ -28,8 +28,8 @@ export async function which(cmd: string): Promise<string> {
   } catch {
     throw new Error(
       `Command "${cmd}" not found in PATH. ` +
-      `Please install it and ensure it is available in your PATH.\n` +
-      `  Install pnpm: https://pnpm.io/installation`
+        `Please install it and ensure it is available in your PATH.\n` +
+        `  Install pnpm: https://pnpm.io/installation`,
     )
   }
 }

@@ -18,17 +18,17 @@ import type { IMessage } from './message-types.js'
 
 /** Dialogue 生命周期阶段（唯一权威状态机） */
 export type DialoguePhase =
-  | 'start'             // 准备中（确定性非 LLM 区段：组装上下文）
-  | 'requirements'      // 需求解析（SubAgent: requirements）
-  | 'ui_design'         // UI 设计（SubAgent: uiDesign）
-  | 'contract'          // 契约定义（SubAgent: contract）
-  | 'building'          // 构建中（SubAgent: frontend + backend 并行）
-  | 'awaiting_confirm'  // 待确认（审计通过，等用户操作）
-  | 'committing'        // 提交中（落库 + 总结）
-  | 'responding'        // 回答中（chat 子路径，可含只读工具调用）
-  | 'done'              // 完成（终态）
-  | 'discarded'         // 已放弃/被打断（终态）
-  | 'failed'            // 失败（终态）
+  | 'start' // 准备中（确定性非 LLM 区段：组装上下文）
+  | 'requirements' // 需求解析（SubAgent: requirements）
+  | 'ui_design' // UI 设计（SubAgent: uiDesign）
+  | 'contract' // 契约定义（SubAgent: contract）
+  | 'building' // 构建中（SubAgent: frontend + backend 并行）
+  | 'awaiting_confirm' // 待确认（审计通过，等用户操作）
+  | 'committing' // 提交中（落库 + 总结）
+  | 'responding' // 回答中（chat 子路径，可含只读工具调用）
+  | 'done' // 完成（终态）
+  | 'discarded' // 已放弃/被打断（终态）
+  | 'failed' // 失败（终态）
 
 /**
  * 对话类型

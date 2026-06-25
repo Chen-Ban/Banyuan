@@ -17,7 +17,7 @@ const DeploySnapshotSubSchema = new Schema<IDeploySnapshot>(
     collections: { type: [CollectionDefSchema], default: [] },
     cloudFunctions: { type: [CloudFunctionDefSchema], default: [] },
   },
-  { _id: false }
+  { _id: false },
 )
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ const DeploymentSchema = new Schema<IDeploymentDoc>(
     startedAt: { type: Date, default: undefined },
     finishedAt: { type: Date, default: undefined },
   },
-  { timestamps: true, collection: 'deployments' }
+  { timestamps: true, collection: 'deployments' },
 )
 
 // 索引

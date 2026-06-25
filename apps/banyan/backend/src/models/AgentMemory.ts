@@ -44,7 +44,7 @@ const EpisodeSchema = new Schema<IEpisode>(
     createdAt: { type: Date, default: () => new Date() },
     lastAccessedAt: { type: Date, default: () => new Date() },
   },
-  { _id: false }
+  { _id: false },
 )
 
 const FactSchema = new Schema<IFact>(
@@ -71,7 +71,7 @@ const FactSchema = new Schema<IFact>(
     createdAt: { type: Date, default: () => new Date() },
     updatedAt: { type: Date, default: () => new Date() },
   },
-  { _id: false }
+  { _id: false },
 )
 
 const AgentMemorySchema = new Schema<IAgentMemoryDoc>(
@@ -97,7 +97,7 @@ const AgentMemorySchema = new Schema<IAgentMemoryDoc>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 // ─── 模型 ─────────────────────────────────────────────────────────────────────

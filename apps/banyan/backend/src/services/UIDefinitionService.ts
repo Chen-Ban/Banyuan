@@ -46,11 +46,7 @@ class UIDefinitionService {
    * @param baseVersion 拷贝基线版本号（最新已接受版本，0 表示无基线）
    * @returns 新版本号
    */
-  async createDraftVersion(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    baseVersion: number,
-  ): Promise<number> {
+  async createDraftVersion(appId: string, dialogueId: Types.ObjectId, baseVersion: number): Promise<number> {
     const base = baseVersion > 0 ? await this.getByVersion(appId, baseVersion) : null
     const newVersion = (await this.getMaxVersion(appId)) + 1
 

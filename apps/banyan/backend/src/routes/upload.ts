@@ -41,7 +41,7 @@ router.post('/:id/thumbnail', appOwnership, async (ctx) => {
   // 使用 sharp 压缩：缩小尺寸 + 转 WebP
   const compressedBuffer = await sharp(file.filepath)
     .resize(THUMBNAIL_MAX_SIZE, THUMBNAIL_MAX_SIZE, {
-      fit: 'inside',          // 保持比例，长边不超过 max
+      fit: 'inside', // 保持比例，长边不超过 max
       withoutEnlargement: true, // 小图不放大
     })
     .webp({ quality: THUMBNAIL_QUALITY })

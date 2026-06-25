@@ -80,7 +80,7 @@ export class TenantProvisionService {
             provisionStatus: 'ready' as ProvisionStatus,
             provisionedAt: new Date(),
           },
-        }
+        },
       )
 
       console.log(`[Provision ${tenantId}] Provision completed successfully.`)
@@ -94,7 +94,7 @@ export class TenantProvisionService {
             provisionStatus: 'failed' as ProvisionStatus,
             provisionError: message,
           },
-        }
+        },
       ).catch(() => {})
     }
   }

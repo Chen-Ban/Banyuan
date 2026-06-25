@@ -17,14 +17,21 @@ function generateId(prefix: string): string {
 }
 
 function toSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[\u4e00-\u9fa5]+/g, (match) => match.split('').map((_, i) => i.toString(36)).join(''))
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 32) || 'app'
+  return (
+    name
+      .toLowerCase()
+      .replace(/[\u4e00-\u9fa5]+/g, (match) =>
+        match
+          .split('')
+          .map((_, i) => i.toString(36))
+          .join(''),
+      )
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 32) || 'app'
+  )
 }
 
 // ─── DeployController ─────────────────────────────────────────────────────────
@@ -117,7 +124,7 @@ export class DeployController {
     }
 
     // 6. 自动判断 deployType：有数据表或云函数则升级为 fullstack
-    const effectiveDeployType = (collections || cloudFunctions) ? 'fullstack' : deployType
+    const effectiveDeployType = collections || cloudFunctions ? 'fullstack' : deployType
 
     // 7. 创建部署记录（使用 effectiveDeployType 确保记录与实际行为一致）
     //    同时冻结发布快照 —— 回滚时从此处取出完整数据重发给 agent
@@ -132,25 +139,27 @@ export class DeployController {
       triggeredBy: userId,
       snapshot: {
         uiJSON,
-        collections: collections?.map((c) => ({
-          name: c.name,
-          displayName: c.displayName,
-          fields: c.fields.map((f) => ({
-            name: f.name,
-            displayName: f.displayName,
-            type: f.type,
-            required: f.required,
-            defaultValue: f.defaultValue,
-            refCollection: f.refCollection,
-            enumValues: f.enumValues,
-          })),
-        })) ?? [],
-        cloudFunctions: cloudFunctions?.map((cf) => ({
-          functionId: cf.functionId,
-          name: cf.name,
-          displayName: cf.displayName,
-          flowSchema: cf.flowSchema,
-        })) ?? [],
+        collections:
+          collections?.map((c) => ({
+            name: c.name,
+            displayName: c.displayName,
+            fields: c.fields.map((f) => ({
+              name: f.name,
+              displayName: f.displayName,
+              type: f.type,
+              required: f.required,
+              defaultValue: f.defaultValue,
+              refCollection: f.refCollection,
+              enumValues: f.enumValues,
+            })),
+          })) ?? [],
+        cloudFunctions:
+          cloudFunctions?.map((cf) => ({
+            functionId: cf.functionId,
+            name: cf.name,
+            displayName: cf.displayName,
+            flowSchema: cf.flowSchema,
+          })) ?? [],
       },
     })
 
@@ -248,7 +257,7 @@ export class DeployController {
     const { uiJSON, collections, cloudFunctions } = targetDeployment.snapshot
     const parsedCollections = collections.length > 0 ? collections : undefined
     const parsedCloudFunctions = cloudFunctions.length > 0 ? cloudFunctions : undefined
-    const effectiveDeployType = (parsedCollections || parsedCloudFunctions) ? 'fullstack' : 'static' as const
+    const effectiveDeployType = parsedCollections || parsedCloudFunctions ? 'fullstack' : ('static' as const)
 
     // 4. 创建新的部署记录（类型标记为回滚）
     const rollbackDeploymentId = generateId('deploy')
@@ -279,9 +288,11 @@ export class DeployController {
     }
 
     // 6. 异步执行部署
-    this._executeDeploy(tenantId, deployRequest, targetDeployment.applicationId, rollbackDeploymentId).catch((err) => {
-      console.error(`[Rollback ${rollbackDeploymentId}] unexpected error:`, err)
-    })
+    this._executeDeploy(tenantId, deployRequest, targetDeployment.applicationId, rollbackDeploymentId).catch(
+      (err) => {
+        console.error(`[Rollback ${rollbackDeploymentId}] unexpected error:`, err)
+      },
+    )
 
     ctx.status = 201
     ctx.body = {
@@ -373,20 +384,17 @@ export class DeployController {
     tenantId: string,
     request: DeployRequest,
     applicationId: string,
-    deploymentId: string
+    deploymentId: string,
   ): Promise<void> {
     try {
       // 更新状态为 building
-      await Deployment.updateOne(
-        { deploymentId },
-        { $set: { status: 'building', startedAt: new Date() } }
-      )
+      await Deployment.updateOne({ deploymentId }, { $set: { status: 'building', startedAt: new Date() } })
 
       // 发送部署指令，监听进度
       const result = await agentGateway.deploy(tenantId, request, async (progress) => {
         await Deployment.updateOne(
           { deploymentId },
-          { $set: { currentStep: progress.message, progress: progress.progress } }
+          { $set: { currentStep: progress.message, progress: progress.progress } },
         ).catch(() => {})
       })
 
@@ -394,7 +402,7 @@ export class DeployController {
         // 部署成功：更新部署记录
         await Deployment.updateOne(
           { deploymentId },
-          { $set: { status: 'success', url: result.url, progress: 100, finishedAt: new Date() } }
+          { $set: { status: 'success', url: result.url, progress: 100, finishedAt: new Date() } },
         )
         // 更新应用记录（publishedVersion + webUrl）
         const app = await Application.findOne({ application_id: applicationId })
@@ -409,14 +417,14 @@ export class DeployController {
         // 部署失败
         await Deployment.updateOne(
           { deploymentId },
-          { $set: { status: 'failed', error: result.error, finishedAt: new Date() } }
+          { $set: { status: 'failed', error: result.error, finishedAt: new Date() } },
         )
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       await Deployment.updateOne(
         { deploymentId },
-        { $set: { status: 'failed', error: message, finishedAt: new Date() } }
+        { $set: { status: 'failed', error: message, finishedAt: new Date() } },
       ).catch(() => {})
     }
   }

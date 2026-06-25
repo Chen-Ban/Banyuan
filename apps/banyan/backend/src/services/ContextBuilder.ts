@@ -55,8 +55,8 @@ import knowledgeClient from './KnowledgeClient.js'
 export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'deepseek-v4-pro': 1000000,
   'deepseek-v4-flash': 1000000,
-  'deepseek-chat': 1000000,       // 映射到 deepseek-v4-flash 非思考模式
-  'deepseek-reasoner': 1000000,   // 映射到 deepseek-v4-flash 思考模式
+  'deepseek-chat': 1000000, // 映射到 deepseek-v4-flash 非思考模式
+  'deepseek-reasoner': 1000000, // 映射到 deepseek-v4-flash 思考模式
   'kimi-k2.6': 256000,
 }
 
@@ -105,8 +105,8 @@ function estimateMessageTokens(msg: IMessage): number {
   }
   if (msg.role === 'assistant' && msg.assistantContent) {
     // 只计算 text 类型的内容块（工具调用等不作为上下文传递）
-    const textBlocks = msg.assistantContent.filter(b => b.type === 'text')
-    const text = textBlocks.map(b => (b as { type: 'text'; text: string }).text).join('')
+    const textBlocks = msg.assistantContent.filter((b) => b.type === 'text')
+    const text = textBlocks.map((b) => (b as { type: 'text'; text: string }).text).join('')
     return estimateTokens(text) + 4
   }
   return 4
@@ -120,8 +120,8 @@ function messageToContextFormat(msg: IMessage): { role: 'user' | 'assistant'; co
     return { role: 'user', content: msg.userContent.prompt }
   }
   if (msg.role === 'assistant' && msg.assistantContent) {
-    const textBlocks = msg.assistantContent.filter(b => b.type === 'text')
-    const text = textBlocks.map(b => (b as { type: 'text'; text: string }).text).join('')
+    const textBlocks = msg.assistantContent.filter((b) => b.type === 'text')
+    const text = textBlocks.map((b) => (b as { type: 'text'; text: string }).text).join('')
     if (text) {
       return { role: 'assistant', content: text }
     }
@@ -133,7 +133,9 @@ function messageToContextFormat(msg: IMessage): { role: 'user' | 'assistant'; co
 
 function cosineSimilarity(a: number[], b: number[]): number {
   if (a.length !== b.length || a.length === 0) return 0
-  let dot = 0, normA = 0, normB = 0
+  let dot = 0,
+    normA = 0,
+    normB = 0
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i]
     normA += a[i] * a[i]
@@ -206,7 +208,7 @@ export class ContextBudgetOverflowError extends Error {
       recommendedBudget: number
       modelContextWindow: number
       recentRounds: number
-    }
+    },
   ) {
     super(message)
     this.name = 'ContextBudgetOverflowError'
@@ -237,13 +239,13 @@ class ContextBuilder {
    */
   async build(appId: string, currentPrompt?: string, options?: ContextBuildOptions): Promise<LayeredContext> {
     // 从独立 Dialogue 集合查询已完成的对话（phase=done）
-    const dialogues = await Dialogue.find({
+    const dialogues = (await Dialogue.find({
       appId,
       phase: 'done',
     })
       .sort({ createdAt: -1 })
       .limit(50)
-      .lean() as unknown as IDialogueDoc[]
+      .lean()) as unknown as IDialogueDoc[]
 
     if (!dialogues || dialogues.length === 0) {
       return {
@@ -256,7 +258,7 @@ class ContextBuilder {
     dialogues.reverse()
 
     // 如果所有 dialogue 都没有 summary（旧数据或首轮对话），回退到时间窗口模式
-    const hasSummaries = dialogues.some(d => d.summary?.text)
+    const hasSummaries = dialogues.some((d) => d.summary?.text)
     if (!hasSummaries) {
       return this.buildFallback(dialogues, options)
     }
@@ -294,7 +296,10 @@ class ContextBuilder {
     const fixedLayerTokens = l1Tokens + l2Tokens + l5Tokens
 
     // 推荐预算：modelWindow × 40% − L1 − L2 − L5（弹性扩展目标）
-    const recommendedBudget = Math.max(0, Math.floor(modelContextWindow * RECOMMENDED_USAGE_RATIO) - fixedLayerTokens)
+    const recommendedBudget = Math.max(
+      0,
+      Math.floor(modelContextWindow * RECOMMENDED_USAGE_RATIO) - fixedLayerTokens,
+    )
 
     // 可用预算：modelWindow − L1 − L2 − L5（硬上限，超出报警）
     const availableBudget = Math.max(0, modelContextWindow - fixedLayerTokens)
@@ -307,7 +312,7 @@ class ContextBuilder {
   private async buildWithRetrieval(
     dialogues: IDialogueDoc[],
     currentPrompt?: string,
-    options?: ContextBuildOptions
+    options?: ContextBuildOptions,
   ): Promise<LayeredContext> {
     const now = new Date()
 
@@ -349,9 +354,7 @@ class ContextBuilder {
     const retrievable = scoredDialogues.slice(0, -recentCount) // 前面的可检索
 
     // 4. 从可检索 dialogue 中取 top-k（按 mixedScore 降序）
-    const topK = retrievable
-      .sort((a, b) => b.mixedScore - a.mixedScore)
-      .slice(0, SEMANTIC_TOP_K)
+    const topK = retrievable.sort((a, b) => b.mixedScore - a.mixedScore).slice(0, SEMANTIC_TOP_K)
 
     // 5. 展开 L4 消息（优先级：最近 M 个 dialogue 刚性保障 → 弹性预算填 top-k）
     let recentMessages: Array<{ role: 'user' | 'assistant'; content: string }> = []
@@ -378,9 +381,15 @@ class ContextBuilder {
     if (totalTokens > availableBudget) {
       throw new ContextBudgetOverflowError(
         `刚性保障（最近 ${recentCount} 个对话）token 数 ${totalTokens} 超出模型可用预算 ${availableBudget}` +
-        `（模型窗口 ${modelContextWindow}，扣除 L1+L2+L5 后剩余 ${availableBudget}）。` +
-        `请考虑清理历史对话或切换到更大上下文窗口的模型。`,
-        { rigidTokens: totalTokens, availableBudget, recommendedBudget, modelContextWindow, recentRounds: recentCount }
+          `（模型窗口 ${modelContextWindow}，扣除 L1+L2+L5 后剩余 ${availableBudget}）。` +
+          `请考虑清理历史对话或切换到更大上下文窗口的模型。`,
+        {
+          rigidTokens: totalTokens,
+          availableBudget,
+          recommendedBudget,
+          modelContextWindow,
+          recentRounds: recentCount,
+        },
       )
     }
 

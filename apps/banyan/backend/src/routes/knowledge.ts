@@ -39,7 +39,7 @@ function proxyToKnowledge(method: string, targetPath: string, body: unknown): Pr
       method,
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
         ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
         ...(KNOWLEDGE_INTERNAL_TOKEN ? { 'X-Internal-Token': KNOWLEDGE_INTERNAL_TOKEN } : {}),
       },
@@ -48,7 +48,9 @@ function proxyToKnowledge(method: string, targetPath: string, body: unknown): Pr
 
     const req = transport.request(options, (res) => {
       let data = ''
-      res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+      res.on('data', (chunk: Buffer) => {
+        data += chunk.toString()
+      })
       res.on('end', () => {
         try {
           resolve({ status: res.statusCode, body: JSON.parse(data) })
@@ -78,7 +80,10 @@ function proxyToKnowledge(method: string, targetPath: string, body: unknown): Pr
  */
 router.post('/search', async (ctx) => {
   try {
-    const result = await proxyToKnowledge('POST', '/knowledge/search', ctx.request.body) as { status?: number; body: unknown }
+    const result = (await proxyToKnowledge('POST', '/knowledge/search', ctx.request.body)) as {
+      status?: number
+      body: unknown
+    }
     ctx.status = result.status ?? 200
     ctx.body = result.body
   } catch (err) {
@@ -92,7 +97,10 @@ router.post('/search', async (ctx) => {
  */
 router.post('/upsert', async (ctx) => {
   try {
-    const result = await proxyToKnowledge('POST', '/knowledge/upsert', ctx.request.body) as { status?: number; body: unknown }
+    const result = (await proxyToKnowledge('POST', '/knowledge/upsert', ctx.request.body)) as {
+      status?: number
+      body: unknown
+    }
     ctx.status = result.status ?? 200
     ctx.body = result.body
   } catch (err) {
@@ -106,7 +114,10 @@ router.post('/upsert', async (ctx) => {
  */
 router.delete('/entries', async (ctx) => {
   try {
-    const result = await proxyToKnowledge('DELETE', '/knowledge/entries', ctx.request.body) as { status?: number; body: unknown }
+    const result = (await proxyToKnowledge('DELETE', '/knowledge/entries', ctx.request.body)) as {
+      status?: number
+      body: unknown
+    }
     ctx.status = result.status ?? 200
     ctx.body = result.body
   } catch (err) {
@@ -120,7 +131,10 @@ router.delete('/entries', async (ctx) => {
  */
 router.get('/stats', async (ctx) => {
   try {
-    const result = await proxyToKnowledge('GET', '/knowledge/stats', null) as { status?: number; body: unknown }
+    const result = (await proxyToKnowledge('GET', '/knowledge/stats', null)) as {
+      status?: number
+      body: unknown
+    }
     ctx.status = result.status ?? 200
     ctx.body = result.body
   } catch (err) {
@@ -134,7 +148,10 @@ router.get('/stats', async (ctx) => {
  */
 router.post('/embed', async (ctx) => {
   try {
-    const result = await proxyToKnowledge('POST', '/knowledge/embed', ctx.request.body) as { status?: number; body: unknown }
+    const result = (await proxyToKnowledge('POST', '/knowledge/embed', ctx.request.body)) as {
+      status?: number
+      body: unknown
+    }
     ctx.status = result.status ?? 200
     ctx.body = result.body
   } catch (err) {

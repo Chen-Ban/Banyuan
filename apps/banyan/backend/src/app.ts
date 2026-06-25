@@ -15,13 +15,15 @@ app.use(logger())
 app.use(json())
 
 // 使用 koa-body 替代 koa-bodyparser，支持 multipart 文件上传
-app.use(koaBody({
-  multipart: true,
-  formidable: {
-    maxFileSize: 20 * 1024 * 1024, // 20MB
-    keepExtensions: true,
-  },
-}))
+app.use(
+  koaBody({
+    multipart: true,
+    formidable: {
+      maxFileSize: 20 * 1024 * 1024, // 20MB
+      keepExtensions: true,
+    },
+  }),
+)
 
 // 全局错误处理中间件（统一结构化 ErrorPayload 响应）
 app.use(errorHandler())

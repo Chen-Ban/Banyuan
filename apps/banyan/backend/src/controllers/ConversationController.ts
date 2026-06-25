@@ -43,8 +43,10 @@ class ConversationController {
           dialogueId: (dlg._id as Types.ObjectId).toString(),
           type: dlg.type,
           status: 'awaiting_confirm' as const,
-          userMessage: dlg.messages.find(m => m.role === 'user')?.userContent ?? { prompt: '', images: [] },
-          assistantContent: dlg.messages.filter(m => m.role === 'assistant').flatMap(m => m.assistantContent ?? []),
+          userMessage: dlg.messages.find((m) => m.role === 'user')?.userContent ?? { prompt: '', images: [] },
+          assistantContent: dlg.messages
+            .filter((m) => m.role === 'assistant')
+            .flatMap((m) => m.assistantContent ?? []),
           createdAt: dlg.createdAt,
         }
       : null

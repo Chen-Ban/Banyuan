@@ -84,13 +84,21 @@ export class FullStateController {
 
         if (hasCollections) {
           tasks.push(
-            SchemaService.updateByVersion(appId, versions.schemaVersion, body.collections as ICollectionDef[]),
+            SchemaService.updateByVersion(
+              appId,
+              versions.schemaVersion,
+              body.collections as ICollectionDef[],
+            ),
           )
         }
 
         if (hasCloudFunctions) {
           tasks.push(
-            cloudFunctionService.updateByVersion(appId, versions.cloudFunctionVersion, body.cloudFunctions as ICloudFunctionDef[]),
+            cloudFunctionService.updateByVersion(
+              appId,
+              versions.cloudFunctionVersion,
+              body.cloudFunctions as ICloudFunctionDef[],
+            ),
           )
         }
 
@@ -117,7 +125,10 @@ export class FullStateController {
           await applicationService.updateApplication(appId, { thumbnail: thumbnailUrl })
         })
         .catch((err) => {
-          console.warn('[FullStateController] 封面生成失败:', err instanceof Error ? err.message : String(err))
+          console.warn(
+            '[FullStateController] 封面生成失败:',
+            err instanceof Error ? err.message : String(err),
+          )
         })
     }
   }
