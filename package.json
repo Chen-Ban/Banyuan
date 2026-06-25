@@ -11,7 +11,12 @@
     "dev:banyan": "pnpm run build:libs && concurrently --kill-others -c \"magenta.bold,gray.bold,#ff9900.bold,#00cc99.bold,cyan.bold\" -n canvas,agent,xiangdi-srv,knowledge-srv,banyan \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter @banyuan/banvasgl-react dev\" \"pnpm --filter @banyuan/xiangdi-agent dev\" \"pnpm --filter xiangdi-server dev\" \"pnpm --filter knowledge-server dev\" \"pnpm --filter banyan dev\"",
     "dev:lunlunglass": "pnpm run build:banvasgl && concurrently --kill-others -c \"magenta.bold,cyan.bold,green.bold\" -n canvas,lunlunglass,react \"pnpm --filter @banyuan/banvasgl dev\" \"pnpm --filter lunlunglass dev\" \"pnpm --filter @banyuan/banvasgl-react dev\"",
     "knowledge:schema": "tsx scripts/knowledge/generate-schema-seeds.ts",
-    "migrations:tenant": "tsx scripts/migrations/migrate-tenant-data.ts"
+    "migrations:tenant": "tsx scripts/migrations/migrate-tenant-data.ts",
+    "lint": "pnpm --filter @banyuan/banvasgl run lint && pnpm --filter @banyuan/xiangdi-agent run lint && pnpm --filter @banyuan/banvasgl-react run lint && pnpm --filter @banyuan/banvas-react-runtime run lint && pnpm --filter @banyuan/deploy-agent run lint && pnpm --filter ./apps/banyan/backend run lint && pnpm --filter ./apps/banyan/electron run lint && pnpm --filter ./apps/banyan/frontend run lint && pnpm --filter ./apps/knowledge-server run lint && pnpm --filter ./apps/xiangdi-server run lint",
+    "lint:fix": "pnpm --filter @banyuan/banvasgl run lint:fix && pnpm --filter @banyuan/xiangdi-agent run lint:fix && pnpm --filter @banyuan/banvasgl-react run lint:fix && pnpm --filter @banyuan/banvas-react-runtime run lint:fix && pnpm --filter @banyuan/deploy-agent run lint:fix && pnpm --filter ./apps/banyan/backend run lint:fix && pnpm --filter ./apps/banyan/electron run lint:fix && pnpm --filter ./apps/banyan/frontend run lint:fix && pnpm --filter ./apps/knowledge-server run lint:fix && pnpm --filter ./apps/xiangdi-server run lint:fix",
+    "type-check": "pnpm -r exec tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,scss,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,scss,md}\""
   },
   "keywords": [],
   "author": "",
@@ -21,7 +26,8 @@
     "concurrently": "^9.2.1",
     "tsx": "^4.19.0",
     "typescript": "~5.7.3",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "prettier": "^3.4.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

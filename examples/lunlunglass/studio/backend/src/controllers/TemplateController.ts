@@ -18,7 +18,7 @@ class TemplateController {
           publishStatus: publishStatus as string | undefined,
         },
         parseInt(page as string, 10),
-        parseInt(pageSize as string, 10)
+        parseInt(pageSize as string, 10),
       )
       ctx.body = { success: true, data: result }
     } catch (error: unknown) {
@@ -86,7 +86,10 @@ class TemplateController {
         ctx.body = { success: false, message: 'id cannot be updated' }
         return
       }
-      const template = await templateService.updateTemplate(ctx.params.id, body as Parameters<typeof templateService.updateTemplate>[1])
+      const template = await templateService.updateTemplate(
+        ctx.params.id,
+        body as Parameters<typeof templateService.updateTemplate>[1],
+      )
       if (!template) {
         ctx.status = 404
         ctx.body = { success: false, message: 'Template not found' }

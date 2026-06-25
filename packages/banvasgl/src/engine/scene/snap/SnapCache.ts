@@ -52,7 +52,7 @@ export class SnapCache {
     ]
 
     // 变换到世界坐标，取 AABB
-    const worldCorners = corners.map(p => worldMatrix.multiply(p))
+    const worldCorners = corners.map((p) => worldMatrix.multiply(p))
     return Bounds.fromPoints(worldCorners)
   }
 }

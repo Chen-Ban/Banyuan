@@ -1,5 +1,5 @@
-export { default as Polygon } from "./Polygon";
-export { default as Triangle } from "./Triangle";
-export { default as Quadrilateral } from "./Quadrilateral";
-export { default as Rectangle } from "./Rectangle";
-export { default as RegularPolygon } from "./RegularPolygon";
+export { default as Polygon } from './Polygon'
+export { default as Triangle } from './Triangle'
+export { default as Quadrilateral } from './Quadrilateral'
+export { default as Rectangle } from './Rectangle'
+export { default as RegularPolygon } from './RegularPolygon'

@@ -1,7 +1,7 @@
-import Color from "./Color";
-import { StyleType } from "@/foundation/constants";
+import Color from './Color'
+import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 
 /**
  * 阴影样式
@@ -16,13 +16,13 @@ import type { IDrawingContext } from '@/types/platform/drawing.js'
  * ```
  */
 export default class ShadowStyle implements ISerializable {
-  public readonly type: StyleType = StyleType.SHADOW_STYLE;
-  color: Color;
-  offsetX: number;
-  offsetY: number;
-  blur: number;
-  opacity: number;
-  enabled: boolean;
+  public readonly type: StyleType = StyleType.SHADOW_STYLE
+  color: Color
+  offsetX: number
+  offsetY: number
+  blur: number
+  opacity: number
+  enabled: boolean
 
   /**
    * 构造阴影样式
@@ -45,12 +45,12 @@ export default class ShadowStyle implements ISerializable {
    */
   constructor(
     options: {
-      color?: Color;
-      offsetX?: number;
-      offsetY?: number;
-      blur?: number;
-      opacity?: number;
-      enabled?: boolean;
+      color?: Color
+      offsetX?: number
+      offsetY?: number
+      blur?: number
+      opacity?: number
+      enabled?: boolean
     } = {},
   ) {
     const {
@@ -60,14 +60,14 @@ export default class ShadowStyle implements ISerializable {
       blur = 0,
       opacity = 0.5,
       enabled = false,
-    } = options;
+    } = options
 
-    this.color = color;
-    this.offsetX = offsetX;
-    this.offsetY = offsetY;
-    this.blur = Math.max(0, blur);
-    this.opacity = Math.max(0, Math.min(1, opacity));
-    this.enabled = enabled;
+    this.color = color
+    this.offsetX = offsetX
+    this.offsetY = offsetY
+    this.blur = Math.max(0, blur)
+    this.opacity = Math.max(0, Math.min(1, opacity))
+    this.enabled = enabled
   }
 
   /**
@@ -84,10 +84,10 @@ export default class ShadowStyle implements ISerializable {
    * ```
    */
   get cssShadow(): string {
-    if (!this.enabled) return "none";
+    if (!this.enabled) return 'none'
 
-    const { r, g, b } = this.color;
-    return `${this.offsetX}px ${this.offsetY}px ${this.blur}px rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${this.opacity})`;
+    const { r, g, b } = this.color
+    return `${this.offsetX}px ${this.offsetY}px ${this.blur}px rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${this.opacity})`
   }
 
   /**
@@ -104,8 +104,8 @@ export default class ShadowStyle implements ISerializable {
    * ```
    */
   setColor(color: Color): ShadowStyle {
-    this.color = color;
-    return this;
+    this.color = color
+    return this
   }
 
   /**
@@ -123,9 +123,9 @@ export default class ShadowStyle implements ISerializable {
    * ```
    */
   setOffset(offsetX: number, offsetY: number): ShadowStyle {
-    this.offsetX = offsetX;
-    this.offsetY = offsetY;
-    return this;
+    this.offsetX = offsetX
+    this.offsetY = offsetY
+    return this
   }
 
   /**
@@ -142,8 +142,8 @@ export default class ShadowStyle implements ISerializable {
    * ```
    */
   setBlur(blur: number): ShadowStyle {
-    this.blur = Math.max(0, blur);
-    return this;
+    this.blur = Math.max(0, blur)
+    return this
   }
 
   /**
@@ -160,8 +160,8 @@ export default class ShadowStyle implements ISerializable {
    * ```
    */
   setOpacity(opacity: number): ShadowStyle {
-    this.opacity = Math.max(0, Math.min(1, opacity));
-    return this;
+    this.opacity = Math.max(0, Math.min(1, opacity))
+    return this
   }
 
   /**
@@ -178,8 +178,8 @@ export default class ShadowStyle implements ISerializable {
    * ```
    */
   setEnabled(enabled: boolean): ShadowStyle {
-    this.enabled = enabled;
-    return this;
+    this.enabled = enabled
+    return this
   }
 
   /**
@@ -199,16 +199,16 @@ export default class ShadowStyle implements ISerializable {
    */
   applyToContext(ctx: IDrawingContext): void {
     if (this.enabled) {
-      const { r, g, b } = this.color;
-      ctx.shadowColor = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${this.opacity})`;
-      ctx.shadowOffsetX = this.offsetX;
-      ctx.shadowOffsetY = this.offsetY;
-      ctx.shadowBlur = this.blur;
+      const { r, g, b } = this.color
+      ctx.shadowColor = `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${this.opacity})`
+      ctx.shadowOffsetX = this.offsetX
+      ctx.shadowOffsetY = this.offsetY
+      ctx.shadowBlur = this.blur
     } else {
-      ctx.shadowColor = "transparent";
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent'
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+      ctx.shadowBlur = 0
     }
   }
 
@@ -235,7 +235,7 @@ export default class ShadowStyle implements ISerializable {
       blur: this.blur,
       opacity: this.opacity,
       enabled: this.enabled,
-    };
+    }
   }
 
   /**
@@ -259,7 +259,7 @@ export default class ShadowStyle implements ISerializable {
       blur: data.blur,
       opacity: data.opacity,
       enabled: data.enabled,
-    });
+    })
   }
 
   /**
@@ -283,7 +283,7 @@ export default class ShadowStyle implements ISerializable {
       blur: this.blur,
       opacity: this.opacity,
       enabled: this.enabled,
-    });
+    })
   }
 
   /**
@@ -309,7 +309,7 @@ export default class ShadowStyle implements ISerializable {
       this.blur === other.blur &&
       this.opacity === other.opacity &&
       this.enabled === other.enabled
-    );
+    )
   }
 
   // 静态工厂方法
@@ -345,7 +345,7 @@ export default class ShadowStyle implements ISerializable {
       blur,
       opacity,
       enabled: true,
-    });
+    })
   }
 
   /**
@@ -383,7 +383,7 @@ export default class ShadowStyle implements ISerializable {
       blur,
       opacity,
       enabled: true,
-    });
+    })
   }
 
   /**
@@ -421,7 +421,7 @@ export default class ShadowStyle implements ISerializable {
       blur,
       opacity,
       enabled: true,
-    });
+    })
   }
 
   /**
@@ -453,7 +453,7 @@ export default class ShadowStyle implements ISerializable {
       blur,
       opacity,
       enabled: true,
-    });
+    })
   }
 
   /**
@@ -471,11 +471,7 @@ export default class ShadowStyle implements ISerializable {
    * const glow = ShadowStyle.glow(Color.BLUE, 12, 0.6);
    * ```
    */
-  static glow(
-    color: Color = Color.WHITE,
-    blur: number = 10,
-    opacity: number = 0.8,
-  ): ShadowStyle {
+  static glow(color: Color = Color.WHITE, blur: number = 10, opacity: number = 0.8): ShadowStyle {
     return new ShadowStyle({
       color,
       offsetX: 0,
@@ -483,7 +479,7 @@ export default class ShadowStyle implements ISerializable {
       blur,
       opacity,
       enabled: true,
-    });
+    })
   }
 
   /**
@@ -517,7 +513,7 @@ export default class ShadowStyle implements ISerializable {
       blur,
       opacity,
       enabled: true,
-    });
+    })
   }
 
   // 预定义样式
@@ -529,15 +525,15 @@ export default class ShadowStyle implements ISerializable {
     blur: 0,
     opacity: 0,
     enabled: false,
-  });
+  })
   /** 柔和投影 */
-  static readonly SOFT_DROP = ShadowStyle.dropShadow(2, 2, 4, 0.3);
+  static readonly SOFT_DROP = ShadowStyle.dropShadow(2, 2, 4, 0.3)
   /** 硬投影 */
-  static readonly HARD_DROP = ShadowStyle.dropShadow(2, 2, 0, 0.5);
+  static readonly HARD_DROP = ShadowStyle.dropShadow(2, 2, 0, 0.5)
   /** 白色发光 */
-  static readonly GLOW_WHITE = ShadowStyle.glow(Color.WHITE, 10, 0.8);
+  static readonly GLOW_WHITE = ShadowStyle.glow(Color.WHITE, 10, 0.8)
   /** 蓝色发光 */
-  static readonly GLOW_BLUE = ShadowStyle.glow(Color.BLUE, 8, 0.6);
+  static readonly GLOW_BLUE = ShadowStyle.glow(Color.BLUE, 8, 0.6)
   /** 内阴影 */
-  static readonly INNER_SHADOW = ShadowStyle.innerShadow();
+  static readonly INNER_SHADOW = ShadowStyle.innerShadow()
 }

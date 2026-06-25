@@ -14,15 +14,15 @@
  *   const checkpointer = store.getCheckpointer()
  */
 
-import type { CheckpointStore } from "./types.js";
-import { SqliteCheckpointStore } from "./SqliteCheckpointStore.js";
-import { MemoryCheckpointStore } from "./MemoryCheckpointStore.js";
+import type { CheckpointStore } from './types.js'
+import { SqliteCheckpointStore } from './SqliteCheckpointStore.js'
+import { MemoryCheckpointStore } from './MemoryCheckpointStore.js'
 
-export type { CheckpointStore, ThreadStatus, CleanupConfig } from "./types.js";
+export type { CheckpointStore, ThreadStatus, CleanupConfig } from './types.js'
 
 // ─── 全局单例 ────────────────────────────────────────────────────────────────────
 
-let _store: CheckpointStore | null = null;
+let _store: CheckpointStore | null = null
 
 /**
  * 创建或获取 CheckpointStore 全局单例。
@@ -30,29 +30,27 @@ let _store: CheckpointStore | null = null;
  */
 export function getStore(): CheckpointStore {
   if (!_store) {
-    _store = createStore();
+    _store = createStore()
   }
-  return _store;
+  return _store
 }
 
 /**
  * 工厂函数：根据环境配置创建对应的 CheckpointStore 实现。
  */
 function createStore(): CheckpointStore {
-  const backend = process.env.CHECKPOINT_BACKEND ?? "sqlite";
+  const backend = process.env.CHECKPOINT_BACKEND ?? 'sqlite'
 
   switch (backend) {
-    case "memory":
-      return new MemoryCheckpointStore();
+    case 'memory':
+      return new MemoryCheckpointStore()
 
-    case "sqlite":
-      return new SqliteCheckpointStore();
+    case 'sqlite':
+      return new SqliteCheckpointStore()
 
     default:
-      console.warn(
-        `[checkpoint] Unknown CHECKPOINT_BACKEND="${backend}", falling back to sqlite`
-      );
-      return new SqliteCheckpointStore();
+      console.warn(`[checkpoint] Unknown CHECKPOINT_BACKEND="${backend}", falling back to sqlite`)
+      return new SqliteCheckpointStore()
   }
 }
 
@@ -62,7 +60,7 @@ function createStore(): CheckpointStore {
  * @deprecated 使用 `getStore().getCheckpointer()` 代替
  */
 export function getCheckpointer() {
-  return getStore().getCheckpointer();
+  return getStore().getCheckpointer()
 }
 
 /**
@@ -70,7 +68,7 @@ export function getCheckpointer() {
  */
 export async function closeCheckpointer(): Promise<void> {
   if (_store) {
-    await _store.stop();
-    _store = null;
+    await _store.stop()
+    _store = null
   }
 }

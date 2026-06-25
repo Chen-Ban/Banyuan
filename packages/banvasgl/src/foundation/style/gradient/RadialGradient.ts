@@ -1,7 +1,8 @@
 import Color from '../Color.js'
-import Gradient, { type GradientStop } from './Gradient.js'
+import Gradient from './Gradient.js'
+import type { GradientStop } from '@/types/foundation/style'
 import { StyleType } from '@/foundation/constants'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { IGradient } from '@/types/foundation/gradient.js'
 
 /**
@@ -57,9 +58,13 @@ export default class RadialGradient extends Gradient {
    * ```
    */
   constructor(
-    cx: number = 50, cy: number = 50, r: number = 50,
+    cx: number = 50,
+    cy: number = 50,
+    r: number = 50,
     stops: GradientStop[] = [],
-    fx?: number, fy?: number, fr?: number
+    fx?: number,
+    fy?: number,
+    fr?: number,
   ) {
     super(stops)
     this.cx = cx
@@ -94,21 +99,21 @@ export default class RadialGradient extends Gradient {
 
     if (this.fx !== undefined && this.fy !== undefined && this.fr !== undefined) {
       gradient = ctx.createRadialGradient(
-        this.fx * width / 100,
-        this.fy * height / 100,
-        this.fr * minDim / 100,
-        this.cx * width / 100,
-        this.cy * height / 100,
-        this.r * minDim / 100
+        (this.fx * width) / 100,
+        (this.fy * height) / 100,
+        (this.fr * minDim) / 100,
+        (this.cx * width) / 100,
+        (this.cy * height) / 100,
+        (this.r * minDim) / 100,
       )
     } else {
       gradient = ctx.createRadialGradient(
-        this.cx * width / 100,
-        this.cy * height / 100,
+        (this.cx * width) / 100,
+        (this.cy * height) / 100,
         0,
-        this.cx * width / 100,
-        this.cy * height / 100,
-        this.r * minDim / 100
+        (this.cx * width) / 100,
+        (this.cy * height) / 100,
+        (this.r * minDim) / 100,
       )
     }
 
@@ -133,8 +138,12 @@ export default class RadialGradient extends Gradient {
     return {
       type: this.type,
       stops: this.serializeStops(),
-      cx: this.cx, cy: this.cy, r: this.r,
-      fx: this.fx, fy: this.fy, fr: this.fr,
+      cx: this.cx,
+      cy: this.cy,
+      r: this.r,
+      fx: this.fx,
+      fy: this.fy,
+      fr: this.fr,
     }
   }
 
@@ -193,10 +202,15 @@ export default class RadialGradient extends Gradient {
    */
   equals(other: Gradient): boolean {
     if (!(other instanceof RadialGradient)) return false
-    return this.cx === other.cx && this.cy === other.cy &&
-           this.r === other.r &&
-           this.fx === other.fx && this.fy === other.fy && this.fr === other.fr &&
-           this.stopsEqual(other)
+    return (
+      this.cx === other.cx &&
+      this.cy === other.cy &&
+      this.r === other.r &&
+      this.fx === other.fx &&
+      this.fy === other.fy &&
+      this.fr === other.fr &&
+      this.stopsEqual(other)
+    )
   }
 
   // 预定义径向渐变
@@ -206,13 +220,13 @@ export default class RadialGradient extends Gradient {
     { color: Color.GREEN, position: 0.4 },
     { color: Color.CYAN, position: 0.6 },
     { color: Color.BLUE, position: 0.8 },
-    { color: Color.MAGENTA, position: 1 }
+    { color: Color.MAGENTA, position: 1 },
   ])
 
   static readonly FIRE = new RadialGradient(50, 50, 50, [
     { color: new Color(255, 255, 255), position: 0 },
     { color: new Color(255, 255, 0), position: 0.3 },
     { color: new Color(255, 100, 0), position: 0.7 },
-    { color: new Color(139, 0, 0), position: 1 }
+    { color: new Color(139, 0, 0), position: 1 },
   ])
 }

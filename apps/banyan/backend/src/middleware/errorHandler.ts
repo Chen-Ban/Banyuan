@@ -22,9 +22,10 @@ export function errorHandler() {
           error: err.toJSON(),
         }
       } else {
-        const status = (err as { statusCode?: number; status?: number }).statusCode
-          ?? (err as { statusCode?: number; status?: number }).status
-          ?? 500
+        const status =
+          (err as { statusCode?: number; status?: number }).statusCode ??
+          (err as { statusCode?: number; status?: number }).status ??
+          500
         ctx.status = status
         ctx.body = {
           success: false,

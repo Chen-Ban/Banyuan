@@ -1,13 +1,9 @@
 import Color from '../Color.js'
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { IGradient } from '@/types/foundation/gradient.js'
-
-export type GradientStop = {
-  color: Color
-  position: number // 0-1
-}
+import type { GradientStop } from '@/types/foundation/style'
 
 /**
  * 渐变抽象基类
@@ -183,8 +179,10 @@ export default abstract class Gradient implements ISerializable {
   protected stopsEqual(other: Gradient): boolean {
     if (this.stops.length !== other.stops.length) return false
     for (let i = 0; i < this.stops.length; i++) {
-      if (!this.stops[i].color.equals(other.stops[i].color) ||
-          this.stops[i].position !== other.stops[i].position) {
+      if (
+        !this.stops[i].color.equals(other.stops[i].color) ||
+        this.stops[i].position !== other.stops[i].position
+      ) {
         return false
       }
     }
@@ -208,7 +206,7 @@ export default abstract class Gradient implements ISerializable {
    * ```
    */
   protected applyStops(gradient: IGradient): void {
-    this.stops.forEach(stop => {
+    this.stops.forEach((stop) => {
       gradient.addColorStop(stop.position, stop.color.rgba)
     })
   }
@@ -230,7 +228,7 @@ export default abstract class Gradient implements ISerializable {
    * ```
    */
   protected serializeStops(): { color: any; position: number }[] {
-    return this.stops.map(s => ({ color: s.color.toJSON(), position: s.position }))
+    return this.stops.map((s) => ({ color: s.color.toJSON(), position: s.position }))
   }
 
   /**
@@ -252,7 +250,6 @@ export default abstract class Gradient implements ISerializable {
    * ```
    */
   static deserializeStops(data: any[]): GradientStop[] {
-    return data.map(s => ({ color: Color.fromJSON(s.color), position: s.position }))
+    return data.map((s) => ({ color: Color.fromJSON(s.color), position: s.position }))
   }
-
 }

@@ -15,68 +15,68 @@ import type View from '@/view/View/View'
 import type { PropertyAdapter } from '@/types/view/property'
 
 export const widthAdapter: PropertyAdapter = {
-    category: 'size',
+  category: 'size',
 
-    get(view: View): number {
-        return view.viewport.width
-    },
+  get(view: View): number {
+    return view.viewport.width
+  },
 
-    set(view: View, value: number): void {
-        view.viewport.setSize(value, view.viewport.height)
-    },
+  set(view: View, value: number): void {
+    view.viewport.setSize(value, view.viewport.height)
+  },
 }
 
 export const heightAdapter: PropertyAdapter = {
-    category: 'size',
+  category: 'size',
 
-    get(view: View): number {
-        return view.viewport.height
-    },
+  get(view: View): number {
+    return view.viewport.height
+  },
 
-    set(view: View, value: number): void {
-        view.viewport.setSize(view.viewport.width, value)
-    },
+  set(view: View, value: number): void {
+    view.viewport.setSize(view.viewport.width, value)
+  },
 }
 
 export const scaleXAdapter: PropertyAdapter = {
-    category: 'size',
+  category: 'size',
 
-    /**
-     * 返回 1 表示当前缩放基准
-     * 实际缩放通过修改 viewport.width 实现
-     */
-    get(): number {
-        return 1
-    },
+  /**
+   * 返回 1 表示当前缩放基准
+   * 实际缩放通过修改 viewport.width 实现
+   */
+  get(): number {
+    return 1
+  },
 
-    /**
-     * 将 viewport.width 乘以 scale 因子
-     */
-    set(view: View, value: number): void {
-        const currentWidth = view.viewport.width
-        view.viewport.setSize(currentWidth * value, view.viewport.height)
-    },
+  /**
+   * 将 viewport.width 乘以 scale 因子
+   */
+  set(view: View, value: number): void {
+    const currentWidth = view.viewport.width
+    view.viewport.setSize(currentWidth * value, view.viewport.height)
+  },
 }
 
 export const scaleYAdapter: PropertyAdapter = {
-    category: 'size',
+  category: 'size',
 
-    get(): number {
-        return 1
-    },
+  get(): number {
+    return 1
+  },
 
-    set(view: View, value: number): void {
-        const currentHeight = view.viewport.height
-        view.viewport.setSize(view.viewport.width, currentHeight * value)
-    },
+  set(view: View, value: number): void {
+    const currentHeight = view.viewport.height
+    view.viewport.setSize(view.viewport.width, currentHeight * value)
+  },
 }
 
 /**
  * 所有尺寸属性适配器
  */
 export const sizeAdapters: Record<string, PropertyAdapter> = {
-    width: widthAdapter,
-    height: heightAdapter,
-    scaleX: scaleXAdapter,
-    scaleY: scaleYAdapter,
+  width: widthAdapter,
+  height: heightAdapter,
+  scaleX: scaleXAdapter,
+  scaleY: scaleYAdapter,
 }

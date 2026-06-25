@@ -19,6 +19,8 @@ import {
   PlayCircleOutlined,
   EditOutlined,
 } from '@ant-design/icons'
+import { usePreviewServerStore } from '@/stores/previewServerStore'
+import { useApplicationStore } from '@/stores/applicationStore'
 import styles from '../../index.module.scss'
 
 function deriveActiveTab(pathname: string): 'preview' | 'ui' | 'database' | 'data-browser' | 'functions' {
@@ -33,22 +35,44 @@ const TabCapsule: React.FC = () => {
   const { id: applicationId } = useParams<{ id: string }>()
   const location = useLocation()
   const navigate = useNavigate()
+  const serverInfo = usePreviewServerStore((s) => s.serverInfo)
+  const serverStatus = usePreviewServerStore((s) => s.status)
+  const serverError = usePreviewServerStore((s) => s.errorMessage)
 
   const activeTab = deriveActiveTab(location.pathname)
 
-  const nav = (segment: string) => {
+  const nav = async (segment: string) => {
     if (!applicationId) return
+
+    // 切预览前自动保存脏数据
+    if (segment === 'preview') {
+      const store = useApplicationStore.getState()
+      if (store.uiJSONDirty || store.dataSchemaDirty || store.cloudFunctionsDirty) {
+        await store.save()
+        // 注意：save() 失败（网络错误/ALREADY_SAVING）仍允许导航到预览，
+        // 预览页显示的是上次落库版本。这是"尽力而为"设计——不阻塞用户操作。
+      }
+    }
+
     navigate(`/application/${applicationId}/${segment}`)
   }
+
+  // 预览/数据浏览依赖 Preview Server，不可用时禁用但保留占位避免布局抖动
+  const previewDisabled = !serverInfo
+  const previewDisabledReason =
+    serverStatus === 'error' ? `预览服务启动失败${serverError ? '：' + serverError : ''}` : '预览服务不可用'
 
   return (
     <div className={styles.tabCapsule}>
       {/* 画布区域 Segmented：预览 | 编辑 */}
       <div className={styles.canvasSegmented}>
-        <Tooltip title="预览应用">
+        <Tooltip title={previewDisabled ? previewDisabledReason : '预览应用'}>
           <button
-            className={`${styles.segBtn} ${activeTab === 'preview' ? styles.segBtnActive : ''}`}
-            onClick={() => nav('preview')}
+            className={`${styles.segBtn} ${activeTab === 'preview' ? styles.segBtnActive : ''} ${previewDisabled ? styles.segBtnDisabled : ''}`}
+            onClick={() => {
+              if (!previewDisabled) nav('preview')
+            }}
+            disabled={previewDisabled}
           >
             <PlayCircleOutlined />
           </button>
@@ -72,17 +96,24 @@ const TabCapsule: React.FC = () => {
           className={`${styles.tabBtn} ${activeTab === 'database' ? styles.tabBtnActive : ''}`}
           onClick={() => nav('database')}
         >
-          <span className={styles.tabIcon}><DatabaseOutlined /></span>
+          <span className={styles.tabIcon}>
+            <DatabaseOutlined />
+          </span>
         </button>
       </Tooltip>
 
       {/* 数据浏览 Tab */}
-      <Tooltip title="数据浏览">
+      <Tooltip title={previewDisabled ? previewDisabledReason : '数据浏览'}>
         <button
-          className={`${styles.tabBtn} ${activeTab === 'data-browser' ? styles.tabBtnActive : ''}`}
-          onClick={() => nav('data-browser')}
+          className={`${styles.tabBtn} ${activeTab === 'data-browser' ? styles.tabBtnActive : ''} ${previewDisabled ? styles.tabBtnDisabled : ''}`}
+          onClick={() => {
+            if (!previewDisabled) nav('data-browser')
+          }}
+          disabled={previewDisabled}
         >
-          <span className={styles.tabIcon}><SearchOutlined /></span>
+          <span className={styles.tabIcon}>
+            <SearchOutlined />
+          </span>
         </button>
       </Tooltip>
 
@@ -95,7 +126,9 @@ const TabCapsule: React.FC = () => {
           className={`${styles.tabBtn} ${activeTab === 'functions' ? styles.tabBtnActive : ''}`}
           onClick={() => nav('functions')}
         >
-          <span className={styles.tabIcon}><FunctionOutlined /></span>
+          <span className={styles.tabIcon}>
+            <FunctionOutlined />
+          </span>
         </button>
       </Tooltip>
     </div>

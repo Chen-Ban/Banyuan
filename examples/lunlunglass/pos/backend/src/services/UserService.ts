@@ -34,7 +34,7 @@ class UserService {
   async getUserList(
     query: IUserQuery = {},
     page: number = 1,
-    pageSize: number = 12
+    pageSize: number = 12,
   ): Promise<IUserListResult> {
     try {
       // 构建查询条件
@@ -141,7 +141,7 @@ class UserService {
       email?: string
       phone?: string
       optometry?: IOptometryParams
-    }
+    },
   ): Promise<IUser | null> {
     try {
       let user
@@ -208,4 +208,3 @@ class UserService {
 }
 
 export default new UserService()
-

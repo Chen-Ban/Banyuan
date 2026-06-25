@@ -22,12 +22,8 @@
  * @param delta - 本地坐标系下的位移分量
  * @returns 带正确方向的增量值
  */
-export function calculateDimensionDelta(
-  dimension: number,
-  reference: number,
-  delta: number,
-): number {
-  return Math.sign(dimension * reference * delta) * Math.abs(delta);
+export function calculateDimensionDelta(dimension: number, reference: number, delta: number): number {
+  return Math.sign(dimension * reference * delta) * Math.abs(delta)
 }
 
 // ────────────────────────────────────────────
@@ -35,15 +31,15 @@ export function calculateDimensionDelta(
 // ────────────────────────────────────────────
 
 export interface IScrollBarGeometry {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 export interface IScrollBarResult {
-  horizontal: IScrollBarGeometry | null;
-  vertical: IScrollBarGeometry | null;
+  horizontal: IScrollBarGeometry | null
+  vertical: IScrollBarGeometry | null
 }
 
 /**
@@ -69,32 +65,32 @@ export function calculateScrollBarGeometry(
   maxScrollY: number,
   thickness: number,
 ): IScrollBarResult {
-  let horizontal: IScrollBarGeometry | null = null;
-  let vertical: IScrollBarGeometry | null = null;
+  let horizontal: IScrollBarGeometry | null = null
+  let vertical: IScrollBarGeometry | null = null
 
   // 水平滚动条
   if (maxScrollX > 0) {
-    const ratio = Math.abs(vp.width) / Math.abs(layoutArea.width);
-    const barWidth = vp.width * ratio;
-    const travel = Math.abs(vp.width) - Math.abs(barWidth);
-    const progress = scrollX / maxScrollX;
-    const barX = vp.x + Math.sign(vp.width) * progress * travel;
-    const barHeight = thickness * Math.sign(vp.height);
-    const barY = vp.y + vp.height - barHeight;
-    horizontal = { x: barX, y: barY, width: barWidth, height: barHeight };
+    const ratio = Math.abs(vp.width) / Math.abs(layoutArea.width)
+    const barWidth = vp.width * ratio
+    const travel = Math.abs(vp.width) - Math.abs(barWidth)
+    const progress = scrollX / maxScrollX
+    const barX = vp.x + Math.sign(vp.width) * progress * travel
+    const barHeight = thickness * Math.sign(vp.height)
+    const barY = vp.y + vp.height - barHeight
+    horizontal = { x: barX, y: barY, width: barWidth, height: barHeight }
   }
 
   // 垂直滚动条
   if (maxScrollY > 0) {
-    const ratio = Math.abs(vp.height) / Math.abs(layoutArea.height);
-    const barHeight = vp.height * ratio;
-    const travel = Math.abs(vp.height) - Math.abs(barHeight);
-    const progress = scrollY / maxScrollY;
-    const barY = vp.y + Math.sign(vp.height) * progress * travel;
-    const barWidth = thickness * Math.sign(vp.width);
-    const barX = vp.x + vp.width - barWidth;
-    vertical = { x: barX, y: barY, width: barWidth, height: barHeight };
+    const ratio = Math.abs(vp.height) / Math.abs(layoutArea.height)
+    const barHeight = vp.height * ratio
+    const travel = Math.abs(vp.height) - Math.abs(barHeight)
+    const progress = scrollY / maxScrollY
+    const barY = vp.y + Math.sign(vp.height) * progress * travel
+    const barWidth = thickness * Math.sign(vp.width)
+    const barX = vp.x + vp.width - barWidth
+    vertical = { x: barX, y: barY, width: barWidth, height: barHeight }
   }
 
-  return { horizontal, vertical };
+  return { horizontal, vertical }
 }

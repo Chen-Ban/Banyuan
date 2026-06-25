@@ -204,9 +204,7 @@ export class KnowledgeService {
     if (entries.length === 0) return
     await this.ensureDB()
 
-    const vectors = await this.embeddingService.embedPassageBatch(
-      entries.map((e) => e.content)
-    )
+    const vectors = await this.embeddingService.embedPassageBatch(entries.map((e) => e.content))
 
     const records: LanceRecord[] = entries.map((entry, i) => ({
       id: entry.id,
@@ -219,9 +217,7 @@ export class KnowledgeService {
     // upsert：先删除同 id 旧记录，再插入
     const ids = entries.map((e) => e.id)
     try {
-      await this.table!.delete(
-        `id IN (${ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')})`
-      )
+      await this.table!.delete(`id IN (${ids.map((id) => `'${id.replace(/'/g, "''")}'`).join(',')})`)
     } catch {
       // 表为空时 delete 可能报错，忽略
     }
@@ -311,15 +307,10 @@ export class KnowledgeService {
 
   // ── 内部：检索 ────────────────────────────────────────────────────────────
 
-  private async vectorSearch(
-    vector: number[],
-    topK: number,
-    minScore: number
-  ): Promise<KnowledgeChunk[]> {
-    const rows = (await this.table!
-      .vectorSearch(vector)
-      .limit(topK)
-      .toArray()) as Array<LanceRecord & { _distance?: number }>
+  private async vectorSearch(vector: number[], topK: number, minScore: number): Promise<KnowledgeChunk[]> {
+    const rows = (await this.table!.vectorSearch(vector).limit(topK).toArray()) as Array<
+      LanceRecord & { _distance?: number }
+    >
 
     return rows
       .map((row) => {
@@ -334,10 +325,12 @@ export class KnowledgeService {
     queryText: string,
     queryVector: number[],
     topK: number,
-    minScore: number
+    minScore: number,
   ): Promise<KnowledgeChunk[]> {
     const [vectorRowsRaw, ftsRows] = await Promise.all([
-      this.table!.vectorSearch(queryVector).limit(topK * 2).toArray(),
+      this.table!.vectorSearch(queryVector)
+        .limit(topK * 2)
+        .toArray(),
       this.runFtsSearch(queryText, topK * 2),
     ])
 
@@ -370,7 +363,7 @@ export class KnowledgeService {
     vectorResults: Array<{ id: string; rank: number; chunk: KnowledgeChunk }>,
     ftsResults: Array<{ id: string; rank: number; chunk: KnowledgeChunk }>,
     topK: number,
-    minScore: number
+    minScore: number,
   ): KnowledgeChunk[] {
     const k = 60
     const ftsWeight = 1 - this.vectorWeight
@@ -390,9 +383,7 @@ export class KnowledgeService {
       }
     }
 
-    const sorted = [...merged.values()]
-      .sort((a, b) => b.rrfScore - a.rrfScore)
-      .slice(0, topK)
+    const sorted = [...merged.values()].sort((a, b) => b.rrfScore - a.rrfScore).slice(0, topK)
 
     const maxScore = sorted[0]?.rrfScore ?? 1
 
@@ -429,15 +420,16 @@ export class KnowledgeService {
   private async rerankResults(
     query: string,
     candidates: KnowledgeChunk[],
-    topK: number
+    topK: number,
   ): Promise<KnowledgeChunk[]> {
     try {
       // 构造 RerankCandidate（需要 content 字段）
-      const rerankCandidates: Array<RerankCandidate & { _original: KnowledgeChunk }> =
-        candidates.map((chunk) => ({
+      const rerankCandidates: Array<RerankCandidate & { _original: KnowledgeChunk }> = candidates.map(
+        (chunk) => ({
           content: chunk.content,
           _original: chunk,
-        }))
+        }),
+      )
 
       const reranked = await this.rerankerService.rerank(query, rerankCandidates, topK)
 
@@ -467,7 +459,7 @@ export class KnowledgeService {
     try {
       const indices = await this.table!.listIndices()
       return indices.some(
-        (idx) => idx.type === 'FTS' || idx.name?.includes('fts') || idx.name?.includes('content')
+        (idx) => idx.type === 'FTS' || idx.name?.includes('fts') || idx.name?.includes('content'),
       )
     } catch {
       return false

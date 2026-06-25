@@ -74,7 +74,7 @@ class MemoryService {
 
       // 为 episode content 生成 embedding
       const embedding = await knowledgeClient.embedPassage(
-        `${data.episode.title} ${data.episode.content} ${data.episode.lessons.join(' ')}`
+        `${data.episode.title} ${data.episode.content} ${data.episode.lessons.join(' ')}`,
       )
 
       const episode: IEpisode = {
@@ -118,7 +118,7 @@ class MemoryService {
   private async upsertFact(
     memory: IAgentMemoryDoc,
     input: { category: FactCategory; content: string; confidence: number },
-    derivedFrom: string[]
+    derivedFrom: string[],
   ): Promise<void> {
     const similar = this.findSimilarFact(memory.facts, input.content)
 
@@ -204,13 +204,14 @@ class MemoryService {
   private scoreAndRankEpisodes(
     episodes: IEpisode[],
     query: string,
-    queryEmbedding: number[] | null
+    queryEmbedding: number[] | null,
   ): IEpisode[] {
     const now = Date.now()
     const scored = episodes.map((ep) => {
-      const relevance = queryEmbedding && ep.embedding
-        ? this.cosineSimilarity(queryEmbedding, ep.embedding)
-        : this.keywordRelevance(query, `${ep.title} ${ep.content} ${ep.lessons.join(' ')}`)
+      const relevance =
+        queryEmbedding && ep.embedding
+          ? this.cosineSimilarity(queryEmbedding, ep.embedding)
+          : this.keywordRelevance(query, `${ep.title} ${ep.content} ${ep.lessons.join(' ')}`)
 
       const elapsedDays = (now - new Date(ep.lastAccessedAt).getTime()) / 86400000
       const recency = Math.pow(0.5, elapsedDays / EPISODE_HALF_LIFE_DAYS)
@@ -230,17 +231,14 @@ class MemoryService {
    * 对 facts 评分排序，返回 top-K
    * score = relevance × 0.6 + confidence × 0.3 + min(refCount/10, 0.3) × 0.1
    */
-  private scoreAndRankFacts(
-    facts: IFact[],
-    query: string,
-    queryEmbedding: number[] | null
-  ): IFact[] {
+  private scoreAndRankFacts(facts: IFact[], query: string, queryEmbedding: number[] | null): IFact[] {
     const scored = facts
       .filter((f) => f.confidence >= RECALL_FACTS_MIN_CONFIDENCE)
       .map((f) => {
-        const relevance = queryEmbedding && f.embedding
-          ? this.cosineSimilarity(queryEmbedding, f.embedding)
-          : this.keywordRelevance(query, f.content)
+        const relevance =
+          queryEmbedding && f.embedding
+            ? this.cosineSimilarity(queryEmbedding, f.embedding)
+            : this.keywordRelevance(query, f.content)
 
         const refBonus = Math.min(f.referenceCount / 10, 0.3)
         const score = relevance * 0.6 + f.confidence * 0.3 + refBonus * 0.1
@@ -308,15 +306,12 @@ class MemoryService {
    * 惰性维护：距上次维护超过 7 天则异步触发
    */
   private lazyMaintain(memory: IAgentMemoryDoc): void {
-    const daysSinceLastMaintain =
-      (Date.now() - new Date(memory.lastMaintainedAt).getTime()) / 86400000
+    const daysSinceLastMaintain = (Date.now() - new Date(memory.lastMaintainedAt).getTime()) / 86400000
     if (daysSinceLastMaintain < MAINTAIN_INTERVAL_DAYS) return
 
     // 异步 fire-and-forget
     setImmediate(() => {
-      this.maintain(memory).catch((err) =>
-        console.error('[MemoryService] maintain failed:', err)
-      )
+      this.maintain(memory).catch((err) => console.error('[MemoryService] maintain failed:', err))
     })
   }
 
@@ -351,7 +346,7 @@ class MemoryService {
   private consolidateEpisodes(memory: IAgentMemoryDoc): void {
     // 按创建时间排序（最新在前）
     const sorted = [...memory.episodes].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
 
     const kept: IEpisode[] = []

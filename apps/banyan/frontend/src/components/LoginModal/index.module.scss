@@ -115,7 +115,10 @@
   background: var(--color-brand-gradient) !important;
   border: none !important;
   box-shadow: var(--shadow-brand) !important;
-  transition: opacity var(--duration-fast), transform 0.1s, box-shadow var(--duration-fast) !important;
+  transition:
+    opacity var(--duration-fast),
+    transform 0.1s,
+    box-shadow var(--duration-fast) !important;
 
   &:hover:not(:disabled) {
     opacity: 0.9 !important;

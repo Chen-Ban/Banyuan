@@ -32,7 +32,7 @@ class ProductService {
   async getProductList(
     query: IProductQuery = {},
     page: number = 1,
-    pageSize: number = 12
+    pageSize: number = 12,
   ): Promise<IProductListResult> {
     try {
       // 构建查询条件
@@ -135,7 +135,7 @@ class ProductService {
       imageUrl?: string
       stock?: number
       spec?: string
-    }
+    },
   ): Promise<IProduct | null> {
     try {
       if (!Types.ObjectId.isValid(id)) {
@@ -209,4 +209,3 @@ class ProductService {
 }
 
 export default new ProductService()
-

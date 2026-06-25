@@ -19,17 +19,17 @@
 import { GraphType, ViewType, AddonType } from '@/foundation/constants'
 import type { IGraph, GraphTypeMap, ITextElement } from '@/types/graph/graph'
 import type {
-    IView,
-    ISceneNode,
-    IContainerView,
-    ViewTypeMap,
-    IViewAddon,
-    IBoundingBoxAddon,
-    IVertexAddon,
-    IBoxDecorationAddon,
-    IPortView,
-    INodeView,
-    IEdgeView,
+  IView,
+  ISceneNode,
+  IContainerView,
+  ViewTypeMap,
+  IViewAddon,
+  IBoundingBoxAddon,
+  IVertexAddon,
+  IBoxDecorationAddon,
+  IPortView,
+  INodeView,
+  IEdgeView,
 } from '@/types/view/view'
 
 // ────────────────────────────────────────────
@@ -45,11 +45,8 @@ import type {
  *       console.log(graph.startPoint, graph.endPoint)
  *   }
  */
-export function isGraphType<T extends keyof GraphTypeMap>(
-    graph: IGraph,
-    type: T
-): graph is GraphTypeMap[T] {
-    return graph.type === type
+export function isGraphType<T extends keyof GraphTypeMap>(graph: IGraph, type: T): graph is GraphTypeMap[T] {
+  return graph.type === type
 }
 
 // ────────────────────────────────────────────
@@ -65,11 +62,8 @@ export function isGraphType<T extends keyof GraphTypeMap>(
  *       view.input('hello', false)
  *   }
  */
-export function isViewType<T extends keyof ViewTypeMap>(
-    view: IView,
-    type: T
-): view is ViewTypeMap[T] {
-    return view.type === type
+export function isViewType<T extends keyof ViewTypeMap>(view: IView, type: T): view is ViewTypeMap[T] {
+  return view.type === type
 }
 
 // ────────────────────────────────────────────
@@ -83,7 +77,7 @@ export function isViewType<T extends keyof ViewTypeMap>(
  * IView 拥有 `type` 字段（ViewType 枚举），ISceneNode 没有，以此区分。
  */
 export function isView(node: ISceneNode | IView | null | undefined): node is IView {
-    return !!node && 'type' in node
+  return !!node && 'type' in node
 }
 
 // ────────────────────────────────────────────
@@ -92,60 +86,64 @@ export function isView(node: ISceneNode | IView | null | undefined): node is IVi
 
 /** 快捷判断：是否为 CombinedGraph（含所有组合子类） */
 export function isCombinedGraph(graph: IGraph): graph is GraphTypeMap[GraphType.COMBINED_GRAPH] {
-    return (
-        graph.type === GraphType.COMBINED_GRAPH ||
-        graph.type === GraphType.POLYGON ||
-        graph.type === GraphType.TRIANGLE ||
-        graph.type === GraphType.QUADRILATERAL ||
-        graph.type === GraphType.RECTANGLE ||
-        graph.type === GraphType.REGULAR_POLYGON ||
-        graph.type === GraphType.ROUNDED_RECT
-    )
+  return (
+    graph.type === GraphType.COMBINED_GRAPH ||
+    graph.type === GraphType.POLYGON ||
+    graph.type === GraphType.TRIANGLE ||
+    graph.type === GraphType.QUADRILATERAL ||
+    graph.type === GraphType.RECTANGLE ||
+    graph.type === GraphType.REGULAR_POLYGON ||
+    graph.type === GraphType.ROUNDED_RECT
+  )
 }
 
 /** 快捷判断：是否为 AnalyticGraph（含所有解析子类） */
 export function isAnalyticGraph(graph: IGraph): graph is GraphTypeMap[GraphType.ANALYTICGRAPH] {
-    return (
-        graph.type === GraphType.ANALYTICGRAPH ||
-        graph.type === GraphType.LINE ||
-        graph.type === GraphType.ARC ||
-        graph.type === GraphType.CIRCLE ||
-        graph.type === GraphType.BEZIER ||
-        graph.type === GraphType.QUADRATIC_BEZIER ||
-        graph.type === GraphType.CUBIC_BEZIER
-    )
+  return (
+    graph.type === GraphType.ANALYTICGRAPH ||
+    graph.type === GraphType.LINE ||
+    graph.type === GraphType.ARC ||
+    graph.type === GraphType.CIRCLE ||
+    graph.type === GraphType.BEZIER ||
+    graph.type === GraphType.QUADRATIC_BEZIER ||
+    graph.type === GraphType.CUBIC_BEZIER
+  )
 }
 
 /** 快捷判断：是否为 MediaElement（Image 或 Video） */
-export function isMediaElement(graph: IGraph): graph is GraphTypeMap[GraphType.IMAGE] | GraphTypeMap[GraphType.VIDEO] {
-    return graph.type === GraphType.IMAGE || graph.type === GraphType.VIDEO
+export function isMediaElement(
+  graph: IGraph,
+): graph is GraphTypeMap[GraphType.IMAGE] | GraphTypeMap[GraphType.VIDEO] {
+  return graph.type === GraphType.IMAGE || graph.type === GraphType.VIDEO
 }
 
 /** 快捷判断：是否为 TextElement（可打印 / 不可打印文本元素，均继承 ITextElement） */
-export function isTextElement(
-    graph: IGraph | IViewAddon | null | undefined,
-): graph is ITextElement {
-    return (
-        !!graph &&
-        (graph.type === GraphType.TEXTELEMENT ||
-            graph.type === GraphType.PRINTABLE_TEXTELEMENT ||
-            graph.type === GraphType.NONPRINTABLE_TEXTELEMENT)
-    )
+export function isTextElement(graph: IGraph | IViewAddon | null | undefined): graph is ITextElement {
+  return (
+    !!graph &&
+    (graph.type === GraphType.TEXTELEMENT ||
+      graph.type === GraphType.PRINTABLE_TEXTELEMENT ||
+      graph.type === GraphType.NONPRINTABLE_TEXTELEMENT)
+  )
 }
 
 /** 快捷判断：是否为 TextView */
 export function isTextView(view: IView | null | undefined): view is ViewTypeMap[typeof ViewType.TEXTVIEW] {
-    return !!view && view.type === ViewType.TEXTVIEW
+  return !!view && view.type === ViewType.TEXTVIEW
 }
 
 /** 快捷判断：是否为 SelectBoxView */
-export function isSelectBoxView(view: IView | null | undefined): view is ViewTypeMap[typeof ViewType.SELECTBOXVIEW] {
-    return !!view && view.type === ViewType.SELECTBOXVIEW
+export function isSelectBoxView(
+  view: IView | null | undefined,
+): view is ViewTypeMap[typeof ViewType.SELECTBOXVIEW] {
+  return !!view && view.type === ViewType.SELECTBOXVIEW
 }
 
 /** 快捷判断：是否为 CombinedView */
-export function isCombinedView(view: IView | null | undefined): view is ViewTypeMap[typeof ViewType.COMBINEDVIEW] {
-    return !!view && view.type === ViewType.COMBINEDVIEW
+export function isCombinedView(
+  view: IView | null | undefined,
+): view is ViewTypeMap[typeof ViewType.COMBINEDVIEW] {
+  return !!view && view.type === ViewType.COMBINEDVIEW
 }
 
 /** 快捷判断：是否为 ContainerView（拥有子节点管理能力）
@@ -154,7 +152,7 @@ export function isCombinedView(view: IView | null | undefined): view is ViewType
  * 这样无需枚举 ViewType，未来新增的容器类型自动被覆盖。
  */
 export function isContainerView(view: IView | null | undefined): view is IContainerView {
-    return !!view && 'children' in view && Array.isArray((view as any).children)
+  return !!view && 'children' in view && Array.isArray((view as any).children)
 }
 
 // ────────────────────────────────────────────
@@ -163,17 +161,17 @@ export function isContainerView(view: IView | null | undefined): view is IContai
 
 /** 快捷判断：是否为 BoundingBoxAddon */
 export function isBoundingBoxAddon(addon: IViewAddon | null | undefined): addon is IBoundingBoxAddon {
-    return !!addon && addon.type === AddonType.BOUNDING_BOX
+  return !!addon && addon.type === AddonType.BOUNDING_BOX
 }
 
 /** 快捷判断：是否为 VertexAddon */
 export function isVertexAddon(addon: IViewAddon | null | undefined): addon is IVertexAddon {
-    return !!addon && addon.type === AddonType.VERTEX
+  return !!addon && addon.type === AddonType.VERTEX
 }
 
 /** 快捷判断：是否为 BoxDecorationAddon */
 export function isBoxDecorationAddon(addon: IViewAddon | null | undefined): addon is IBoxDecorationAddon {
-    return !!addon && addon.type === AddonType.BOX_DECORATION
+  return !!addon && addon.type === AddonType.BOX_DECORATION
 }
 
 // ────────────────────────────────────────────
@@ -182,15 +180,15 @@ export function isBoxDecorationAddon(addon: IViewAddon | null | undefined): addo
 
 /** 快捷判断：是否为 PortView */
 export function isPortView(view: IView | null | undefined): view is IPortView {
-    return !!view && view.type === 'PORTVIEW'
+  return !!view && view.type === 'PORTVIEW'
 }
 
 /** 快捷判断：是否为 NodeView */
 export function isNodeView(view: IView | null | undefined): view is INodeView {
-    return !!view && view.type === 'NODEVIEW'
+  return !!view && view.type === 'NODEVIEW'
 }
 
 /** 快捷判断：是否为 EdgeView */
 export function isEdgeView(view: IView | null | undefined): view is IEdgeView {
-    return !!view && view.type === 'EDGEVIEW'
+  return !!view && view.type === 'EDGEVIEW'
 }

@@ -1,29 +1,4 @@
-/**
- * 视频图案平铺模式
- *
- * 与 PatternRepeat 语义相同，定义视频帧在画布上的平铺方式。
- *
- * @example
- * ```ts
- * const repeat: VideoRepeat = 'no-repeat' // 视频不平铺，仅显示一次
- * ```
- */
-export type VideoRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat'
-
-/**
- * 视频尺寸
- *
- * 指定视频在画布上的渲染宽高（像素）。
- *
- * @example
- * ```ts
- * const size: VideoSize = { width: 320, height: 240 }
- * ```
- */
-export interface VideoSize {
-  width: number
-  height: number
-}
+import type { VideoRepeat, VideoSize } from '@/types/foundation/style'
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
@@ -43,7 +18,7 @@ import type { IVideoSource } from '@/types/foundation/media.js'
  * ```
  */
 export default class Video implements ISerializable {
-  public readonly type: StyleType = StyleType.VIDEO_PATTERN;
+  public readonly type: StyleType = StyleType.VIDEO_PATTERN
   src: string | null
   size: VideoSize | null
   repeat: VideoRepeat
@@ -80,7 +55,7 @@ export default class Video implements ISerializable {
     autoplay: boolean = false,
     loop: boolean = false,
     muted: boolean = false,
-    controls: boolean = false
+    controls: boolean = false,
   ) {
     this.src = src
     this.size = size
@@ -249,14 +224,14 @@ export default class Video implements ISerializable {
    * console.log(info.src, info.autoplay, info.loop)
    * ```
    */
-  getVideoInfo(): { 
-    src: string | null; 
-    size: VideoSize | null; 
-    repeat: VideoRepeat;
-    autoplay: boolean;
-    loop: boolean;
-    muted: boolean;
-    controls: boolean;
+  getVideoInfo(): {
+    src: string | null
+    size: VideoSize | null
+    repeat: VideoRepeat
+    autoplay: boolean
+    loop: boolean
+    muted: boolean
+    controls: boolean
   } {
     return {
       src: this.src,
@@ -265,7 +240,7 @@ export default class Video implements ISerializable {
       autoplay: this.autoplay,
       loop: this.loop,
       muted: this.muted,
-      controls: this.controls
+      controls: this.controls,
     }
   }
 
@@ -315,8 +290,13 @@ export default class Video implements ISerializable {
    */
   toJSON(): any {
     return {
-      src: this.src, size: this.size, repeat: this.repeat,
-      autoplay: this.autoplay, loop: this.loop, muted: this.muted, controls: this.controls,
+      src: this.src,
+      size: this.size,
+      repeat: this.repeat,
+      autoplay: this.autoplay,
+      loop: this.loop,
+      muted: this.muted,
+      controls: this.controls,
     }
   }
 
@@ -351,15 +331,7 @@ export default class Video implements ISerializable {
    * ```
    */
   copy(): Video {
-    const v = new Video(
-      this.src,
-      this.size,
-      this.repeat,
-      this.autoplay,
-      this.loop,
-      this.muted,
-      this.controls
-    )
+    const v = new Video(this.src, this.size, this.repeat, this.autoplay, this.loop, this.muted, this.controls)
     v._loadedSource = this._loadedSource
     return v
   }
@@ -378,13 +350,15 @@ export default class Video implements ISerializable {
    * ```
    */
   equals(other: Video): boolean {
-    return this.src === other.src &&
-           this.size === other.size &&
-           this.repeat === other.repeat &&
-           this.autoplay === other.autoplay &&
-           this.loop === other.loop &&
-           this.muted === other.muted &&
-           this.controls === other.controls
+    return (
+      this.src === other.src &&
+      this.size === other.size &&
+      this.repeat === other.repeat &&
+      this.autoplay === other.autoplay &&
+      this.loop === other.loop &&
+      this.muted === other.muted &&
+      this.controls === other.controls
+    )
   }
 
   /**
@@ -407,13 +381,13 @@ export default class Video implements ISerializable {
    * ```
    */
   static fromSrc(
-    src: string, 
-    size?: VideoSize, 
+    src: string,
+    size?: VideoSize,
     repeat: VideoRepeat = 'no-repeat',
     autoplay: boolean = false,
     loop: boolean = false,
     muted: boolean = false,
-    controls: boolean = false
+    controls: boolean = false,
   ): Video {
     return new Video(src, size, repeat, autoplay, loop, muted, controls)
   }
@@ -439,14 +413,14 @@ export default class Video implements ISerializable {
    * ```
    */
   static fromVideo(
-    src: string, 
-    width: number, 
-    height: number, 
+    src: string,
+    width: number,
+    height: number,
     repeat: VideoRepeat = 'no-repeat',
     autoplay: boolean = false,
     loop: boolean = false,
     muted: boolean = false,
-    controls: boolean = false
+    controls: boolean = false,
   ): Video {
     return new Video(src, { width, height }, repeat, autoplay, loop, muted, controls)
   }

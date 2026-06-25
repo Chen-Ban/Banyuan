@@ -35,7 +35,7 @@ export class SnapAlignManager {
    * mousedown 时调用：构建缓存，排除当前操作的 view
    */
   begin(scene: Scene, activeViews: View[]): void {
-    this.activeIds = new Set(activeViews.map(v => v.id))
+    this.activeIds = new Set(activeViews.map((v) => v.id))
     this.cache.build(scene.children, this.activeIds)
     this.active = true
   }
@@ -57,8 +57,8 @@ export class SnapAlignManager {
     let offsetX = 0
     let offsetY = 0
 
-    const guideX = guidelines.find(g => g.axis === 0) // SnapAxis.X
-    const guideY = guidelines.find(g => g.axis === 1) // SnapAxis.Y
+    const guideX = guidelines.find((g) => g.axis === 0) // SnapAxis.X
+    const guideY = guidelines.find((g) => g.axis === 1) // SnapAxis.Y
 
     if (guideX) offsetX = guideX.offset
     if (guideY) offsetY = guideY.offset
@@ -91,7 +91,7 @@ export class SnapAlignManager {
       new Point3(vp.right, vp.bottom, 0),
       new Point3(vp.x, vp.bottom, 0),
     ]
-    const worldCorners = corners.map(p => worldMatrix.multiply(p))
+    const worldCorners = corners.map((p) => worldMatrix.multiply(p))
     return Bounds.fromPoints(worldCorners)
   }
 }

@@ -1,7 +1,7 @@
-import Point3 from "./Point3";
-import Vector3 from "./Vector3";
-import { FLOAT_EPSILON } from "./epsilon";
-import { MathType } from '@/foundation/constants';
+import Point3 from './Point3'
+import Vector3 from './Vector3'
+import { FLOAT_EPSILON } from './epsilon'
+import { MathType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
@@ -17,8 +17,8 @@ import type { ISerializable } from '@/types/foundation/serializable'
  * ```
  */
 export default class Matrix4 implements ISerializable {
-  public readonly type: MathType = MathType.MATRIX4;
-  private data: Float32Array;
+  public readonly type: MathType = MathType.MATRIX4
+  private data: Float32Array
 
   /**
    * 构造矩阵
@@ -39,12 +39,12 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   constructor(data?: number[][] | Float32Array) {
-    this.data = new Float32Array(16);
+    this.data = new Float32Array(16)
     if (data) {
       if (data instanceof Float32Array) {
-        this.data.set(data);
+        this.data.set(data)
       } else {
-        this.data.set(data.flat());
+        this.data.set(data.flat())
       }
     }
   }
@@ -66,7 +66,7 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   get(row: number, col: number): number {
-    return this.data[row * 4 + col];
+    return this.data[row * 4 + col]
   }
 
   /**
@@ -86,7 +86,7 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   set(row: number, col: number, value: number): void {
-    this.data[row * 4 + col] = value;
+    this.data[row * 4 + col] = value
   }
 
   /**
@@ -103,7 +103,7 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   get transform(): number[] {
-    return Array.from(this.data);
+    return Array.from(this.data)
   }
 
   /**
@@ -121,7 +121,7 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   toJSON(): { transform: number[] } {
-    return { transform: this.transform };
+    return { transform: this.transform }
   }
 
   /**
@@ -139,7 +139,9 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   static fromJSON(data: { transform: number[] | Float32Array }): Matrix4 {
-    return new Matrix4(data.transform instanceof Float32Array ? data.transform : new Float32Array(data.transform));
+    return new Matrix4(
+      data.transform instanceof Float32Array ? data.transform : new Float32Array(data.transform),
+    )
   }
 
   /**
@@ -157,7 +159,7 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   copy(): Matrix4 {
-    return new Matrix4(new Float32Array(this.data));
+    return new Matrix4(new Float32Array(this.data))
   }
   /**
    * 矩阵乘法
@@ -177,18 +179,18 @@ export default class Matrix4 implements ISerializable {
    * const v = m.multiply(new Vector3(1, 0, 0)); // Vector3(1, 0, 0)
    * ```
    */
-  multiply(factor: Matrix4): Matrix4;
-  multiply(factor: Point3): Point3;
-  multiply(factor: Vector3): Vector3;
+  multiply(factor: Matrix4): Matrix4
+  multiply(factor: Point3): Point3
+  multiply(factor: Vector3): Vector3
   multiply(factor: Matrix4 | Point3 | Vector3): Matrix4 | Point3 | Vector3 {
     if (factor instanceof Matrix4) {
-      return this.multiplyMatrix(factor);
+      return this.multiplyMatrix(factor)
     } else if (factor instanceof Point3) {
-      return this.multiplyPoint(factor);
+      return this.multiplyPoint(factor)
     } else if (factor instanceof Vector3) {
-      return this.multiplyVector(factor);
+      return this.multiplyVector(factor)
     }
-    throw new Error("Invalid factor type");
+    throw new Error('Invalid factor type')
   }
 
   /**
@@ -208,32 +210,16 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   multiplyPoint(point: Point3): Point3 {
-    const x =
-      this.data[0] * point.x +
-      this.data[1] * point.y +
-      this.data[2] * point.z +
-      this.data[3];
-    const y =
-      this.data[4] * point.x +
-      this.data[5] * point.y +
-      this.data[6] * point.z +
-      this.data[7];
-    const z =
-      this.data[8] * point.x +
-      this.data[9] * point.y +
-      this.data[10] * point.z +
-      this.data[11];
-    const w =
-      this.data[12] * point.x +
-      this.data[13] * point.y +
-      this.data[14] * point.z +
-      this.data[15];
+    const x = this.data[0] * point.x + this.data[1] * point.y + this.data[2] * point.z + this.data[3]
+    const y = this.data[4] * point.x + this.data[5] * point.y + this.data[6] * point.z + this.data[7]
+    const z = this.data[8] * point.x + this.data[9] * point.y + this.data[10] * point.z + this.data[11]
+    const w = this.data[12] * point.x + this.data[13] * point.y + this.data[14] * point.z + this.data[15]
 
     // 齐次坐标归一化
     if (w !== 1 && w !== 0) {
-      return new Point3(x / w, y / w, z / w);
+      return new Point3(x / w, y / w, z / w)
     }
-    return new Point3(x, y, z);
+    return new Point3(x, y, z)
   }
 
   /**
@@ -253,19 +239,10 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   multiplyVector(vector: Vector3): Vector3 {
-    const x =
-      this.data[0] * vector.x +
-      this.data[1] * vector.y +
-      this.data[2] * vector.z;
-    const y =
-      this.data[4] * vector.x +
-      this.data[5] * vector.y +
-      this.data[6] * vector.z;
-    const z =
-      this.data[8] * vector.x +
-      this.data[9] * vector.y +
-      this.data[10] * vector.z;
-    return new Vector3(x, y, z);
+    const x = this.data[0] * vector.x + this.data[1] * vector.y + this.data[2] * vector.z
+    const y = this.data[4] * vector.x + this.data[5] * vector.y + this.data[6] * vector.z
+    const z = this.data[8] * vector.x + this.data[9] * vector.y + this.data[10] * vector.z
+    return new Vector3(x, y, z)
   }
 
   /**
@@ -286,17 +263,17 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   multiplyMatrix(matrix: Matrix4): Matrix4 {
-    const result = new Matrix4();
+    const result = new Matrix4()
     for (let i = 0; i < 4; i++) {
       for (let j = 0; j < 4; j++) {
-        let sum = 0;
+        let sum = 0
         for (let k = 0; k < 4; k++) {
-          sum += this.data[i * 4 + k] * matrix.data[k * 4 + j];
+          sum += this.data[i * 4 + k] * matrix.data[k * 4 + j]
         }
-        result.data[i * 4 + j] = sum;
+        result.data[i * 4 + j] = sum
       }
     }
-    return result;
+    return result
   }
 
   /**
@@ -317,10 +294,10 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   translate(x: number, y: number, z: number): Matrix4 {
-    const translationMatrix = Matrix4.translation(x, y, z);
-    const result = translationMatrix.multiplyMatrix(this);
-    this.data = result.data;
-    return this;
+    const translationMatrix = Matrix4.translation(x, y, z)
+    const result = translationMatrix.multiplyMatrix(this)
+    this.data = result.data
+    return this
   }
 
   /**
@@ -341,10 +318,10 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   scale(x: number, y: number, z: number): Matrix4 {
-    const scalingMatrix = Matrix4.scaling(x, y, z);
-    const result = scalingMatrix.multiplyMatrix(this);
-    this.data = result.data;
-    return this;
+    const scalingMatrix = Matrix4.scaling(x, y, z)
+    const result = scalingMatrix.multiplyMatrix(this)
+    this.data = result.data
+    return this
   }
 
   /**
@@ -363,10 +340,10 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   rotateX(angle: number): Matrix4 {
-    const rotationMatrix = Matrix4.rotationX(angle);
-    const result = rotationMatrix.multiplyMatrix(this);
-    this.data = result.data;
-    return this;
+    const rotationMatrix = Matrix4.rotationX(angle)
+    const result = rotationMatrix.multiplyMatrix(this)
+    this.data = result.data
+    return this
   }
 
   /**
@@ -385,10 +362,10 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   rotateY(angle: number): Matrix4 {
-    const rotationMatrix = Matrix4.rotationY(angle);
-    const result = rotationMatrix.multiplyMatrix(this);
-    this.data = result.data;
-    return this;
+    const rotationMatrix = Matrix4.rotationY(angle)
+    const result = rotationMatrix.multiplyMatrix(this)
+    this.data = result.data
+    return this
   }
 
   /**
@@ -408,10 +385,10 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   rotateZ(angle: number): Matrix4 {
-    const rotationMatrix = Matrix4.rotationZ(angle);
-    const result = rotationMatrix.multiplyMatrix(this);
-    this.data = result.data;
-    return this;
+    const rotationMatrix = Matrix4.rotationZ(angle)
+    const result = rotationMatrix.multiplyMatrix(this)
+    this.data = result.data
+    return this
   }
 
   /**
@@ -432,12 +409,12 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   rotate(x: number = 0, y: number = 0, z: number = 0): Matrix4 {
-    let result = this.copy();
-    if (x !== 0) result = result.rotateX(x);
-    if (y !== 0) result = result.rotateY(y);
-    if (z !== 0) result = result.rotateZ(z);
-    this.data = result.data;
-    return this;
+    let result = this.copy()
+    if (x !== 0) result = result.rotateX(x)
+    if (y !== 0) result = result.rotateY(y)
+    if (z !== 0) result = result.rotateZ(z)
+    this.data = result.data
+    return this
   }
   /**
    * 计算行列式
@@ -456,7 +433,7 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   get determinant(): number {
-    const m = this.data;
+    const m = this.data
     return (
       m[0] *
         (m[5] * (m[10] * m[15] - m[11] * m[14]) -
@@ -474,7 +451,7 @@ export default class Matrix4 implements ISerializable {
         (m[4] * (m[9] * m[14] - m[10] * m[13]) -
           m[5] * (m[8] * m[14] - m[10] * m[12]) +
           m[6] * (m[8] * m[13] - m[9] * m[12]))
-    );
+    )
   }
 
   /**
@@ -495,168 +472,120 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   inverse(): Matrix4 {
-    const det = this.determinant;
+    const det = this.determinant
     if (Math.abs(det) < FLOAT_EPSILON) {
-      throw new Error("Matrix is singular (determinant is zero)");
+      throw new Error('Matrix is singular (determinant is zero)')
     }
 
-    const result = new Matrix4();
-    const invDet = 1 / det;
+    const result = new Matrix4()
+    const invDet = 1 / det
 
     // 使用伴随矩阵方法计算逆矩阵 (行主序)
     result.data[0] =
-      (this.data[5] *
-        (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
-        this.data[6] *
-          (this.data[9] * this.data[15] - this.data[11] * this.data[13]) +
-        this.data[7] *
-          (this.data[9] * this.data[14] - this.data[10] * this.data[13])) *
-      invDet;
+      (this.data[5] * (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
+        this.data[6] * (this.data[9] * this.data[15] - this.data[11] * this.data[13]) +
+        this.data[7] * (this.data[9] * this.data[14] - this.data[10] * this.data[13])) *
+      invDet
 
     result.data[1] =
       -(
-        this.data[1] *
-          (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
-        this.data[2] *
-          (this.data[9] * this.data[15] - this.data[11] * this.data[13]) +
-        this.data[3] *
-          (this.data[9] * this.data[14] - this.data[10] * this.data[13])
-      ) * invDet;
+        this.data[1] * (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
+        this.data[2] * (this.data[9] * this.data[15] - this.data[11] * this.data[13]) +
+        this.data[3] * (this.data[9] * this.data[14] - this.data[10] * this.data[13])
+      ) * invDet
 
     result.data[2] =
-      (this.data[1] *
-        (this.data[6] * this.data[15] - this.data[7] * this.data[14]) -
-        this.data[2] *
-          (this.data[5] * this.data[15] - this.data[7] * this.data[13]) +
-        this.data[3] *
-          (this.data[5] * this.data[14] - this.data[6] * this.data[13])) *
-      invDet;
+      (this.data[1] * (this.data[6] * this.data[15] - this.data[7] * this.data[14]) -
+        this.data[2] * (this.data[5] * this.data[15] - this.data[7] * this.data[13]) +
+        this.data[3] * (this.data[5] * this.data[14] - this.data[6] * this.data[13])) *
+      invDet
 
     result.data[3] =
       -(
-        this.data[1] *
-          (this.data[6] * this.data[11] - this.data[7] * this.data[10]) -
-        this.data[2] *
-          (this.data[5] * this.data[11] - this.data[7] * this.data[9]) +
-        this.data[3] *
-          (this.data[5] * this.data[10] - this.data[6] * this.data[9])
-      ) * invDet;
+        this.data[1] * (this.data[6] * this.data[11] - this.data[7] * this.data[10]) -
+        this.data[2] * (this.data[5] * this.data[11] - this.data[7] * this.data[9]) +
+        this.data[3] * (this.data[5] * this.data[10] - this.data[6] * this.data[9])
+      ) * invDet
 
     result.data[4] =
       -(
-        this.data[4] *
-          (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
-        this.data[6] *
-          (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
-        this.data[7] *
-          (this.data[8] * this.data[14] - this.data[10] * this.data[12])
-      ) * invDet;
+        this.data[4] * (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
+        this.data[6] * (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
+        this.data[7] * (this.data[8] * this.data[14] - this.data[10] * this.data[12])
+      ) * invDet
 
     result.data[5] =
-      (this.data[0] *
-        (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
-        this.data[2] *
-          (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
-        this.data[3] *
-          (this.data[8] * this.data[14] - this.data[10] * this.data[12])) *
-      invDet;
+      (this.data[0] * (this.data[10] * this.data[15] - this.data[11] * this.data[14]) -
+        this.data[2] * (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
+        this.data[3] * (this.data[8] * this.data[14] - this.data[10] * this.data[12])) *
+      invDet
 
     result.data[6] =
       -(
-        this.data[0] *
-          (this.data[6] * this.data[15] - this.data[7] * this.data[14]) -
-        this.data[2] *
-          (this.data[4] * this.data[15] - this.data[7] * this.data[12]) +
-        this.data[3] *
-          (this.data[4] * this.data[14] - this.data[6] * this.data[12])
-      ) * invDet;
+        this.data[0] * (this.data[6] * this.data[15] - this.data[7] * this.data[14]) -
+        this.data[2] * (this.data[4] * this.data[15] - this.data[7] * this.data[12]) +
+        this.data[3] * (this.data[4] * this.data[14] - this.data[6] * this.data[12])
+      ) * invDet
 
     result.data[7] =
-      (this.data[0] *
-        (this.data[6] * this.data[11] - this.data[7] * this.data[10]) -
-        this.data[2] *
-          (this.data[4] * this.data[11] - this.data[7] * this.data[8]) +
-        this.data[3] *
-          (this.data[4] * this.data[10] - this.data[6] * this.data[8])) *
-      invDet;
+      (this.data[0] * (this.data[6] * this.data[11] - this.data[7] * this.data[10]) -
+        this.data[2] * (this.data[4] * this.data[11] - this.data[7] * this.data[8]) +
+        this.data[3] * (this.data[4] * this.data[10] - this.data[6] * this.data[8])) *
+      invDet
 
     result.data[8] =
-      (this.data[4] *
-        (this.data[9] * this.data[15] - this.data[11] * this.data[13]) -
-        this.data[5] *
-          (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
-        this.data[7] *
-          (this.data[8] * this.data[13] - this.data[9] * this.data[12])) *
-      invDet;
+      (this.data[4] * (this.data[9] * this.data[15] - this.data[11] * this.data[13]) -
+        this.data[5] * (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
+        this.data[7] * (this.data[8] * this.data[13] - this.data[9] * this.data[12])) *
+      invDet
 
     result.data[9] =
       -(
-        this.data[0] *
-          (this.data[9] * this.data[15] - this.data[11] * this.data[13]) -
-        this.data[1] *
-          (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
-        this.data[3] *
-          (this.data[8] * this.data[13] - this.data[9] * this.data[12])
-      ) * invDet;
+        this.data[0] * (this.data[9] * this.data[15] - this.data[11] * this.data[13]) -
+        this.data[1] * (this.data[8] * this.data[15] - this.data[11] * this.data[12]) +
+        this.data[3] * (this.data[8] * this.data[13] - this.data[9] * this.data[12])
+      ) * invDet
 
     result.data[10] =
-      (this.data[0] *
-        (this.data[5] * this.data[15] - this.data[7] * this.data[13]) -
-        this.data[1] *
-          (this.data[4] * this.data[15] - this.data[7] * this.data[12]) +
-        this.data[3] *
-          (this.data[4] * this.data[13] - this.data[5] * this.data[12])) *
-      invDet;
+      (this.data[0] * (this.data[5] * this.data[15] - this.data[7] * this.data[13]) -
+        this.data[1] * (this.data[4] * this.data[15] - this.data[7] * this.data[12]) +
+        this.data[3] * (this.data[4] * this.data[13] - this.data[5] * this.data[12])) *
+      invDet
 
     result.data[11] =
       -(
-        this.data[0] *
-          (this.data[5] * this.data[11] - this.data[7] * this.data[9]) -
-        this.data[1] *
-          (this.data[4] * this.data[11] - this.data[7] * this.data[8]) +
-        this.data[3] *
-          (this.data[4] * this.data[9] - this.data[5] * this.data[8])
-      ) * invDet;
+        this.data[0] * (this.data[5] * this.data[11] - this.data[7] * this.data[9]) -
+        this.data[1] * (this.data[4] * this.data[11] - this.data[7] * this.data[8]) +
+        this.data[3] * (this.data[4] * this.data[9] - this.data[5] * this.data[8])
+      ) * invDet
 
     result.data[12] =
       -(
-        this.data[4] *
-          (this.data[9] * this.data[14] - this.data[10] * this.data[13]) -
-        this.data[5] *
-          (this.data[8] * this.data[14] - this.data[10] * this.data[12]) +
-        this.data[6] *
-          (this.data[8] * this.data[13] - this.data[9] * this.data[12])
-      ) * invDet;
+        this.data[4] * (this.data[9] * this.data[14] - this.data[10] * this.data[13]) -
+        this.data[5] * (this.data[8] * this.data[14] - this.data[10] * this.data[12]) +
+        this.data[6] * (this.data[8] * this.data[13] - this.data[9] * this.data[12])
+      ) * invDet
 
     result.data[13] =
-      (this.data[0] *
-        (this.data[9] * this.data[14] - this.data[10] * this.data[13]) -
-        this.data[1] *
-          (this.data[8] * this.data[14] - this.data[10] * this.data[12]) +
-        this.data[2] *
-          (this.data[8] * this.data[13] - this.data[9] * this.data[12])) *
-      invDet;
+      (this.data[0] * (this.data[9] * this.data[14] - this.data[10] * this.data[13]) -
+        this.data[1] * (this.data[8] * this.data[14] - this.data[10] * this.data[12]) +
+        this.data[2] * (this.data[8] * this.data[13] - this.data[9] * this.data[12])) *
+      invDet
 
     result.data[14] =
       -(
-        this.data[0] *
-          (this.data[5] * this.data[14] - this.data[6] * this.data[13]) -
-        this.data[1] *
-          (this.data[4] * this.data[14] - this.data[6] * this.data[12]) +
-        this.data[2] *
-          (this.data[4] * this.data[13] - this.data[5] * this.data[12])
-      ) * invDet;
+        this.data[0] * (this.data[5] * this.data[14] - this.data[6] * this.data[13]) -
+        this.data[1] * (this.data[4] * this.data[14] - this.data[6] * this.data[12]) +
+        this.data[2] * (this.data[4] * this.data[13] - this.data[5] * this.data[12])
+      ) * invDet
 
     result.data[15] =
-      (this.data[0] *
-        (this.data[5] * this.data[10] - this.data[6] * this.data[9]) -
-        this.data[1] *
-          (this.data[4] * this.data[10] - this.data[6] * this.data[8]) +
-        this.data[2] *
-          (this.data[4] * this.data[9] - this.data[5] * this.data[8])) *
-      invDet;
+      (this.data[0] * (this.data[5] * this.data[10] - this.data[6] * this.data[9]) -
+        this.data[1] * (this.data[4] * this.data[10] - this.data[6] * this.data[8]) +
+        this.data[2] * (this.data[4] * this.data[9] - this.data[5] * this.data[8])) *
+      invDet
 
-    return result;
+    return result
   }
   /**
    * 创建单位矩阵
@@ -672,12 +601,12 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   static identity(): Matrix4 {
-    const matrix = new Matrix4();
-    matrix.data[0] = 1;
-    matrix.data[5] = 1;
-    matrix.data[10] = 1;
-    matrix.data[15] = 1;
-    return matrix;
+    const matrix = new Matrix4()
+    matrix.data[0] = 1
+    matrix.data[5] = 1
+    matrix.data[10] = 1
+    matrix.data[15] = 1
+    return matrix
   }
 
   /**
@@ -698,11 +627,11 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   static translation(x: number, y: number, z: number): Matrix4 {
-    const matrix = Matrix4.identity();
-    matrix.data[3] = x;
-    matrix.data[7] = y;
-    matrix.data[11] = z;
-    return matrix;
+    const matrix = Matrix4.identity()
+    matrix.data[3] = x
+    matrix.data[7] = y
+    matrix.data[11] = z
+    return matrix
   }
 
   /**
@@ -723,11 +652,11 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   static scaling(x: number, y: number, z: number): Matrix4 {
-    const matrix = Matrix4.identity();
-    matrix.data[0] = x;
-    matrix.data[5] = y;
-    matrix.data[10] = z;
-    return matrix;
+    const matrix = Matrix4.identity()
+    matrix.data[0] = x
+    matrix.data[5] = y
+    matrix.data[10] = z
+    return matrix
   }
 
   /**
@@ -746,20 +675,20 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   static rotationX(angle: number): Matrix4 {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const matrix = Matrix4.identity();
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    const matrix = Matrix4.identity()
     // 第二行 (索引4-7)
-    matrix.data[4] = 0;
-    matrix.data[5] = cos;
-    matrix.data[6] = sin;
-    matrix.data[7] = 0;
+    matrix.data[4] = 0
+    matrix.data[5] = cos
+    matrix.data[6] = sin
+    matrix.data[7] = 0
     // 第三行 (索引8-11)
-    matrix.data[8] = 0;
-    matrix.data[9] = -sin;
-    matrix.data[10] = cos;
-    matrix.data[11] = 0;
-    return matrix;
+    matrix.data[8] = 0
+    matrix.data[9] = -sin
+    matrix.data[10] = cos
+    matrix.data[11] = 0
+    return matrix
   }
 
   /**
@@ -778,20 +707,20 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   static rotationY(angle: number): Matrix4 {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const matrix = Matrix4.identity();
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    const matrix = Matrix4.identity()
     // 第一行 (索引0-3)
-    matrix.data[0] = cos;
-    matrix.data[1] = 0;
-    matrix.data[2] = -sin;
-    matrix.data[3] = 0;
+    matrix.data[0] = cos
+    matrix.data[1] = 0
+    matrix.data[2] = -sin
+    matrix.data[3] = 0
     // 第三行 (索引8-11)
-    matrix.data[8] = sin;
-    matrix.data[9] = 0;
-    matrix.data[10] = cos;
-    matrix.data[11] = 0;
-    return matrix;
+    matrix.data[8] = sin
+    matrix.data[9] = 0
+    matrix.data[10] = cos
+    matrix.data[11] = 0
+    return matrix
   }
 
   /**
@@ -810,20 +739,20 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   static rotationZ(angle: number): Matrix4 {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const matrix = Matrix4.identity();
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    const matrix = Matrix4.identity()
     // 第一行 (索引0-3)
-    matrix.data[0] = cos;
-    matrix.data[1] = sin;
-    matrix.data[2] = 0;
-    matrix.data[3] = 0;
+    matrix.data[0] = cos
+    matrix.data[1] = sin
+    matrix.data[2] = 0
+    matrix.data[3] = 0
     // 第二行 (索引4-7)
-    matrix.data[4] = -sin;
-    matrix.data[5] = cos;
-    matrix.data[6] = 0;
-    matrix.data[7] = 0;
-    return matrix;
+    matrix.data[4] = -sin
+    matrix.data[5] = cos
+    matrix.data[6] = 0
+    matrix.data[7] = 0
+    return matrix
   }
 
   /**
@@ -845,28 +774,28 @@ export default class Matrix4 implements ISerializable {
    * ```
    */
   static rotationAxis(axis: Vector3, angle: number): Matrix4 {
-    const cos = Math.cos(angle);
-    const sin = Math.sin(angle);
-    const oneMinusCos = 1 - cos;
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    const oneMinusCos = 1 - cos
 
-    const x = axis.x;
-    const y = axis.y;
-    const z = axis.z;
+    const x = axis.x
+    const y = axis.y
+    const z = axis.z
 
-    const matrix = Matrix4.identity();
-    matrix.data[0] = cos + x * x * oneMinusCos;
-    matrix.data[1] = x * y * oneMinusCos - z * sin;
-    matrix.data[2] = x * z * oneMinusCos + y * sin;
+    const matrix = Matrix4.identity()
+    matrix.data[0] = cos + x * x * oneMinusCos
+    matrix.data[1] = x * y * oneMinusCos - z * sin
+    matrix.data[2] = x * z * oneMinusCos + y * sin
 
-    matrix.data[4] = y * x * oneMinusCos + z * sin;
-    matrix.data[5] = cos + y * y * oneMinusCos;
-    matrix.data[6] = y * z * oneMinusCos - x * sin;
+    matrix.data[4] = y * x * oneMinusCos + z * sin
+    matrix.data[5] = cos + y * y * oneMinusCos
+    matrix.data[6] = y * z * oneMinusCos - x * sin
 
-    matrix.data[8] = z * x * oneMinusCos - y * sin;
-    matrix.data[9] = z * y * oneMinusCos + x * sin;
-    matrix.data[10] = cos + z * z * oneMinusCos;
+    matrix.data[8] = z * x * oneMinusCos - y * sin
+    matrix.data[9] = z * y * oneMinusCos + x * sin
+    matrix.data[10] = cos + z * z * oneMinusCos
 
-    return matrix;
+    return matrix
   }
 
   /**
@@ -885,38 +814,33 @@ export default class Matrix4 implements ISerializable {
    * const proj = Matrix4.perspective(Math.PI / 4, 16 / 9, 0.1, 1000);
    * ```
    */
-  static perspective(
-    fov: number,
-    aspect: number,
-    near: number,
-    far: number
-  ): Matrix4 {
-    const f = 1.0 / Math.tan(fov / 2);
-    const rangeInv = 1 / (near - far);
+  static perspective(fov: number, aspect: number, near: number, far: number): Matrix4 {
+    const f = 1.0 / Math.tan(fov / 2)
+    const rangeInv = 1 / (near - far)
 
-    const matrix = new Matrix4();
+    const matrix = new Matrix4()
     // 第一行 (索引0-3)
-    matrix.data[0] = f / aspect;
-    matrix.data[1] = 0;
-    matrix.data[2] = 0;
-    matrix.data[3] = 0;
+    matrix.data[0] = f / aspect
+    matrix.data[1] = 0
+    matrix.data[2] = 0
+    matrix.data[3] = 0
     // 第二行 (索引4-7)
-    matrix.data[4] = 0;
-    matrix.data[5] = f;
-    matrix.data[6] = 0;
-    matrix.data[7] = 0;
+    matrix.data[4] = 0
+    matrix.data[5] = f
+    matrix.data[6] = 0
+    matrix.data[7] = 0
     // 第三行 (索引8-11)
-    matrix.data[8] = 0;
-    matrix.data[9] = 0;
-    matrix.data[10] = (near + far) * rangeInv;
-    matrix.data[11] = -1;
+    matrix.data[8] = 0
+    matrix.data[9] = 0
+    matrix.data[10] = (near + far) * rangeInv
+    matrix.data[11] = -1
     // 第四行 (索引12-15)
-    matrix.data[12] = 0;
-    matrix.data[13] = 0;
-    matrix.data[14] = near * far * rangeInv * 2;
-    matrix.data[15] = 0;
+    matrix.data[12] = 0
+    matrix.data[13] = 0
+    matrix.data[14] = near * far * rangeInv * 2
+    matrix.data[15] = 0
 
-    return matrix;
+    return matrix
   }
 
   /**
@@ -943,25 +867,25 @@ export default class Matrix4 implements ISerializable {
     bottom: number,
     top: number,
     near: number,
-    far: number
+    far: number,
   ): Matrix4 {
-    const matrix = Matrix4.identity();
+    const matrix = Matrix4.identity()
     // 第一行 (索引0-3)
-    matrix.data[0] = 2 / (right - left);
-    matrix.data[1] = 0;
-    matrix.data[2] = 0;
-    matrix.data[3] = -(right + left) / (right - left);
+    matrix.data[0] = 2 / (right - left)
+    matrix.data[1] = 0
+    matrix.data[2] = 0
+    matrix.data[3] = -(right + left) / (right - left)
     // 第二行 (索引4-7)
-    matrix.data[4] = 0;
-    matrix.data[5] = 2 / (top - bottom);
-    matrix.data[6] = 0;
-    matrix.data[7] = -(top + bottom) / (top - bottom);
+    matrix.data[4] = 0
+    matrix.data[5] = 2 / (top - bottom)
+    matrix.data[6] = 0
+    matrix.data[7] = -(top + bottom) / (top - bottom)
     // 第三行 (索引8-11)
-    matrix.data[8] = 0;
-    matrix.data[9] = 0;
-    matrix.data[10] = -2 / (far - near);
-    matrix.data[11] = -(far + near) / (far - near);
-    return matrix;
+    matrix.data[8] = 0
+    matrix.data[9] = 0
+    matrix.data[10] = -2 / (far - near)
+    matrix.data[11] = -(far + near) / (far - near)
+    return matrix
   }
 
   // ── 2D TRS 分解 ──
@@ -1024,63 +948,47 @@ export default class Matrix4 implements ISerializable {
   static lookAt(
     eye: [number, number, number],
     target: [number, number, number],
-    up: [number, number, number]
+    up: [number, number, number],
   ): Matrix4 {
-    const zAxis = [eye[0] - target[0], eye[1] - target[1], eye[2] - target[2]];
-    const zLength = Math.sqrt(
-      zAxis[0] * zAxis[0] + zAxis[1] * zAxis[1] + zAxis[2] * zAxis[2]
-    );
-    zAxis[0] /= zLength;
-    zAxis[1] /= zLength;
-    zAxis[2] /= zLength;
+    const zAxis = [eye[0] - target[0], eye[1] - target[1], eye[2] - target[2]]
+    const zLength = Math.sqrt(zAxis[0] * zAxis[0] + zAxis[1] * zAxis[1] + zAxis[2] * zAxis[2])
+    zAxis[0] /= zLength
+    zAxis[1] /= zLength
+    zAxis[2] /= zLength
 
     const xAxis = [
       up[1] * zAxis[2] - up[2] * zAxis[1],
       up[2] * zAxis[0] - up[0] * zAxis[2],
       up[0] * zAxis[1] - up[1] * zAxis[0],
-    ];
-    const xLength = Math.sqrt(
-      xAxis[0] * xAxis[0] + xAxis[1] * xAxis[1] + xAxis[2] * xAxis[2]
-    );
-    xAxis[0] /= xLength;
-    xAxis[1] /= xLength;
-    xAxis[2] /= xLength;
+    ]
+    const xLength = Math.sqrt(xAxis[0] * xAxis[0] + xAxis[1] * xAxis[1] + xAxis[2] * xAxis[2])
+    xAxis[0] /= xLength
+    xAxis[1] /= xLength
+    xAxis[2] /= xLength
 
     const yAxis = [
       zAxis[1] * xAxis[2] - zAxis[2] * xAxis[1],
       zAxis[2] * xAxis[0] - zAxis[0] * xAxis[2],
       zAxis[0] * xAxis[1] - zAxis[1] * xAxis[0],
-    ];
+    ]
 
-    const matrix = Matrix4.identity();
+    const matrix = Matrix4.identity()
     // 第一行 (索引0-3)
-    matrix.data[0] = xAxis[0];
-    matrix.data[1] = yAxis[0];
-    matrix.data[2] = zAxis[0];
-    matrix.data[3] = -(
-      xAxis[0] * eye[0] +
-      xAxis[1] * eye[1] +
-      xAxis[2] * eye[2]
-    );
+    matrix.data[0] = xAxis[0]
+    matrix.data[1] = yAxis[0]
+    matrix.data[2] = zAxis[0]
+    matrix.data[3] = -(xAxis[0] * eye[0] + xAxis[1] * eye[1] + xAxis[2] * eye[2])
     // 第二行 (索引4-7)
-    matrix.data[4] = xAxis[1];
-    matrix.data[5] = yAxis[1];
-    matrix.data[6] = zAxis[1];
-    matrix.data[7] = -(
-      yAxis[0] * eye[0] +
-      yAxis[1] * eye[1] +
-      yAxis[2] * eye[2]
-    );
+    matrix.data[4] = xAxis[1]
+    matrix.data[5] = yAxis[1]
+    matrix.data[6] = zAxis[1]
+    matrix.data[7] = -(yAxis[0] * eye[0] + yAxis[1] * eye[1] + yAxis[2] * eye[2])
     // 第三行 (索引8-11)
-    matrix.data[8] = xAxis[2];
-    matrix.data[9] = yAxis[2];
-    matrix.data[10] = zAxis[2];
-    matrix.data[11] = -(
-      zAxis[0] * eye[0] +
-      zAxis[1] * eye[1] +
-      zAxis[2] * eye[2]
-    );
+    matrix.data[8] = xAxis[2]
+    matrix.data[9] = yAxis[2]
+    matrix.data[10] = zAxis[2]
+    matrix.data[11] = -(zAxis[0] * eye[0] + zAxis[1] * eye[1] + zAxis[2] * eye[2])
 
-    return matrix;
+    return matrix
   }
 }

@@ -54,10 +54,7 @@ export interface NodeEvalResult {
  * @param ctx - 运行时上下文（stack / cap / runSubGraph / evaluateFilter）
  * @returns NodeEvalResult
  */
-export type NodeExecutor<
-  N extends FlowNode = FlowNode,
-  C extends CapProxy = CapProxy,
-> = (
+export type NodeExecutor<N extends FlowNode = FlowNode, C extends CapProxy = CapProxy> = (
   node: N,
   resolvedInputs: Record<string, unknown>,
   ctx: IRunnerCtx<C>,

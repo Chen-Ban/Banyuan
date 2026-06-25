@@ -1,177 +1,174 @@
 import React, { useState } from 'react'
 import { Button, Tooltip, Popover } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined, EllipsisOutlined, EyeOutlined, CloudUploadOutlined } from '@ant-design/icons'
+import {
+  ArrowLeftOutlined,
+  SaveOutlined,
+  EllipsisOutlined,
+  EyeOutlined,
+  CloudUploadOutlined,
+} from '@ant-design/icons'
 import type { IMaterial } from '@banyuan/banvasgl'
 import styles from './index.module.scss'
 
 interface ComponentPaletteProps {
-    templateName: string
-    templateDescription: string
-    saving: boolean
-    isNew: boolean
-    onNameChange: (value: string) => void
-    onDescriptionChange: (value: string) => void
-    onSave: () => void
-    onBack: () => void
-    onPreview: () => void
-    /** 引擎内置物料，直接来自 useDesignBanvas().materials */
-    materials: IMaterial[]
-    /**
-     * 用户自定义物料（可选）
-     *
-     * 格式与内置物料完全一致，source 建议设为 'user'。
-     * 未来社区物料也通过同一接口接入，面板无需改动。
-     */
-    userComponents?: IMaterial[]
-    /** 是否正在发布 */
-    publishing?: boolean
-    /** 发布模板回调（仅已有模板显示） */
-    onPublish?: () => void
+  templateName: string
+  templateDescription: string
+  saving: boolean
+  isNew: boolean
+  onNameChange: (value: string) => void
+  onDescriptionChange: (value: string) => void
+  onSave: () => void
+  onBack: () => void
+  onPreview: () => void
+  /** 引擎内置物料，直接来自 useDesignBanvas().materials */
+  materials: IMaterial[]
+  /**
+   * 用户自定义物料（可选）
+   *
+   * 格式与内置物料完全一致，source 建议设为 'user'。
+   * 未来社区物料也通过同一接口接入，面板无需改动。
+   */
+  userComponents?: IMaterial[]
+  /** 是否正在发布 */
+  publishing?: boolean
+  /** 发布模板回调（仅已有模板显示） */
+  onPublish?: () => void
 }
 
 /** 渲染物料图标：优先 thumbnail，fallback 为首字 */
 const MaterialIcon: React.FC<{ material: IMaterial }> = ({ material }) => {
-    if (material.meta.thumbnail) {
-        return <img src={material.meta.thumbnail} width={20} height={20} alt="" style={{ objectFit: 'contain' }} />
-    }
+  if (material.meta.thumbnail) {
     return (
-        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
-            {material.meta.name.charAt(0)}
-        </span>
+      <img src={material.meta.thumbnail} width={20} height={20} alt="" style={{ objectFit: 'contain' }} />
     )
+  }
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>
+      {material.meta.name.charAt(0)}
+    </span>
+  )
 }
 
 /** 栅格最多展示 6 个，超出折叠到「更多」 */
 const MAX_VISIBLE = 6
 
 const ComponentPalette: React.FC<ComponentPaletteProps> = ({
-    templateName,
-    templateDescription,
-    saving,
-    isNew,
-    onNameChange,
-    onDescriptionChange,
-    onSave,
-    onBack,
-    onPreview,
-    materials,
-    userComponents = [],
-    publishing = false,
-    onPublish,
+  templateName,
+  templateDescription,
+  saving,
+  isNew,
+  onNameChange,
+  onDescriptionChange,
+  onSave,
+  onBack,
+  onPreview,
+  materials,
+  userComponents = [],
+  publishing = false,
+  onPublish,
 }) => {
-    const [moreOpen, setMoreOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
 
-    // 合并所有物料：内置在前，用户自定义在后
-    const allComponents = [...materials, ...userComponents]
-    const visibleComponents = allComponents.slice(0, MAX_VISIBLE)
-    const overflowComponents = allComponents.slice(MAX_VISIBLE)
+  // 合并所有物料：内置在前，用户自定义在后
+  const allComponents = [...materials, ...userComponents]
+  const visibleComponents = allComponents.slice(0, MAX_VISIBLE)
+  const overflowComponents = allComponents.slice(MAX_VISIBLE)
 
-    const handleDragStart = (e: React.DragEvent, material: IMaterial) => {
-        // 只序列化 template（创建数据），不传 meta 等展示信息
-        e.dataTransfer.setData('application/json', JSON.stringify({ template: material.template }))
-        e.dataTransfer.effectAllowed = 'copy'
-    }
+  const handleDragStart = (e: React.DragEvent, material: IMaterial) => {
+    // 只序列化 template（创建数据），不传 meta 等展示信息
+    e.dataTransfer.setData('application/json', JSON.stringify({ template: material.template }))
+    e.dataTransfer.effectAllowed = 'copy'
+  }
 
-    const renderItem = (material: IMaterial) => (
-        <Tooltip key={material.meta.id} title={material.meta.description ?? material.meta.name} placement="bottom">
-            <div
-                className={styles.componentItem}
-                draggable
-                onDragStart={e => handleDragStart(e, material)}
-            >
-                <MaterialIcon material={material} />
-            </div>
+  const renderItem = (material: IMaterial) => (
+    <Tooltip
+      key={material.meta.id}
+      title={material.meta.description ?? material.meta.name}
+      placement="bottom"
+    >
+      <div className={styles.componentItem} draggable onDragStart={(e) => handleDragStart(e, material)}>
+        <MaterialIcon material={material} />
+      </div>
+    </Tooltip>
+  )
+
+  const overflowPanel = <div className={styles.overflowGrid}>{overflowComponents.map(renderItem)}</div>
+
+  return (
+    <div className={styles.palette}>
+      {/* 左侧：Header 操作区 */}
+      <div className={styles.headerSection}>
+        <Button
+          type="text"
+          size="small"
+          icon={<ArrowLeftOutlined />}
+          onClick={onBack}
+          className={styles.backBtn}
+        />
+        <div className={styles.infoFields}>
+          <input
+            className={styles.fieldInput}
+            placeholder="未命名模板"
+            value={templateName}
+            onChange={(e) => onNameChange(e.target.value)}
+          />
+          <input
+            className={`${styles.fieldInput} ${styles.descInput}`}
+            placeholder="添加描述..."
+            value={templateDescription}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+          />
+        </div>
+        <Tooltip title="预览">
+          <Button type="text" icon={<EyeOutlined />} onClick={onPreview} className={styles.actionBtn} />
         </Tooltip>
-    )
+        <Tooltip title={isNew ? '创建模板' : '保存模板'}>
+          <Button
+            type="text"
+            icon={<SaveOutlined />}
+            loading={saving}
+            onClick={onSave}
+            className={styles.actionBtn}
+          />
+        </Tooltip>
+        {!isNew && onPublish && (
+          <Tooltip title="发布模板（生成快照供 POS 使用）">
+            <Button
+              type="primary"
+              size="small"
+              icon={<CloudUploadOutlined />}
+              loading={publishing}
+              onClick={onPublish}
+              className={styles.publishBtn}
+            >
+              发布
+            </Button>
+          </Tooltip>
+        )}
+      </div>
 
-    const overflowPanel = (
-        <div className={styles.overflowGrid}>
-            {overflowComponents.map(renderItem)}
-        </div>
-    )
+      {/* 分隔线 */}
+      <div className={styles.divider} />
 
-    return (
-        <div className={styles.palette}>
-            {/* 左侧：Header 操作区 */}
-            <div className={styles.headerSection}>
-                <Button
-                    type="text"
-                    size="small"
-                    icon={<ArrowLeftOutlined />}
-                    onClick={onBack}
-                    className={styles.backBtn}
-                />
-                <div className={styles.infoFields}>
-                    <input
-                        className={styles.fieldInput}
-                        placeholder="未命名模板"
-                        value={templateName}
-                        onChange={e => onNameChange(e.target.value)}
-                    />
-                    <input
-                        className={`${styles.fieldInput} ${styles.descInput}`}
-                        placeholder="添加描述..."
-                        value={templateDescription}
-                        onChange={e => onDescriptionChange(e.target.value)}
-                    />
-                </div>
-                <Tooltip title="预览">
-                    <Button
-                        type="text"
-                        icon={<EyeOutlined />}
-                        onClick={onPreview}
-                        className={styles.actionBtn}
-                    />
-                </Tooltip>
-                <Tooltip title={isNew ? '创建模板' : '保存模板'}>
-                    <Button
-                        type="text"
-                        icon={<SaveOutlined />}
-                        loading={saving}
-                        onClick={onSave}
-                        className={styles.actionBtn}
-                    />
-                </Tooltip>
-                {!isNew && onPublish && (
-                    <Tooltip title="发布模板（生成快照供 POS 使用）">
-                        <Button
-                            type="primary"
-                            size="small"
-                            icon={<CloudUploadOutlined />}
-                            loading={publishing}
-                            onClick={onPublish}
-                            className={styles.publishBtn}
-                        >
-                            发布
-                        </Button>
-                    </Tooltip>
-                )}
+      {/* 右侧：组件区域（3x2 栅格 + 更多） */}
+      <div className={styles.componentsSection}>
+        <div className={styles.componentsGrid}>{visibleComponents.map(renderItem)}</div>
+        {overflowComponents.length > 0 && (
+          <Popover
+            content={overflowPanel}
+            trigger="click"
+            placement="bottomRight"
+            open={moreOpen}
+            onOpenChange={setMoreOpen}
+          >
+            <div className={styles.moreBtn}>
+              <EllipsisOutlined />
             </div>
-
-            {/* 分隔线 */}
-            <div className={styles.divider} />
-
-            {/* 右侧：组件区域（3x2 栅格 + 更多） */}
-            <div className={styles.componentsSection}>
-                <div className={styles.componentsGrid}>
-                    {visibleComponents.map(renderItem)}
-                </div>
-                {overflowComponents.length > 0 && (
-                    <Popover
-                        content={overflowPanel}
-                        trigger="click"
-                        placement="bottomRight"
-                        open={moreOpen}
-                        onOpenChange={setMoreOpen}
-                    >
-                        <div className={styles.moreBtn}>
-                            <EllipsisOutlined />
-                        </div>
-                    </Popover>
-                )}
-            </div>
-        </div>
-    )
+          </Popover>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default ComponentPalette

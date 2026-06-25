@@ -31,54 +31,67 @@
  *   - HomePage：写 initialPrompt
  */
 
-import { create } from "zustand";
-import type { IBanvasActions } from "@banyuan/banvasgl";
-import * as fullStateApi from "@/api/application/fullState";
-import type { SaveAllParams } from "@/api/application/fullState";
-import { applicationApi } from "@/api";
-import type { CollectionDef } from "@/api/backend/schema";
-import type { CloudFunctionDef } from "@/api/backend/cloudFunctions";
-import { hotUpdatePreview } from "@/utils/previewBridge";
+import { create } from 'zustand'
+import type { IBanvasActions } from '@banyuan/banvasgl'
+import * as fullStateApi from '@/api/application/fullState'
+import type { SaveAllParams } from '@/api/application/fullState'
+import { applicationApi } from '@/api'
+import type { CollectionDef } from '@/api/backend/schema'
+import type { CloudFunctionDef } from '@/api/backend/cloudFunctions'
+import { hotUpdatePreview } from '@/utils/previewBridge'
+import type { DeviceType } from '@/layouts/ApplicationLayout/constants'
 
 // ── 类型定义 ─────────────────────────────────────────────────────────────────────
 
 export interface DesignSize {
-  width: number;
-  height: number;
+  width: number
+  height: number
 }
 
 export interface ApplicationState {
   // ── 业务数据 ─────────────────────────────────────────────────────────────────
   /** 当前应用 ID */
-  appId: string | null;
+  appId: string | null
   /** App.serialize() 产出的完整 UI 定义 JSON 字符串 */
-  uiJSON: string;
+  uiJSON: string
   /** 数据表定义 */
-  dataSchema: CollectionDef[];
+  dataSchema: CollectionDef[]
   /** 云函数定义 */
-  cloudFunctions: CloudFunctionDef[];
+  cloudFunctions: CloudFunctionDef[]
 
   // ── 三维度脏标记 ──────────────────────────────────────────────────────────
   /** uiJSON 是否有未保存的编辑 */
-  uiJSONDirty: boolean;
+  uiJSONDirty: boolean
   /** dataSchema 是否有未保存的编辑 */
-  dataSchemaDirty: boolean;
+  dataSchemaDirty: boolean
   /** cloudFunctions 是否有未保存的编辑 */
-  cloudFunctionsDirty: boolean;
+  cloudFunctionsDirty: boolean
 
   // ── 状态标识 ─────────────────────────────────────────────────────────────────
   /** 是否正在保存 */
-  isSaving: boolean;
+  isSaving: boolean
   /** 是否正在加载应用数据（loadStore 进行中） */
-  dataLoading: boolean;
+  dataLoading: boolean
 
   // ── 应用元数据 ─────────────────────────────────────────────────────────────
   /** 当前应用名称 */
-  appName: string;
+  appName: string
 
   // ── 设计尺寸 ───────────────────────────────────────────────────────────────
   /** 当前应用设计尺寸 */
-  designSize: DesignSize;
+  designSize: DesignSize
+
+  // ── 设计 DPR ───────────────────────────────────────────────────────────────
+  /**
+   * 目标设备像素比（由机型选择器设置）。
+   * 编辑/预览时使用此值模拟目标设备的渲染密度；
+   * 运行态（部署到真机）不使用此值，从 window.devicePixelRatio 获取。
+   */
+  designDpr: number
+
+  // ── 设备类型 ───────────────────────────────────────────────────────────────
+  /** 当前设备类型，驱动画布装饰渲染 */
+  deviceType: DeviceType
 
   // ── 画布引擎实例 ────────────────────────────────────────────────────────────
   /**
@@ -86,74 +99,84 @@ export interface ApplicationState {
    * 挂载后 store 可直接调用引擎能力（序列化 / 设计尺寸），
    * 外部也可通过 store.actions 直接操作画布内容。
    */
-  actions: IBanvasActions | null;
+  actions: IBanvasActions | null
 
   // ── initialPrompt ──────────────────────────────────────────────────────────
   /**
    * 首页创建应用后的初始 prompt（带缓冲语义）。
    * key: appId, value: prompt
    */
-  initialPrompt: Map<string, string>;
+  initialPrompt: Map<string, string>
 }
 
 export interface ApplicationActions {
   // ── 业务数据操作 ─────────────────────────────────────────────────────────────
   /** 初始化加载：拉取全量数据并推送 PreviewServer */
-  load: (appId: string) => Promise<void>;
+  load: (appId: string) => Promise<void>
   /**
    * 按需保存：不传 dimensions 则保存所有脏维度，传参则保存指定维度。
    * 返回 { success, saved[], error? } 供调用方做 UI 反馈。
    */
-  save: (dimensions?: SaveDimension[]) => Promise<SaveResult>;
+  save: (dimensions?: SaveDimension[]) => Promise<SaveResult>
   /** AI done 后拉取最新数据并推送 PreviewServer */
-  refreshFromBackend: () => Promise<void>;
+  refreshFromBackend: () => Promise<void>
   /** 标记 uiJSON 为脏（画布编辑后由 UIPage 调用） */
-  markUIDirty: () => void;
+  markUIDirty: () => void
   /** 更新 dataSchema（CRUD 后调用，自动标记 dataSchemaDirty） */
-  setDataSchema: (dataSchema: CollectionDef[]) => void;
+  setDataSchema: (dataSchema: CollectionDef[]) => void
   /** 更新 cloudFunctions（CRUD 后调用，自动标记 cloudFunctionsDirty） */
-  setCloudFunctions: (cloudFunctions: CloudFunctionDef[]) => void;
+  setCloudFunctions: (cloudFunctions: CloudFunctionDef[]) => void
 
   // ── 应用元数据 ─────────────────────────────────────────────────────────────
-  setAppName: (name: string) => void;
+  setAppName: (name: string) => void
 
   // ── 设计尺寸 ───────────────────────────────────────────────────────────────
-  setDesignSize: (size: DesignSize) => void;
-  /** Layout 机型选择器调用：更新 store 状态 + 通过 actions 通知画布引擎 */
-  changeDesignSize: (size: DesignSize) => void;
+  setDesignSize: (size: DesignSize) => void
+  /**
+   * Layout 机型选择器调用：更新 store 状态 + 通过 actions 通知画布引擎。
+   * @param size 逻辑像素尺寸
+   * @param dpr  目标设备像素比（可选，不传则保持当前 designDpr）
+   */
+  changeDesignSize: (size: DesignSize, dpr?: number) => void
+
+  // ── 设计 DPR ───────────────────────────────────────────────────────────────
+  setDesignDpr: (dpr: number) => void
+
+  // ── 设备类型 ───────────────────────────────────────────────────────────────
+  setDeviceType: (type: DeviceType) => void
 
   // ── 画布引擎实例挂载 ────────────────────────────────────────────────────────
   /** 活跃画布页挂载引擎实例。返回卸载函数。 */
-  registerActions: (actions: IBanvasActions) => () => void;
+  registerActions: (actions: IBanvasActions) => () => void
   /** 取当前画布最新序列化结果（画布未挂载时返回 store.uiJSON 兜底） */
-  getSerializedUI: () => string;
+  getSerializedUI: () => string
 
   // ── initialPrompt ──────────────────────────────────────────────────────────
-  setInitialPrompt: (appId: string, prompt: string) => void;
-  consumeInitialPrompt: (appId: string) => string | undefined;
-  clearInitialPrompt: (appId: string) => void;
+  setInitialPrompt: (appId: string, prompt: string) => void
+  consumeInitialPrompt: (appId: string) => string | undefined
+  clearInitialPrompt: (appId: string) => void
 
   // ── 重置 ──────────────────────────────────────────────────────────────────
-  reset: () => void;
+  reset: () => void
 }
 
-export type SaveDimension = 'uiJSON' | 'dataSchema' | 'cloudFunctions';
+export type SaveDimension = 'uiJSON' | 'dataSchema' | 'cloudFunctions'
 
 // ── SaveResult ───────────────────────────────────────────────────────────────────
 
 export interface SaveResult {
-  success: boolean;
+  success: boolean
   /** 本次实际保存的维度列表 */
-  saved: SaveDimension[];
+  saved: SaveDimension[]
   /** 失败原因（success=false 时），调用方可映射到 toast 文案 */
-  error?: string;
+  error?: string
 }
 
 // ── Store 定义 ───────────────────────────────────────────────────────────────────
 
 const initialState: ApplicationState = {
   appId: null,
-  uiJSON: "",
+  uiJSON: '',
   dataSchema: [],
   cloudFunctions: [],
   uiJSONDirty: false,
@@ -161,22 +184,22 @@ const initialState: ApplicationState = {
   cloudFunctionsDirty: false,
   isSaving: false,
   dataLoading: false,
-  appName: "",
+  appName: '',
   designSize: { width: 1280, height: 800 },
+  designDpr: 1,
+  deviceType: 'windows',
   actions: null,
   initialPrompt: new Map(),
-};
+}
 
-export const useApplicationStore = create<
-  ApplicationState & ApplicationActions
->()((set, get) => ({
+export const useApplicationStore = create<ApplicationState & ApplicationActions>()((set, get) => ({
   ...initialState,
 
   // ── 业务数据操作 ─────────────────────────────────────────────────────────────
 
   load: async (appId) => {
-    set({ appId, dataLoading: true });
-    const res = await fullStateApi.getFullState(appId);
+    set({ appId, dataLoading: true })
+    const res = await fullStateApi.getFullState(appId)
     if (res.success && res.data) {
       set({
         uiJSON: res.data.uiJSON,
@@ -186,80 +209,78 @@ export const useApplicationStore = create<
         dataSchemaDirty: false,
         cloudFunctionsDirty: false,
         dataLoading: false,
-      });
+      })
       // 初始化推送 PreviewServer
-      hotUpdatePreview(res.data.collections, res.data.cloudFunctions);
+      hotUpdatePreview(res.data.collections, res.data.cloudFunctions)
     } else {
-      set({ dataLoading: false });
+      set({ dataLoading: false })
     }
   },
 
   save: async (dimensions) => {
-    const { appId, appName, isSaving, actions, uiJSONDirty, dataSchemaDirty, cloudFunctionsDirty } = get();
-    if (!appId) return { success: false, saved: [], error: "NO_APP_ID" };
-    if (isSaving) return { success: false, saved: [], error: "ALREADY_SAVING" };
+    const { appId, appName, isSaving, actions, uiJSONDirty, dataSchemaDirty, cloudFunctionsDirty } = get()
+    if (!appId) return { success: false, saved: [], error: 'NO_APP_ID' }
+    if (isSaving) return { success: false, saved: [], error: 'ALREADY_SAVING' }
 
     // 确定需要保存的维度
     const toSave: SaveDimension[] = dimensions ?? [
       ...(uiJSONDirty ? ['uiJSON' as SaveDimension] : []),
       ...(dataSchemaDirty ? ['dataSchema' as SaveDimension] : []),
       ...(cloudFunctionsDirty ? ['cloudFunctions' as SaveDimension] : []),
-    ];
+    ]
 
-    if (toSave.length === 0) return { success: true, saved: [] };
+    if (toSave.length === 0) return { success: true, saved: [] }
 
-    set({ isSaving: true });
+    set({ isSaving: true })
     try {
-      const latest = get();
+      const latest = get()
 
       // 从引擎直接序列化最新 uiJSON（引擎持有唯一真值）
       const saveUiJSON = toSave.includes('uiJSON')
         ? (actions?.app.getSerializedApp() ?? latest.uiJSON)
-        : undefined;
-      const saveCollections = toSave.includes('dataSchema') ? latest.dataSchema : undefined;
-      const saveCloudFunctions = toSave.includes('cloudFunctions') ? latest.cloudFunctions : undefined;
+        : undefined
+      const saveCollections = toSave.includes('dataSchema') ? latest.dataSchema : undefined
+      const saveCloudFunctions = toSave.includes('cloudFunctions') ? latest.cloudFunctions : undefined
 
       // 构建 API 请求参数（后端 save-all 已支持可选字段）
-      const apiParams: SaveAllParams = {};
-      if (saveUiJSON !== undefined) apiParams.uiJSON = saveUiJSON;
-      if (saveCollections !== undefined) apiParams.collections = saveCollections;
-      if (saveCloudFunctions !== undefined) apiParams.cloudFunctions = saveCloudFunctions;
+      const apiParams: SaveAllParams = {}
+      if (saveUiJSON !== undefined) apiParams.uiJSON = saveUiJSON
+      if (saveCollections !== undefined) apiParams.collections = saveCollections
+      if (saveCloudFunctions !== undefined) apiParams.cloudFunctions = saveCloudFunctions
 
-      const tasks: Promise<unknown>[] = [
-        fullStateApi.saveAll(appId, apiParams),
-      ];
+      const tasks: Promise<unknown>[] = [fullStateApi.saveAll(appId, apiParams)]
 
       // appName 仅当有脏数据时才一起保存（name 无独立脏标记，始终随业务数据一起走）
       if (appName.trim()) {
-        tasks.push(applicationApi.updateApplication(appId, { name: latest.appName }));
+        tasks.push(applicationApi.updateApplication(appId, { name: latest.appName }))
       }
 
-      await Promise.all(tasks);
+      await Promise.all(tasks)
 
       // 清除已保存维度的脏标记
-      const clearFlags: Partial<ApplicationState> = {};
-      if (toSave.includes('uiJSON')) clearFlags.uiJSONDirty = false;
-      if (toSave.includes('dataSchema')) clearFlags.dataSchemaDirty = false;
-      if (toSave.includes('cloudFunctions')) clearFlags.cloudFunctionsDirty = false;
-      set(clearFlags as ApplicationState);
+      const clearFlags: Partial<ApplicationState> = {}
+      if (toSave.includes('uiJSON')) clearFlags.uiJSONDirty = false
+      if (toSave.includes('dataSchema')) clearFlags.dataSchemaDirty = false
+      if (toSave.includes('cloudFunctions')) clearFlags.cloudFunctionsDirty = false
+      set(clearFlags as ApplicationState)
 
-      hotUpdatePreview(latest.dataSchema, latest.cloudFunctions);
-      return { success: true, saved: toSave };
+      hotUpdatePreview(latest.dataSchema, latest.cloudFunctions)
+      return { success: true, saved: toSave }
     } catch (err: unknown) {
       return {
         success: false,
         saved: [],
         error: err instanceof Error ? err.message : String(err),
-      };
+      }
     } finally {
-      set({ isSaving: false });
+      set({ isSaving: false })
     }
   },
 
   refreshFromBackend: async () => {
-    const appId = get().appId;
-    if (!appId) return;
-    const res = await fullStateApi.getFullState(appId);
+    const appId = get().appId
+    if (!appId) return
+    const res = await fullStateApi.getFullState(appId)
     if (res.success && res.data) {
       set({
         uiJSON: res.data.uiJSON,
@@ -268,24 +289,24 @@ export const useApplicationStore = create<
         uiJSONDirty: false,
         dataSchemaDirty: false,
         cloudFunctionsDirty: false,
-      });
+      })
       // 推送 PreviewServer
-      hotUpdatePreview(res.data.collections, res.data.cloudFunctions);
+      hotUpdatePreview(res.data.collections, res.data.cloudFunctions)
     }
   },
 
   markUIDirty: () => {
-    set({ uiJSONDirty: true });
+    set({ uiJSONDirty: true })
   },
 
   setDataSchema: (dataSchema) => {
-    set({ dataSchema, dataSchemaDirty: true });
-    hotUpdatePreview(dataSchema, get().cloudFunctions);
+    set({ dataSchema, dataSchemaDirty: true })
+    hotUpdatePreview(dataSchema, get().cloudFunctions)
   },
 
   setCloudFunctions: (cloudFunctions) => {
-    set({ cloudFunctions, cloudFunctionsDirty: true });
-    hotUpdatePreview(get().dataSchema, cloudFunctions);
+    set({ cloudFunctions, cloudFunctionsDirty: true })
+    hotUpdatePreview(get().dataSchema, cloudFunctions)
   },
 
   // ── 应用元数据 ─────────────────────────────────────────────────────────────
@@ -293,57 +314,73 @@ export const useApplicationStore = create<
 
   // ── 设计尺寸 ───────────────────────────────────────────────────────────────
   setDesignSize: (size) => set({ designSize: size }),
-  changeDesignSize: (size) => {
-    set({ designSize: size });
+  changeDesignSize: (size, dpr) => {
+    const update: Partial<ApplicationState> = { designSize: size }
+    if (dpr !== undefined) {
+      update.designDpr = dpr
+    }
+    set(update)
     // 直接通知画布引擎
-    get().actions?.app.setDesignSize(size.width, size.height);
+    const { actions } = get()
+    if (actions?.app) {
+      actions.app.setDesignSize(size.width, size.height)
+      // DPR 流入引擎：有传入则用传入值，否则从当前 store 读取
+      const effectiveDpr = dpr !== undefined ? dpr : get().designDpr
+      actions.app.renderer?.setDPR(effectiveDpr)
+    }
   },
+
+  // ── 设计 DPR ───────────────────────────────────────────────────────────────
+  setDesignDpr: (dpr) => set({ designDpr: dpr }),
+
+  // ── 设备类型 ───────────────────────────────────────────────────────────────
+  setDeviceType: (type) => set({ deviceType: type }),
 
   // ── 画布引擎实例挂载 ────────────────────────────────────────────────────────
   registerActions: (actions) => {
-    set({ actions });
+    set({ actions })
     return () => {
       // 仅当卸载的是当前实例时才清空，避免快速切换页面时误清新实例
-      if (get().actions === actions) set({ actions: null });
-    };
+      if (get().actions === actions) set({ actions: null })
+    }
   },
 
   getSerializedUI: () => {
-    const actions = get().actions;
-    return actions ? actions.app.getSerializedApp() : get().uiJSON;
+    const actions = get().actions
+    return actions ? actions.app.getSerializedApp() : get().uiJSON
   },
 
   // ── initialPrompt ──────────────────────────────────────────────────────────
   setInitialPrompt: (appId, prompt) => {
     set((s) => {
-      const next = new Map(s.initialPrompt);
-      next.set(appId, prompt);
-      return { initialPrompt: next };
-    });
+      const next = new Map(s.initialPrompt)
+      next.set(appId, prompt)
+      return { initialPrompt: next }
+    })
   },
 
   consumeInitialPrompt: (appId) => {
-    const prompt = get().initialPrompt.get(appId);
+    const prompt = get().initialPrompt.get(appId)
     if (prompt !== undefined) {
       set((s) => {
-        const next = new Map(s.initialPrompt);
-        next.delete(appId);
-        return { initialPrompt: next };
-      });
+        const next = new Map(s.initialPrompt)
+        next.delete(appId)
+        return { initialPrompt: next }
+      })
     }
-    return prompt;
+    return prompt
   },
 
   clearInitialPrompt: (appId) => {
     set((s) => {
-      const next = new Map(s.initialPrompt);
-      next.delete(appId);
-      return { initialPrompt: next };
-    });
+      const next = new Map(s.initialPrompt)
+      next.delete(appId)
+      return { initialPrompt: next }
+    })
   },
 
   // ── 重置 ──────────────────────────────────────────────────────────────────
   reset: () => {
-    set({ ...initialState, initialPrompt: new Map(), dataLoading: true });
+    set({ ...initialState, initialPrompt: new Map(), dataLoading: true })
   },
-}));
+}))

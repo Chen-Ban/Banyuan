@@ -8,11 +8,11 @@ import type { ICloudFunctionDef } from './versioned-content.js'
 // ─── 部署状态 ─────────────────────────────────────────────────────────────────
 
 export type DeployStatus =
-  | 'pending'      // 等待 agent 接收
-  | 'building'     // 构建中（scaffold + install + vite build）
-  | 'deploying'    // 部署中（配置 nginx / 启动容器）
-  | 'success'      // 部署成功
-  | 'failed'       // 部署失败
+  | 'pending' // 等待 agent 接收
+  | 'building' // 构建中（scaffold + install + vite build）
+  | 'deploying' // 部署中（配置 nginx / 启动容器）
+  | 'success' // 部署成功
+  | 'failed' // 部署失败
 
 // ─── 发布快照 ──────────────────────────────────────────────────────────────────
 

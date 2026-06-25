@@ -22,6 +22,7 @@ import type { FrontendToolHandlers } from './workerTools.js'
 import { createFrontendToolRegistry } from './workerTools.js'
 import { createWorkerGraph, extractFinalText } from './workerGraph.js'
 import { buildExecution, emitProgress } from './shared.js'
+import { ContextProvider, FRONTEND_DECLARATION } from '../context/index.js'
 import type { Message } from '../../core/types.js'
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -37,54 +38,6 @@ export interface FrontendNodeConfig {
   model?: string
   /** 最大循环次数 */
   maxIterations?: number
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// System Prompt 构建
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const FRONTEND_WORKER_ROLE = `你是班园（Banyuan）的前端工程师 Agent。你的职责是根据 UI 设计规格和前后端契约，为每个页面构建完整的视图结构（AIProjectionScene）。
-
-## 核心原则
-
-1. **严格遵循契约**：前端事件绑定必须与 IntegrationContract.bindings 中定义的映射一致
-2. **逐页处理**：一次处理一个页面，使用 create_page 创建后 write_page 写入完整视图结构
-3. **整页写入**：write_page 是全量覆盖该页面的视图结构，需包含所有 nodes
-4. **知识驱动**：不确定的 ViewType 属性，先用 knowledge_search 查询 BanvasGL 能力规范
-5. **物料优先**：使用 material_search 和 material_get_detail 了解可用组件的完整规格
-
-## 输出要求
-
-完成所有页面的构建后，输出一个 JSON 格式的 FrontendArtifacts 摘要：
-\`\`\`json
-{
-  "pages": [
-    {
-      "pageId": "页面ID",
-      "scene": { "id": "...", "name": "...", "nodes": [...] },
-      "clientFlows": [
-        { "viewId": "绑定的视图ID", "event": "onClick", "flowSchema": {...} }
-      ]
-    }
-  ]
-}
-\`\`\`
-
-注意：clientFlows 中的 callFlow 节点的 flowId 必须引用契约中预分配的 functionId。`
-
-function buildFrontendSystemPrompt(
-  uiDesignSpec: string,
-  contract: string,
-): string {
-  return `${FRONTEND_WORKER_ROLE}
-
-## UI 设计规格（来自上游 UI 设计 SubAgent）
-
-${uiDesignSpec}
-
-## 前后端集成契约（来自上游契约定义 SubAgent）
-
-${contract}`
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -116,11 +69,9 @@ export function createFrontendNode(config: FrontendNodeConfig) {
       }
     }
 
-    // ─── 注入上游产物到 system prompt ─────────────────────────────────────────
-    const systemPrompt = buildFrontendSystemPrompt(
-      JSON.stringify(uiDesign, null, 2),
-      JSON.stringify(contract, null, 2),
-    )
+    // ─── 通过 ContextProvider 按需组装 system prompt ──────────────────────────
+    const ctx = ContextProvider.resolve(FRONTEND_DECLARATION, state)
+    const systemPrompt = ctx.systemPrompt
 
     // ─── 注册工具 ─────────────────────────────────────────────────────────────
     const toolRegistry = toolHandlers
@@ -129,9 +80,7 @@ export function createFrontendNode(config: FrontendNodeConfig) {
 
     // ─── 构建初始 user message ────────────────────────────────────────────────
     const userPrompt = buildFrontendUserPrompt(state.userMessage, uiDesign)
-    const initialMessages: Message[] = [
-      { role: 'user', content: userPrompt },
-    ]
+    const initialMessages: Message[] = [{ role: 'user', content: userPrompt }]
 
     // ─── 启动 Worker SubGraph ─────────────────────────────────────────────────
     const workerGraph = createWorkerGraph({
@@ -153,8 +102,7 @@ export function createFrontendNode(config: FrontendNodeConfig) {
       const finalText = extractFinalText(result.messages)
       const artifacts = parseFrontendArtifacts(finalText)
 
-      emitProgress(sseCallback, 'frontend', 'completed',
-        `前端构建完成：${artifacts.pages.length} 个页面`)
+      emitProgress(sseCallback, 'frontend', 'completed', `前端构建完成：${artifacts.pages.length} 个页面`)
 
       return {
         artifacts: { ...state.artifacts, frontend: artifacts },
@@ -183,7 +131,7 @@ function buildFrontendUserPrompt(
   userMessage: string,
   uiDesign: { pages: Array<{ id: string; name: string }> },
 ): string {
-  const pageList = uiDesign.pages.map(p => `- ${p.id}: ${p.name}`).join('\n')
+  const pageList = uiDesign.pages.map((p) => `- ${p.id}: ${p.name}`).join('\n')
 
   return `## 用户需求
 
@@ -221,7 +169,7 @@ function parseFrontendArtifacts(text: string): FrontendArtifacts {
     const parsed = JSON.parse(toParse) as Partial<FrontendArtifacts>
     if (parsed.pages && Array.isArray(parsed.pages)) {
       return {
-        pages: parsed.pages.map(p => ({
+        pages: parsed.pages.map((p) => ({
           pageId: p.pageId ?? 'unknown',
           scene: p.scene ?? { id: p.pageId ?? 'unknown', name: 'unknown', nodes: [] },
           clientFlows: p.clientFlows ?? [],

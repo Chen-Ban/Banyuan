@@ -1,6 +1,6 @@
 // HomePage - Landing page styles
-@use "../../styles/tokens/typography" as *;
-@use "../../styles/mixins" as *;
+@use '../../styles/tokens/typography' as *;
+@use '../../styles/mixins' as *;
 
 // -- Full-page container --
 
@@ -86,7 +86,6 @@
     0 0 40px rgba(99, 102, 241, 0.15),
     0 0 80px rgba(139, 92, 246, 0.08);
 }
-
 
 .inputInner {
   position: relative;

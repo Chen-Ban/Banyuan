@@ -153,7 +153,7 @@ const TemplateSchema = new Schema<ITemplate>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 // 创建索引

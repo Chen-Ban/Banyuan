@@ -10,11 +10,7 @@ class TemplateService {
   /**
    * 获取模板列表（不返回 pages 字段，减少传输量）
    */
-  async getTemplateList(
-    query: { name?: string; publishStatus?: string } = {},
-    page = 1,
-    pageSize = 20
-  ) {
+  async getTemplateList(query: { name?: string; publishStatus?: string } = {}, page = 1, pageSize = 20) {
     const filter: Record<string, unknown> = {}
     if (query.name) {
       filter.name = { $regex: query.name, $options: 'i' }
@@ -26,12 +22,7 @@ class TemplateService {
     const skip = (page - 1) * pageSize
     const [total, templates] = await Promise.all([
       Template.countDocuments(filter),
-      Template.find(filter)
-        .select('-pages')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(pageSize)
-        .lean(),
+      Template.find(filter).select('-pages').sort({ createdAt: -1 }).skip(skip).limit(pageSize).lean(),
     ])
 
     return { templates, total, page, pageSize }
@@ -73,11 +64,9 @@ class TemplateService {
    */
   async updateTemplate(
     id: string,
-    data: Partial<Omit<ITemplate, 'id' | 'version' | 'createdAt' | 'updatedAt'>>
+    data: Partial<Omit<ITemplate, 'id' | 'version' | 'createdAt' | 'updatedAt'>>,
   ): Promise<ITemplate | null> {
-    const template = Types.ObjectId.isValid(id)
-      ? await Template.findById(id)
-      : await Template.findOne({ id })
+    const template = Types.ObjectId.isValid(id) ? await Template.findById(id) : await Template.findOne({ id })
 
     if (!template) return null
 
@@ -91,9 +80,7 @@ class TemplateService {
    * 删除模板
    */
   async deleteTemplate(id: string): Promise<boolean> {
-    const template = Types.ObjectId.isValid(id)
-      ? await Template.findById(id)
-      : await Template.findOne({ id })
+    const template = Types.ObjectId.isValid(id) ? await Template.findById(id) : await Template.findOne({ id })
 
     if (!template) return false
     await template.deleteOne()
@@ -114,7 +101,7 @@ class TemplateService {
       backgroundSize: { width: number; height: number }
       fields: IPrintField[]
       thumbnail?: string
-    }
+    },
   ): Promise<{ snapshotId: string }> {
     const template = Types.ObjectId.isValid(templateId)
       ? await Template.findById(templateId)

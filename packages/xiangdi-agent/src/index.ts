@@ -11,7 +11,7 @@
  */
 
 // ─── 核心引擎 ─────────────────────────────────────────────────────────────────
-export { ToolRegistry } from "./core/index.js";
+export { ToolRegistry } from './core/index.js'
 
 export type {
   // 消息协议
@@ -44,7 +44,7 @@ export type {
   // LLM 客户端接口
   LLMClient,
   LLMResponse,
-} from "./core/index.js";
+} from './core/index.js'
 
 // ─── Schema 层（AI Projection，ADR-027）─────────────────────────────────────
 export {
@@ -55,7 +55,7 @@ export {
   // Patch Projection（ADR-041）
   patchProjection,
   patchProjectionViaAdapter,
-} from "./schema/index.js";
+} from './schema/index.js'
 
 export type {
   // App 级投影
@@ -87,23 +87,15 @@ export type {
   // Patch Projection（ADR-041）
   PatchProjectionInput,
   PatchProjectionResult,
-} from "./schema/index.js";
+} from './schema/index.js'
 
 // ─── 提示词 ───────────────────────────────────────────────────────────────────
-export {
-  XIANGDI_SYSTEM_PROMPT,
-  buildSystemPrompt,
-  generateNodeSchemaDoc,
-} from "./prompts/index.js";
+export { XIANGDI_SYSTEM_PROMPT, buildSystemPrompt, generateNodeSchemaDoc } from './prompts/index.js'
 
-export type { BuildSystemPromptOptions } from "./prompts/index.js";
+export type { BuildSystemPromptOptions } from './prompts/index.js'
 
 // ─── 工具依赖注入接口 ─────────────────────────────────────────────────────────
-export type {
-  MaterialStore,
-  MaterialSummary,
-  MaterialDetail,
-} from "./tools-types.js";
+export type { MaterialStore, MaterialSummary, MaterialDetail } from './tools-types.js'
 
 // ─── Knowledge 层（接口类型） ────────────────────────────────────────────────
 export type {
@@ -118,10 +110,10 @@ export type {
   GraphKnowledgeStore,
   GraphQueryOptions,
   ImpactAnalysisOptions,
-} from "./knowledge/types.js";
+} from './knowledge/types.js'
 
 // ─── LLM 层（DeepSeek + Kimi 客户端 + 智能路由）──────────────────────────────
-export { DeepSeekClient, KimiClient, LLMRouter } from "./llm/index.js";
+export { DeepSeekClient, KimiClient, LLMRouter } from './llm/index.js'
 export type {
   DeepSeekConfig,
   KimiConfig,
@@ -132,7 +124,7 @@ export type {
   RoutingSignalType,
   SuggestedAction,
   SignalListener,
-} from "./llm/index.js";
+} from './llm/index.js'
 
 // ─── 编排层（ADR-041: Orchestrator + 领域 SubAgent 统一管线）────────────────
 export {
@@ -202,7 +194,7 @@ export {
   CollectionDefinitionSchema,
   CloudFunctionEntrySchema,
   BackendArtifactsSchema,
-} from "./orchestration/index.js";
+} from './orchestration/index.js'
 
 export type {
   // Orchestrator 主图类型
@@ -283,9 +275,8 @@ export type {
   CollectionDefinition,
   CloudFunctionEntry,
   BackendArtifacts,
-} from "./orchestration/index.js";
+} from './orchestration/index.js'
 
 // ─── 版本 ─────────────────────────────────────────────────────────────────────
-declare const __XIANGDI_VERSION__: string;
-export const VERSION: string =
-  typeof __XIANGDI_VERSION__ !== "undefined" ? __XIANGDI_VERSION__ : "0.1.0";
+declare const __XIANGDI_VERSION__: string
+export const VERSION: string = typeof __XIANGDI_VERSION__ !== 'undefined' ? __XIANGDI_VERSION__ : '0.1.0'

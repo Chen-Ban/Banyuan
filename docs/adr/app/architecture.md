@@ -123,12 +123,12 @@ knowledge-server 作为独立进程运行（:3003），与 xiangdi-server 和 ba
 
 LunlunGlass 示例项目保留在 Banyuan monorepo 的 examples/ 目录内，不拆分为独立仓库。
 
-**决策链：** 早期考虑独立仓以隔离示例项目 -> 但 LunlunGlass 强依赖 workspace:* 版本的 @banyuan/banvasgl -> 独立仓需要发 npm 或 git submodule -> 维护成本远超收益 -> monorepo 内 examples/ 目录天然享受类型检查和联动构建。
+**决策链：** 早期考虑独立仓以隔离示例项目 -> 但 LunlunGlass 强依赖 workspace:\* 版本的 @banyuan/banvasgl -> 独立仓需要发 npm 或 git submodule -> 维护成本远超收益 -> monorepo 内 examples/ 目录天然享受类型检查和联动构建。
 
 **约束：**
 
 - examples/ 下的项目不发布到 npm
-- examples/ 项目可以依赖 workspace:* 的包
+- examples/ 项目可以依赖 workspace:\* 的包
 - CI 构建包含 examples/ 以确保不被引擎变更破坏
 
 **反例：**

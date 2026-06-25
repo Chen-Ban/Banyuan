@@ -84,4 +84,3 @@ export interface UserFilters {
   email?: string
   phone?: string
 }
-

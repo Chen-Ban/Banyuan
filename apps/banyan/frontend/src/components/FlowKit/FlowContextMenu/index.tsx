@@ -4,27 +4,27 @@ import styles from './index.module.scss'
 // ── 类型定义 ──
 
 export interface FlowContextMenuItem {
-    key: string
-    label: string
-    disabled?: boolean
-    divider?: boolean
-    shortcut?: string
-    handler: () => void
+  key: string
+  label: string
+  disabled?: boolean
+  divider?: boolean
+  shortcut?: string
+  handler: () => void
 }
 
 export interface FlowContextMenuState {
-    visible: boolean
-    position: { x: number; y: number }
-    targetType: 'node' | 'edge' | 'canvas'
-    targetId: string | null
-    items: FlowContextMenuItem[]
-    dismiss: () => void
+  visible: boolean
+  position: { x: number; y: number }
+  targetType: 'node' | 'edge' | 'canvas'
+  targetId: string | null
+  items: FlowContextMenuItem[]
+  dismiss: () => void
 }
 
 // ── 组件 ──
 
 export interface FlowContextMenuProps {
-    state: FlowContextMenuState
+  state: FlowContextMenuState
 }
 
 /**
@@ -34,56 +34,52 @@ export interface FlowContextMenuProps {
  * 支持：菜单项、禁用态、分割线、快捷键提示、点击外部关闭。
  */
 export const FlowContextMenu: React.FC<FlowContextMenuProps> = ({ state }) => {
-    const menuRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        if (!state.visible || !menuRef.current) return
-        const menu = menuRef.current
-        const rect = menu.getBoundingClientRect()
-        const { innerWidth, innerHeight } = window
+  useEffect(() => {
+    if (!state.visible || !menuRef.current) return
+    const menu = menuRef.current
+    const rect = menu.getBoundingClientRect()
+    const { innerWidth, innerHeight } = window
 
-        if (rect.right > innerWidth) {
-            menu.style.left = `${innerWidth - rect.width - 8}px`
-        }
-        if (rect.bottom > innerHeight) {
-            menu.style.top = `${innerHeight - rect.height - 8}px`
-        }
-    }, [state.visible, state.position])
+    if (rect.right > innerWidth) {
+      menu.style.left = `${innerWidth - rect.width - 8}px`
+    }
+    if (rect.bottom > innerHeight) {
+      menu.style.top = `${innerHeight - rect.height - 8}px`
+    }
+  }, [state.visible, state.position])
 
-    if (!state.visible) return null
+  if (!state.visible) return null
 
-    return (
-        <>
+  return (
+    <>
+      <div
+        className={styles.overlay}
+        onMouseDown={state.dismiss}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          state.dismiss()
+        }}
+      />
+      <div ref={menuRef} className={styles.menu} style={{ left: state.position.x, top: state.position.y }}>
+        {state.items.map((item) => (
+          <div key={item.key}>
+            {item.divider && <div className={styles.divider} />}
             <div
-                className={styles.overlay}
-                onMouseDown={state.dismiss}
-                onContextMenu={(e) => {
-                    e.preventDefault()
-                    state.dismiss()
-                }}
-            />
-            <div
-                ref={menuRef}
-                className={styles.menu}
-                style={{ left: state.position.x, top: state.position.y }}
+              className={item.disabled ? styles.menuItemDisabled : styles.menuItem}
+              onClick={() => {
+                if (item.disabled) return
+                item.handler()
+                state.dismiss()
+              }}
             >
-                {state.items.map((item) => (
-                    <div key={item.key}>
-                        {item.divider && <div className={styles.divider} />}
-                        <div
-                            className={item.disabled ? styles.menuItemDisabled : styles.menuItem}
-                            onClick={() => {
-                                if (item.disabled) return
-                                item.handler()
-                                state.dismiss()
-                            }}
-                        >
-                            <span>{item.label}</span>
-                            {item.shortcut && <span className={styles.shortcut}>{item.shortcut}</span>}
-                        </div>
-                    </div>
-                ))}
+              <span>{item.label}</span>
+              {item.shortcut && <span className={styles.shortcut}>{item.shortcut}</span>}
             </div>
-        </>
-    )
+          </div>
+        ))}
+      </div>
+    </>
+  )
 }

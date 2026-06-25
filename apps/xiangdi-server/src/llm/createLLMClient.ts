@@ -1,6 +1,6 @@
-import { DeepSeekClient, KimiClient, LLMRouter } from "@banyuan/xiangdi-agent";
-import type { LLMClient, RoutingSignal } from "@banyuan/xiangdi-agent";
-import { loadApiKey } from "../utils/loadApiKey.js";
+import { DeepSeekClient, KimiClient, LLMRouter } from '@banyuan/xiangdi-agent'
+import type { LLMClient, RoutingSignal } from '@banyuan/xiangdi-agent'
+import { loadApiKey } from '../utils/loadApiKey.js'
 
 /**
  * 根据环境变量组装 LLMClient
@@ -28,32 +28,29 @@ import { loadApiKey } from "../utils/loadApiKey.js";
 
 export interface ModelInfo {
   /** provider 唯一标识 */
-  provider: string;
+  provider: string
   /** 当前激活的模型名 */
-  model: string;
+  model: string
   /** 该 provider 支持的模型列表 */
-  availableModels: string[];
+  availableModels: string[]
   /** 是否为当前激活的 provider */
-  active: boolean;
+  active: boolean
 }
 
-export const PROVIDER_CATALOG: Record<
-  string,
-  { defaultModel: string; availableModels: string[] }
-> = {
+export const PROVIDER_CATALOG: Record<string, { defaultModel: string; availableModels: string[] }> = {
   deepseek: {
-    defaultModel: "deepseek-v4-pro",
-    availableModels: ["deepseek-v4-pro"],
+    defaultModel: 'deepseek-v4-pro',
+    availableModels: ['deepseek-v4-pro'],
   },
   kimi: {
-    defaultModel: "kimi-k2.6",
-    availableModels: ["kimi-k2.6"],
+    defaultModel: 'kimi-k2.6',
+    availableModels: ['kimi-k2.6'],
   },
-};
+}
 
 // ─── 全局 LLMRouter 单例（跨请求共享，支持运行时切换）────────────────────────
 
-let _router: LLMRouter | null = null;
+let _router: LLMRouter | null = null
 
 /**
  * 获取（或初始化）全局 LLMRouter 单例
@@ -62,87 +59,78 @@ let _router: LLMRouter | null = null;
  * 后续调用直接返回已有实例（支持运行时通过 router.switchTo() 切换）。
  */
 export async function getLLMRouter(): Promise<LLMRouter> {
-  if (_router) return _router;
+  if (_router) return _router
 
-  const highLatencyMs = parseInt(
-    process.env.LLM_HIGH_LATENCY_MS ?? "60000",
-    10,
-  );
-  const consecutiveFailThreshold = parseInt(
-    process.env.LLM_CONSECUTIVE_FAIL_THRESHOLD ?? "3",
-    10,
-  );
+  const highLatencyMs = parseInt(process.env.LLM_HIGH_LATENCY_MS ?? '60000', 10)
+  const consecutiveFailThreshold = parseInt(process.env.LLM_CONSECUTIVE_FAIL_THRESHOLD ?? '3', 10)
 
   // ── 构建 DeepSeek provider ──────────────────────────────────────────────
-  const deepseekApiKey = await loadApiKey("deepseek");
-  const deepseekModel =
-    process.env.DEEPSEEK_MODEL ?? PROVIDER_CATALOG.deepseek.defaultModel;
-  const deepseekBaseUrl =
-    process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com";
+  const deepseekApiKey = await loadApiKey('deepseek')
+  const deepseekModel = process.env.DEEPSEEK_MODEL ?? PROVIDER_CATALOG.deepseek.defaultModel
+  const deepseekBaseUrl = process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com'
   const deepseek = new DeepSeekClient({
     apiKey: deepseekApiKey,
     model: deepseekModel,
     baseUrl: deepseekBaseUrl,
-  });
+  })
 
   // ── 构建 Kimi provider ──────────────────────────────────────────────────
   // required=false：Kimi 是可选 provider，未配置 key 时不报错，切换时才会失败
-  const kimiApiKey = await loadApiKey("kimi", false);
-  const kimiModel =
-    process.env.KIMI_MODEL ?? PROVIDER_CATALOG.kimi.defaultModel;
-  const kimiBaseUrl = process.env.KIMI_BASE_URL ?? "https://api.moonshot.ai/v1";
+  const kimiApiKey = await loadApiKey('kimi', false)
+  const kimiModel = process.env.KIMI_MODEL ?? PROVIDER_CATALOG.kimi.defaultModel
+  const kimiBaseUrl = process.env.KIMI_BASE_URL ?? 'https://api.moonshot.ai/v1'
   const kimi = new KimiClient({
     apiKey: kimiApiKey,
     model: kimiModel,
     baseUrl: kimiBaseUrl,
-  });
+  })
 
   // ── 确定初始激活 provider ───────────────────────────────────────────────
-  const initialProvider = process.env.LLM_PROVIDER ?? "deepseek";
+  const initialProvider = process.env.LLM_PROVIDER ?? 'deepseek'
 
   _router = new LLMRouter({
-    primary: { id: "deepseek", client: deepseek, priority: 0 },
-    fallbacks: [{ id: "kimi", client: kimi, priority: 1 }],
+    primary: { id: 'deepseek', client: deepseek, priority: 0 },
+    fallbacks: [{ id: 'kimi', client: kimi, priority: 1 }],
     onSignal: (signal: RoutingSignal) => {
-      const level = signal.type === "consecutive_failures" ? "error" : "warn";
+      const level = signal.type === 'consecutive_failures' ? 'error' : 'warn'
       console[level](
         `[LLMRouter] signal=${signal.type} provider=${signal.providerId}` +
           ` action=${signal.suggestedAction} msg="${signal.message}"`,
-      );
+      )
     },
     highLatencyThresholdMs: highLatencyMs,
     consecutiveFailureThreshold: consecutiveFailThreshold,
     autoSwitch: false,
-  });
+  })
 
   // 若初始 provider 不是 deepseek，立即切换
-  if (initialProvider !== "deepseek") {
-    _router.switchTo(initialProvider);
+  if (initialProvider !== 'deepseek') {
+    _router.switchTo(initialProvider)
   }
 
-  return _router;
+  return _router
 }
 
 /**
  * 获取（或初始化）LLMClient（对外兼容接口，返回 LLMRouter 实例）
  */
 export async function createLLMClient(): Promise<LLMClient> {
-  return getLLMRouter();
+  return getLLMRouter()
 }
 
 /**
  * 获取当前所有 provider 的模型信息（用于 GET /models 接口）
  */
 export async function getModelsInfo(): Promise<ModelInfo[]> {
-  const router = await getLLMRouter();
-  const activeId = router.getActiveProviderId();
+  const router = await getLLMRouter()
+  const activeId = router.getActiveProviderId()
 
   return Object.entries(PROVIDER_CATALOG).map(([provider, catalog]) => ({
     provider,
     model: getActiveModelForProvider(provider),
     availableModels: catalog.availableModels,
     active: provider === activeId,
-  }));
+  }))
 }
 
 /**
@@ -150,22 +138,20 @@ export async function getModelsInfo(): Promise<ModelInfo[]> {
  * 返回切换是否成功
  */
 export async function switchProvider(providerId: string): Promise<boolean> {
-  if (!PROVIDER_CATALOG[providerId]) return false;
-  const router = await getLLMRouter();
-  return router.switchTo(providerId);
+  if (!PROVIDER_CATALOG[providerId]) return false
+  const router = await getLLMRouter()
+  return router.switchTo(providerId)
 }
 
 // ─── 内部工具 ──────────────────────────────────────────────────────────────────
 
 function getActiveModelForProvider(provider: string): string {
   switch (provider) {
-    case "deepseek":
-      return (
-        process.env.DEEPSEEK_MODEL ?? PROVIDER_CATALOG.deepseek.defaultModel
-      );
-    case "kimi":
-      return process.env.KIMI_MODEL ?? PROVIDER_CATALOG.kimi.defaultModel;
+    case 'deepseek':
+      return process.env.DEEPSEEK_MODEL ?? PROVIDER_CATALOG.deepseek.defaultModel
+    case 'kimi':
+      return process.env.KIMI_MODEL ?? PROVIDER_CATALOG.kimi.defaultModel
     default:
-      return PROVIDER_CATALOG[provider]?.defaultModel ?? "unknown";
+      return PROVIDER_CATALOG[provider]?.defaultModel ?? 'unknown'
   }
 }

@@ -1,24 +1,11 @@
 import type { PatternRepeat } from '@/types/foundation/media.js'
 export type { PatternRepeat }
 
-/**
- * 图案尺寸
- *
- * 指定图案在画布上的渲染宽高（像素）。
- *
- * @example
- * ```ts
- * const size: PatternSize = { width: 64, height: 64 }
- * ```
- */
-export interface PatternSize {
-  width: number
-  height: number
-}
+import type { PatternSize } from '@/types/foundation/style'
 
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { IPattern } from '@/types/foundation/pattern.js'
 import type { IImageSource } from '@/types/foundation/media.js'
 
@@ -35,7 +22,7 @@ import type { IImageSource } from '@/types/foundation/media.js'
  * ```
  */
 export default class Image implements ISerializable {
-  public readonly type: StyleType = StyleType.IMAGE_PATTERN;
+  public readonly type: StyleType = StyleType.IMAGE_PATTERN
   src: string | null
   size: PatternSize | null
   repeat: PatternRepeat
@@ -149,7 +136,7 @@ export default class Image implements ISerializable {
    * console.log(info.src, info.size, info.repeat)
    * ```
    */
-  getPatternInfo(): { src: string | null; size: PatternSize | null; repeat: PatternRepeat; } {
+  getPatternInfo(): { src: string | null; size: PatternSize | null; repeat: PatternRepeat } {
     return {
       src: this.src,
       size: this.size,
@@ -250,9 +237,7 @@ export default class Image implements ISerializable {
    * ```
    */
   equals(other: Image): boolean {
-    return this.src === other.src &&
-           this.size === other.size &&
-           this.repeat === other.repeat
+    return this.src === other.src && this.size === other.size && this.repeat === other.repeat
   }
 
   /**

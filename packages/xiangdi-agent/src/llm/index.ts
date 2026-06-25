@@ -13,14 +13,14 @@
  */
 
 // ─── LLM 客户端 ──────────────────────────────────────────────────────────────
-export { DeepSeekClient } from "./DeepSeekClient.js";
-export type { DeepSeekConfig } from "./DeepSeekClient.js";
+export { DeepSeekClient } from './DeepSeekClient.js'
+export type { DeepSeekConfig } from './DeepSeekClient.js'
 
-export { KimiClient } from "./KimiClient.js";
-export type { KimiConfig } from "./KimiClient.js";
+export { KimiClient } from './KimiClient.js'
+export type { KimiConfig } from './KimiClient.js'
 
 // ─── LLM 路由层 ─────────────────────────────────────────────────────────────
-export { LLMRouter } from "./LLMRouter.js";
+export { LLMRouter } from './LLMRouter.js'
 export type {
   LLMRouterConfig,
   LLMProvider,
@@ -29,4 +29,4 @@ export type {
   RoutingSignalType,
   SuggestedAction,
   SignalListener,
-} from "./LLMRouter.js";
+} from './LLMRouter.js'

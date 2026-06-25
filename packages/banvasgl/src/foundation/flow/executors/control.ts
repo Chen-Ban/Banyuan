@@ -18,7 +18,6 @@ import type {
   FlowConditionNode,
   FlowLoopNode,
   FlowParallelNode,
-  FlowReturnNode,
 } from '@/types/foundation/flow/nodes/control.js'
 import type { NodeExecutor } from '@/types/foundation/flow/executor.js'
 import { FrameStack } from '../context/index.js'

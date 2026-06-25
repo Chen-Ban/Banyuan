@@ -22,7 +22,7 @@ async function fetchPublishedList(studioUrl: string) {
   if (!response.ok) {
     throw new Error(`Studio returned ${response.status} for /templates/published`)
   }
-  const data = await response.json() as { success: boolean; data: unknown[] }
+  const data = (await response.json()) as { success: boolean; data: unknown[] }
   if (!data.success) {
     throw new Error('Studio /templates/published returned success=false')
   }
@@ -39,7 +39,7 @@ async function fetchSnapshotDetail(studioUrl: string, snapshotId: string) {
   if (!response.ok) {
     throw new Error(`Studio returned ${response.status} for snapshot ${snapshotId}`)
   }
-  const data = await response.json() as { success: boolean; data: Record<string, unknown> }
+  const data = (await response.json()) as { success: boolean; data: Record<string, unknown> }
   if (!data.success) {
     throw new Error(`Studio snapshot ${snapshotId} returned success=false`)
   }
@@ -67,7 +67,7 @@ export async function syncTemplates(): Promise<SyncResult> {
   const result: SyncResult = { synced: 0, skipped: 0, errors: [] }
 
   // 1. 拉取已发布列表
-  const publishedList = await fetchPublishedList(studioUrl) as Array<Record<string, unknown>>
+  const publishedList = (await fetchPublishedList(studioUrl)) as Array<Record<string, unknown>>
 
   // 2. 逐个检查并同步
   for (const item of publishedList) {
@@ -116,8 +116,5 @@ export async function syncTemplates(): Promise<SyncResult> {
  * 不含背景图，减少传输量
  */
 export async function getLocalSnapshots() {
-  return TemplateSnapshot.find()
-    .select('-backgroundImage')
-    .sort({ syncedAt: -1 })
-    .lean()
+  return TemplateSnapshot.find().select('-backgroundImage').sort({ syncedAt: -1 }).lean()
 }

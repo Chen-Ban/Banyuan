@@ -84,10 +84,7 @@ export interface GetDialoguesResponse {
  * 获取应用的对话历史（Dialogue 列表）
  */
 export async function getDialogues(appId: string, limit = 50): Promise<Dialogue[]> {
-  const res = await get<GetDialoguesResponse>(
-    `/applications/${appId}/conversation/dialogues`,
-    { limit }
-  )
+  const res = await get<GetDialoguesResponse>(`/applications/${appId}/conversation/dialogues`, { limit })
   return res.data?.dialogues ?? []
 }
 
@@ -109,9 +106,9 @@ export function dialoguesToFlatMessages(dialogues: Dialogue[]): ConversationMess
       } else if (msg.role === 'assistant' && msg.assistantContent) {
         // 提取文本内容
         const textBlocks = msg.assistantContent.filter(
-          (block): block is Extract<AssistantContent, { type: 'text' }> => block.type === 'text'
+          (block): block is Extract<AssistantContent, { type: 'text' }> => block.type === 'text',
         )
-        const text = textBlocks.map(b => b.text).join('')
+        const text = textBlocks.map((b) => b.text).join('')
         if (text) {
           messages.push({
             role: 'assistant',

@@ -1,14 +1,14 @@
-import { GraphType } from "@/foundation/constants";
-import Graph from "@/graph/base/Graph";
-import { MathUtils, Point3, Vector3, Matrix4 } from "@/foundation/math";
-import Style from "@/foundation/style/Style";
-import Bounds from "@/graph/base/Bounds";
-import { Line } from "@/graph/analytic";
+import { GraphType } from '@/foundation/constants'
+import Graph from '@/graph/base/Graph'
+import { MathUtils, Point3, Vector3, Matrix4 } from '@/foundation/math'
+import Style from '@/foundation/style/Style'
+import Bounds from '@/graph/base/Bounds'
+import { Line } from '@/graph/analytic'
 import type { IDenseTrajectory } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { ITransferable, TransferableData } from '@/types/foundation/transferable'
-import { generateId } from "@/foundation/utils";
+import { generateId } from '@/foundation/utils'
 
 /**
  * 密集轨迹类。
@@ -43,19 +43,16 @@ import { generateId } from "@/foundation/utils";
  * traj.getLength(0, 1);  // 总长度 ≈ 200
  * ```
  */
-export default class DenseTrajectory
-  extends Graph
-  implements IDenseTrajectory, ISerializable, ITransferable
-{
+export default class DenseTrajectory extends Graph implements IDenseTrajectory, ISerializable, ITransferable {
   /** 图形类型标识 */
-  public type: GraphType = GraphType.DENSETRAJECTORY;
+  public type: GraphType = GraphType.DENSETRAJECTORY
   /**
    * 控制点数组。使用 `Float32Array` 存储，每 3 个连续分量表示一个三维点 `(x, y, z)`。
    * 点的数量 = `controlPoints.length / 3`。
    */
-  public controlPoints: Float32Array;
+  public controlPoints: Float32Array
   /** 元素包围盒 */
-  public bounds: Bounds;
+  public bounds: Bounds
 
   /**
    * 创建密集轨迹实例。
@@ -73,10 +70,10 @@ export default class DenseTrajectory
    * ```
    */
   constructor(points: Float32Array, _style?: Style) {
-    super();
-    this.controlPoints = Float32Array.from(points);
-    this.bounds = this.updateBounds();
-    this.id = generateId(this.type);
+    super()
+    this.controlPoints = Float32Array.from(points)
+    this.bounds = this.updateBounds()
+    this.id = generateId(this.type)
   }
 
   /**
@@ -96,10 +93,10 @@ export default class DenseTrajectory
    * ```
    */
   public isClosed(): boolean {
-    const pts = this.controlPoints;
-    if (pts.length < 6) return false; // 至少两个点（每点3分量）
-    const lastIdx = pts.length - 3;
-    return pts[0] === pts[lastIdx] && pts[1] === pts[lastIdx + 1] && pts[2] === pts[lastIdx + 2];
+    const pts = this.controlPoints
+    if (pts.length < 6) return false // 至少两个点（每点3分量）
+    const lastIdx = pts.length - 3
+    return pts[0] === pts[lastIdx] && pts[1] === pts[lastIdx + 1] && pts[2] === pts[lastIdx + 2]
   }
 
   /**
@@ -117,12 +114,12 @@ export default class DenseTrajectory
    * ctx.stroke();
    * ```
    */
-  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
-    dependent && ctx.beginPath();
-    ctx.moveTo(this.controlPoints[0], this.controlPoints[1]);
-    const length = this.controlPoints.length / 3;
+  public renderPath(ctx: IDrawingContext, dependent: boolean): void {
+    dependent && ctx.beginPath()
+    ctx.moveTo(this.controlPoints[0], this.controlPoints[1])
+    const length = this.controlPoints.length / 3
     for (let i = 1; i < length; i++) {
-      ctx.lineTo(this.controlPoints[i * 3], this.controlPoints[i * 3 + 1]);
+      ctx.lineTo(this.controlPoints[i * 3], this.controlPoints[i * 3 + 1])
     }
   }
 
@@ -139,11 +136,11 @@ export default class DenseTrajectory
    * ```
    */
   public render(ctx: IDrawingContext, style: Style): void {
-    ctx.save();
-    style.applyToContext(ctx, Math.abs(this.bounds.width), Math.abs(this.bounds.height));
-    this.renderPath(ctx, true);
-    ctx.stroke();
-    ctx.restore();
+    ctx.save()
+    style.applyToContext(ctx, Math.abs(this.bounds.width), Math.abs(this.bounds.height))
+    this.renderPath(ctx, true)
+    ctx.stroke()
+    ctx.restore()
   }
 
   /**
@@ -160,9 +157,7 @@ export default class DenseTrajectory
    * ```
    */
   public copy(): this {
-    return new DenseTrajectory(
-      Float32Array.from(this.controlPoints),
-    ) as this;
+    return new DenseTrajectory(Float32Array.from(this.controlPoints)) as this
   }
 
   /**
@@ -181,18 +176,12 @@ export default class DenseTrajectory
    * ```
    */
   public updateBounds(): Bounds {
-    let points = [];
-    const length = this.controlPoints.length;
+    const points = []
+    const length = this.controlPoints.length
     for (let i = 0; i < length - 2; i += 3) {
-      points.push(
-        new Point3(
-          this.controlPoints[i],
-          this.controlPoints[i + 1],
-          this.controlPoints[i + 2],
-        ),
-      );
+      points.push(new Point3(this.controlPoints[i], this.controlPoints[i + 1], this.controlPoints[i + 2]))
     }
-    return Bounds.fromPoints(points);
+    return Bounds.fromPoints(points)
   }
 
   /**
@@ -207,8 +196,8 @@ export default class DenseTrajectory
    * traj.isPointOnCurve(new Point3(50, 0, 0)); // false
    * ```
    */
-  public isPointOnCurve(p: Point3, tolerance: number = MathUtils.EPSILON): boolean {
-    return false;
+  public isPointOnCurve(_p: Point3, _tolerance: number = MathUtils.EPSILON): boolean {
+    return false
   }
 
   /**
@@ -234,42 +223,33 @@ export default class DenseTrajectory
    * ```
    */
   public getPointAt(t: number): Point3 {
-    const pointCount = this.controlPoints.length / 3;
-    if (pointCount === 0) return new Point3(0, 0, 0);
+    const pointCount = this.controlPoints.length / 3
+    if (pointCount === 0) return new Point3(0, 0, 0)
     if (pointCount === 1) {
-      return new Point3(
-        this.controlPoints[0],
-        this.controlPoints[1],
-        this.controlPoints[2],
-      );
+      return new Point3(this.controlPoints[0], this.controlPoints[1], this.controlPoints[2])
     }
 
-    const clampedT = Math.max(0, Math.min(1, t));
-    const index = clampedT * (pointCount - 1);
-    const i = Math.floor(index);
-    const fraction = index - i;
+    const clampedT = Math.max(0, Math.min(1, t))
+    const index = clampedT * (pointCount - 1)
+    const i = Math.floor(index)
+    const fraction = index - i
 
     if (i >= pointCount - 1) {
-      const lastIdx = (pointCount - 1) * 3;
+      const lastIdx = (pointCount - 1) * 3
       return new Point3(
         this.controlPoints[lastIdx],
         this.controlPoints[lastIdx + 1],
         this.controlPoints[lastIdx + 2],
-      );
+      )
     }
 
-    const idx1 = i * 3;
-    const idx2 = (i + 1) * 3;
+    const idx1 = i * 3
+    const idx2 = (i + 1) * 3
     return new Point3(
-      this.controlPoints[idx1] +
-        fraction * (this.controlPoints[idx2] - this.controlPoints[idx1]),
-      this.controlPoints[idx1 + 1] +
-        fraction *
-          (this.controlPoints[idx2 + 1] - this.controlPoints[idx1 + 1]),
-      this.controlPoints[idx1 + 2] +
-        fraction *
-          (this.controlPoints[idx2 + 2] - this.controlPoints[idx1 + 2]),
-    );
+      this.controlPoints[idx1] + fraction * (this.controlPoints[idx2] - this.controlPoints[idx1]),
+      this.controlPoints[idx1 + 1] + fraction * (this.controlPoints[idx2 + 1] - this.controlPoints[idx1 + 1]),
+      this.controlPoints[idx1 + 2] + fraction * (this.controlPoints[idx2 + 2] - this.controlPoints[idx1 + 2]),
+    )
   }
 
   /**
@@ -292,30 +272,30 @@ export default class DenseTrajectory
    * ```
    */
   public getTangentAt(t: number): Vector3 {
-    const pointCount = this.controlPoints.length / 3;
-    if (pointCount < 2) return new Vector3(1, 0, 0);
+    const pointCount = this.controlPoints.length / 3
+    if (pointCount < 2) return new Vector3(1, 0, 0)
 
-    const clampedT = Math.max(0, Math.min(1, t));
-    const index = clampedT * (pointCount - 1);
-    const i = Math.floor(index);
+    const clampedT = Math.max(0, Math.min(1, t))
+    const index = clampedT * (pointCount - 1)
+    const i = Math.floor(index)
 
     if (i >= pointCount - 1) {
-      const idx1 = (pointCount - 2) * 3;
-      const idx2 = (pointCount - 1) * 3;
+      const idx1 = (pointCount - 2) * 3
+      const idx2 = (pointCount - 1) * 3
       return new Vector3(
         this.controlPoints[idx2] - this.controlPoints[idx1],
         this.controlPoints[idx2 + 1] - this.controlPoints[idx1 + 1],
         this.controlPoints[idx2 + 2] - this.controlPoints[idx1 + 2],
-      );
+      )
     }
 
-    const idx1 = i * 3;
-    const idx2 = (i + 1) * 3;
+    const idx1 = i * 3
+    const idx2 = (i + 1) * 3
     return new Vector3(
       this.controlPoints[idx2] - this.controlPoints[idx1],
       this.controlPoints[idx2 + 1] - this.controlPoints[idx1 + 1],
       this.controlPoints[idx2 + 2] - this.controlPoints[idx1 + 2],
-    );
+    )
   }
 
   /**
@@ -334,8 +314,8 @@ export default class DenseTrajectory
    * ```
    */
   public getNormalAt(t: number): Vector3 {
-    const tangent = this.getTangentAt(t);
-    return new Vector3(-tangent.y, tangent.x, 0);
+    const tangent = this.getTangentAt(t)
+    return new Vector3(-tangent.y, tangent.x, 0)
   }
 
   /**
@@ -367,57 +347,49 @@ export default class DenseTrajectory
    * ```
    */
   public getClosestPoint(point: Point3): {
-    distance: number;
-    closestPoint: Point3;
-    parameter: number;
+    distance: number
+    closestPoint: Point3
+    parameter: number
   } {
-    const pointCount = this.controlPoints.length / 3;
+    const pointCount = this.controlPoints.length / 3
     if (pointCount === 0) {
       return {
         distance: Infinity,
         closestPoint: new Point3(0, 0, 0),
         parameter: 0,
-      };
+      }
     }
     if (pointCount === 1) {
-      const p = new Point3(
-        this.controlPoints[0],
-        this.controlPoints[1],
-        this.controlPoints[2],
-      );
+      const p = new Point3(this.controlPoints[0], this.controlPoints[1], this.controlPoints[2])
       return {
-        distance: Math.sqrt(
-          Math.pow(point.x - p.x, 2) + Math.pow(point.y - p.y, 2),
-        ),
+        distance: Math.sqrt(Math.pow(point.x - p.x, 2) + Math.pow(point.y - p.y, 2)),
         closestPoint: p,
         parameter: 0,
-      };
+      }
     }
 
-    let minDistance = Infinity;
-    let closestPoint = new Point3(0, 0, 0);
-    let closestT = 0;
+    let minDistance = Infinity
+    let closestPoint = new Point3(0, 0, 0)
+    let closestT = 0
 
     for (let i = 0; i < pointCount - 1; i++) {
-      const idx1 = i * 3;
-      const idx2 = (i + 1) * 3;
+      const idx1 = i * 3
+      const idx2 = (i + 1) * 3
       const p1 = new Point3(
         this.controlPoints[idx1],
         this.controlPoints[idx1 + 1],
         this.controlPoints[idx1 + 2],
-      );
+      )
       const p2 = new Point3(
         this.controlPoints[idx2],
         this.controlPoints[idx2 + 1],
         this.controlPoints[idx2 + 2],
-      );
+      )
 
       const segmentLength = Math.sqrt(
-        Math.pow(p2.x - p1.x, 2) +
-          Math.pow(p2.y - p1.y, 2) +
-          Math.pow(p2.z - p1.z, 2),
-      );
-      if (segmentLength === 0) continue;
+        Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2) + Math.pow(p2.z - p1.z, 2),
+      )
+      if (segmentLength === 0) continue
 
       const t = Math.max(
         0,
@@ -428,28 +400,24 @@ export default class DenseTrajectory
             (point.z - p1.z) * (p2.z - p1.z)) /
             (segmentLength * segmentLength),
         ),
-      );
+      )
 
-      const closest = new Point3(
-        p1.x + t * (p2.x - p1.x),
-        p1.y + t * (p2.y - p1.y),
-        p1.z + t * (p2.z - p1.z),
-      );
+      const closest = new Point3(p1.x + t * (p2.x - p1.x), p1.y + t * (p2.y - p1.y), p1.z + t * (p2.z - p1.z))
 
       const distance = Math.sqrt(
         Math.pow(point.x - closest.x, 2) +
           Math.pow(point.y - closest.y, 2) +
           Math.pow(point.z - closest.z, 2),
-      );
+      )
 
       if (distance < minDistance) {
-        minDistance = distance;
-        closestPoint = closest;
-        closestT = (i + t) / (pointCount - 1);
+        minDistance = distance
+        closestPoint = closest
+        closestT = (i + t) / (pointCount - 1)
       }
     }
 
-    return { distance: minDistance, closestPoint, parameter: closestT };
+    return { distance: minDistance, closestPoint, parameter: closestT }
   }
 
   /**
@@ -472,27 +440,23 @@ export default class DenseTrajectory
    * ```
    */
   public getLength(tStart: number, tEnd: number): number {
-    const pointCount = this.controlPoints.length / 3;
-    if (pointCount < 2) return 0;
+    const pointCount = this.controlPoints.length / 3
+    if (pointCount < 2) return 0
 
-    const startIdx = Math.floor(
-      Math.max(0, Math.min(1, tStart)) * (pointCount - 1),
-    );
-    const endIdx = Math.floor(
-      Math.max(0, Math.min(1, tEnd)) * (pointCount - 1),
-    );
+    const startIdx = Math.floor(Math.max(0, Math.min(1, tStart)) * (pointCount - 1))
+    const endIdx = Math.floor(Math.max(0, Math.min(1, tEnd)) * (pointCount - 1))
 
-    let length = 0;
+    let length = 0
     for (let i = startIdx; i < endIdx; i++) {
-      const idx1 = i * 3;
-      const idx2 = (i + 1) * 3;
-      const dx = this.controlPoints[idx2] - this.controlPoints[idx1];
-      const dy = this.controlPoints[idx2 + 1] - this.controlPoints[idx1 + 1];
-      const dz = this.controlPoints[idx2 + 2] - this.controlPoints[idx1 + 2];
-      length += Math.sqrt(dx * dx + dy * dy + dz * dz);
+      const idx1 = i * 3
+      const idx2 = (i + 1) * 3
+      const dx = this.controlPoints[idx2] - this.controlPoints[idx1]
+      const dy = this.controlPoints[idx2 + 1] - this.controlPoints[idx1 + 1]
+      const dz = this.controlPoints[idx2 + 2] - this.controlPoints[idx1 + 2]
+      length += Math.sqrt(dx * dx + dy * dy + dz * dz)
     }
 
-    return length;
+    return length
   }
 
   /**
@@ -513,20 +477,20 @@ export default class DenseTrajectory
    */
   public getArea(): number {
     if (!this.isClosed()) {
-      throw new Error('DenseTrajectory 未闭合，不具有面积');
+      throw new Error('DenseTrajectory 未闭合，不具有面积')
     }
     // 使用鞋带公式计算闭合轨迹面积
-    const pts = this.controlPoints;
-    const n = pts.length / 3;
-    let area = 0;
+    const pts = this.controlPoints
+    const n = pts.length / 3
+    let area = 0
     for (let i = 0; i < n - 1; i++) {
-      const x0 = pts[i * 3];
-      const y0 = pts[i * 3 + 1];
-      const x1 = pts[(i + 1) * 3];
-      const y1 = pts[(i + 1) * 3 + 1];
-      area += x0 * y1 - x1 * y0;
+      const x0 = pts[i * 3]
+      const y0 = pts[i * 3 + 1]
+      const x1 = pts[(i + 1) * 3]
+      const y1 = pts[(i + 1) * 3 + 1]
+      area += x0 * y1 - x1 * y0
     }
-    return Math.abs(area) / 2;
+    return Math.abs(area) / 2
   }
 
   /**
@@ -542,20 +506,20 @@ export default class DenseTrajectory
    * ```
    */
   public getCentroid(): Point3 {
-    const pointCount = this.controlPoints.length / 3;
-    if (pointCount === 0) return new Point3(0, 0, 0);
+    const pointCount = this.controlPoints.length / 3
+    if (pointCount === 0) return new Point3(0, 0, 0)
 
     let sumX = 0,
       sumY = 0,
-      sumZ = 0;
+      sumZ = 0
     for (let i = 0; i < pointCount; i++) {
-      const idx = i * 3;
-      sumX += this.controlPoints[idx];
-      sumY += this.controlPoints[idx + 1];
-      sumZ += this.controlPoints[idx + 2];
+      const idx = i * 3
+      sumX += this.controlPoints[idx]
+      sumY += this.controlPoints[idx + 1]
+      sumZ += this.controlPoints[idx + 2]
     }
 
-    return new Point3(sumX / pointCount, sumY / pointCount, sumZ / pointCount);
+    return new Point3(sumX / pointCount, sumY / pointCount, sumZ / pointCount)
   }
 
   /**
@@ -575,18 +539,14 @@ export default class DenseTrajectory
    */
   public transform(matrix: Matrix4): Graph {
     for (let i = 0; i < this.controlPoints.length; i += 3) {
-      const point = new Point3(
-        this.controlPoints[i],
-        this.controlPoints[i + 1],
-        this.controlPoints[i + 2],
-      );
-      const transformed = matrix.multiply(point);
-      this.controlPoints[i] = transformed.x;
-      this.controlPoints[i + 1] = transformed.y;
-      this.controlPoints[i + 2] = transformed.z;
+      const point = new Point3(this.controlPoints[i], this.controlPoints[i + 1], this.controlPoints[i + 2])
+      const transformed = matrix.multiply(point)
+      this.controlPoints[i] = transformed.x
+      this.controlPoints[i + 1] = transformed.y
+      this.controlPoints[i + 2] = transformed.z
     }
-    this.bounds = this.updateBounds();
-    return this;
+    this.bounds = this.updateBounds()
+    return this
   }
 
   /**
@@ -607,22 +567,16 @@ export default class DenseTrajectory
    * ```
    */
   public intersect(other: Graph): Point3[] {
-    const points = [];
+    const points = []
     for (let i = 0; i < this.controlPoints.length; i += 3) {
-      points.push(
-        new Point3(
-          this.controlPoints[i],
-          this.controlPoints[i + 1],
-          this.controlPoints[i + 2],
-        ),
-      );
+      points.push(new Point3(this.controlPoints[i], this.controlPoints[i + 1], this.controlPoints[i + 2]))
     }
-    const lines: Line[] = [];
+    const lines: Line[] = []
     points.reduce((prePoint, curPoint) => {
-      lines.push(new Line(prePoint, curPoint));
-      return curPoint;
-    });
-    return lines.map((line) => line.intersect(other)).flat();
+      lines.push(new Line(prePoint, curPoint))
+      return curPoint
+    })
+    return lines.map((line) => line.intersect(other)).flat()
   }
 
   // ── 序列化（JSON，用于持久化存储） ──
@@ -645,7 +599,7 @@ export default class DenseTrajectory
       id: this.id,
       type: this.type,
       controlPoints: Array.from(this.controlPoints),
-    };
+    }
   }
 
   /**
@@ -660,10 +614,10 @@ export default class DenseTrajectory
    * ```
    */
   static fromJSON(data: any): DenseTrajectory {
-    const points = new Float32Array(data.controlPoints);
-    const dt = new DenseTrajectory(points);
-    dt.id = data.id;
-    return dt;
+    const points = new Float32Array(data.controlPoints)
+    const dt = new DenseTrajectory(points)
+    dt.id = data.id
+    return dt
   }
 
   // ── Worker 传输（零拷贝，用于 Worker 间数据传输） ──
@@ -689,9 +643,9 @@ export default class DenseTrajectory
    * ```
    */
   toTransferable(): TransferableData {
-    const buffer = this.controlPoints.buffer;
+    const buffer = this.controlPoints.buffer
     return {
-      $type: "DenseTrajectory",
+      $type: 'DenseTrajectory',
       meta: {
         id: this.id,
         type: this.type,
@@ -699,7 +653,7 @@ export default class DenseTrajectory
         length: this.controlPoints.length,
       },
       buffers: [buffer],
-    };
+    }
   }
 
   /**
@@ -722,19 +676,15 @@ export default class DenseTrajectory
    * ```
    */
   static fromTransferable(data: TransferableData): DenseTrajectory {
-    const { meta, buffers } = data;
-    const controlPoints = new Float32Array(
-      buffers[0],
-      meta.byteOffset,
-      meta.length,
-    );
+    const { meta, buffers } = data
+    const controlPoints = new Float32Array(buffers[0], meta.byteOffset, meta.length)
     // 绕过构造函数避免 Float32Array.from 的隐式拷贝
-    const dt = Object.create(DenseTrajectory.prototype) as DenseTrajectory;
-    dt.id = meta.id;
-    dt.type = GraphType.DENSETRAJECTORY;
-    dt.controlPoints = controlPoints;
-    dt.bounds = dt.updateBounds();
-    return dt;
+    const dt = Object.create(DenseTrajectory.prototype) as DenseTrajectory
+    dt.id = meta.id
+    dt.type = GraphType.DENSETRAJECTORY
+    dt.controlPoints = controlPoints
+    dt.bounds = dt.updateBounds()
+    return dt
   }
 
   /**
@@ -757,28 +707,23 @@ export default class DenseTrajectory
    * );
    * ```
    */
-  public resize(
-    fixedPoint: Point3,
-    dynamicPoint: Point3,
-    resizeVector: Vector3,
-  ): void {
-    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity;
-    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity;
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    const width = Math.abs(fixedPoint.x - dynamicPoint.x) || Infinity
+    const height = Math.abs(fixedPoint.y - dynamicPoint.y) || Infinity
 
     for (let i = 0; i < this.controlPoints.length; i += 3) {
       // 变化比例
-      const scaleX = Math.abs(this.controlPoints[i] - fixedPoint.x) / width;
-      const scaleY =
-        Math.abs(this.controlPoints[i + 1] - fixedPoint.y) / height;
+      const scaleX = Math.abs(this.controlPoints[i] - fixedPoint.x) / width
+      const scaleY = Math.abs(this.controlPoints[i + 1] - fixedPoint.y) / height
 
       // 带方向并且按照介质尺寸缩放的移动量
-      const dx = resizeVector.x * scaleX;
-      const dy = resizeVector.y * scaleY;
+      const dx = resizeVector.x * scaleX
+      const dy = resizeVector.y * scaleY
 
-      this.controlPoints[i] += dx;
-      this.controlPoints[i + 1] += dy;
+      this.controlPoints[i] += dx
+      this.controlPoints[i + 1] += dy
     }
-    this.bounds = this.updateBounds();
+    this.bounds = this.updateBounds()
   }
 
   /**

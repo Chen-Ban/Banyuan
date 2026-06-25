@@ -18,6 +18,7 @@ import type { LLMClient } from '../../core/index.js'
 import type { DialoguePhase } from '../phases.js'
 import type { OrchestratorState } from '../orchestratorGraph.js'
 import type { OrchestratorSSECallback } from '../events.js'
+import { ContextProvider, RESPOND_DECLARATION } from '../context/index.js'
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 配置
@@ -26,33 +27,6 @@ import type { OrchestratorSSECallback } from '../events.js'
 export interface RespondNodeConfig {
   llm: LLMClient
   sseCallback?: OrchestratorSSECallback
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// System Prompt 组装
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const DEFAULT_RESPOND_SYSTEM = `你是班园低代码平台的 AI 助手。用户正在与你进行普通对话（非应用构建任务）。
-请自然、友好地回答用户的问题。你可以回答关于平台使用、功能解释、技术概念等问题。
-如果用户的问题涉及应用构建或修改，建议他们切换到任务模式。`
-
-function buildSystemPrompt(state: OrchestratorState): string {
-  const parts: string[] = []
-
-  // L1: 系统提示词
-  parts.push(state.systemPrompt || DEFAULT_RESPOND_SYSTEM)
-
-  // L2: Agent 记忆
-  if (state.agentMemory) {
-    parts.push(`\n---\n用户偏好记忆:\n${state.agentMemory}`)
-  }
-
-  // L3: 历史对话摘要
-  if (state.contextSummary) {
-    parts.push(`\n---\n历史对话摘要:\n${state.contextSummary}`)
-  }
-
-  return parts.join('\n')
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -68,9 +42,10 @@ function buildSystemPrompt(state: OrchestratorState): string {
 export function createRespondNode(config: RespondNodeConfig) {
   return async (state: OrchestratorState): Promise<Partial<OrchestratorState>> => {
     const { llm, sseCallback } = config
-    const { userMessage } = state
 
-    const systemPrompt = buildSystemPrompt(state)
+    const ctx = ContextProvider.resolve(RESPOND_DECLARATION, state)
+    const systemPrompt = ctx.systemPrompt
+    const userMessage = ctx.userMessage
 
     // ─── 流式 LLM 调用 ──────────────────────────────────────────────────────
     const response = await llm.createMessageStream(
@@ -88,13 +63,13 @@ export function createRespondNode(config: RespondNodeConfig) {
           delta: token,
           timestamp: Date.now(),
         })
-      }
+      },
     )
 
     // ─── 提取完整回复文本 ──────────────────────────────────────────────────────
     const fullText = response.content
       .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-      .map(c => c.text)
+      .map((c) => c.text)
       .join('')
 
     // ─── 发送 done 事件 ─────────────────────────────────────────────────────

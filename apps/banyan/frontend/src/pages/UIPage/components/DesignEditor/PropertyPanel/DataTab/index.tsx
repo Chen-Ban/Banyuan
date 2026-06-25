@@ -4,46 +4,42 @@ import { FieldSchemaMapEditor } from '../FieldSchemaMapEditor'
 import styles from './index.module.scss'
 
 export interface DataTabProps {
-    selectedViewId: string
-    actions: IBanvasActions
-    viewData: IFieldSchemaMap
+  selectedViewId: string
+  actions: IBanvasActions
+  viewData: IFieldSchemaMap
 }
 
-export const DataTab: React.FC<DataTabProps> = ({
-    selectedViewId,
-    actions,
-    viewData,
-}) => {
-    const handleAdd = () => {
-        const existingKeys = Object.keys(viewData)
-        let n = existingKeys.length + 1
-        let newKey = `field_${n}`
-        while (existingKeys.includes(newKey)) newKey = `field_${++n}`
-        actions.view.setViewData(selectedViewId, newKey, { type: 'string', default: '' })
-    }
+export const DataTab: React.FC<DataTabProps> = ({ selectedViewId, actions, viewData }) => {
+  const handleAdd = () => {
+    const existingKeys = Object.keys(viewData)
+    let n = existingKeys.length + 1
+    let newKey = `field_${n}`
+    while (existingKeys.includes(newKey)) newKey = `field_${++n}`
+    actions.view.setViewData(selectedViewId, newKey, { type: 'string', default: '' })
+  }
 
-    const handleRename = (oldKey: string, newKey: string) => {
-        const entries = Object.entries(viewData)
-        for (const [k, schema] of entries) {
-            if (k === oldKey) {
-                actions.view.deleteViewData(selectedViewId, oldKey)
-                actions.view.setViewData(selectedViewId, newKey, schema)
-            }
-        }
+  const handleRename = (oldKey: string, newKey: string) => {
+    const entries = Object.entries(viewData)
+    for (const [k, schema] of entries) {
+      if (k === oldKey) {
+        actions.view.deleteViewData(selectedViewId, oldKey)
+        actions.view.setViewData(selectedViewId, newKey, schema)
+      }
     }
+  }
 
-    return (
-        <div className={styles.content}>
-            <FieldSchemaMapEditor
-                title="数据 (data)"
-                schemaMap={viewData}
-                onUpdate={(key, schema) => actions.view.setViewData(selectedViewId, key, schema)}
-                onRename={handleRename}
-                onDelete={(key) => actions.view.deleteViewData(selectedViewId, key)}
-                onAdd={handleAdd}
-            />
-        </div>
-    )
+  return (
+    <div className={styles.content}>
+      <FieldSchemaMapEditor
+        title="数据 (data)"
+        schemaMap={viewData}
+        onUpdate={(key, schema) => actions.view.setViewData(selectedViewId, key, schema)}
+        onRename={handleRename}
+        onDelete={(key) => actions.view.deleteViewData(selectedViewId, key)}
+        onAdd={handleAdd}
+      />
+    </div>
+  )
 }
 
 export default DataTab

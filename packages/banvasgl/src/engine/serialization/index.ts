@@ -1,2 +1,2 @@
-export { Serializer } from './Serializer'
-export type { SerializerOptions, SerializedData } from './Serializer'
+export { Serializer } from './rawjson/Serializer'
+export type { SerializerOptions, SerializedData } from './rawjson/Serializer'

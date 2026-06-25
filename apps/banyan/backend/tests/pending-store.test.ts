@@ -281,7 +281,12 @@ async function testNonExistentAppId(): Promise<void> {
     pendingStore.setSchemaUpdates('ghost-app', [])
     pendingStore.setMemoryUpdates('ghost-app', null as never)
     pendingStore.setRoundSummary('ghost-app', 'x')
-    pendingStore.addPlanningEntry('ghost-app', { agent: 'pm', output: null, tokenUsage: { input: 0, output: 0 }, durationMs: 0 })
+    pendingStore.addPlanningEntry('ghost-app', {
+      agent: 'pm',
+      output: null,
+      tokenUsage: { input: 0, output: 0 },
+      durationMs: 0,
+    })
     pendingStore.updateStatus('ghost-app', 'done')
     await pendingStore.markDone('ghost-app')
     await pendingStore.delete('ghost-app')

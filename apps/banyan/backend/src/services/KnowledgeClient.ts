@@ -120,7 +120,7 @@ class KnowledgeClient {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
           ...(bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),
           ...(KNOWLEDGE_INTERNAL_TOKEN ? { 'X-Internal-Token': KNOWLEDGE_INTERNAL_TOKEN } : {}),
         },
@@ -129,7 +129,9 @@ class KnowledgeClient {
 
       const req = transport.request(options, (res) => {
         let data = ''
-        res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+        res.on('data', (chunk: Buffer) => {
+          data += chunk.toString()
+        })
         res.on('end', () => {
           try {
             resolve(JSON.parse(data))

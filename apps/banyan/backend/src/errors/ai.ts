@@ -84,16 +84,22 @@ export class AiContextBudgetError extends BanyanError {
 
 // ─── 上游服务错误 ──────────────────────────────────────────────────────────────
 
+/** 从底层 Error 中提取可读信息，兼容 message 为空串或 cause 为 undefined */
+function causeInfo(cause?: Error): string {
+  if (!cause) return 'unknown'
+  return cause.message || (cause as NodeJS.ErrnoException).code || cause.name || 'unknown'
+}
+
 export class AiUpstreamConnectError extends BanyanError {
   constructor(service: string, url: string, cause?: Error) {
     super({
       code: 'AI_UPSTREAM_CONNECT',
       category: 'upstream',
-      message: `Cannot connect to ${service} at ${url}: ${cause?.message ?? 'unknown'}`,
+      message: `Cannot connect to ${service} at ${url}: ${causeInfo(cause)}`,
       userMessage: 'AI 服务暂时不可用，请稍后重试',
       httpStatus: 502,
       retryable: true,
-      details: { service, url },
+      details: { service, url, cause: causeInfo(cause) },
       cause,
     })
   }
@@ -132,10 +138,11 @@ export class AiUpstreamStreamError extends BanyanError {
     super({
       code: 'AI_UPSTREAM_STREAM_BROKEN',
       category: 'upstream',
-      message: `Upstream SSE stream broken: ${cause?.message ?? 'unknown'}`,
+      message: `Upstream SSE stream broken: ${causeInfo(cause)}`,
       userMessage: 'AI 响应流中断，请重试',
       httpStatus: 502,
       retryable: true,
+      details: { cause: causeInfo(cause) },
       cause,
     })
   }

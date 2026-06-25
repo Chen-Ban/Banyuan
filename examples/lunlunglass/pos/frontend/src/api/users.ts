@@ -18,7 +18,7 @@ interface UserListResponse {
 export function fetchUsers(
   page: number = 1,
   pageSize: number = 12,
-  filters?: UserFilters
+  filters?: UserFilters,
 ): Promise<UserListResponse> {
   return get<UserListResponse>('/users', {
     page,
@@ -41,7 +41,9 @@ export function searchUsers(keyword: string): Promise<UserListResponse> {
 /**
  * 获取用户详情
  */
-export function fetchUser(id: string): Promise<ApiResponse<User & { optometry?: import('@/types').OptometryParams }>> {
+export function fetchUser(
+  id: string,
+): Promise<ApiResponse<User & { optometry?: import('@/types').OptometryParams }>> {
   return get<ApiResponse<User & { optometry?: import('@/types').OptometryParams }>>(`/users/${id}`)
 }
 

@@ -7,11 +7,7 @@
  */
 
 // ── 绘图上下文（平台注入能力） ──
-export type {
-  IDrawingContext,
-} from './drawing.js';
+export type { IDrawingContext } from './context.js'
 
 // ── 画布表面（平台注入能力） ──
-export type {
-  IDrawingSurface,
-} from './surface.js';
+export type { IDrawingSurface } from './surface.js'

@@ -12,15 +12,15 @@ import crypto from 'crypto'
 
 interface OtpRecord {
   code: string
-  expiresAt: number   // Date.now() + TTL
-  attempts: number    // 已尝试次数，超过上限后锁定
+  expiresAt: number // Date.now() + TTL
+  attempts: number // 已尝试次数，超过上限后锁定
 }
 
 const otpStore = new Map<string, OtpRecord>()
 
-const OTP_TTL_MS = 5 * 60 * 1000        // 5 分钟有效期
-const OTP_MAX_ATTEMPTS = 5               // 最多尝试 5 次
-const OTP_SEND_COOLDOWN_MS = 60 * 1000  // 60 秒内不能重复发送
+const OTP_TTL_MS = 5 * 60 * 1000 // 5 分钟有效期
+const OTP_MAX_ATTEMPTS = 5 // 最多尝试 5 次
+const OTP_SEND_COOLDOWN_MS = 60 * 1000 // 60 秒内不能重复发送
 
 // ─── 工具函数 ─────────────────────────────────────────────────────────────────
 
@@ -55,10 +55,7 @@ export class SmsService {
       const elapsed = Date.now() - sentAt
       if (elapsed < OTP_SEND_COOLDOWN_MS) {
         const remaining = Math.ceil((OTP_SEND_COOLDOWN_MS - elapsed) / 1000)
-        throw Object.assign(
-          new Error(`请等待 ${remaining} 秒后再重新发送`),
-          { statusCode: 429 }
-        )
+        throw Object.assign(new Error(`请等待 ${remaining} 秒后再重新发送`), { statusCode: 429 })
       }
     }
 
@@ -120,24 +117,28 @@ export class SmsService {
 
     if (!accessKeyId || !accessKeySecret || !templateCode) {
       throw new Error(
-        '阿里云短信配置缺失，请设置环境变量：ALIYUN_ACCESS_KEY_ID / ALIYUN_ACCESS_KEY_SECRET / ALIYUN_SMS_TEMPLATE_CODE'
+        '阿里云短信配置缺失，请设置环境变量：ALIYUN_ACCESS_KEY_ID / ALIYUN_ACCESS_KEY_SECRET / ALIYUN_SMS_TEMPLATE_CODE',
       )
     }
 
     // 动态 import，避免未安装 SDK 时启动报错
     // 使用 Function 构造器绕过 TypeScript 静态模块解析
-    const dynamicImport = new Function('m', 'return import(m)') as (m: string) => Promise<Record<string, unknown>>
+    const dynamicImport = new Function('m', 'return import(m)') as (
+      m: string,
+    ) => Promise<Record<string, unknown>>
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const dysmsapiModule = await dynamicImport('@alicloud/dysmsapi20170525').catch(() => {
       throw new Error('请安装阿里云短信 SDK：pnpm add @alicloud/dysmsapi20170525 @alicloud/openapi-client')
     })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const openApiModule = await dynamicImport('@alicloud/openapi-client').catch(() => {
       throw new Error('请安装阿里云短信 SDK：pnpm add @alicloud/dysmsapi20170525 @alicloud/openapi-client')
     })
 
-    const Dysmsapi = dysmsapiModule['default'] as new (config: unknown) => { sendSms: (req: unknown) => Promise<{ body: { code: string; message: string } }> }
+    const Dysmsapi = dysmsapiModule['default'] as new (config: unknown) => {
+      sendSms: (req: unknown) => Promise<{ body: { code: string; message: string } }>
+    }
     const SendSmsRequest = dysmsapiModule['SendSmsRequest'] as new (params: unknown) => unknown
     const Config = openApiModule['Config'] as new (params: unknown) => { endpoint: string }
 

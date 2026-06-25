@@ -84,7 +84,7 @@ export function extractSchema(children: View[]): ExtractedFlowSchema {
     if (node.category === 'control' || node.category === 'action') {
       // 优先选择没有入边的节点（没有其他节点的 next 指向它）
       const hasIncoming = Object.values(nodes).some((n) =>
-        n.slots?.some((s) => (s as unknown as Record<string, unknown>).next === nodeId)
+        n.slots?.some((s) => (s as unknown as Record<string, unknown>).next === nodeId),
       )
       if (!hasIncoming) {
         entry = nodeId

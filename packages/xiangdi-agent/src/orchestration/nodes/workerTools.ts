@@ -28,7 +28,8 @@ import { ToolRegistry } from '../../core/ToolRegistry.js'
 
 export const KNOWLEDGE_SEARCH_DEF: ToolDefinition = {
   name: 'knowledge_search',
-  description: '检索 BanvasGL 能力体系知识。输入关键词或问题，返回最相关的知识片段（ViewType 用法、属性规范、组合模式等）。',
+  description:
+    '检索 BanvasGL 能力体系知识。输入关键词或问题，返回最相关的知识片段（ViewType 用法、属性规范、组合模式等）。',
   input_schema: {
     type: 'object',
     properties: {
@@ -41,7 +42,8 @@ export const KNOWLEDGE_SEARCH_DEF: ToolDefinition = {
 
 export const READ_PAGES_DEF: ToolDefinition = {
   name: 'read_pages',
-  description: '读取应用的当前页面数据。可指定页面 ID 读取单个页面，不指定则返回所有页面的摘要列表。返回 AIProjectionScene 格式的完整视图结构。',
+  description:
+    '读取应用的当前页面数据。可指定页面 ID 读取单个页面，不指定则返回所有页面的摘要列表。返回 AIProjectionScene 格式的完整视图结构。',
   input_schema: {
     type: 'object',
     properties: {
@@ -65,7 +67,8 @@ export const MATERIAL_SEARCH_DEF: ToolDefinition = {
 
 export const MATERIAL_GET_DETAIL_DEF: ToolDefinition = {
   name: 'material_get_detail',
-  description: '获取物料的详细信息，包含完整的属性定义、使用示例、默认配置。用于在 write_page 前了解组件的完整 schema。',
+  description:
+    '获取物料的详细信息，包含完整的属性定义、使用示例、默认配置。用于在 write_page 前了解组件的完整 schema。',
   input_schema: {
     type: 'object',
     properties: {
@@ -79,7 +82,8 @@ export const MATERIAL_GET_DETAIL_DEF: ToolDefinition = {
 
 export const WRITE_PAGE_DEF: ToolDefinition = {
   name: 'write_page',
-  description: '写入一个页面的完整视图结构。使用 AIProjectionScene 格式，整页覆盖（patch 语义：只影响指定 pageId，不覆盖其他页面）。页面必须已存在（通过 create_page 创建）。',
+  description:
+    '写入一个页面的完整视图结构。使用 AIProjectionScene 格式，整页覆盖（patch 语义：只影响指定 pageId，不覆盖其他页面）。页面必须已存在（通过 create_page 创建）。',
   input_schema: {
     type: 'object',
     properties: {
@@ -135,14 +139,18 @@ export const READ_CLOUD_FUNCTIONS_DEF: ToolDefinition = {
   input_schema: {
     type: 'object',
     properties: {
-      functionId: { type: 'string', description: '可选，指定读取某个云函数的完整 FlowSchema。不填返回列表概览' },
+      functionId: {
+        type: 'string',
+        description: '可选，指定读取某个云函数的完整 FlowSchema。不填返回列表概览',
+      },
     },
   },
 }
 
 export const WRITE_SCHEMA_DEF: ToolDefinition = {
   name: 'write_schema',
-  description: '写入数据模型定义（全量替换所有 Collection）。Worker 在 think 阶段生成完整 schema，通过此工具一次性写入。',
+  description:
+    '写入数据模型定义（全量替换所有 Collection）。Worker 在 think 阶段生成完整 schema，通过此工具一次性写入。',
   input_schema: {
     type: 'object',
     properties: {
@@ -157,7 +165,8 @@ export const WRITE_SCHEMA_DEF: ToolDefinition = {
 
 export const WRITE_CLOUD_FUNCTION_DEF: ToolDefinition = {
   name: 'write_cloud_function',
-  description: '创建或更新一个云函数。Worker 在 think 阶段生成完整的服务端 FlowSchema，通过此工具写入。纯写入，工具内部不调用 LLM。',
+  description:
+    '创建或更新一个云函数。Worker 在 think 阶段生成完整的服务端 FlowSchema，通过此工具写入。纯写入，工具内部不调用 LLM。',
   input_schema: {
     type: 'object',
     properties: {
@@ -211,13 +220,16 @@ export interface BackendToolHandlers {
   readSchema: ToolHandler<Record<string, unknown>, string>
   readCloudFunctions: ToolHandler<{ functionId?: string }, string>
   writeSchema: ToolHandler<{ collections: unknown[] }, string>
-  writeCloudFunction: ToolHandler<{
-    functionId: string
-    name: string
-    displayName: string
-    description: string
-    flowSchema: Record<string, unknown>
-  }, string>
+  writeCloudFunction: ToolHandler<
+    {
+      functionId: string
+      name: string
+      displayName: string
+      description: string
+      flowSchema: Record<string, unknown>
+    },
+    string
+  >
   deleteCloudFunction: ToolHandler<{ functionId: string }, string>
 }
 

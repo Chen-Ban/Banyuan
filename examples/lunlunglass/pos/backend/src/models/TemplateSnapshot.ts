@@ -65,7 +65,7 @@ const SnapshotFieldSchema = new Schema<ISnapshotField>(
     codeStyle: { type: Schema.Types.Mixed },
     defaultValue: { type: String },
   },
-  { _id: false }
+  { _id: false },
 )
 
 const TemplateSnapshotSchema = new Schema<ITemplateSnapshot>(
@@ -83,16 +83,13 @@ const TemplateSnapshotSchema = new Schema<ITemplateSnapshot>(
     publishedAt: { type: Date, required: true },
     syncedAt: { type: Date, default: Date.now },
   },
-  { timestamps: true }
+  { timestamps: true },
 )
 
 TemplateSnapshotSchema.index({ snapshotId: 1 }, { unique: true })
 TemplateSnapshotSchema.index({ templateId: 1 })
 TemplateSnapshotSchema.index({ syncedAt: -1 })
 
-const TemplateSnapshot = mongoose.model<ITemplateSnapshot>(
-  'TemplateSnapshot',
-  TemplateSnapshotSchema
-)
+const TemplateSnapshot = mongoose.model<ITemplateSnapshot>('TemplateSnapshot', TemplateSnapshotSchema)
 
 export default TemplateSnapshot

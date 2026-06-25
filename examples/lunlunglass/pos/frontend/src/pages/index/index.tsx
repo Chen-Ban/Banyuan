@@ -10,13 +10,23 @@ const HomePage = () => {
 
   useEffect(() => {
     // 加载统计数据
-    userApi.fetchUsers(1, 1).then(res => {
-      setUserCount(res.data.total)
-    }).catch(() => { /* 静默失败 */ })
+    userApi
+      .fetchUsers(1, 1)
+      .then((res) => {
+        setUserCount(res.data.total)
+      })
+      .catch(() => {
+        /* 静默失败 */
+      })
 
-    orderApi.fetchOrders(1, 1).then(res => {
-      setOrderCount(res.data.total)
-    }).catch(() => { /* 静默失败 */ })
+    orderApi
+      .fetchOrders(1, 1)
+      .then((res) => {
+        setOrderCount(res.data.total)
+      })
+      .catch(() => {
+        /* 静默失败 */
+      })
   }, [])
 
   const handleStart = () => {

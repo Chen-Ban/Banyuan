@@ -44,11 +44,7 @@ export class PhaseController {
   private currentPhase: DialoguePhase
   private clientRes: ServerResponse
 
-  private constructor(
-    dialogueId: Types.ObjectId,
-    initialPhase: DialoguePhase,
-    clientRes: ServerResponse,
-  ) {
+  private constructor(dialogueId: Types.ObjectId, initialPhase: DialoguePhase, clientRes: ServerResponse) {
     this.dialogueId = dialogueId
     this.currentPhase = initialPhase
     this.clientRes = clientRes
@@ -66,7 +62,11 @@ export class PhaseController {
   /**
    * 附着到已有 Dialogue（resume 场景）
    */
-  static attach(dialogueId: Types.ObjectId, currentPhase: DialoguePhase, clientRes: ServerResponse): PhaseController {
+  static attach(
+    dialogueId: Types.ObjectId,
+    currentPhase: DialoguePhase,
+    clientRes: ServerResponse,
+  ): PhaseController {
     return new PhaseController(dialogueId, currentPhase, clientRes)
   }
 
@@ -86,17 +86,13 @@ export class PhaseController {
   async transition(targetPhase: DialoguePhase): Promise<boolean> {
     // 1. 快速校验
     if (TERMINAL_PHASES.has(this.currentPhase)) {
-      console.warn(
-        `[PhaseController] 尝试从终态 "${this.currentPhase}" 转移到 "${targetPhase}"，已忽略`
-      )
+      console.warn(`[PhaseController] 尝试从终态 "${this.currentPhase}" 转移到 "${targetPhase}"，已忽略`)
       return false
     }
 
     const allowed = PHASE_TRANSITIONS[this.currentPhase]
     if (!allowed.includes(targetPhase)) {
-      console.warn(
-        `[PhaseController] 非法转移: "${this.currentPhase}" → "${targetPhase}"，已忽略`
-      )
+      console.warn(`[PhaseController] 非法转移: "${this.currentPhase}" → "${targetPhase}"，已忽略`)
       return false
     }
 
@@ -104,10 +100,7 @@ export class PhaseController {
     try {
       await dialogueService.setPhase(this.dialogueId, targetPhase)
     } catch (err) {
-      console.warn(
-        `[PhaseController] DB phase 转移失败 ("${this.currentPhase}" → "${targetPhase}"):`,
-        err
-      )
+      console.warn(`[PhaseController] DB phase 转移失败 ("${this.currentPhase}" → "${targetPhase}"):`, err)
       return false
     }
 
@@ -134,9 +127,7 @@ export class PhaseController {
 
     // committing 阶段不允许中断：数据一致性优先
     if (this.currentPhase === 'committing') {
-      console.warn(
-        `[PhaseController] 拒绝中断: Dialogue ${this.dialogueId} 处于 committing 阶段`
-      )
+      console.warn(`[PhaseController] 拒绝中断: Dialogue ${this.dialogueId} 处于 committing 阶段`)
       return
     }
 

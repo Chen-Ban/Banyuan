@@ -21,7 +21,7 @@ import type {
   EdgeView,
   TextIndex,
   IDrawingContext,
-} from "@banyuan/banvasgl";
+} from '@banyuan/banvasgl'
 
 // ────────────────────────────────────────────
 //  重导出原子事件输入类型（方便状态机内部使用）
@@ -36,7 +36,7 @@ export type {
   KeyDownInput,
   KeyUpInput,
   InteractionInput,
-} from "@banyuan/banvasgl";
+} from '@banyuan/banvasgl'
 
 // ────────────────────────────────────────────
 //  交互能力集
@@ -44,15 +44,15 @@ export type {
 
 /** 可配置的交互能力 */
 export type InteractionCapability =
-  | "pan"
-  | "move"
-  | "resize"
-  | "rotate"
-  | "connect"
-  | "box-select"
-  | "text-selection"
-  | "edit-point"
-  | "drop";
+  | 'pan'
+  | 'move'
+  | 'resize'
+  | 'rotate'
+  | 'connect'
+  | 'box-select'
+  | 'text-selection'
+  | 'edit-point'
+  | 'drop'
 
 // ────────────────────────────────────────────
 //  Hover 命中目标
@@ -60,11 +60,11 @@ export type InteractionCapability =
 
 /** Hover 检测的命中结果 */
 export interface HoverTarget {
-  view: View;
-  content: IGraph | IViewAddon;
-  action: number; // Action enum value
-  extraData: ExtraData;
-  cursor: Cursor;
+  view: View
+  content: IGraph | IViewAddon
+  action: number // Action enum value
+  extraData: ExtraData
+  cursor: Cursor
 }
 
 // ────────────────────────────────────────────
@@ -73,77 +73,77 @@ export interface HoverTarget {
 
 /** 空闲状态 —— 未按下鼠标，未命中任何目标 */
 export interface IdleState {
-  readonly mode: "idle";
+  readonly mode: 'idle'
 }
 
 /** 悬停状态 —— 未按下鼠标，但命中了某个交互目标 */
 export interface HoverState {
-  readonly mode: "hover";
-  readonly target: HoverTarget;
+  readonly mode: 'hover'
+  readonly target: HoverTarget
 }
 
 /** 平移状态 —— Space+拖拽 或 中键拖拽 */
 export interface PanningState {
-  readonly mode: "panning";
-  startClient: { x: number; y: number };
+  readonly mode: 'panning'
+  startClient: { x: number; y: number }
 }
 
 /** 移动状态 —— 拖动视图 */
 export interface MovingState {
-  readonly mode: "moving";
-  readonly startPoint: Point3;
-  lastPoint: Point3;
-  readonly indicateView: View;
+  readonly mode: 'moving'
+  readonly startPoint: Point3
+  lastPoint: Point3
+  readonly indicateView: View
 }
 
 /** 缩放状态 —— 拖动 handle 缩放视图 */
 export interface ResizingState {
-  readonly mode: "resizing";
-  readonly startPoint: Point3;
-  lastPoint: Point3;
-  readonly indicateView: View;
-  readonly fixedIndex: number;
-  readonly dynamicIndex: number;
+  readonly mode: 'resizing'
+  readonly startPoint: Point3
+  lastPoint: Point3
+  readonly indicateView: View
+  readonly fixedIndex: number
+  readonly dynamicIndex: number
 }
 
 /** 旋转状态 —— 拖动旋转手柄 */
 export interface RotatingState {
-  readonly mode: "rotating";
-  readonly startPoint: Point3;
-  lastPoint: Point3;
-  readonly indicateView: View;
+  readonly mode: 'rotating'
+  readonly startPoint: Point3
+  lastPoint: Point3
+  readonly indicateView: View
 }
 
 /** 连线状态 —— 从端口拖出连线 */
 export interface ConnectingState {
-  readonly mode: "connecting";
-  readonly fromPortId: string;
-  readonly tempEdge: EdgeView;
+  readonly mode: 'connecting'
+  readonly fromPortId: string
+  readonly tempEdge: EdgeView
 }
 
 /** 框选状态 —— 在空白区域拖出选择框 */
 export interface BoxSelectingState {
-  readonly mode: "box-selecting";
-  readonly startPoint: Point3;
-  readonly selectBox: SelectBoxView;
+  readonly mode: 'box-selecting'
+  readonly startPoint: Point3
+  readonly selectBox: SelectBoxView
   /** 上一帧碰撞的视图 ID 集合（用于跳过无变化更新） */
-  lastHitIds: Set<string> | null;
+  lastHitIds: Set<string> | null
 }
 
 /** 文本选择状态 —— 在文本视图中拖选文字 */
 export interface TextSelectingState {
-  readonly mode: "text-selecting";
-  readonly indicateView: View;
-  readonly indicateContent: IGraph | IViewAddon;
+  readonly mode: 'text-selecting'
+  readonly indicateView: View
+  readonly indicateContent: IGraph | IViewAddon
 }
 
 /** 编辑控制点状态 —— 拖动顶点 */
 export interface EditingPointState {
-  readonly mode: "editing-point";
-  readonly startPoint: Point3;
-  lastPoint: Point3;
-  readonly indicateView: View;
-  readonly extraData: ExtraData;
+  readonly mode: 'editing-point'
+  readonly startPoint: Point3
+  lastPoint: Point3
+  readonly indicateView: View
+  readonly extraData: ExtraData
 }
 
 /** 所有交互状态的联合类型 */
@@ -157,13 +157,10 @@ export type InteractionState =
   | ConnectingState
   | BoxSelectingState
   | TextSelectingState
-  | EditingPointState;
+  | EditingPointState
 
 /** 从联合中提取特定模式的状态类型 */
-export type StateOfMode<M extends InteractionState["mode"]> = Extract<
-  InteractionState,
-  { mode: M }
->;
+export type StateOfMode<M extends InteractionState['mode']> = Extract<InteractionState, { mode: M }>
 
 // ────────────────────────────────────────────
 //  状态机输出（副作用描述）
@@ -171,11 +168,11 @@ export type StateOfMode<M extends InteractionState["mode"]> = Extract<
 
 export interface InteractionOutput {
   /** 应设置的鼠标光标（undefined 表示不变） */
-  cursor?: Cursor | string;
+  cursor?: Cursor | string
   /** 状态是否发生了变化 */
-  stateChanged: boolean;
+  stateChanged: boolean
   /** 是否需要通知外层重渲染（通常在 mouseUp/完成操作后） */
-  shouldNotify?: boolean;
+  shouldNotify?: boolean
 }
 
 // ────────────────────────────────────────────
@@ -205,81 +202,67 @@ export interface InteractionOutput {
  */
 export interface InteractionDelegate {
   // ── 命中检测（含结构转换逻辑） ──
-  hitTest(worldPoint: Point3): HoverTarget | null;
+  hitTest(worldPoint: Point3): HoverTarget | null
 
   // ── 选择 ──
-  select(viewId: string, multiple?: boolean): void;
-  deselect(): void;
+  select(viewId: string, multiple?: boolean): void
+  deselect(): void
   /** 批量激活（一次遍历完成），比多次 select 减少树遍历 */
-  batchActivate(viewIds: Set<string>): void;
-  getAllActivedViews(): View[];
+  batchActivate(viewIds: Set<string>): void
+  getAllActivedViews(): View[]
 
   // ── 移动 ──
-  translateActived(dx: number, dy: number): void;
-  snapAlignBegin(): void;
-  snapAlignSnap(viewId: string): { offsetX: number; offsetY: number };
-  snapAlignEnd(): void;
+  translateActived(dx: number, dy: number): void
+  snapAlignBegin(): void
+  snapAlignSnap(viewId: string): { offsetX: number; offsetY: number }
+  snapAlignEnd(): void
 
   // ── 缩放 ──
-  resize(
-    view: View,
-    fixedPoint: Point3,
-    dynamicPoint: Point3,
-    vector: Vector3,
-    proportional: boolean,
-  ): void;
+  resize(view: View, fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3, proportional: boolean): void
 
   // ── 旋转 ──
-  rotate(view: View, angle: number, center: Point3): void;
+  rotate(view: View, angle: number, center: Point3): void
 
   // ── 编辑顶点 ──
-  editPoint(view: View, point: Point3, delta: Vector3): void;
+  editPoint(view: View, point: Point3, delta: Vector3): void
 
   // ── 文本选择 ──
-  textInteract(
-    view: View,
-    point: Point3,
-    bufferCtx: IDrawingContext,
-  ): { content: IGraph | IViewAddon | null };
-  element2Index(
-    view: ITextView,
-    content: ITextElement,
-    point: Point3,
-  ): TextIndex;
-  setSelection(view: ITextView, fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void;
+  textInteract(view: View, point: Point3, bufferCtx: IDrawingContext): { content: IGraph | IViewAddon | null }
+  element2Index(view: ITextView, content: ITextElement, point: Point3): TextIndex
+  setSelection(view: ITextView, fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void
 
   // ── 框选 ──
-  createSelectBox(startPoint: Point3): SelectBoxView;
-  addTempChild(view: View): void;
-  removeTempChild(view: View): void;
-  getTopLevelViews(): View[];
+  createSelectBox(startPoint: Point3): SelectBoxView
+  addTempChild(view: View): void
+  removeTempChild(view: View): void
+  getTopLevelViews(): View[]
 
   // ── 连线（含业务校验：端口方向 / 同节点禁连 / maxConnections） ──
-  createTempEdge(fromPortId: string): EdgeView;
-  setTempTarget(edge: EdgeView, point: Point3): void;
-  finishConnect(edge: EdgeView, point: Point3): void;
+  createTempEdge(fromPortId: string): EdgeView
+  setTempTarget(edge: EdgeView, point: Point3): void
+  finishConnect(edge: EdgeView, point: Point3): void
 
   // ── Pan ──
-  panStart(clientX: number, clientY: number): boolean;
+  panStart(clientX: number, clientY: number): boolean
   /**
    * 平移中（签名已简化：画布尺寸由 Delegate 内部持有，不再从原子事件传入）
    */
-  panMove(clientX: number, clientY: number): boolean;
-  panEnd(): boolean;
-  isSpaceHeld(): boolean;
-  setSpaceHeld(held: boolean): void;
+  panMove(clientX: number, clientY: number): boolean
+  panEnd(): boolean
+  isSpaceHeld(): boolean
+  setSpaceHeld(held: boolean): void
 
   // ── 画布环境上下文 ──
   /** 获取画布逻辑尺寸（canvasWidth 外移后由 Delegate 提供） */
-  getCanvasSize(): { width: number; height: number };
+  getCanvasSize(): { width: number; height: number }
 
   // ── 事务 ──
-  beginTransaction(viewIds: string[]): void;
-  commitTransaction(): void;
+  beginTransaction(viewIds: string[]): void
+  commitTransaction(): void
 
   // ── 辅助（含容器层级穿透逻辑） ──
-  getBufferCtx(): IDrawingContext | null;
-  resolveActivationTarget(view: View): View;
+  getBufferCtx(): IDrawingContext | null
+  resolveActivationTarget(view: View): View
 }
 
 // ────────────────────────────────────────────
@@ -288,5 +271,5 @@ export interface InteractionDelegate {
 
 export interface InteractionStateMachineConfig {
   /** 启用的交互能力集 */
-  capabilities: readonly InteractionCapability[];
+  capabilities: readonly InteractionCapability[]
 }

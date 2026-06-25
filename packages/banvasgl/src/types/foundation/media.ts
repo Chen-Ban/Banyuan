@@ -16,10 +16,10 @@
  * 引擎直接持有 RGBA 像素，平台适配器在加载时解码。
  */
 export interface IImageSource {
-  readonly width: number;
-  readonly height: number;
+  readonly width: number
+  readonly height: number
   /** RGBA 像素数据（width × height × 4 字节） */
-  readonly data: Uint8ClampedArray;
+  readonly data: Uint8ClampedArray
 }
 
 /**
@@ -31,39 +31,39 @@ export interface IImageSource {
  */
 export interface IVideoSource extends IImageSource {
   /** 播放视频 */
-  play(): Promise<void>;
+  play(): Promise<void>
   /** 暂停视频 */
-  pause(): void;
+  pause(): void
   /** 停止视频（暂停 + 回到起始位置） */
-  stop(): void;
+  stop(): void
   /** 当前是否正在播放 */
-  readonly playing: boolean;
+  readonly playing: boolean
   /** 当前播放时间（秒），可读写 */
-  currentTime: number;
+  currentTime: number
   /** 视频总时长（秒），只读 */
-  readonly duration: number;
+  readonly duration: number
   /** 音量（0-1），可读写 */
-  volume: number;
+  volume: number
   /** 是否自动播放 */
-  autoplay: boolean;
+  autoplay: boolean
   /** 是否循环播放 */
-  loop: boolean;
+  loop: boolean
   /** 是否静音 */
-  muted: boolean;
+  muted: boolean
   /**
    * 批量设置播放选项。
    * 只更新传入的字段，未传入的保持不变。
    */
-  setPlayOptions(options: IVideoLoadOptions): void;
+  setPlayOptions(options: IVideoLoadOptions): void
 }
 
 /** 视频加载选项 */
 export interface IVideoLoadOptions {
-  autoplay?: boolean;
-  loop?: boolean;
-  muted?: boolean;
+  autoplay?: boolean
+  loop?: boolean
+  muted?: boolean
   /** 跨域模式，Web 平台对应 HTMLVideoElement.crossOrigin */
-  crossOrigin?: string;
+  crossOrigin?: string
 }
 
 /**
@@ -73,4 +73,4 @@ export interface IVideoLoadOptions {
  * 从 foundation/style/Image.ts 提升到 types/foundation/media.ts，
  * 供 IDrawingContext.createPattern 和 Image 样式类共享。
  */
-export type PatternRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat';
+export type PatternRepeat = 'repeat' | 'repeat-x' | 'repeat-y' | 'no-repeat'

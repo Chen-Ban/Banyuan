@@ -80,15 +80,16 @@ export default function DecryptedText({
     intervalRef.current = setInterval(() => {
       if (sequential) {
         // Reveal one character at a time
-        const nextIdx = revealDirection === 'end'
-          ? text.length - 1 - revealed.size
-          : revealDirection === 'center'
-            ? (() => {
-              const mid = Math.floor(text.length / 2)
-              const off = Math.floor(revealed.size / 2)
-              return revealed.size % 2 === 0 ? mid + off : mid - off - 1
-            })()
-            : revealed.size
+        const nextIdx =
+          revealDirection === 'end'
+            ? text.length - 1 - revealed.size
+            : revealDirection === 'center'
+              ? (() => {
+                  const mid = Math.floor(text.length / 2)
+                  const off = Math.floor(revealed.size / 2)
+                  return revealed.size % 2 === 0 ? mid + off : mid - off - 1
+                })()
+              : revealed.size
 
         if (nextIdx >= 0 && nextIdx < text.length) {
           revealed = new Set(revealed)
@@ -151,7 +152,9 @@ export default function DecryptedText({
 
     const el = containerRef.current
     if (el) observer.observe(el)
-    return () => { if (el) observer.unobserve(el) }
+    return () => {
+      if (el) observer.unobserve(el)
+    }
   }, [animateOn, hasAnimated, triggerDecrypt])
 
   // Hover trigger

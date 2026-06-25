@@ -1,5 +1,12 @@
-﻿export { sourceExecutor } from "./source.js"
-export { mathExecutor, compareExecutor, logicExecutor, concatExecutor, formatExecutor, getExecutor } from "./compute.js"
+﻿export { sourceExecutor } from './source.js'
+export {
+  mathExecutor,
+  compareExecutor,
+  logicExecutor,
+  concatExecutor,
+  formatExecutor,
+  getExecutor,
+} from './compute.js'
 export {
   setVariableExecutor,
   setViewDataExecutor,
@@ -12,11 +19,6 @@ export {
   dbInsertExecutor,
   dbUpdateExecutor,
   dbDeleteExecutor,
-} from "./action.js"
-export {
-  conditionExecutor,
-  loopExecutor,
-  parallelExecutor,
-  returnExecutor,
-} from "./control.js"
-export { functionExecutor } from "./function.js"
+} from './action.js'
+export { conditionExecutor, loopExecutor, parallelExecutor, returnExecutor } from './control.js'
+export { functionExecutor } from './function.js'

@@ -102,7 +102,9 @@ class CloudFunctionController {
       ctx.body = { success: false, message: '函数名不能为空' }
       return
     }
-    try { validateIdentifier(body.name, '函数名') } catch (e: any) {
+    try {
+      validateIdentifier(body.name, '函数名')
+    } catch (e: any) {
       ctx.status = 400
       ctx.body = { success: false, message: e.message }
       return
@@ -139,19 +141,15 @@ class CloudFunctionController {
       flowSchema?: Record<string, unknown>
     }
 
-    const updated = await this.runCloudFunctionEdit(
-      appId,
-      `更新云函数「${functionId}」`,
-      (functions) => {
-        const { functions: next, updated } = CloudFunctionService.computeUpdate(functions, functionId, {
-          name: body.name,
-          displayName: body.displayName,
-          description: body.description,
-          flowSchema: body.schema ?? body.flowSchema,
-        })
-        return { functions: next, result: updated }
-      },
-    )
+    const updated = await this.runCloudFunctionEdit(appId, `更新云函数「${functionId}」`, (functions) => {
+      const { functions: next, updated } = CloudFunctionService.computeUpdate(functions, functionId, {
+        name: body.name,
+        displayName: body.displayName,
+        description: body.description,
+        flowSchema: body.schema ?? body.flowSchema,
+      })
+      return { functions: next, result: updated }
+    })
 
     ctx.body = { success: true, data: formatCloudFunction(updated) }
   }
@@ -162,14 +160,10 @@ class CloudFunctionController {
   async remove(ctx: Context) {
     const { appId, functionId } = ctx.params as { appId: string; functionId: string }
 
-    await this.runCloudFunctionEdit(
-      appId,
-      `删除云函数「${functionId}」`,
-      (functions) => ({
-        functions: CloudFunctionService.computeDelete(functions, functionId),
-        result: true as const,
-      }),
-    )
+    await this.runCloudFunctionEdit(appId, `删除云函数「${functionId}」`, (functions) => ({
+      functions: CloudFunctionService.computeDelete(functions, functionId),
+      result: true as const,
+    }))
 
     ctx.body = { success: true }
   }

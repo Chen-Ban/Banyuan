@@ -30,22 +30,15 @@ export interface AgentPromptConfig {
  * 获取应用全部角色的 prompt 配置
  */
 export async function listPrompts(appId: string): Promise<AgentPromptConfig[]> {
-  const res = await get<ApiResponse<AgentPromptConfig[]>>(
-    `/applications/${appId}/prompts`
-  )
+  const res = await get<ApiResponse<AgentPromptConfig[]>>(`/applications/${appId}/prompts`)
   return res.data ?? []
 }
 
 /**
  * 获取某角色的 prompt 配置
  */
-export async function getPrompt(
-  appId: string,
-  agent: FullAgentRole
-): Promise<AgentPromptConfig | null> {
-  const res = await get<ApiResponse<AgentPromptConfig | null>>(
-    `/applications/${appId}/prompts/${agent}`
-  )
+export async function getPrompt(appId: string, agent: FullAgentRole): Promise<AgentPromptConfig | null> {
+  const res = await get<ApiResponse<AgentPromptConfig | null>>(`/applications/${appId}/prompts/${agent}`)
   return res.data ?? null
 }
 
@@ -55,12 +48,11 @@ export async function getPrompt(
 export async function upsertPrompt(
   appId: string,
   agent: FullAgentRole,
-  promptText: string
+  promptText: string,
 ): Promise<AgentPromptConfig> {
-  const res = await put<ApiResponse<AgentPromptConfig>>(
-    `/applications/${appId}/prompts/${agent}`,
-    { promptText }
-  )
+  const res = await put<ApiResponse<AgentPromptConfig>>(`/applications/${appId}/prompts/${agent}`, {
+    promptText,
+  })
   return res.data!
 }
 
@@ -69,21 +61,15 @@ export async function upsertPrompt(
  */
 export async function batchUpsertPrompts(
   appId: string,
-  prompts: Array<{ agent: FullAgentRole; promptText: string }>
+  prompts: Array<{ agent: FullAgentRole; promptText: string }>,
 ): Promise<AgentPromptConfig[]> {
-  const res = await put<ApiResponse<AgentPromptConfig[]>>(
-    `/applications/${appId}/prompts`,
-    { prompts }
-  )
+  const res = await put<ApiResponse<AgentPromptConfig[]>>(`/applications/${appId}/prompts`, { prompts })
   return res.data ?? []
 }
 
 /**
  * 重置某角色配置为系统默认
  */
-export async function resetPrompt(
-  appId: string,
-  agent: FullAgentRole
-): Promise<void> {
+export async function resetPrompt(appId: string, agent: FullAgentRole): Promise<void> {
   await del<ApiResponse>(`/applications/${appId}/prompts/${agent}`)
 }

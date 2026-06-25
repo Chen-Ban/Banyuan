@@ -7,7 +7,13 @@
     "domain": "bindflow",
     "pattern": "page-init-load-data",
     "description": "Scene.onLoad → callFlow 查询 → setData 渲染列表/详情",
-    "dependencies": ["primitive-flow-common", "primitive-flow-shared-nodes", "primitive-flow-client-nodes", "primitive-ui-scene", "primitive-data-cloud-function"],
+    "dependencies": [
+      "primitive-flow-common",
+      "primitive-flow-shared-nodes",
+      "primitive-flow-client-nodes",
+      "primitive-ui-scene",
+      "primitive-data-cloud-function"
+    ],
     "version": "0.1.0"
   }
 }

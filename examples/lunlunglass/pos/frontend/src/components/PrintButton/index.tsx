@@ -60,7 +60,7 @@ const PrintButton = ({
         setPrinting(false)
       }
     },
-    [orderId, onSuccess]
+    [orderId, onSuccess],
   )
 
   return (

@@ -8,7 +8,12 @@ export interface CloudFunctionDef {
   name: string
   displayName: string
   description: string
-  schema: { version: string; entry: string; nodes: Record<string, unknown>; layout: Record<string, { x: number; y: number }> }
+  schema: {
+    version: string
+    entry: string
+    nodes: Record<string, unknown>
+    layout: Record<string, { x: number; y: number }>
+  }
   version: number
   createdAt?: string
   updatedAt?: string
@@ -18,14 +23,24 @@ export interface CreateCloudFunctionParams {
   name: string
   displayName?: string
   description?: string
-  schema?: { version: string; entry: string; nodes: Record<string, unknown>; layout: Record<string, { x: number; y: number }> }
+  schema?: {
+    version: string
+    entry: string
+    nodes: Record<string, unknown>
+    layout: Record<string, { x: number; y: number }>
+  }
 }
 
 export interface UpdateCloudFunctionParams {
   name?: string
   displayName?: string
   description?: string
-  schema?: { version: string; entry: string; nodes: Record<string, unknown>; layout: Record<string, { x: number; y: number }> }
+  schema?: {
+    version: string
+    entry: string
+    nodes: Record<string, unknown>
+    layout: Record<string, { x: number; y: number }>
+  }
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -41,7 +56,10 @@ export function getFunction(appId: string, functionId: string): Promise<ApiRespo
 }
 
 /** 创建云函数 */
-export function createFunction(appId: string, params: CreateCloudFunctionParams): Promise<ApiResponse<CloudFunctionDef>> {
+export function createFunction(
+  appId: string,
+  params: CreateCloudFunctionParams,
+): Promise<ApiResponse<CloudFunctionDef>> {
   return post<ApiResponse<CloudFunctionDef>>(`/apps/${appId}/cloud-functions`, params)
 }
 

@@ -1,20 +1,20 @@
-import React, { useState } from "react";
-import { App, Button, Input, Tooltip, Empty } from "antd";
-import { PlusOutlined, ThunderboltOutlined } from "@ant-design/icons";
-import type { CloudFunctionDef } from "@/api";
-import EditableListItem from "@/components/EditableListItem";
-import styles from "./index.module.scss";
+import React, { useState } from 'react'
+import { App, Button, Input, Tooltip, Empty } from 'antd'
+import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import type { CloudFunctionDef } from '@/api'
+import EditableListItem from '@/components/EditableListItem'
+import styles from './index.module.scss'
 
 export interface FunctionListProps {
-  functions: CloudFunctionDef[];
-  selectedId: string | null;
-  adding: boolean;
-  onStartAdd: () => void;
-  onCancelAdd: () => void;
-  onConfirmAdd: (name: string, displayName: string) => Promise<void>;
-  onSelect: (functionId: string) => void;
-  onDelete: (functionId: string) => Promise<void>;
-  onRename: (functionId: string, name: string, displayName: string) => Promise<void>;
+  functions: CloudFunctionDef[]
+  selectedId: string | null
+  adding: boolean
+  onStartAdd: () => void
+  onCancelAdd: () => void
+  onConfirmAdd: (name: string, displayName: string) => Promise<void>
+  onSelect: (functionId: string) => void
+  onDelete: (functionId: string) => Promise<void>
+  onRename: (functionId: string, name: string, displayName: string) => Promise<void>
 }
 
 const FunctionList: React.FC<FunctionListProps> = ({
@@ -28,35 +28,35 @@ const FunctionList: React.FC<FunctionListProps> = ({
   onDelete,
   onRename,
 }) => {
-  const { message } = App.useApp();
-  const [newName, setNewName] = useState("");
-  const [newDisplayName, setNewDisplayName] = useState("");
-  const [saving, setSaving] = useState(false);
+  const { message } = App.useApp()
+  const [newName, setNewName] = useState('')
+  const [newDisplayName, setNewDisplayName] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const handleAdd = async () => {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
+    const trimmed = newName.trim()
+    if (!trimmed) return
     if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmed)) {
       message.error('函数名只允许英文字母、数字、下划线，且必须以字母开头')
       return
     }
-    setSaving(true);
+    setSaving(true)
     try {
-      await onConfirmAdd(trimmed, newDisplayName.trim() || trimmed);
-      setNewName("");
-      setNewDisplayName("");
+      await onConfirmAdd(trimmed, newDisplayName.trim() || trimmed)
+      setNewName('')
+      setNewDisplayName('')
     } catch (err: unknown) {
-      message.error(err instanceof Error ? err.message : "创建失败");
+      message.error(err instanceof Error ? err.message : '创建失败')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   const handleCancel = () => {
-    setNewName("");
-    setNewDisplayName("");
-    onCancelAdd();
-  };
+    setNewName('')
+    setNewDisplayName('')
+    onCancelAdd()
+  }
 
   return (
     <div className={styles.functionList}>
@@ -82,8 +82,8 @@ const FunctionList: React.FC<FunctionListProps> = ({
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
-              if (e.key === "Escape") handleCancel();
+              if (e.key === 'Enter') handleAdd()
+              if (e.key === 'Escape') handleCancel()
             }}
             autoFocus
             disabled={saving}
@@ -94,8 +94,8 @@ const FunctionList: React.FC<FunctionListProps> = ({
             value={newDisplayName}
             onChange={(e) => setNewDisplayName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleAdd();
-              if (e.key === "Escape") handleCancel();
+              if (e.key === 'Enter') handleAdd()
+              if (e.key === 'Escape') handleCancel()
             }}
             disabled={saving}
           />
@@ -143,7 +143,7 @@ const FunctionList: React.FC<FunctionListProps> = ({
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default FunctionList;
+export default FunctionList

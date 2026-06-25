@@ -2,13 +2,7 @@ export { Scene } from './Scene'
 export type { SceneOptions } from './Scene'
 
 // ── Transaction（事务/操作栈体系） ──
-export {
-  DiffType,
-  Operation,
-  OperationStack,
-  TransactionManager,
-  DiffApplier,
-} from './transaction'
+export { DiffType, Operation, OperationStack, TransactionManager, DiffApplier } from './transaction'
 export type {
   Diff,
   ModifyDiff,

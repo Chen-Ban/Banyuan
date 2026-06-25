@@ -149,7 +149,7 @@ XiangDi 的知识与传统 RAG 本质不同。传统 RAG 的知识是"LLM 读了
 **知识归属：**
 
 - **系统级知识**存 knowledge-server（公共，所有应用共享）——BanvasGL 引擎能力认知，与具体应用无关
-- **应用级知识** = 应用数据本身（appJSON + CollectionSchema + CloudFunctions）——通过程序化工具（如 list_pages、get_page_projection、list_collections）按需提取摘要，无需额外存储层
+- **应用级知识** = 应用数据本身（uiJSON + CollectionSchema + CloudFunctions）——通过程序化工具（如 list_pages、get_page_projection、list_collections）按需提取摘要，无需额外存储层
 
 所有知识消费走 Tool 模式（SubAgent 通过 knowledge_search 工具按需检索），system prompt 不注入应用特定信息，保持 Prompt Cache 命中率。
 

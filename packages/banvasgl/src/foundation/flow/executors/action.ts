@@ -63,7 +63,7 @@ export const setVariableExecutor: NodeExecutor<FlowSetVariableNode, CapProxy> = 
   if (parts[0] === 'state') {
     console.warn(
       `[setVariable] state.* 已废弃，请使用 setViewData / setViewVisible / playAnimation 节点。` +
-      `收到目标: ${target}`
+        `收到目标: ${target}`,
     )
     return { nextNodeId: node.slots[0].next || null }
   }
@@ -84,12 +84,16 @@ export const setVariableExecutor: NodeExecutor<FlowSetVariableNode, CapProxy> = 
  * 调用 `cap.setViewData(viewId, key, value)`。
  * 仅在前端 preset 注册，需要 `FrontendCapProxy`。
  */
-export const setViewDataExecutor: NodeExecutor<FlowSetViewDataNode, FrontendCapProxy> = async (node, inputs, ctx) => {
+export const setViewDataExecutor: NodeExecutor<FlowSetViewDataNode, FrontendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   if (typeof ctx.cap.setViewData === 'function') {
     ctx.cap.setViewData(
       String(inputs.viewId ?? ''),
       String(inputs.key ?? ''),
-      inputs.value,
+      inputs.value as string | number | boolean | object,
     )
   }
   return { nextNodeId: node.slots[0].next || null }
@@ -101,12 +105,13 @@ export const setViewDataExecutor: NodeExecutor<FlowSetViewDataNode, FrontendCapP
  * 调用 `cap.setViewVisible(viewId, visible)`。
  * 仅在前端 preset 注册，需要 `FrontendCapProxy`。
  */
-export const setViewVisibleExecutor: NodeExecutor<FlowSetViewVisibleNode, FrontendCapProxy> = async (node, inputs, ctx) => {
+export const setViewVisibleExecutor: NodeExecutor<FlowSetViewVisibleNode, FrontendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   if (typeof ctx.cap.setViewVisible === 'function') {
-    ctx.cap.setViewVisible(
-      String(inputs.viewId ?? ''),
-      Boolean(inputs.visible),
-    )
+    ctx.cap.setViewVisible(String(inputs.viewId ?? ''), Boolean(inputs.visible))
   }
   return { nextNodeId: node.slots[0].next || null }
 }
@@ -117,12 +122,13 @@ export const setViewVisibleExecutor: NodeExecutor<FlowSetViewVisibleNode, Fronte
  * 调用 `cap.playAnimation(viewId, animationId)`。
  * 仅在前端 preset 注册，需要 `FrontendCapProxy`。
  */
-export const playAnimationExecutor: NodeExecutor<FlowPlayAnimationNode, FrontendCapProxy> = async (node, inputs, ctx) => {
+export const playAnimationExecutor: NodeExecutor<FlowPlayAnimationNode, FrontendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   if (typeof ctx.cap.playAnimation === 'function') {
-    ctx.cap.playAnimation(
-      String(inputs.viewId ?? ''),
-      String(inputs.animationId ?? ''),
-    )
+    ctx.cap.playAnimation(String(inputs.viewId ?? ''), String(inputs.animationId ?? ''))
   }
   return { nextNodeId: node.slots[0].next || null }
 }
@@ -134,7 +140,11 @@ export const playAnimationExecutor: NodeExecutor<FlowPlayAnimationNode, Frontend
  * 后续节点不再有效——navigate 必须是控制路径上的终点节点。
  * 仅在前端 preset 注册，需要 `FrontendCapProxy`。
  */
-export const navigateExecutor: NodeExecutor<FlowNavigateNode, FrontendCapProxy> = async (node, inputs, ctx) => {
+export const navigateExecutor: NodeExecutor<FlowNavigateNode, FrontendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   if (typeof ctx.cap.navigate === 'function') {
     await ctx.cap.navigate(String(inputs.target ?? ''))
   }
@@ -148,7 +158,11 @@ export const navigateExecutor: NodeExecutor<FlowNavigateNode, FrontendCapProxy> 
  * 产出 `{ outputs: { status, body, headers }, nextNodeId }`。
  * 仅在前端 preset 注册，需要 `FrontendCapProxy`。
  */
-export const cloudFunctionExecutor: NodeExecutor<FlowCloudFunctionNode, FrontendCapProxy> = async (node, inputs, ctx) => {
+export const cloudFunctionExecutor: NodeExecutor<FlowCloudFunctionNode, FrontendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   const http = ctx.cap.httpClient
   if (!http) throw new Error('httpClient not available in context')
 
@@ -156,7 +170,7 @@ export const cloudFunctionExecutor: NodeExecutor<FlowCloudFunctionNode, Frontend
     String(inputs.method ?? 'POST'),
     `/api/functions/${String(inputs.functionId ?? '')}`,
     { 'Content-Type': 'application/json' },
-    inputs.args,
+    inputs.args as string | object | undefined,
   )
   return {
     outputs: {
@@ -177,7 +191,11 @@ export const cloudFunctionExecutor: NodeExecutor<FlowCloudFunctionNode, Frontend
  * 产出 `{ outputs: { status, body, headers }, nextNodeId }`。
  * 仅在后端 preset 注册，需要 `BackendCapProxy`。
  */
-export const httpRequestExecutor: NodeExecutor<FlowHttpRequestNode, BackendCapProxy> = async (node, inputs, ctx) => {
+export const httpRequestExecutor: NodeExecutor<FlowHttpRequestNode, BackendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   const http = ctx.cap.httpClient
   if (!http) throw new Error('httpClient not available in context')
 
@@ -185,7 +203,7 @@ export const httpRequestExecutor: NodeExecutor<FlowHttpRequestNode, BackendCapPr
     String(inputs.method ?? 'GET'),
     String(inputs.url ?? ''),
     (inputs.headers ?? {}) as Record<string, string>,
-    inputs.body,
+    inputs.body as string | object | undefined,
   )
   return {
     outputs: {
@@ -217,7 +235,11 @@ export const dbQueryExecutor: NodeExecutor<FlowDbQueryNode, BackendCapProxy> = a
  * 产出 `{ outputs: { id }, nextNodeId }`。
  * 仅在后端 preset 注册，需要 `BackendCapProxy`。
  */
-export const dbInsertExecutor: NodeExecutor<FlowDbInsertNode, BackendCapProxy> = async (node, inputs, ctx) => {
+export const dbInsertExecutor: NodeExecutor<FlowDbInsertNode, BackendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   if (!ctx.cap.db) throw new Error('db not available in context')
   const result = await ctx.cap.db.insert(String(inputs.collection ?? ''), (inputs.document ?? {}) as object)
   return { outputs: { id: result.id }, nextNodeId: node.slots[0].next || null }
@@ -230,14 +252,21 @@ export const dbInsertExecutor: NodeExecutor<FlowDbInsertNode, BackendCapProxy> =
  * 产出 `{ outputs: { matchedCount, modifiedCount }, nextNodeId }`。
  * 仅在后端 preset 注册，需要 `BackendCapProxy`。
  */
-export const dbUpdateExecutor: NodeExecutor<FlowDbUpdateNode, BackendCapProxy> = async (node, inputs, ctx) => {
+export const dbUpdateExecutor: NodeExecutor<FlowDbUpdateNode, BackendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   if (!ctx.cap.db) throw new Error('db not available in context')
   const result = await ctx.cap.db.update(
     String(inputs.collection ?? ''),
     (inputs.filter ?? {}) as object,
     (inputs.update ?? {}) as object,
   )
-  return { outputs: { matchedCount: result.matched, modifiedCount: result.modified }, nextNodeId: node.slots[0].next || null }
+  return {
+    outputs: { matchedCount: result.matched, modifiedCount: result.modified },
+    nextNodeId: node.slots[0].next || null,
+  }
 }
 
 /**
@@ -247,7 +276,11 @@ export const dbUpdateExecutor: NodeExecutor<FlowDbUpdateNode, BackendCapProxy> =
  * 产出 `{ outputs: { deletedCount }, nextNodeId }`。
  * 仅在后端 preset 注册，需要 `BackendCapProxy`。
  */
-export const dbDeleteExecutor: NodeExecutor<FlowDbDeleteNode, BackendCapProxy> = async (node, inputs, ctx) => {
+export const dbDeleteExecutor: NodeExecutor<FlowDbDeleteNode, BackendCapProxy> = async (
+  node,
+  inputs,
+  ctx,
+) => {
   if (!ctx.cap.db) throw new Error('db not available in context')
   const result = await ctx.cap.db.delete(String(inputs.collection ?? ''), (inputs.filter ?? {}) as object)
   return { outputs: { deletedCount: result.deleted }, nextNodeId: node.slots[0].next || null }

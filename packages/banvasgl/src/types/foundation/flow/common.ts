@@ -12,7 +12,7 @@ import { CompareOp, LogicOp } from './enums.js'
  * - 多出口节点（如 Condition）：每个 slot 有自己的 `next` 字段
  * - 终点节点（如 Return / navigate）：空字符串或 null
  */
-export type Next = string;
+export type Next = string
 
 /**
  * 跨节点数据引用 —— 指向上游节点的某个输出字段。
@@ -22,9 +22,9 @@ export type Next = string;
  */
 export interface DataRef {
   /** 上游节点 ID */
-  nodeId: string;
+  nodeId: string
   /** 输出字段名（如 "value"、"rows"、"status"） */
-  field: string;
+  field: string
 }
 
 /**
@@ -33,7 +33,7 @@ export interface DataRef {
  * 取值规则：先检查是否为 DataRef，是则 Pull 该引用，否则直接使用内联值。
  * DataRef 天然编码了"谁连到我"，不需要在顶层维护 DataEdge 数组。
  */
-export type SlotValue = unknown | DataRef;
+export type SlotValue = unknown | DataRef
 
 /**
  * 判断槽值是否为 DataRef（类型守卫）。
@@ -42,7 +42,7 @@ export type SlotValue = unknown | DataRef;
  * @returns v 是否为 DataRef 实例
  */
 export function isDataRef(v: unknown): v is DataRef {
-  return typeof v === "object" && v !== null && "nodeId" in v && "field" in v;
+  return typeof v === 'object' && v !== null && 'nodeId' in v && 'field' in v
 }
 
 /**
@@ -51,9 +51,9 @@ export function isDataRef(v: unknown): v is DataRef {
  * 两个操作数均为 SlotValue——可内联也可引用上游输出。
  */
 export interface Condition {
-  left: SlotValue;
-  op: CompareOp;
-  right: SlotValue;
+  left: SlotValue
+  op: CompareOp
+  right: SlotValue
 }
 
 /**
@@ -64,9 +64,9 @@ export interface Condition {
  * - Not：对唯一条件取反
  */
 export interface ConditionGroup {
-  op: LogicOp;
-  conditions: (Condition | ConditionGroup)[];
+  op: LogicOp
+  conditions: (Condition | ConditionGroup)[]
 }
 
 /** Filter = Condition | ConditionGroup 的联合类型 */
-export type Filter = Condition | ConditionGroup;
+export type Filter = Condition | ConditionGroup

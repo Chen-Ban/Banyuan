@@ -6,5 +6,5 @@
  * 平台适配器负责实现（Web: CanvasGradient, Skia: SkShader 等）。
  */
 export interface IGradient {
-  addColorStop(offset: number, color: string): void;
+  addColorStop(offset: number, color: string): void
 }

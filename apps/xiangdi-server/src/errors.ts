@@ -5,22 +5,22 @@
  */
 
 export class ServiceUnavailableError extends Error {
-    /** HTTP 状态码，固定 503 */
-    readonly statusCode = 503
+  /** HTTP 状态码，固定 503 */
+  readonly statusCode = 503
 
-    /** 不可用的服务名称 */
-    readonly service: string
+  /** 不可用的服务名称 */
+  readonly service: string
 
-    /** 原始错误（如有） */
-    readonly cause?: Error
+  /** 原始错误（如有） */
+  readonly cause?: Error
 
-    constructor(service: string, message: string, cause?: Error) {
-        super(`[${service}] ${message}`)
-        this.name = 'ServiceUnavailableError'
-        this.service = service
-        this.cause = cause
+  constructor(service: string, message: string, cause?: Error) {
+    super(`[${service}] ${message}`)
+    this.name = 'ServiceUnavailableError'
+    this.service = service
+    this.cause = cause
 
-        // 保持正确的原型链
-        Object.setPrototypeOf(this, ServiceUnavailableError.prototype)
-    }
+    // 保持正确的原型链
+    Object.setPrototypeOf(this, ServiceUnavailableError.prototype)
+  }
 }

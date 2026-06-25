@@ -1,18 +1,18 @@
-import { defineConfig } from "tsup";
-import { readFileSync } from "fs";
+import { defineConfig } from 'tsup'
+import { readFileSync } from 'fs'
 
-const pkg = JSON.parse(readFileSync("./package.json", "utf-8"));
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: ['src/index.ts'],
   dts: true,
-  format: ["esm", "cjs"],
+  format: ['esm', 'cjs'],
   outExtension({ format }) {
-    return { js: format === "esm" ? ".mjs" : ".cjs" };
+    return { js: format === 'esm' ? '.mjs' : '.cjs' }
   },
   clean: true,
-  external: ["@banyuan/banvasgl"],
+  external: ['@banyuan/banvasgl'],
   define: {
     __XIANGDI_VERSION__: JSON.stringify(pkg.version),
   },
-});
+})

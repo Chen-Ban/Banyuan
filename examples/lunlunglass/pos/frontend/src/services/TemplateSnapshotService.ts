@@ -21,11 +21,7 @@
  * - 打印时 POS 后端根据 snapshotId 读取完整快照（含背景图和字段列表）
  */
 
-import {
-  fetchSnapshots,
-  syncTemplates,
-  type TemplateSnapshotSummary,
-} from '../api/print'
+import { fetchSnapshots, syncTemplates, type TemplateSnapshotSummary } from '../api/print'
 import type { ApiResponse } from '../api/client'
 
 // ─────────────────────────────────────────────
@@ -138,9 +134,7 @@ class TemplateSnapshotService implements ITemplateSnapshotService {
         return cachedSnapshots
       }
     } catch {
-      console.warn(
-        '[TemplateSnapshotService] Failed to fetch snapshots from backend.'
-      )
+      console.warn('[TemplateSnapshotService] Failed to fetch snapshots from backend.')
     }
 
     // 3. 回退到 localStorage
@@ -186,9 +180,7 @@ class TemplateSnapshotService implements ITemplateSnapshotService {
     }
   }
 
-  async getSnapshotById(
-    snapshotId: string
-  ): Promise<TemplateSnapshotSummary | undefined> {
+  async getSnapshotById(snapshotId: string): Promise<TemplateSnapshotSummary | undefined> {
     const snapshots = await this.getSnapshots()
     return snapshots.find((s) => s.snapshotId === snapshotId)
   }

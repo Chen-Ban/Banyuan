@@ -23,15 +23,9 @@ const ListPage = () => {
 
   return (
     <div className={styles.listPage}>
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        items={tabItems}
-        size="large"
-      />
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} size="large" />
     </div>
   )
 }
 
 export default ListPage
-

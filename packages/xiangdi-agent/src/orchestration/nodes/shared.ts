@@ -34,7 +34,7 @@ export async function callSubAgentLLM(config: SubAgentLLMCallConfig): Promise<st
     temperature: config.temperature ?? 0,
   })
 
-  const textBlock = response.content.find(c => c.type === 'text')
+  const textBlock = response.content.find((c) => c.type === 'text')
   if (!textBlock || textBlock.type !== 'text') {
     throw new Error('LLM 未返回文本内容')
   }
@@ -54,9 +54,7 @@ export interface ParseWithRetryConfig<T> {
   model?: string
 }
 
-export type ParseResult<T> =
-  | { success: true; data: T }
-  | { success: false; error: string }
+export type ParseResult<T> = { success: true; data: T } | { success: false; error: string }
 
 /**
  * 从 LLM 原始文本中提取 JSON 并通过 Zod 校验。
@@ -124,7 +122,7 @@ function tryParseJson<T>(text: string, schema: z.ZodType<T>): ParseResult<T> {
   }
 
   const formattedErrors = result.error.issues
-    .map(issue => `  - ${issue.path.join('.')}: ${issue.message}`)
+    .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
     .join('\n')
   return { success: false, error: `Zod 校验失败:\n${formattedErrors}` }
 }

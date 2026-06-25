@@ -16,7 +16,7 @@ import type { ISerializable } from '@/types/foundation/serializable'
  * ```
  */
 export default class Color implements ISerializable {
-  public readonly type: StyleType = StyleType.COLOR;
+  public readonly type: StyleType = StyleType.COLOR
   private _r: number
   private _g: number
   private _b: number
@@ -45,15 +45,31 @@ export default class Color implements ISerializable {
     this._a = Math.max(0, Math.min(1, a))
   }
 
-  get r(): number { return this._r }
-  get g(): number { return this._g }
-  get b(): number { return this._b }
-  get a(): number { return this._a }
+  get r(): number {
+    return this._r
+  }
+  get g(): number {
+    return this._g
+  }
+  get b(): number {
+    return this._b
+  }
+  get a(): number {
+    return this._a
+  }
 
-  set r(value: number) { this._r = Math.max(0, Math.min(255, value)) }
-  set g(value: number) { this._g = Math.max(0, Math.min(255, value)) }
-  set b(value: number) { this._b = Math.max(0, Math.min(255, value)) }
-  set a(value: number) { this._a = Math.max(0, Math.min(1, value)) }
+  set r(value: number) {
+    this._r = Math.max(0, Math.min(255, value))
+  }
+  set g(value: number) {
+    this._g = Math.max(0, Math.min(255, value))
+  }
+  set b(value: number) {
+    this._b = Math.max(0, Math.min(255, value))
+  }
+  set a(value: number) {
+    this._a = Math.max(0, Math.min(1, value))
+  }
 
   /**
    * 获取归一化颜色
@@ -68,12 +84,12 @@ export default class Color implements ISerializable {
    * const { r, g, b, a } = c.normalized // r ≈ 0.502, g ≈ 0.251, b = 1
    * ```
    */
-  get normalized(): { r: number, g: number, b: number, a: number } {
+  get normalized(): { r: number; g: number; b: number; a: number } {
     return {
       r: this._r / 255,
       g: this._g / 255,
       b: this._b / 255,
-      a: this._a
+      a: this._a,
     }
   }
 
@@ -90,7 +106,7 @@ export default class Color implements ISerializable {
    * const { h, s, l } = red.hsl // h = 0, s = 100, l = 50
    * ```
    */
-  get hsl(): { h: number, s: number, l: number, a: number } {
+  get hsl(): { h: number; s: number; l: number; a: number } {
     const { r, g, b } = this.normalized
     const max = Math.max(r, g, b)
     const min = Math.min(r, g, b)
@@ -121,7 +137,7 @@ export default class Color implements ISerializable {
       h: h * 360,
       s: s * 100,
       l: l * 100,
-      a: this._a
+      a: this._a,
     }
   }
 
@@ -195,7 +211,10 @@ export default class Color implements ISerializable {
     let h = hex.replace('#', '')
     // 支持简写形式：#RGB / #RGBA → #RRGGBB / #RRGGBBAA
     if (h.length === 3 || h.length === 4) {
-      h = h.split('').map(c => c + c).join('')
+      h = h
+        .split('')
+        .map((c) => c + c)
+        .join('')
     }
     const r = parseInt(h.substring(0, 2), 16)
     const g = parseInt(h.substring(2, 4), 16)
@@ -230,15 +249,19 @@ export default class Color implements ISerializable {
 
     // 颜色关键字
     if (s === 'transparent') return new Color(0, 0, 0, 0)
-    if (s === 'white')       return Color.WHITE
-    if (s === 'black')       return Color.BLACK
-    if (s === 'red')         return Color.RED
-    if (s === 'green')       return Color.GREEN
-    if (s === 'blue')        return Color.BLUE
+    if (s === 'white') return Color.WHITE
+    if (s === 'black') return Color.BLACK
+    if (s === 'red') return Color.RED
+    if (s === 'green') return Color.GREEN
+    if (s === 'blue') return Color.BLUE
 
     // hex
     if (s.startsWith('#')) {
-      try { return Color.fromHex(s) } catch { /* fall through */ }
+      try {
+        return Color.fromHex(s)
+      } catch {
+        /* fall through */
+      }
     }
 
     // rgba(r, g, b, a)
@@ -280,9 +303,9 @@ export default class Color implements ISerializable {
     const hue2rgb = (p: number, q: number, t: number) => {
       if (t < 0) t += 1
       if (t > 1) t -= 1
-      if (t < 1/6) return p + (q - p) * 6 * t
-      if (t < 1/2) return q
-      if (t < 2/3) return p + (q - p) * (2/3 - t) * 6
+      if (t < 1 / 6) return p + (q - p) * 6 * t
+      if (t < 1 / 2) return q
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6
       return p
     }
 
@@ -293,9 +316,9 @@ export default class Color implements ISerializable {
     } else {
       const q = l < 0.5 ? l * (1 + s) : l + s - l * s
       const p = 2 * l - q
-      r = hue2rgb(p, q, h + 1/3)
+      r = hue2rgb(p, q, h + 1 / 3)
       g = hue2rgb(p, q, h)
-      b = hue2rgb(p, q, h - 1/3)
+      b = hue2rgb(p, q, h - 1 / 3)
     }
 
     return new Color(r * 255, g * 255, b * 255, a)
@@ -508,10 +531,7 @@ export default class Color implements ISerializable {
    * ```
    */
   equals(other: Color): boolean {
-    return this._r === other._r && 
-           this._g === other._g && 
-           this._b === other._b && 
-           this._a === other._a
+    return this._r === other._r && this._g === other._g && this._b === other._b && this._a === other._a
   }
 
   // ── 预定义颜色 ──

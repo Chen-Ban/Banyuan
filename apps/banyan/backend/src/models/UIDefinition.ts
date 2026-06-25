@@ -17,7 +17,7 @@ const UIDefinitionSchema = new Schema<IUIDefinition>(
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
-  }
+  },
 )
 
 // 联合唯一索引：同一 app 的版本号不可重复

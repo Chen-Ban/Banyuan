@@ -25,12 +25,7 @@ import http from 'http'
 
 type SeedCategory = 'primitive' | 'composition' | 'convention'
 
-const VALID_LAYERS: ReadonlyArray<SeedCategory | 'all'> = [
-  'primitive',
-  'composition',
-  'convention',
-  'all',
-]
+const VALID_LAYERS: ReadonlyArray<SeedCategory | 'all'> = ['primitive', 'composition', 'convention', 'all']
 
 const KNOWLEDGE_BASE_URL = process.env.KNOWLEDGE_URL ?? 'http://localhost:3003'
 
@@ -78,14 +73,16 @@ function httpPost(path: string, body: unknown): Promise<{ status: number; data: 
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(bodyStr),
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       timeout: 60000, // 种子写入可能耗时（需要向量化）
     }
 
     const req = http.request(options, (res) => {
       let data = ''
-      res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+      res.on('data', (chunk: Buffer) => {
+        data += chunk.toString()
+      })
       res.on('end', () => {
         try {
           resolve({ status: res.statusCode ?? 500, data: JSON.parse(data) })
@@ -118,14 +115,16 @@ function httpDelete(path: string, body: unknown): Promise<{ status: number; data
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(bodyStr),
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       timeout: 30000,
     }
 
     const req = http.request(options, (res) => {
       let data = ''
-      res.on('data', (chunk: Buffer) => { data += chunk.toString() })
+      res.on('data', (chunk: Buffer) => {
+        data += chunk.toString()
+      })
       res.on('end', () => {
         try {
           resolve({ status: res.statusCode ?? 500, data: JSON.parse(data) })
@@ -209,7 +208,7 @@ function loadSeedFiles(category: SeedCategory): SeedFile[] {
     // 一致性校验：metadata.category 应与所在层级一致
     if (parsed.metadata.category !== category) {
       console.warn(
-        `⚠️  category 不一致（文件声明 "${parsed.metadata.category}"，所在目录 "${category}"）: ${parsed.id}`
+        `⚠️  category 不一致（文件声明 "${parsed.metadata.category}"，所在目录 "${category}"）: ${parsed.id}`,
       )
     }
 
@@ -286,8 +285,7 @@ async function main(): Promise<void> {
     process.exit(1)
   }
 
-  const categories: SeedCategory[] =
-    layer === 'all' ? ['primitive', 'composition', 'convention'] : [layer]
+  const categories: SeedCategory[] = layer === 'all' ? ['primitive', 'composition', 'convention'] : [layer]
 
   let total = 0
   for (const cat of categories) {

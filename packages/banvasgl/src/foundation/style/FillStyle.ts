@@ -1,12 +1,10 @@
-import Color from "./Color";
-import { LinearGradient, RadialGradient, ConicGradient } from "./gradient/index";
-import Image from "./Image";
-import { StyleType } from '@/foundation/constants';
+import Color from './Color'
+import { LinearGradient, RadialGradient, ConicGradient } from './gradient/index'
+import Image from './Image'
+import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-
-/** 填充类型枚举：纯色、三种渐变、图片图案 */
-export type FillType = "color" | "linearGradient" | "radialGradient" | "conicGradient" | "image";
+import type { IDrawingContext } from '@/types/platform/context.js'
+import type { FillType } from '@/types/foundation/style'
 
 /**
  * 填充样式
@@ -28,13 +26,13 @@ export type FillType = "color" | "linearGradient" | "radialGradient" | "conicGra
  * ```
  */
 export default class FillStyle implements ISerializable {
-  public readonly type: StyleType = StyleType.FILL_STYLE;
-  fillType: FillType;
-  color: Color;
-  linearGradient: LinearGradient | null;
-  radialGradient: RadialGradient | null;
-  conicGradient: ConicGradient | null;
-  image: Image | null;
+  public readonly type: StyleType = StyleType.FILL_STYLE
+  fillType: FillType
+  color: Color
+  linearGradient: LinearGradient | null
+  radialGradient: RadialGradient | null
+  conicGradient: ConicGradient | null
+  image: Image | null
 
   /**
    * 构造填充样式
@@ -58,29 +56,31 @@ export default class FillStyle implements ISerializable {
    * });
    * ```
    */
-  constructor(options: {
-    fillType?: FillType;
-    color?: Color;
-    linearGradient?: LinearGradient | null;
-    radialGradient?: RadialGradient | null;
-    conicGradient?: ConicGradient | null;
-    image?: Image | null;
-  } = {}) {
+  constructor(
+    options: {
+      fillType?: FillType
+      color?: Color
+      linearGradient?: LinearGradient | null
+      radialGradient?: RadialGradient | null
+      conicGradient?: ConicGradient | null
+      image?: Image | null
+    } = {},
+  ) {
     const {
-      fillType = "color",
+      fillType = 'color',
       color = Color.WHITE,
       linearGradient = null,
       radialGradient = null,
       conicGradient = null,
       image = null,
-    } = options;
+    } = options
 
-    this.fillType = fillType;
-    this.color = color;
-    this.linearGradient = linearGradient;
-    this.radialGradient = radialGradient;
-    this.conicGradient = conicGradient;
-    this.image = image;
+    this.fillType = fillType
+    this.color = color
+    this.linearGradient = linearGradient
+    this.radialGradient = radialGradient
+    this.conicGradient = conicGradient
+    this.image = image
   }
 
   /**
@@ -102,32 +102,32 @@ export default class FillStyle implements ISerializable {
    */
   applyToContext(ctx: IDrawingContext, width: number = 100, height: number = 100): void {
     switch (this.fillType) {
-      case "color":
-        ctx.fillStyle = this.color.rgba;
-        break;
-      case "linearGradient":
+      case 'color':
+        ctx.fillStyle = this.color.rgba
+        break
+      case 'linearGradient':
         if (this.linearGradient) {
-          ctx.fillStyle = this.linearGradient.createCanvasGradient(ctx, width, height);
+          ctx.fillStyle = this.linearGradient.createCanvasGradient(ctx, width, height)
         }
-        break;
-      case "radialGradient":
+        break
+      case 'radialGradient':
         if (this.radialGradient) {
-          ctx.fillStyle = this.radialGradient.createCanvasGradient(ctx, width, height);
+          ctx.fillStyle = this.radialGradient.createCanvasGradient(ctx, width, height)
         }
-        break;
-      case "conicGradient":
+        break
+      case 'conicGradient':
         if (this.conicGradient) {
-          ctx.fillStyle = this.conicGradient.createCanvasGradient(ctx, width, height);
+          ctx.fillStyle = this.conicGradient.createCanvasGradient(ctx, width, height)
         }
-        break;
-      case "image":
+        break
+      case 'image':
         if (this.image) {
-          const canvasPattern = this.image.createCanvasPattern(ctx);
+          const canvasPattern = this.image.createCanvasPattern(ctx)
           if (canvasPattern) {
-            ctx.fillStyle = canvasPattern;
+            ctx.fillStyle = canvasPattern
           }
         }
-        break;
+        break
     }
   }
 
@@ -146,11 +146,11 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   setColor(color: Color): FillStyle {
-    this.fillType = "color";
-    this.color = color;
-    this.clearGradients();
-    this.image = null;
-    return this;
+    this.fillType = 'color'
+    this.color = color
+    this.clearGradients()
+    this.image = null
+    return this
   }
 
   /**
@@ -168,11 +168,11 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   setLinearGradient(gradient: LinearGradient): FillStyle {
-    this.fillType = "linearGradient";
-    this.clearGradients();
-    this.linearGradient = gradient;
-    this.image = null;
-    return this;
+    this.fillType = 'linearGradient'
+    this.clearGradients()
+    this.linearGradient = gradient
+    this.image = null
+    return this
   }
 
   /**
@@ -190,11 +190,11 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   setRadialGradient(gradient: RadialGradient): FillStyle {
-    this.fillType = "radialGradient";
-    this.clearGradients();
-    this.radialGradient = gradient;
-    this.image = null;
-    return this;
+    this.fillType = 'radialGradient'
+    this.clearGradients()
+    this.radialGradient = gradient
+    this.image = null
+    return this
   }
 
   /**
@@ -213,11 +213,11 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   setConicGradient(gradient: ConicGradient): FillStyle {
-    this.fillType = "conicGradient";
-    this.clearGradients();
-    this.conicGradient = gradient;
-    this.image = null;
-    return this;
+    this.fillType = 'conicGradient'
+    this.clearGradients()
+    this.conicGradient = gradient
+    this.image = null
+    return this
   }
 
   /**
@@ -236,16 +236,16 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   setPattern(image: Image): FillStyle {
-    this.fillType = "image";
-    this.image = image;
-    this.clearGradients();
-    return this;
+    this.fillType = 'image'
+    this.image = image
+    this.clearGradients()
+    return this
   }
 
   private clearGradients(): void {
-    this.linearGradient = null;
-    this.radialGradient = null;
-    this.conicGradient = null;
+    this.linearGradient = null
+    this.radialGradient = null
+    this.conicGradient = null
   }
 
   /**
@@ -322,7 +322,7 @@ export default class FillStyle implements ISerializable {
       radialGradient: this.radialGradient?.copy() || null,
       conicGradient: this.conicGradient?.copy() || null,
       image: this.image?.copy() || null,
-    });
+    })
   }
 
   /**
@@ -341,24 +341,33 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   equals(other: FillStyle): boolean {
-    if (this.fillType !== other.fillType) return false;
+    if (this.fillType !== other.fillType) return false
 
     switch (this.fillType) {
-      case "color":
-        return this.color.equals(other.color);
-      case "linearGradient":
-        return this.linearGradient !== null && other.linearGradient !== null &&
-               this.linearGradient.equals(other.linearGradient);
-      case "radialGradient":
-        return this.radialGradient !== null && other.radialGradient !== null &&
-               this.radialGradient.equals(other.radialGradient);
-      case "conicGradient":
-        return this.conicGradient !== null && other.conicGradient !== null &&
-               this.conicGradient.equals(other.conicGradient);
-      case "image":
-        return this.image?.equals(other.image || new Image()) || false;
+      case 'color':
+        return this.color.equals(other.color)
+      case 'linearGradient':
+        return (
+          this.linearGradient !== null &&
+          other.linearGradient !== null &&
+          this.linearGradient.equals(other.linearGradient)
+        )
+      case 'radialGradient':
+        return (
+          this.radialGradient !== null &&
+          other.radialGradient !== null &&
+          this.radialGradient.equals(other.radialGradient)
+        )
+      case 'conicGradient':
+        return (
+          this.conicGradient !== null &&
+          other.conicGradient !== null &&
+          this.conicGradient.equals(other.conicGradient)
+        )
+      case 'image':
+        return this.image?.equals(other.image || new Image()) || false
       default:
-        return false;
+        return false
     }
   }
 
@@ -378,7 +387,7 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromColor(color: Color): FillStyle {
-    return new FillStyle({ fillType: "color", color });
+    return new FillStyle({ fillType: 'color', color })
   }
 
   /**
@@ -395,7 +404,7 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromHex(hex: string): FillStyle {
-    return new FillStyle({ fillType: "color", color: Color.fromHex(hex) });
+    return new FillStyle({ fillType: 'color', color: Color.fromHex(hex) })
   }
 
   /**
@@ -414,7 +423,7 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromHSL(h: number, s: number, l: number): FillStyle {
-    return new FillStyle({ fillType: "color", color: Color.fromHSL(h, s, l) });
+    return new FillStyle({ fillType: 'color', color: Color.fromHSL(h, s, l) })
   }
 
   /**
@@ -433,7 +442,7 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromRGB(r: number, g: number, b: number): FillStyle {
-    return new FillStyle({ fillType: "color", color: new Color(r, g, b) });
+    return new FillStyle({ fillType: 'color', color: new Color(r, g, b) })
   }
 
   /**
@@ -453,7 +462,7 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromRGBA(r: number, g: number, b: number, a: number): FillStyle {
-    return new FillStyle({ fillType: "color", color: new Color(r, g, b, a) });
+    return new FillStyle({ fillType: 'color', color: new Color(r, g, b, a) })
   }
 
   /**
@@ -470,7 +479,7 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromLinearGradient(gradient: LinearGradient): FillStyle {
-    return new FillStyle({ fillType: "linearGradient", linearGradient: gradient });
+    return new FillStyle({ fillType: 'linearGradient', linearGradient: gradient })
   }
 
   /**
@@ -487,7 +496,7 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromRadialGradient(gradient: RadialGradient): FillStyle {
-    return new FillStyle({ fillType: "radialGradient", radialGradient: gradient });
+    return new FillStyle({ fillType: 'radialGradient', radialGradient: gradient })
   }
 
   /**
@@ -505,7 +514,7 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromConicGradient(gradient: ConicGradient): FillStyle {
-    return new FillStyle({ fillType: "conicGradient", conicGradient: gradient });
+    return new FillStyle({ fillType: 'conicGradient', conicGradient: gradient })
   }
 
   /**
@@ -523,23 +532,35 @@ export default class FillStyle implements ISerializable {
    * ```
    */
   static fromPattern(image: Image): FillStyle {
-    return new FillStyle({ fillType: "image", image });
+    return new FillStyle({ fillType: 'image', image })
   }
 
   // ── 预定义样式 ──
-  static readonly TRANSPARENT = new FillStyle({ fillType: "color", color: Color.TRANSPARENT });
-  static readonly WHITE = new FillStyle({ fillType: "color", color: Color.WHITE });
-  static readonly BLACK = new FillStyle({ fillType: "color", color: Color.BLACK });
-  static readonly RED = new FillStyle({ fillType: "color", color: Color.RED });
-  static readonly GREEN = new FillStyle({ fillType: "color", color: Color.GREEN });
-  static readonly BLUE = new FillStyle({ fillType: "color", color: Color.BLUE });
-  static readonly YELLOW = new FillStyle({ fillType: "color", color: Color.YELLOW });
-  static readonly CYAN = new FillStyle({ fillType: "color", color: Color.CYAN });
-  static readonly MAGENTA = new FillStyle({ fillType: "color", color: Color.MAGENTA });
+  static readonly TRANSPARENT = new FillStyle({ fillType: 'color', color: Color.TRANSPARENT })
+  static readonly WHITE = new FillStyle({ fillType: 'color', color: Color.WHITE })
+  static readonly BLACK = new FillStyle({ fillType: 'color', color: Color.BLACK })
+  static readonly RED = new FillStyle({ fillType: 'color', color: Color.RED })
+  static readonly GREEN = new FillStyle({ fillType: 'color', color: Color.GREEN })
+  static readonly BLUE = new FillStyle({ fillType: 'color', color: Color.BLUE })
+  static readonly YELLOW = new FillStyle({ fillType: 'color', color: Color.YELLOW })
+  static readonly CYAN = new FillStyle({ fillType: 'color', color: Color.CYAN })
+  static readonly MAGENTA = new FillStyle({ fillType: 'color', color: Color.MAGENTA })
 
   // 预定义渐变
-  static readonly RAINBOW_GRADIENT = new FillStyle({ fillType: "linearGradient", linearGradient: LinearGradient.HORIZONTAL_RAINBOW });
-  static readonly SUNSET_GRADIENT = new FillStyle({ fillType: "linearGradient", linearGradient: LinearGradient.SUNSET });
-  static readonly OCEAN_GRADIENT = new FillStyle({ fillType: "linearGradient", linearGradient: LinearGradient.OCEAN });
-  static readonly FIRE_GRADIENT = new FillStyle({ fillType: "radialGradient", radialGradient: RadialGradient.FIRE });
+  static readonly RAINBOW_GRADIENT = new FillStyle({
+    fillType: 'linearGradient',
+    linearGradient: LinearGradient.HORIZONTAL_RAINBOW,
+  })
+  static readonly SUNSET_GRADIENT = new FillStyle({
+    fillType: 'linearGradient',
+    linearGradient: LinearGradient.SUNSET,
+  })
+  static readonly OCEAN_GRADIENT = new FillStyle({
+    fillType: 'linearGradient',
+    linearGradient: LinearGradient.OCEAN,
+  })
+  static readonly FIRE_GRADIENT = new FillStyle({
+    fillType: 'radialGradient',
+    radialGradient: RadialGradient.FIRE,
+  })
 }

@@ -40,7 +40,9 @@
   color: var(--color-text-tertiary);
   font-size: $text-md;
   flex-shrink: 0;
-  transition: color var(--duration-normal), background var(--duration-normal);
+  transition:
+    color var(--duration-normal),
+    background var(--duration-normal);
 
   &:hover {
     color: var(--color-text-secondary);
@@ -91,7 +93,9 @@
 .deviceArrow {
   font-size: 10px;
   color: var(--color-text-quaternary);
-  transition: transform var(--duration-normal), color var(--duration-normal);
+  transition:
+    transform var(--duration-normal),
+    color var(--duration-normal);
 }
 
 .deviceArrowOpen {
@@ -146,6 +150,15 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
+.segBtnDisabled {
+  color: var(--color-text-disabled) !important;
+  cursor: not-allowed;
+
+  &:hover {
+    color: var(--color-text-disabled) !important;
+  }
+}
+
 // Tab 分隔线
 .tabDivider {
   width: 1px;
@@ -166,7 +179,9 @@
   cursor: pointer;
   font-size: $text-base;
   color: var(--color-text-tertiary);
-  transition: color var(--duration-normal), background var(--duration-normal);
+  transition:
+    color var(--duration-normal),
+    background var(--duration-normal);
   white-space: nowrap;
   line-height: 1;
 
@@ -179,6 +194,16 @@
 .tabBtnActive {
   color: var(--color-text-primary) !important;
   background: var(--color-bg-selected) !important;
+}
+
+.tabBtnDisabled {
+  color: var(--color-text-disabled) !important;
+  cursor: not-allowed;
+
+  &:hover {
+    color: var(--color-text-disabled) !important;
+    background: transparent;
+  }
 }
 
 .tabIcon {
@@ -212,7 +237,9 @@
   cursor: pointer;
   font-size: $text-base;
   color: var(--color-text-tertiary);
-  transition: color var(--duration-normal), background var(--duration-normal);
+  transition:
+    color var(--duration-normal),
+    background var(--duration-normal);
   white-space: nowrap;
   line-height: 1;
 
@@ -250,7 +277,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 // ── 构建下拉菜单产物列表样式 ──────────────────────────────────────────────────
@@ -347,6 +376,10 @@
 }
 
 @keyframes overlayFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

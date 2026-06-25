@@ -26,7 +26,7 @@ class OssService {
 
     if (!accessKeyId || !accessKeySecret || !bucket || !region) {
       throw new Error(
-        'Missing OSS config. Required env vars: OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET, OSS_REGION'
+        'Missing OSS config. Required env vars: OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_BUCKET, OSS_REGION',
       )
     }
 

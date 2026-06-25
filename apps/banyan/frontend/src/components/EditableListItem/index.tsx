@@ -119,20 +119,26 @@ const EditableListItem: React.FC<EditableListItemProps> = ({
     return () => document.removeEventListener('mousedown', handleMouseDown)
   }, [editing, confirmEdit])
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      confirmEdit()
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      cancelEdit()
-    }
-  }, [confirmEdit, cancelEdit])
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        confirmEdit()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        cancelEdit()
+      }
+    },
+    [confirmEdit, cancelEdit],
+  )
 
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation()
-    enterEdit()
-  }, [enterEdit])
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      enterEdit()
+    },
+    [enterEdit],
+  )
 
   const handleClick = useCallback(() => {
     if (!editing) {
@@ -184,15 +190,15 @@ const EditableListItem: React.FC<EditableListItemProps> = ({
         <Popconfirm
           title={deleteTitle}
           description={deleteDescription}
-          onConfirm={(e) => { e?.stopPropagation(); onDelete() }}
+          onConfirm={(e) => {
+            e?.stopPropagation()
+            onDelete()
+          }}
           okText="删除"
           cancelText="取消"
           okButtonProps={{ danger: true }}
         >
-          <span
-            className={styles.deleteBtn}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <span className={styles.deleteBtn} onClick={(e) => e.stopPropagation()}>
             <DeleteOutlined />
           </span>
         </Popconfirm>

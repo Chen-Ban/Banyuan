@@ -9,11 +9,11 @@
  *   子页面保存成功后通过 hotUpdate 热更新 collections/functions。
  */
 
-import type { PreviewServerInput, PreviewServerInfo, HotUpdatePatch } from '../../types/electron.js';
+import type { PreviewServerInput, PreviewServerInfo, HotUpdatePatch } from '../../types/electron.js'
 
 /** 是否运行在 Electron 环境中 */
 export function isElectron(): boolean {
-  return typeof window !== 'undefined' && window.electronAPI != null;
+  return typeof window !== 'undefined' && window.electronAPI != null
 }
 
 /**
@@ -23,17 +23,17 @@ export function isElectron(): boolean {
  */
 export async function startPreviewServer(input: PreviewServerInput): Promise<PreviewServerInfo> {
   if (!isElectron()) {
-    throw new Error('[PreviewServer] Not in Electron environment');
+    throw new Error('[PreviewServer] Not in Electron environment')
   }
-  return window.electronAPI!.preview.start(input);
+  return window.electronAPI!.preview.start(input)
 }
 
 /**
  * 停止本地 Preview Server
  */
 export async function stopPreviewServer(appId: string): Promise<void> {
-  if (!isElectron()) return;
-  return window.electronAPI!.preview.stop(appId);
+  if (!isElectron()) return
+  return window.electronAPI!.preview.stop(appId)
 }
 
 /**
@@ -43,24 +43,24 @@ export async function stopPreviewServer(appId: string): Promise<void> {
  * - cloudFunctions 变更：写 functions.json（无需重启）
  */
 export async function hotUpdatePreviewServer(appId: string, patch: HotUpdatePatch): Promise<void> {
-  if (!isElectron()) return;
-  return window.electronAPI!.preview.hotUpdate(appId, patch);
+  if (!isElectron()) return
+  return window.electronAPI!.preview.hotUpdate(appId, patch)
 }
 
 /**
  * 获取本地 Preview Server 状态
  */
 export async function getPreviewServerStatus(appId: string): Promise<PreviewServerInfo | null> {
-  if (!isElectron()) return null;
-  return window.electronAPI!.preview.getStatus(appId);
+  if (!isElectron()) return null
+  return window.electronAPI!.preview.getStatus(appId)
 }
 
 /**
  * 列出所有活跃的本地 Preview Server
  */
 export async function listPreviewServers(): Promise<PreviewServerInfo[]> {
-  if (!isElectron()) return [];
-  return window.electronAPI!.preview.listAll();
+  if (!isElectron()) return []
+  return window.electronAPI!.preview.listAll()
 }
 
-export type { PreviewServerInput, PreviewServerInfo, HotUpdatePatch };
+export type { PreviewServerInput, PreviewServerInfo, HotUpdatePatch }

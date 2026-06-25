@@ -37,4 +37,3 @@ router.put('/:id', orderController.updateOrder.bind(orderController))
 router.delete('/:id', orderController.deleteOrder.bind(orderController))
 
 export default router
-

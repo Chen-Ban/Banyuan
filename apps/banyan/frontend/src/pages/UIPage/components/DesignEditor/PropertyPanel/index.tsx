@@ -1,13 +1,12 @@
-import React, { useCallback, useEffect, useRef, useState } from "react"
-import { Tabs } from "antd"
-import type { IBanvasActions } from "@banyuan/banvasgl"
-import { FieldSchemaMapEditor } from "./FieldSchemaMapEditor"
-import { PropertiesTab } from "./PropertiesTab"
-import { StyleTab } from "./StyleTab"
-import { DataTab } from "./DataTab"
-import { EventsTab } from "./EventsTab"
-import type { FlowEditorOpenRequest } from "./EventsTab"
-import styles from "./index.module.scss"
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Tabs } from 'antd'
+import type { IBanvasActions } from '@banyuan/banvasgl'
+import { FieldSchemaMapEditor } from './FieldSchemaMapEditor'
+import { PropertiesTab } from './PropertiesTab'
+import { DataTab } from './DataTab'
+import { EventsTab } from './EventsTab'
+import type { FlowEditorOpenRequest } from './EventsTab'
+import styles from './index.module.scss'
 
 export interface PropertyPanelProps {
   selectedViewId: string
@@ -23,13 +22,11 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
   currentPageId,
   onOpenFlowEditor,
 }) => {
-  const view = selectedViewId
-    ? actions.view.getViewInstance(selectedViewId)
-    : null
+  const view = selectedViewId ? actions.view.getViewInstance(selectedViewId) : null
 
-  const [activeTab, setActiveTab] = useState("properties")
+  const [activeTab, setActiveTab] = useState('appearance')
   useEffect(() => {
-    setActiveTab(selectedViewId ? "properties" : "data")
+    setActiveTab(selectedViewId ? 'appearance' : 'data')
   }, [selectedViewId])
 
   const isEditingRef = useRef(false)
@@ -58,8 +55,7 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           title="页面数据 (data)"
           schemaMap={pageData}
           onUpdate={(key, schema) => {
-            if (currentPageId)
-              actions.page.setPageData(currentPageId, key, schema)
+            if (currentPageId) actions.page.setPageData(currentPageId, key, schema)
           }}
           onRename={(oldKey, newKey) => {
             if (currentPageId) {
@@ -80,8 +76,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
             let newKey = `field_${n}`
             while (existingKeys.includes(newKey)) newKey = `field_${++n}`
             actions.page.setPageData(currentPageId, newKey, {
-              type: "string",
-              default: "",
+              type: 'string',
+              default: '',
             })
           }}
         />
@@ -89,19 +85,12 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
     )
 
     const pageEventsTab = currentPageId ? (
-      <EventsTab
-        mode="page"
-        pageId={currentPageId}
-        actions={actions}
-        onOpenFlowEditor={onOpenFlowEditor}
-      />
+      <EventsTab mode="page" pageId={currentPageId} actions={actions} onOpenFlowEditor={onOpenFlowEditor} />
     ) : null
 
     const pageTabItems = [
-      { key: "data", label: "数据", children: pageDataTab },
-      ...(pageEventsTab
-        ? [{ key: "events", label: "事件", children: pageEventsTab }]
-        : []),
+      { key: 'data', label: '数据', children: pageDataTab },
+      ...(pageEventsTab ? [{ key: 'events', label: '事件', children: pageEventsTab }] : []),
     ]
 
     return (
@@ -111,7 +100,12 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
           size="small"
           activeKey={activeTab}
           onChange={setActiveTab}
-          tabBarStyle={{ paddingLeft: 12, margin: 0, borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-content)' }}
+          tabBarStyle={{
+            paddingLeft: 12,
+            margin: 0,
+            borderBottom: '1px solid var(--color-border)',
+            background: 'var(--color-bg-content)',
+          }}
         />
       </div>
     )
@@ -122,8 +116,8 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
 
   const tabItems = [
     {
-      key: "properties",
-      label: "属性",
+      key: 'appearance',
+      label: '外观',
       children: (
         <PropertiesTab
           view={view}
@@ -135,24 +129,13 @@ export const PropertyPanel: React.FC<PropertyPanelProps> = ({
       ),
     },
     {
-      key: "style",
-      label: "样式",
-      children: <StyleTab view={view} actions={actions} />,
+      key: 'data',
+      label: '数据',
+      children: <DataTab selectedViewId={selectedViewId} actions={actions} viewData={viewData} />,
     },
     {
-      key: "data",
-      label: "数据",
-      children: (
-        <DataTab
-          selectedViewId={selectedViewId}
-          actions={actions}
-          viewData={viewData}
-        />
-      ),
-    },
-    {
-      key: "events",
-      label: "事件",
+      key: 'events',
+      label: '事件',
       children: (
         <EventsTab
           mode="view"

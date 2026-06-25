@@ -35,8 +35,9 @@ const DataTab: React.FC<DataTabProps> = ({ view, selectedViewId, actions }) => {
 
   useEffect(() => {
     setLoading(true)
-    fieldsApi.fetchFields()
-      .then(res => {
+    fieldsApi
+      .fetchFields()
+      .then((res) => {
         setFieldGroups(res.data ?? [])
       })
       .catch(() => {
@@ -47,27 +48,30 @@ const DataTab: React.FC<DataTabProps> = ({ view, selectedViewId, actions }) => {
 
   // 找到当前绑定字段的定义（用于显示 example 预览）
   const currentFieldDef: FieldDefinition | undefined = fieldGroups
-    .flatMap(g => g.fields)
-    .find(f => f.key === currentFieldKey)
+    .flatMap((g) => g.fields)
+    .find((f) => f.key === currentFieldKey)
 
-  const handleFieldChange = useCallback((key: string | null) => {
-    if (key === null) {
-      // 清除绑定
-      actions.view.deleteViewData(selectedViewId, 'fieldKey')
-    } else {
-      // 设置绑定：IFieldSchema { type: 'string', default: '', value: key }
-      actions.view.setViewData(selectedViewId, 'fieldKey', {
-        type: 'string',
-        default: '',
-        value: key,
-      })
-    }
-  }, [actions, selectedViewId])
+  const handleFieldChange = useCallback(
+    (key: string | null) => {
+      if (key === null) {
+        // 清除绑定
+        actions.view.deleteViewData(selectedViewId, 'fieldKey')
+      } else {
+        // 设置绑定：IFieldSchema { type: 'string', default: '', value: key }
+        actions.view.setViewData(selectedViewId, 'fieldKey', {
+          type: 'string',
+          default: '',
+          value: key,
+        })
+      }
+    },
+    [actions, selectedViewId],
+  )
 
   // 构建 Select options（按分组）
-  const selectOptions = fieldGroups.map(group => ({
+  const selectOptions = fieldGroups.map((group) => ({
     label: group.groupLabel,
-    options: group.fields.map(field => ({
+    options: group.fields.map((field) => ({
       label: (
         <Tooltip title={field.description} placement="right">
           <span>{field.label}</span>

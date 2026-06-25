@@ -94,7 +94,7 @@ const PrinterConfigPage = () => {
       form.setFieldValue('address', '')
       setTestResult(null)
     },
-    [form]
+    [form],
   )
 
   const handleBack = useCallback(() => {
@@ -111,16 +111,8 @@ const PrinterConfigPage = () => {
       </div>
 
       <Card loading={loading} className={styles.configCard}>
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ type: 'tcp', address: '', timeout: 5000 }}
-        >
-          <Form.Item
-            label="连接方式"
-            name="type"
-            rules={[{ required: true, message: '请选择连接方式' }]}
-          >
+        <Form form={form} layout="vertical" initialValues={{ type: 'tcp', address: '', timeout: 5000 }}>
+          <Form.Item label="连接方式" name="type" rules={[{ required: true, message: '请选择连接方式' }]}>
             <Radio.Group onChange={(e) => handleTypeChange(e.target.value)}>
               <Radio.Button value="tcp">局域网（TCP/IP）</Radio.Button>
               <Radio.Button value="usb">USB 串口</Radio.Button>
@@ -167,11 +159,7 @@ const PrinterConfigPage = () => {
               rules={[{ required: true, message: '请输入 USB 设备路径' }]}
               extra="如 /dev/ttyUSB0（Linux/macOS）或 COM3（Windows）"
             >
-              <Select
-                placeholder="请选择或输入设备路径"
-                showSearch
-                allowClear
-              >
+              <Select placeholder="请选择或输入设备路径" showSearch allowClear>
                 <Option value="/dev/ttyUSB0">/dev/ttyUSB0</Option>
                 <Option value="/dev/ttyUSB1">/dev/ttyUSB1</Option>
                 <Option value="/dev/usb/lp0">/dev/usb/lp0</Option>
@@ -206,19 +194,10 @@ const PrinterConfigPage = () => {
 
           <Form.Item>
             <Space>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                loading={saving}
-                onClick={handleSave}
-              >
+              <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={handleSave}>
                 保存配置
               </Button>
-              <Button
-                icon={<ApiOutlined />}
-                loading={testing}
-                onClick={handleTestConnection}
-              >
+              <Button icon={<ApiOutlined />} loading={testing} onClick={handleTestConnection}>
                 测试连接
               </Button>
             </Space>

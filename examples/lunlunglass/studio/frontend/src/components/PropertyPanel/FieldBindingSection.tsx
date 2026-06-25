@@ -29,11 +29,7 @@ interface FieldBindingSectionProps {
  * - PropertyPanel 的「字段绑定」Tab 中（仅 TextView 显示）
  * - 可嵌入其他需要字段绑定能力的面板
  */
-const FieldBindingSection: React.FC<FieldBindingSectionProps> = ({
-  view,
-  selectedViewId,
-  actions,
-}) => {
+const FieldBindingSection: React.FC<FieldBindingSectionProps> = ({ view, selectedViewId, actions }) => {
   const [fieldGroups, setFieldGroups] = useState<FieldGroup[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -43,8 +39,9 @@ const FieldBindingSection: React.FC<FieldBindingSectionProps> = ({
 
   useEffect(() => {
     setLoading(true)
-    fieldsApi.fetchFields()
-      .then(res => {
+    fieldsApi
+      .fetchFields()
+      .then((res) => {
         setFieldGroups(res.data ?? [])
       })
       .catch(() => {
@@ -55,27 +52,30 @@ const FieldBindingSection: React.FC<FieldBindingSectionProps> = ({
 
   // 找到当前绑定字段的定义（用于显示 example 预览）
   const currentFieldDef: FieldDefinition | undefined = fieldGroups
-    .flatMap(g => g.fields)
-    .find(f => f.key === currentFieldKey)
+    .flatMap((g) => g.fields)
+    .find((f) => f.key === currentFieldKey)
 
-  const handleFieldChange = useCallback((key: string | null) => {
-    if (key === null) {
-      // 清除绑定
-      actions.view.deleteViewData(selectedViewId, 'fieldKey')
-    } else {
-      // 设置绑定：IFieldSchema { type: 'string', default: '', value: key }
-      actions.view.setViewData(selectedViewId, 'fieldKey', {
-        type: 'string',
-        default: '',
-        value: key,
-      })
-    }
-  }, [actions, selectedViewId])
+  const handleFieldChange = useCallback(
+    (key: string | null) => {
+      if (key === null) {
+        // 清除绑定
+        actions.view.deleteViewData(selectedViewId, 'fieldKey')
+      } else {
+        // 设置绑定：IFieldSchema { type: 'string', default: '', value: key }
+        actions.view.setViewData(selectedViewId, 'fieldKey', {
+          type: 'string',
+          default: '',
+          value: key,
+        })
+      }
+    },
+    [actions, selectedViewId],
+  )
 
   // 构建 Select options（按分组）
-  const selectOptions = fieldGroups.map(group => ({
+  const selectOptions = fieldGroups.map((group) => ({
     label: group.groupLabel,
-    options: group.fields.map(field => ({
+    options: group.fields.map((field) => ({
       label: (
         <Tooltip title={field.description} placement="right">
           <span>{field.label}</span>
@@ -88,9 +88,7 @@ const FieldBindingSection: React.FC<FieldBindingSectionProps> = ({
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, color: '#7f8c8d', flexShrink: 0, width: 52 }}>
-          绑定字段
-        </span>
+        <span style={{ fontSize: 11, color: '#7f8c8d', flexShrink: 0, width: 52 }}>绑定字段</span>
         <Select
           style={{ flex: 1 }}
           size="small"
@@ -105,22 +103,20 @@ const FieldBindingSection: React.FC<FieldBindingSectionProps> = ({
       </div>
 
       {currentFieldDef && (
-        <div style={{
-          background: '#f0f7ff',
-          border: '1px solid #bde0ff',
-          borderRadius: 4,
-          padding: 8,
-          marginTop: 8,
-        }}>
-          <div style={{ fontSize: 10, color: '#7f8c8d', marginBottom: 4 }}>
-            预览占位值
-          </div>
+        <div
+          style={{
+            background: '#f0f7ff',
+            border: '1px solid #bde0ff',
+            borderRadius: 4,
+            padding: 8,
+            marginTop: 8,
+          }}
+        >
+          <div style={{ fontSize: 10, color: '#7f8c8d', marginBottom: 4 }}>预览占位值</div>
           <div style={{ marginBottom: 4 }}>
             <Tag color="blue">{currentFieldDef.example}</Tag>
           </div>
-          <div style={{ fontSize: 10, color: '#95a5a6', lineHeight: 1.4 }}>
-            {currentFieldDef.description}
-          </div>
+          <div style={{ fontSize: 10, color: '#95a5a6', lineHeight: 1.4 }}>{currentFieldDef.description}</div>
         </div>
       )}
 
@@ -136,12 +132,14 @@ const FieldBindingSection: React.FC<FieldBindingSectionProps> = ({
         </Button>
       )}
 
-      <div style={{
-        marginTop: 12,
-        fontSize: 11,
-        color: '#95a5a6',
-        lineHeight: 1.6,
-      }}>
+      <div
+        style={{
+          marginTop: 12,
+          fontSize: 11,
+          color: '#95a5a6',
+          lineHeight: 1.6,
+        }}
+      >
         绑定字段后，打印时该文本将替换为订单中对应的实际数据。
         未绑定字段时，打印设计时的文本内容（静态文本）。
       </div>

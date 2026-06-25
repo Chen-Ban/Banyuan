@@ -49,7 +49,7 @@ class PrintController {
       //   4. await PrinterTransport.send(config, escPos)
 
       console.log(
-        `[PrintController] 样张打印请求: template="${templateName}", size=${width}x${height}, imageSize=${image.length} bytes`
+        `[PrintController] 样张打印请求: template="${templateName}", size=${width}x${height}, imageSize=${image.length} bytes`,
       )
 
       ctx.body = {
@@ -112,9 +112,7 @@ class PrintController {
       }
 
       // TODO: 写入 ~/.lunlunglass-studio/printer.json
-      console.log(
-        `[PrintController] 更新打印机配置: type=${body.type}, address=${body.address}`
-      )
+      console.log(`[PrintController] 更新打印机配置: type=${body.type}, address=${body.address}`)
 
       ctx.body = {
         success: true,

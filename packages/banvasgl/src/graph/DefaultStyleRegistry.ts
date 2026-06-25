@@ -32,7 +32,7 @@ const registry = new Map<string, DefaultStyleFactory>()
  * ```
  */
 export function registerDefaultStyle(graphType: string, factory: DefaultStyleFactory): void {
-    registry.set(graphType, factory)
+  registry.set(graphType, factory)
 }
 
 /**
@@ -51,8 +51,8 @@ export function registerDefaultStyle(graphType: string, factory: DefaultStyleFac
  * ```
  */
 export function getDefaultStyle(graphType: string): Style {
-    const factory = registry.get(graphType)
-    return factory ? factory() : Style.DEFAULT
+  const factory = registry.get(graphType)
+  return factory ? factory() : Style.DEFAULT
 }
 
 // ── 内置默认样式注册 ──

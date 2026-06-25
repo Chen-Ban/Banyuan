@@ -44,7 +44,7 @@ class AiController {
     ctx.set({
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
     })
     ctx.status = 200
@@ -101,12 +101,12 @@ class AiController {
 
     const dlg = await dialogueService.getConfirmable(appId)
     if (dlg) {
-      const userMsg = dlg.messages.find(m => m.role === 'user')
-      const assistantMsgs = dlg.messages.filter(m => m.role === 'assistant')
+      const userMsg = dlg.messages.find((m) => m.role === 'user')
+      const assistantMsgs = dlg.messages.filter((m) => m.role === 'assistant')
       const assistantText = assistantMsgs
-        .flatMap(m => m.assistantContent ?? [])
+        .flatMap((m) => m.assistantContent ?? [])
         .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
-        .map(c => c.text)
+        .map((c) => c.text)
         .join('')
 
       ctx.body = {

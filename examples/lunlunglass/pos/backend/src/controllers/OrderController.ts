@@ -46,14 +46,7 @@ class OrderController {
    */
   async getOrderList(ctx: Context) {
     try {
-      const {
-        username,
-        userId,
-        orderId,
-        productId,
-        page = '1',
-        pageSize = '10',
-      } = ctx.query
+      const { username, userId, orderId, productId, page = '1', pageSize = '10' } = ctx.query
 
       const query = {
         username: username as string | undefined,
@@ -64,13 +57,13 @@ class OrderController {
 
       // 移除 undefined 值
       Object.keys(query).forEach(
-        (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query]
+        (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query],
       )
 
       const result = await orderService.getOrderList(
         query,
         parseInt(page as string, 10),
-        parseInt(pageSize as string, 10)
+        parseInt(pageSize as string, 10),
       )
 
       ctx.status = 200
@@ -241,4 +234,3 @@ class OrderController {
 }
 
 export default new OrderController()
-

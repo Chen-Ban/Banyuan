@@ -90,11 +90,7 @@ export class CloudFunctionService {
    * @param baseVersion 拷贝基线版本号（最新已接受版本，0 表示无基线）
    * @returns 新版本号
    */
-  async createDraftVersion(
-    appId: string,
-    dialogueId: Types.ObjectId,
-    baseVersion: number,
-  ): Promise<number> {
+  async createDraftVersion(appId: string, dialogueId: Types.ObjectId, baseVersion: number): Promise<number> {
     const base = baseVersion > 0 ? await this.getByVersion(appId, baseVersion) : null
     const newVersion = (await this.getMaxVersion(appId)) + 1
 
@@ -111,11 +107,7 @@ export class CloudFunctionService {
   /**
    * 按版本号原地更新 functions（构建期间 agent / 用户修改）
    */
-  async updateByVersion(
-    appId: string,
-    version: number,
-    functions: ICloudFunctionDef[],
-  ): Promise<void> {
+  async updateByVersion(appId: string, version: number, functions: ICloudFunctionDef[]): Promise<void> {
     await CloudFunction.updateOne({ appId, version }, { $set: { functions } })
   }
 
@@ -153,7 +145,7 @@ export class CloudFunctionService {
   async update(
     appId: string,
     functionId: string,
-    data: IUpdateCloudFunctionData
+    data: IUpdateCloudFunctionData,
   ): Promise<ICloudFunctionDef | null> {
     const currentFunctions = await this.listByApp(appId)
     const idx = currentFunctions.findIndex((fn) => fn.functionId === functionId)
@@ -211,7 +203,7 @@ export class CloudFunctionService {
       displayName?: string
       description?: string
       flowSchema?: Record<string, unknown>
-    }>
+    }>,
   ): Promise<number> {
     const newFunctions: ICloudFunctionDef[] = functions.map((fn) => ({
       functionId: fn.functionId,

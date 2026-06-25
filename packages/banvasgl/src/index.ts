@@ -12,96 +12,96 @@
 
 // ── Graph 接口 ──
 export type {
-    IGraph,
-    IAnalyticGraph,
-    ILine,
-    IArc,
-    ICircle,
-    IBezier,
-    IQuadraticBezier,
-    ICubicBezier,
-    ICombinedGraph,
-    IPolygon,
-    ITriangle,
-    IQuadrilateral,
-    IRectangle,
-    IRegularPolygon,
-    IRoundedRect,
-    IDenseTrajectory,
-    IMediaElement,
-    IImageElement,
-    IVideoElement,
-    ITextElement,
-    IPrintableTextElement,
-    INonPrintableTextElement,
-    ITextParagraphContent,
-    ITextParagraph,
-    ITextFields,
-    GraphTypeMap,
-    TextIndex,
+  IGraph,
+  IAnalyticGraph,
+  ILine,
+  IArc,
+  ICircle,
+  IBezier,
+  IQuadraticBezier,
+  ICubicBezier,
+  ICombinedGraph,
+  IPolygon,
+  ITriangle,
+  IQuadrilateral,
+  IRectangle,
+  IRegularPolygon,
+  IRoundedRect,
+  IDenseTrajectory,
+  IMediaElement,
+  IImageElement,
+  IVideoElement,
+  ITextElement,
+  IPrintableTextElement,
+  INonPrintableTextElement,
+  ITextParagraphContent,
+  ITextParagraph,
+  ITextFields,
+  GraphTypeMap,
+  TextIndex,
 } from './types'
 
 // ── View 接口 ──
 export type {
-    FieldType,
-    IFieldSchema,
-    IFieldSchemaMap,
-    EventHandler,
-    IViewEvents,
-    IViewLifetimes,
-    IAddonBase,
-    IBoundingBoxAddon,
-    IVertexAddon,
-    IBoxDecorationOptions,
-    IBoxDecorationAddon,
-    ITextSelectionAddon,
-    IComputedStyle,
-    IFillStyleOptions,
-    IStrokeStyleOptions,
-    IShadowStyleOptions,
-    IViewAddon,
-    ExtraData,
-    MoveData,
-    ResizeData,
-    RotateData,
-    EditPointData,
-    EditViewportData,
-    SelectData,
-    TextSelectionData,
-    ConnectData,
-    NoneData,
-    IInteractResult,
-    IViewOptions,
-    IContainerViewOptions,
-    IGraphViewOptions,
-    ISelectBoxViewOptions,
-    IImageViewOptions,
-    IVideoViewOptions,
-    ITextViewOptions,
-    IViewStyle,
-    IFlexLayout,
-    IListLayout,
-    IGridLayout,
-    IScrollLayout,
-    LayoutMode,
-    TransformOriginKeyword,
-    TransformOrigin,
-    IView,
-    ISceneNode,
-    IGraphView,
-    ISelectBoxView,
-    IImageView,
-    IVideoView,
-    ITextView,
-    IContainerView,
-    ICombinedView,
-    ITextSelection,
-    ViewTypeMap,
-    // 流程编辑器视图接口（Phase 1.4 将移至 banvas-flow-editor）
-    PortDirection,
-    IPortView,
-    INodeView,
-    IEdgeView,
+  FieldType,
+  IFieldSchema,
+  IFieldSchemaMap,
+  EventHandler,
+  IViewEvents,
+  IViewLifetimes,
+  IAddonBase,
+  IBoundingBoxAddon,
+  IVertexAddon,
+  IBoxDecorationOptions,
+  IBoxDecorationAddon,
+  ITextSelectionAddon,
+  IComputedStyle,
+  IFillStyleOptions,
+  IStrokeStyleOptions,
+  IShadowStyleOptions,
+  IViewAddon,
+  ExtraData,
+  MoveData,
+  ResizeData,
+  RotateData,
+  EditPointData,
+  EditViewportData,
+  SelectData,
+  TextSelectionData,
+  ConnectData,
+  NoneData,
+  IInteractResult,
+  IViewOptions,
+  IContainerViewOptions,
+  IGraphViewOptions,
+  ISelectBoxViewOptions,
+  IImageViewOptions,
+  IVideoViewOptions,
+  ITextViewOptions,
+  IViewStyle,
+  IFlexLayout,
+  IListLayout,
+  IGridLayout,
+  IScrollLayout,
+  LayoutMode,
+  TransformOriginKeyword,
+  TransformOrigin,
+  IView,
+  ISceneNode,
+  IGraphView,
+  ISelectBoxView,
+  IImageView,
+  IVideoView,
+  ITextView,
+  IContainerView,
+  ICombinedView,
+  ITextSelection,
+  ViewTypeMap,
+  // 流程编辑器视图接口（Phase 1.4 将移至 banvas-flow-editor）
+  PortDirection,
+  IPortView,
+  INodeView,
+  IEdgeView,
 } from './types'
 
 // 枚举值 —— 从各自归属模块直接导出（不再通过类型 barrel 透传，防止 chunk 级循环依赖）
@@ -110,184 +110,150 @@ export { FLOW_SCHEMA_VERSION } from './types/foundation/flow/index.js'
 
 // ── Flow v2.0.0 类型（从 flow 模块直接导出） ──
 export type {
-    // control
-    FlowControlNode,
-    FlowConditionNode,
-    FlowLoopNode,
-    FlowParallelNode,
-    FlowReturnNode,
-    // function
-    FlowFunctionNode,
-    // action
-    FlowActionNode,
-    FlowSetVariableNode,
-    FlowSetViewDataNode,
-    FlowSetViewVisibleNode,
-    FlowPlayAnimationNode,
-    FlowCloudFunctionNode,
-    FlowNavigateNode,
-    FlowHttpRequestNode,
-    FlowDbQueryNode,
-    FlowDbInsertNode,
-    FlowDbUpdateNode,
-    FlowDbDeleteNode,
-    FlowLiteralSourceNode,
-    FlowContextSourceNode,
-    FlowSourceNode,
-    FlowMathNode,
-    FlowCompareNode,
-    FlowLogicNode,
-    FlowConcatNode,
-    FlowFormatNode,
-    FlowGetNode,
-    FlowComputeNode,
-    FlowNode,
-    FlowSchema,
-    NodeCategory,
-    DataRef,
-    // context
-    FrontendCapProxy,
-    BackendCapProxy,
-    CapProxy,
-    IFrameStack,
-    IFlowRunner,
+  // control
+  FlowControlNode,
+  FlowConditionNode,
+  FlowLoopNode,
+  FlowParallelNode,
+  FlowReturnNode,
+  // function
+  FlowFunctionNode,
+  // action
+  FlowActionNode,
+  FlowSetVariableNode,
+  FlowSetViewDataNode,
+  FlowSetViewVisibleNode,
+  FlowPlayAnimationNode,
+  FlowCloudFunctionNode,
+  FlowNavigateNode,
+  FlowHttpRequestNode,
+  FlowDbQueryNode,
+  FlowDbInsertNode,
+  FlowDbUpdateNode,
+  FlowDbDeleteNode,
+  FlowLiteralSourceNode,
+  FlowContextSourceNode,
+  FlowSourceNode,
+  FlowMathNode,
+  FlowCompareNode,
+  FlowLogicNode,
+  FlowConcatNode,
+  FlowFormatNode,
+  FlowGetNode,
+  FlowComputeNode,
+  FlowNode,
+  FlowSchema,
+  NodeCategory,
+  DataRef,
+  // context
+  FrontendCapProxy,
+  BackendCapProxy,
+  CapProxy,
+  IFrameStack,
+  IFlowRunner,
 } from './types/foundation/flow/index.js'
 // ── Camera 接口 ──
-export type {
-    ICamera,
-    IOrthographicCamera,
-    IPerspectiveCamera,
-} from './types'
+export type { ICamera, IOrthographicCamera, IPerspectiveCamera } from './types'
 
 // ── Renderer 接口 ──
-export type {
-    IRenderer,
-} from './types'
+export type { IRenderer } from './types'
 
 // ── Scene 接口 ──
 export type {
-    ISceneLifetimes,
-    IOperationStack,
-    IScene,
-    SceneAccessor,
-    Diff,
-    ModifyDiff,
-    AddDiff,
-    RemoveDiff,
-    ReorderDiff,
-    PropChange,
-    ApplyDirection,
+  ISceneLifetimes,
+  IOperationStack,
+  IScene,
+  SceneAccessor,
+  Diff,
+  ModifyDiff,
+  AddDiff,
+  RemoveDiff,
+  ReorderDiff,
+  PropChange,
+  ApplyDirection,
 } from './types'
 
 // DiffType / Operation 为运行时值，归属 @/engine/scene，直接导出。
 export { DiffType, Operation } from './engine/scene'
 
 // ── App 接口 ──
-export type {
-    IPage,
-    IAppOptions,
-    IAppLifetimes,
-    INavigationOptions,
-    IApp,
-    IAppStatic,
-} from './types'
+export type { IPage, IAppOptions, IAppLifetimes, INavigationOptions, IApp, IAppStatic } from './types'
 
 // ── Animation 接口 ──
 export type {
-    EasingFunction,
-    FillMode,
-    PlaybackDirection,
-    AnimationState,
-    AnimatableValue,
-    KeyframeProps,
-    KeyframeDefinition,
-    AnimationOptions,
-    Interpolator,
-    IAnimationDescriptor,
-    IAnimationAddon,
-    Keyframe,
+  EasingFunction,
+  FillMode,
+  PlaybackDirection,
+  AnimationState,
+  AnimatableValue,
+  KeyframeProps,
+  KeyframeDefinition,
+  AnimationOptions,
+  Interpolator,
+  IAnimationDescriptor,
+  IAnimationAddon,
+  Keyframe,
 } from './types'
 
-// ── Hook 公共接口 ──
-export type {
-IViewActions,
-IPageActions,
-    IAppActions,
-    IBanvasActions,
-} from './types'
+// ── Actions 操作接口 ──
+export type { IViewActions, IPageActions, IAppActions, IBanvasActions } from './types'
 
-// ── 物料系统接口 ──
+// ── 模板系统接口 ──
 export type {
-    MaterialSource,
-    IMaterialMeta,
-    MaterialParameterType,
-    IMaterialParameter,
-    IMaterialAsset,
-    IMaterialTemplate,
-    IInternalIdRef,
-    IMaterial,
-    IMaterialActions,
-    IMaterialSerializeConfig,
-    IMaterialParameterBinding,
+  TemplateParameterType,
+  ITemplateParameter,
+  ITemplateAsset,
+  ITemplate,
+  IInternalIdRef,
+  ITemplateActions,
+  ITemplateSerializeConfig,
+  ITemplateParameterBinding,
 } from './types'
 
 // ── 平台抽象接口 ──
-export type {
-    IDrawingContext,
-    IDrawingSurface,
-} from './types'
+export type { IDrawingContext, IDrawingSurface } from './types'
 
 // ── 媒体源（引擎自有像素数据） ──
-export type {
-    IImageSource,
-    IVideoSource,
-    IVideoLoadOptions,
-    PatternRepeat,
-} from './types'
+export type { IImageSource, IVideoSource, IVideoLoadOptions, PatternRepeat } from './types'
 
 // ── 绘制枚举 / 渐变 / 图案 / 文本 / 数学（引擎自有类型） ──
 export type {
-    FillRule,
-    LineCap,
-    LineJoin,
-    ImageSmoothingQuality,
-    IGradient,
-    IPattern,
-    TextAlign,
-    TextBaseline,
-    ITextMetrics,
-    Matrix2DInit,
+  FillRule,
+  LineCap,
+  LineJoin,
+  ImageSmoothingQuality,
+  IGradient,
+  IPattern,
+  TextAlign,
+  TextBaseline,
+  ITextMetrics,
+  Matrix2DInit,
 } from './types'
 
 // ── PropertyAdapter 接口 ──
-export type {
-    PropertyCategory,
-    PropertyAdapter,
-    PropertyDescriptor,
-    ConflictGroup,
-} from './types'
+export type { PropertyCategory, PropertyAdapter, PropertyDescriptor, ConflictGroup } from './types'
 
 // ── 类型守卫 ──
 // 守卫是“值”（函数），归属 foundation/guards（不再通过类型 barrel 透传）。
 export {
-    isGraphType,
-    isViewType,
-    isView,
-    isCombinedGraph,
-    isAnalyticGraph,
-    isMediaElement,
-    isTextElement,
-    isTextView,
-    isSelectBoxView,
-    isCombinedView,
-    isContainerView,
-    isBoundingBoxAddon,
-    isVertexAddon,
-    isBoxDecorationAddon,
-    // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
-    isPortView,
-    isNodeView,
-    isEdgeView,
+  isGraphType,
+  isViewType,
+  isView,
+  isCombinedGraph,
+  isAnalyticGraph,
+  isMediaElement,
+  isTextElement,
+  isTextView,
+  isSelectBoxView,
+  isCombinedView,
+  isContainerView,
+  isBoundingBoxAddon,
+  isVertexAddon,
+  isBoxDecorationAddon,
+  // 流程编辑器（Phase 1.4 将移至 banvas-flow-editor）
+  isPortView,
+  isNodeView,
+  isEdgeView,
 } from './foundation/guards'
 
 // ╔══════════════════════════════════════════════════════════════════╗
@@ -296,15 +262,15 @@ export {
 
 // ── 常量/枚举 ──
 export {
-    AppType,
-    GraphType,
-    ViewType,
-    CameraType,
-    AddonType,
-    VerticalAlign,
-    HorizontalAlign,
-    FontStyle,
-    FontWeight,
+  AppType,
+  GraphType,
+  ViewType,
+  CameraType,
+  AddonType,
+  VerticalAlign,
+  HorizontalAlign,
+  FontStyle,
+  FontWeight,
 } from './foundation'
 
 // ── 数学 ──
@@ -312,17 +278,17 @@ export { Point3, Vector3, Matrix4, MathUtils, GeometryUtils } from './foundation
 
 // ── 样式 ──
 export {
-    FillStyle,
-    StrokeStyle,
-    ShadowStyle,
-    Gradient,
-    LinearGradient,
-    RadialGradient,
-    ConicGradient,
-    Image,
-    Video,
-    Style,
-    Color,
+  FillStyle,
+  StrokeStyle,
+  ShadowStyle,
+  Gradient,
+  LinearGradient,
+  RadialGradient,
+  ConicGradient,
+  Image,
+  Video,
+  Style,
+  Color,
 } from './foundation'
 export type { GradientStop } from './foundation'
 
@@ -334,31 +300,23 @@ export { Easings } from './foundation'
 // ╚══════════════════════════════════════════════════════════════════╝
 
 export { Graph, Bounds } from './graph'
+export { AnalyticGraph, Arc, Circle, Bezier, QuadraticBezier, CubicBezier, Line } from './graph'
 export {
-    AnalyticGraph,
-    Arc,
-    Circle,
-    Bezier,
-    QuadraticBezier,
-    CubicBezier,
-    Line,
-} from './graph'
-export {
-    CombinedGraph,
-    Polygon,
-    Triangle,
-    Quadrilateral,
-    Rectangle,
-    RegularPolygon,
-    RoundedRect,
+  CombinedGraph,
+  Polygon,
+  Triangle,
+  Quadrilateral,
+  Rectangle,
+  RegularPolygon,
+  RoundedRect,
 } from './graph'
 export { DenseTrajectory } from './graph'
 export {
-    TextParagraph,
-    TextElement,
-    PrintableTextElement,
-    NonPrintableTextElement,
-    TextFields,
+  TextParagraph,
+  TextElement,
+  PrintableTextElement,
+  NonPrintableTextElement,
+  TextFields,
 } from './graph'
 export type { TextParagraphContent } from './graph'
 export { MediaElement, ImageElement, VideoElement } from './graph'

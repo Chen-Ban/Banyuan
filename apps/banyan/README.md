@@ -1,4 +1,4 @@
-# Banyan —— 低代码可视化设计平台
+﻿# Banyan —— 低代码可视化设计平台
 
 Banyan 是 Banyuan 的主应用，提供完整的低代码应用构建体验。用户在这里设计界面、定义数据、编排逻辑、对话 AI、构建部署。
 
@@ -18,27 +18,27 @@ Banyan 覆盖应用构建的完整链路：
 
 ## 三个子应用
 
-| 子应用 | 技术栈 | 职责 |
-|--------|--------|------|
-| frontend | React 19 + Vite + Ant Design 6 + zustand | UI 编辑器、属性面板、AI 对话、流程编辑器、预览与数据浏览 |
-| backend | Koa + MongoDB (Mongoose) | 应用数据持久化（SchemaService 动态集合）、物料系统、AI 代理、构建/预览、部署（AgentGateway → ECS deploy-agent） |
-| electron | Electron 36 | 桌面壳，将 Web 应用打包为原生安装包 |
+| 子应用   | 技术栈                                   | 职责                                                                                                            |
+| -------- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| frontend | React 19 + Vite + Ant Design 6 + zustand | UI 编辑器、属性面板、AI 对话、流程编辑器、预览与数据浏览                                                        |
+| backend  | Koa + MongoDB (Mongoose)                 | 应用数据持久化（SchemaService 动态集合）、物料系统、AI 代理、构建/预览、部署（AgentGateway → ECS deploy-agent） |
+| electron | Electron 36                              | 桌面壳，将 Web 应用打包为原生安装包                                                                             |
 
 ---
 
 ## 页面结构
 
-| 路径 | 功能 |
-|------|------|
-| `/` | 首页（创建/打开应用） |
-| `/applications` | 应用列表 |
-| `/settings` | 应用设置 |
-| `/application/:id` | 应用详情（默认重定向到 `preview`） |
-| `/application/:id/preview` | 预览态 |
-| `/application/:id/ui` | UI 画布编辑器（拖拽设计 + AI 对话） |
-| `/application/:id/database` | 数据库 Schema 设计器 |
-| `/application/:id/data-browser` | 数据浏览器 |
-| `/application/:id/functions` | 云函数流程编辑器 |
+| 路径                            | 功能                                |
+| ------------------------------- | ----------------------------------- |
+| `/`                             | 首页（创建/打开应用）               |
+| `/applications`                 | 应用列表                            |
+| `/settings`                     | 应用设置                            |
+| `/application/:id`              | 应用详情（默认重定向到 `preview`）  |
+| `/application/:id/preview`      | 预览态                              |
+| `/application/:id/ui`           | UI 画布编辑器（拖拽设计 + AI 对话） |
+| `/application/:id/database`     | 数据库 Schema 设计器                |
+| `/application/:id/data-browser` | 数据浏览器                          |
+| `/application/:id/functions`    | 云函数流程编辑器                    |
 
 ---
 
@@ -60,11 +60,11 @@ pnpm dev:banyan
 
 ## 环境变量
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PORT` | 3001 | 后端服务端口 |
-| `MONGODB_URI` | mongodb://localhost:27017/banyan | 数据库连接 |
-| `XIANGDI_URL` | http://localhost:3002 | XiangDi AI 服务地址 |
+| 变量          | 默认值                           | 说明                |
+| ------------- | -------------------------------- | ------------------- |
+| `PORT`        | 3001                             | 后端服务端口        |
+| `MONGODB_URI` | mongodb://localhost:27017/banyan | 数据库连接          |
+| `XIANGDI_URL` | http://localhost:3002            | XiangDi AI 服务地址 |
 
 ---
 
@@ -72,6 +72,8 @@ pnpm dev:banyan
 
 ```
 Banyan frontend  ──依赖──▶  @banyuan/banvasgl（画布渲染）
+                 ──依赖──▶  @banyuan/banvasgl-react（Web 平台注入 + React Hook）
+                 ──依赖──▶  @banyuan/banvas-react-runtime（运行策略层）
 Banyan backend   ──依赖──▶  @banyuan/banvasgl/flow/server（FlowSchema 类型/存储）
 Banyan backend   ──HTTP SSE─▶  XiangDi Server(:3002)（AI 代理）
 Banyan backend   ── ws ───▶  租户 ECS deploy-agent（部署）

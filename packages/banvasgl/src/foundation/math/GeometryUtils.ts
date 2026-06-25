@@ -1,5 +1,5 @@
-import MathUtils from "./MathUtils";
-import Point3 from "./Point3";
+import MathUtils from './MathUtils'
+import Point3 from './Point3'
 
 /**
  * 几何工具类
@@ -28,13 +28,13 @@ export default class GeometryUtils {
    * ```
    */
   public static projectT(point: Point3, lineStart: Point3, lineEnd: Point3): number | null {
-    const lineVector = lineEnd.subtract(lineStart);
-    const pointVector = point.subtract(lineStart);
-    const lineLengthSquared = lineVector.dot(lineVector);
+    const lineVector = lineEnd.subtract(lineStart)
+    const pointVector = point.subtract(lineStart)
+    const lineLengthSquared = lineVector.dot(lineVector)
     if (MathUtils.isZero(lineLengthSquared)) {
-      return null;
+      return null
     }
-    return pointVector.dot(lineVector) / lineLengthSquared;
+    return pointVector.dot(lineVector) / lineLengthSquared
   }
 
   /**
@@ -55,11 +55,7 @@ export default class GeometryUtils {
    * ```
    */
   public static midpoint(p1: Point3, p2: Point3): Point3 {
-    return new Point3(
-      (p1.x + p2.x) / 2,
-      (p1.y + p2.y) / 2,
-      (p1.z + p2.z) / 2
-    );
+    return new Point3((p1.x + p2.x) / 2, (p1.y + p2.y) / 2, (p1.z + p2.z) / 2)
   }
 
   /**
@@ -83,19 +79,19 @@ export default class GeometryUtils {
    * ```
    */
   public static perpendicularDistance(point: Point3, lineStart: Point3, lineEnd: Point3): number {
-    const t = GeometryUtils.projectT(point, lineStart, lineEnd);
+    const t = GeometryUtils.projectT(point, lineStart, lineEnd)
     if (t === null) {
-      return point.distance(lineStart);
+      return point.distance(lineStart)
     }
 
-    const lineVector = lineEnd.subtract(lineStart);
+    const lineVector = lineEnd.subtract(lineStart)
     const projection = new Point3(
       lineStart.x + t * lineVector.x,
       lineStart.y + t * lineVector.y,
-      lineStart.z + t * lineVector.z
-    );
+      lineStart.z + t * lineVector.z,
+    )
 
-    return point.distance(projection);
+    return point.distance(projection)
   }
 
   /**
@@ -125,11 +121,11 @@ export default class GeometryUtils {
    * ```
    */
   public static isProjectionOnSegment(point: Point3, lineStart: Point3, lineEnd: Point3): boolean {
-    const t = GeometryUtils.projectT(point, lineStart, lineEnd);
+    const t = GeometryUtils.projectT(point, lineStart, lineEnd)
     if (t === null) {
-      return false;
+      return false
     }
-    return t >= 0 && t <= 1;
+    return t >= 0 && t <= 1
   }
 
   /**
@@ -156,26 +152,26 @@ export default class GeometryUtils {
     line1Start: Point3,
     line1End: Point3,
     line2Start: Point3,
-    line2End: Point3
+    line2End: Point3,
   ): Point3 | null {
-    const d1 = line1End.subtract(line1Start);
-    const d2 = line2End.subtract(line2Start);
-    const w = line1Start.subtract(line2Start);
+    const d1 = line1End.subtract(line1Start)
+    const d2 = line2End.subtract(line2Start)
+    const w = line1Start.subtract(line2Start)
 
-    const d1d2 = d1.dot(d2);
-    const d1d1 = d1.dot(d1);
-    const d2d2 = d2.dot(d2);
-    const wd1 = w.dot(d1);
-    const wd2 = w.dot(d2);
+    const d1d2 = d1.dot(d2)
+    const d1d1 = d1.dot(d1)
+    const d2d2 = d2.dot(d2)
+    const wd1 = w.dot(d1)
+    const wd2 = w.dot(d2)
 
-    const denominator = d1d1 * d2d2 - d1d2 * d1d2;
+    const denominator = d1d1 * d2d2 - d1d2 * d1d2
     if (MathUtils.isZero(denominator)) {
-      return null; // 平行线
+      return null // 平行线
     }
 
-    const t1 = (d1d2 * wd2 - d2d2 * wd1) / denominator;
+    const t1 = (d1d2 * wd2 - d2d2 * wd1) / denominator
 
-    return new Point3(line1Start.x + t1 * d1.x, line1Start.y + t1 * d1.y, line1Start.z + t1 * d1.z);
+    return new Point3(line1Start.x + t1 * d1.x, line1Start.y + t1 * d1.y, line1Start.z + t1 * d1.z)
   }
 
   /**
@@ -208,31 +204,31 @@ export default class GeometryUtils {
     seg1Start: Point3,
     seg1End: Point3,
     seg2Start: Point3,
-    seg2End: Point3
+    seg2End: Point3,
   ): Point3 | null {
-    const d1 = seg1End.subtract(seg1Start);
-    const d2 = seg2End.subtract(seg2Start);
-    const w = seg1Start.subtract(seg2Start);
+    const d1 = seg1End.subtract(seg1Start)
+    const d2 = seg2End.subtract(seg2Start)
+    const w = seg1Start.subtract(seg2Start)
 
-    const d1d2 = d1.dot(d2);
-    const d1d1 = d1.dot(d1);
-    const d2d2 = d2.dot(d2);
-    const wd1 = w.dot(d1);
-    const wd2 = w.dot(d2);
+    const d1d2 = d1.dot(d2)
+    const d1d1 = d1.dot(d1)
+    const d2d2 = d2.dot(d2)
+    const wd1 = w.dot(d1)
+    const wd2 = w.dot(d2)
 
-    const denominator = d1d1 * d2d2 - d1d2 * d1d2;
+    const denominator = d1d1 * d2d2 - d1d2 * d1d2
     if (MathUtils.isZero(denominator)) {
-      return null; // 平行线
+      return null // 平行线
     }
 
-    const t1 = (d1d2 * wd2 - d2d2 * wd1) / denominator;
-    const t2 = (d1d1 * wd2 - d1d2 * wd1) / denominator;
+    const t1 = (d1d2 * wd2 - d2d2 * wd1) / denominator
+    const t2 = (d1d1 * wd2 - d1d2 * wd1) / denominator
 
     // 检查交点是否在两个线段上（参数 t1 和 t2 必须在 [0, 1] 范围内）
     if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
-      return new Point3(seg1Start.x + t1 * d1.x, seg1Start.y + t1 * d1.y, seg1Start.z + t1 * d1.z);
+      return new Point3(seg1Start.x + t1 * d1.x, seg1Start.y + t1 * d1.y, seg1Start.z + t1 * d1.z)
     }
 
-    return null; // 交点不在线段上
+    return null // 交点不在线段上
   }
 }

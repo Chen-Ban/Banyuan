@@ -16,11 +16,7 @@ type Ctx2D = ReturnType<ReturnType<typeof createCanvas>['getContext']>
 /**
  * 在指定区域内绘制多行文本
  */
-function drawTextField(
-  ctx: Ctx2D,
-  text: string,
-  field: PrintField
-): void {
+function drawTextField(ctx: Ctx2D, text: string, field: PrintField): void {
   const { bounds, textStyle } = field
   if (!textStyle) return
 
@@ -70,11 +66,7 @@ function drawTextField(
 /**
  * 生成条码并绘制到画布指定区域
  */
-function drawBarcodeField(
-  ctx: Ctx2D,
-  value: string,
-  field: PrintField
-): void {
+function drawBarcodeField(ctx: Ctx2D, value: string, field: PrintField): void {
   const { bounds, codeStyle } = field
   const format = codeStyle?.format ?? 'CODE128'
 
@@ -109,11 +101,7 @@ function drawBarcodeField(
 /**
  * 生成二维码并绘制到画布指定区域
  */
-async function drawQrcodeField(
-  ctx: Ctx2D,
-  value: string,
-  field: PrintField
-): Promise<void> {
+async function drawQrcodeField(ctx: Ctx2D, value: string, field: PrintField): Promise<void> {
   const { bounds, codeStyle } = field
   const errorLevel = codeStyle?.errorLevel ?? 'M'
 
@@ -141,10 +129,7 @@ async function drawQrcodeField(
  * @param data 业务数据（key → 渲染文本）
  * @returns PNG 图片 Buffer
  */
-export async function compose(
-  printConfig: PrintConfig,
-  data: Record<string, string>
-): Promise<Buffer> {
+export async function compose(printConfig: PrintConfig, data: Record<string, string>): Promise<Buffer> {
   const { backgroundImage, backgroundSize, fields } = printConfig
 
   // 创建画布

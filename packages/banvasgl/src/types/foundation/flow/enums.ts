@@ -8,11 +8,11 @@
  * - **Function**：内联函数调用节点，创建新作用域执行子图
  */
 export enum NodeCategory {
-  Control = "control",
-  Action = "action",
-  Source = "source",
-  Compute = "compute",
-  Function = "function",
+  Control = 'control',
+  Action = 'action',
+  Source = 'source',
+  Compute = 'compute',
+  Function = 'function',
 }
 
 /**
@@ -46,70 +46,70 @@ export enum NodeCategory {
  * | action | dbDelete | 数据库删除（后端） |
  */
 export enum NodeKind {
-  Literal = "literal",
-  Context = "context",
-  Math = "math",
-  Compare = "compare",
-  Logic = "logic",
-  Concat = "concat",
-  Format = "format",
-  Get = "get",
-  Condition = "condition",
-  Loop = "loop",
-  Parallel = "parallel",
-  Return = "return",
-  Function = "function",
-  SetVariable = "setVariable",
-  SetViewData = "setViewData",
-  SetViewVisible = "setViewVisible",
-  PlayAnimation = "playAnimation",
-  Navigate = "navigate",
-  CloudFunction = "cloudFunction",
-  HttpRequest = "httpRequest",
-  DbQuery = "dbQuery",
-  DbInsert = "dbInsert",
-  DbUpdate = "dbUpdate",
-  DbDelete = "dbDelete",
+  Literal = 'literal',
+  Context = 'context',
+  Math = 'math',
+  Compare = 'compare',
+  Logic = 'logic',
+  Concat = 'concat',
+  Format = 'format',
+  Get = 'get',
+  Condition = 'condition',
+  Loop = 'loop',
+  Parallel = 'parallel',
+  Return = 'return',
+  Function = 'function',
+  SetVariable = 'setVariable',
+  SetViewData = 'setViewData',
+  SetViewVisible = 'setViewVisible',
+  PlayAnimation = 'playAnimation',
+  Navigate = 'navigate',
+  CloudFunction = 'cloudFunction',
+  HttpRequest = 'httpRequest',
+  DbQuery = 'dbQuery',
+  DbInsert = 'dbInsert',
+  DbUpdate = 'dbUpdate',
+  DbDelete = 'dbDelete',
 }
 
 /** 数学运算符 */
 export enum MathOp {
-  Add = "add",
-  Sub = "sub",
-  Mul = "mul",
-  Div = "div",
-  Mod = "mod",
-  Pow = "pow",
-  Min = "min",
-  Max = "max",
+  Add = 'add',
+  Sub = 'sub',
+  Mul = 'mul',
+  Div = 'div',
+  Mod = 'mod',
+  Pow = 'pow',
+  Min = 'min',
+  Max = 'max',
 }
 
 /** 比较运算符 */
 export enum CompareOp {
-  Eq = "eq",
-  Neq = "neq",
-  Gt = "gt",
-  Gte = "gte",
-  Lt = "lt",
-  Lte = "lte",
-  Contains = "contains",
+  Eq = 'eq',
+  Neq = 'neq',
+  Gt = 'gt',
+  Gte = 'gte',
+  Lt = 'lt',
+  Lte = 'lte',
+  Contains = 'contains',
 }
 
 /** 逻辑运算符 */
 export enum LogicOp {
-  And = "and",
-  Or = "or",
-  Not = "not",
+  And = 'and',
+  Or = 'or',
+  Not = 'not',
 }
 
 /** 并行收敛模式 */
 export enum ParallelMode {
   /** 全部成功（任一失败则抛错） */
-  All = "all",
+  All = 'all',
   /** 全部完成（不抛错） */
-  AllSettled = "allSettled",
+  AllSettled = 'allSettled',
   /** 首个完成的结果（其余继续但不被消费） */
-  Race = "race",
+  Race = 'race',
   /** 首个成功的结果（全部失败抛 AggregateError） */
-  Any = "any",
+  Any = 'any',
 }

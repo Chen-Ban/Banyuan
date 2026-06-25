@@ -3,15 +3,15 @@
  * 逻辑与 banyan backend scaffold.ts 一致的简化版，不依赖后端代码
  */
 
-import { mkdir, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
-import type { UIDefinition, CollectionDef, CloudFunctionDef } from './types.js';
+import { mkdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { UIDefinition, CollectionDef, CloudFunctionDef } from './types.js'
 
 /** 生成项目 scaffold 到指定目录 */
 export async function scaffoldProject(projectDir: string, uiJSON: UIDefinition): Promise<void> {
   // 确保目录结构存在
-  await mkdir(join(projectDir, 'src'), { recursive: true });
-  await mkdir(join(projectDir, 'public'), { recursive: true });
+  await mkdir(join(projectDir, 'src'), { recursive: true })
+  await mkdir(join(projectDir, 'public'), { recursive: true })
 
   // 并行写入所有文件
   await Promise.all([
@@ -22,7 +22,7 @@ export async function scaffoldProject(projectDir: string, uiJSON: UIDefinition):
     writeFile(join(projectDir, 'src', 'main.tsx'), generateMainTsx()),
     writeFile(join(projectDir, 'src', 'App.tsx'), generateAppTsx(uiJSON)),
     writeFile(join(projectDir, 'public', 'ui.json'), JSON.stringify(uiJSON, null, 2)),
-  ]);
+  ])
 }
 
 function generatePackageJson(uiJSON: UIDefinition): string {
@@ -49,8 +49,8 @@ function generatePackageJson(uiJSON: UIDefinition): string {
       typescript: '~5.7.3',
       vite: '^6.3.0',
     },
-  };
-  return JSON.stringify(pkg, null, 2);
+  }
+  return JSON.stringify(pkg, null, 2)
 }
 
 function generateViteConfig(): string {
@@ -64,7 +64,7 @@ export default defineConfig({
     sourcemap: false,
   },
 });
-`;
+`
 }
 
 function generateTsConfig(): string {
@@ -81,8 +81,8 @@ function generateTsConfig(): string {
       resolveJsonModule: true,
     },
     include: ['src'],
-  };
-  return JSON.stringify(config, null, 2);
+  }
+  return JSON.stringify(config, null, 2)
 }
 
 function generateIndexHtml(uiJSON: UIDefinition): string {
@@ -102,7 +102,7 @@ function generateIndexHtml(uiJSON: UIDefinition): string {
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-`;
+`
 }
 
 function generateMainTsx(): string {
@@ -111,14 +111,14 @@ import { App } from './App';
 
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);
-`;
+`
 }
 
 function generateAppTsx(uiJSON: UIDefinition): string {
   // 获取首页尺寸作为画布 fixed mode 参数
-  const firstPage = uiJSON.pages?.[0] as { width?: number; height?: number } | undefined;
-  const width = firstPage?.width ?? 375;
-  const height = firstPage?.height ?? 812;
+  const firstPage = uiJSON.pages?.[0] as { width?: number; height?: number } | undefined
+  const width = firstPage?.width ?? 375
+  const height = firstPage?.height ?? 812
 
   return `import { useState, useEffect } from 'react';
 import { useRuntimeBanvas } from '@banyuan/banvas-react-runtime';
@@ -148,7 +148,7 @@ function BanvasCanvas({ uiJSON }: { uiJSON: string }) {
 
   return Banvas;
 }
-`;
+`
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -157,11 +157,11 @@ function BanvasCanvas({ uiJSON }: { uiJSON: string }) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface ScaffoldServerOptions {
-  serverDir: string;
-  appSlug: string;
-  collections: CollectionDef[];
-  cloudFunctions: CloudFunctionDef[];
-  containerPort: number;
+  serverDir: string
+  appSlug: string
+  collections: CollectionDef[]
+  cloudFunctions: CloudFunctionDef[]
+  containerPort: number
 }
 
 /**
@@ -178,9 +178,9 @@ export interface ScaffoldServerOptions {
  *   └── Dockerfile
  */
 export async function scaffoldServer(options: ScaffoldServerOptions): Promise<void> {
-  const { serverDir, appSlug, collections, cloudFunctions, containerPort } = options;
+  const { serverDir, appSlug, collections, cloudFunctions, containerPort } = options
 
-  await mkdir(serverDir, { recursive: true });
+  await mkdir(serverDir, { recursive: true })
 
   await Promise.all([
     writeFile(join(serverDir, 'package.json'), generateServerPackageJson(appSlug)),
@@ -190,7 +190,7 @@ export async function scaffoldServer(options: ScaffoldServerOptions): Promise<vo
     writeFile(join(serverDir, 'db.js'), generateDbModule()),
     writeFile(join(serverDir, 'flow-runner.js'), generateFlowRunnerModule()),
     writeFile(join(serverDir, 'Dockerfile'), generateServerDockerfile(containerPort)),
-  ]);
+  ])
 }
 
 function generateServerPackageJson(appSlug: string): string {
@@ -206,8 +206,8 @@ function generateServerPackageJson(appSlug: string): string {
       mongoose: '^8.7.0',
       '@banyuan/banvasgl': 'latest',
     },
-  };
-  return JSON.stringify(pkg, null, 2);
+  }
+  return JSON.stringify(pkg, null, 2)
 }
 
 function generateServerIndex(port: number): string {
@@ -303,7 +303,7 @@ app.listen(PORT, () => {
   console.log('[Banyuan Server] Collections:', collections.map(c => c.name).join(', '));
   console.log('[Banyuan Server] Functions:', functions.map(f => f.name).join(', '));
 });
-`;
+`
 }
 
 function generateDbModule(): string {
@@ -361,7 +361,7 @@ export async function connectDB() {
   await mongoose.connect(uri);
   console.log('[DB] Connected to MongoDB');
 }
-`;
+`
 }
 
 function generateFlowRunnerModule(): string {
@@ -424,7 +424,7 @@ export async function runFunction(flowSchema, input = {}) {
   const result = await runner.run(flowSchema, context);
   return result;
 }
-`;
+`
 }
 
 function generateServerDockerfile(port: number): string {
@@ -443,5 +443,5 @@ ENV PORT=${port}
 ENV NODE_ENV=production
 
 CMD ["npm", "start"]
-`;
+`
 }

@@ -10,56 +10,55 @@ import { generateId, generateName } from '@/foundation/utils'
  * 图像视图 - 专门处理ImageElement类型内容
  */
 export default class ImageView extends View implements IImageView, ISerializable {
-    public type: ViewType = ViewType.IMAGEVIEW
-    public content: ImageElement
+  public type: ViewType = ViewType.IMAGEVIEW
+  public content: ImageElement
 
-    constructor(image: ImageElement, options: IImageViewOptions = {}) {
-        // 将image作为content传递给父类构造函数
-        super({ ...options, content: image })
-        this.id = options.id || generateId(this.type)
-        this.name = options.name || generateName(this.type)
-        this.content = image
+  constructor(image: ImageElement, options: IImageViewOptions = {}) {
+    // 将image作为content传递给父类构造函数
+    super({ ...options, content: image })
+    this.id = options.id || generateId(this.type)
+    this.name = options.name || generateName(this.type)
+    this.content = image
+  }
+
+  public copy(): ImageView {
+    const newView = new ImageView(this.content)
+
+    // 复制基本属性（id 由构造器自动生成新的）
+    newView.data = { ...this.data }
+    newView.style = {
+      ...this.style,
+    }
+    newView.selected = this.selected
+    newView.actived = this.actived
+    newView.freezed = this.freezed
+    newView.visible = this.visible
+    newView.matrix = this.matrix.copy()
+
+    if (this.viewport) {
+      newView.viewport = this.viewport.copy()
+    }
+    // 复制插件
+    if (this.boundingBox) {
+      newView.boundingBox = this.boundingBox.copy()
+    }
+    if (this.decoration) {
+      newView.decoration = this.decoration.copy()
     }
 
-    public copy(): ImageView {
-        const newView = new ImageView(this.content)
+    return newView
+  }
 
-        // 复制基本属性（id 由构造器自动生成新的）
-        newView.data = { ...this.data }
-        newView.style = {
-            ...this.style,
-        }
-        newView.selected = this.selected
-        newView.actived = this.actived
-        newView.freezed = this.freezed
-        newView.visible = this.visible
-        newView.matrix = this.matrix.copy()
+  // ==================== 序列化 ====================
 
-        if (this.viewport) {
-            newView.viewport = this.viewport.copy()
-        }
-        // 复制插件
-        if (this.boundingBox) {
-            newView.boundingBox = this.boundingBox.copy()
-        }
-        if (this.decoration) {
-            newView.decoration = this.decoration.copy()
-        }
-
-        return newView
-    }
-
-    // ==================== 序列化 ====================
-
-    /**
-     * 从纯数据对象恢复 ImageView 实例。
-     * data.content 应由 Serializer 预先解析为 ImageElement 实例后传入。
-     */
-static fromJSON(data: any): ImageView {
+  /**
+   * 从纯数据对象恢复 ImageView 实例。
+   * data.content 应由 Serializer 预先解析为 ImageElement 实例后传入。
+   */
+  static fromJSON(data: any): ImageView {
     const view = new ImageView(data.content)
     view.restoreCommonFields(data)
     view.markLayoutDirty()
     return view
+  }
 }
-}
-

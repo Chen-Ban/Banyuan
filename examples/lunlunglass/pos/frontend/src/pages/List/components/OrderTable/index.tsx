@@ -84,11 +84,7 @@ const OrderTable = ({ filters }: OrderTableProps) => {
           cancelled: { text: '已取消', color: '#ff4d4f' },
         }
         const statusInfo = statusMap[status] || { text: status, color: '#666' }
-        return (
-          <span style={{ color: statusInfo.color, fontWeight: 500 }}>
-            {statusInfo.text}
-          </span>
-        )
+        return <span style={{ color: statusInfo.color, fontWeight: 500 }}>{statusInfo.text}</span>
       },
     },
     {
@@ -105,18 +101,10 @@ const OrderTable = ({ filters }: OrderTableProps) => {
       fixed: 'right',
       render: (_: unknown, record: Order) => (
         <Space size="small">
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => handleViewDetail(record)}
-          >
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             详情
           </Button>
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             编辑
           </Button>
           <Popconfirm
@@ -126,19 +114,11 @@ const OrderTable = ({ filters }: OrderTableProps) => {
             okText="确定"
             cancelText="取消"
           >
-            <Button
-              type="link"
-              danger
-              icon={<DeleteOutlined />}
-            >
+            <Button type="link" danger icon={<DeleteOutlined />}>
               删除
             </Button>
           </Popconfirm>
-          <Button
-            type="link"
-            icon={<PrinterOutlined />}
-            onClick={() => handlePrint()}
-          >
+          <Button type="link" icon={<PrinterOutlined />} onClick={() => handlePrint()}>
             打印
           </Button>
         </Space>
@@ -147,18 +127,21 @@ const OrderTable = ({ filters }: OrderTableProps) => {
   ]
 
   // 获取订单数据
-  const fetchOrders = useCallback(async (page: number, size: number) => {
-    setLoading(true)
-    try {
-      const res = await orderApi.fetchOrders(page, size, filters)
-      setOrders(res.data.orders)
-      setTotal(res.data.total)
-    } catch (error: unknown) {
-      message.error(getErrorMessage(error))
-    } finally {
-      setLoading(false)
-    }
-  }, [filters])
+  const fetchOrders = useCallback(
+    async (page: number, size: number) => {
+      setLoading(true)
+      try {
+        const res = await orderApi.fetchOrders(page, size, filters)
+        setOrders(res.data.orders)
+        setTotal(res.data.total)
+      } catch (error: unknown) {
+        message.error(getErrorMessage(error))
+      } finally {
+        setLoading(false)
+      }
+    },
+    [filters],
+  )
 
   useEffect(() => {
     fetchOrders(currentPage, pageSize)
@@ -249,12 +232,19 @@ const OrderTable = ({ filters }: OrderTableProps) => {
           <Descriptions column={2} bordered>
             <Descriptions.Item label="订单ID">{selectedOrder.orderId}</Descriptions.Item>
             <Descriptions.Item label="订单状态">
-              <span style={{ 
-                color: selectedOrder.status === 'completed' ? '#52c41a' : 
-                       selectedOrder.status === 'cancelled' ? '#ff4d4f' : 
-                       selectedOrder.status === 'processing' ? '#1890ff' : '#faad14',
-                fontWeight: 500 
-              }}>
+              <span
+                style={{
+                  color:
+                    selectedOrder.status === 'completed'
+                      ? '#52c41a'
+                      : selectedOrder.status === 'cancelled'
+                        ? '#ff4d4f'
+                        : selectedOrder.status === 'processing'
+                          ? '#1890ff'
+                          : '#faad14',
+                  fontWeight: 500,
+                }}
+              >
                 {getStatusText(selectedOrder.status)}
               </span>
             </Descriptions.Item>
@@ -263,17 +253,33 @@ const OrderTable = ({ filters }: OrderTableProps) => {
             <Descriptions.Item label="商品列表" span={3}>
               <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
                 {selectedOrder.items.map((item: OrderItem, index: number) => (
-                  <div key={index} style={{ marginBottom: '12px', padding: '8px', background: '#f5f5f5', borderRadius: '4px' }}>
-                    <div><strong>{item.product.name}</strong></div>
+                  <div
+                    key={index}
+                    style={{
+                      marginBottom: '12px',
+                      padding: '8px',
+                      background: '#f5f5f5',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    <div>
+                      <strong>{item.product.name}</strong>
+                    </div>
                     <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
                       <span>商品ID: {item.product.id}</span>
-                      {item.product.sku && <span style={{ marginLeft: '12px' }}>SKU: {item.product.sku}</span>}
-                      {item.product.spec && <span style={{ marginLeft: '12px' }}>规格: {item.product.spec}</span>}
+                      {item.product.sku && (
+                        <span style={{ marginLeft: '12px' }}>SKU: {item.product.sku}</span>
+                      )}
+                      {item.product.spec && (
+                        <span style={{ marginLeft: '12px' }}>规格: {item.product.spec}</span>
+                      )}
                     </div>
                     <div style={{ marginTop: '4px' }}>
                       <span>数量: {item.quantity}</span>
                       <span style={{ marginLeft: '12px' }}>单价: ¥{item.price.toFixed(2)}</span>
-                      <span style={{ marginLeft: '12px', color: '#1890ff', fontWeight: 'bold' }}>小计: ¥{item.subtotal.toFixed(2)}</span>
+                      <span style={{ marginLeft: '12px', color: '#1890ff', fontWeight: 'bold' }}>
+                        小计: ¥{item.subtotal.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 ))}

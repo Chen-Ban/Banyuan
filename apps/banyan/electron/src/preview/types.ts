@@ -5,19 +5,19 @@
  */
 
 export interface PreviewServerInput {
-  appId: string;
-  appSlug?: string;
-  appJSON: Record<string, unknown>;
-  collectionSchemas: unknown[];
-  cloudFunctions: unknown[];
+  appId: string
+  appSlug?: string
+  appJSON: Record<string, unknown>
+  collectionSchemas: unknown[]
+  cloudFunctions: unknown[]
 }
 
 export interface PreviewServerInfo {
-  appId: string;
-  port: number;
-  status: 'starting' | 'running' | 'stopping' | 'stopped' | 'error';
-  url: string;
-  createdAt: number;
-  updatedAt: number;
-  error?: string;
+  appId: string
+  port: number
+  status: 'starting' | 'running' | 'stopping' | 'stopped' | 'error'
+  url: string
+  createdAt: number
+  updatedAt: number
+  error?: string
 }

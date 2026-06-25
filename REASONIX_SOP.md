@@ -124,20 +124,20 @@ reasonix code -p "帮我把所有 console.log 替换为 logger.info"
 
 在交互式会话中，输入以 `/` 开头的命令可以切换模式或查看信息：
 
-| 命令 | 说明 |
-|------|------|
-| `/help` | 查看完整 slash 命令参考 |
-| `/pro` | 下一轮切换到 DeepSeek-V4-Pro（处理复杂任务） |
-| `/flash` | 切换回 DeepSeek-V4-Flash（日常迭代，默认） |
-| `/preset max` | 整个 session 都走 Pro 模型 |
-| `/compact` | 手动触发上下文压缩（节省 token） |
-| `/cost` | 查看 token 用量和费用统计 |
-| `/new` | 开启新会话 |
-| `/tree` | 显示项目文件树 |
-| `/branch` | 显示/切换 Git 分支 |
-| `/switch` | 切换会话 |
-| `/skill new` | 创建自定义技能 |
-| `/keys` | 查看快捷键绑定 |
+| 命令          | 说明                                         |
+| ------------- | -------------------------------------------- |
+| `/help`       | 查看完整 slash 命令参考                      |
+| `/pro`        | 下一轮切换到 DeepSeek-V4-Pro（处理复杂任务） |
+| `/flash`      | 切换回 DeepSeek-V4-Flash（日常迭代，默认）   |
+| `/preset max` | 整个 session 都走 Pro 模型                   |
+| `/compact`    | 手动触发上下文压缩（节省 token）             |
+| `/cost`       | 查看 token 用量和费用统计                    |
+| `/new`        | 开启新会话                                   |
+| `/tree`       | 显示项目文件树                               |
+| `/branch`     | 显示/切换 Git 分支                           |
+| `/switch`     | 切换会话                                     |
+| `/skill new`  | 创建自定义技能                               |
+| `/keys`       | 查看快捷键绑定                               |
 
 ---
 
@@ -183,17 +183,17 @@ args = ["-y", "@my/mcp-server"]
 
 Reasonix 提供九个内置工具，Agent 会根据需求自动调用：
 
-| 工具 | 说明 |
-|------|------|
-| `read_file` | 读取文件内容 |
-| `write_file` | 写入文件 |
-| `edit_file` | 编辑文件（单处替换） |
-| `multi_edit` | 批量编辑文件 |
-| `bash` | 执行 Shell 命令 |
-| `ls` | 列出目录内容 |
-| `glob` | 文件模式匹配搜索 |
-| `grep` | 文本内容搜索 |
-| `web_fetch` | 获取网页内容 |
+| 工具         | 说明                 |
+| ------------ | -------------------- |
+| `read_file`  | 读取文件内容         |
+| `write_file` | 写入文件             |
+| `edit_file`  | 编辑文件（单处替换） |
+| `multi_edit` | 批量编辑文件         |
+| `bash`       | 执行 Shell 命令      |
+| `ls`         | 列出目录内容         |
+| `glob`       | 文件模式匹配搜索     |
+| `grep`       | 文本内容搜索         |
+| `web_fetch`  | 获取网页内容         |
 
 ---
 
@@ -267,13 +267,13 @@ reasonix prune-sessions  # 清理历史会话
 
 ## 十三、常见问题排查
 
-| 问题 | 解决方案 |
-|------|----------|
-| 提示 Node.js 版本过低 | 升级到 Node.js >= 22 |
-| API Key 无效 | 检查 Key 是否过期，重新运行 `reasonix setup` |
-| 网络连接失败 | 确认能访问 api.deepseek.com，必要时配置代理 |
-| Windows 终端乱码 | 使用 Windows Terminal 或 Git Bash，避免 cmd |
-| 工具调用失败 | Reasonix 内置自动修复机制，通常会自动重试 |
+| 问题                  | 解决方案                                     |
+| --------------------- | -------------------------------------------- |
+| 提示 Node.js 版本过低 | 升级到 Node.js >= 22                         |
+| API Key 无效          | 检查 Key 是否过期，重新运行 `reasonix setup` |
+| 网络连接失败          | 确认能访问 api.deepseek.com，必要时配置代理  |
+| Windows 终端乱码      | 使用 Windows Terminal 或 Git Bash，避免 cmd  |
+| 工具调用失败          | Reasonix 内置自动修复机制，通常会自动重试    |
 
 运行 `reasonix doctor` 可以一键诊断大部分环境问题。
 
@@ -291,4 +291,4 @@ reasonix prune-sessions  # 清理历史会话
 
 ---
 
-*文档最后更新：2026-06*
+_文档最后更新：2026-06_

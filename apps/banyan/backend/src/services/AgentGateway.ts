@@ -1,13 +1,20 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import type { Server as HttpServer, IncomingMessage } from 'http'
 import crypto from 'crypto'
+import { Tenant } from '../models/Tenant.js'
+import type { ITenant } from '../models/types/index.js'
 
 // ─── 消息协议（与 @banyuan/deploy-agent 对齐）────────────────────────────────────
 
 /**
  * 后端 → Agent 的消息类型
  */
-export type ServerToAgentType = 'deploy:start' | 'deploy:cancel' | 'heartbeat:ack' | 'auth:success' | 'auth:fail'
+export type ServerToAgentType =
+  | 'deploy:start'
+  | 'deploy:cancel'
+  | 'heartbeat:ack'
+  | 'auth:success'
+  | 'auth:fail'
 
 /**
  * Agent → 后端的消息类型
@@ -252,7 +259,7 @@ export class AgentGateway {
     }
 
     // 首条消息必须是 auth
-    const onFirstMessage = (raw: Buffer | string) => {
+    const onFirstMessage = async (raw: Buffer | string) => {
       ws.off('message', onFirstMessage)
       clearTimeout(authTimeout)
 
@@ -270,7 +277,10 @@ export class AgentGateway {
 
         if (!tenantId || !agentToken) {
           console.warn('[AgentGateway] auth 消息缺少 tenantId 或 agentToken')
-          const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'Missing tenantId or agentToken' } }
+          const failMsg: ServerMessage = {
+            type: 'auth:fail',
+            payload: { reason: 'Missing tenantId or agentToken' },
+          }
           ws.send(JSON.stringify(failMsg))
           ws.close(4003, 'Missing tenantId or agentToken')
           return
@@ -285,8 +295,35 @@ export class AgentGateway {
           return
         }
 
-        // TODO: 验证 token 是否属于该 tenantId（查询 Tenant 文档的 agentToken 字段）
-        // 当前版本信任 token 一致性校验
+        // DB 校验：验证 token 是否属于该 tenantId
+        let tenant: ITenant | null
+        try {
+          tenant = await Tenant.findOne({ tenantId }).lean()
+        } catch (dbErr) {
+          const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
+          console.error(`[AgentGateway] 租户 ${tenantId} DB 查询失败: ${msg}`)
+          const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'Internal error' } }
+          ws.send(JSON.stringify(failMsg))
+          ws.close(1011, 'Internal error')
+          return
+        }
+        if (!tenant) {
+          console.warn(`[AgentGateway] 租户 ${tenantId} 不存在`)
+          const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'Tenant not found' } }
+          ws.send(JSON.stringify(failMsg))
+          ws.close(4005, 'Tenant not found')
+          return
+        }
+        if (tenant.agentToken !== agentToken) {
+          console.warn(`[AgentGateway] 租户 ${tenantId} agentToken 与数据库不匹配`)
+          const failMsg: ServerMessage = {
+            type: 'auth:fail',
+            payload: { reason: 'Agent token mismatch with database' },
+          }
+          ws.send(JSON.stringify(failMsg))
+          ws.close(4006, 'Agent token mismatch with database')
+          return
+        }
 
         // 如果该租户已有连接，关闭旧连接
         const existing = this.connections.get(tenantId)
@@ -341,7 +378,9 @@ export class AgentGateway {
     })
 
     ws.on('close', (code, reason) => {
-      console.log(`[AgentGateway] 租户 ${tenantId} 连接关闭，code=${code}, reason=${reason.toString('utf-8')}`)
+      console.log(
+        `[AgentGateway] 租户 ${tenantId} 连接关闭，code=${code}, reason=${reason.toString('utf-8')}`,
+      )
       this.handleDisconnect(tenantId)
     })
 
@@ -386,7 +425,9 @@ export class AgentGateway {
             this.pendingRequests.delete(requestId)
             this.progressCallbacks.delete(requestId)
             pending.resolve(result)
-            console.log(`[AgentGateway] 租户 ${tenantId} 部署完成，requestId=${requestId}, success=${result.success}`)
+            console.log(
+              `[AgentGateway] 租户 ${tenantId} 部署完成，requestId=${requestId}, success=${result.success}`,
+            )
           }
         }
         break

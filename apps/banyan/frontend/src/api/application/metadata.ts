@@ -47,7 +47,7 @@ interface ApplicationListResponse {
 export function fetchApplications(
   page: number = 1,
   pageSize: number = 20,
-  keyword?: string
+  keyword?: string,
 ): Promise<ApplicationListResponse> {
   return get<ApplicationListResponse>('/applications', {
     page,
@@ -73,7 +73,10 @@ export function createApplication(): Promise<ApiResponse<Application>> {
 /**
  * 更新应用
  */
-export function updateApplication(id: string, data: Partial<ApplicationFormData>): Promise<ApiResponse<Application>> {
+export function updateApplication(
+  id: string,
+  data: Partial<ApplicationFormData>,
+): Promise<ApiResponse<Application>> {
   return put<ApiResponse<Application>>(`/applications/${id}`, data)
 }
 

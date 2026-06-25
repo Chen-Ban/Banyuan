@@ -6,7 +6,14 @@ export * from './control.js'
 export * from './function.js'
 
 import type { FlowLiteralSourceSlot, FlowContextSourceSlot } from './source.js'
-import type { FlowMathSlot, FlowCompareSlot, FlowLogicSlot, FlowConcatSlot, FlowFormatSlot, FlowGetSlot } from './compute.js'
+import type {
+  FlowMathSlot,
+  FlowCompareSlot,
+  FlowLogicSlot,
+  FlowConcatSlot,
+  FlowFormatSlot,
+  FlowGetSlot,
+} from './compute.js'
 import type {
   FlowSetVariableSlot,
   FlowSetViewDataSlot,
@@ -20,12 +27,7 @@ import type {
   FlowDbUpdateSlot,
   FlowDbDeleteSlot,
 } from './action.js'
-import type {
-  FlowConditionSlot,
-  FlowLoopSlot,
-  FlowParallelSlot,
-  FlowReturnSlot,
-} from './control.js'
+import type { FlowConditionSlot, FlowLoopSlot, FlowParallelSlot, FlowReturnSlot } from './control.js'
 import type { FlowFunctionSlot } from './function.js'
 
 /** 统一插槽类型 */
@@ -53,4 +55,4 @@ export type FlowSlot =
   | FlowLoopSlot
   | FlowParallelSlot
   | FlowReturnSlot
-  | FlowFunctionSlot;
+  | FlowFunctionSlot

@@ -17,7 +17,7 @@ const router = new Router({ prefix: '/api/applications' })
 router.get(
   '/:appId/conversation/dialogues',
   appOwnership,
-  conversationController.getDialogues.bind(conversationController)
+  conversationController.getDialogues.bind(conversationController),
 )
 
 export default router

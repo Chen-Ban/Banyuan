@@ -6,13 +6,13 @@
  */
 
 /** 填充规则 */
-export type FillRule = 'nonzero' | 'evenodd';
+export type FillRule = 'nonzero' | 'evenodd'
 
 /** 线段端点样式 */
-export type LineCap = 'butt' | 'round' | 'square';
+export type LineCap = 'butt' | 'round' | 'square'
 
 /** 线段连接样式 */
-export type LineJoin = 'round' | 'bevel' | 'miter';
+export type LineJoin = 'round' | 'bevel' | 'miter'
 
 /** 图像平滑质量 */
-export type ImageSmoothingQuality = 'low' | 'medium' | 'high';
+export type ImageSmoothingQuality = 'low' | 'medium' | 'high'

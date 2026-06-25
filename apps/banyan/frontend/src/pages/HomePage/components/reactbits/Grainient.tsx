@@ -9,11 +9,7 @@ import { Renderer, Program, Mesh, Triangle } from 'ogl'
 const hexToRgb = (hex: string): [number, number, number] => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   if (!result) return [1, 1, 1]
-  return [
-    parseInt(result[1], 16) / 255,
-    parseInt(result[2], 16) / 255,
-    parseInt(result[3], 16) / 255,
-  ]
+  return [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255]
 }
 
 const vertex = `#version 300 es
@@ -163,7 +159,12 @@ const Grainient = ({
     const container = containerRef.current
     if (!container) return
 
-    const renderer = new Renderer({ webgl: 2, alpha: true, antialias: false, dpr: Math.min(window.devicePixelRatio || 1, 2) })
+    const renderer = new Renderer({
+      webgl: 2,
+      alpha: true,
+      antialias: false,
+      dpr: Math.min(window.devicePixelRatio || 1, 2),
+    })
     const gl = renderer.gl
     const canvas = gl.canvas as HTMLCanvasElement
     canvas.style.width = '100%'
@@ -231,14 +232,24 @@ const Grainient = ({
       raf = requestAnimationFrame(loop)
     }
 
-    const tryStart = () => { if (isVisible && isPageVisible && raf === 0) raf = requestAnimationFrame(loop) }
-    const tryStop = () => { if (raf !== 0) { cancelAnimationFrame(raf); raf = 0 } }
+    const tryStart = () => {
+      if (isVisible && isPageVisible && raf === 0) raf = requestAnimationFrame(loop)
+    }
+    const tryStop = () => {
+      if (raf !== 0) {
+        cancelAnimationFrame(raf)
+        raf = 0
+      }
+    }
 
-    const io = new IntersectionObserver(([entry]) => {
-      isVisible = entry.isIntersecting
-      if (isVisible) tryStart()
-      else tryStop()
-    }, { threshold: 0 })
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        isVisible = entry.isIntersecting
+        if (isVisible) tryStart()
+        else tryStop()
+      },
+      { threshold: 0 },
+    )
     io.observe(container)
 
     const onVisibility = () => {
@@ -255,7 +266,11 @@ const Grainient = ({
       io.disconnect()
       document.removeEventListener('visibilitychange', onVisibility)
       ctxMap.delete(container)
-      try { container.removeChild(canvas) } catch { /* ignore */ }
+      try {
+        container.removeChild(canvas)
+      } catch {
+        /* ignore */
+      }
     }
   }, [])
 
@@ -290,9 +305,28 @@ const Grainient = ({
     u.uColor2.value = new Float32Array(hexToRgb(color2))
     u.uColor3.value = new Float32Array(hexToRgb(color3))
   }, [
-    timeSpeed, colorBalance, warpStrength, warpFrequency, warpSpeed, warpAmplitude,
-    blendAngle, blendSoftness, rotationAmount, noiseScale, grainAmount, grainScale,
-    grainAnimated, contrast, gamma, saturation, centerX, centerY, zoom, color1, color2, color3,
+    timeSpeed,
+    colorBalance,
+    warpStrength,
+    warpFrequency,
+    warpSpeed,
+    warpAmplitude,
+    blendAngle,
+    blendSoftness,
+    rotationAmount,
+    noiseScale,
+    grainAmount,
+    grainScale,
+    grainAnimated,
+    contrast,
+    gamma,
+    saturation,
+    centerX,
+    centerY,
+    zoom,
+    color1,
+    color2,
+    color3,
   ])
 
   return (

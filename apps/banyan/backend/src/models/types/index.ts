@@ -5,12 +5,7 @@
  * 模型文件（*.ts）只负责 Schema + Model 定义，不再承担接口定义职责。
  */
 
-export type {
-  FieldType,
-  IFieldDef,
-  ICollectionDef,
-  ICollectionSchema,
-} from './collection.js'
+export type { FieldType, IFieldDef, ICollectionDef, ICollectionSchema } from './collection.js'
 
 export type {
   DialoguePhase,
@@ -29,34 +24,26 @@ export type { IConversation } from './conversation.js'
 
 export type { IApplication } from './application.js'
 
-export type {
-  DeployStatus,
-  IDeploySnapshot,
-  IDeployment,
-} from './deployment.js'
+export type { DeployStatus, IDeploySnapshot, IDeployment } from './deployment.js'
 
 export type { UserRole, UserStatus, IUser } from './user.js'
 
 export type { ProvisionStatus, ITenant } from './tenant.js'
 
-export type {
-  EpisodeOutcome,
-  IEpisode,
-  FactCategory,
-  IFact,
-  IAgentMemory,
-} from './agent-memory.js'
+export type { IPlan, ICreditUsage, CreditUsageDetail } from './plan.js'
+
+export type { EpisodeOutcome, IEpisode, FactCategory, IFact, IAgentMemory } from './agent-memory.js'
 
 export type { FullAgentRole, IAgentPrompt } from './agent-prompt.js'
 
 export type {
   MaterialSource,
   MaterialKind,
-  MaterialParameterType,
-  IMaterialParameter,
-  IMaterialAsset,
+  TemplateParameterType,
+  ITemplateParameter,
+  ITemplateAsset,
+  ITemplate,
   IInternalIdRef,
-  IMaterialTemplate,
   IMaterialMeta,
   IMaterial,
   IMaterialDocument,
@@ -66,11 +53,7 @@ export type { PackagePlatform, PackageStatus, IPackageTask } from './package-tas
 
 export type { IRefreshToken } from './refresh-token.js'
 
-export type {
-  IUIDefinition,
-  ICloudFunctionDef,
-  ICloudFunctionGroup,
-} from './versioned-content.js'
+export type { IUIDefinition, ICloudFunctionDef, ICloudFunctionGroup } from './versioned-content.js'
 
 export type {
   AssistantContentType,

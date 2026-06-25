@@ -9,7 +9,15 @@ import type { ApiResponse } from '../client'
 
 export type DeployStatus = 'pending' | 'building' | 'deploying' | 'success' | 'failed'
 export type DeployType = 'static' | 'fullstack'
-export type ProvisionStatus = 'none' | 'pending' | 'creating_ecs' | 'configuring_dns' | 'initializing' | 'installing_agent' | 'ready' | 'failed'
+export type ProvisionStatus =
+  | 'none'
+  | 'pending'
+  | 'creating_ecs'
+  | 'configuring_dns'
+  | 'initializing'
+  | 'installing_agent'
+  | 'ready'
+  | 'failed'
 
 export interface DeploymentRecord {
   deploymentId: string
@@ -69,4 +77,16 @@ export function getDeployHistory(applicationId: string, limit = 20) {
  */
 export function getAgentStatus() {
   return get<ApiResponse<AgentStatus>>('/deploy/agent-status')
+}
+
+/** 查询当月 credit 用量 */
+export function getCreditUsage() {
+  return get<ApiResponse<{ used: number; total: number; remaining: number }>>('/credits/usage')
+}
+
+/**
+ * 回滚到指定部署版本
+ */
+export function rollback(deploymentId: string) {
+  return post<ApiResponse<PublishResult>>('/deploy/rollback', { deploymentId })
 }

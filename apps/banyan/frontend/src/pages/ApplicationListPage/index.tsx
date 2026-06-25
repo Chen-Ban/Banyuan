@@ -10,10 +10,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { App, Spin } from 'antd'
-import {
-  AppstoreOutlined,
-  DeleteOutlined,
-} from '@ant-design/icons'
+import { AppstoreOutlined, DeleteOutlined } from '@ant-design/icons'
 import { applicationApi } from '@/api'
 import type { Application } from '@/api'
 import { getErrorMessage } from '@/utils/error'
@@ -76,28 +73,18 @@ const ApplicationListPage = () => {
               <div
                 key={app.application_id}
                 className={styles.card}
-                onClick={() =>
-                  navigate(`/application/${app.application_id}/ui`)
-                }
+                onClick={() => navigate(`/application/${app.application_id}/ui`)}
               >
                 {app.thumbnail ? (
-                  <img
-                    src={app.thumbnail}
-                    alt={app.name}
-                    className={styles.thumb}
-                  />
+                  <img src={app.thumbnail} alt={app.name} className={styles.thumb} />
                 ) : (
                   <div className={styles.thumbPlaceholder}>
                     <AppstoreOutlined />
                   </div>
                 )}
                 <div className={styles.cardInfo}>
-                  <span className={styles.cardName}>
-                    {app.name || '未命名应用'}
-                  </span>
-                  <span className={styles.cardDate}>
-                    {new Date(app.updatedAt).toLocaleDateString()}
-                  </span>
+                  <span className={styles.cardName}>{app.name || '未命名应用'}</span>
+                  <span className={styles.cardDate}>{new Date(app.updatedAt).toLocaleDateString()}</span>
                 </div>
                 <button
                   className={styles.deleteBtn}

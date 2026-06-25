@@ -87,7 +87,7 @@ export class AuthService {
   async logout(rawRefreshToken: string): Promise<void> {
     await RefreshToken.updateOne(
       { token: rawRefreshToken, revokedAt: { $exists: false } },
-      { revokedAt: new Date() }
+      { revokedAt: new Date() },
     )
   }
 
@@ -106,7 +106,7 @@ export class AuthService {
    */
   async loginByPhone(
     phone: string,
-    code: string
+    code: string,
   ): Promise<{ user: Omit<IUser, 'passwordHash'>; tokens: TokenPair; isNewUser: boolean }> {
     // 验证 OTP（失败会抛出）
     smsService.verifyOtp(phone, code)

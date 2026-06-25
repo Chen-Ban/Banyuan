@@ -45,4 +45,3 @@ export default async function localOnly(ctx: Context, next: Next) {
 
   await next()
 }
-

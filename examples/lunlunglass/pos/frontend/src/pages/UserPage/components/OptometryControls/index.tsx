@@ -51,7 +51,9 @@ const OptometryControls = ({ params, onChange }: OptometryControlsProps) => {
                 max={config.max}
                 step={config.step}
                 value={params[eye][key as keyof OptometryParams['left']]}
-                onChange={(value) => value !== null && handleEyeChange(eye, key as keyof OptometryParams['left'], value)}
+                onChange={(value) =>
+                  value !== null && handleEyeChange(eye, key as keyof OptometryParams['left'], value)
+                }
                 addonAfter={config.unit}
                 style={{ width: 140 }}
               />
@@ -132,4 +134,3 @@ const OptometryControls = ({ params, onChange }: OptometryControlsProps) => {
 }
 
 export default OptometryControls
-

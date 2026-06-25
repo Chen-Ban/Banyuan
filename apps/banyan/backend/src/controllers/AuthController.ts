@@ -2,7 +2,6 @@ import { Context } from 'koa'
 import { authService } from '../services/AuthService.js'
 
 export class AuthController {
-
   /**
    * POST /api/auth/refresh
    * Body: { refreshToken }

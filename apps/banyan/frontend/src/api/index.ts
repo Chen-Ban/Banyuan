@@ -28,10 +28,45 @@ export * as materialApi from './materials/index'
 export * as deployApi from './delivery/deploy'
 export type { Application, ApplicationFormData } from './application/metadata'
 export type { UIDefinitionData } from './ui/definition'
-export type { Platform, BuildStatus, BuildTaskInfo, SubmitBuildParams, BuildTaskListResponse } from './delivery/build'
-export type { AiStreamEvent, AiTextDeltaEvent, AiPhaseChangeEvent, AiAgentProgressEvent, AiToolActivityEvent, AiAuditProgressEvent, AiDoneEvent, AiErrorEvent, AiStartedEvent, ProviderInfo, ModelsResponse, PresignResponse, PendingDialogueInfo, ErrorPayload, ErrorCategory } from './ai/stream'
+export type {
+  Platform,
+  BuildStatus,
+  BuildTaskInfo,
+  SubmitBuildParams,
+  BuildTaskListResponse,
+} from './delivery/build'
+export type {
+  AiStreamEvent,
+  AiTextDeltaEvent,
+  AiPhaseChangeEvent,
+  AiAgentProgressEvent,
+  AiToolActivityEvent,
+  AiAuditProgressEvent,
+  AiDoneEvent,
+  AiErrorEvent,
+  AiStartedEvent,
+  ProviderInfo,
+  ModelsResponse,
+  PresignResponse,
+  PendingDialogueInfo,
+  ErrorPayload,
+  ErrorCategory,
+} from './ai/stream'
 export type { AgentPromptConfig } from './ai/planning'
 export type { FieldType, FieldDef, CollectionDef, DataSchemaDefinition } from './dataSchema/collections'
 export type { DataDocument, DataListResponse, ListOptions } from './runtime/data'
-export type { CloudFunctionDef, CreateCloudFunctionParams, UpdateCloudFunctionParams } from './cloudFunctions/index'
-export type { ConversationMessage, Dialogue, DialogueType, Message, UserContent, AssistantContent, ImageItem } from './ai/conversations'
+export type {
+  CloudFunctionDef,
+  CreateCloudFunctionParams,
+  UpdateCloudFunctionParams,
+} from './cloudFunctions/index'
+export type {
+  ConversationMessage,
+  Dialogue,
+  DialogueType,
+  Message,
+  UserContent,
+  AssistantContent,
+  ImageItem,
+} from './ai/conversations'
+export type { DeploymentRecord, DeployStatus, DeployType, PublishResult, AgentStatus } from './delivery/deploy'

@@ -23,12 +23,7 @@ interface TemplateSelectorProps {
  * 从 GET /api/templates/snapshots 获取已同步模板列表。
  * 展示缩略图网格 + 模板名称，支持选择和确认。
  */
-const TemplateSelector = ({
-  open,
-  printing = false,
-  onSelect,
-  onCancel,
-}: TemplateSelectorProps) => {
+const TemplateSelector = ({ open, printing = false, onSelect, onCancel }: TemplateSelectorProps) => {
   const [snapshots, setSnapshots] = useState<TemplateSnapshotSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -66,22 +61,10 @@ const TemplateSelector = ({
   }, [loadSnapshots])
 
   return (
-    <Modal
-      open={open}
-      title="选择打印模板"
-      footer={null}
-      onCancel={onCancel}
-      width={520}
-      destroyOnClose
-    >
+    <Modal open={open} title="选择打印模板" footer={null} onCancel={onCancel} width={520} destroyOnClose>
       <div className={styles.header}>
         <span className={styles.hint}>选择已同步的模板，打印当前订单标签</span>
-        <Button
-          size="small"
-          icon={<SyncOutlined spin={syncing} />}
-          loading={syncing}
-          onClick={handleSync}
-        >
+        <Button size="small" icon={<SyncOutlined spin={syncing} />} loading={syncing} onClick={handleSync}>
           同步最新模板
         </Button>
       </div>
@@ -91,9 +74,7 @@ const TemplateSelector = ({
           <Spin tip="加载模板列表..." />
         </div>
       ) : snapshots.length === 0 ? (
-        <div className={styles.empty}>
-          暂无已同步的模板，请先点击「同步最新模板」从 Studio 拉取。
-        </div>
+        <div className={styles.empty}>暂无已同步的模板，请先点击「同步最新模板」从 Studio 拉取。</div>
       ) : (
         <List
           dataSource={snapshots}
@@ -116,11 +97,7 @@ const TemplateSelector = ({
               <List.Item.Meta
                 avatar={
                   snapshot.thumbnail ? (
-                    <img
-                      src={snapshot.thumbnail}
-                      alt={snapshot.templateName}
-                      className={styles.thumbnail}
-                    />
+                    <img src={snapshot.thumbnail} alt={snapshot.templateName} className={styles.thumbnail} />
                   ) : (
                     <div className={styles.thumbnailPlaceholder}>
                       <PrinterOutlined />
@@ -132,9 +109,7 @@ const TemplateSelector = ({
                   <Space size={4}>
                     <Tag color="blue">{snapshot.paperWidth}mm</Tag>
                     <Tag>v{snapshot.version}</Tag>
-                    <span className={styles.date}>
-                      {new Date(snapshot.publishedAt).toLocaleDateString()}
-                    </span>
+                    <span className={styles.date}>{new Date(snapshot.publishedAt).toLocaleDateString()}</span>
                   </Space>
                 }
               />

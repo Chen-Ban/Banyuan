@@ -10,27 +10,16 @@
  *   - IView / ISceneNode 定义在此文件中，作为唯一来源
  */
 
-import { ViewType } from "@/foundation/constants";
-import type { Matrix4, Point3, Vector3 } from "@/foundation/math";
-import type Bounds from "@/graph/base/Bounds";
-import type { Line } from "@/graph";
-import type {
-  IGraph,
-  ITextElement,
-  ITextFields,
-  TextIndex,
-} from "../graph/graph";
-import type {
-  LinearGradient,
-  RadialGradient,
-  ConicGradient,
-} from "@/foundation/style/gradient/index";
-import type Image from "@/foundation/style/Image";
+import { ViewType } from '@/foundation/constants'
+import type { Matrix4, Point3, Vector3 } from '@/foundation/math'
+import type Bounds from '@/graph/base/Bounds'
+import type { Line } from '@/graph'
+import type { IGraph, ITextElement, ITextFields, TextIndex } from '../graph/graph'
+
 // IViewStyle、IComputedStyle 及辅助类型（IFillStyleOptions 等）已迁移到 ./style.ts。
 // 此处 import 供文件内部使用，同时 re-export 维持 types/index.ts 导出链。
-import type { IComputedStyle, IViewStyle } from "../foundation/style";
+import type { IViewStyle } from '../foundation/style'
 export type {
-  IComputedStyle,
   IViewStyle,
   IFlexLayout,
   IListLayout,
@@ -42,20 +31,20 @@ export type {
   IShadowStyleOptions,
   TransformOriginKeyword,
   TransformOrigin,
-} from "../foundation/style";
+} from '../foundation/style'
 
 // IAnimationAddon 接口（动画插件，不走管线，由 AnimationManager 驱动）
-import type { IAnimationAddon } from "../engine/animation";
-export type { IAnimationAddon } from "../engine/animation";
+import type { IAnimationAddon } from '../foundation/animation'
+export type { IAnimationAddon } from '../foundation/animation'
 
-import type { IDrawingContext } from "../platform/drawing.js";
+import type { IDrawingContext } from '../platform/context.js'
 
 // ────────────────────────────────────────────
 //  IFieldSchema —— data 的字段定义
 // ────────────────────────────────────────────
 
 /** 字段类型 */
-export type FieldType = "string" | "number" | "boolean" | "object";
+export type FieldType = 'string' | 'number' | 'boolean' | 'object'
 
 /**
  * 单个字段的 Schema 定义
@@ -69,13 +58,13 @@ export type FieldType = "string" | "number" | "boolean" | "object";
  * 写入约定：FlowRunner 的 setData 节点只写 value，default 永远不变
  */
 export interface IFieldSchema {
-  type: FieldType;
-  default: string | number | boolean | object;
-  value?: string | number | boolean | object;
+  type: FieldType
+  default: string | number | boolean | object
+  value?: string | number | boolean | object
 }
 
 /** 字段定义表 —— View.data 的实际类型 */
-export type IFieldSchemaMap = Record<string, IFieldSchema>;
+export type IFieldSchemaMap = Record<string, IFieldSchema>
 
 // ────────────────────────────────────────────
 // ────────────────────────────────────────────
@@ -116,12 +105,12 @@ export type {
   FlowSchema,
   DataRef,
   NodeCategory,
-} from "@/types/foundation/flow/index.js";
+} from '@/types/foundation/flow/index.js'
 
 // FLOW_SCHEMA_VERSION —— 从 types 模块导出
 
 // 文件内使用（EventHandler 等需要引用 FlowSchema）
-import type { FlowSchema } from "@/types/foundation/flow/index.js";
+import type { FlowSchema } from '@/types/foundation/flow/index.js'
 
 // ────────────────────────────────────────────
 //  IViewEvents / IViewLifetimes —— 事件与生命周期
@@ -133,7 +122,7 @@ import type { FlowSchema } from "@/types/foundation/flow/index.js";
  * 用户通过可视化面板编排动作流，引擎在运行时将 FlowSchema 编译执行。
  * 不支持手写脚本字符串，所有逻辑均通过 FlowSchema 节点表达。
  */
-export type EventHandler = FlowSchema | null;
+export type EventHandler = FlowSchema | null
 
 /**
  * View 交互事件表 —— 覆盖桌面端常用交互
@@ -163,22 +152,22 @@ export type EventHandler = FlowSchema | null;
  */
 export interface IViewEvents {
   // 点击类
-  onClick: EventHandler;
-  onDoubleClick: EventHandler;
-  onContextMenu: EventHandler;
+  onClick: EventHandler
+  onDoubleClick: EventHandler
+  onContextMenu: EventHandler
   // 鼠标移动类
-  onMouseEnter: EventHandler;
-  onMouseLeave: EventHandler;
-  onMouseMove: EventHandler;
-  onMouseDown: EventHandler;
-  onMouseUp: EventHandler;
+  onMouseEnter: EventHandler
+  onMouseLeave: EventHandler
+  onMouseMove: EventHandler
+  onMouseDown: EventHandler
+  onMouseUp: EventHandler
   // 拖拽类
-  onDragStart: EventHandler;
-  onDrag: EventHandler;
-  onDragEnd: EventHandler;
+  onDragStart: EventHandler
+  onDrag: EventHandler
+  onDragEnd: EventHandler
   // 焦点类
-  onFocus: EventHandler;
-  onBlur: EventHandler;
+  onFocus: EventHandler
+  onBlur: EventHandler
 }
 
 /**
@@ -212,9 +201,9 @@ export interface IViewEvents {
  *   注意：触发后 View 实例即将失效，不应再持有其引用
  */
 export interface IViewLifetimes {
-  onCreated: EventHandler;
-  onAttach: EventHandler;
-  onDestroy: EventHandler;
+  onCreated: EventHandler
+  onAttach: EventHandler
+  onDestroy: EventHandler
 }
 
 // ────────────────────────────────────────────
@@ -223,40 +212,40 @@ export interface IViewLifetimes {
 
 /** View 公共契约 —— 所有视图的统一接口 */
 export interface IView {
-  id: string;
-  readonly type: ViewType;
-  parent: ISceneNode | IView | null;
-  matrix: Matrix4;
-  content: IGraph | null;
-  viewport: Bounds;
-  layoutArea: Bounds;
-  boundingBox: IBoundingBoxAddon | null;
+  id: string
+  readonly type: ViewType
+  parent: ISceneNode | IView | null
+  matrix: Matrix4
+  content: IGraph | null
+  viewport: Bounds
+  layoutArea: Bounds
+  boundingBox: IBoundingBoxAddon | null
   /** 视觉装饰插件（背景、边框、圆角、裁剪），按需挂载 */
-  decoration: IBoxDecorationAddon | null;
+  decoration: IBoxDecorationAddon | null
   /** 动画插件（关键帧动画驱动），按需挂载，不参与渲染/交互管线 */
-  animation: IAnimationAddon | null;
+  animation: IAnimationAddon | null
 
   // 状态
-  selected: boolean;
-  actived: boolean;
-  freezed: boolean;
-  visible: boolean;
+  selected: boolean
+  actived: boolean
+  freezed: boolean
+  visible: boolean
 
   // 样式
-  style: IViewStyle;
+  style: IViewStyle
 
   // 布局与渲染
-  layoutContent(ctx?: IDrawingContext): Bounds;
-  renderContent(ctx: IDrawingContext): void;
-  layout(ctx?: IDrawingContext): Bounds;
-  render(): void;
-  copy(): IView;
+  layoutContent(ctx?: IDrawingContext): Bounds
+  renderContent(ctx: IDrawingContext): void
+  layout(ctx?: IDrawingContext): Bounds
+  render(): void
+  copy(): IView
 
   // 交互
-  interact(worldPoint: Point3): IInteractResult;
+  interact(worldPoint: Point3): IInteractResult
 
   // 数据
-  data: IFieldSchemaMap;
+  data: IFieldSchemaMap
   /**
    * 设置运行时字段值
    *
@@ -265,48 +254,43 @@ export interface IView {
    *
    * @param values  { [fieldKey]: 新值 }
    */
-  setData(values: Record<string, string | number | boolean | object>): void;
+  setData(values: Record<string, string | number | boolean | object>): void
 
   // 事件与生命周期
-  events: IViewEvents;
-  lifetimes: IViewLifetimes;
+  events: IViewEvents
+  lifetimes: IViewLifetimes
 
   // 变换
-  resize(
-    fixedPoint: Point3,
-    dynamicPoint: Point3,
-    vector: Vector3,
-    needResizeContent?: boolean,
-  ): void;
-  getWorldMatrix(parent?: IView): Matrix4;
-  getMVPMatrix(): Matrix4;
-  setVPMatrix(vpMatrix: Matrix4): void;
-  translate(x: number, y: number, z?: number): IView;
-  scale(x: number, y: number, z?: number, origin?: Point3): IView;
-  rotate(x: number, y: number, z: number, origin?: Point3): IView;
+  resize(fixedPoint: Point3, dynamicPoint: Point3, vector: Vector3, needResizeContent?: boolean): void
+  getWorldMatrix(parent?: IView): Matrix4
+  getMVPMatrix(): Matrix4
+  setVPMatrix(vpMatrix: Matrix4): void
+  translate(x: number, y: number, z?: number): IView
+  scale(x: number, y: number, z?: number, origin?: Point3): IView
+  rotate(x: number, y: number, z: number, origin?: Point3): IView
 
   // 状态切换
-  setActived(actived: boolean): IView;
-  setSelected(selected: boolean): IView;
-  setVisible(visible: boolean): IView;
-  setFreezed(freezed: boolean): IView;
+  setActived(actived: boolean): IView
+  setSelected(selected: boolean): IView
+  setVisible(visible: boolean): IView
+  setFreezed(freezed: boolean): IView
 
   // 生命周期
-  onAttach(): void;
-  onDestroy(): void;
-  destroy(): void;
+  onAttach(): void
+  onDestroy(): void
+  destroy(): void
 
   // 辅助
-  getSnapObjects(): [Point3[], Line[]];
+  getSnapObjects(): [Point3[], Line[]]
 }
 
 // ────────────────────────────────────────────
 //  ISceneNode —— Scene 作为"容器节点"的接口
 // ────────────────────────────────────────────
 export interface ISceneNode {
-  id: string;
-  children: IView[];
-  data: any;
+  id: string
+  children: IView[]
+  data: any
 }
 
 // ────────────────────────────────────────────
@@ -323,7 +307,7 @@ export type {
   IBoxDecorationOptions,
   IBoxDecorationAddon,
   IViewAddon,
-} from "./addon";
+} from './addon'
 
 // 文件内使用（IView 等引用 addon 接口）
 import type {
@@ -333,7 +317,7 @@ import type {
   IBoxDecorationOptions,
   IViewAddon,
   ITextSelection,
-} from "./addon";
+} from './addon'
 
 // ────────────────────────────────────────────
 //  交互类型（定义在 ./interaction.ts，此处 re-export）
@@ -350,54 +334,52 @@ export type {
   ConnectData,
   NoneData,
   ExtraData,
-} from "./interaction";
-import type { ExtraData } from "./interaction";
+} from './interaction'
+import type { ExtraData } from './interaction'
 
 /** View 交互结果 */
 export interface IInteractResult {
-  view: IView | null;
-  content: IGraph | IViewAddon | null;
-  extraData: ExtraData | null;
+  view: IView | null
+  content: IGraph | IViewAddon | null
+  extraData: ExtraData | null
 }
 
 /** View 构造选项 —— 纯数据接口，不依赖具体 View 类 */
 export interface IViewOptions<D extends IFieldSchemaMap = any> {
-  id?: string;
-  name?: string;
-  content?: IGraph;
-  children?: IView[];
-  parent?: ISceneNode | IView;
-  data?: D;
-  style?: IViewStyle;
-  matrix?: Matrix4;
-  lifetimes?: Partial<IViewLifetimes>;
-  events?: Partial<IViewEvents>;
-  decoration?: IBoxDecorationOptions;
+  id?: string
+  name?: string
+  content?: IGraph
+  children?: IView[]
+  parent?: ISceneNode | IView
+  data?: D
+  style?: IViewStyle
+  matrix?: Matrix4
+  lifetimes?: Partial<IViewLifetimes>
+  events?: Partial<IViewEvents>
+  decoration?: IBoxDecorationOptions
 }
 
 /** ContainerView 构造选项 */
-export interface IContainerViewOptions<
-  D extends IFieldSchemaMap = any,
-> extends IViewOptions<D> {
-  children?: IView[];
+export interface IContainerViewOptions<D extends IFieldSchemaMap = any> extends IViewOptions<D> {
+  children?: IView[]
 }
 
 /** GraphView 构造选项（content 由构造函数单独传入） */
-export interface IGraphViewOptions extends Omit<IViewOptions, "content"> {}
+export interface IGraphViewOptions extends Omit<IViewOptions, 'content'> {}
 
 /** SelectBoxView 构造选项 */
 export interface ISelectBoxViewOptions extends IGraphViewOptions {}
 
 /** ImageView 构造选项（content 由构造函数单独传入） */
-export interface IImageViewOptions extends Omit<IViewOptions, "content"> {}
+export interface IImageViewOptions extends Omit<IViewOptions, 'content'> {}
 
 /** VideoView 构造选项（content 由构造函数单独传入） */
-export interface IVideoViewOptions extends Omit<IViewOptions, "content"> {}
+export interface IVideoViewOptions extends Omit<IViewOptions, 'content'> {}
 
 /** TextView 构造选项（content 由构造函数单独传入） */
-export interface ITextViewOptions extends Omit<IViewOptions, "content"> {
-  editable?: boolean;
-  verticalAlign?: string;
+export interface ITextViewOptions extends Omit<IViewOptions, 'content'> {
+  editable?: boolean
+  verticalAlign?: string
 }
 
 // TransformOriginKeyword、TransformOrigin、IFillStyleOptions、IStrokeStyleOptions、
@@ -410,14 +392,14 @@ export interface ITextViewOptions extends Omit<IViewOptions, "content"> {
 
 /** GraphView 接口 */
 export interface IGraphView extends IView {
-  content: IGraph;
-  controlPoints: IVertexAddon | null;
+  content: IGraph
+  controlPoints: IVertexAddon | null
 }
 
 /** SelectBoxView 接口 */
 export interface ISelectBoxView extends IView {
-  content: IGraph;
-  updateSelect(anchorPoint: Point3, dynamicPoint: Point3): void;
+  content: IGraph
+  updateSelect(anchorPoint: Point3, dynamicPoint: Point3): void
 }
 
 /** ImageView 接口 */
@@ -430,21 +412,18 @@ export interface IVideoView extends IView {}
 
 /** TextView 接口 */
 export interface ITextView extends IView {
-  content: ITextFields;
-  editable: boolean;
-  selection: ITextSelection;
+  content: ITextFields
+  editable: boolean
+  selection: ITextSelection
 
   // 文本编辑能力
-  getContentText(): string[];
-  constraintPoint(relativePoint: Point3): Point3;
-  element2Index(textElement: ITextElement, p: Point3): TextIndex;
-  setSelection(
-    fixedIndex: TextIndex | undefined,
-    dynamicIndex: TextIndex | undefined,
-  ): void;
-  input(content: string, isComposition: boolean): void;
-  delete(isBackspace: boolean): void;
-  newLine(): void;
+  getContentText(): string[]
+  constraintPoint(relativePoint: Point3): Point3
+  element2Index(textElement: ITextElement, p: Point3): TextIndex
+  setSelection(fixedIndex: TextIndex | undefined, dynamicIndex: TextIndex | undefined): void
+  input(content: string, isComposition: boolean): void
+  delete(isBackspace: boolean): void
+  newLine(): void
 }
 
 /**
@@ -454,16 +433,16 @@ export interface ITextView extends IView {
  * 叶子视图（GraphView、TextView 等）不实现此接口，其 children 始终为空数组。
  */
 export interface IContainerView extends IView {
-  readonly children: IView[];
-  addChild(child: IView): void;
-  removeChild(child: IView): void;
-  clear(): void;
+  readonly children: IView[]
+  addChild(child: IView): void
+  removeChild(child: IView): void
+  clear(): void
 }
 
 /** CombinedView 接口 —— 统一容器，通过 style.layoutMode 切换布局模式 */
 export interface ICombinedView extends IContainerView {
   /** 是否为布局托管容器（layoutMode 为 flex/list/grid 时为 true） */
-  readonly isLayoutManaged: boolean;
+  readonly isLayoutManaged: boolean
 }
 
 // ────────────────────────────────────────────
@@ -471,31 +450,31 @@ export interface ICombinedView extends IContainerView {
 // ────────────────────────────────────────────
 
 /** 端口方向 */
-export type PortDirection = "input" | "output" | "bidirectional";
+export type PortDirection = 'input' | 'output' | 'bidirectional'
 
 /** PortView 接口 */
 export interface IPortView extends IView {
-  portDirection: PortDirection;
+  portDirection: PortDirection
   /** 该端口允许的最大连线数（默认 1，Infinity 表示无限制） */
-  maxConnections: number;
+  maxConnections: number
   /** 获取端口世界坐标中心点 */
-  getWorldCenter(): Point3;
+  getWorldCenter(): Point3
 }
 
 /** NodeView 接口 */
 export interface INodeView extends IContainerView {
   /** 节点标题 */
-  nodeTitle: string;
+  nodeTitle: string
 }
 
 /** EdgeView 接口 */
 export interface IEdgeView extends IView {
-  fromPortId: string | null;
-  toPortId: string | null;
+  fromPortId: string | null
+  toPortId: string | null
   /** 连线拖拽中：更新临时终点坐标 */
-  setTempTarget(point: Point3): void;
+  setTempTarget(point: Point3): void
   /** 完成连线，绑定源端口和目标端口 */
-  connect(fromPortId: string, toPortId: string): void;
+  connect(fromPortId: string, toPortId: string): void
 }
 
 // ────────────────────────────────────────────
@@ -503,24 +482,24 @@ export interface IEdgeView extends IView {
 // ────────────────────────────────────────────
 
 export interface ViewTypeMap {
-  [ViewType.VIEW]: IView;
+  [ViewType.VIEW]: IView
   [ViewType.GRAPHVIEW]: IGraphView & {
-    readonly type: typeof ViewType.GRAPHVIEW;
-  };
+    readonly type: typeof ViewType.GRAPHVIEW
+  }
   [ViewType.SELECTBOXVIEW]: ISelectBoxView & {
-    readonly type: typeof ViewType.SELECTBOXVIEW;
-  };
+    readonly type: typeof ViewType.SELECTBOXVIEW
+  }
   [ViewType.IMAGEVIEW]: IImageView & {
-    readonly type: typeof ViewType.IMAGEVIEW;
-  };
+    readonly type: typeof ViewType.IMAGEVIEW
+  }
   [ViewType.VIDEOVIEW]: IVideoView & {
-    readonly type: typeof ViewType.VIDEOVIEW;
-  };
-  [ViewType.TEXTVIEW]: ITextView & { readonly type: typeof ViewType.TEXTVIEW };
+    readonly type: typeof ViewType.VIDEOVIEW
+  }
+  [ViewType.TEXTVIEW]: ITextView & { readonly type: typeof ViewType.TEXTVIEW }
   [ViewType.COMBINEDVIEW]: ICombinedView & {
-    readonly type: typeof ViewType.COMBINEDVIEW;
-  };
+    readonly type: typeof ViewType.COMBINEDVIEW
+  }
   [ViewType.EDITABLETEXT]: ITextView & {
-    readonly type: typeof ViewType.EDITABLETEXT;
-  };
+    readonly type: typeof ViewType.EDITABLETEXT
+  }
 }

@@ -3,10 +3,8 @@ import { LinearGradient, RadialGradient, ConicGradient } from './gradient/index'
 import Image from './Image'
 import { StyleType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-
-/** 描边类型枚举：纯色、三种渐变、图片图案 */
-export type StrokeType = 'color' | 'linearGradient' | 'radialGradient' | 'conicGradient' | 'image'
+import type { IDrawingContext } from '@/types/platform/context.js'
+import type { StrokeType } from '@/types/foundation/style'
 
 /**
  * 描边样式
@@ -21,7 +19,7 @@ export type StrokeType = 'color' | 'linearGradient' | 'radialGradient' | 'conicG
  * ```
  */
 export default class StrokeStyle implements ISerializable {
-  public readonly type: StyleType = StyleType.STROKE_STYLE;
+  public readonly type: StyleType = StyleType.STROKE_STYLE
   strokeType: StrokeType
   color: Color
   linearGradient: LinearGradient | null
@@ -66,21 +64,23 @@ export default class StrokeStyle implements ISerializable {
    * })
    * ```
    */
-  constructor(options: {
-    strokeType?: StrokeType
-    color?: Color
-    linearGradient?: LinearGradient | null
-    radialGradient?: RadialGradient | null
-    conicGradient?: ConicGradient | null
-    pattern?: Image | null
-    width?: number
-    opacity?: number
-    lineCap?: 'butt' | 'round' | 'square'
-    lineJoin?: 'miter' | 'round' | 'bevel'
-    miterLimit?: number
-    dashArray?: number[]
-    dashOffset?: number
-  } = {}) {
+  constructor(
+    options: {
+      strokeType?: StrokeType
+      color?: Color
+      linearGradient?: LinearGradient | null
+      radialGradient?: RadialGradient | null
+      conicGradient?: ConicGradient | null
+      pattern?: Image | null
+      width?: number
+      opacity?: number
+      lineCap?: 'butt' | 'round' | 'square'
+      lineJoin?: 'miter' | 'round' | 'bevel'
+      miterLimit?: number
+      dashArray?: number[]
+      dashOffset?: number
+    } = {},
+  ) {
     const {
       strokeType = 'color',
       color = Color.BLACK,
@@ -437,9 +437,13 @@ export default class StrokeStyle implements ISerializable {
       radialGradient: this.radialGradient?.toJSON() ?? null,
       conicGradient: this.conicGradient?.toJSON() ?? null,
       pattern: this.pattern?.toJSON() ?? null,
-      width: this.width, opacity: this.opacity,
-      lineCap: this.lineCap, lineJoin: this.lineJoin, miterLimit: this.miterLimit,
-      dashArray: this.dashArray, dashOffset: this.dashOffset,
+      width: this.width,
+      opacity: this.opacity,
+      lineCap: this.lineCap,
+      lineJoin: this.lineJoin,
+      miterLimit: this.miterLimit,
+      dashArray: this.dashArray,
+      dashOffset: this.dashOffset,
     }
   }
 
@@ -465,9 +469,13 @@ export default class StrokeStyle implements ISerializable {
       radialGradient: data.radialGradient ? RadialGradient.fromJSON(data.radialGradient) : null,
       conicGradient: data.conicGradient ? ConicGradient.fromJSON(data.conicGradient) : null,
       pattern: data.pattern ? Image.fromJSON(data.pattern) : null,
-      width: data.width, opacity: data.opacity,
-      lineCap: data.lineCap, lineJoin: data.lineJoin, miterLimit: data.miterLimit,
-      dashArray: data.dashArray, dashOffset: data.dashOffset,
+      width: data.width,
+      opacity: data.opacity,
+      lineCap: data.lineCap,
+      lineJoin: data.lineJoin,
+      miterLimit: data.miterLimit,
+      dashArray: data.dashArray,
+      dashOffset: data.dashOffset,
     })
   }
 
@@ -518,14 +526,15 @@ export default class StrokeStyle implements ISerializable {
   equals(other: StrokeStyle): boolean {
     if (this.strokeType !== other.strokeType) return false
 
-    const baseEqual = this.width === other.width &&
-           this.opacity === other.opacity &&
-           this.lineCap === other.lineCap &&
-           this.lineJoin === other.lineJoin &&
-           this.miterLimit === other.miterLimit &&
-           JSON.stringify(this.dashArray) === JSON.stringify(other.dashArray) &&
-           this.dashOffset === other.dashOffset &&
-           this.color.equals(other.color)
+    const baseEqual =
+      this.width === other.width &&
+      this.opacity === other.opacity &&
+      this.lineCap === other.lineCap &&
+      this.lineJoin === other.lineJoin &&
+      this.miterLimit === other.miterLimit &&
+      JSON.stringify(this.dashArray) === JSON.stringify(other.dashArray) &&
+      this.dashOffset === other.dashOffset &&
+      this.color.equals(other.color)
 
     if (!baseEqual) return false
 
@@ -533,14 +542,23 @@ export default class StrokeStyle implements ISerializable {
       case 'color':
         return true
       case 'linearGradient':
-        return this.linearGradient !== null && other.linearGradient !== null &&
-               this.linearGradient.equals(other.linearGradient)
+        return (
+          this.linearGradient !== null &&
+          other.linearGradient !== null &&
+          this.linearGradient.equals(other.linearGradient)
+        )
       case 'radialGradient':
-        return this.radialGradient !== null && other.radialGradient !== null &&
-               this.radialGradient.equals(other.radialGradient)
+        return (
+          this.radialGradient !== null &&
+          other.radialGradient !== null &&
+          this.radialGradient.equals(other.radialGradient)
+        )
       case 'conicGradient':
-        return this.conicGradient !== null && other.conicGradient !== null &&
-               this.conicGradient.equals(other.conicGradient)
+        return (
+          this.conicGradient !== null &&
+          other.conicGradient !== null &&
+          this.conicGradient.equals(other.conicGradient)
+        )
       case 'image':
         return this.pattern?.equals(other.pattern || new Image()) || false
       default:

@@ -27,7 +27,7 @@ const PackageTaskSchema = new Schema<IPackageTaskDoc>(
     timestamps: true,
     // 30 天后自动过期（TTL 索引），避免历史任务无限堆积
     // 注意：TTL 索引基于 updatedAt，任务完成后不再更新，30 天后自动清理
-  }
+  },
 )
 
 // 30 天 TTL：基于 updatedAt，任务完成后 30 天自动清理

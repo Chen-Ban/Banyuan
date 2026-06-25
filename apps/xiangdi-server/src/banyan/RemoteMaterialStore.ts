@@ -13,29 +13,29 @@ import type { BanyanClient } from './BanyanClient.js'
 import { logger } from '../logger.js'
 
 export class RemoteMaterialStore implements MaterialStore {
-    constructor(private readonly banyanClient: BanyanClient) {}
+  constructor(private readonly banyanClient: BanyanClient) {}
 
-    async search(keyword: string, limit?: number): Promise<MaterialSummary[]> {
-        try {
-            return await this.banyanClient.searchMaterials(keyword, limit)
-        } catch (err) {
-            logger.warn('[RemoteMaterialStore] search failed, degrading to empty results', {
-                error: err instanceof Error ? err.message : String(err),
-                keyword: keyword.slice(0, 100),
-            })
-            return []
-        }
+  async search(keyword: string, limit?: number): Promise<MaterialSummary[]> {
+    try {
+      return await this.banyanClient.searchMaterials(keyword, limit)
+    } catch (err) {
+      logger.warn('[RemoteMaterialStore] search failed, degrading to empty results', {
+        error: err instanceof Error ? err.message : String(err),
+        keyword: keyword.slice(0, 100),
+      })
+      return []
     }
+  }
 
-    async getDetail(materialId: string): Promise<MaterialDetail | null> {
-        try {
-            return await this.banyanClient.getMaterialDetail(materialId)
-        } catch (err) {
-            logger.warn('[RemoteMaterialStore] getDetail failed, degrading to null', {
-                error: err instanceof Error ? err.message : String(err),
-                materialId,
-            })
-            return null
-        }
+  async getDetail(materialId: string): Promise<MaterialDetail | null> {
+    try {
+      return await this.banyanClient.getMaterialDetail(materialId)
+    } catch (err) {
+      logger.warn('[RemoteMaterialStore] getDetail failed, degrading to null', {
+        error: err instanceof Error ? err.message : String(err),
+        materialId,
+      })
+      return null
     }
+  }
 }

@@ -1,11 +1,11 @@
-import { GraphType } from "@/foundation/constants";
-import MediaElement from "./MediaElement";
-import { Style } from "@/foundation/style";
+import { GraphType } from '@/foundation/constants'
+import MediaElement from './MediaElement'
+import { Style } from '@/foundation/style'
 import type { IVideoElement } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
+import type { IDrawingContext } from '@/types/platform/context.js'
 import type { IVideoSource, IVideoLoadOptions, IImageSource } from '@/types/foundation/media.js'
-import { generateId } from '@/foundation/utils';
+import { generateId } from '@/foundation/utils'
 
 /**
  * 视频元素类。
@@ -37,18 +37,18 @@ import { generateId } from '@/foundation/utils';
  */
 export default class VideoElement extends MediaElement implements IVideoElement, ISerializable {
   /** 图形类型标识 */
-  public type: GraphType = GraphType.VIDEO;
+  public type: GraphType = GraphType.VIDEO
 
   /** 平台无关的视频像素源，加载完成后赋值 */
-  public video: IVideoSource | null = null;
+  public video: IVideoSource | null = null
   /** 是否自动播放，默认 `false` */
-  public autoplay: boolean = false;
+  public autoplay: boolean = false
   /** 是否循环播放，默认 `false` */
-  public loop: boolean = false;
+  public loop: boolean = false
   /** 是否静音，默认 `false` */
-  public muted: boolean = false;
+  public muted: boolean = false
   /** 当前是否正在播放 */
-  public playing: boolean = false;
+  public playing: boolean = false
 
   /**
    * 创建视频元素实例。
@@ -66,7 +66,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   constructor(src: string, x: number, y: number, width: number, height: number, _style?: Style) {
-    super(src, x, y, width, height);
+    super(src, x, y, width, height)
     this.id = generateId(this.type)
   }
 
@@ -83,7 +83,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   protected async loadMedia(): Promise<void> {
-    return this.loadVideo();
+    return this.loadVideo()
   }
 
   /**
@@ -144,13 +144,13 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   setVideoSrc(src: string): VideoElement {
-    this.src = src;
-    this.video = null;
-    this.loaded = false;
+    this.src = src
+    this.video = null
+    this.loaded = false
     // 重置为未加载状态时，更新控制点和边界框
-    this.updateControlPoints();
-    this.loadVideo();
-    return this;
+    this.updateControlPoints()
+    this.loadVideo()
+    return this
   }
 
   /**
@@ -171,17 +171,17 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   setPlayOptions(options: { autoplay?: boolean; loop?: boolean; muted?: boolean }): VideoElement {
-    if (options.autoplay !== undefined) this.autoplay = options.autoplay;
-    if (options.loop !== undefined) this.loop = options.loop;
-    if (options.muted !== undefined) this.muted = options.muted;
+    if (options.autoplay !== undefined) this.autoplay = options.autoplay
+    if (options.loop !== undefined) this.loop = options.loop
+    if (options.muted !== undefined) this.muted = options.muted
 
     if (this.video) {
-      this.video.autoplay = this.autoplay;
-      this.video.loop = this.loop;
-      this.video.muted = this.muted;
+      this.video.autoplay = this.autoplay
+      this.video.loop = this.loop
+      this.video.muted = this.muted
     }
 
-    return this;
+    return this
   }
 
   /**
@@ -200,11 +200,11 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    */
   play(): Promise<void> {
     if (!this.video) {
-      return Promise.reject(new Error("Video not loaded"));
+      return Promise.reject(new Error('Video not loaded'))
     }
 
-    this.playing = true;
-    return this.video.play();
+    this.playing = true
+    return this.video.play()
   }
 
   /**
@@ -221,8 +221,8 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    */
   pause(): void {
     if (this.video) {
-      this.video.pause();
-      this.playing = false;
+      this.video.pause()
+      this.playing = false
     }
   }
 
@@ -239,9 +239,9 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    */
   stop(): void {
     if (this.video) {
-      this.video.pause();
-      this.video.currentTime = 0;
-      this.playing = false;
+      this.video.pause()
+      this.video.currentTime = 0
+      this.playing = false
     }
   }
 
@@ -257,7 +257,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    */
   setCurrentTime(time: number): void {
     if (this.video) {
-      this.video.currentTime = time;
+      this.video.currentTime = time
     }
   }
 
@@ -272,7 +272,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   getCurrentTime(): number {
-    return this.video ? this.video.currentTime : 0;
+    return this.video ? this.video.currentTime : 0
   }
 
   /**
@@ -286,7 +286,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   getDuration(): number {
-    return this.video ? this.video.duration : 0;
+    return this.video ? this.video.duration : 0
   }
 
   /**
@@ -303,7 +303,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    */
   setVolume(volume: number): void {
     if (this.video) {
-      this.video.volume = Math.max(0, Math.min(1, volume));
+      this.video.volume = Math.max(0, Math.min(1, volume))
     }
   }
 
@@ -318,7 +318,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   getVolume(): number {
-    return this.video ? this.video.volume : 0;
+    return this.video ? this.video.volume : 0
   }
 
   /**
@@ -336,21 +336,21 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   public render(ctx: IDrawingContext, style: Style): void {
-    ctx.save();
+    ctx.save()
     if (!this.video || !this.loaded) {
       // 如果视频未加载，绘制占位符
-      this.renderPlaceholder(ctx);
-      ctx.restore();
-      return;
+      this.renderPlaceholder(ctx)
+      ctx.restore()
+      return
     }
 
     // 应用样式
-    const bounds = this.bounds;
-    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
+    const bounds = this.bounds
+    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
 
     // 绘制视频（使用设置的尺寸）
-    ctx.drawImage(this.video, this.x, this.y, this.width, this.height);
-    ctx.restore();
+    ctx.drawImage(this.video, this.x, this.y, this.width, this.height)
+    ctx.restore()
   }
 
   /**
@@ -366,29 +366,29 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   protected renderPlaceholder(ctx: IDrawingContext): void {
-    ctx.strokeStyle = "#cccccc";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(this.x, this.y, this.width, this.height);
+    ctx.strokeStyle = '#cccccc'
+    ctx.lineWidth = 1
+    ctx.strokeRect(this.x, this.y, this.width, this.height)
 
     // 绘制播放按钮图标
-    const centerX = this.x + this.width / 2;
-    const centerY = this.y + this.height / 2;
-    const iconSize = Math.min(this.width, this.height) * 0.3;
+    const centerX = this.x + this.width / 2
+    const centerY = this.y + this.height / 2
+    const iconSize = Math.min(this.width, this.height) * 0.3
 
-    ctx.fillStyle = "#999999";
-    ctx.beginPath();
-    ctx.moveTo(centerX - iconSize / 2, centerY - iconSize / 2);
-    ctx.lineTo(centerX + iconSize / 2, centerY);
-    ctx.lineTo(centerX - iconSize / 2, centerY + iconSize / 2);
-    ctx.closePath();
-    ctx.fill();
+    ctx.fillStyle = '#999999'
+    ctx.beginPath()
+    ctx.moveTo(centerX - iconSize / 2, centerY - iconSize / 2)
+    ctx.lineTo(centerX + iconSize / 2, centerY)
+    ctx.lineTo(centerX - iconSize / 2, centerY + iconSize / 2)
+    ctx.closePath()
+    ctx.fill()
 
     // 绘制加载中文字
-    ctx.fillStyle = "#999999";
-    ctx.font = "12px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText("Loading...", centerX, centerY + iconSize / 2 + 20);
+    ctx.fillStyle = '#999999'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'bottom'
+    ctx.fillText('Loading...', centerX, centerY + iconSize / 2 + 20)
   }
 
   /**
@@ -401,7 +401,7 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * @returns {IImageSource | null} 当前帧像素数据；若未加载则返回 `null`
    */
   getImageData(): IImageSource | null {
-    if (!this.video || !this.loaded) return null;
+    if (!this.video || !this.loaded) return null
 
     return {
       width: this.video.width,
@@ -426,11 +426,11 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   public copy(): this {
-    const copy = new VideoElement(this.src, this.x, this.y, this.width, this.height);
-    copy.autoplay = this.autoplay;
-    copy.loop = this.loop;
-    copy.muted = this.muted;
-    return copy as this;
+    const copy = new VideoElement(this.src, this.x, this.y, this.width, this.height)
+    copy.autoplay = this.autoplay
+    copy.loop = this.loop
+    copy.muted = this.muted
+    return copy as this
   }
 
   // ── 序列化 ──
@@ -473,18 +473,11 @@ export default class VideoElement extends MediaElement implements IVideoElement,
    * ```
    */
   static fromJSON(data: any): VideoElement {
-    const el = new VideoElement(
-      data.src,
-      data.x,
-      data.y,
-      data.width,
-      data.height,
-    );
-    el.id = data.id;
-    el.autoplay = data.autoplay ?? false;
-    el.loop = data.loop ?? false;
-    el.muted = data.muted ?? false;
-    return el;
+    const el = new VideoElement(data.src, data.x, data.y, data.width, data.height)
+    el.id = data.id
+    el.autoplay = data.autoplay ?? false
+    el.loop = data.loop ?? false
+    el.muted = data.muted ?? false
+    return el
   }
-
 }

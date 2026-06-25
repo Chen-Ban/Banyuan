@@ -1,11 +1,6 @@
 import crypto from 'node:crypto'
 import { Material } from '../models/index.js'
-import type {
-  IMaterialDocument,
-  MaterialSource,
-  MaterialKind,
-  IMaterialTemplate,
-} from '../models/types/index.js'
+import type { IMaterialDocument, MaterialSource, MaterialKind, ITemplate } from '../models/types/index.js'
 
 // ─── Query 接口 ──────────────────────────────────────────────────────────────
 
@@ -38,7 +33,7 @@ export interface ICreateMaterialData {
   source?: MaterialSource
   version?: string
   minEngineVersion?: string
-  template: IMaterialTemplate
+  template: ITemplate
   applicationId?: string
   creatorId?: string
 }
@@ -49,7 +44,7 @@ export interface IUpdateMaterialData {
   tags?: string[]
   thumbnail?: string
   version?: string
-  template?: IMaterialTemplate
+  template?: ITemplate
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -82,10 +77,7 @@ class MaterialService {
       // 不加 application 过滤
     } else if (query.applicationId) {
       // 非 builtin 查询：限定为当前应用 或 builtin
-      filter.$or = [
-        { applicationId: query.applicationId },
-        { 'meta.source': 'builtin' },
-      ]
+      filter.$or = [{ applicationId: query.applicationId }, { 'meta.source': 'builtin' }]
     }
 
     const skip = (page - 1) * pageSize
@@ -155,11 +147,9 @@ class MaterialService {
     if (data.version !== undefined) set['meta.version'] = data.version
     if (data.template !== undefined) set.template = data.template
 
-    return Material.findOneAndUpdate(
-      { 'meta.id': materialId },
-      { $set: set },
-      { new: true },
-    ).lean<IMaterialDocument | null>().exec()
+    return Material.findOneAndUpdate({ 'meta.id': materialId }, { $set: set }, { new: true })
+      .lean<IMaterialDocument | null>()
+      .exec()
   }
 
   /**
@@ -174,10 +164,7 @@ class MaterialService {
    * 搜索物料（用于 AI 工具调用）
    */
   async searchMaterials(keyword: string, limit: number = 10): Promise<Partial<IMaterialDocument>[]> {
-    return Material.find(
-      { $text: { $search: keyword } },
-      { score: { $meta: 'textScore' } },
-    )
+    return Material.find({ $text: { $search: keyword } }, { score: { $meta: 'textScore' } })
       .select('meta kind template.parameters template.assets')
       .sort({ score: { $meta: 'textScore' } })
       .limit(limit)

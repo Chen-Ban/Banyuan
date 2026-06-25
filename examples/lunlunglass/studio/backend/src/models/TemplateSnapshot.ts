@@ -93,16 +93,13 @@ const TemplateSnapshotSchema = new Schema<ITemplateSnapshot>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 TemplateSnapshotSchema.index({ snapshotId: 1 }, { unique: true })
 TemplateSnapshotSchema.index({ templateId: 1 })
 TemplateSnapshotSchema.index({ publishedAt: -1 })
 
-const TemplateSnapshot = mongoose.model<ITemplateSnapshot>(
-  'TemplateSnapshot',
-  TemplateSnapshotSchema
-)
+const TemplateSnapshot = mongoose.model<ITemplateSnapshot>('TemplateSnapshot', TemplateSnapshotSchema)
 
 export default TemplateSnapshot

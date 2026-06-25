@@ -74,11 +74,7 @@ class PlanningController {
       return
     }
 
-    const result = await agentPromptService.upsert(
-      appId,
-      agent as FullAgentRole,
-      body.promptText
-    )
+    const result = await agentPromptService.upsert(appId, agent as FullAgentRole, body.promptText)
     ctx.body = { success: true, data: result }
   }
 
@@ -120,7 +116,7 @@ class PlanningController {
 
     const results = await agentPromptService.batchUpsert(
       appId,
-      body.prompts as Array<{ agent: FullAgentRole; promptText: string }>
+      body.prompts as Array<{ agent: FullAgentRole; promptText: string }>,
     )
     ctx.body = { success: true, data: results }
   }

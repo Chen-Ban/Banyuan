@@ -11,7 +11,7 @@
 
 import type { IView, FlowSchema } from '../view/view'
 import type { ICamera } from './camera'
-import type { IAnimationDescriptor } from './animation'
+import type { IAnimationDescriptor } from '../foundation/animation'
 
 // ────────────────────────────────────────────
 //  操作栈相关类型（re-export）
@@ -37,12 +37,12 @@ export type {
 
 /** 操作栈接口 */
 export interface IOperationStack {
-    do(operation: import('@/engine/scene').Operation): boolean
-    undo(): boolean
-    redo(): boolean
-    clear(): void
-    readonly canUndo: boolean
-    readonly canRedo: boolean
+  do(operation: import('@/engine/scene').Operation): boolean
+  undo(): boolean
+  redo(): boolean
+  clear(): void
+  readonly canUndo: boolean
+  readonly canRedo: boolean
 }
 
 // ────────────────────────────────────────────
@@ -76,89 +76,89 @@ export interface IOperationStack {
  *   典型用途：暂停动画、停止轮询、保存草稿
  */
 export interface ISceneLifetimes {
-    onLoad:   FlowSchema | null
-    onUnload: FlowSchema | null
-    onShow:   FlowSchema | null
-    onHide:   FlowSchema | null
+  onLoad: FlowSchema | null
+  onUnload: FlowSchema | null
+  onShow: FlowSchema | null
+  onHide: FlowSchema | null
 }
 
 /** Scene 的公共契约 */
 export interface IScene {
-    id: string
-    children: IView[]
-    camera: ICamera
-    data: any
-    lifetimes: ISceneLifetimes
+  id: string
+  children: IView[]
+  camera: ICamera
+  data: any
+  lifetimes: ISceneLifetimes
 
-    // 生命周期
-    onLoad(params: any): void
-    onUnload(): void
-    onShow(): void
-    onHide(): void
+  // 生命周期
+  onLoad(params: any): void
+  onUnload(): void
+  onShow(): void
+  onHide(): void
 
-    // 选择
-    getAllActived(): IView[]
-    getSelectedView(): IView | undefined
-    select(view?: IView, multiple?: boolean, deselect?: boolean): void
+  // 选择
+  getAllActived(): IView[]
+  getSelectedView(): IView | undefined
+  select(view?: IView, multiple?: boolean, deselect?: boolean): void
 
-    // 运行时动画注册表
-    /**
-     * 注册一个预定义动画，供 FlowSchema 的 animate 节点按 id 触发
-     *
-     * @param viewId      目标 View 的 id
-     * @param animationId 动画唯一标识（在同一 View 内不可重复）
-     * @param animation   Animation 实例（尚未播放）
-     */
-    registerAnimation(viewId: string, animationId: string, animation: IAnimationDescriptor): void
-    /**
-     * 按 viewId + animationId 播放已注册的预定义动画
-     *
-     * @param viewId      目标 View 的 id
-     * @param animationId registerAnimation 时使用的 animationId
-     * @returns           找到并播放返回 true，view 或 animation 不存在返回 false
-     */
-    playAnimation(viewId: string, animationId: string): boolean
+  // 运行时动画注册表
+  /**
+   * 注册一个预定义动画，供 FlowSchema 的 animate 节点按 id 触发
+   *
+   * @param viewId      目标 View 的 id
+   * @param animationId 动画唯一标识（在同一 View 内不可重复）
+   * @param animation   Animation 实例（尚未播放）
+   */
+  registerAnimation(viewId: string, animationId: string, animation: IAnimationDescriptor): void
+  /**
+   * 按 viewId + animationId 播放已注册的预定义动画
+   *
+   * @param viewId      目标 View 的 id
+   * @param animationId registerAnimation 时使用的 animationId
+   * @returns           找到并播放返回 true，view 或 animation 不存在返回 false
+   */
+  playAnimation(viewId: string, animationId: string): boolean
 
-    // 渲染
-    render(): void
-    broadcastVPMatrix(): void
+  // 渲染
+  render(): void
+  broadcastVPMatrix(): void
 
-    // 子视图管理
-    addChild(child: IView): IScene
-    removeChild(child: IView): IScene
-    clearChildren(): IScene
+  // 子视图管理
+  addChild(child: IView): IScene
+  removeChild(child: IView): IScene
+  clearChildren(): IScene
 
-    // 操作栈
-    undo(): boolean
-    redo(): boolean
-    readonly canUndo: boolean
-    readonly canRedo: boolean
+  // 操作栈
+  undo(): boolean
+  redo(): boolean
+  readonly canUndo: boolean
+  readonly canRedo: boolean
 
-    // 事务管理
-    beginTransaction(viewIds: string[]): void
-    commitTransaction(): boolean
-    rollbackTransaction(): void
+  // 事务管理
+  beginTransaction(viewIds: string[]): void
+  commitTransaction(): boolean
+  rollbackTransaction(): void
 
-    // 数据
-    setData(data: any): IScene
+  // 数据
+  setData(data: any): IScene
 
-    // 场景管理
-    load(params?: any): IScene
-    unload(): IScene
-    show(): IScene
-    hide(): IScene
+  // 场景管理
+  load(params?: any): IScene
+  unload(): IScene
+  show(): IScene
+  hide(): IScene
 
-    // 复制
-    copy(): IScene
+  // 复制
+  copy(): IScene
 
-    // 查找
-    findViewById(id: string): IView | undefined
+  // 查找
+  findViewById(id: string): IView | undefined
 
-    // 层级管理
-    bringToFront(view: IView): IScene
-    sendToBack(view: IView): IScene
-    bringForward(view: IView): IScene
-    sendBackward(view: IView): IScene
+  // 层级管理
+  bringToFront(view: IView): IScene
+  sendToBack(view: IView): IScene
+  bringForward(view: IView): IScene
+  sendBackward(view: IView): IScene
 }
 
 // ────────────────────────────────────────────

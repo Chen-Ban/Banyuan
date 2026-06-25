@@ -9,15 +9,7 @@ import type { Types } from 'mongoose'
 
 // ── 字段类型枚举 ──────────────────────────────────────────────────────────────
 
-export type FieldType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'date'
-  | 'enum'
-  | 'ref'
-  | 'array'
-  | 'object'
+export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'enum' | 'ref' | 'array' | 'object'
 
 // ── 字段定义 ──────────────────────────────────────────────────────────────────
 

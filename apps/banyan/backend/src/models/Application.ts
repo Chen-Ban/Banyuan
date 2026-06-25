@@ -84,7 +84,7 @@ const ApplicationSchema = new Schema<IApplicationDoc>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 // 创建索引
@@ -97,7 +97,7 @@ ApplicationSchema.index({ tenantId: 1, createdBy: 1 })
 // 同一租户下 appSlug 唯一（仅对非 null 的 string 生效）
 ApplicationSchema.index(
   { tenantId: 1, appSlug: 1 },
-  { unique: true, partialFilterExpression: { appSlug: { $type: 'string' } } }
+  { unique: true, partialFilterExpression: { appSlug: { $type: 'string' } } },
 )
 
 const Application = mongoose.model<IApplicationDoc>('Application', ApplicationSchema)

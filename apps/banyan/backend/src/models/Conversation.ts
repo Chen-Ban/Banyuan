@@ -31,7 +31,7 @@ const ConversationSchema = new Schema<IConversationDoc>(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 // ─── 模型 ─────────────────────────────────────────────────────────────────────

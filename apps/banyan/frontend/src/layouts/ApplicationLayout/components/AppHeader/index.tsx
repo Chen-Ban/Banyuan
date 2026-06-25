@@ -19,41 +19,39 @@ import { useShallow } from 'zustand/shallow'
 import DevicePicker from '../DevicePicker'
 import TabCapsule from '../TabCapsule'
 import BuildActions from '../BuildActions'
+import ProvisionStatus from '../ProvisionStatus'
 import styles from '../../index.module.scss'
 
 interface AppHeaderProps {
   onSave: () => void
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({
-  onSave,
-}) => {
+const AppHeader: React.FC<AppHeaderProps> = ({ onSave }) => {
   const navigate = useNavigate()
   const location = useLocation()
   const isEditMode = location.pathname.endsWith('/ui')
   const { uiJSONDirty, dataSchemaDirty, cloudFunctionsDirty, isSaving } = useApplicationStore(
-    useShallow((s) => ({ uiJSONDirty: s.uiJSONDirty, dataSchemaDirty: s.dataSchemaDirty, cloudFunctionsDirty: s.cloudFunctionsDirty, isSaving: s.isSaving })),
-  );
-  const isDirty = uiJSONDirty || dataSchemaDirty || cloudFunctionsDirty;
-  const saveTooltip = isSaving ? '正在保存…' : isDirty ? '保存' : '没有需要保存的更改';
+    useShallow((s) => ({
+      uiJSONDirty: s.uiJSONDirty,
+      dataSchemaDirty: s.dataSchemaDirty,
+      cloudFunctionsDirty: s.cloudFunctionsDirty,
+      isSaving: s.isSaving,
+    })),
+  )
+  const isDirty = uiJSONDirty || dataSchemaDirty || cloudFunctionsDirty
+  const saveTooltip = isSaving ? '正在保存…' : isDirty ? '保存' : '没有需要保存的更改'
 
   return (
     <div className={styles.appHeader}>
       {/* 左侧：返回首页按钮 */}
       <Tooltip title="返回首页">
-        <button
-          className={styles.backBtn}
-          onClick={() => navigate('/')}
-          aria-label="返回首页"
-        >
+        <button className={styles.backBtn} onClick={() => navigate('/')} aria-label="返回首页">
           <ArrowLeftOutlined />
         </button>
       </Tooltip>
 
       {/* 机型选择器（非编辑态保留等宽占位，避免胶囊抖动） */}
-      <span className={styles.devicePickerSlot}>
-        {isEditMode && <DevicePicker />}
-      </span>
+      <span className={styles.devicePickerSlot}>{isEditMode && <DevicePicker />}</span>
 
       {/* 左侧弹性占位 */}
       <div className={styles.headerSpacer} />
@@ -64,14 +62,12 @@ const AppHeader: React.FC<AppHeaderProps> = ({
       {/* 右侧弹性占位 */}
       <div className={styles.headerSpacer} />
 
-      {/* 操作胶囊：保存 / 生成应用 */}
+      {/* 操作胶囊：环境状态 / 保存 / 生成应用 */}
       <div className={styles.actionCapsule}>
+        <ProvisionStatus />
+        <div className={styles.capsuleDivider} />
         <Tooltip title={saveTooltip}>
-          <button
-            className={styles.actionBtn}
-            onClick={onSave}
-            disabled={isSaving || !isDirty}
-          >
+          <button className={styles.actionBtn} onClick={onSave} disabled={isSaving || !isDirty}>
             {isSaving ? <span className={styles.actionSpinner} /> : <SaveOutlined />}
           </button>
         </Tooltip>

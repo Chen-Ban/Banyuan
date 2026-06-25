@@ -41,18 +41,21 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
 }) => {
   const [composedImageUrl, setComposedImageUrl] = useState<string>('')
   const [fieldGroups, setFieldGroups] = useState<FieldGroup[]>([])
-  const [dynamicFields, setDynamicFields] = useState<Array<{
-    field: IPrintField
-    exampleValue: string
-  }>>([])
+  const [dynamicFields, setDynamicFields] = useState<
+    Array<{
+      field: IPrintField
+      exampleValue: string
+    }>
+  >([])
   const [loading, setLoading] = useState(false)
   const [printing, setPrinting] = useState(false)
 
   // 加载字段注册表
   useEffect(() => {
     if (!visible) return
-    fieldsApi.fetchFields()
-      .then(res => {
+    fieldsApi
+      .fetchFields()
+      .then((res) => {
         setFieldGroups(res.data ?? [])
       })
       .catch(() => {
@@ -79,8 +82,8 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
     }
 
     // 构建字段 key → FieldDefinition 映射
-    const flatFields: FieldDefinition[] = fieldGroups.flatMap(g => g.fields)
-    const fieldMap = new Map(flatFields.map(f => [f.key, f]))
+    const flatFields: FieldDefinition[] = fieldGroups.flatMap((g) => g.fields)
+    const fieldMap = new Map(flatFields.map((f) => [f.key, f]))
 
     // 提取动态字段列表
     const fields: Array<{ field: IPrintField; exampleValue: string }> = []
@@ -164,7 +167,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
           ctx.fillText(
             field.type === 'barcode' ? `[条码] ${exampleValue}` : `[二维码] ${exampleValue}`,
             bounds.x + bounds.width / 2,
-            bounds.y + bounds.height / 2
+            bounds.y + bounds.height / 2,
           )
           ctx.restore()
         }
@@ -250,16 +253,18 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
       <Spin spinning={loading}>
         <div style={{ display: 'flex', gap: 16 }}>
           {/* 左侧：预览图 */}
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: '#f5f5f5',
-            borderRadius: 4,
-            padding: 16,
-            minHeight: 300,
-          }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#f5f5f5',
+              borderRadius: 4,
+              padding: 16,
+              minHeight: 300,
+            }}
+          >
             {composedImageUrl ? (
               <img
                 src={composedImageUrl}
@@ -272,27 +277,18 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
                 }}
               />
             ) : (
-              <div style={{ color: '#999', fontSize: 13 }}>
-                正在生成预览...
-              </div>
+              <div style={{ color: '#999', fontSize: 13 }}>正在生成预览...</div>
             )}
           </div>
 
           {/* 右侧：字段信息 */}
           <div style={{ width: 220, flexShrink: 0 }}>
-            <Descriptions
-              column={1}
-              size="small"
-              title="模板信息"
-              style={{ marginBottom: 16 }}
-            >
+            <Descriptions column={1} size="small" title="模板信息" style={{ marginBottom: 16 }}>
               <Descriptions.Item label="名称">{templateName || '—'}</Descriptions.Item>
               <Descriptions.Item label="尺寸">
                 {canvasSize.width} × {canvasSize.height} px
               </Descriptions.Item>
-              <Descriptions.Item label="动态字段">
-                {dynamicFields.length} 个
-              </Descriptions.Item>
+              <Descriptions.Item label="动态字段">{dynamicFields.length} 个</Descriptions.Item>
             </Descriptions>
 
             {dynamicFields.length > 0 && (
@@ -324,8 +320,7 @@ const PrintPreview: React.FC<PrintPreviewProps> = ({
             )}
 
             <div style={{ marginTop: 16, fontSize: 11, color: '#999', lineHeight: 1.6 }}>
-              样张使用字段注册表中的示例值填充动态字段，
-              用于验证模板排版效果。实际打印时将使用真实订单数据。
+              样张使用字段注册表中的示例值填充动态字段， 用于验证模板排版效果。实际打印时将使用真实订单数据。
             </div>
           </div>
         </div>

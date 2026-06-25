@@ -11,57 +11,55 @@
  * 3. 否则向上查找最外层未激活的 CombinedView / 已激活祖先，决定穿透层级
  */
 
-import { isView, isContainerView, isCombinedView } from "@banyuan/banvasgl";
-import type { View } from "@banyuan/banvasgl";
+import { isView, isContainerView, isCombinedView } from '@banyuan/banvasgl'
+import type { View } from '@banyuan/banvasgl'
 
 export function resolveActivationTarget(clickedView: View): View {
-  const parent = clickedView.parent;
+  const parent = clickedView.parent
 
   // 获取 parent 作为 IView（Scene 节点则为 null）
-  const parentView = isView(parent) ? (parent as View) : null;
+  const parentView = isView(parent) ? (parent as View) : null
 
   // 规则 1：父容器已 actived → 直接选中被点击视图
   if (parentView && parentView.actived) {
-    return clickedView;
+    return clickedView
   }
 
   // 规则 2：父容器是 ContainerView 且有兄弟已 actived → 直接选中
   if (parentView && isContainerView(parentView)) {
     const hasSiblingActived = parentView.children.some(
       (child) => child.id !== clickedView.id && child.actived,
-    );
+    )
     if (hasSiblingActived) {
-      return clickedView;
+      return clickedView
     }
   }
 
   // 规则 3：向上查找最外层 CombinedView / 已激活祖先
-  let topCombinedView: View | null = null;
-  let activatedAncestor: View | null = null;
-  let current = clickedView.parent;
+  let topCombinedView: View | null = null
+  let activatedAncestor: View | null = null
+  let current = clickedView.parent
 
   while (isView(current)) {
-    const currentView = current as View;
+    const currentView = current as View
     if (isCombinedView(current)) {
-      topCombinedView = currentView;
+      topCombinedView = currentView
     }
     if (currentView.actived && !activatedAncestor) {
-      activatedAncestor = currentView;
+      activatedAncestor = currentView
     }
-    current = currentView.parent;
+    current = currentView.parent
   }
 
   if (!activatedAncestor) {
-    return topCombinedView ?? clickedView;
+    return topCombinedView ?? clickedView
   }
 
   if (isCombinedView(activatedAncestor)) {
-    return parentView ?? clickedView;
+    return parentView ?? clickedView
   } else {
-    const activatedParent = activatedAncestor.parent;
-    const activatedParentView = isView(activatedParent)
-      ? (activatedParent as View)
-      : null;
-    return activatedParentView ?? clickedView;
+    const activatedParent = activatedAncestor.parent
+    const activatedParentView = isView(activatedParent) ? (activatedParent as View) : null
+    return activatedParentView ?? clickedView
   }
 }

@@ -78,7 +78,7 @@ class DialogueService {
             interruptedAt: new Date(),
           },
         },
-      }
+      },
     )
 
     // 取最新已接受版本作为拷贝基线
@@ -246,10 +246,9 @@ class DialogueService {
       return result
     } catch (err) {
       // mutate 或 setPhase 失败时，将对话标记为 failed 终态，防止阻塞后续编辑
-      await Dialogue.updateOne(
-        { _id: dialogueId },
-        { $set: { phase: 'failed' } },
-      ).catch(() => { /* 静默，不覆盖原始错误 */ })
+      await Dialogue.updateOne({ _id: dialogueId }, { $set: { phase: 'failed' } }).catch(() => {
+        /* 静默，不覆盖原始错误 */
+      })
       throw err
     }
   }
@@ -281,11 +280,13 @@ class DialogueService {
         phase: { $in: validSourcePhases },
       },
       { $set: { phase: nextPhase } },
-      { new: true }
+      { new: true },
     )
 
     if (!updated) {
-      throw new Error(`[DialogueService] Phase transition to "${nextPhase}" failed for Dialogue ${dialogueId} (not found or invalid current phase)`)
+      throw new Error(
+        `[DialogueService] Phase transition to "${nextPhase}" failed for Dialogue ${dialogueId} (not found or invalid current phase)`,
+      )
     }
 
     return updated
@@ -341,7 +342,7 @@ class DialogueService {
       // 追加到现有 assistant 消息
       await Dialogue.updateOne(
         { _id: dialogueId },
-        { $push: { [`messages.${doc.messages.length - 1}.assistantContent`]: { $each: content } } }
+        { $push: { [`messages.${doc.messages.length - 1}.assistantContent`]: { $each: content } } },
       )
     } else {
       // 创建新的 assistant 消息
@@ -355,7 +356,7 @@ class DialogueService {
               createdAt: new Date(),
             },
           },
-        }
+        },
       )
     }
   }
@@ -367,7 +368,11 @@ class DialogueService {
    *
    * 如果 Dialogue 已处于终态则跳过（幂等）。
    */
-  async interrupt(dialogueId: Types.ObjectId, reason: DiscardReason, currentPhase: DialoguePhase): Promise<void> {
+  async interrupt(
+    dialogueId: Types.ObjectId,
+    reason: DiscardReason,
+    currentPhase: DialoguePhase,
+  ): Promise<void> {
     // 终态不可转移
     if (TERMINAL_PHASES.has(currentPhase)) return
 
@@ -385,7 +390,7 @@ class DialogueService {
             interruptedAt: new Date(),
           },
         },
-      }
+      },
     )
   }
 
@@ -406,10 +411,9 @@ class DialogueService {
   async appendPlanningEntry(dialogueId: Types.ObjectId, entry: IPlanningEntry): Promise<void> {
     await Dialogue.updateOne(
       { _id: dialogueId },
-      { $push: { planningEntries: { ...entry, createdAt: new Date() } } }
+      { $push: { planningEntries: { ...entry, createdAt: new Date() } } },
     )
   }
-
 
   // ─── Agent 记忆暂存 ────────────────────────────────────────────────────────
 
@@ -420,10 +424,7 @@ class DialogueService {
    * 避免在 confirm 之前就写入 AgentMemory（保持事务一致性）。
    */
   async setMemoryUpdates(dialogueId: Types.ObjectId, memoryInput: IMemoryUpdateInput): Promise<void> {
-    await Dialogue.updateOne(
-      { _id: dialogueId },
-      { $set: { memoryUpdates: memoryInput } }
-    )
+    await Dialogue.updateOne({ _id: dialogueId }, { $set: { memoryUpdates: memoryInput } })
   }
 
   // ─── 文本摘要（简单 string，区别于结构化 summary）────────────────────────────
@@ -443,7 +444,7 @@ class DialogueService {
           'summary.viewIds': [],
           'summary.changeTags': [],
         },
-      }
+      },
     )
   }
 

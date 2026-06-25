@@ -1,7 +1,7 @@
 import { useRoutes, RouteObject } from 'react-router-dom'
-import TemplateList from "@/pages/TemplateList"
-import TemplateDetail from "@/pages/TemplateDetail"
-import HomePage from "@/pages/index"
+import TemplateList from '@/pages/TemplateList'
+import TemplateDetail from '@/pages/TemplateDetail'
+import HomePage from '@/pages/index'
 
 const routes: RouteObject[] = [
   {

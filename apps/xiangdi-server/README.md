@@ -37,11 +37,11 @@ SSE 流式返回（进度事件 + 最终产物）
 
 ## 主要接口
 
-| 接口 | 用途 |
-|------|------|
-| `POST /ai/run` | 执行 AI 生成（SSE 流式响应），支持 `mode: task`（构建）与 `mode: chat`（对话） |
-| `GET /ai/models` | 查看可用 LLM 模型 |
-| `POST /ai/models/switch` | 切换当前使用的模型 |
+| 接口                     | 用途                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `POST /ai/run`           | 执行 AI 生成（SSE 流式响应），支持 `mode: task`（构建）与 `mode: chat`（对话） |
+| `GET /ai/models`         | 查看可用 LLM 模型                                                              |
+| `POST /ai/models/switch` | 切换当前使用的模型                                                             |
 
 SSE 事件类型包括：阶段切换（phase_change）、SubAgent 进度（agent_progress）、工具调用活动（tool_activity）、审计进度（audit_progress）、文本增量（text_delta）、完成（done）。
 
@@ -67,14 +67,16 @@ pnpm build && pnpm start
 
 ## 环境变量
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PORT` | 3002 | 服务端口 |
-| `DEEPSEEK_API_KEY` | — | DeepSeek API Key |
-| `KIMI_API_KEY` | — | Kimi API Key（备用） |
-| `BANYAN_URL` | http://localhost:3001 | Banyan 后端地址（Pull 数据用） |
-| `KNOWLEDGE_URL` | http://localhost:3003 | 知识服务地址 |
-| `INTERNAL_TOKEN` | — | 内部服务间认证 token |
+| 变量                     | 默认值                   | 说明                           |
+| ------------------------ | ------------------------ | ------------------------------ |
+| `PORT`                   | 3002                     | 服务端口                       |
+| `DEEPSEEK_API_KEY`       | —                        | DeepSeek API Key               |
+| `DEEPSEEK_MODEL`         | deepseek-v4-pro          | DeepSeek 模型名                |
+| `DEEPSEEK_BASE_URL`      | https://api.deepseek.com | DeepSeek API 基础 URL          |
+| `KIMI_API_KEY`           | —                        | Kimi API Key（备用）           |
+| `BANYAN_URL`             | http://localhost:3001    | Banyan 后端地址（Pull 数据用） |
+| `KNOWLEDGE_URL`          | http://localhost:3003    | 知识服务地址                   |
+| `XIANGDI_INTERNAL_TOKEN` | —                        | 内部服务间认证 token           |
 
 ---
 

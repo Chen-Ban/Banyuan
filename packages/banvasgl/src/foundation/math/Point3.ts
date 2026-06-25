@@ -1,6 +1,6 @@
-import MathUtils from "./MathUtils";
-import Vector3 from "./Vector3";
-import { MathType } from "@/foundation/constants";
+import MathUtils from './MathUtils'
+import Vector3 from './Vector3'
+import { MathType } from '@/foundation/constants'
 import type { ISerializable } from '@/types/foundation/serializable'
 
 /**
@@ -17,8 +17,8 @@ import type { ISerializable } from '@/types/foundation/serializable'
  * ```
  */
 export default class Point3 implements ISerializable {
-  public readonly type: MathType = MathType.POINT3;
-  private transform: Float32Array;
+  public readonly type: MathType = MathType.POINT3
+  private transform: Float32Array
   /**
    * 构造三维点
    *
@@ -36,10 +36,10 @@ export default class Point3 implements ISerializable {
    * ```
    */
   constructor(x: number, y: number, z: number) {
-    this.transform = new Float32Array(3);
-    this.transform[0] = x;
-    this.transform[1] = y;
-    this.transform[2] = z;
+    this.transform = new Float32Array(3)
+    this.transform[0] = x
+    this.transform[1] = y
+    this.transform[2] = z
   }
   /**
    * 获取 x 坐标
@@ -55,7 +55,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   get x(): number {
-    return this.transform[0];
+    return this.transform[0]
   }
   /**
    * 获取 y 坐标
@@ -71,7 +71,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   get y(): number {
-    return this.transform[1];
+    return this.transform[1]
   }
   /**
    * 获取 z 坐标
@@ -87,7 +87,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   get z(): number {
-    return this.transform[2];
+    return this.transform[2]
   }
   /**
    * 获取原点
@@ -103,7 +103,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   static get origin() {
-    return new Point3(0, 0, 0);
+    return new Point3(0, 0, 0)
   }
   /**
    * 点加向量（平移）
@@ -122,7 +122,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   add(v: Vector3): Point3 {
-    return new Point3(this.x + v.x, this.y + v.y, this.z + v.z);
+    return new Point3(this.x + v.x, this.y + v.y, this.z + v.z)
   }
   /**
    * 点减点（求位移向量）
@@ -141,7 +141,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   subtract(p: Point3): Vector3 {
-    return new Vector3(this.x - p.x, this.y - p.y, this.z - p.z);
+    return new Vector3(this.x - p.x, this.y - p.y, this.z - p.z)
   }
   /**
    * 序列化为 JSON
@@ -158,7 +158,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   toJSON(): { x: number; y: number; z: number } {
-    return { x: this.x, y: this.y, z: this.z };
+    return { x: this.x, y: this.y, z: this.z }
   }
   /**
    * 从 JSON 反序列化
@@ -175,7 +175,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   static fromJSON(data: { x: number; y: number; z: number }): Point3 {
-    return new Point3(data.x, data.y, data.z);
+    return new Point3(data.x, data.y, data.z)
   }
 
   /**
@@ -194,7 +194,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   copy(): Point3 {
-    return new Point3(this.x, this.y, this.z);
+    return new Point3(this.x, this.y, this.z)
   }
   /**
    * 计算两点间距离
@@ -212,10 +212,10 @@ export default class Point3 implements ISerializable {
    * ```
    */
   distance(p: Point3): number {
-    const dx = p.x - this.x;
-    const dy = p.y - this.y;
-    const dz = p.z - this.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const dx = p.x - this.x
+    const dy = p.y - this.y
+    const dz = p.z - this.z
+    return Math.sqrt(dx * dx + dy * dy + dz * dz)
   }
   /**
    * 判断两点是否相同
@@ -233,11 +233,7 @@ export default class Point3 implements ISerializable {
    * ```
    */
   isSame(p: Point3): boolean {
-    return (
-      MathUtils.isEqual(this.x, p.x) &&
-      MathUtils.isEqual(this.y, p.y) &&
-      MathUtils.isEqual(this.z, p.z)
-    );
+    return MathUtils.isEqual(this.x, p.x) && MathUtils.isEqual(this.y, p.y) && MathUtils.isEqual(this.z, p.z)
   }
   /**
    * 从扁平数组批量创建点
@@ -258,11 +254,11 @@ export default class Point3 implements ISerializable {
    * ```
    */
   static fromArray(points: Float32Array | Array<number>): Point3[] {
-    const res = [];
-    const len = points.length;
+    const res = []
+    const len = points.length
     for (let i = 0; i + 2 < len; i += 3) {
-      res.push(new Point3(points[i], points[i + 1], points[i + 2]));
+      res.push(new Point3(points[i], points[i + 1], points[i + 2]))
     }
-    return res;
+    return res
   }
 }

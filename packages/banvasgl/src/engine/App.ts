@@ -1,35 +1,34 @@
-import { Scene } from "@/engine/scene/Scene";
-import { Serializer } from "@/engine/serialization/Serializer";
-import { Renderer } from "@/engine/renderer/Renderer";
-import { OrthographicCamera } from "@/engine/camera/OrthographicCamera.js";
-import type {
-  IAppOptions,
-  IAppLifetimes,
-  INavigationOptions,
-} from "@/types/engine/app.js";
-import type { ISerializable } from "@/types/foundation/serializable.js";
-import { AppType } from "@/foundation/constants";
-import { createClientFlowRunner } from "@/foundation/flow/presets/client.js";
-import type { FlowRunner } from "@/foundation/flow/FlowRunner/index.js";
-import type { FrontendCapProxy } from "@/types/foundation/flow/context.js";
-import { AnimationManager } from "@/foundation/animation";
-import { flattenViewTree } from "@/engine/scene/utils";
-import type View from "@/view/View/View";
-import type { IDrawingSurface } from "@/types/platform/surface.js";
+import { Scene } from '@/engine/scene/Scene'
+import { Serializer } from '@/engine/serialization/rawjson/Serializer.js'
+import { Renderer } from '@/engine/renderer/Renderer'
+import { OrthographicCamera } from '@/engine/camera/OrthographicCamera.js'
+import type { IAppOptions, IAppLifetimes, INavigationOptions } from '@/types/engine/app.js'
+import type { ISerializable } from '@/types/foundation/serializable.js'
+import { AppType } from '@/foundation/constants'
+import { createClientFlowRunner } from '@/foundation/flow/presets/client.js'
+import type { FlowRunner } from '@/foundation/flow/FlowRunner/index.js'
+import type { FrontendCapProxy } from '@/types/foundation/flow/context.js'
+import { AnimationManager } from '@/foundation/animation'
+
+import type { IDrawingSurface } from '@/types/platform/surface.js'
 
 export class App implements ISerializable {
   // 类型标识（用于 Serializer 注册）
-  public readonly type: AppType = AppType.APP;
+  public readonly type: AppType = AppType.APP
 
   // 基本属性
-  public scenes: Scene[] = [];
-  public renderer: Renderer;
-  public pageStack: Scene[] = [];
-  public readonly animationManager: AnimationManager =
-    AnimationManager.getInstance();
+  public scenes: Scene[] = []
+  /**
+   * 渲染器（可为 null）。
+   * App.fromJSON 创建的无渲染器实例 renderer 为 null，
+   * 通过 setRenderer() / App.create() 绑定后方可渲染。
+   */
+  public renderer: Renderer | null
+  public pageStack: Scene[] = []
+  public readonly animationManager: AnimationManager = AnimationManager.getInstance()
 
   /** 流程执行器（前端预设，通过 initFlowRunner 延迟注入） */
-  public flowRunner: FlowRunner<FrontendCapProxy> | null = null;
+  public flowRunner: FlowRunner<FrontendCapProxy> | null = null
 
   /**
    * 是否允许 FlowSchema 执行。
@@ -37,14 +36,14 @@ export class App implements ISerializable {
    * 编辑态传 false，运行态传 true。
    * gate 在 Scene.triggerSchema 与 App 生命周期触发处统一拦截。
    */
-  public readonly flowEnabled: boolean;
+  public readonly flowEnabled: boolean
 
   /**
    * 应用 ID（可选）
    *
    * 由消费方（如 banyan 前端）设置，用于 cloudFunction 节点标识应用。
    */
-  public appId: string | undefined = undefined;
+  public appId: string | undefined = undefined
 
   /**
    * 后端端点地址（可选）
@@ -52,7 +51,7 @@ export class App implements ISerializable {
    * cloudFunction 节点通过 httpClient 调用 `${endpoint}/api/functions/${functionId}`。
    * 未设置时 httpClient 请求将使用相对路径。
    */
-  public backendEndpoint: string | undefined = undefined;
+  public backendEndpoint: string | undefined = undefined
 
   /**
    * 应用设计尺寸（目标设备逻辑分辨率）
@@ -65,28 +64,28 @@ export class App implements ISerializable {
    *
    * 默认值 1280×800（标准 PC 横屏）
    */
-  private _designSize: { width: number; height: number } = { width: 1280, height: 800 };
+  private _designSize: { width: number; height: number } = { width: 1280, height: 800 }
 
   // 私有属性
-  private _currentScene: Scene | null = null;
-  private _currentPageIndex: number = -1; // 当前页面在栈中的索引
-  private _isLaunched: boolean = false;
-  private _launchParams: any = null;
-  private _maxPageStackSize: number = 50;
-  private _enablePageStack: boolean = true;
-  private _pageStackHistory: Set<string> = new Set(); // 记录已经在栈中的页面ID
+  private _currentScene: Scene | null = null
+  private _currentPageIndex: number = -1 // 当前页面在栈中的索引
+  private _isLaunched: boolean = false
+  private _launchParams: any = null
+  private _maxPageStackSize: number = 50
+  private _enablePageStack: boolean = true
+  private _pageStackHistory: Set<string> = new Set() // 记录已经在栈中的页面ID
 
   // 循环渲染相关属性
-  private _animationFrameId: number | null = null;
-  private _isRendering: boolean = false;
-  private _renderLoop: boolean = false;
-  private _lastRenderTime: number = 0;
-  private _targetFPS: number = 60;
-  private _frameInterval: number = 1000 / 60; // 16.67ms for 60fps
+  private _animationFrameId: number | null = null
+  private _isRendering: boolean = false
+  private _renderLoop: boolean = false
+  private _lastRenderTime: number = 0
+  private _targetFPS: number = 60
+  private _frameInterval: number = 1000 / 60 // 16.67ms for 60fps
 
   // 外部订阅（useSyncExternalStore 支持）
-  private _listeners: Set<() => void> = new Set();
-  private _version: number = 0;
+  private _listeners: Set<() => void> = new Set()
+  private _version: number = 0
 
   /**
    * App 生命周期钩子
@@ -94,19 +93,19 @@ export class App implements ISerializable {
    * 与 Scene.lifetimes / View.lifetimes 设计一致。
    * 可在构造时通过 options.lifetimes 初始化，也可在运行时直接赋值。
    */
-  public lifetimes: IAppLifetimes = { onLaunch: null, onUnlaunch: null };
+  public lifetimes: IAppLifetimes = { onLaunch: null, onUnlaunch: null }
 
-  constructor(renderer: Renderer, options: IAppOptions) {
-    this.renderer = renderer;
-    this._enablePageStack = options.enablePageStack !== false;
-    this._maxPageStackSize = options.maxPageStackSize || 50;
-    this.flowEnabled = options.flowEnabled !== false; // 默认 true
+  constructor(renderer: Renderer | null, options: IAppOptions) {
+    this.renderer = renderer
+    this._enablePageStack = options.enablePageStack !== false
+    this._maxPageStackSize = options.maxPageStackSize || 50
+    this.flowEnabled = options.flowEnabled !== false // 默认 true
 
     // 初始化 lifetimes（FlowSchema）
     this.lifetimes = {
       onLaunch: options.lifetimes?.onLaunch ?? null,
       onUnlaunch: options.lifetimes?.onUnlaunch ?? null,
-    };
+    }
   }
 
   /**
@@ -117,174 +116,170 @@ export class App implements ISerializable {
    * 传入闭包捕获 App 的 FrontendCapProxy。
    */
   public initFlowRunner(cap: FrontendCapProxy): void {
-    this.flowRunner = createClientFlowRunner(cap);
+    this.flowRunner = createClientFlowRunner(cap)
   }
 
   // 内置生命周期方法
   public onLaunch(params: any): void {
     // 内置逻辑
-    this._launchParams = params;
-    this._isLaunched = true;
+    this._launchParams = params
+    this._isLaunched = true
 
     // 自动启动循环渲染
-    this.startRenderLoop();
-    console.log("App已启动，自动开始循环渲染");
+    this.startRenderLoop()
+    console.log('App已启动，自动开始循环渲染')
 
     // 调用 lifetimes.onLaunch（FlowSchema）
     if (this.flowEnabled && this.lifetimes.onLaunch) {
       try {
-        this.flowRunner!.run(this.lifetimes.onLaunch)
-          .catch((err: unknown) => console.error('[App] onLaunch schema 执行出错:', err));
+        this.flowRunner!.run(this.lifetimes.onLaunch).catch((err: unknown) =>
+          console.error('[App] onLaunch schema 执行出错:', err),
+        )
       } catch (error) {
-        console.error("lifetimes.onLaunch 执行失败:", error);
+        console.error('lifetimes.onLaunch 执行失败:', error)
       }
     }
-
   }
 
   public onUnlaunch(): void {
-    this._isLaunched = false;
-    this._launchParams = null;
+    this._isLaunched = false
+    this._launchParams = null
 
     // 停止渲染循环
-    this.stopRenderLoop();
+    this.stopRenderLoop()
 
     // 清理所有场景
     this.scenes.forEach((scene) => {
-      scene.unload();
-    });
-    this.scenes = [];
+      scene.unload()
+    })
+    this.scenes = []
 
     // 清空页面栈
-    this.pageStack = [];
-    this._currentScene = null;
+    this.pageStack = []
+    this._currentScene = null
 
     // 清空页面栈历史记录
-    this._pageStackHistory.clear();
+    this._pageStackHistory.clear()
 
     // 调用 lifetimes.onUnlaunch（FlowSchema）
     if (this.flowEnabled && this.lifetimes.onUnlaunch) {
       try {
-        this.flowRunner!.run(this.lifetimes.onUnlaunch)
-          .catch((err: unknown) => console.error('[App] onUnlaunch schema 执行出错:', err));
+        this.flowRunner!.run(this.lifetimes.onUnlaunch).catch((err: unknown) =>
+          console.error('[App] onUnlaunch schema 执行出错:', err),
+        )
       } catch (error) {
-        console.error("lifetimes.onUnlaunch 执行失败:", error);
+        console.error('lifetimes.onUnlaunch 执行失败:', error)
       }
     }
-
   }
 
   // 启动应用
   public launch(params: any = {}): App {
-    console.log("App launched");
-    this.onLaunch(params);
-    return this;
+    console.log('App launched')
+    this.onLaunch(params)
+    return this
   }
 
   // 关闭应用
   public unlaunch(): App {
-    console.log("App unlaunched");
-    this.onUnlaunch();
-    return this;
+    console.log('App unlaunched')
+    this.onUnlaunch()
+    return this
   }
 
   // 场景管理
   public addScene(scene: Scene): App {
     if (!this.scenes.includes(scene)) {
-      this.scenes.push(scene);
-      scene._app = this;
+      this.scenes.push(scene)
+      scene._app = this
     }
-    return this;
+    return this
   }
 
   public removeScene(scene: Scene): App {
-    const index = this.scenes.indexOf(scene);
+    const index = this.scenes.indexOf(scene)
     if (index > -1) {
-      this.scenes.splice(index, 1);
-      scene._app = null;
-      scene.unload();
+      this.scenes.splice(index, 1)
+      scene._app = null
+      scene.unload()
     }
-    return this;
+    return this
   }
 
   public getScene(id: string): Scene | null {
-    return this.scenes.find((scene) => scene.id === id) || null;
+    return this.scenes.find((scene) => scene.id === id) || null
   }
 
   public getScenes(): Scene[] {
-    return [...this.scenes];
+    return [...this.scenes]
   }
 
   public clearScenes(): App {
-    this.scenes.forEach((scene) => scene.unload());
-    this.scenes = [];
-    return this;
+    this.scenes.forEach((scene) => scene.unload())
+    this.scenes = []
+    return this
   }
 
   // 导航方法
   public navigateTo(page: Scene, options: INavigationOptions = {}): App {
     if (!this._enablePageStack) {
-      return this.replaceTo(page, options);
+      return this.replaceTo(page, options)
     }
 
     // 隐藏当前场景
     if (this._currentScene) {
-      this._currentScene.hide();
+      this._currentScene.hide()
     }
 
     // 检查目标页面是否已经在栈中
-    const isPageAlreadyInStack = this.isPageInStack(page);
+    const isPageAlreadyInStack = this.isPageInStack(page)
 
     if (isPageAlreadyInStack) {
       // 如果页面已经在栈中，将其从栈中移除
-      this.removePageFromStack(page);
+      this.removePageFromStack(page)
     }
 
     // 将新页面推入栈顶
-    this.pushToPageStack(page);
+    this.pushToPageStack(page)
 
     // 设置当前页面指针指向栈顶（新页面）
-    this._currentScene = page;
-    this._currentPageIndex = this.pageStack.length - 1;
-    this._currentScene.show();
+    this._currentScene = page
+    this._currentPageIndex = this.pageStack.length - 1
+    this._currentScene.show()
 
     // 根据页面是否首次入栈决定调用onload还是onshow
     if (!isPageAlreadyInStack) {
       // 首次入栈，调用onload方法
-      this._currentScene.load(options.params ?? {});
+      this._currentScene.load(options.params ?? {})
     } else {
       // 已在栈中，调用onshow方法
-      this._currentScene.onShow();
+      this._currentScene.onShow()
     }
 
-    return this;
+    return this
   }
 
-  public navigateBack(page?: Scene): App {
-    if (
-      !this._enablePageStack ||
-      this.pageStack.length <= 1 ||
-      this._currentPageIndex <= 0
-    ) {
-      return this;
+  public navigateBack(_page?: Scene): App {
+    if (!this._enablePageStack || this.pageStack.length <= 1 || this._currentPageIndex <= 0) {
+      return this
     }
 
     // 隐藏当前场景
     if (this._currentScene) {
-      this._currentScene.hide();
+      this._currentScene.hide()
     }
 
     // 移动指针到上一个页面
-    this._currentPageIndex--;
-    const previousPage = this.pageStack[this._currentPageIndex];
+    this._currentPageIndex--
+    const previousPage = this.pageStack[this._currentPageIndex]
     if (previousPage) {
-      this._currentScene = previousPage;
-      this._currentScene.show();
+      this._currentScene = previousPage
+      this._currentScene.show()
       // 返回时调用onshow方法
-      this._currentScene.onShow();
+      this._currentScene.onShow()
     }
 
-    return this;
+    return this
   }
 
   public navigateForward(): App {
@@ -293,175 +288,173 @@ export class App implements ISerializable {
       this.pageStack.length <= 1 ||
       this._currentPageIndex >= this.pageStack.length - 1
     ) {
-      return this;
+      return this
     }
 
     // 隐藏当前场景
     if (this._currentScene) {
-      this._currentScene.hide();
+      this._currentScene.hide()
     }
 
     // 移动指针到下一个页面
-    this._currentPageIndex++;
-    const nextPage = this.pageStack[this._currentPageIndex];
+    this._currentPageIndex++
+    const nextPage = this.pageStack[this._currentPageIndex]
     if (nextPage) {
-      this._currentScene = nextPage;
-      this._currentScene.show();
+      this._currentScene = nextPage
+      this._currentScene.show()
       // 前进时调用onshow方法
-      this._currentScene.onShow();
+      this._currentScene.onShow()
     }
 
-    return this;
+    return this
   }
 
   public replaceTo(page: Scene, options: INavigationOptions = {}): App {
     // 隐藏当前场景
     if (this._currentScene) {
-      this._currentScene.hide();
+      this._currentScene.hide()
     }
 
     // 清空页面栈（如果指定）
     if (options.clearStack) {
-      this.clearPageStack();
+      this.clearPageStack()
     } else {
       // 替换当前页面：从栈顶弹出当前页面
       if (this.pageStack.length > 0) {
-        this.popFromPageStack();
+        this.popFromPageStack()
       }
     }
 
     // 将新页面推入栈顶
-    this.pushToPageStack(page);
+    this.pushToPageStack(page)
 
     // 设置当前页面指针指向栈顶（新页面）
-    this._currentScene = page;
-    this._currentPageIndex = this.pageStack.length - 1;
-    this._currentScene.show();
+    this._currentScene = page
+    this._currentPageIndex = this.pageStack.length - 1
+    this._currentScene.show()
 
     // 替换页面时，根据页面是否在栈中决定调用onload还是onshow
-    const isFirstTimeInStack = !this.isPageInStack(page);
+    const isFirstTimeInStack = !this.isPageInStack(page)
     if (isFirstTimeInStack) {
       // 首次入栈，调用onload方法
-      this._currentScene.load(options.params ?? {});
+      this._currentScene.load(options.params ?? {})
     } else {
       // 已在栈中，调用onshow方法
-      this._currentScene.onShow();
+      this._currentScene.onShow()
     }
 
-    return this;
+    return this
   }
 
   public navigate(n: number): App {
     if (n > 0) {
       // 后退n个页面（n为正数表示后退）
       for (let i = 0; i < n; i++) {
-        this.navigateBack();
+        this.navigateBack()
       }
     } else if (n < 0) {
       // 前进n个页面（n为负数表示前进）
       for (let i = 0; i < Math.abs(n); i++) {
-        this.navigateForward();
+        this.navigateForward()
       }
     }
-    return this;
+    return this
   }
 
   // 页面栈管理
   private pushToPageStack(page: Scene): void {
     if (!this._enablePageStack) {
-      return;
+      return
     }
 
-    this.pageStack.push(page);
-    this._pageStackHistory.add(page.id);
+    this.pageStack.push(page)
+    this._pageStackHistory.add(page.id)
 
     // 限制栈大小
     if (this.pageStack.length > this._maxPageStackSize) {
-      const removedPage = this.pageStack.shift();
+      const removedPage = this.pageStack.shift()
       if (removedPage) {
-        removedPage.unload();
-        this._pageStackHistory.delete(removedPage.id);
+        removedPage.unload()
+        this._pageStackHistory.delete(removedPage.id)
       }
     }
   }
 
   private popFromPageStack(): Scene | null {
-    const page = this.pageStack.pop() || null;
+    const page = this.pageStack.pop() || null
     if (page) {
-      this._pageStackHistory.delete(page.id);
+      this._pageStackHistory.delete(page.id)
       // 更新当前页面索引
       if (this._currentPageIndex >= this.pageStack.length) {
-        this._currentPageIndex = this.pageStack.length - 1;
+        this._currentPageIndex = this.pageStack.length - 1
       }
     }
-    return page;
+    return page
   }
 
   private removePageFromStack(page: Scene): void {
     // 从页面栈中移除指定页面
-    const index = this.pageStack.findIndex((p) => p.id === page.id);
+    const index = this.pageStack.findIndex((p) => p.id === page.id)
     if (index !== -1) {
-      this.pageStack.splice(index, 1);
+      this.pageStack.splice(index, 1)
       // 更新当前页面索引
       if (index < this._currentPageIndex) {
-        this._currentPageIndex--;
+        this._currentPageIndex--
       } else if (index === this._currentPageIndex) {
         // 如果移除的是当前页面，调整索引
-        this._currentPageIndex = Math.min(
-          this._currentPageIndex,
-          this.pageStack.length - 1,
-        );
+        this._currentPageIndex = Math.min(this._currentPageIndex, this.pageStack.length - 1)
       }
     }
 
     // 从历史记录中移除
-    this._pageStackHistory.delete(page.id);
+    this._pageStackHistory.delete(page.id)
   }
 
   // 检查页面是否在栈中
   private isPageInStack(page: Scene): boolean {
-    return this._pageStackHistory.has(page.id);
+    return this._pageStackHistory.has(page.id)
   }
 
   public clearPageStack(): App {
-    this.pageStack.forEach((page) => page.unload());
-    this.pageStack = [];
-    this._pageStackHistory.clear();
-    return this;
+    this.pageStack.forEach((page) => page.unload())
+    this.pageStack = []
+    this._pageStackHistory.clear()
+    return this
   }
 
   public getPageStack(): Scene[] {
-    return [...this.pageStack];
+    return [...this.pageStack]
   }
 
   public getPageStackSize(): number {
-    return this.pageStack.length;
+    return this.pageStack.length
   }
 
   // 当前场景管理
   public getCurrentScene(): Scene | null {
-    return this._currentScene;
+    return this._currentScene
   }
 
   public setCurrentScene(scene: Scene): App {
     if (this._currentScene) {
-      this._currentScene.hide();
+      this._currentScene.hide()
     }
 
-    this._currentScene = scene;
-    this._currentScene.show();
+    this._currentScene = scene
+    this._currentScene.show()
 
-    return this;
+    return this
   }
 
   // 渲染
   public render(): App {
+    if (!this.renderer) return this
     if (this._currentScene) {
-      this.renderer.render(this._currentScene);
+      this.renderer.render(this._currentScene)
     } else {
-      this.renderer.clear();
+      this.renderer.clear()
     }
-    return this;
+    return this
   }
 
   /**
@@ -470,18 +463,18 @@ export class App implements ISerializable {
    */
   public startRenderLoop(fps: number = 60): App {
     if (this._renderLoop) {
-      console.warn("渲染循环已经在运行中");
-      return this;
+      console.warn('渲染循环已经在运行中')
+      return this
     }
 
-    this._targetFPS = fps;
-    this._frameInterval = 1000 / fps;
-    this._renderLoop = true;
-    this._lastRenderTime = 0;
+    this._targetFPS = fps
+    this._frameInterval = 1000 / fps
+    this._renderLoop = true
+    this._lastRenderTime = 0
 
-    this._requestAnimationFrame();
+    this._requestAnimationFrame()
 
-    return this;
+    return this
   }
 
   /**
@@ -489,19 +482,19 @@ export class App implements ISerializable {
    */
   public stopRenderLoop(): App {
     if (!this._renderLoop) {
-      console.warn("渲染循环未在运行");
-      return this;
+      console.warn('渲染循环未在运行')
+      return this
     }
 
-    this._renderLoop = false;
+    this._renderLoop = false
 
     if (this._animationFrameId !== null) {
-      cancelAnimationFrame(this._animationFrameId);
-      this._animationFrameId = null;
+      this.renderer?.getSurface().cancelFrame(this._animationFrameId)
+      this._animationFrameId = null
     }
 
-    console.log("停止循环渲染");
-    return this;
+    console.log('停止循环渲染')
+    return this
   }
 
   /**
@@ -509,12 +502,12 @@ export class App implements ISerializable {
    */
   public pauseRenderLoop(): App {
     if (this._animationFrameId !== null) {
-      cancelAnimationFrame(this._animationFrameId);
-      this._animationFrameId = null;
+      this.renderer?.getSurface().cancelFrame(this._animationFrameId)
+      this._animationFrameId = null
     }
-    this._isRendering = false;
-    console.log("暂停循环渲染");
-    return this;
+    this._isRendering = false
+    console.log('暂停循环渲染')
+    return this
   }
 
   /**
@@ -522,10 +515,10 @@ export class App implements ISerializable {
    */
   public resumeRenderLoop(): App {
     if (this._renderLoop && !this._isRendering) {
-      this._requestAnimationFrame();
-      console.log("恢复循环渲染");
+      this._requestAnimationFrame()
+      console.log('恢复循环渲染')
     }
-    return this;
+    return this
   }
 
   /**
@@ -533,150 +526,152 @@ export class App implements ISerializable {
    * @param fps 目标帧率
    */
   public setTargetFPS(fps: number): App {
-    this._targetFPS = Math.max(1, Math.min(120, fps)); // 限制在1-120fps之间
-    this._frameInterval = 1000 / this._targetFPS;
-    console.log(`设置目标帧率为: ${this._targetFPS}fps`);
-    return this;
+    this._targetFPS = Math.max(1, Math.min(120, fps)) // 限制在1-120fps之间
+    this._frameInterval = 1000 / this._targetFPS
+    console.log(`设置目标帧率为: ${this._targetFPS}fps`)
+    return this
   }
 
   /**
    * 获取当前渲染状态
    */
   public getRenderStatus(): {
-    isRendering: boolean;
-    renderLoop: boolean;
-    targetFPS: number;
-    frameInterval: number;
+    isRendering: boolean
+    renderLoop: boolean
+    targetFPS: number
+    frameInterval: number
   } {
     return {
       isRendering: this._isRendering,
       renderLoop: this._renderLoop,
       targetFPS: this._targetFPS,
       frameInterval: this._frameInterval,
-    };
+    }
   }
 
   /**
    * 内部方法：请求动画帧
    */
   private _requestAnimationFrame(): void {
-    if (!this._renderLoop) return;
+    if (!this._renderLoop) return
 
-    this._animationFrameId = requestAnimationFrame((timestamp) => {
-      this._renderFrame(timestamp);
-    });
+    const surface = this.renderer?.getSurface()
+    if (!surface) return
+
+    this._animationFrameId = surface.requestFrame((timestamp) => {
+      this._renderFrame(timestamp)
+    })
   }
 
   /**
    * 内部方法：渲染帧
    */
   private _renderFrame(timestamp: number): void {
-    if (!this._renderLoop) return;
+    if (!this._renderLoop) return
 
     // 检查是否应该渲染这一帧（基于目标FPS）
     if (timestamp - this._lastRenderTime >= this._frameInterval) {
-      this._isRendering = true;
+      this._isRendering = true
 
       // 动画 tick —— 在渲染之前驱动所有动画计算
-      this.animationManager.tick(timestamp);
+      this.animationManager.tick(timestamp)
 
-      this.render();
-      this._lastRenderTime = timestamp;
-      this._isRendering = false;
+      this.render()
+      this._lastRenderTime = timestamp
+      this._isRendering = false
     }
 
     // 继续下一帧
-    this._requestAnimationFrame();
+    this._requestAnimationFrame()
   }
-
-
 
   // 状态查询
   public isLaunched(): boolean {
-    return this._isLaunched;
+    return this._isLaunched
   }
 
   public getLaunchParams(): any {
-    return this._launchParams;
+    return this._launchParams
   }
 
   public hasCurrentScene(): boolean {
-    return this._currentScene !== null;
+    return this._currentScene !== null
   }
 
   public canNavigateBack(): boolean {
-    return this.pageStack.length > 0;
+    return this.pageStack.length > 0
   }
 
   // 页面栈配置
   public setPageStackEnabled(enabled: boolean): App {
-    this._enablePageStack = enabled;
+    this._enablePageStack = enabled
     if (!enabled) {
-      this.clearPageStack();
+      this.clearPageStack()
     }
-    return this;
+    return this
   }
 
   public getCurrentPage(): Scene {
-    return this.pageStack[this.pageStack.length - 1];
+    return this.pageStack[this.pageStack.length - 1]
   }
 
   public setMaxPageStackSize(size: number): App {
-    this._maxPageStackSize = Math.max(1, size);
+    this._maxPageStackSize = Math.max(1, size)
 
     // 如果当前栈大小超过限制，移除多余的页面
     while (this.pageStack.length > this._maxPageStackSize) {
-      const removedPage = this.pageStack.shift();
+      const removedPage = this.pageStack.shift()
       if (removedPage) {
-        removedPage.unload();
+        removedPage.unload()
       }
     }
 
-    return this;
+    return this
   }
 
   public isPageStackEnabled(): boolean {
-    return this._enablePageStack;
+    return this._enablePageStack
   }
 
   public getMaxPageStackSize(): number {
-    return this._maxPageStackSize;
+    return this._maxPageStackSize
   }
 
   // 渲染器管理
-  public getRenderer(): Renderer {
-    return this.renderer;
+  public getRenderer(): Renderer | null {
+    return this.renderer
   }
 
   public setRenderer(renderer: Renderer): App {
-    this.renderer = renderer;
-    return this;
+    this.renderer = renderer
+    return this
   }
 
   // 批量操作
   public beginBatchOperation(): App {
     // 暂停自动渲染
-    return this;
+    return this
   }
 
   public endBatchOperation(): App {
     // 恢复自动渲染并渲染一次
-    this.render();
-    return this;
+    this.render()
+    return this
   }
 
   // 调整画布尺寸（逻辑像素，渲染器内部乘以 dpr）
   // 引擎只关心逻辑尺寸，CSS 样式尺寸由外层控制
   public handleResize(width: number, height: number): App {
-    this.renderer.resize(width, height);
-    return this;
+    if (!this.renderer) return this
+    this.renderer.resize(width, height)
+    return this
   }
 
   // ── designSize（应用设计尺寸）──────────────────────────────────────────────
 
   /** 获取当前应用设计尺寸 */
   public getDesignSize(): { width: number; height: number } {
-    return { ...this._designSize };
+    return { ...this._designSize }
   }
 
   /**
@@ -686,34 +681,35 @@ export class App implements ISerializable {
    * @param height 目标设备逻辑高度（px）
    */
   public setDesignSize(width: number, height: number): App {
-    this._designSize = { width, height };
+    this._designSize = { width, height }
 
     // 同步 canvas 物理像素（dpr 由平台层内部处理）
-    this.renderer.resize(width, height);
+    if (this.renderer) {
+      this.renderer.resize(width, height)
+    }
 
     // 同步当前 Scene 的 Camera bounds
-    const scene = this.getCurrentScene();
+    const scene = this.getCurrentScene()
     if (scene) {
       if (scene.camera instanceof OrthographicCamera) {
-        scene.camera.setBounds(0, width, height, 0);
+        scene.camera.setBounds(0, width, height, 0)
       }
-      scene.markDirty();
+      scene.markDirty()
     }
 
     // 通知 React 订阅层（useSyncExternalStore）状态变更，
     // 驱动 canvasStyle 重计算 + resize effect 重触发
-    this.notify();
+    this.notify()
 
-    return this;
+    return this
   }
 
   // 销毁应用
   public destroy(): App {
-    this.unlaunch();
-    this.renderer.destroy();
-    return this;
+    this.unlaunch()
+    this.renderer?.destroy()
+    return this
   }
-
 
   /**
    * 序列化整个 App 为 JSON 字符串（通过 Serializer）
@@ -722,40 +718,32 @@ export class App implements ISerializable {
    * 一个应用对应一个完整 JSON 字符串。
    */
   public serialize(): string {
-    return Serializer.getInstance().serialize(this);
+    return Serializer.getInstance().serialize(this)
   }
 
   /**
    * 从序列化 JSON 字符串恢复 App 状态
    *
-   * Serializer.deserialize 会递归还原内部的 Scene/Camera/View 实例。
-   * 返回的是 { lifetimes, scenes: Scene[] } 纯数据，赋值给当前实例。
+   * 内部调用 App.fromJSON 创建临时 App 实例，
+   * 然后将其状态（designSize / lifetimes / scenes）合并到当前实例，
+   * 保留当前实例的 renderer / flowRunner 等运行时绑定。
    */
   public initFromSerialized(json: string): App {
-    const serializer = Serializer.getInstance();
-    const appData = serializer.deserialize<{ designSize?: { width: number; height: number }; lifetimes: IAppLifetimes; scenes: Scene[] }>(json);
+    const serializer = Serializer.getInstance()
+    const restored = serializer.deserialize<App>(json)
 
-    // 恢复 designSize
-    if (appData.designSize) {
-      this._designSize = appData.designSize;
+    // 合并可序列化状态到当前实例
+    this._designSize = restored._designSize
+    this.lifetimes = restored.lifetimes
+
+    // 替换 scenes
+    this.getScenes().forEach((scene) => this.removeScene(scene))
+    restored.scenes.forEach((scene) => this.addScene(scene))
+    if (this.scenes.length > 0) {
+      this.setCurrentScene(this.scenes[0])
     }
 
-    // 恢复 lifetimes
-    this.lifetimes = {
-      onLaunch: appData.lifetimes?.onLaunch ?? null,
-      onUnlaunch: appData.lifetimes?.onUnlaunch ?? null,
-    };
-
-    // 恢复 scenes
-    this.getScenes().forEach((scene) => this.removeScene(scene));
-    if (Array.isArray(appData.scenes)) {
-      appData.scenes.forEach((scene) => this.addScene(scene));
-      if (appData.scenes.length > 0) {
-        this.setCurrentScene(appData.scenes[0]);
-      }
-    }
-
-    return this;
+    return this
   }
 
   /**
@@ -778,31 +766,34 @@ export class App implements ISerializable {
         $type: scene.type,
         $value: scene.toJSON(),
       })),
-    };
+    }
   }
 
   /**
-   * 从 toJSON() 产出的纯数据恢复 App 状态（静态工厂）
+   * ISerializableClass 静态工厂：从纯数据恢复完整的 App 实例。
    *
    * 注意：data.scenes 在到达此方法前已被 Serializer 的 deserializeValue
    * 递归处理——$type/$value 包装已还原为 Scene 实例。
    *
-   * 此方法返回的是一个部分初始化的结构对象（不含 renderer），
-   * Serializer 内部使用。消费方应使用 app.initFromSerialized(json)。
+   * 返回的 App 实例 renderer 为 null，需要在 attach 到宿主后
+   * 通过 setRenderer() 绑定渲染器方可渲染。
+   * 消费方通常使用现有实例上的 initFromSerialized(json) 代替直接调用此方法。
    */
-  static fromJSON(data: any): { designSize?: { width: number; height: number }; lifetimes: IAppLifetimes; scenes: Scene[] } {
-    return {
-      designSize: data.designSize ?? undefined,
-      lifetimes: {
-        onLaunch: data.lifetimes?.onLaunch ?? null,
-        onUnlaunch: data.lifetimes?.onUnlaunch ?? null,
-      },
-      scenes: Array.isArray(data.scenes) ? data.scenes : [],
-    };
+  static fromJSON(data: any): App {
+    const app = new App(null, { flowEnabled: false })
+    app._designSize = data.designSize ?? { width: 1280, height: 800 }
+    app.lifetimes = {
+      onLaunch: data.lifetimes?.onLaunch ?? null,
+      onUnlaunch: data.lifetimes?.onUnlaunch ?? null,
+    }
+    if (Array.isArray(data.scenes)) {
+      data.scenes.forEach((scene: Scene) => app.addScene(scene))
+    }
+    return app
   }
 
   public toString(): string {
-    return this.serialize();
+    return this.serialize()
   }
 
   // ──── 外部订阅（useSyncExternalStore）────
@@ -812,41 +803,37 @@ export class App implements ISerializable {
    * 用法：useSyncExternalStore(app.subscribe, app.getVersion)
    */
   public subscribe = (listener: () => void): (() => void) => {
-    this._listeners.add(listener);
+    this._listeners.add(listener)
     return () => {
-      this._listeners.delete(listener);
-    };
-  };
+      this._listeners.delete(listener)
+    }
+  }
 
   /**
    * 通知所有订阅者状态已变更。
    * 在 actions 修改引擎状态后调用。
    */
   public notify(): void {
-    this._version++;
-    this._listeners.forEach((l) => l());
+    this._version++
+    this._listeners.forEach((l) => l())
   }
 
   /**
    * 返回当前版本号，用作 useSyncExternalStore 的 snapshot。
    */
   public getVersion = (): number => {
-    return this._version;
-  };
+    return this._version
+  }
 
   // ──── App 级别 FlowContext 构造 ────
-
 
   /**
    * 平台无关工厂：从 IDrawingSurface 创建应用
    *
    * 各平台（Web / React Native / Skia / Node）通过此方法注入画布表面。
    */
-  public static create(
-    surface: IDrawingSurface,
-    options: IAppOptions,
-  ): App {
-    const renderer = new Renderer(surface);
-    return new App(renderer, options);
+  public static create(surface: IDrawingSurface, options: IAppOptions): App {
+    const renderer = new Renderer(surface)
+    return new App(renderer, options)
   }
 }

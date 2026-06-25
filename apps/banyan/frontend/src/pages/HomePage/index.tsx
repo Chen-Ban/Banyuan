@@ -7,113 +7,113 @@
  * Flow: User enters prompt -> creates blank app -> navigates to UI page with initialPrompt.
  */
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { App, Spin, Select } from "antd";
-import { SendOutlined } from "@ant-design/icons";
-import { applicationApi, aiApi } from "@/api";
-import type { ProviderInfo } from "@/api";
-import { getErrorMessage } from "@/utils/error";
-import { useApplicationStore } from "@/stores/applicationStore";
-import { useAuthStore } from "@/stores/authStore";
-import Grainient from "./components/reactbits/Grainient";
-import TextPressure from "./components/reactbits/TextPressure";
-import DecryptedText from "./components/reactbits/DecryptedText";
-import styles from "./index.module.scss";
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { App, Spin, Select } from 'antd'
+import { SendOutlined } from '@ant-design/icons'
+import { applicationApi, aiApi } from '@/api'
+import type { ProviderInfo } from '@/api'
+import { getErrorMessage } from '@/utils/error'
+import { useApplicationStore } from '@/stores/applicationStore'
+import { useAuthStore } from '@/stores/authStore'
+import Grainient from './components/reactbits/Grainient'
+import TextPressure from './components/reactbits/TextPressure'
+import DecryptedText from './components/reactbits/DecryptedText'
+import styles from './index.module.scss'
 
 // -- Example prompts --
 
 const SUGGESTIONS = [
-  "帮我做一个眼镜店 POS 收银系统",
-  "设计一个任务管理看板，支持拖拽排序",
-  "做一个餐厅点餐界面，有菜单和购物车",
-  "创建一个数据大屏，展示销售趋势图表",
-];
+  '帮我做一个眼镜店 POS 收银系统',
+  '设计一个任务管理看板，支持拖拽排序',
+  '做一个餐厅点餐界面，有菜单和购物车',
+  '创建一个数据大屏，展示销售趋势图表',
+]
 
 // -- Component --
 
 const HomePage = () => {
-  const { message } = App.useApp();
-  const navigate = useNavigate();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const user = useAuthStore((s) => s.user);
-  const requestLogin = useAuthStore((s) => s.requestLogin);
+  const { message } = App.useApp()
+  const navigate = useNavigate()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const user = useAuthStore((s) => s.user)
+  const requestLogin = useAuthStore((s) => s.requestLogin)
 
-  const [prompt, setPrompt] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [focused, setFocused] = useState(false);
+  const [prompt, setPrompt] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [focused, setFocused] = useState(false)
 
   // -- Model selection --
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [activeProvider, setActiveProvider] = useState<string>("");
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [activeProvider, setActiveProvider] = useState<string>('')
 
   useEffect(() => {
     aiApi
       .getModels()
       .then((data) => {
-        setProviders(data?.providers ?? []);
-        setActiveProvider(data?.activeProvider ?? "");
+        setProviders(data?.providers ?? [])
+        setActiveProvider(data?.activeProvider ?? '')
       })
-      .catch(() => {
-        /* silent */
-      });
-  }, []);
+      .catch((err) => {
+        console.warn('[模型] 加载模型列表失败:', err.message ?? err)
+      })
+  }, [])
 
   const handleModelChange = useCallback((provider: string) => {
-    setActiveProvider(provider);
+    setActiveProvider(provider)
     aiApi.switchModel(provider).catch(() => {
       /* silent */
-    });
-  }, []);
+    })
+  }, [])
 
   // -- Auto-resize textarea --
   useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
-  }, [prompt]);
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+  }, [prompt])
 
   // -- Submit --
   const handleSubmit = useCallback(async () => {
-    const text = prompt.trim();
-    if (!text || submitting) return;
+    const text = prompt.trim()
+    if (!text || submitting) return
 
     // 未登录 → 弹出登录弹窗，登录成功后自动继续提交
     if (!user) {
-      const ok = await requestLogin();
-      if (!ok) return;
+      const ok = await requestLogin()
+      if (!ok) return
     }
 
-    setSubmitting(true);
+    setSubmitting(true)
     try {
-      const res = await applicationApi.createApplication();
-      const app = res.data!;
+      const res = await applicationApi.createApplication()
+      const app = res.data!
       // 通过 store 传递初始 prompt（带缓冲：UIPage 尚未 mount 时暂存，mount 后读取并清除）
-      useApplicationStore.getState().setInitialPrompt(app.application_id, text);
-      navigate(`/application/${app.application_id}/ui`);
+      useApplicationStore.getState().setInitialPrompt(app.application_id, text)
+      navigate(`/application/${app.application_id}/ui`)
     } catch (err) {
-      message.error(getErrorMessage(err));
-      setSubmitting(false);
+      message.error(getErrorMessage(err))
+      setSubmitting(false)
     }
-  }, [prompt, submitting, navigate, message, user, requestLogin]);
+  }, [prompt, submitting, navigate, message, user, requestLogin])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSubmit();
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        handleSubmit()
       }
     },
     [handleSubmit],
-  );
+  )
 
   const handleSuggestion = useCallback((text: string) => {
-    setPrompt(text);
-    textareaRef.current?.focus();
-  }, []);
+    setPrompt(text)
+    textareaRef.current?.focus()
+  }, [])
 
-  const canSend = prompt.trim().length > 0 && !submitting;
+  const canSend = prompt.trim().length > 0 && !submitting
 
   return (
     <div className={styles.page}>
@@ -170,9 +170,7 @@ const HomePage = () => {
         </div>
 
         {/* Input card */}
-        <div
-          className={`${styles.inputCard} ${focused ? styles.inputCardFocused : ""}`}
-        >
+        <div className={`${styles.inputCard} ${focused ? styles.inputCardFocused : ''}`}>
           <div className={styles.inputInner}>
             <textarea
               ref={textareaRef}
@@ -204,7 +202,7 @@ const HomePage = () => {
                 )}
               </div>
               <button
-                className={`${styles.sendBtn} ${canSend ? styles.sendBtnActive : ""}`}
+                className={`${styles.sendBtn} ${canSend ? styles.sendBtnActive : ''}`}
                 onClick={handleSubmit}
                 disabled={!canSend}
                 aria-label="发送"
@@ -230,7 +228,7 @@ const HomePage = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default HomePage;
+export default HomePage

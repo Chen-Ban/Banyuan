@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.10.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type check
+        run: pnpm run type-check
+
+      - name: Validate knowledge seeds
+        run: |
+          # Check that all seed JSON files have required fields
+          for file in $(find apps/knowledge-server/seeds -name '*.json'); do
+            if ! jq -e '.id and .content' "$file" > /dev/null 2>&1; then
+              echo "❌ Missing required field in $file"
+              exit 1
+            fi
+          done
+          echo "✅ All seed files validated"
+
+      - name: Check knowledge schema generation
+        run: pnpm knowledge:schema
+
+      - name: Build libs
+        run: pnpm run build:libs
+
+      - name: Test
+        run: pnpm vitest run
+
+      - name: Format check
+        run: pnpm run format:check

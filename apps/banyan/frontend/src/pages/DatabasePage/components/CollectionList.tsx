@@ -79,7 +79,10 @@ const CollectionList: React.FC<CollectionListProps> = ({
             placeholder="表名（英文，如 users）"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAdd()
+              if (e.key === 'Escape') handleCancel()
+            }}
             autoFocus
             disabled={saving}
           />
@@ -88,18 +91,25 @@ const CollectionList: React.FC<CollectionListProps> = ({
             placeholder="显示名（可选）"
             value={newDisplayName}
             onChange={(e) => setNewDisplayName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') handleCancel() }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAdd()
+              if (e.key === 'Escape') handleCancel()
+            }}
             disabled={saving}
           />
           <div className={styles.addCollectionActions}>
-            <Button size="small" onClick={handleCancel} disabled={saving}>取消</Button>
+            <Button size="small" onClick={handleCancel} disabled={saving}>
+              取消
+            </Button>
             <Button
               size="small"
               type="primary"
               onClick={handleAdd}
               loading={saving}
               disabled={!newName.trim()}
-            >创建</Button>
+            >
+              创建
+            </Button>
           </div>
         </div>
       )}
@@ -123,9 +133,7 @@ const CollectionList: React.FC<CollectionListProps> = ({
           />
         ))}
 
-        {collections.length === 0 && !adding && (
-          <div className={styles.collectionEmpty}>暂无数据表</div>
-        )}
+        {collections.length === 0 && !adding && <div className={styles.collectionEmpty}>暂无数据表</div>}
       </div>
     </div>
   )

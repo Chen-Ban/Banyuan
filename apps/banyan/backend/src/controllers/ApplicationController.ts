@@ -36,13 +36,13 @@ class ApplicationController {
 
       // 去除 undefined 键
       Object.keys(query).forEach(
-        (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query]
+        (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query],
       )
 
       const result = await applicationService.getApplicationList(
         query,
         parseInt(page as string, 10),
-        parseInt(pageSize as string, 10)
+        parseInt(pageSize as string, 10),
       )
 
       ctx.status = 200

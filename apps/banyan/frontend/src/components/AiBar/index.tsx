@@ -21,9 +21,9 @@
  *   - onDone 回调调用 refreshFromBackend() 从后端拉取最新数据
  */
 
-import { useRef, useEffect, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import { Image, Select, Tooltip, message as antdMessage } from "antd";
+import { useRef, useEffect, useState, useCallback } from 'react'
+import { useParams } from 'react-router-dom'
+import { Image, Select, Tooltip, message as antdMessage } from 'antd'
 import {
   CloseOutlined,
   CommentOutlined,
@@ -31,54 +31,58 @@ import {
   PlusOutlined,
   SendOutlined,
   StopOutlined,
-} from "@ant-design/icons";
-import { useXiangDi } from "@/hooks/useXiangDi";
-import { aiApi } from "@/api";
-import type { ProviderInfo, ImageItem } from "@/api";
-import { useApplicationStore } from "@/stores/applicationStore";
-import ConversationPanel from "./ConversationPanel";
-import styles from "./index.module.scss";
+} from '@ant-design/icons'
+import { useXiangDi } from '@/hooks/useXiangDi'
+import { aiApi } from '@/api'
+import type { ProviderInfo, ImageItem } from '@/api'
+import { useApplicationStore } from '@/stores/applicationStore'
+import ConversationPanel from './ConversationPanel'
+import styles from './index.module.scss'
 
 // ─── 粘贴图片类型 ─────────────────────────────────────────────────────────────
 
 interface PastedImage {
-  id: string;
-  dataUrl: string;
-  name: string;
+  id: string
+  dataUrl: string
+  name: string
 }
 
 // ─── AiBar ────────────────────────────────────────────────────────────────────
 
 const AiBar: React.FC = () => {
-  const { id: appId } = useParams<{ id: string }>();
-  const [inputValue, setInputValue] = useState("");
-  const [pastedImages, setPastedImages] = useState<PastedImage[]>([]);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { id: appId } = useParams<{ id: string }>()
+  const [inputValue, setInputValue] = useState('')
+  const [pastedImages, setPastedImages] = useState<PastedImage[]>([])
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // ── ApplicationStore ────────────────────────────────────────────────────────
   const { consumeInitialPrompt, refreshFromBackend } = useApplicationStore()
 
   // ─── 模型选择 ──────────────────────────────────────────────────────────────
-  const [providers, setProviders] = useState<ProviderInfo[]>([]);
-  const [activeProvider, setActiveProvider] = useState<string>("");
+  const [providers, setProviders] = useState<ProviderInfo[]>([])
+  const [activeProvider, setActiveProvider] = useState<string>('')
 
   useEffect(() => {
     aiApi
       .getModels()
       .then((data) => {
-        setProviders(data?.providers ?? []);
-        setActiveProvider(data?.activeProvider ?? "");
+        setProviders(data?.providers ?? [])
+        setActiveProvider(data?.activeProvider ?? '')
       })
-      .catch(() => { /* 静默失败 */ });
-  }, []);
+      .catch((err) => {
+        console.warn('[模型] 加载模型列表失败:', err.message ?? err)
+      })
+  }, [])
 
   const handleModelChange = useCallback((provider: string) => {
-    setActiveProvider(provider);
-    aiApi.switchModel(provider).catch(() => { /* 静默失败 */ });
-  }, []);
+    setActiveProvider(provider)
+    aiApi.switchModel(provider).catch(() => {
+      /* 静默失败 */
+    })
+  }, [])
 
   // ─── 对话模式切换（编辑 = task / 对话 = chat） ────────────────────────────
-  const [dialogueMode, setDialogueMode] = useState<'task' | 'chat'>('task');
+  const [dialogueMode, setDialogueMode] = useState<'task' | 'chat'>('task')
 
   // onDone 回调：banyan 后端已在 done 事件后写库（M1 不变），前端拉取最新数据
   // （done 事件的 summary 此处用不到，省略参数）
@@ -108,12 +112,13 @@ const AiBar: React.FC = () => {
     appId: appId!,
     onBeforeSend: handleBeforeSend,
     onDone: handleDone,
-  });
+  })
 
   // ── 消费 initialPrompt（首页跳转后自动发送） ────────────────────────────────
   const initialPromptConsumed = useRef(false)
   useEffect(() => {
     if (initialPromptConsumed.current) return
+    if (!appId) return
     const prompt = consumeInitialPrompt(appId)
     if (prompt) {
       initialPromptConsumed.current = true
@@ -125,6 +130,7 @@ const AiBar: React.FC = () => {
   useEffect(() => {
     const unsub = useApplicationStore.subscribe((state) => {
       if (initialPromptConsumed.current) return
+      if (!appId) return
       const prompt = state.initialPrompt.get(appId)
       if (prompt) {
         initialPromptConsumed.current = true
@@ -138,77 +144,74 @@ const AiBar: React.FC = () => {
   // ─── 输入框逻辑 ────────────────────────────────────────────────────────────
 
   const autoResize = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, []);
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [])
 
   useEffect(() => {
-    autoResize();
-  }, [inputValue, autoResize]);
+    autoResize()
+  }, [inputValue, autoResize])
 
-  const handlePaste = useCallback(
-    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      const items = Array.from(e.clipboardData.items);
-      const imageItems = items.filter((item) => item.type.startsWith("image/"));
-      if (imageItems.length === 0) return;
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = Array.from(e.clipboardData.items)
+    const imageItems = items.filter((item) => item.type.startsWith('image/'))
+    if (imageItems.length === 0) return
 
-      e.preventDefault();
-      imageItems.forEach((item) => {
-        const file = item.getAsFile();
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const dataUrl = ev.target?.result as string;
-          setPastedImages((prev) => [
-            ...prev,
-            {
-              id: `img_${Date.now()}_${Math.random()}`,
-              dataUrl,
-              name: file.name || "image",
-            },
-          ]);
-        };
-        reader.readAsDataURL(file);
-      });
-    },
-    [],
-  );
+    e.preventDefault()
+    imageItems.forEach((item) => {
+      const file = item.getAsFile()
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (ev) => {
+        const dataUrl = ev.target?.result as string
+        setPastedImages((prev) => [
+          ...prev,
+          {
+            id: `img_${Date.now()}_${Math.random()}`,
+            dataUrl,
+            name: file.name || 'image',
+          },
+        ])
+      }
+      reader.readAsDataURL(file)
+    })
+  }, [])
 
   const removeImage = useCallback((id: string) => {
-    setPastedImages((prev) => prev.filter((img) => img.id !== id));
-  }, []);
+    setPastedImages((prev) => prev.filter((img) => img.id !== id))
+  }, [])
 
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(false)
 
   const handleSend = useCallback(async () => {
-    const prompt = inputValue.trim();
-    if ((!prompt && pastedImages.length === 0) || loading || uploading) return;
+    const prompt = inputValue.trim()
+    if ((!prompt && pastedImages.length === 0) || loading || uploading || !appId) return
 
     // 先捕获当前图片并清空 UI
-    const imagesToUpload = [...pastedImages];
-    setInputValue("");
-    setPastedImages([]);
+    const imagesToUpload = [...pastedImages]
+    setInputValue('')
+    setPastedImages([])
 
     // 上传图片到 OSS
-    let imageUrls: ImageItem[] = [];
+    let imageUrls: ImageItem[] = []
     if (imagesToUpload.length > 0) {
-      setUploading(true);
+      setUploading(true)
       try {
         const urls = await Promise.all(
           imagesToUpload.map(async (img) => {
             // dataUrl 转 Blob
-            const res = await fetch(img.dataUrl);
-            const blob = await res.blob();
+            const res = await fetch(img.dataUrl)
+            const blob = await res.blob()
             const file = new File([blob], img.name || `paste_${Date.now()}.png`, {
-              type: blob.type || "image/png",
-            });
-            const publicUrl = await aiApi.uploadImage(appId, file);
-            return { url: publicUrl, alt: img.name };
+              type: blob.type || 'image/png',
+            })
+            const publicUrl = await aiApi.uploadImage(appId, file)
+            return { url: publicUrl, alt: img.name }
           }),
-        );
-        imageUrls = urls;
+        )
+        imageUrls = urls
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : '未知错误'
         console.warn('[AiBar] 图片上传失败:', errMsg)
@@ -219,28 +222,27 @@ const AiBar: React.FC = () => {
           return
         }
       } finally {
-        setUploading(false);
+        setUploading(false)
       }
     }
 
-    sendPrompt(prompt, dialogueMode, imageUrls);
-  }, [inputValue, pastedImages, loading, uploading, sendPrompt, appId, dialogueMode]);
+    sendPrompt(prompt, dialogueMode, imageUrls)
+  }, [inputValue, pastedImages, loading, uploading, sendPrompt, appId, dialogueMode])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        handleSend()
       }
     },
     [handleSend],
-  );
+  )
 
-  const canSend =
-    (inputValue.trim().length > 0 || pastedImages.length > 0) && !loading && !uploading;
+  const canSend = (inputValue.trim().length > 0 || pastedImages.length > 0) && !loading && !uploading
 
   // appId 从路由参数获取，不存在时不渲染（必须放在所有 hooks 之后）
-  if (!appId) return null;
+  if (!appId) return null
 
   return (
     <div className={styles.aiBar}>
@@ -271,9 +273,9 @@ const AiBar: React.FC = () => {
                     width={60}
                     height={60}
                     style={{
-                      objectFit: "cover",
+                      objectFit: 'cover',
                       borderRadius: 7,
-                      display: "block",
+                      display: 'block',
                     }}
                     preview={{ mask: false }}
                   />
@@ -308,7 +310,9 @@ const AiBar: React.FC = () => {
               className={styles.addBtn}
               aria-label="添加附件"
               disabled={loading}
-              onClick={() => { /* TODO: 附件上传 */ }}
+              onClick={() => {
+                /* TODO: 附件上传 */
+              }}
             >
               <PlusOutlined />
             </button>
@@ -352,16 +356,12 @@ const AiBar: React.FC = () => {
           </div>
           <div className={styles.toolbarRight}>
             {loading ? (
-              <button
-                className={`${styles.actionBtn} ${styles.stopBtn}`}
-                onClick={abort}
-                aria-label="停止"
-              >
+              <button className={`${styles.actionBtn} ${styles.stopBtn}`} onClick={abort} aria-label="停止">
                 <StopOutlined />
               </button>
             ) : (
               <button
-                className={`${styles.actionBtn} ${styles.sendBtn} ${canSend ? styles.sendBtnActive : ""}`}
+                className={`${styles.actionBtn} ${styles.sendBtn} ${canSend ? styles.sendBtnActive : ''}`}
                 onClick={handleSend}
                 disabled={!canSend}
                 aria-label="发送"
@@ -373,7 +373,7 @@ const AiBar: React.FC = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AiBar;
+export default AiBar

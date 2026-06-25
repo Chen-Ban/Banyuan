@@ -34,14 +34,7 @@ class UserController {
    */
   async getUserList(ctx: Context) {
     try {
-      const {
-        username,
-        userId,
-        email,
-        phone,
-        page = '1',
-        pageSize = '12',
-      } = ctx.query
+      const { username, userId, email, phone, page = '1', pageSize = '12' } = ctx.query
 
       const query = {
         username: username as string | undefined,
@@ -52,13 +45,13 @@ class UserController {
 
       // 移除 undefined 值
       Object.keys(query).forEach(
-        (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query]
+        (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query],
       )
 
       const result = await userService.getUserList(
         query,
         parseInt(page as string, 10),
-        parseInt(pageSize as string, 10)
+        parseInt(pageSize as string, 10),
       )
 
       ctx.status = 200
@@ -221,4 +214,3 @@ class UserController {
 }
 
 export default new UserController()
-

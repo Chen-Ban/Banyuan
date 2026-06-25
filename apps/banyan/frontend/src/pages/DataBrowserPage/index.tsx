@@ -51,7 +51,8 @@ const DataBrowserPage: React.FC = () => {
   useEffect(() => {
     if (!appId) return
     setSchemaLoading(true)
-    schemaApi.fetchDataSchema(appId)
+    schemaApi
+      .fetchDataSchema(appId)
       .then((res) => {
         const cols = res.data?.collections ?? []
         setCollections(cols)
@@ -64,23 +65,26 @@ const DataBrowserPage: React.FC = () => {
   }, [appId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 加载数据（从 Preview Server） ──
-  const loadData = useCallback(async (collectionName: string, pageNum: number) => {
-    if (!serverInfo?.url) return
-    setDataLoading(true)
-    try {
-      const res = await listDocuments(serverInfo.url, collectionName, {
-        limit: PAGE_SIZE,
-        skip: (pageNum - 1) * PAGE_SIZE,
-        sort: { _id: -1 },
-      })
-      setData(res.data ?? [])
-      setTotal(res.pagination?.total ?? 0)
-    } catch {
-      message.error('加载数据失败')
-    } finally {
-      setDataLoading(false)
-    }
-  }, [serverInfo?.url, message])
+  const loadData = useCallback(
+    async (collectionName: string, pageNum: number) => {
+      if (!serverInfo?.url) return
+      setDataLoading(true)
+      try {
+        const res = await listDocuments(serverInfo.url, collectionName, {
+          limit: PAGE_SIZE,
+          skip: (pageNum - 1) * PAGE_SIZE,
+          sort: { _id: -1 },
+        })
+        setData(res.data ?? [])
+        setTotal(res.pagination?.total ?? 0)
+      } catch {
+        message.error('加载数据失败')
+      } finally {
+        setDataLoading(false)
+      }
+    },
+    [serverInfo?.url, message],
+  )
 
   useEffect(() => {
     if (selectedName && serverInfo?.url && serverStatus === 'running') {
@@ -120,7 +124,8 @@ const DataBrowserPage: React.FC = () => {
         key: field.name,
         ellipsis: true,
         render: (value: unknown) => {
-          if (value === null || value === undefined) return <span style={{ color: 'var(--color-text-quaternary)' }}>null</span>
+          if (value === null || value === undefined)
+            return <span style={{ color: 'var(--color-text-quaternary)' }}>null</span>
           if (typeof value === 'object') return JSON.stringify(value)
           return String(value)
         },
@@ -149,30 +154,7 @@ const DataBrowserPage: React.FC = () => {
 
   if (!appId) return null
 
-  // ── 非 Electron / Preview Server 未就绪 → 降级提示 ──
-  if (!serverInfo || serverStatus === 'error') {
-    return (
-      <div className={styles.emptyContent}>
-        <Empty
-          image={<DesktopOutlined style={{ fontSize: 48, color: 'var(--color-text-quaternary)' }} />}
-          description={
-            serverStatus === 'error'
-              ? 'Preview Server 启动失败，无法浏览数据'
-              : '数据浏览需要在桌面客户端中使用'
-          }
-        />
-      </div>
-    )
-  }
-
-  if (serverStatus === 'starting') {
-    return (
-      <div className={styles.loadingWrapper}>
-        <Spin size="large" tip="Preview Server 启动中..." />
-      </div>
-    )
-  }
-
+  // ── 加载中 ──
   if (schemaLoading) {
     return (
       <div className={styles.loadingWrapper}>
@@ -180,6 +162,30 @@ const DataBrowserPage: React.FC = () => {
       </div>
     )
   }
+
+  // ── 无数据表：优先展示，不依赖 Preview Server ──
+  if (collections.length === 0) {
+    return (
+      <div className={styles.emptyContent}>
+        <Empty
+          image={<TableOutlined style={{ fontSize: 48, color: 'var(--color-text-quaternary)' }} />}
+          description="暂无数据表，请先在数据库页面创建"
+        />
+      </div>
+    )
+  }
+
+  // ── Preview Server 启动中 ──
+  if (serverStatus === 'starting') {
+    return (
+      <div className={styles.loadingWrapper}>
+        <Spin size="large" description="Preview Server 启动中..." />
+      </div>
+    )
+  }
+
+  // ── 非 Electron / Preview Server 未就绪 → 展示表列表但提示无法浏览数据 ──
+  const serverUnavailable = !serverInfo || serverStatus === 'error'
 
   return (
     <div className={styles.page}>
@@ -200,15 +206,23 @@ const DataBrowserPage: React.FC = () => {
               onSelect={() => setSelectedName(col.name)}
             />
           ))}
-          {collections.length === 0 && (
-            <div className={styles.emptyHint}>暂无数据表</div>
-          )}
         </div>
       </div>
 
-      {/* 右侧数据表格 */}
+      {/* 右侧内容区 */}
       <div className={styles.content}>
-        {selectedCollection ? (
+        {serverUnavailable ? (
+          <div className={styles.emptyContent}>
+            <Empty
+              image={<DesktopOutlined style={{ fontSize: 48, color: 'var(--color-text-quaternary)' }} />}
+              description={
+                serverStatus === 'error'
+                  ? 'Preview Server 启动失败，无法浏览数据'
+                  : '预览服务不可用，请在桌面客户端中打开'
+              }
+            />
+          </div>
+        ) : selectedCollection ? (
           <>
             <div className={styles.tableHeader}>
               <span className={styles.tableTitle}>
@@ -237,10 +251,7 @@ const DataBrowserPage: React.FC = () => {
           </>
         ) : (
           <div className={styles.emptyContent}>
-            <Empty
-              description="请在左侧选择一个数据表"
-              image={Empty.PRESENTED_IMAGE_SIMPLE}
-            />
+            <Empty description="请在左侧选择一个数据表" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           </div>
         )}
       </div>

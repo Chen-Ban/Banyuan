@@ -4,7 +4,10 @@
   "private": true,
   "description": "Banyan — 基于 BanvasGL 的低代码可视化设计平台",
   "scripts": {
-    "dev": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter banyan-frontend dev\" \"pnpm --filter banyan-backend dev\" \"pnpm --filter banyan-electron dev\""
+    "dev": "concurrently --kill-others -c \"cyan.bold,green.bold,yellow.bold\" -n frontend,backend,electron \"pnpm --filter banyan-frontend dev\" \"pnpm --filter banyan-backend dev\" \"pnpm --filter banyan-electron dev\"",
+    "build": "pnpm --filter banyan-frontend build && pnpm --filter banyan-backend build && pnpm --filter banyan-electron build",
+    "package": "pnpm run build && pnpm --filter banyan-electron package",
+    "package:all": "pnpm run build && pnpm --filter banyan-electron package:all"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

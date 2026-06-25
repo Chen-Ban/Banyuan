@@ -23,10 +23,10 @@ BanvasGL 作为运行时，遵循「机制与策略分离」原则（见 [ADR en
 
 ### Hook（React 集成）
 
-| 导出 | 说明 |
-|------|------|
-| `useRuntimeBanvas` | 在 React 中初始化运行态 BanvasGL App，绑定宿主事件适配与交互识别 |
-| `useRuntimeInteraction` | 单独接入交互识别逻辑（已有 App 实例时使用） |
+| 导出                    | 说明                                                             |
+| ----------------------- | ---------------------------------------------------------------- |
+| `useRuntimeBanvas`      | 在 React 中初始化运行态 BanvasGL App，绑定宿主事件适配与交互识别 |
+| `useRuntimeInteraction` | 单独接入交互识别逻辑（已有 App 实例时使用）                      |
 
 类型：`UseRuntimeOptions`、`UseRuntimeBanvasResult`、`UseRuntimeInteractionOptions`。
 
@@ -34,22 +34,22 @@ BanvasGL 作为运行时，遵循「机制与策略分离」原则（见 [ADR en
 
 跨平台事件适配：把平台原生事件转换为统一的 `InteractionInput`。
 
-| 导出 | 说明 |
-|------|------|
-| `WebEventAdapter` / `createWebEventAdapter` | Web/DOM 环境的事件适配器 |
-| `EventAdapter`（类型） | 适配器接口契约，可实现其它宿主（如 Electron 原生层） |
-| `CoordinateTransform`、`EventAdapterOptions`、`WebEventAdapterOptions`（类型） | 坐标变换与配置 |
+| 导出                                                                           | 说明                                                 |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| `WebEventAdapter` / `createWebEventAdapter`                                    | Web/DOM 环境的事件适配器                             |
+| `EventAdapter`（类型）                                                         | 适配器接口契约，可实现其它宿主（如 Electron 原生层） |
+| `CoordinateTransform`、`EventAdapterOptions`、`WebEventAdapterOptions`（类型） | 坐标变换与配置                                       |
 
 ### 交互识别器（interaction）
 
 把 `InteractionInput` 序列识别成有语义的交互事件键。
 
-| 导出 | 说明 |
-|------|------|
-| `InteractionRecognizer` | 交互识别器总入口，聚合各子识别器 |
-| `ClickRecognizer` | 点击识别 |
-| `DragRecognizer` | 拖拽识别（`DragRecognizerOptions` 可配阈值等） |
-| `RecognizedInteraction`、`RuntimeEventKey`（类型） | 识别结果与事件键 |
+| 导出                                               | 说明                                           |
+| -------------------------------------------------- | ---------------------------------------------- |
+| `InteractionRecognizer`                            | 交互识别器总入口，聚合各子识别器               |
+| `ClickRecognizer`                                  | 点击识别                                       |
+| `DragRecognizer`                                   | 拖拽识别（`DragRecognizerOptions` 可配阈值等） |
+| `RecognizedInteraction`、`RuntimeEventKey`（类型） | 识别结果与事件键                               |
 
 ---
 

@@ -1,6 +1,6 @@
 import { Context } from 'koa'
 import materialService from '../services/MaterialService.js'
-import type { MaterialSource, MaterialKind, IMaterialTemplate } from '../models/types/index.js'
+import type { MaterialSource, MaterialKind, ITemplate } from '../models/types/index.js'
 
 /** POST/PUT /api/materials 请求体 */
 interface MaterialRequestBody {
@@ -12,7 +12,7 @@ interface MaterialRequestBody {
   source?: MaterialSource
   version?: string
   minEngineVersion?: string
-  template?: IMaterialTemplate
+  template?: ITemplate
   applicationId?: string
 }
 
@@ -33,9 +33,12 @@ class MaterialController {
       } = {
         keyword: keyword as string | undefined,
         tags: tags
-          ? (Array.isArray(tags)
-            ? tags as string[]
-            : (tags as string).split(',').map(t => t.trim()).filter(Boolean))
+          ? Array.isArray(tags)
+            ? (tags as string[])
+            : (tags as string)
+                .split(',')
+                .map((t) => t.trim())
+                .filter(Boolean)
           : undefined,
         kind: kind as MaterialKind | undefined,
         source: source as MaterialSource | undefined,
@@ -225,10 +228,7 @@ class MaterialController {
         return
       }
 
-      const materials = await materialService.searchMaterials(
-        q as string,
-        parseInt(limit as string, 10),
-      )
+      const materials = await materialService.searchMaterials(q as string, parseInt(limit as string, 10))
 
       ctx.status = 200
       ctx.body = { success: true, data: materials }

@@ -1,13 +1,13 @@
-import { GraphType } from "@/foundation/constants";
-import Style from "@/foundation/style/Style";
-import { Point3, Vector3 } from "@/foundation/math";
-import CombinedGraph from "@/graph/combined/CombinedGraph";
-import Line from "@/graph/analytic/Line";
-import Arc from "@/graph/analytic/Arc";
+import { GraphType } from '@/foundation/constants'
+import Style from '@/foundation/style/Style'
+import { Point3, Vector3 } from '@/foundation/math'
+import CombinedGraph from '@/graph/combined/CombinedGraph'
+import Line from '@/graph/analytic/Line'
+import Arc from '@/graph/analytic/Arc'
 import type { IRoundedRect } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-import { generateId } from "@/foundation/utils";
+import type { IDrawingContext } from '@/types/platform/context.js'
+import { generateId } from '@/foundation/utils'
 
 /**
  * 圆角矩形 —— 由 4 段弧 + 4 段直线拼接而成的组合图形。
@@ -45,30 +45,27 @@ import { generateId } from "@/foundation/utils";
  * const rr2 = new RoundedRect(0, 0, 300, 150, [10, 20, 10, 20], style);
  * ```
  */
-export default class RoundedRect
-  extends CombinedGraph
-  implements IRoundedRect, ISerializable
-{
+export default class RoundedRect extends CombinedGraph implements IRoundedRect, ISerializable {
   /** 图形类型标识 */
-  public type: GraphType = GraphType.ROUNDED_RECT;
+  public type: GraphType = GraphType.ROUNDED_RECT
 
   /** 矩形左上角 x 坐标 */
-  public x: number;
+  public x: number
 
   /** 矩形左上角 y 坐标 */
-  public y: number;
+  public y: number
 
   /** 矩形宽度 */
-  public width: number;
+  public width: number
 
   /** 矩形高度 */
-  public height: number;
+  public height: number
 
   /**
    * 四角圆角半径，顺序为 [左上, 右上, 右下, 左下]。
    * 每个值受限于相邻两边长度的一半，且两角之和不超过对应边长。
    */
-  public radii: [number, number, number, number];
+  public radii: [number, number, number, number]
 
   /**
    * 创建一个圆角矩形实例。
@@ -97,20 +94,18 @@ export default class RoundedRect
     radii: [number, number, number, number] | number = 0,
     _style?: Style,
   ) {
-    super([], undefined);
-    this.x = x;
-    this.y = y;
-    this.width = Math.max(0, width);
-    this.height = Math.max(0, height);
+    super([], undefined)
+    this.x = x
+    this.y = y
+    this.width = Math.max(0, width)
+    this.height = Math.max(0, height)
 
     const r =
-      typeof radii === "number"
-        ? ([radii, radii, radii, radii] as [number, number, number, number])
-        : radii;
-    this.radii = this.clampRadii(r);
+      typeof radii === 'number' ? ([radii, radii, radii, radii] as [number, number, number, number]) : radii
+    this.radii = this.clampRadii(r)
 
-    this.rebuildEdges();
-    this.id = generateId(this.type);
+    this.rebuildEdges()
+    this.id = generateId(this.type)
   }
 
   // ─────────────────────────────────────────────
@@ -130,10 +125,10 @@ export default class RoundedRect
    * ```
    */
   public setPosition(x: number, y: number): RoundedRect {
-    this.x = x;
-    this.y = y;
-    this.rebuildEdges();
-    return this;
+    this.x = x
+    this.y = y
+    this.rebuildEdges()
+    return this
   }
 
   /**
@@ -150,11 +145,11 @@ export default class RoundedRect
    * ```
    */
   public setSize(width: number, height: number): RoundedRect {
-    this.width = Math.max(0, width);
-    this.height = Math.max(0, height);
-    this.radii = this.clampRadii(this.radii);
-    this.rebuildEdges();
-    return this;
+    this.width = Math.max(0, width)
+    this.height = Math.max(0, height)
+    this.radii = this.clampRadii(this.radii)
+    this.rebuildEdges()
+    return this
   }
 
   /**
@@ -172,10 +167,10 @@ export default class RoundedRect
    * ```
    */
   public setRadius(index: 0 | 1 | 2 | 3, radius: number): RoundedRect {
-    this.radii[index] = Math.max(0, radius);
-    this.radii = this.clampRadii(this.radii);
-    this.rebuildEdges();
-    return this;
+    this.radii[index] = Math.max(0, radius)
+    this.radii = this.clampRadii(this.radii)
+    this.rebuildEdges()
+    return this
   }
 
   /**
@@ -191,10 +186,10 @@ export default class RoundedRect
    * ```
    */
   public setAllRadii(radius: number): RoundedRect {
-    const r = Math.max(0, radius);
-    this.radii = this.clampRadii([r, r, r, r]);
-    this.rebuildEdges();
-    return this;
+    const r = Math.max(0, radius)
+    this.radii = this.clampRadii([r, r, r, r])
+    this.rebuildEdges()
+    return this
   }
 
   /**
@@ -208,7 +203,7 @@ export default class RoundedRect
    * ```
    */
   public getCenter(): Point3 {
-    return new Point3(this.x + this.width / 2, this.y + this.height / 2, 0);
+    return new Point3(this.x + this.width / 2, this.y + this.height / 2, 0)
   }
 
   /**
@@ -225,7 +220,7 @@ export default class RoundedRect
    * ```
    */
   public getCentroid(): Point3 {
-    return this.getCenter();
+    return this.getCenter()
   }
 
   // ─────────────────────────────────────────────
@@ -262,9 +257,9 @@ export default class RoundedRect
    * ```
    */
   public override syncControlPoints(): void {
-    if (!this.radii) return;
-    const { x, y, width: w, height: h } = this;
-    const [rtl, rtr, rbr, rbl] = this.radii;
+    if (!this.radii) return
+    const { x, y, width: w, height: h } = this
+    const [rtl, rtr, rbr, rbl] = this.radii
 
     this.controlPoints = [
       // 尺寸控制点（8 个，顺时针从左上开始）
@@ -281,7 +276,7 @@ export default class RoundedRect
       new Point3(x + w - rtr, y, 0), // 9  右上圆角（上边切点）
       new Point3(x + w - rbr, y + h, 0), // 10 右下圆角（下边切点）
       new Point3(x + rbl, y + h, 0), // 11 左下圆角（下边切点）
-    ];
+    ]
   }
 
   /**
@@ -303,86 +298,86 @@ export default class RoundedRect
    * ```
    */
   public setControlPoint(index: number, point: Point3): void {
-    const { x, y, width: w, height: h } = this;
+    const { x, y, width: w, height: h } = this
 
     if (index === 0) {
       // 左上角：右下角固定
-      const anchorX = x + w;
-      const anchorY = y + h;
-      this.x = Math.min(point.x, anchorX);
-      this.y = Math.min(point.y, anchorY);
-      this.width = Math.abs(anchorX - point.x);
-      this.height = Math.abs(anchorY - point.y);
+      const anchorX = x + w
+      const anchorY = y + h
+      this.x = Math.min(point.x, anchorX)
+      this.y = Math.min(point.y, anchorY)
+      this.width = Math.abs(anchorX - point.x)
+      this.height = Math.abs(anchorY - point.y)
     } else if (index === 1) {
       // 上边中点：只改 y 和 height，底边固定
-      const anchorY = y + h;
-      this.y = Math.min(point.y, anchorY);
-      this.height = Math.abs(anchorY - point.y);
+      const anchorY = y + h
+      this.y = Math.min(point.y, anchorY)
+      this.height = Math.abs(anchorY - point.y)
     } else if (index === 2) {
       // 右上角：左下角固定
-      const anchorX = x;
-      const anchorY = y + h;
-      this.x = Math.min(point.x, anchorX);
-      this.y = Math.min(point.y, anchorY);
-      this.width = Math.abs(point.x - anchorX);
-      this.height = Math.abs(anchorY - point.y);
+      const anchorX = x
+      const anchorY = y + h
+      this.x = Math.min(point.x, anchorX)
+      this.y = Math.min(point.y, anchorY)
+      this.width = Math.abs(point.x - anchorX)
+      this.height = Math.abs(anchorY - point.y)
     } else if (index === 3) {
       // 右边中点：只改 width，左边固定
-      const anchorX = x;
-      this.x = Math.min(point.x, anchorX);
-      this.width = Math.abs(point.x - anchorX);
+      const anchorX = x
+      this.x = Math.min(point.x, anchorX)
+      this.width = Math.abs(point.x - anchorX)
     } else if (index === 4) {
       // 右下角：左上角固定
-      const anchorX = x;
-      const anchorY = y;
-      this.x = Math.min(point.x, anchorX);
-      this.y = Math.min(point.y, anchorY);
-      this.width = Math.abs(point.x - anchorX);
-      this.height = Math.abs(point.y - anchorY);
+      const anchorX = x
+      const anchorY = y
+      this.x = Math.min(point.x, anchorX)
+      this.y = Math.min(point.y, anchorY)
+      this.width = Math.abs(point.x - anchorX)
+      this.height = Math.abs(point.y - anchorY)
     } else if (index === 5) {
       // 下边中点：只改 height，顶边固定
-      const anchorY = y;
-      this.y = Math.min(point.y, anchorY);
-      this.height = Math.abs(point.y - anchorY);
+      const anchorY = y
+      this.y = Math.min(point.y, anchorY)
+      this.height = Math.abs(point.y - anchorY)
     } else if (index === 6) {
       // 左下角：右上角固定
-      const anchorX = x + w;
-      const anchorY = y;
-      this.x = Math.min(point.x, anchorX);
-      this.y = Math.min(point.y, anchorY);
-      this.width = Math.abs(anchorX - point.x);
-      this.height = Math.abs(point.y - anchorY);
+      const anchorX = x + w
+      const anchorY = y
+      this.x = Math.min(point.x, anchorX)
+      this.y = Math.min(point.y, anchorY)
+      this.width = Math.abs(anchorX - point.x)
+      this.height = Math.abs(point.y - anchorY)
     } else if (index === 7) {
       // 左边中点：只改 x 和 width，右边固定
-      const anchorX = x + w;
-      this.x = Math.min(point.x, anchorX);
-      this.width = Math.abs(anchorX - point.x);
+      const anchorX = x + w
+      this.x = Math.min(point.x, anchorX)
+      this.width = Math.abs(anchorX - point.x)
     } else if (index >= 8 && index <= 11) {
       // 圆角控制点：限制最大半径为相邻两边中较短边的一半
-      const maxRadius = Math.min(this.width, this.height) / 2;
-      let r: number;
+      const maxRadius = Math.min(this.width, this.height) / 2
+      let r: number
 
       if (index === 8) {
         // 左上圆角：水平距离 = 切点 x - 矩形左边
-        r = point.x - this.x;
+        r = point.x - this.x
       } else if (index === 9) {
         // 右上圆角：水平距离 = 矩形右边 - 切点 x
-        r = this.x + this.width - point.x;
+        r = this.x + this.width - point.x
       } else if (index === 10) {
         // 右下圆角：水平距离 = 矩形右边 - 切点 x
-        r = this.x + this.width - point.x;
+        r = this.x + this.width - point.x
       } else {
         // 左下圆角：水平距离 = 切点 x - 矩形左边
-        r = point.x - this.x;
+        r = point.x - this.x
       }
 
       // clamp: [0, maxRadius]
-      r = Math.max(0, Math.min(r, maxRadius));
-      this.radii[index - 8] = r;
+      r = Math.max(0, Math.min(r, maxRadius))
+      this.radii[index - 8] = r
     }
 
-    this.radii = this.clampRadii(this.radii);
-    this.rebuildEdges();
+    this.radii = this.clampRadii(this.radii)
+    this.rebuildEdges()
   }
 
   // ─────────────────────────────────────────────
@@ -403,15 +398,15 @@ export default class RoundedRect
    * ```
    */
   public render(ctx: IDrawingContext, style: Style): void {
-    const bounds = this.bounds;
-    ctx.save();
-    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height));
-    ctx.beginPath();
-    this.buildCanvasPath(ctx);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
+    const bounds = this.bounds
+    ctx.save()
+    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
+    ctx.beginPath()
+    this.buildCanvasPath(ctx)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+    ctx.restore()
   }
 
   /**
@@ -426,10 +421,10 @@ export default class RoundedRect
    * ctx.stroke();
    * ```
    */
-  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
-    dependent && ctx.beginPath();
-    this.buildCanvasPath(ctx);
-    ctx.closePath();
+  public renderPath(ctx: IDrawingContext, dependent: boolean): void {
+    dependent && ctx.beginPath()
+    this.buildCanvasPath(ctx)
+    ctx.closePath()
   }
 
   // ─────────────────────────────────────────────
@@ -451,28 +446,22 @@ export default class RoundedRect
    * rr.resize(anchor, handle, dragVector);
    * ```
    */
-  public resize(
-    fixedPoint: Point3,
-    dynamicPoint: Point3,
-    resizeVector: Vector3,
-  ): void {
-    const referenceVector = dynamicPoint.subtract(fixedPoint);
-    const w = Math.abs(referenceVector.x) || Infinity;
-    const h = Math.abs(referenceVector.y) || Infinity;
-    const scaleX = 1 + (resizeVector.x * Math.sign(referenceVector.x)) / w;
-    const scaleY = 1 + (resizeVector.y * Math.sign(referenceVector.y)) / h;
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
+    const referenceVector = dynamicPoint.subtract(fixedPoint)
+    const w = Math.abs(referenceVector.x) || Infinity
+    const h = Math.abs(referenceVector.y) || Infinity
+    const scaleX = 1 + (resizeVector.x * Math.sign(referenceVector.x)) / w
+    const scaleY = 1 + (resizeVector.y * Math.sign(referenceVector.y)) / h
 
-    this.x *= scaleX;
-    this.y *= scaleY;
-    this.width = Math.max(0, this.width * scaleX);
-    this.height = Math.max(0, this.height * scaleY);
+    this.x *= scaleX
+    this.y *= scaleY
+    this.width = Math.max(0, this.width * scaleX)
+    this.height = Math.max(0, this.height * scaleY)
     // 圆角半径等比缩放（取两轴最小缩放比，保持视觉一致）
-    const scale = Math.min(Math.abs(scaleX), Math.abs(scaleY));
-    this.radii = this.clampRadii(
-      this.radii.map((r) => r * scale) as [number, number, number, number],
-    );
+    const scale = Math.min(Math.abs(scaleX), Math.abs(scaleY))
+    this.radii = this.clampRadii(this.radii.map((r) => r * scale) as [number, number, number, number])
 
-    this.rebuildEdges();
+    this.rebuildEdges()
   }
 
   // ─────────────────────────────────────────────
@@ -499,7 +488,7 @@ export default class RoundedRect
       width: this.width,
       height: this.height,
       radii: [...this.radii],
-    };
+    }
   }
 
   /**
@@ -521,9 +510,9 @@ export default class RoundedRect
       data.height,
       data.radii as [number, number, number, number],
       undefined,
-    );
-    rr.id = data.id;
-    return rr;
+    )
+    rr.id = data.id
+    return rr
   }
 
   /**
@@ -544,7 +533,7 @@ export default class RoundedRect
       this.height,
       [...this.radii] as [number, number, number, number],
       undefined,
-    ) as this;
+    ) as this
   }
 
   // ─────────────────────────────────────────────
@@ -564,22 +553,20 @@ export default class RoundedRect
    * const clamped = this.clampRadii([60, 60, 0, 0]);
    * ```
    */
-  private clampRadii(
-    radii: [number, number, number, number],
-  ): [number, number, number, number] {
-    let [rtl, rtr, rbr, rbl] = radii.map((r) => Math.max(0, r));
-    const w = this.width;
-    const h = this.height;
+  private clampRadii(radii: [number, number, number, number]): [number, number, number, number] {
+    const [rtl, rtr, rbr, rbl] = radii.map((r) => Math.max(0, r))
+    const w = this.width
+    const h = this.height
 
     // 水平方向：左上+右上 ≤ width，左下+右下 ≤ width
-    const topScale = rtl + rtr > w ? w / (rtl + rtr) : 1;
-    const botScale = rbl + rbr > w ? w / (rbl + rbr) : 1;
+    const topScale = rtl + rtr > w ? w / (rtl + rtr) : 1
+    const botScale = rbl + rbr > w ? w / (rbl + rbr) : 1
     // 垂直方向：左上+左下 ≤ height，右上+右下 ≤ height
-    const leftScale = rtl + rbl > h ? h / (rtl + rbl) : 1;
-    const rightScale = rtr + rbr > h ? h / (rtr + rbr) : 1;
+    const leftScale = rtl + rbl > h ? h / (rtl + rbl) : 1
+    const rightScale = rtr + rbr > h ? h / (rtr + rbr) : 1
 
-    const s = Math.min(topScale, botScale, leftScale, rightScale);
-    return [rtl * s, rtr * s, rbr * s, rbl * s];
+    const s = Math.min(topScale, botScale, leftScale, rightScale)
+    return [rtl * s, rtr * s, rbr * s, rbl * s]
   }
 
   /**
@@ -596,14 +583,14 @@ export default class RoundedRect
    * ```
    */
   protected rebuildEdges(): void {
-    const { x, y, width: w, height: h } = this;
-    const [rtl, rtr, rbr, rbl] = this.radii;
+    const { x, y, width: w, height: h } = this
+    const [rtl, rtr, rbr, rbl] = this.radii
 
     // 各角圆心
-    const cTL = new Point3(x + rtl, y + rtl, 0);
-    const cTR = new Point3(x + w - rtr, y + rtr, 0);
-    const cBR = new Point3(x + w - rbr, y + h - rbr, 0);
-    const cBL = new Point3(x + rbl, y + h - rbl, 0);
+    const cTL = new Point3(x + rtl, y + rtl, 0)
+    const cTR = new Point3(x + w - rtr, y + rtr, 0)
+    const cBR = new Point3(x + w - rbr, y + h - rbr, 0)
+    const cBL = new Point3(x + rbl, y + h - rbl, 0)
 
     // 各角弧的切点（顺时针，起点/终点）
     // 左上角：从左边切点（上方）→ 上边切点（右方），角度 π → 3π/2（顺时针即 anticlockwise=false）
@@ -611,51 +598,30 @@ export default class RoundedRect
     // 我们用 Arc 类，clockwise=false 表示逆时针（Canvas 默认）
     // 顺时针绘制圆角矩形，每个角弧都是顺时针 90°
 
-    const PI = Math.PI;
+    const PI = Math.PI
 
     // 左上角弧：圆心 cTL，从 π（左）到 3π/2（上），顺时针
-    const arcTL = new Arc(cTL, rtl, rtl, 0, PI, PI * 1.5, false);
+    const arcTL = new Arc(cTL, rtl, rtl, 0, PI, PI * 1.5, false)
     // 右上角弧：圆心 cTR，从 3π/2（上）到 0（右），顺时针
-    const arcTR = new Arc(cTR, rtr, rtr, 0, PI * 1.5, PI * 2, false);
+    const arcTR = new Arc(cTR, rtr, rtr, 0, PI * 1.5, PI * 2, false)
     // 右下角弧：圆心 cBR，从 0（右）到 π/2（下），顺时针
-    const arcBR = new Arc(cBR, rbr, rbr, 0, 0, PI * 0.5, false);
+    const arcBR = new Arc(cBR, rbr, rbr, 0, 0, PI * 0.5, false)
     // 左下角弧：圆心 cBL，从 π/2（下）到 π（左），顺时针
-    const arcBL = new Arc(cBL, rbl, rbl, 0, PI * 0.5, PI, false);
+    const arcBL = new Arc(cBL, rbl, rbl, 0, PI * 0.5, PI, false)
 
     // 四条直线（连接相邻弧的端点）
     // 上边：arcTL 终点 → arcTR 起点
-    const linTop = new Line(
-      new Point3(x + rtl, y, 0),
-      new Point3(x + w - rtr, y, 0),
-    );
+    const linTop = new Line(new Point3(x + rtl, y, 0), new Point3(x + w - rtr, y, 0))
     // 右边：arcTR 终点 → arcBR 起点
-    const linRight = new Line(
-      new Point3(x + w, y + rtr, 0),
-      new Point3(x + w, y + h - rbr, 0),
-    );
+    const linRight = new Line(new Point3(x + w, y + rtr, 0), new Point3(x + w, y + h - rbr, 0))
     // 下边：arcBR 终点 → arcBL 起点（从右到左）
-    const linBot = new Line(
-      new Point3(x + w - rbr, y + h, 0),
-      new Point3(x + rbl, y + h, 0),
-    );
+    const linBot = new Line(new Point3(x + w - rbr, y + h, 0), new Point3(x + rbl, y + h, 0))
     // 左边：arcBL 终点 → arcTL 起点（从下到上）
-    const linLeft = new Line(
-      new Point3(x, y + h - rbl, 0),
-      new Point3(x, y + rtl, 0),
-    );
+    const linLeft = new Line(new Point3(x, y + h - rbl, 0), new Point3(x, y + rtl, 0))
 
-    this.graphs = [
-      arcTL,
-      linTop,
-      arcTR,
-      linRight,
-      arcBR,
-      linBot,
-      arcBL,
-      linLeft,
-    ];
-    this.syncControlPoints();
-    this.bounds = this.updateBounds();
+    this.graphs = [arcTL, linTop, arcTR, linRight, arcBR, linBot, arcBL, linLeft]
+    this.syncControlPoints()
+    this.bounds = this.updateBounds()
   }
 
   /**
@@ -671,18 +637,18 @@ export default class RoundedRect
    * ```
    */
   private buildCanvasPath(ctx: IDrawingContext): void {
-    const { x, y, width: w, height: h } = this;
-    const [rtl, rtr, rbr, rbl] = this.radii;
-    const PI = Math.PI;
+    const { x, y, width: w, height: h } = this
+    const [rtl, rtr, rbr, rbl] = this.radii
+    const PI = Math.PI
 
-    ctx.moveTo(x + rtl, y);
-    ctx.lineTo(x + w - rtr, y);
-    ctx.arc(x + w - rtr, y + rtr, rtr, PI * 1.5, PI * 2, false);
-    ctx.lineTo(x + w, y + h - rbr);
-    ctx.arc(x + w - rbr, y + h - rbr, rbr, 0, PI * 0.5, false);
-    ctx.lineTo(x + rbl, y + h);
-    ctx.arc(x + rbl, y + h - rbl, rbl, PI * 0.5, PI, false);
-    ctx.lineTo(x, y + rtl);
-    ctx.arc(x + rtl, y + rtl, rtl, PI, PI * 1.5, false);
+    ctx.moveTo(x + rtl, y)
+    ctx.lineTo(x + w - rtr, y)
+    ctx.arc(x + w - rtr, y + rtr, rtr, PI * 1.5, PI * 2, false)
+    ctx.lineTo(x + w, y + h - rbr)
+    ctx.arc(x + w - rbr, y + h - rbr, rbr, 0, PI * 0.5, false)
+    ctx.lineTo(x + rbl, y + h)
+    ctx.arc(x + rbl, y + h - rbl, rbl, PI * 0.5, PI, false)
+    ctx.lineTo(x, y + rtl)
+    ctx.arc(x + rtl, y + rtl, rtl, PI, PI * 1.5, false)
   }
 }

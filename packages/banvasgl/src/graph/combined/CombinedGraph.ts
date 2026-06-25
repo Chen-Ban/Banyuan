@@ -1,18 +1,12 @@
-import { GraphType } from "@/foundation/constants";
-import Style from "@/foundation/style/Style";
-import {
-  MathUtils,
-  Point3,
-  Vector3,
-  Matrix4,
-  GeometryUtils,
-} from "@/foundation/math";
-import Graph from "@/graph/base/Graph";
-import Bounds from "@/graph/base/Bounds";
+import { GraphType } from '@/foundation/constants'
+import Style from '@/foundation/style/Style'
+import { MathUtils, Point3, Vector3, Matrix4, GeometryUtils } from '@/foundation/math'
+import Graph from '@/graph/base/Graph'
+import Bounds from '@/graph/base/Bounds'
 import type { ICombinedGraph } from '@/types/graph/graph'
 import type { ISerializable } from '@/types/foundation/serializable'
-import type { IDrawingContext } from '@/types/platform/drawing.js'
-import { generateId } from "@/foundation/utils";
+import type { IDrawingContext } from '@/types/platform/context.js'
+import { generateId } from '@/foundation/utils'
 
 /**
  * 组合图形基类 —— 将多个子图形聚合为一个整体进行管理、渲染和交互。
@@ -40,27 +34,24 @@ import { generateId } from "@/foundation/utils";
  * const combined = new CombinedGraph([line, arc], style);
  * ```
  */
-export default class CombinedGraph
-  extends Graph
-  implements ICombinedGraph, ISerializable
-{
+export default class CombinedGraph extends Graph implements ICombinedGraph, ISerializable {
   /** 图形类型标识，子类应覆盖为具体类型 */
-  public type: GraphType = GraphType.COMBINED_GRAPH;
+  public type: GraphType = GraphType.COMBINED_GRAPH
 
   /**
    * 子图形数组，按拼接顺序排列。
    * 渲染和参数化计算均依赖此数组的顺序。
    */
-  public graphs: Graph[] = [];
+  public graphs: Graph[] = []
 
   /**
    * 控制点数组，由 `syncControlPoints` 从子图形聚合而来。
    * 每个控制点的索引可通过 `setControlPoint` 委托到对应子图形。
    */
-  public controlPoints: Point3[] = [];
+  public controlPoints: Point3[] = []
 
   /** 包围盒，由 `updateBounds` 计算得出 */
-  public bounds: Bounds;
+  public bounds: Bounds
 
   /**
    * 创建一个组合图形实例。
@@ -75,12 +66,12 @@ export default class CombinedGraph
    * ```
    */
   constructor(graphs: Graph[] = [], _style?: Style) {
-    super();
-    this.graphs = [...graphs];
+    super()
+    this.graphs = [...graphs]
 
-    this.syncControlPoints();
-    this.bounds = this.updateBounds();
-    this.id = generateId(this.type);
+    this.syncControlPoints()
+    this.bounds = this.updateBounds()
+    this.id = generateId(this.type)
   }
 
   /**
@@ -96,7 +87,7 @@ export default class CombinedGraph
    * ```
    */
   public isClosed(): boolean {
-    return true;
+    return true
   }
 
   /**
@@ -115,7 +106,7 @@ export default class CombinedGraph
    * ```
    */
   public getArea(): number {
-    throw new Error("暂不支持复杂图形的面积计算，待后续新增图形积分后计算");
+    throw new Error('暂不支持复杂图形的面积计算，待后续新增图形积分后计算')
   }
 
   /**
@@ -132,13 +123,13 @@ export default class CombinedGraph
    * ```
    */
   public getClosestPoint(point: Point3): {
-    distance: number;
-    closestPoint: Point3;
-    parameter: number;
+    distance: number
+    closestPoint: Point3
+    parameter: number
   } {
-    const results = this.graphs.map((g) => g.getClosestPoint(point));
-    const minDistance = Math.min(...results.map((res) => res.distance));
-    return results.find((res) => res.distance === minDistance)!;
+    const results = this.graphs.map((g) => g.getClosestPoint(point))
+    const minDistance = Math.min(...results.map((res) => res.distance))
+    return results.find((res) => res.distance === minDistance)!
   }
 
   /**
@@ -154,11 +145,9 @@ export default class CombinedGraph
    */
   public getCentroid(): Point3 {
     if (this.graphs.length === 0) {
-      return new Point3(0, 0, 0);
+      return new Point3(0, 0, 0)
     }
-    return this.graphs
-      .map((g) => g.getCentroid())
-      .reduce((a, b) => GeometryUtils.midpoint(a, b));
+    return this.graphs.map((g) => g.getCentroid()).reduce((a, b) => GeometryUtils.midpoint(a, b))
   }
 
   /**
@@ -176,16 +165,16 @@ export default class CombinedGraph
    * ```
    */
   public getLength(tStart: number, tEnd: number): number {
-    const [startGraph, startT] = this.getTAtInnerGraph(tStart);
-    const [endGraph, endT] = this.getTAtInnerGraph(tEnd);
-    const startIndex = this.graphs.findIndex((g) => g === startGraph);
-    const endIndex = this.graphs.findIndex((g) => g === endGraph);
-    const graphs = this.graphs.filter((g, i) => i > startIndex && i < endIndex);
+    const [startGraph, startT] = this.getTAtInnerGraph(tStart)
+    const [endGraph, endT] = this.getTAtInnerGraph(tEnd)
+    const startIndex = this.graphs.findIndex((g) => g === startGraph)
+    const endIndex = this.graphs.findIndex((g) => g === endGraph)
+    const graphs = this.graphs.filter((_, i) => i > startIndex && i < endIndex)
     return (
       startGraph.getLength(startT, 1) +
       graphs.reduce((a, b) => a + b.getLength(0, 1), 0) +
       endGraph.getLength(0, endT)
-    );
+    )
   }
 
   /**
@@ -203,17 +192,17 @@ export default class CombinedGraph
    * ```
    */
   private getTAtInnerGraph(t: number): [Graph, number] {
-    const lengths = this.graphs.map((g) => g.getLength(0, 1));
-    const length = lengths.reduce((a, b) => a + b);
-    let targetLength = length * t;
+    const lengths = this.graphs.map((g) => g.getLength(0, 1))
+    const length = lengths.reduce((a, b) => a + b)
+    let targetLength = length * t
     for (const [i, graph] of this.graphs.entries()) {
       if (targetLength > graph.getLength(0, 1)) {
-        targetLength -= lengths[i];
-        continue;
+        targetLength -= lengths[i]
+        continue
       }
-      return [graph, targetLength / lengths[i]];
+      return [graph, targetLength / lengths[i]]
     }
-    throw new Error("找不到对应参数量的图形");
+    throw new Error('找不到对应参数量的图形')
   }
 
   /**
@@ -230,8 +219,8 @@ export default class CombinedGraph
    * ```
    */
   public getPointAt(t: number): Point3 {
-    const [graph, innerT] = this.getTAtInnerGraph(t);
-    return graph.getPointAt(innerT);
+    const [graph, innerT] = this.getTAtInnerGraph(t)
+    return graph.getPointAt(innerT)
   }
 
   /**
@@ -246,8 +235,8 @@ export default class CombinedGraph
    * ```
    */
   public getTangentAt(t: number): Vector3 {
-    const [graph, innerT] = this.getTAtInnerGraph(t);
-    return graph.getTangentAt(innerT);
+    const [graph, innerT] = this.getTAtInnerGraph(t)
+    return graph.getTangentAt(innerT)
   }
 
   /**
@@ -262,8 +251,8 @@ export default class CombinedGraph
    * ```
    */
   public getNormalAt(t: number): Vector3 {
-    const [graph, innerT] = this.getTAtInnerGraph(t);
-    return graph.getNormalAt(innerT);
+    const [graph, innerT] = this.getTAtInnerGraph(t)
+    return graph.getNormalAt(innerT)
   }
 
   /**
@@ -282,18 +271,16 @@ export default class CombinedGraph
    */
   public updateBounds(): Bounds {
     if (this.graphs.length === 0) {
-      return Bounds.empty();
+      return Bounds.empty()
     }
 
-    const childBounds = this.graphs
-      .map((g) => g.bounds)
-      .filter((b) => b && !b.isEmpty);
+    const childBounds = this.graphs.map((g) => g.bounds).filter((b) => b && !b.isEmpty)
 
     if (childBounds.length === 0) {
-      return Bounds.empty();
+      return Bounds.empty()
     }
 
-    return Bounds.union(...childBounds);
+    return Bounds.union(...childBounds)
   }
 
   /**
@@ -309,11 +296,8 @@ export default class CombinedGraph
    * const onCurve = combined.isPointOnCurve(new Point3(5, 5, 0), 0.01);
    * ```
    */
-  isPointOnCurve(
-    point: Point3,
-    tolerance: number = MathUtils.EPSILON,
-  ): boolean {
-    return this.graphs.some((graph) => graph.isPointOnCurve(point, tolerance));
+  isPointOnCurve(point: Point3, tolerance: number = MathUtils.EPSILON): boolean {
+    return this.graphs.some((graph) => graph.isPointOnCurve(point, tolerance))
   }
 
   /**
@@ -329,10 +313,10 @@ export default class CombinedGraph
    * ```
    */
   public addGraph(graph: Graph): CombinedGraph {
-    this.graphs.push(graph);
-    this.syncControlPoints();
-    this.bounds = this.updateBounds();
-    return this;
+    this.graphs.push(graph)
+    this.syncControlPoints()
+    this.bounds = this.updateBounds()
+    return this
   }
 
   /**
@@ -348,20 +332,20 @@ export default class CombinedGraph
    * ```
    */
   public syncControlPoints(): void {
-    const allPoints: Point3[] = [];
+    const allPoints: Point3[] = []
 
     for (const graph of this.graphs) {
       if (graph.controlPoints instanceof Float32Array) {
-        const arr = graph.controlPoints;
+        const arr = graph.controlPoints
         for (let i = 0; i < arr.length; i += 3) {
-          allPoints.push(new Point3(arr[i], arr[i + 1], arr[i + 2]));
+          allPoints.push(new Point3(arr[i], arr[i + 1], arr[i + 2]))
         }
       } else {
-        allPoints.push(...graph.controlPoints);
+        allPoints.push(...graph.controlPoints)
       }
     }
 
-    this.controlPoints = allPoints;
+    this.controlPoints = allPoints
   }
 
   /**
@@ -379,25 +363,25 @@ export default class CombinedGraph
    * ```
    */
   public setControlPoint(index: number, point: Point3): void {
-    if (index < 0 || index >= this.controlPoints.length) return;
+    if (index < 0 || index >= this.controlPoints.length) return
 
     // 定位到对应的子图形，委托其 setControlPoint 处理
-    let offset = 0;
+    let offset = 0
     for (const graph of this.graphs) {
       const count =
         graph.controlPoints instanceof Float32Array
           ? graph.controlPoints.length / 3
-          : graph.controlPoints.length;
+          : graph.controlPoints.length
 
       if (index < offset + count) {
-        graph.setControlPoint(index - offset, point);
-        break;
+        graph.setControlPoint(index - offset, point)
+        break
       }
-      offset += count;
+      offset += count
     }
 
-    this.syncControlPoints();
-    this.bounds = this.updateBounds();
+    this.syncControlPoints()
+    this.bounds = this.updateBounds()
   }
 
   /**
@@ -413,11 +397,11 @@ export default class CombinedGraph
    * ctx.stroke();
    * ```
    */
-  public renderPath(ctx: IDrawingContext, dependent: Boolean): void {
-    dependent && ctx.beginPath();
+  public renderPath(ctx: IDrawingContext, dependent: boolean): void {
+    dependent && ctx.beginPath()
     for (let i = 0; i < this.graphs.length; i++) {
       // 第一个子图形独立起笔（moveTo），后续子图形续接路径
-      this.graphs[i].renderPath(ctx, i === 0);
+      this.graphs[i].renderPath(ctx, i === 0)
     }
   }
 
@@ -436,18 +420,14 @@ export default class CombinedGraph
    */
   public render(ctx: IDrawingContext, style: Style): void {
     // 应用组合图形的样式
-    ctx.save();
-    const bounds = this.bounds;
-    style.applyToContext(
-      ctx,
-      Math.abs(bounds.width),
-      Math.abs(bounds.height),
-    );
+    ctx.save()
+    const bounds = this.bounds
+    style.applyToContext(ctx, Math.abs(bounds.width), Math.abs(bounds.height))
     for (const graph of this.graphs) {
-      graph.render(ctx, style);
+      graph.render(ctx, style)
     }
 
-    ctx.restore();
+    ctx.restore()
   }
 
   // ── 序列化 ──
@@ -473,7 +453,7 @@ export default class CombinedGraph
         $type: g.type,
         $value: (g as any).toJSON(),
       })),
-    };
+    }
   }
 
   /**
@@ -492,10 +472,10 @@ export default class CombinedGraph
    */
   static fromJSON(data: any): CombinedGraph {
     // data.graphs 应为已解析的 Graph 实例数组（由 Serializer 处理）
-    const graphs: Graph[] = data.graphs ?? [];
-    const cg = new CombinedGraph(graphs);
-    cg.id = data.id;
-    return cg;
+    const graphs: Graph[] = data.graphs ?? []
+    const cg = new CombinedGraph(graphs)
+    cg.id = data.id
+    return cg
   }
 
   /**
@@ -509,8 +489,8 @@ export default class CombinedGraph
    * ```
    */
   public copy(): this {
-    const copiedGraphs = this.graphs.map((graph) => graph.copy());
-    return new CombinedGraph(copiedGraphs) as this;
+    const copiedGraphs = this.graphs.map((graph) => graph.copy())
+    return new CombinedGraph(copiedGraphs) as this
   }
 
   /**
@@ -528,8 +508,8 @@ export default class CombinedGraph
    * ```
    */
   public addGraphs(graphs: Graph[]): CombinedGraph {
-    this.graphs.push(...graphs);
-    return this;
+    this.graphs.push(...graphs)
+    return this
   }
 
   /**
@@ -545,7 +525,7 @@ export default class CombinedGraph
    * ```
    */
   public getGraphsByType(type: GraphType): Graph[] {
-    return this.graphs.filter((graph) => graph.type === type);
+    return this.graphs.filter((graph) => graph.type === type)
   }
 
   /**
@@ -565,13 +545,13 @@ export default class CombinedGraph
    */
   public transform(matrix: Matrix4): this {
     for (const graph of this.graphs) {
-      graph.transform(matrix);
-      graph.bounds = graph.updateBounds();
+      graph.transform(matrix)
+      graph.bounds = graph.updateBounds()
     }
 
     // 更新组合图形的边界框
-    this.bounds = this.updateBounds();
-    return this;
+    this.bounds = this.updateBounds()
+    return this
   }
 
   /**
@@ -588,8 +568,8 @@ export default class CombinedGraph
    * ```
    */
   public intersect(other: Graph): Point3[] {
-    const intersections = this.graphs.map((graph) => graph.intersect(other));
-    return intersections.flat();
+    const intersections = this.graphs.map((graph) => graph.intersect(other))
+    return intersections.flat()
   }
 
   /**
@@ -606,14 +586,10 @@ export default class CombinedGraph
    * combined.resize(anchor, handle, dragVector);
    * ```
    */
-  public resize(
-    fixedPoint: Point3,
-    dynamicPoint: Point3,
-    resizeVector: Vector3,
-  ): void {
+  public resize(fixedPoint: Point3, dynamicPoint: Point3, resizeVector: Vector3): void {
     for (const graph of this.graphs) {
-      graph.resize(fixedPoint, dynamicPoint, resizeVector);
+      graph.resize(fixedPoint, dynamicPoint, resizeVector)
     }
-    this.bounds = this.updateBounds();
+    this.bounds = this.updateBounds()
   }
 }

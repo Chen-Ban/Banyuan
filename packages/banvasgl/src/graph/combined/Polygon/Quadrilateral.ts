@@ -44,10 +44,7 @@ import { generateId } from '@/foundation/utils'
  * q.isTrapezoid();     // true
  * ```
  */
-export default class Quadrilateral
-  extends Polygon
-  implements IQuadrilateral, ISerializable
-{
+export default class Quadrilateral extends Polygon implements IQuadrilateral, ISerializable {
   /** 图形类型标识 */
   public type: GraphType = GraphType.QUADRILATERAL
 
@@ -101,10 +98,7 @@ export default class Quadrilateral
     const side12 = v2.subtract(v1)
     const side03 = v3.subtract(v0)
 
-    return (
-      MathUtils.isParallel(side01, side32, tolerance) &&
-      MathUtils.isParallel(side12, side03, tolerance)
-    )
+    return MathUtils.isParallel(side01, side32, tolerance) && MathUtils.isParallel(side12, side03, tolerance)
   }
 
   /**
@@ -220,12 +214,18 @@ export default class Quadrilateral
    * console.log(type); // 'square' | 'rectangle' | 'rhombus' | 'parallelogram' | 'trapezoid' | 'general'
    * ```
    */
-  public getQuadrilateralType(): 'rectangle' | 'square' | 'rhombus' | 'parallelogram' | 'trapezoid' | 'general' {
-    if (this.isSquare())       return 'square'
-    if (this.isRectangle())    return 'rectangle'
-    if (this.isRhombus())      return 'rhombus'
+  public getQuadrilateralType():
+    | 'rectangle'
+    | 'square'
+    | 'rhombus'
+    | 'parallelogram'
+    | 'trapezoid'
+    | 'general' {
+    if (this.isSquare()) return 'square'
+    if (this.isRectangle()) return 'rectangle'
+    if (this.isRhombus()) return 'rhombus'
     if (this.isParallelogram()) return 'parallelogram'
-    if (this.isTrapezoid())    return 'trapezoid'
+    if (this.isTrapezoid()) return 'trapezoid'
     return 'general'
   }
 
@@ -250,11 +250,11 @@ export default class Quadrilateral
    */
   public static fromRect(x: number, y: number, width: number, height: number, _style?: Style): Quadrilateral {
     return new Quadrilateral(
-      new Point3(x,         y,          0),
-      new Point3(x + width, y,          0),
+      new Point3(x, y, 0),
+      new Point3(x + width, y, 0),
       new Point3(x + width, y + height, 0),
-      new Point3(x,         y + height, 0),
-      undefined
+      new Point3(x, y + height, 0),
+      undefined,
     )
   }
 
@@ -275,7 +275,7 @@ export default class Quadrilateral
     return {
       id: this.id,
       type: this.type,
-      controlPoints: this.controlPoints.map(v => v.toJSON()),
+      controlPoints: this.controlPoints.map((v) => v.toJSON()),
       closed: this.closed,
     }
   }

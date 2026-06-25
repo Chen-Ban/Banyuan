@@ -115,10 +115,7 @@ export {
   isRollback,
 } from './phases.js'
 
-export type {
-  DialoguePhase,
-  PhaseMetadata,
-} from './phases.js'
+export type { DialoguePhase, PhaseMetadata } from './phases.js'
 
 // ─── 节点工厂（ADR-041 步骤 2.2~2.4）─────────────────────────────────────────
 
@@ -173,16 +170,9 @@ export type {
 
 // ─── Orchestrator 主图（ADR-041 步骤 2.1）────────────────────────────────────
 
-export {
-  OrchestratorStateAnnotation,
-  createOrchestratorGraph,
-} from './orchestratorGraph.js'
+export { OrchestratorStateAnnotation, createOrchestratorGraph } from './orchestratorGraph.js'
 
-export type {
-  OrchestratorMode,
-  OrchestratorState,
-  OrchestratorGraphConfig,
-} from './orchestratorGraph.js'
+export type { OrchestratorMode, OrchestratorState, OrchestratorGraphConfig } from './orchestratorGraph.js'
 
 // ─── SSE 事件类型（ADR-041 步骤 1.4）─────────────────────────────────────────
 
@@ -200,4 +190,3 @@ export type {
   OrchestratorSSEEvent,
   OrchestratorSSECallback,
 } from './events.js'
-

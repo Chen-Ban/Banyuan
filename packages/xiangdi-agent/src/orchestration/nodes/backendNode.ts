@@ -25,6 +25,7 @@ import { createBackendToolRegistry } from './workerTools.js'
 import { createWorkerGraph, extractFinalText } from './workerGraph.js'
 import { buildExecution, emitProgress } from './shared.js'
 import type { Message } from '../../core/types.js'
+import { ContextProvider, BACKEND_DECLARATION } from '../context/index.js'
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 配置
@@ -45,66 +46,7 @@ export interface BackendNodeConfig {
 // System Prompt 构建
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const BACKEND_WORKER_ROLE = `你是班园（Banyuan）的后端工程师 Agent。你的职责是根据需求规格和前后端契约，生成完整的数据模型定义（CollectionSchema）和服务端云函数（FlowSchema）。
-
-## 核心原则
-
-1. **严格遵循契约**：数据表字段必须与 IntegrationContract.collections 一致，云函数签名必须与 IntegrationContract.cloudFunctions 一致
-2. **functionId 一致性**：write_cloud_function 时使用的 functionId 必须是契约中预分配的 UUID，前端 callFlow 引用此值
-3. **纯写入工具**：你在 think 阶段完整生成 FlowSchema，write_cloud_function 只做写入，内部不调 LLM
-4. **全量替换**：write_schema 是全量覆盖所有 Collection 定义，需包含所有集合
-5. **知识驱动**：不确定 FlowSchema 节点类型规范时，先用 knowledge_search 查询
-
-## FlowSchema 结构要求
-
-服务端 FlowSchema 由 nodes[] + edges[] 组成，常用节点类型：
-- dbQuery: 数据库查询
-- dbInsert: 数据库插入
-- dbUpdate: 数据库更新
-- dbDelete: 数据库删除
-- httpRequest: 外部 HTTP 调用
-- transform: 数据转换
-- condition: 条件分支
-- script: 自定义脚本
-
-## 输出要求
-
-完成所有数据表和云函数的构建后，输出一个 JSON 格式的 BackendArtifacts 摘要：
-\`\`\`json
-{
-  "collections": [
-    {
-      "name": "集合名",
-      "fields": [{ "name": "fieldName", "displayName": "显示名", "type": "string", "required": true }],
-      "indexes": [{ "fields": ["fieldName"], "unique": true }]
-    }
-  ],
-  "cloudFunctions": [
-    {
-      "functionId": "契约中的UUID",
-      "name": "函数名",
-      "displayName": "中文名",
-      "description": "功能描述",
-      "flowSchema": { "nodes": [...], "edges": [...] }
-    }
-  ]
-}
-\`\`\``
-
-function buildBackendSystemPrompt(
-  requirements: string,
-  contract: string,
-): string {
-  return `${BACKEND_WORKER_ROLE}
-
-## 需求规格（来自上游需求解析 SubAgent）
-
-${requirements}
-
-## 前后端集成契约（来自上游契约定义 SubAgent）
-
-${contract}`
-}
+// (role prompt is now defined in BACKEND_DECLARATION in context/declarations.ts)
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 节点工厂
@@ -135,11 +77,9 @@ export function createBackendNode(config: BackendNodeConfig) {
       }
     }
 
-    // ─── 注入上游产物到 system prompt ─────────────────────────────────────────
-    const systemPrompt = buildBackendSystemPrompt(
-      JSON.stringify(requirements, null, 2),
-      JSON.stringify(contract, null, 2),
-    )
+    // ─── 通过 ContextProvider 按需拉取上下文，组装 system prompt ──────────────
+    const ctx = ContextProvider.resolve(BACKEND_DECLARATION, state)
+    const systemPrompt = ctx.systemPrompt
 
     // ─── 注册工具 ─────────────────────────────────────────────────────────────
     const toolRegistry = toolHandlers
@@ -148,9 +88,7 @@ export function createBackendNode(config: BackendNodeConfig) {
 
     // ─── 构建初始 user message ────────────────────────────────────────────────
     const userPrompt = buildBackendUserPrompt(state.userMessage, contract)
-    const initialMessages: Message[] = [
-      { role: 'user', content: userPrompt },
-    ]
+    const initialMessages: Message[] = [{ role: 'user', content: userPrompt }]
 
     // ─── 启动 Worker SubGraph ─────────────────────────────────────────────────
     const workerGraph = createWorkerGraph({
@@ -172,8 +110,12 @@ export function createBackendNode(config: BackendNodeConfig) {
       const finalText = extractFinalText(result.messages)
       const artifacts = parseBackendArtifacts(finalText)
 
-      emitProgress(sseCallback, 'backend', 'completed',
-        `后端构建完成：${artifacts.collections.length} 个数据表，${artifacts.cloudFunctions.length} 个云函数`)
+      emitProgress(
+        sseCallback,
+        'backend',
+        'completed',
+        `后端构建完成：${artifacts.collections.length} 个数据表，${artifacts.cloudFunctions.length} 个云函数`,
+      )
 
       return {
         artifacts: { ...state.artifacts, backend: artifacts },
@@ -200,13 +142,14 @@ export function createBackendNode(config: BackendNodeConfig) {
  */
 function buildBackendUserPrompt(
   userMessage: string,
-  contract: { collections: Array<{ name: string; displayName: string }>; cloudFunctions: Array<{ functionId: string; name: string; displayName: string }> },
+  contract: {
+    collections: Array<{ name: string; displayName: string }>
+    cloudFunctions: Array<{ functionId: string; name: string; displayName: string }>
+  },
 ): string {
-  const collectionList = contract.collections
-    .map(c => `- ${c.name}（${c.displayName}）`)
-    .join('\n')
+  const collectionList = contract.collections.map((c) => `- ${c.name}（${c.displayName}）`).join('\n')
   const functionList = contract.cloudFunctions
-    .map(f => `- ${f.functionId}: ${f.name}（${f.displayName}）`)
+    .map((f) => `- ${f.functionId}: ${f.name}（${f.displayName}）`)
     .join('\n')
 
   return `## 用户需求
@@ -248,12 +191,12 @@ function parseBackendArtifacts(text: string): BackendArtifacts {
     const parsed = JSON.parse(toParse) as Partial<BackendArtifacts>
 
     return {
-      collections: (parsed.collections ?? []).map(c => ({
+      collections: (parsed.collections ?? []).map((c) => ({
         name: c.name ?? 'unknown',
         fields: c.fields ?? [],
         indexes: c.indexes,
       })),
-      cloudFunctions: (parsed.cloudFunctions ?? []).map(f => ({
+      cloudFunctions: (parsed.cloudFunctions ?? []).map((f) => ({
         functionId: f.functionId ?? '',
         name: f.name ?? 'unknown',
         displayName: f.displayName ?? '',

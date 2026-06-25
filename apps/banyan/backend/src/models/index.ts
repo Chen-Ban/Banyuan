@@ -21,6 +21,8 @@ export { Tenant } from './Tenant.js'
 export { User } from './User.js'
 export { RefreshToken } from './RefreshToken.js'
 export { Deployment } from './Deployment.js'
+export { Plan } from './Plan.js'
+export { CreditUsage } from './CreditUsage.js'
 
 // ─── Schemas（供嵌入复用）───────────────────────────────────────────────────────
 

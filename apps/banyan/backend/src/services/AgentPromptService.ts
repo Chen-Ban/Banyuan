@@ -26,11 +26,7 @@ class AgentPromptService {
   /**
    * 创建或更新应用某个角色的 prompt 配置（upsert）
    */
-  async upsert(
-    appId: string,
-    agent: FullAgentRole,
-    promptText: string
-  ): Promise<IAgentPrompt> {
+  async upsert(appId: string, agent: FullAgentRole, promptText: string): Promise<IAgentPrompt> {
     const result = await AgentPrompt.findOneAndUpdate(
       { appId, agent },
       {
@@ -44,7 +40,7 @@ class AgentPromptService {
           systemVersion: 1,
         },
       },
-      { upsert: true, new: true, lean: true }
+      { upsert: true, new: true, lean: true },
     )
     return result as unknown as IAgentPrompt
   }
@@ -60,7 +56,7 @@ class AgentPromptService {
           promptText: '',
           isCustomized: false,
         },
-      }
+      },
     )
   }
 
@@ -69,7 +65,7 @@ class AgentPromptService {
    */
   async batchUpsert(
     appId: string,
-    prompts: Array<{ agent: FullAgentRole; promptText: string }>
+    prompts: Array<{ agent: FullAgentRole; promptText: string }>,
   ): Promise<IAgentPrompt[]> {
     const results: IAgentPrompt[] = []
     for (const { agent, promptText } of prompts) {

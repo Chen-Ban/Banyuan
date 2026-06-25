@@ -3,15 +3,7 @@ import type { ApiResponse } from '../client'
 
 // ── 类型定义 ──────────────────────────────────────────────────────────────────
 
-export type FieldType =
-  | 'string'
-  | 'number'
-  | 'boolean'
-  | 'date'
-  | 'enum'
-  | 'ref'
-  | 'array'
-  | 'object'
+export type FieldType = 'string' | 'number' | 'boolean' | 'date' | 'enum' | 'ref' | 'array' | 'object'
 
 export interface FieldDef {
   name: string

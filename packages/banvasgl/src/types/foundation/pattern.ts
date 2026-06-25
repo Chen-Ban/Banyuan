@@ -8,5 +8,5 @@ import type { Matrix2DInit } from './math.js'
  * 平台适配器负责实现（Web: CanvasPattern, Skia: SkShader 等）。
  */
 export interface IPattern {
-  setTransform(matrix?: Matrix2DInit): void;
+  setTransform(matrix?: Matrix2DInit): void
 }

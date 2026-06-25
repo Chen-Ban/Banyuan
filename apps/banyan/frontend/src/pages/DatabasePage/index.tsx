@@ -35,7 +35,7 @@ const DatabasePage: React.FC = () => {
     if (!id || id === 'new') return
     setLoading(true)
     try {
-      const res = await schemaApi.fetchSchema(id)
+      const res = await schemaApi.fetchDataSchema(id)
       const cols = res.data?.collections ?? []
       setCollections(cols)
       // 默认选中第一张表
@@ -118,7 +118,9 @@ const DatabasePage: React.FC = () => {
           setSelectedName(pendingSwitchRef.current)
           pendingSwitchRef.current = null
         },
-        onCancel: () => { pendingSwitchRef.current = null },
+        onCancel: () => {
+          pendingSwitchRef.current = null
+        },
       })
     } else {
       setSelectedName(name)
@@ -127,13 +129,16 @@ const DatabasePage: React.FC = () => {
 
   // ── 字段保存回调 ─────────────────────────────────────────────────────────
 
-  const handleSaved = useCallback((updated: CollectionDef) => {
-    setCollections((prev) => {
-      const next = prev.map((c) => (c.name === updated.name ? updated : c))
-      syncDataSchema(next)
-      return next
-    })
-  }, [syncDataSchema])
+  const handleSaved = useCallback(
+    (updated: CollectionDef) => {
+      setCollections((prev) => {
+        const next = prev.map((c) => (c.name === updated.name ? updated : c))
+        syncDataSchema(next)
+        return next
+      })
+    },
+    [syncDataSchema],
+  )
 
   const selectedCollection = useMemo(
     () => collections.find((c) => c.name === selectedName) ?? null,
@@ -151,7 +156,6 @@ const DatabasePage: React.FC = () => {
 
   return (
     <div className={styles.page}>
-
       {/* 主体：左右布局 */}
       {loading ? (
         <div className={styles.loadingWrapper}>
@@ -186,7 +190,10 @@ const DatabasePage: React.FC = () => {
               />
             ) : adding ? (
               <div className={styles.noSelection}>
-                <Empty description="请在左侧输入表名并创建，即可在此编辑字段" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                <Empty
+                  description="请在左侧输入表名并创建，即可在此编辑字段"
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                />
               </div>
             ) : (
               <div className={styles.noSelection}>

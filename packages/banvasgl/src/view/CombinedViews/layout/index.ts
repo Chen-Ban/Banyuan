@@ -25,16 +25,16 @@ import { gridLayoutStrategy } from './GridLayoutStrategy.js'
  * - 'grid'：返回 GridLayoutStrategy 单例
  */
 export function getLayoutStrategy(mode: LayoutMode | undefined): ILayoutStrategy | null {
-    switch (mode) {
-        case 'flex':
-            return flexLayoutStrategy
-        case 'list':
-            return listLayoutStrategy
-        case 'grid':
-            return gridLayoutStrategy
-        case 'free':
-        case 'scroll':
-        default:
-            return null
-    }
+  switch (mode) {
+    case 'flex':
+      return flexLayoutStrategy
+    case 'list':
+      return listLayoutStrategy
+    case 'grid':
+      return gridLayoutStrategy
+    case 'free':
+    case 'scroll':
+    default:
+      return null
+  }
 }

@@ -31,4 +31,3 @@ export interface ProductFilters {
   name?: string
   sku?: string
 }
-

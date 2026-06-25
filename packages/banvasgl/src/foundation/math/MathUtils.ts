@@ -3,24 +3,9 @@ import Matrix4 from './Matrix4'
 
 // ── 动画相关类型（从全局类型重导出，供本模块内部使用） ──────────────────────────
 
-import type {
-    EasingFunction,
-    AnimatableValue,
-    Interpolator,
-} from '@/types'
+import type { EasingFunction, AnimatableValue, Interpolator, ResolvedKeyframeSegment } from '@/types'
 
 // ── 插值器相关导出 ─────────────────────────────────────────────────────────────
-
-/**
- * 已解析的关键帧段信息
- */
-export interface ResolvedKeyframeSegment {
-    startOffset: number
-    endOffset: number
-    startValue: AnimatableValue
-    endValue: AnimatableValue
-    easing?: EasingFunction
-}
 
 /**
  * 数学工具类
@@ -32,17 +17,17 @@ export class MathUtils {
    * 数值精度常量
    */
   /** 几何容差：用于判断点是否在曲线上、两几何量是否视觉相等（像素级） */
-  public static readonly EPSILON = 1e-2;
+  public static readonly EPSILON = 1e-2
   /** 浮点零判断：用于检测除零、矩阵奇异、向量退化等 */
-  public static readonly FLOAT_EPSILON = 1e-10;
+  public static readonly FLOAT_EPSILON = 1e-10
   /** 数值微分步长：用于差分求切线、梯度等 */
-  public static readonly DERIVATIVE_STEP = 1e-6;
+  public static readonly DERIVATIVE_STEP = 1e-6
   /** 积分/细分收敛精度：用于自适应 Simpson、递归细分终止 */
-  public static readonly INTEGRATION_TOLERANCE = 1e-6;
+  public static readonly INTEGRATION_TOLERANCE = 1e-6
 
-  public static readonly PI = Math.PI;
-  public static readonly TWO_PI = 2 * Math.PI;
-  public static readonly HALF_PI = Math.PI / 2;
+  public static readonly PI = Math.PI
+  public static readonly TWO_PI = 2 * Math.PI
+  public static readonly HALF_PI = Math.PI / 2
 
   /**
    * 浮点近似相等判断
@@ -62,7 +47,7 @@ export class MathUtils {
    * ```
    */
   public static isEqual(a: number, b: number, epsilon: number = MathUtils.EPSILON): boolean {
-    return Math.abs(a - b) < epsilon;
+    return Math.abs(a - b) < epsilon
   }
 
   /**
@@ -81,7 +66,7 @@ export class MathUtils {
    * ```
    */
   public static isZero(value: number, epsilon: number = MathUtils.EPSILON): boolean {
-    return Math.abs(value) < epsilon;
+    return Math.abs(value) < epsilon
   }
 
   /**
@@ -103,14 +88,18 @@ export class MathUtils {
    * MathUtils.calculateAngle(1, 1, [-Math.PI, Math.PI]); // Math.PI / 4
    * ```
    */
-  public static calculateAngle(x: number, y: number, range: [number, number] = [0, MathUtils.TWO_PI]): number {
-    const angle = Math.atan2(y, x);
-    const rangeNum = Math.abs(range[1] - range[0]);
-    const normalizedAngle = angle % rangeNum;
+  public static calculateAngle(
+    x: number,
+    y: number,
+    range: [number, number] = [0, MathUtils.TWO_PI],
+  ): number {
+    const angle = Math.atan2(y, x)
+    const rangeNum = Math.abs(range[1] - range[0])
+    const normalizedAngle = angle % rangeNum
     if (normalizedAngle < Math.min(...range)) {
-      return normalizedAngle + rangeNum;
+      return normalizedAngle + rangeNum
     }
-    return normalizedAngle;
+    return normalizedAngle
   }
 
   /**
@@ -133,7 +122,7 @@ export class MathUtils {
   public static lerpAngle(from: number, to: number, t: number): number {
     let delta = to - from
     // O(1) 归一化到 [-π, π]，走短弧
-    delta = ((delta + Math.PI) % MathUtils.TWO_PI + MathUtils.TWO_PI) % MathUtils.TWO_PI - Math.PI
+    delta = ((((delta + Math.PI) % MathUtils.TWO_PI) + MathUtils.TWO_PI) % MathUtils.TWO_PI) - Math.PI
     return from + delta * t
   }
 
@@ -157,20 +146,25 @@ export class MathUtils {
    * MathUtils.isAngleInArcRange(Math.PI / 2, 0, Math.PI, false); // true
    * ```
    */
-  public static isAngleInArcRange(angle: number, startAngle: number, endAngle: number, clockwise: boolean): boolean {
+  public static isAngleInArcRange(
+    angle: number,
+    startAngle: number,
+    endAngle: number,
+    clockwise: boolean,
+  ): boolean {
     if (clockwise) {
       // 顺时针：从 startAngle 到 endAngle（可能跨越0度）
       if (startAngle > endAngle) {
-        return angle <= startAngle && angle >= endAngle;
+        return angle <= startAngle && angle >= endAngle
       } else {
-        return angle <= startAngle || angle >= endAngle;
+        return angle <= startAngle || angle >= endAngle
       }
     } else {
       // 逆时针：从 startAngle 到 endAngle（可能跨越0度）
       if (startAngle < endAngle) {
-        return angle >= startAngle && angle <= endAngle;
+        return angle >= startAngle && angle <= endAngle
       } else {
-        return angle >= startAngle || angle <= endAngle;
+        return angle >= startAngle || angle <= endAngle
       }
     }
   }
@@ -237,31 +231,28 @@ export class MathUtils {
     /** 二次方缓出 */
     easeOutQuad: ((t: number) => t * (2 - t)) as EasingFunction,
     /** 二次方缓入缓出 */
-    easeInOutQuad: ((t: number) =>
-        t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
-    ) as EasingFunction,
+    easeInOutQuad: ((t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t)) as EasingFunction,
     /** 三次方缓入 */
     easeInCubic: ((t: number) => t * t * t) as EasingFunction,
     /** 三次方缓出 */
     easeOutCubic: ((t: number) => {
-        const t1 = t - 1
-        return t1 * t1 * t1 + 1
+      const t1 = t - 1
+      return t1 * t1 * t1 + 1
     }) as EasingFunction,
     /** 三次方缓入缓出 */
     easeInOutCubic: ((t: number) =>
-        t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1
-    ) as EasingFunction,
+      t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1) as EasingFunction,
     /** 四次方缓入 */
     easeInQuart: ((t: number) => t * t * t * t) as EasingFunction,
     /** 四次方缓出 */
     easeOutQuart: ((t: number) => {
-        const t1 = t - 1
-        return 1 - t1 * t1 * t1 * t1
+      const t1 = t - 1
+      return 1 - t1 * t1 * t1 * t1
     }) as EasingFunction,
     /** 四次方缓入缓出 */
     easeInOutQuart: ((t: number) => {
-        const t1 = t - 1
-        return t < 0.5 ? 8 * t * t * t * t : 1 - 8 * t1 * t1 * t1 * t1
+      const t1 = t - 1
+      return t < 0.5 ? 8 * t * t * t * t : 1 - 8 * t1 * t1 * t1 * t1
     }) as EasingFunction,
     /** 正弦缓入 */
     easeInSine: ((t: number) => 1 - Math.cos((t * Math.PI) / 2)) as EasingFunction,
@@ -270,38 +261,32 @@ export class MathUtils {
     /** 正弦缓入缓出 */
     easeInOutSine: ((t: number) => -(Math.cos(Math.PI * t) - 1) / 2) as EasingFunction,
     /** 指数缓入 */
-    easeInExpo: ((t: number) =>
-        t === 0 ? 0 : Math.pow(2, 10 * (t - 1))
-    ) as EasingFunction,
+    easeInExpo: ((t: number) => (t === 0 ? 0 : Math.pow(2, 10 * (t - 1)))) as EasingFunction,
     /** 指数缓出 */
-    easeOutExpo: ((t: number) =>
-        t === 1 ? 1 : 1 - Math.pow(2, -10 * t)
-    ) as EasingFunction,
+    easeOutExpo: ((t: number) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t))) as EasingFunction,
     /** 指数缓入缓出 */
     easeInOutExpo: ((t: number) => {
-        if (t === 0) return 0
-        if (t === 1) return 1
-        return t < 0.5
-            ? Math.pow(2, 20 * t - 10) / 2
-            : (2 - Math.pow(2, -20 * t + 10)) / 2
+      if (t === 0) return 0
+      if (t === 1) return 1
+      return t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2
     }) as EasingFunction,
     /** 回弹缓入 */
     easeInBack: ((t: number) => {
-        const c = 1.70158
-        return (c + 1) * t * t * t - c * t * t
+      const c = 1.70158
+      return (c + 1) * t * t * t - c * t * t
     }) as EasingFunction,
     /** 回弹缓出 */
     easeOutBack: ((t: number) => {
-        const c = 1.70158
-        const t1 = t - 1
-        return 1 + (c + 1) * t1 * t1 * t1 + c * t1 * t1
+      const c = 1.70158
+      const t1 = t - 1
+      return 1 + (c + 1) * t1 * t1 * t1 + c * t1 * t1
     }) as EasingFunction,
     /** 回弹缓入缓出 */
     easeInOutBack: ((t: number) => {
-        const c = 1.70158 * 1.525
-        return t < 0.5
-            ? (Math.pow(2 * t, 2) * ((c + 1) * 2 * t - c)) / 2
-            : (Math.pow(2 * t - 2, 2) * ((c + 1) * (t * 2 - 2) + c) + 2) / 2
+      const c = 1.70158 * 1.525
+      return t < 0.5
+        ? (Math.pow(2 * t, 2) * ((c + 1) * 2 * t - c)) / 2
+        : (Math.pow(2 * t - 2, 2) * ((c + 1) * (t * 2 - 2) + c) + 2) / 2
     }) as EasingFunction,
   } as const
 
@@ -312,27 +297,29 @@ export class MathUtils {
   public static cubicBezier(x1: number, y1: number, x2: number, y2: number): EasingFunction {
     const sampleCurveX = (t: number) => (((1 - 3 * x2 + 3 * x1) * t + (3 * x2 - 6 * x1)) * t + 3 * x1) * t
     const sampleCurveY = (t: number) => (((1 - 3 * y2 + 3 * y1) * t + (3 * y2 - 6 * y1)) * t + 3 * y1) * t
-    const sampleCurveDerivativeX = (t: number) => (3 * (1 - 3 * x2 + 3 * x1) * t + 2 * (3 * x2 - 6 * x1)) * t + 3 * x1
+    const sampleCurveDerivativeX = (t: number) =>
+      (3 * (1 - 3 * x2 + 3 * x1) * t + 2 * (3 * x2 - 6 * x1)) * t + 3 * x1
 
     function solveCurveX(x: number): number {
-        let t = x
-        for (let i = 0; i < 8; i++) {
-            const currentX = sampleCurveX(t) - x
-            if (Math.abs(currentX) < MathUtils.INTEGRATION_TOLERANCE) return t
-            const derivative = sampleCurveDerivativeX(t)
-            if (Math.abs(derivative) < MathUtils.INTEGRATION_TOLERANCE) break
-            t -= currentX / derivative
-        }
-        let lo = 0, hi = 1
-        t = x
-        while (lo < hi) {
-            const mid = sampleCurveX(t)
-            if (Math.abs(mid - x) < MathUtils.INTEGRATION_TOLERANCE) return t
-            if (x > mid) lo = t
-            else hi = t
-            t = (lo + hi) / 2
-        }
-        return t
+      let t = x
+      for (let i = 0; i < 8; i++) {
+        const currentX = sampleCurveX(t) - x
+        if (Math.abs(currentX) < MathUtils.INTEGRATION_TOLERANCE) return t
+        const derivative = sampleCurveDerivativeX(t)
+        if (Math.abs(derivative) < MathUtils.INTEGRATION_TOLERANCE) break
+        t -= currentX / derivative
+      }
+      let lo = 0,
+        hi = 1
+      t = x
+      while (lo < hi) {
+        const mid = sampleCurveX(t)
+        if (Math.abs(mid - x) < MathUtils.INTEGRATION_TOLERANCE) return t
+        if (x > mid) lo = t
+        else hi = t
+        t = (lo + hi) / 2
+      }
+      return t
     }
 
     return (x: number) => sampleCurveY(solveCurveX(x))
@@ -353,7 +340,7 @@ export class MathUtils {
     const toData = to.transform
     const result = new Float32Array(16)
     for (let i = 0; i < 16; i++) {
-        result[i] = fromData[i] + (toData[i] - fromData[i]) * progress
+      result[i] = fromData[i] + (toData[i] - fromData[i]) * progress
     }
     return new Matrix4(result)
   }
@@ -361,10 +348,10 @@ export class MathUtils {
   /** 根据值类型自动选择插值器 */
   public static getInterpolator(value: AnimatableValue): Interpolator<any> {
     if (typeof value === 'number') {
-        return MathUtils.numberInterpolator
+      return MathUtils.numberInterpolator
     }
     if (value instanceof Matrix4) {
-        return MathUtils.matrix4Interpolator
+      return MathUtils.matrix4Interpolator
     }
     return MathUtils.numberInterpolator
   }
@@ -379,34 +366,31 @@ export class MathUtils {
    * 多关键帧分段插值
    * 根据 progress (0-1) 找到所在的关键帧段，进行局部插值
    */
-  public static interpolateKeyframes(
-    segments: ResolvedKeyframeSegment[],
-    progress: number
-  ): AnimatableValue {
+  public static interpolateKeyframes(segments: ResolvedKeyframeSegment[], progress: number): AnimatableValue {
     if (segments.length === 0) {
-        throw new Error('No keyframe segments provided')
+      throw new Error('No keyframe segments provided')
     }
 
     if (progress <= segments[0].startOffset) {
-        return segments[0].startValue
+      return segments[0].startValue
     }
 
     const lastSeg = segments[segments.length - 1]
     if (progress >= lastSeg.endOffset) {
-        return lastSeg.endValue
+      return lastSeg.endValue
     }
 
     for (const seg of segments) {
-        if (progress >= seg.startOffset && progress <= seg.endOffset) {
-            const segDuration = seg.endOffset - seg.startOffset
-            if (segDuration === 0) return seg.endValue
+      if (progress >= seg.startOffset && progress <= seg.endOffset) {
+        const segDuration = seg.endOffset - seg.startOffset
+        if (segDuration === 0) return seg.endValue
 
-            let localProgress = (progress - seg.startOffset) / segDuration
-            if (seg.easing) {
-                localProgress = seg.easing(localProgress)
-            }
-            return MathUtils.interpolate(seg.startValue, seg.endValue, localProgress)
+        let localProgress = (progress - seg.startOffset) / segDuration
+        if (seg.easing) {
+          localProgress = seg.easing(localProgress)
         }
+        return MathUtils.interpolate(seg.startValue, seg.endValue, localProgress)
+      }
     }
 
     return lastSeg.endValue
@@ -427,4 +411,4 @@ export class MathUtils {
   }
 }
 
-export default MathUtils;
+export default MathUtils

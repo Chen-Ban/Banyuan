@@ -6,7 +6,14 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "dev": "concurrently -c \"green.bold,cyan.bold\" -n main,electron \"tsc --watch\" \"wait-on http://localhost:5174 && electron .\""
+    "dev": "concurrently -c \"green.bold,cyan.bold\" -n main,electron \"tsc --watch\" \"wait-on http://localhost:5174 && electron .\"",
+    "package": "tsc && electron-builder build",
+    "package:mac": "tsc && electron-builder build --mac",
+    "package:win": "tsc && electron-builder build --win",
+    "package:linux": "tsc && electron-builder build --linux",
+    "package:all": "tsc && electron-builder build --mac --win --linux",
+    "lint": "pnpm exec eslint . --max-warnings 1000",
+    "lint:fix": "pnpm exec eslint . --fix"
   },
   "dependencies": {
     "@banyuan/deploy-agent": "workspace:*"
@@ -16,7 +23,11 @@
     "@banyuan/banvasgl": "workspace:*",
     "concurrently": "^9.2.1",
     "electron": "^36.1.0",
+    "electron-builder": "^25.0.0",
+    "eslint": "^9.0.0",
     "typescript": "~5.7.2",
-    "wait-on": "^8.0.1"
+    "typescript-eslint": "^8.0.0",
+    "wait-on": "^8.0.1",
+    "@eslint/js": "^9.0.0"
   }
 }

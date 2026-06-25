@@ -8,7 +8,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc --project tsconfig.json",
     "start": "node dist/server.js",
-    "seed": "tsx scripts/seed-knowledge.ts"
+    "seed": "tsx scripts/seed-knowledge.ts",
+    "lint": "pnpm exec eslint . --max-warnings 1000",
+    "lint:fix": "pnpm exec eslint . --fix"
   },
   "keywords": [],
   "author": "",

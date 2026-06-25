@@ -45,7 +45,7 @@ interface TemplateListResponse {
 export function fetchTemplates(
   page: number = 1,
   pageSize: number = 20,
-  keyword?: string
+  keyword?: string,
 ): Promise<TemplateListResponse> {
   return get<TemplateListResponse>('/templates', {
     page,

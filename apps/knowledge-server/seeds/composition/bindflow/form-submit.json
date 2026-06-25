@@ -7,7 +7,13 @@
     "domain": "bindflow",
     "pattern": "form-submit",
     "description": "提交按钮 onClick → 校验 → callFlow 写入 → 跳转/提示",
-    "dependencies": ["primitive-flow-common", "primitive-flow-shared-nodes", "primitive-flow-client-nodes", "primitive-data-cloud-function", "composition-ui-form-page"],
+    "dependencies": [
+      "primitive-flow-common",
+      "primitive-flow-shared-nodes",
+      "primitive-flow-client-nodes",
+      "primitive-data-cloud-function",
+      "composition-ui-form-page"
+    ],
     "version": "0.1.0"
   }
 }

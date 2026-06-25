@@ -91,18 +91,18 @@
 ```typescript
 // 路由：apps.routes.ts
 router.put('/apps/:appId/save-all', async (ctx) => {
-  const { appId } = ctx.params;
-  const { appJSON, collections, cloudFunctions } = ctx.request.body;
+  const { appId } = ctx.params
+  const { appJSON, collections, cloudFunctions } = ctx.request.body
 
   // 内部并行调用现有 service（事务性可选，MVP 不强求原子）
   await Promise.all([
-    appContentService.saveContent(appId, appJSON),     // 复用现有 ADR-042 版本化写入
+    appContentService.saveContent(appId, appJSON), // 复用现有 ADR-042 版本化写入
     schemaService.replaceCollections(appId, collections),
     cloudFunctionService.replaceAll(appId, cloudFunctions),
-  ]);
+  ])
 
-  ctx.body = { success: true };
-});
+  ctx.body = { success: true }
+})
 ```
 
 **设计要点：**
@@ -118,13 +118,13 @@ router.put('/apps/:appId/save-all', async (ctx) => {
 ```typescript
 // 路由：apps.routes.ts
 router.get('/apps/:appId/full-state', async (ctx) => {
-  const { appId } = ctx.params;
+  const { appId } = ctx.params
 
   const [appContent, schema, functions] = await Promise.all([
     appContentService.getLatestContent(appId),
     schemaService.getSchema(appId),
     cloudFunctionService.listAll(appId),
-  ]);
+  ])
 
   ctx.body = {
     success: true,
@@ -133,8 +133,8 @@ router.get('/apps/:appId/full-state', async (ctx) => {
       collections: schema?.collections ?? [],
       cloudFunctions: functions ?? [],
     },
-  };
-});
+  }
+})
 ```
 
 ---
@@ -150,42 +150,42 @@ Store 持有实际业务数据，不持有回调。所有持久化调用 banyan 
 ```typescript
 interface ApplicationState {
   // === 业务数据 ===
-  appId: string | null;
-  appJSON: string;                    // App.serialize() 产出的完整 JSON 字符串
-  collections: CollectionDef[];
-  cloudFunctions: CloudFunctionDef[];
+  appId: string | null
+  appJSON: string // App.serialize() 产出的完整 JSON 字符串
+  collections: CollectionDef[]
+  cloudFunctions: CloudFunctionDef[]
 
   // === 状态标识 ===
-  isDirty: boolean;           // appJSON 是否有未保存的编辑
-  isSaving: boolean;
+  isDirty: boolean // appJSON 是否有未保存的编辑
+  isSaving: boolean
 
   // === 应用元信息（保留现有） ===
-  appName: string;
-  designSize: DesignSize;
+  appName: string
+  designSize: DesignSize
 
   // === AI 对话 ===
-  initialPrompt: Map<string, string>;
+  initialPrompt: Map<string, string>
 
   // === 操作方法 ===
-  load: (appId: string) => Promise<void>;
-  save: () => Promise<void>;
-  refreshFromBackend: () => Promise<void>;  // done 事件后拉取最新数据
-  flushAppJSON: (serialized: string) => void; // UIPage flush 整个 app 序列化字符串
+  load: (appId: string) => Promise<void>
+  save: () => Promise<void>
+  refreshFromBackend: () => Promise<void> // done 事件后拉取最新数据
+  flushAppJSON: (serialized: string) => void // UIPage flush 整个 app 序列化字符串
 
   // === 集合 CRUD（即时持久化） ===
-  createCollection: (schema: Omit<CollectionDef, 'name'> & { name: string }) => Promise<CollectionDef>;
-  updateCollection: (name: string, updates: Partial<CollectionDef>) => Promise<CollectionDef>;
-  deleteCollection: (name: string) => Promise<void>;
+  createCollection: (schema: Omit<CollectionDef, 'name'> & { name: string }) => Promise<CollectionDef>
+  updateCollection: (name: string, updates: Partial<CollectionDef>) => Promise<CollectionDef>
+  deleteCollection: (name: string) => Promise<void>
 
   // === 云函数 CRUD（即时持久化） ===
-  createCloudFunction: (fn: CreateCloudFunctionParams) => Promise<CloudFunctionDef>;
-  updateCloudFunction: (id: string, fn: UpdateCloudFunctionParams) => Promise<CloudFunctionDef>;
-  deleteCloudFunction: (id: string) => Promise<void>;
+  createCloudFunction: (fn: CreateCloudFunctionParams) => Promise<CloudFunctionDef>
+  updateCloudFunction: (id: string, fn: UpdateCloudFunctionParams) => Promise<CloudFunctionDef>
+  deleteCloudFunction: (id: string) => Promise<void>
 
   // === 初始化 / 清理 ===
-  setInitialPrompt: (appId: string, prompt: string) => void;
-  consumeInitialPrompt: (appId: string) => string | undefined;
-  reset: () => void;
+  setInitialPrompt: (appId: string, prompt: string) => void
+  consumeInitialPrompt: (appId: string) => string | undefined
+  reset: () => void
 }
 ```
 
@@ -193,20 +193,20 @@ interface ApplicationState {
 
 ```typescript
 const save = async () => {
-  set({ isSaving: true });
-  const { appId, appJSON, collections, cloudFunctions } = get();
-  await fullStateApi.saveAll(appId!, { appJSON, collections, cloudFunctions });
-  set({ isDirty: false, isSaving: false });
-  hotUpdatePreview(collections, cloudFunctions);
-};
+  set({ isSaving: true })
+  const { appId, appJSON, collections, cloudFunctions } = get()
+  await fullStateApi.saveAll(appId!, { appJSON, collections, cloudFunctions })
+  set({ isDirty: false, isSaving: false })
+  hotUpdatePreview(collections, cloudFunctions)
+}
 
 const createCollection = async (schema) => {
-  const created = await schemaApi.addCollection(get().appId!, schema);
-  const collections = [...get().collections, created.data!];
-  set({ collections });
-  hotUpdatePreview(collections, get().cloudFunctions);
-  return created.data!;
-};
+  const created = await schemaApi.addCollection(get().appId!, schema)
+  const collections = [...get().collections, created.data!]
+  set({ collections })
+  hotUpdatePreview(collections, get().cloudFunctions)
+  return created.data!
+}
 ```
 
 **关于 flush：** UIPage 内 `useRef` 持有当前画布 `app.serialize()` 的实时结果，`flushAppJSON` 只更新 store 中的 appJSON 字符串（设 `isDirty: true`），不触发 hotUpdate（appJSON 不推送 PreviewServer）。
@@ -218,9 +218,9 @@ const createCollection = async (schema) => {
 封装 IPC 下推逻辑，从 store 自取 appId：
 
 ```typescript
-import type { CollectionDef } from '@/api/schema';
-import type { CloudFunctionDef } from '@/api/cloudFunctions';
-import { useApplicationStore } from '@/stores/applicationStore';
+import type { CollectionDef } from '@/api/schema'
+import type { CloudFunctionDef } from '@/api/cloudFunctions'
+import { useApplicationStore } from '@/stores/applicationStore'
 
 /**
  * 将最新 collections + cloudFunctions 推送给 PreviewServer 做 hotUpdate。
@@ -230,18 +230,18 @@ import { useApplicationStore } from '@/stores/applicationStore';
  */
 export async function hotUpdatePreview(
   collections: CollectionDef[],
-  cloudFunctions: CloudFunctionDef[]
+  cloudFunctions: CloudFunctionDef[],
 ): Promise<void> {
-  if (!window.electronAPI?.preview) return; // 非 Electron 环境，静默跳过
+  if (!window.electronAPI?.preview) return // 非 Electron 环境，静默跳过
 
-  const appId = useApplicationStore.getState().appId;
-  if (!appId) return;
+  const appId = useApplicationStore.getState().appId
+  if (!appId) return
 
   try {
-    await window.electronAPI.preview.hotUpdate(appId, { collections, cloudFunctions });
+    await window.electronAPI.preview.hotUpdate(appId, { collections, cloudFunctions })
   } catch (err) {
     // PreviewServer 可能未启动，不阻塞主流程
-    console.warn('[previewBridge] hotUpdate IPC error:', err);
+    console.warn('[previewBridge] hotUpdate IPC error:', err)
   }
 }
 ```
@@ -259,9 +259,12 @@ export async function hotUpdatePreview(
 在 `registerIpcHandlers()` 中补充缺失的 `preview:hotUpdate` handler：
 
 ```typescript
-ipcMain.handle('preview:hotUpdate', async (_event, appId: string, patch: { collections?: unknown[]; cloudFunctions?: unknown[] }) => {
-  await previewOrchestrator.hotUpdate(appId, patch);
-});
+ipcMain.handle(
+  'preview:hotUpdate',
+  async (_event, appId: string, patch: { collections?: unknown[]; cloudFunctions?: unknown[] }) => {
+    await previewOrchestrator.hotUpdate(appId, patch)
+  },
+)
 ```
 
 ### 步骤 5：PreviewServerOrchestrator 暴露 public hotUpdate
@@ -307,22 +310,22 @@ public async hotUpdate(appId: string, patch: { collections?: unknown[]; cloudFun
 const handleDone = useCallback(async (summary: string) => {
   // banyan 后端已在 done 事件后写库（M1 不变）
   // 前端拉取最新数据，更新 store + 推送 PreviewServer
-  await useApplicationStore.getState().refreshFromBackend();
-}, []);
+  await useApplicationStore.getState().refreshFromBackend()
+}, [])
 ```
 
 `refreshFromBackend()` 实现（在 store 内部）：
 
 ```typescript
 const refreshFromBackend = async () => {
-  const appId = get().appId;
-  if (!appId) return;
-  const res = await fullStateApi.getFullState(appId);
-  const { appJSON, collections, cloudFunctions } = res.data!;
-  set({ appJSON, collections, cloudFunctions, isDirty: false });
+  const appId = get().appId
+  if (!appId) return
+  const res = await fullStateApi.getFullState(appId)
+  const { appJSON, collections, cloudFunctions } = res.data!
+  set({ appJSON, collections, cloudFunctions, isDirty: false })
   // 推送 PreviewServer
-  hotUpdatePreview(collections, cloudFunctions);
-};
+  hotUpdatePreview(collections, cloudFunctions)
+}
 ```
 
 ### 步骤 7：UIPage 中的 ref + flush 机制
@@ -336,22 +339,24 @@ UIPage 内部用 `useRef` 持有当前画布 `app.serialize()` 的实时结果�
 - 构建
 
 ```typescript
-const appSerializedRef = useRef<string>(initialAppJSON);
+const appSerializedRef = useRef<string>(initialAppJSON)
 
 // BanvasGL 序列化变更回调（Transaction commit 时触发）
 const handleSerializeChange = useCallback((serialized: string) => {
-  appSerializedRef.current = serialized;
-}, []);
+  appSerializedRef.current = serialized
+}, [])
 
 // flush 到 store（appJSON 更新，不触发 PreviewServer 推送）
 const flush = useCallback(() => {
-  useApplicationStore.getState().flushAppJSON(appSerializedRef.current);
-}, []);
+  useApplicationStore.getState().flushAppJSON(appSerializedRef.current)
+}, [])
 
 // 路由离开时 flush
 useEffect(() => {
-  return () => { flush(); };
-}, [flush]);
+  return () => {
+    flush()
+  }
+}, [flush])
 ```
 
 注意：`flushAppJSON` 只更新 store 中的 appJSON 字符串 + 设 isDirty = true，不触发 hotUpdatePreview（appJSON 不推送 PreviewServer）。
@@ -362,16 +367,16 @@ useEffect(() => {
 // UIPage
 useEffect(() => {
   const unsubscribe = registerSaveHandler(async () => {
-    flush(); // 只 flush ref → store，不直接调 API
-  });
-  return unsubscribe;
-}, [flush, registerSaveHandler]);
+    flush() // 只 flush ref → store，不直接调 API
+  })
+  return unsubscribe
+}, [flush, registerSaveHandler])
 
 // ApplicationLayout handleSave
 const handleSave = async () => {
-  await requestSave();   // 触发 UIPage flush
-  await store.save();    // store 统一 save-all → banyan 后端 → hotUpdate
-};
+  await requestSave() // 触发 UIPage flush
+  await store.save() // store 统一 save-all → banyan 后端 → hotUpdate
+}
 ```
 
 ---
@@ -467,27 +472,27 @@ const handleSave = async () => {
 
 ## 影响范围
 
-| 文件 / 模块 | 改动类型 |
-|------|---------|
-| `apps/banyan/frontend/src/stores/applicationStore.ts` | 重设计：持有业务数据 + save() + CRUD + refreshFromBackend + flushAppJSON |
-| `apps/banyan/frontend/src/utils/previewBridge.ts` | 新建：hotUpdatePreview() 辅助函数（从 store 自取 appId） |
-| `apps/banyan/frontend/src/api/fullState.ts` | 新建：saveAll / getFullState 聚合端点客户端 |
-| `apps/banyan/frontend/src/hooks/useXiangDi.ts` | 不改（onDone 签名不变） |
-| `apps/banyan/frontend/src/components/AiBar/index.tsx` | handleDone 改为 refreshFromBackend |
-| `apps/banyan/frontend/src/pages/UIPage/` | ref + flush 机制（appJSON 编辑） |
-| `apps/banyan/frontend/src/layouts/ApplicationLayout/index.tsx` | handleSave 改为 requestSave + store.save() |
-| `apps/banyan/electron/src/main.ts` | 修复：补充 `preview:hotUpdate` IPC handler |
-| `apps/banyan/electron/src/preview/PreviewServerOrchestrator.ts` | 暴露 public hotUpdate(appId, patch) |
-| `apps/banyan/backend/src/routes/apps.ts` | 新增 save-all / full-state 两个聚合路由 |
+| 文件 / 模块                                                     | 改动类型                                                                 |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `apps/banyan/frontend/src/stores/applicationStore.ts`           | 重设计：持有业务数据 + save() + CRUD + refreshFromBackend + flushAppJSON |
+| `apps/banyan/frontend/src/utils/previewBridge.ts`               | 新建：hotUpdatePreview() 辅助函数（从 store 自取 appId）                 |
+| `apps/banyan/frontend/src/api/fullState.ts`                     | 新建：saveAll / getFullState 聚合端点客户端                              |
+| `apps/banyan/frontend/src/hooks/useXiangDi.ts`                  | 不改（onDone 签名不变）                                                  |
+| `apps/banyan/frontend/src/components/AiBar/index.tsx`           | handleDone 改为 refreshFromBackend                                       |
+| `apps/banyan/frontend/src/pages/UIPage/`                        | ref + flush 机制（appJSON 编辑）                                         |
+| `apps/banyan/frontend/src/layouts/ApplicationLayout/index.tsx`  | handleSave 改为 requestSave + store.save()                               |
+| `apps/banyan/electron/src/main.ts`                              | 修复：补充 `preview:hotUpdate` IPC handler                               |
+| `apps/banyan/electron/src/preview/PreviewServerOrchestrator.ts` | 暴露 public hotUpdate(appId, patch)                                      |
+| `apps/banyan/backend/src/routes/apps.ts`                        | 新增 save-all / full-state 两个聚合路由                                  |
 
 **不需要修改的模块（对比旧方案）：**
 
-| 文件 / 模块 | 说明 |
-|------|---------|
-| `apps/banyan/electron/src/preload.ts` | 已正确暴露 `preview:hotUpdate(appId, patch)`，无需修改 |
-| `packages/xiangdi-agent/src/orchestration/events.ts` | done 事件结构不变 |
-| `apps/xiangdi-server/src/routes/orchestrateHandlers.ts` | 不变 |
-| `apps/banyan/backend/src/services/AiService.ts` | 保持 done 事件后写库行为不变（M1 不修订） |
+| 文件 / 模块                                             | 说明                                                   |
+| ------------------------------------------------------- | ------------------------------------------------------ |
+| `apps/banyan/electron/src/preload.ts`                   | 已正确暴露 `preview:hotUpdate(appId, patch)`，无需修改 |
+| `packages/xiangdi-agent/src/orchestration/events.ts`    | done 事件结构不变                                      |
+| `apps/xiangdi-server/src/routes/orchestrateHandlers.ts` | 不变                                                   |
+| `apps/banyan/backend/src/services/AiService.ts`         | 保持 done 事件后写库行为不变（M1 不修订）              |
 
 ---
 
