@@ -13,80 +13,85 @@
  * 关联方案：docs/specs/app/preview-local-backend.md
  */
 
-import { randomUUID } from 'crypto';
-import * as os from 'os';
-import * as path from 'path';
-import * as fs from 'fs/promises';
-import { existsSync } from 'fs';
-import { fileURLToPath, pathToFileURL } from 'url';
-import { spawn, type ChildProcess } from 'child_process';
-import { scaffoldServer, type ScaffoldServerOptions, type CollectionDef, type CloudFunctionDef } from '@banyuan/deploy-agent';
+import { randomUUID } from 'crypto'
+import * as os from 'os'
+import * as path from 'path'
+import * as fs from 'fs/promises'
+import { existsSync } from 'fs'
+import { fileURLToPath, pathToFileURL } from 'url'
+import { spawn, type ChildProcess } from 'child_process'
+import {
+  scaffoldServer,
+  type ScaffoldServerOptions,
+  type CollectionDef,
+  type CloudFunctionDef,
+} from '@banyuan/deploy-agent'
 
 // ─── 类型定义 ────────────────────────────────────────────────────────────────
 
 export interface PreviewServerInput {
-  appId: string;
-  appSlug?: string;
-  appJSON: Record<string, unknown>;
-  collectionSchemas: CollectionDef[];
-  cloudFunctions: CloudFunctionDef[];
+  appId: string
+  appSlug?: string
+  appJSON: Record<string, unknown>
+  collectionSchemas: CollectionDef[]
+  cloudFunctions: CloudFunctionDef[]
 }
 
-export type PreviewServerStatus = 'starting' | 'running' | 'stopping' | 'stopped' | 'error';
+export type PreviewServerStatus = 'starting' | 'running' | 'stopping' | 'stopped' | 'error'
 
 export interface PreviewServerInstance {
-  appId: string;
-  port: number;
-  status: PreviewServerStatus;
-  serverDir: string;
-  url: string;
-  process: ChildProcess | null;
-  createdAt: number;
-  updatedAt: number;
+  appId: string
+  port: number
+  status: PreviewServerStatus
+  serverDir: string
+  url: string
+  process: ChildProcess | null
+  createdAt: number
+  updatedAt: number
   /** 最近一次输入快照（用于热更新 diff） */
-  lastInput: PreviewServerInput;
-  error?: string;
+  lastInput: PreviewServerInput
+  error?: string
 }
 
 export interface PreviewServerInfo {
-  appId: string;
-  port: number;
-  status: PreviewServerStatus;
-  url: string;
-  createdAt: number;
-  updatedAt: number;
-  error?: string;
+  appId: string
+  port: number
+  status: PreviewServerStatus
+  url: string
+  createdAt: number
+  updatedAt: number
+  error?: string
 }
 
 // ─── 常量 ────────────────────────────────────────────────────────────────────
 
 /** 预览服务端口范围：9100-9199（最多同时 100 个预览） */
-const PORT_RANGE_START = 9100;
-const PORT_RANGE_END = 9199;
+const PORT_RANGE_START = 9100
+const PORT_RANGE_END = 9199
 
 /** 空闲超时：30 分钟无活动后自动销毁 */
-const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000
 
 /** 本地 Mongo 默认 URI（开发者本地环境） */
-const LOCAL_MONGO_URI = process.env.PREVIEW_MONGO_URI || 'mongodb://localhost:27017';
+const LOCAL_MONGO_URI = process.env.PREVIEW_MONGO_URI || 'mongodb://localhost:27017'
 
 /** 临时目录前缀 */
-const TEMP_DIR_PREFIX = 'banyuan-preview-';
+const TEMP_DIR_PREFIX = 'banyuan-preview-'
 
 /** Monorepo 根目录（从 dist/preview/ 往上 5 级：dist → electron → banyan → apps → root） */
-const MONOREPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
+const MONOREPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..')
 
 // ─── 编排器实现 ──────────────────────────────────────────────────────────────
 
 export class PreviewServerOrchestrator {
   /** appId → PreviewServerInstance */
-  private instances = new Map<string, PreviewServerInstance>();
+  private instances = new Map<string, PreviewServerInstance>()
 
   /** 已占用端口 */
-  private usedPorts = new Set<number>();
+  private usedPorts = new Set<number>()
 
   /** appId → idle timer */
-  private idleTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private idleTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
   // ─── 公开 API ──────────────────────────────────────────────────────────
 
@@ -95,19 +100,19 @@ export class PreviewServerOrchestrator {
    * 同一 appId 复用已有进程（热更新），不同 appId 分配新端口
    */
   async start(input: PreviewServerInput): Promise<PreviewServerInfo> {
-    const { appId } = input;
+    const { appId } = input
 
     // 已有运行中实例 → 热更新
-    const existing = this.instances.get(appId);
+    const existing = this.instances.get(appId)
     if (existing && (existing.status === 'running' || existing.status === 'starting')) {
-      await this.applyHotUpdate(existing, input);
-      this.resetIdleTimer(appId);
-      return this.toInfo(existing);
+      await this.applyHotUpdate(existing, input)
+      this.resetIdleTimer(appId)
+      return this.toInfo(existing)
     }
 
     // 创建新实例
-    const port = this.allocatePort();
-    const serverDir = path.join(os.tmpdir(), `${TEMP_DIR_PREFIX}${appId}-${randomUUID().slice(0, 8)}`);
+    const port = this.allocatePort()
+    const serverDir = path.join(os.tmpdir(), `${TEMP_DIR_PREFIX}${appId}-${randomUUID().slice(0, 8)}`)
 
     const instance: PreviewServerInstance = {
       appId,
@@ -119,36 +124,36 @@ export class PreviewServerOrchestrator {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       lastInput: input,
-    };
+    }
 
-    this.instances.set(appId, instance);
+    this.instances.set(appId, instance)
 
     try {
       // Step 1: scaffold 生成后端工程
-      await this.scaffold(instance, input);
+      await this.scaffold(instance, input)
 
       // Step 1.5: 将 @banyuan/* 依赖替换为本地 file: 协议（npm 未发布）
-      await this.patchPackageJson(instance.serverDir);
+      await this.patchPackageJson(instance.serverDir)
 
       // Step 2: npm install
-      await this.install(instance);
+      await this.install(instance)
 
       // Step 3: 起进程
-      await this.spawnServer(instance);
+      await this.spawnServer(instance)
 
-      instance.status = 'running';
-      instance.updatedAt = Date.now();
-      this.resetIdleTimer(appId);
+      instance.status = 'running'
+      instance.updatedAt = Date.now()
+      this.resetIdleTimer(appId)
 
-      console.log(`[PreviewServer] ${appId} running on port ${port}`);
-      return this.toInfo(instance);
+      console.log(`[PreviewServer] ${appId} running on port ${port}`)
+      return this.toInfo(instance)
     } catch (err) {
-      instance.status = 'error';
-      instance.error = err instanceof Error ? err.message : String(err);
-      instance.updatedAt = Date.now();
-      this.usedPorts.delete(port);
-      console.error(`[PreviewServer] ${appId} start failed:`, err);
-      throw err;
+      instance.status = 'error'
+      instance.error = err instanceof Error ? err.message : String(err)
+      instance.updatedAt = Date.now()
+      this.usedPorts.delete(port)
+      console.error(`[PreviewServer] ${appId} start failed:`, err)
+      throw err
     }
   }
 
@@ -156,67 +161,67 @@ export class PreviewServerOrchestrator {
    * 停止某 appId 的预览服务
    */
   async stop(appId: string): Promise<void> {
-    const instance = this.instances.get(appId);
-    if (!instance) return;
+    const instance = this.instances.get(appId)
+    if (!instance) return
 
-    instance.status = 'stopping';
-    instance.updatedAt = Date.now();
+    instance.status = 'stopping'
+    instance.updatedAt = Date.now()
 
-    this.clearIdleTimer(appId);
+    this.clearIdleTimer(appId)
 
     // kill 进程
     if (instance.process && !instance.process.killed) {
-      instance.process.kill('SIGTERM');
+      instance.process.kill('SIGTERM')
       await new Promise<void>((resolve) => {
         const forceTimer = setTimeout(() => {
           if (instance.process && !instance.process.killed) {
-            instance.process.kill('SIGKILL');
+            instance.process.kill('SIGKILL')
           }
-          resolve();
-        }, 2000);
+          resolve()
+        }, 2000)
         instance.process!.once('exit', () => {
-          clearTimeout(forceTimer);
-          resolve();
-        });
-      });
+          clearTimeout(forceTimer)
+          resolve()
+        })
+      })
     }
 
     // 释放端口
-    this.usedPorts.delete(instance.port);
+    this.usedPorts.delete(instance.port)
 
     // 清理临时目录
-    await this.cleanup(instance.serverDir);
+    await this.cleanup(instance.serverDir)
 
-    instance.status = 'stopped';
-    instance.process = null;
-    instance.updatedAt = Date.now();
-    this.instances.delete(appId);
+    instance.status = 'stopped'
+    instance.process = null
+    instance.updatedAt = Date.now()
+    this.instances.delete(appId)
 
-    console.log(`[PreviewServer] ${appId} stopped`);
+    console.log(`[PreviewServer] ${appId} stopped`)
   }
 
   /**
    * 获取某 appId 的预览服务状态
    */
   getStatus(appId: string): PreviewServerInfo | undefined {
-    const instance = this.instances.get(appId);
-    if (!instance) return undefined;
-    return this.toInfo(instance);
+    const instance = this.instances.get(appId)
+    if (!instance) return undefined
+    return this.toInfo(instance)
   }
 
   /**
    * 列出所有活跃的预览服务
    */
   listAll(): PreviewServerInfo[] {
-    return Array.from(this.instances.values()).map((inst) => this.toInfo(inst));
+    return Array.from(this.instances.values()).map((inst) => this.toInfo(inst))
   }
 
   /**
    * 停止所有预览服务（app 退出时调用）
    */
   async stopAll(): Promise<void> {
-    const appIds = Array.from(this.instances.keys());
-    await Promise.allSettled(appIds.map((id) => this.stop(id)));
+    const appIds = Array.from(this.instances.keys())
+    await Promise.allSettled(appIds.map((id) => this.stop(id)))
   }
 
   // ─── 内部方法 ──────────────────────────────────────────────────────────
@@ -224,15 +229,15 @@ export class PreviewServerOrchestrator {
   private allocatePort(): number {
     for (let port = PORT_RANGE_START; port <= PORT_RANGE_END; port++) {
       if (!this.usedPorts.has(port)) {
-        this.usedPorts.add(port);
-        return port;
+        this.usedPorts.add(port)
+        return port
       }
     }
-    throw new Error('[PreviewServer] No available ports in range 9100-9199');
+    throw new Error('[PreviewServer] No available ports in range 9100-9199')
   }
 
   private async scaffold(instance: PreviewServerInstance, input: PreviewServerInput): Promise<void> {
-    const { appId, appSlug, collectionSchemas, cloudFunctions } = input;
+    const { appId, appSlug, collectionSchemas, cloudFunctions } = input
 
     const options: ScaffoldServerOptions = {
       serverDir: instance.serverDir,
@@ -240,9 +245,9 @@ export class PreviewServerOrchestrator {
       collections: collectionSchemas,
       cloudFunctions,
       containerPort: instance.port,
-    };
+    }
 
-    await scaffoldServer(options);
+    await scaffoldServer(options)
   }
 
   /**
@@ -250,21 +255,21 @@ export class PreviewServerOrchestrator {
    * 预览态下 @banyuan 包未发布到 npm registry，需要直接引用 monorepo 中的本地包。
    */
   private async patchPackageJson(serverDir: string): Promise<void> {
-    const pkgPath = path.join(serverDir, 'package.json');
-    const raw = await fs.readFile(pkgPath, 'utf-8');
-    const pkg = JSON.parse(raw);
+    const pkgPath = path.join(serverDir, 'package.json')
+    const raw = await fs.readFile(pkgPath, 'utf-8')
+    const pkg = JSON.parse(raw)
 
     if (pkg.dependencies) {
       for (const [name, version] of Object.entries(pkg.dependencies)) {
         if (name.startsWith('@banyuan/')) {
-          const pkgDir = name.slice('@banyuan/'.length);
-          const absPath = path.join(MONOREPO_ROOT, 'packages', pkgDir);
-          pkg.dependencies[name] = pathToFileURL(absPath).toString();
+          const pkgDir = name.slice('@banyuan/'.length)
+          const absPath = path.join(MONOREPO_ROOT, 'packages', pkgDir)
+          pkg.dependencies[name] = pathToFileURL(absPath).toString()
         }
       }
     }
 
-    await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2), 'utf-8');
+    await fs.writeFile(pkgPath, JSON.stringify(pkg, null, 2), 'utf-8')
   }
 
   private async install(instance: PreviewServerInstance): Promise<void> {
@@ -274,26 +279,28 @@ export class PreviewServerOrchestrator {
         shell: true,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env, NODE_ENV: 'production' },
-      });
+      })
 
-      let stderr = '';
-      proc.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+      let stderr = ''
+      proc.stderr?.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString()
+      })
 
       proc.on('close', (code) => {
         if (code === 0) {
-          resolve();
+          resolve()
         } else {
-          reject(new Error(`npm install failed (code ${code}): ${stderr.slice(0, 500)}`));
+          reject(new Error(`npm install failed (code ${code}): ${stderr.slice(0, 500)}`))
         }
-      });
+      })
 
-      proc.on('error', (err) => reject(err));
-    });
+      proc.on('error', (err) => reject(err))
+    })
   }
 
   private async spawnServer(instance: PreviewServerInstance): Promise<void> {
-    const mongoDb = `banyuan_preview_${instance.appId}`;
-    const mongoUri = `${LOCAL_MONGO_URI}/${mongoDb}`;
+    const mongoDb = `banyuan_preview_${instance.appId}`
+    const mongoUri = `${LOCAL_MONGO_URI}/${mongoDb}`
 
     const proc = spawn('node', ['index.js'], {
       cwd: instance.serverDir,
@@ -304,59 +311,59 @@ export class PreviewServerOrchestrator {
         MONGODB_URI: mongoUri,
         NODE_ENV: 'development',
       },
-    });
+    })
 
-    instance.process = proc;
+    instance.process = proc
 
     // 等待服务就绪（监听 stdout 中的标志输出或超时）
     await new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error('Preview server start timeout (15s)'));
-      }, 15000);
+        reject(new Error('Preview server start timeout (15s)'))
+      }, 15000)
 
-      let stdout = '';
-      let stderr = '';
+      let stdout = ''
+      let stderr = ''
       const onStdout = (chunk: Buffer) => {
-        stdout += chunk.toString();
+        stdout += chunk.toString()
         if (stdout.includes('[Banyuan Server] Running on port')) {
-          clearTimeout(timeout);
-          proc.stdout?.off('data', onStdout);
-          proc.stderr?.off('data', onStderr);
-          resolve();
+          clearTimeout(timeout)
+          proc.stdout?.off('data', onStdout)
+          proc.stderr?.off('data', onStderr)
+          resolve()
         }
-      };
+      }
       const onStderr = (chunk: Buffer) => {
-        stderr += chunk.toString();
-      };
+        stderr += chunk.toString()
+      }
 
-      proc.stdout?.on('data', onStdout);
-      proc.stderr?.on('data', onStderr);
+      proc.stdout?.on('data', onStdout)
+      proc.stderr?.on('data', onStderr)
 
       proc.on('error', (err) => {
-        clearTimeout(timeout);
-        reject(err);
-      });
+        clearTimeout(timeout)
+        reject(err)
+      })
 
       proc.on('exit', (code) => {
         if (code !== null && code !== 0) {
-          clearTimeout(timeout);
-          const detail = stderr.trim() ? `: ${stderr.trim().slice(0, 500)}` : '';
-          reject(new Error(`Preview server exited with code ${code}${detail}`));
+          clearTimeout(timeout)
+          const detail = stderr.trim() ? `: ${stderr.trim().slice(0, 500)}` : ''
+          reject(new Error(`Preview server exited with code ${code}${detail}`))
         }
-      });
-    });
+      })
+    })
 
     // 监听进程异常退出
     proc.on('exit', (code) => {
       if (instance.status === 'running') {
-        console.warn(`[PreviewServer] ${instance.appId} exited unexpectedly (code ${code})`);
-        instance.status = 'error';
-        instance.error = `Process exited with code ${code}`;
-        instance.updatedAt = Date.now();
-        this.usedPorts.delete(instance.port);
-        this.clearIdleTimer(instance.appId);
+        console.warn(`[PreviewServer] ${instance.appId} exited unexpectedly (code ${code})`)
+        instance.status = 'error'
+        instance.error = `Process exited with code ${code}`
+        instance.updatedAt = Date.now()
+        this.usedPorts.delete(instance.port)
+        this.clearIdleTimer(instance.appId)
       }
-    });
+    })
   }
 
   /**
@@ -365,21 +372,24 @@ export class PreviewServerOrchestrator {
    *
    * 设计决策来源：docs/adr/app/protocol.md C5 + docs/specs/app/metadata-dataflow.md 步骤 5
    */
-  public async hotUpdate(appId: string, patch: { collections?: unknown[]; cloudFunctions?: unknown[] }): Promise<void> {
-    const instance = this.instances.get(appId);
+  public async hotUpdate(
+    appId: string,
+    patch: { collections?: unknown[]; cloudFunctions?: unknown[] },
+  ): Promise<void> {
+    const instance = this.instances.get(appId)
     if (!instance || instance.status !== 'running') {
       // PreviewServer 未运行，静默跳过
-      return;
+      return
     }
 
     const merged: PreviewServerInput = {
       ...instance.lastInput,
       collectionSchemas: (patch.collections ?? instance.lastInput.collectionSchemas) as CollectionDef[],
       cloudFunctions: (patch.cloudFunctions ?? instance.lastInput.cloudFunctions) as CloudFunctionDef[],
-    };
+    }
 
-    await this.applyHotUpdate(instance, merged);
-    this.resetIdleTimer(appId);
+    await this.applyHotUpdate(instance, merged)
+    this.resetIdleTimer(appId)
   }
 
   /**
@@ -388,77 +398,83 @@ export class PreviewServerOrchestrator {
    *   - CollectionSchema 变更：写 schema.json + 重启进程（Mongoose 模型在启动时初始化）
    */
   private async applyHotUpdate(instance: PreviewServerInstance, input: PreviewServerInput): Promise<void> {
-    const { collectionSchemas, cloudFunctions } = input;
-    const { lastInput } = instance;
+    const { collectionSchemas, cloudFunctions } = input
+    const { lastInput } = instance
 
-    const collectionsChanged = JSON.stringify(collectionSchemas) !== JSON.stringify(lastInput.collectionSchemas);
-    const functionsChanged = JSON.stringify(cloudFunctions) !== JSON.stringify(lastInput.cloudFunctions);
+    const collectionsChanged =
+      JSON.stringify(collectionSchemas) !== JSON.stringify(lastInput.collectionSchemas)
+    const functionsChanged = JSON.stringify(cloudFunctions) !== JSON.stringify(lastInput.cloudFunctions)
 
     if (!collectionsChanged && !functionsChanged) {
-      instance.lastInput = input;
-      instance.updatedAt = Date.now();
-      return;
+      instance.lastInput = input
+      instance.updatedAt = Date.now()
+      return
     }
 
     if (functionsChanged) {
       await fs.writeFile(
         path.join(instance.serverDir, 'functions.json'),
         JSON.stringify(cloudFunctions, null, 2),
-      );
+      )
     }
 
     if (collectionsChanged) {
       await fs.writeFile(
         path.join(instance.serverDir, 'schema.json'),
         JSON.stringify(collectionSchemas, null, 2),
-      );
+      )
       // CollectionSchema 变更需要重启进程
-      await this.restartProcess(instance);
+      await this.restartProcess(instance)
     }
 
-    instance.lastInput = input;
-    instance.updatedAt = Date.now();
-    console.log(`[PreviewServer] ${instance.appId} hot-updated (collections: ${collectionsChanged}, functions: ${functionsChanged})`);
+    instance.lastInput = input
+    instance.updatedAt = Date.now()
+    console.log(
+      `[PreviewServer] ${instance.appId} hot-updated (collections: ${collectionsChanged}, functions: ${functionsChanged})`,
+    )
   }
 
   private async restartProcess(instance: PreviewServerInstance): Promise<void> {
     if (instance.process && !instance.process.killed) {
-      instance.process.kill('SIGTERM');
+      instance.process.kill('SIGTERM')
       await new Promise<void>((resolve) => {
-        const t = setTimeout(resolve, 2000);
-        instance.process!.once('exit', () => { clearTimeout(t); resolve(); });
-      });
+        const t = setTimeout(resolve, 2000)
+        instance.process!.once('exit', () => {
+          clearTimeout(t)
+          resolve()
+        })
+      })
     }
-    await this.spawnServer(instance);
-    console.log(`[PreviewServer] ${instance.appId} restarted`);
+    await this.spawnServer(instance)
+    console.log(`[PreviewServer] ${instance.appId} restarted`)
   }
 
   private resetIdleTimer(appId: string): void {
-    this.clearIdleTimer(appId);
+    this.clearIdleTimer(appId)
     const timer = setTimeout(() => {
-      console.log(`[PreviewServer] ${appId} idle timeout, stopping...`);
+      console.log(`[PreviewServer] ${appId} idle timeout, stopping...`)
       this.stop(appId).catch((err) => {
-        console.error(`[PreviewServer] ${appId} idle stop failed:`, err);
-      });
-    }, IDLE_TIMEOUT_MS);
-    this.idleTimers.set(appId, timer);
+        console.error(`[PreviewServer] ${appId} idle stop failed:`, err)
+      })
+    }, IDLE_TIMEOUT_MS)
+    this.idleTimers.set(appId, timer)
   }
 
   private clearIdleTimer(appId: string): void {
-    const timer = this.idleTimers.get(appId);
+    const timer = this.idleTimers.get(appId)
     if (timer) {
-      clearTimeout(timer);
-      this.idleTimers.delete(appId);
+      clearTimeout(timer)
+      this.idleTimers.delete(appId)
     }
   }
 
   private async cleanup(dir: string): Promise<void> {
     try {
       if (existsSync(dir)) {
-        await fs.rm(dir, { recursive: true, force: true });
+        await fs.rm(dir, { recursive: true, force: true })
       }
     } catch (err) {
-      console.warn(`[PreviewServer] cleanup failed for ${dir}:`, err);
+      console.warn(`[PreviewServer] cleanup failed for ${dir}:`, err)
     }
   }
 
@@ -471,6 +487,6 @@ export class PreviewServerOrchestrator {
       createdAt: instance.createdAt,
       updatedAt: instance.updatedAt,
       error: instance.error,
-    };
+    }
   }
 }

@@ -2,9 +2,9 @@
  * @banyuan/deploy-agent 公共 API
  */
 
-export { DeployAgent } from './DeployAgent.js';
-export { scaffoldProject, scaffoldServer } from './scaffold.js';
-export type { ScaffoldServerOptions } from './scaffold.js';
+export { DeployAgent } from './DeployAgent.js'
+export { scaffoldProject, scaffoldServer } from './scaffold.js'
+export type { ScaffoldServerOptions } from './scaffold.js'
 export type {
   AgentConfig,
   AgentMessage,
@@ -19,4 +19,4 @@ export type {
   DeployProgress,
   DeployResult,
   UIDefinition,
-} from './types.js';
+} from './types.js'

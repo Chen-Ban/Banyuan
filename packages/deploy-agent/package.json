@@ -16,6 +16,8 @@
   },
   "scripts": {
     "dev": "tsx watch src/cli.ts",
+    "lint": "pnpm exec eslint . --max-warnings 1000",
+    "lint:fix": "pnpm exec eslint . --fix",
     "build": "tsup src/cli.ts src/index.ts --format esm --dts --clean",
     "start": "node dist/cli.js"
   },
