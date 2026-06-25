@@ -1,8 +1,8 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import type { Server as HttpServer, IncomingMessage } from 'http'
 import crypto from 'crypto'
-import { Tenant } from '../models/Tenant.js'
-import type { ITenant } from '../models/types/index.js'
+import { EcsInstance } from '../models/EcsInstance.js'
+import type { IEcsInstance } from '../models/types/index.js'
 
 // ─── 消息协议（与 @banyuan/deploy-agent 对齐）────────────────────────────────────
 
@@ -295,27 +295,27 @@ export class AgentGateway {
           return
         }
 
-        // DB 校验：验证 token 是否属于该 tenantId
-        let tenant: ITenant | null
+        // DB 校验：从 EcsInstance 表验证 agentToken 是否匹配
+        let instance: IEcsInstance | null
         try {
-          tenant = await Tenant.findOne({ tenantId }).lean()
+          instance = await EcsInstance.findOne({ tenantId }).lean()
         } catch (dbErr) {
           const msg = dbErr instanceof Error ? dbErr.message : String(dbErr)
-          console.error(`[AgentGateway] 租户 ${tenantId} DB 查询失败: ${msg}`)
+          console.error(`[AgentGateway] 租户 ${tenantId} EcsInstance 查询失败: ${msg}`)
           const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'Internal error' } }
           ws.send(JSON.stringify(failMsg))
           ws.close(1011, 'Internal error')
           return
         }
-        if (!tenant) {
-          console.warn(`[AgentGateway] 租户 ${tenantId} 不存在`)
-          const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'Tenant not found' } }
+        if (!instance) {
+          console.warn(`[AgentGateway] 租户 ${tenantId} 未找到绑定的 ECS 实例`)
+          const failMsg: ServerMessage = { type: 'auth:fail', payload: { reason: 'No ECS instance bound' } }
           ws.send(JSON.stringify(failMsg))
-          ws.close(4005, 'Tenant not found')
+          ws.close(4005, 'No ECS instance bound')
           return
         }
-        if (tenant.agentToken !== agentToken) {
-          console.warn(`[AgentGateway] 租户 ${tenantId} agentToken 与数据库不匹配`)
+        if (instance.agentToken !== agentToken) {
+          console.warn(`[AgentGateway] 租户 ${tenantId} agentToken 与 EcsInstance 不匹配`)
           const failMsg: ServerMessage = {
             type: 'auth:fail',
             payload: { reason: 'Agent token mismatch with database' },

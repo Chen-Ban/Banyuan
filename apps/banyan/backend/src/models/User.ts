@@ -6,12 +6,10 @@ export type IUserDoc = IUser & Document
 const UserSchema = new Schema<IUserDoc>(
   {
     userId: { type: String, required: true, unique: true, index: true },
-    tenantId: { type: String, required: true, index: true },
     email: { type: String, lowercase: true, trim: true },
     phone: { type: String, trim: true },
     username: { type: String, required: true, trim: true },
     passwordHash: { type: String, select: false },
-    role: { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
     status: { type: String, enum: ['active', 'invited', 'disabled'], default: 'active' },
   },
   { timestamps: true, collection: 'users' },

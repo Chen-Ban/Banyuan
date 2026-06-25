@@ -14,8 +14,10 @@ import materialRouter from './materials.js'
 import planningRouter from './planning.js'
 import internalRouter from './internal.js'
 import deployRouter from './deploy.js'
+import tenantRouter from './tenants.js'
 import creditRouter from './credits.js'
 import { authMiddleware } from '../middleware/auth.js'
+import { requireTenant } from '../middleware/requirePermission.js'
 
 const router = new Router()
 
@@ -39,6 +41,18 @@ router.use(internalRouter.routes(), internalRouter.allowedMethods())
 
 // ─── 以下路由全部需要 JWT 认证 ─────────────────────────────────────────────────
 router.use(authMiddleware)
+
+// ─── 以下路由需要租户上下文（除租户管理外的所有业务路由）────────────────────────
+router.use(async (ctx, next) => {
+  // 跳过 tenantRouter 路由路径（创建租户不需要租户上下文）
+  if (ctx.path.startsWith('/api/tenants')) {
+    await next()
+    return
+  }
+  // 其余路由使用 requireTenant 中间件
+  const middleware = requireTenant()
+  await middleware(ctx, next)
+})
 
 // API 路由
 router.use(applicationRoutes.routes())
@@ -72,6 +86,9 @@ router.use(planningRouter.routes(), planningRouter.allowedMethods())
 
 // Web 部署（ADR-028）
 router.use(deployRouter.routes(), deployRouter.allowedMethods())
+
+// 租户管理（多租户 N:N，Phase 1 重构）
+router.use(tenantRouter.routes(), tenantRouter.allowedMethods())
 
 // AI Credit 用量查询
 router.use(creditRouter.routes(), creditRouter.allowedMethods())

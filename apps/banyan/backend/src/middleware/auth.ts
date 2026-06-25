@@ -35,15 +35,16 @@ export async function authMiddleware(ctx: Context, next: Next): Promise<void> {
 
 /**
  * requireRole — 角色权限检查中间件工厂
+ * 基于 JWT 中的 membershipRole 字段（从 Membership 模型获取）。
  * 用法：router.get('/admin', authMiddleware, requireRole('admin', 'owner'), handler)
  */
-export function requireRole(...roles: AuthPayload['role'][]): (ctx: Context, next: Next) => Promise<void> {
+export function requireRole(...roles: NonNullable<AuthPayload['membershipRole']>[]): (ctx: Context, next: Next) => Promise<void> {
   return async (ctx: Context, next: Next): Promise<void> => {
     const user = ctx.state.user
     if (!user) {
       throw new AuthTokenInvalidError('未认证')
     }
-    if (!roles.includes(user.role)) {
+    if (!user.membershipRole || !roles.includes(user.membershipRole)) {
       throw new AuthForbiddenError()
     }
     await next()

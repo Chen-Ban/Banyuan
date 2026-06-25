@@ -26,9 +26,13 @@ export type { IApplication } from './application.js'
 
 export type { DeployStatus, IDeploySnapshot, IDeployment } from './deployment.js'
 
-export type { UserRole, UserStatus, IUser } from './user.js'
+export type { UserStatus, IUser } from './user.js'
 
-export type { ProvisionStatus, ITenant } from './tenant.js'
+export type { MembershipRole, MembershipStatus, IMembership } from './membership.js'
+
+export type { ITenant } from './tenant.js'
+
+export type { EcsInstanceStatus, IEcsInstance } from './ecs-instance.js'
 
 export type { IPlan, ICreditUsage, CreditUsageDetail } from './plan.js'
 
