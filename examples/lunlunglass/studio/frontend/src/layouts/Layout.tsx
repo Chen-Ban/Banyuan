@@ -17,14 +17,15 @@ const Layout = ({ children }: LayoutProps) => {
           <Link to="/" className={`${styles.navLink} ${location.pathname === '/' ? styles.active : ''}`}>
             首页
           </Link>
-          <Link to="/template" className={`${styles.navLink} ${location.pathname.startsWith('/template') ? styles.active : ''}`}>
+          <Link
+            to="/template"
+            className={`${styles.navLink} ${location.pathname.startsWith('/template') ? styles.active : ''}`}
+          >
             模板
           </Link>
         </nav>
       </header>
-      <main className={styles.layoutMain}>
-        {children}
-      </main>
+      <main className={styles.layoutMain}>{children}</main>
       <footer className={styles.layoutFooter}>
         <p>&copy; 2024 LunLunGlass Studio. All rights reserved.</p>
       </footer>

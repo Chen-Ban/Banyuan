@@ -51,8 +51,21 @@ const FaceDiagram = ({ params, width = 420, height = 520 }: FaceDiagramProps) =>
     <g className={styles.eyeGroup}>
       <circle cx={x} cy={y} r={eyeRadius} fill="white" stroke="#333" strokeWidth="2" className={styles.eye} />
       <circle cx={x} cy={y} r={pupilRadius} fill="#333" className={styles.pupil} />
-      <circle cx={x - pupilRadius * 0.3} cy={y - pupilRadius * 0.3} r={pupilRadius * 0.3} fill="white" className={styles.pupilHighlight} />
-      <text x={x} y={y + eyeRadius + 20} textAnchor="middle" fill="#2c3e50" fontSize="12" className={styles.eyeLabel}>
+      <circle
+        cx={x - pupilRadius * 0.3}
+        cy={y - pupilRadius * 0.3}
+        r={pupilRadius * 0.3}
+        fill="white"
+        className={styles.pupilHighlight}
+      />
+      <text
+        x={x}
+        y={y + eyeRadius + 20}
+        textAnchor="middle"
+        fill="#2c3e50"
+        fontSize="12"
+        className={styles.eyeLabel}
+      >
         {label}
       </text>
       <text x={x} y={y + eyeRadius + 36} textAnchor="middle" fill="#2c3e50" fontSize="11">
@@ -109,7 +122,14 @@ const FaceDiagram = ({ params, width = 420, height = 520 }: FaceDiagramProps) =>
             strokeWidth="2"
             strokeDasharray="5,5"
           />
-          <text x={centerX} y={baselineEyeY - eyeRadius - 30} textAnchor="middle" fill="#1890ff" fontSize="12" fontWeight="bold">
+          <text
+            x={centerX}
+            y={baselineEyeY - eyeRadius - 30}
+            textAnchor="middle"
+            fill="#1890ff"
+            fontSize="12"
+            fontWeight="bold"
+          >
             PD L {params.pd.left.toFixed(1)}mm / R {params.pd.right.toFixed(1)}mm
           </text>
         </g>
@@ -119,4 +139,3 @@ const FaceDiagram = ({ params, width = 420, height = 520 }: FaceDiagramProps) =>
 }
 
 export default FaceDiagram
-

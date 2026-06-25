@@ -35,7 +35,7 @@ class OrderService {
   async getOrderList(
     query: IOrderQuery = {},
     page: number = 1,
-    pageSize: number = 10
+    pageSize: number = 10,
   ): Promise<IOrderListResult> {
     try {
       // 构建查询条件
@@ -103,9 +103,7 @@ class OrderService {
     try {
       // 先尝试作为 MongoDB ObjectId 查询
       if (Types.ObjectId.isValid(id)) {
-        const order = await Order.findById(id)
-          .populate('userId', 'userId username email phone')
-          .lean()
+        const order = await Order.findById(id).populate('userId', 'userId username email phone').lean()
         if (order) return order as unknown as IOrder
       }
 
@@ -124,7 +122,9 @@ class OrderService {
    */
   private generateOrderId(): string {
     const timestamp = Date.now()
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+    const random = Math.floor(Math.random() * 10000)
+      .toString()
+      .padStart(4, '0')
     return `ORD${timestamp}${random}`
   }
 
@@ -240,7 +240,7 @@ class OrderService {
       }>
       status?: string
       remark?: string
-    }
+    },
   ): Promise<IOrder | null> {
     try {
       let order
@@ -343,4 +343,3 @@ class OrderService {
 }
 
 export default new OrderService()
-

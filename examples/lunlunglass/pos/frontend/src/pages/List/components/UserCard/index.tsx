@@ -50,19 +50,12 @@ const UserCard = ({ user }: UserCardProps) => {
         {user.createdAt && (
           <div className={styles.userDetail}>
             <span className={styles.detailLabel}>注册时间:</span>
-            <span className={styles.detailValue}>
-              {new Date(user.createdAt).toLocaleDateString()}
-            </span>
+            <span className={styles.detailValue}>{new Date(user.createdAt).toLocaleDateString()}</span>
           </div>
         )}
       </div>
       <div className={styles.userCardActions}>
-        <Button
-          type="primary"
-          icon={<EditOutlined />}
-          onClick={handleEdit}
-          size="small"
-        >
+        <Button type="primary" icon={<EditOutlined />} onClick={handleEdit} size="small">
           编辑
         </Button>
       </div>
@@ -71,4 +64,3 @@ const UserCard = ({ user }: UserCardProps) => {
 }
 
 export default UserCard
-

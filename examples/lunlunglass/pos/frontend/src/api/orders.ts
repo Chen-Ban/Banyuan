@@ -18,7 +18,7 @@ interface OrderListResponse {
 export function fetchOrders(
   page: number = 1,
   pageSize: number = 10,
-  filters?: OrderFilters
+  filters?: OrderFilters,
 ): Promise<OrderListResponse> {
   return get<OrderListResponse>('/orders', {
     page,

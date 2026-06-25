@@ -54,7 +54,7 @@ async function sendUsb(data: Buffer, address: string): Promise<void> {
   try {
     // serialport 是可选依赖，动态导入
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { SerialPort } = await import('serialport') as any
+    const { SerialPort } = (await import('serialport')) as any
     return new Promise<void>((resolve, reject) => {
       const port = new SerialPort({
         path: address,
@@ -81,9 +81,7 @@ async function sendUsb(data: Buffer, address: string): Promise<void> {
       })
     })
   } catch {
-    throw new Error(
-      'serialport package not installed. Run: npm install serialport'
-    )
+    throw new Error('serialport package not installed. Run: npm install serialport')
   }
 }
 

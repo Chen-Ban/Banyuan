@@ -12,4 +12,3 @@ const router = new Router({
 router.get('/', statisticsController.getStatistics.bind(statisticsController))
 
 export default router
-

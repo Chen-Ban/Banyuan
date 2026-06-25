@@ -51,10 +51,7 @@ class StatisticsService {
               },
             },
           ]),
-          Order.find()
-            .sort({ createdAt: -1 })
-            .limit(5)
-            .lean(),
+          Order.find().sort({ createdAt: -1 }).limit(5).lean(),
         ])
 
       // 格式化状态统计

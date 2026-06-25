@@ -68,7 +68,7 @@ const ProductSchema = new Schema<IProduct>(
   },
   {
     timestamps: true, // 自动添加 createdAt 和 updatedAt
-  }
+  },
 )
 
 // 创建索引
@@ -82,4 +82,3 @@ ProductSchema.index({ unitPrice: 1 })
 const Product = mongoose.model<IProduct>('Product', ProductSchema)
 
 export default Product
-

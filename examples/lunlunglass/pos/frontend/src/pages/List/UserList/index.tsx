@@ -71,11 +71,7 @@ const UserList = () => {
             查询
           </Button>
           <Button onClick={handleReset}>重置</Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateUser}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateUser}>
             新建用户
           </Button>
         </Space>
@@ -86,4 +82,3 @@ const UserList = () => {
 }
 
 export default UserList
-

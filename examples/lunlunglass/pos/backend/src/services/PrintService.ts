@@ -53,7 +53,7 @@ function getNestedValue(obj: unknown, path: string): unknown {
  */
 function resolveFieldValues(
   fields: ISnapshotField[],
-  context: { order: unknown; user: unknown }
+  context: { order: unknown; user: unknown },
 ): Record<string, string> {
   const result: Record<string, string> = {}
 
@@ -174,10 +174,7 @@ export async function print(request: PrintRequest): Promise<PrintResult> {
 /**
  * 仅预览合成图片（不发送打印）
  */
-export async function preview(
-  snapshotId: string,
-  orderId: string
-): Promise<PrintResult> {
+export async function preview(snapshotId: string, orderId: string): Promise<PrintResult> {
   try {
     const snapshot = await TemplateSnapshot.findOne({ snapshotId }).lean()
     if (!snapshot) {

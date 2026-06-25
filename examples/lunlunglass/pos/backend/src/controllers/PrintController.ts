@@ -67,10 +67,7 @@ class PrintController {
         return
       }
 
-      const result = await printService.preview(
-        body.snapshotId as string,
-        body.orderId as string
-      )
+      const result = await printService.preview(body.snapshotId as string, body.orderId as string)
 
       if (!result.success || !result.composedImage) {
         ctx.status = 500

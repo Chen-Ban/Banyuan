@@ -38,12 +38,7 @@ class ProductController {
    */
   async getProductList(ctx: Context) {
     try {
-      const {
-        name,
-        sku,
-        page = '1',
-        pageSize = '12',
-      } = ctx.query
+      const { name, sku, page = '1', pageSize = '12' } = ctx.query
 
       const query = {
         name: name as string | undefined,
@@ -52,13 +47,13 @@ class ProductController {
 
       // 移除 undefined 值
       Object.keys(query).forEach(
-        (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query]
+        (key) => query[key as keyof typeof query] === undefined && delete query[key as keyof typeof query],
       )
 
       const result = await productService.getProductList(
         query,
         parseInt(page as string, 10),
-        parseInt(pageSize as string, 10)
+        parseInt(pageSize as string, 10),
       )
 
       ctx.status = 200
@@ -211,4 +206,3 @@ class ProductController {
 }
 
 export default new ProductController()
-

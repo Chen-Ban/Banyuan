@@ -21,28 +21,31 @@ const UserCardList = ({ filters }: UserCardListProps) => {
   const pageSize = 12
 
   // 获取用户数据
-  const fetchUsers = useCallback(async (pageNum: number, reset: boolean = false) => {
-    setLoading(true)
-    try {
-      const res = await userApi.fetchUsers(pageNum, pageSize, filters)
-      const { users: newUsers, total } = res.data
+  const fetchUsers = useCallback(
+    async (pageNum: number, reset: boolean = false) => {
+      setLoading(true)
+      try {
+        const res = await userApi.fetchUsers(pageNum, pageSize, filters)
+        const { users: newUsers, total } = res.data
 
-      if (reset) {
-        setUsers(newUsers)
-        setPage(2)
-      } else {
-        setUsers(prev => [...prev, ...newUsers])
-        setPage(prev => prev + 1)
+        if (reset) {
+          setUsers(newUsers)
+          setPage(2)
+        } else {
+          setUsers((prev) => [...prev, ...newUsers])
+          setPage((prev) => prev + 1)
+        }
+
+        const loadedCount = reset ? newUsers.length : (pageNum - 1) * pageSize + newUsers.length
+        setHasMore(loadedCount < total)
+      } catch (error: unknown) {
+        message.error(getErrorMessage(error))
+      } finally {
+        setLoading(false)
       }
-
-      const loadedCount = reset ? newUsers.length : (pageNum - 1) * pageSize + newUsers.length
-      setHasMore(loadedCount < total)
-    } catch (error: unknown) {
-      message.error(getErrorMessage(error))
-    } finally {
-      setLoading(false)
-    }
-  }, [filters])
+    },
+    [filters],
+  )
 
   // 初始化加载
   useEffect(() => {
@@ -62,7 +65,7 @@ const UserCardList = ({ filters }: UserCardListProps) => {
           fetchUsers(page)
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     )
 
     if (loadingRef.current) {
@@ -85,12 +88,8 @@ const UserCardList = ({ filters }: UserCardListProps) => {
           <UserCard key={user.userId} user={user} />
         ))}
       </div>
-      {loading && (
-        <div className={styles.loadingIndicator}>加载中...</div>
-      )}
-      {!hasMore && users.length > 0 && (
-        <div className={styles.noMoreIndicator}>没有更多数据了</div>
-      )}
+      {loading && <div className={styles.loadingIndicator}>加载中...</div>}
+      {!hasMore && users.length > 0 && <div className={styles.noMoreIndicator}>没有更多数据了</div>}
       <div ref={loadingRef} className={styles.scrollTrigger} />
     </div>
   )

@@ -26,10 +26,10 @@ export interface IOrderItem {
  * 订单状态枚举
  */
 export enum OrderStatus {
-  PENDING = 'pending',      // 待处理
+  PENDING = 'pending', // 待处理
   PROCESSING = 'processing', // 处理中
-  COMPLETED = 'completed',  // 已完成
-  CANCELLED = 'cancelled',  // 已取消
+  COMPLETED = 'completed', // 已完成
+  CANCELLED = 'cancelled', // 已取消
 }
 
 /**
@@ -61,35 +61,38 @@ export interface IOrder extends Document {
 /**
  * 订单项 Schema
  */
-const OrderItemSchema = new Schema<IOrderItem>({
-  productId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Product',
-    required: true,
+const OrderItemSchema = new Schema<IOrderItem>(
+  {
+    productId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Product',
+      required: true,
+    },
+    product: {
+      id: { type: String, required: true },
+      name: { type: String, required: true },
+      sku: { type: String },
+      unitPrice: { type: Number, required: true },
+      spec: { type: String },
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    subtotal: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
   },
-  product: {
-    id: { type: String, required: true },
-    name: { type: String, required: true },
-    sku: { type: String },
-    unitPrice: { type: Number, required: true },
-    spec: { type: String },
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: 1,
-  },
-  price: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  subtotal: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-}, { _id: false })
+  { _id: false },
+)
 
 /**
  * 订单 Schema
@@ -147,7 +150,7 @@ const OrderSchema = new Schema<IOrder>(
   },
   {
     timestamps: true, // 自动添加 createdAt 和 updatedAt
-  }
+  },
 )
 
 // 创建索引
@@ -164,4 +167,3 @@ OrderSchema.index({ createdAt: -1 })
 const Order = mongoose.model<IOrder>('Order', OrderSchema)
 
 export default Order
-

@@ -17,17 +17,21 @@ const Layout = ({ children }: LayoutProps) => {
           <Link to="/" className={`${styles.navLink} ${location.pathname === '/' ? styles.active : ''}`}>
             首页
           </Link>
-          <Link to="/list" className={`${styles.navLink} ${location.pathname === '/list' ? styles.active : ''}`}>
+          <Link
+            to="/list"
+            className={`${styles.navLink} ${location.pathname === '/list' ? styles.active : ''}`}
+          >
             列表
           </Link>
-          <Link to="/settings/printer" className={`${styles.navLink} ${location.pathname === '/settings/printer' ? styles.active : ''}`}>
+          <Link
+            to="/settings/printer"
+            className={`${styles.navLink} ${location.pathname === '/settings/printer' ? styles.active : ''}`}
+          >
             打印机设置
           </Link>
         </nav>
       </header>
-      <main className={styles.layoutMain}>
-        {children}
-      </main>
+      <main className={styles.layoutMain}>{children}</main>
       <footer className={styles.layoutFooter}>
         <p>&copy; 2024 LunLunGlass POS. All rights reserved.</p>
       </footer>

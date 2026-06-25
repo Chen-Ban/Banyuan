@@ -63,30 +63,39 @@ export interface IUser extends Document {
 /**
  * 单眼验光参数 Schema
  */
-const EyeOptometrySchema = new Schema<IEyeOptometry>({
-  sph: { type: Number, required: true },
-  cyl: { type: Number, required: true },
-  axis: { type: Number, required: true },
-  ph: { type: Number, required: true },
-  add: { type: Number, required: true },
-}, { _id: false })
+const EyeOptometrySchema = new Schema<IEyeOptometry>(
+  {
+    sph: { type: Number, required: true },
+    cyl: { type: Number, required: true },
+    axis: { type: Number, required: true },
+    ph: { type: Number, required: true },
+    add: { type: Number, required: true },
+  },
+  { _id: false },
+)
 
 /**
  * 瞳距参数 Schema
  */
-const PupillaryDistanceSchema = new Schema<IPupillaryDistance>({
-  left: { type: Number, required: true },
-  right: { type: Number, required: true },
-}, { _id: false })
+const PupillaryDistanceSchema = new Schema<IPupillaryDistance>(
+  {
+    left: { type: Number, required: true },
+    right: { type: Number, required: true },
+  },
+  { _id: false },
+)
 
 /**
  * 验光参数 Schema
  */
-const OptometryParamsSchema = new Schema<IOptometryParams>({
-  left: { type: EyeOptometrySchema, required: true },
-  right: { type: EyeOptometrySchema, required: true },
-  pd: { type: PupillaryDistanceSchema, required: true },
-}, { _id: false })
+const OptometryParamsSchema = new Schema<IOptometryParams>(
+  {
+    left: { type: EyeOptometrySchema, required: true },
+    right: { type: EyeOptometrySchema, required: true },
+    pd: { type: PupillaryDistanceSchema, required: true },
+  },
+  { _id: false },
+)
 
 /**
  * 用户 Schema
@@ -128,7 +137,7 @@ const UserSchema = new Schema<IUser>(
   },
   {
     timestamps: true, // 自动添加 createdAt 和 updatedAt
-  }
+  },
 )
 
 // 创建索引
@@ -143,4 +152,3 @@ UserSchema.index({ phone: 1 })
 const User = mongoose.model<IUser>('User', UserSchema)
 
 export default User
-

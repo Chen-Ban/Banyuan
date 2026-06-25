@@ -41,10 +41,7 @@ export class ApiError extends Error {
 /**
  * 统一请求方法
  */
-async function request<T>(
-  url: string,
-  options: RequestInit = {}
-): Promise<T> {
+async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const fullUrl = `${BASE_URL}${url}`
 
   const defaultHeaders: Record<string, string> = {}
@@ -63,10 +60,7 @@ async function request<T>(
   const data = await response.json()
 
   if (!response.ok || !data.success) {
-    throw new ApiError(
-      data.message || `Request failed with status ${response.status}`,
-      response.status
-    )
+    throw new ApiError(data.message || `Request failed with status ${response.status}`, response.status)
   }
 
   return data as T

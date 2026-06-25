@@ -71,11 +71,7 @@ const OrderList = () => {
             查询
           </Button>
           <Button onClick={handleReset}>重置</Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleCreateOrder}
-          >
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateOrder}>
             新建订单
           </Button>
         </Space>
@@ -86,4 +82,3 @@ const OrderList = () => {
 }
 
 export default OrderList
-

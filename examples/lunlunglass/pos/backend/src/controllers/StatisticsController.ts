@@ -29,4 +29,3 @@ class StatisticsController {
 }
 
 export default new StatisticsController()
-

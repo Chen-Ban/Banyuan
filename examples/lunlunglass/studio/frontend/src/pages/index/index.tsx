@@ -8,9 +8,14 @@ const HomePage = () => {
   const [templateCount, setTemplateCount] = useState<number | null>(null)
 
   useEffect(() => {
-    templateApi.fetchTemplates(1, 1).then(res => {
-      setTemplateCount(res.data.total)
-    }).catch(() => { /* 静默失败 */ })
+    templateApi
+      .fetchTemplates(1, 1)
+      .then((res) => {
+        setTemplateCount(res.data.total)
+      })
+      .catch(() => {
+        /* 静默失败 */
+      })
   }, [])
 
   const handleStart = () => {

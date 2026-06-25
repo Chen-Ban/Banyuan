@@ -83,7 +83,7 @@ interface TemplateListResponse {
 export function fetchTemplates(
   page: number = 1,
   pageSize: number = 20,
-  keyword?: string
+  keyword?: string,
 ): Promise<TemplateListResponse> {
   return get<TemplateListResponse>('/templates', {
     page,
@@ -125,7 +125,7 @@ export function deleteTemplate(id: string): Promise<ApiResponse<null>> {
  */
 export function publishTemplate(
   id: string,
-  data: PublishTemplateData
+  data: PublishTemplateData,
 ): Promise<ApiResponse<{ snapshotId: string }>> {
   return post<ApiResponse<{ snapshotId: string }>>(`/templates/${id}/publish`, data)
 }
@@ -148,7 +148,7 @@ export interface PrintSampleData {
  * 打印样张（将合成图发送到本地打印机）
  */
 export function printSample(
-  data: PrintSampleData
+  data: PrintSampleData,
 ): Promise<ApiResponse<{ message: string; timestamp: string }>> {
   return post<ApiResponse<{ message: string; timestamp: string }>>('/print/sample', data)
 }
