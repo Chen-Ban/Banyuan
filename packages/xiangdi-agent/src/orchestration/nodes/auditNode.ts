@@ -10,7 +10,7 @@
  */
 import type { LLMClient } from '../../core/index.js'
 import type { OrchestratorSSECallback, AuditProgressStatus } from '../events.js'
-import type { AuditResult, AuditFailReason, AuditFailCategory } from '../artifacts.js'
+import type { AuditFailReason, AuditFailCategory } from '../artifacts.js'
 import type { SubAgentName } from '../protocol.js'
 import type {
   IntegrationContract,

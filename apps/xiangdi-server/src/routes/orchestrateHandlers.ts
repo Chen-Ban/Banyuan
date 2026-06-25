@@ -5,10 +5,9 @@
  * 这些处理器通过 BanyanClient / RemoteKnowledgeStore / RemoteMaterialStore
  * 与外部服务交互，由 Orchestrator Graph 注入 Worker SubAgent。
  */
-import type { ServerResponse } from 'http'
-import type { FrontendToolHandlers, BackendToolHandlers, AIProjectionScene, AIProjectionApp, AIAppLifetimes } from '@banyuan/xiangdi-agent'
+import type { FrontendToolHandlers, BackendToolHandlers, AIProjectionScene } from '@banyuan/xiangdi-agent'
 import { uiJSONToProjection, patchProjection } from '@banyuan/xiangdi-agent'
-import type { BanyanClient, CloudFunctionInfo, SchemaCollectionInfo } from '../banyan/index.js'
+import type { CloudFunctionInfo, SchemaCollectionInfo } from '../banyan/index.js'
 import type { RemoteKnowledgeStore } from '../knowledge/RemoteKnowledgeStore.js'
 import type { RemoteMaterialStore } from '../banyan/RemoteMaterialStore.js'
 

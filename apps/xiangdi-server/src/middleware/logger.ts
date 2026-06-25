@@ -9,7 +9,7 @@
 
 import crypto from 'node:crypto'
 import type { Context, Next } from 'koa'
-import { createRequestLogger, logger as globalLogger } from '../logger.js'
+import { createRequestLogger } from '../logger.js'
 
 export async function logger(ctx: Context, next: Next) {
     // 生成或提取 requestId
