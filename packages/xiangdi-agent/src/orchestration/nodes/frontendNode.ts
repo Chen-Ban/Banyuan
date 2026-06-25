@@ -107,6 +107,7 @@ export function createFrontendNode(config: FrontendNodeConfig) {
       return {
         artifacts: { ...state.artifacts, frontend: artifacts },
         executions: [buildExecution('frontend', startedAt, 'completed')],
+        totalTokenUsage: result.lastTokenUsage ?? { inputTokens: 0, outputTokens: 0 },
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)

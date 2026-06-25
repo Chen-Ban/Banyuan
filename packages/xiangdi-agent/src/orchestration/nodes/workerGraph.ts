@@ -43,6 +43,11 @@ export const WorkerStateAnnotation = Annotation.Root({
     reducer: (curr, update) => curr + update,
     default: () => 0,
   }),
+  /** 最近一次 LLM 调用的 token 用量 */
+  lastTokenUsage: Annotation<{ inputTokens: number; outputTokens: number } | null>({
+    reducer: (curr, update) => update ?? curr,
+    default: () => null,
+  }),
 })
 
 export type WorkerState = typeof WorkerStateAnnotation.State
@@ -168,6 +173,9 @@ export function createWorkerGraph(config: WorkerGraphConfig) {
       messages: [assistantMessage],
       lastResponse: response,
       iteration: newIteration,
+      lastTokenUsage: response.usage
+        ? { inputTokens: response.usage.inputTokens, outputTokens: response.usage.outputTokens }
+        : null,
     }
   }
 

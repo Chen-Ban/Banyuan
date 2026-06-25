@@ -301,7 +301,7 @@ async function runSemanticAudit(
 ): Promise<SemanticAuditResult> {
   const userPrompt = buildSemanticAuditUserPrompt(requirements, contract, frontend, backend)
 
-  const rawText = await callSubAgentLLM({
+  const { text: rawText } = await callSubAgentLLM({
     llm: config.llm,
     systemPrompt: SEMANTIC_AUDIT_SYSTEM_PROMPT,
     userPrompt,

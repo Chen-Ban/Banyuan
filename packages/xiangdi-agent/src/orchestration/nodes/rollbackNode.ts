@@ -245,7 +245,7 @@ export function createRollbackNode(config: RollbackNodeConfig) {
     const userPrompt = buildUserPrompt(auditResult, artifactsSummary, rollbackCount, previousRollbacks)
 
     // ─── LLM 仲裁 ───────────────────────────────────────────────────────
-    const rawText = await callSubAgentLLM({
+    const { text: rawText } = await callSubAgentLLM({
       llm: config.llm,
       systemPrompt: ROLLBACK_SYSTEM_PROMPT,
       userPrompt,

@@ -26,8 +26,10 @@ export interface SubAgentLLMCallConfig {
 
 /**
  * 调用 LLM 并提取文本响应
+ *
+ * @returns 文本内容和精确 token 用量
  */
-export async function callSubAgentLLM(config: SubAgentLLMCallConfig): Promise<string> {
+export async function callSubAgentLLM(config: SubAgentLLMCallConfig): Promise<{ text: string; usage?: { inputTokens: number; outputTokens: number } }> {
   const response = await config.llm.createMessage({
     model: config.model ?? 'deepseek-chat',
     max_tokens: config.maxTokens ?? 4096,
@@ -41,7 +43,12 @@ export async function callSubAgentLLM(config: SubAgentLLMCallConfig): Promise<st
   if (!textBlock || textBlock.type !== 'text') {
     throw new Error('LLM 未返回文本内容')
   }
-  return textBlock.text
+
+  const usage = response.usage
+    ? { inputTokens: response.usage.inputTokens, outputTokens: response.usage.outputTokens }
+    : undefined
+
+  return { text: textBlock.text, usage }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -80,13 +87,13 @@ ${firstAttempt.error}
 注意：只返回合法 JSON，不要 markdown 代码块之外的内容。`
 
   try {
-    const retryText = await callSubAgentLLM({
+    const retryResult = await callSubAgentLLM({
       llm: config.llm,
       systemPrompt: config.systemPrompt,
       userPrompt: retryPrompt,
       model: config.model,
     })
-    return tryParseJson(retryText, config.schema)
+    return tryParseJson(retryResult.text, config.schema)
   } catch {
     return { success: false, error: `Retry LLM 调用失败: ${firstAttempt.error}` }
   }

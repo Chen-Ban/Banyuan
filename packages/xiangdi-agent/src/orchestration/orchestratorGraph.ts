@@ -138,6 +138,14 @@ export const OrchestratorStateAnnotation = Annotation.Root({
     reducer: (_, update) => update,
     default: () => null,
   }),
+  /** 全局 token 消耗总量（各节点 LLM 调用累加） */
+  totalTokenUsage: Annotation<{ inputTokens: number; outputTokens: number }>({
+    reducer: (curr, update) => ({
+      inputTokens: curr.inputTokens + update.inputTokens,
+      outputTokens: curr.outputTokens + update.outputTokens,
+    }),
+    default: () => ({ inputTokens: 0, outputTokens: 0 }),
+  }),
 })
 
 export type OrchestratorState = typeof OrchestratorStateAnnotation.State

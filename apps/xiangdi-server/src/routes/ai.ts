@@ -138,11 +138,11 @@ router.post('/run', async (ctx) => {
   }
 
   const threadId = clientThreadId ?? crypto.randomUUID()
-  const reqLogger = createRequestLogger({ requestId: threadId, traceId: threadId })
+  const traceId = crypto.randomUUID()
+  const reqLogger = createRequestLogger({ requestId: threadId, traceId })
   reqLogger.info('Orchestrator run started', { appId, threadId, mode: mode ?? 'task' })
 
-  // 创建请求级客户端实例（注入 threadId 作为 traceId，实现跨服务链路追踪）
-  const traceId = threadId
+  // 创建请求级客户端实例（注入 traceId 作为 X-Trace-Id header，实现跨服务链路追踪）
   const knowledgeStore = createKnowledgeStore(traceId)
   const banyanClient = createBanyanClient(traceId)
 

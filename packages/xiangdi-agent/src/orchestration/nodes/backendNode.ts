@@ -120,6 +120,7 @@ export function createBackendNode(config: BackendNodeConfig) {
       return {
         artifacts: { ...state.artifacts, backend: artifacts },
         executions: [buildExecution('backend', startedAt, 'completed')],
+        totalTokenUsage: result.lastTokenUsage ?? { inputTokens: 0, outputTokens: 0 },
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
