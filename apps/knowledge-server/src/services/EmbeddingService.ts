@@ -29,7 +29,7 @@ export interface EmbeddingServiceConfig {
 
 type EmbedPipeline = (
   texts: string | string[],
-  options?: { pooling?: string; normalize?: boolean }
+  options?: { pooling?: string; normalize?: boolean },
 ) => Promise<{ data: Float32Array | number[] } | Array<{ data: Float32Array | number[] }>>
 
 // ─── 常量 ──────────────────────────────────────────────────────────────────────

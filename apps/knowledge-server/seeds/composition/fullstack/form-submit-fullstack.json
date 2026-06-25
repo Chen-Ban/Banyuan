@@ -7,7 +7,15 @@
     "domain": "fullstack",
     "pattern": "form-submit-fullstack",
     "description": "新增数据功能端到端拆解：Collection + 云函数契约 + 后端实现 + 前端表单绑定，四产物通过 functionId/字段名对齐",
-    "dependencies": ["primitive-data-collection", "primitive-data-cloud-function", "primitive-flow-common", "primitive-flow-server-nodes", "primitive-flow-shared-nodes", "composition-ui-form-page", "composition-bindflow-form-submit"],
+    "dependencies": [
+      "primitive-data-collection",
+      "primitive-data-cloud-function",
+      "primitive-flow-common",
+      "primitive-flow-server-nodes",
+      "primitive-flow-shared-nodes",
+      "composition-ui-form-page",
+      "composition-bindflow-form-submit"
+    ],
     "version": "0.1.0"
   }
 }

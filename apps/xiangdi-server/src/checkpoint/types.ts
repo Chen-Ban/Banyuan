@@ -10,28 +10,28 @@
  * - lifecycle 方法（start/stop）由 server.ts 在启动/关闭时调用
  */
 
-import type { BaseCheckpointSaver } from "@langchain/langgraph";
+import type { BaseCheckpointSaver } from '@langchain/langgraph'
 
 // ─── Thread 活跃状态 ─────────────────────────────────────────────────────────────
 
-export type ThreadStatus = "running" | "completed" | "interrupted";
+export type ThreadStatus = 'running' | 'completed' | 'interrupted'
 
 // ─── 清理配置 ────────────────────────────────────────────────────────────────────
 
 export interface CleanupConfig {
   /** 已完成 thread 的保留时间（ms），默认 1 小时 */
-  completedTTL: number;
+  completedTTL: number
   /** 中断/运行中 thread 的保留时间（ms），默认 24 小时 */
-  interruptedTTL: number;
+  interruptedTTL: number
   /** 清理间隔（ms），默认 10 分钟 */
-  interval: number;
+  interval: number
 }
 
 export const DEFAULT_CLEANUP_CONFIG: CleanupConfig = {
-  completedTTL: 60 * 60 * 1000,         // 1 hour
-  interruptedTTL: 24 * 60 * 60 * 1000,  // 24 hours
-  interval: 10 * 60 * 1000,             // 10 minutes
-};
+  completedTTL: 60 * 60 * 1000, // 1 hour
+  interruptedTTL: 24 * 60 * 60 * 1000, // 24 hours
+  interval: 10 * 60 * 1000, // 10 minutes
+}
 
 // ─── CheckpointStore 接口 ────────────────────────────────────────────────────────
 
@@ -40,26 +40,26 @@ export interface CheckpointStore {
    * 获取 LangGraph BaseCheckpointSaver 实例。
    * 路由层将此实例传入 `createMasterGraph({ checkpointer })`。
    */
-  getCheckpointer(): BaseCheckpointSaver;
+  getCheckpointer(): BaseCheckpointSaver
 
   /**
    * 记录 thread 活跃状态（每次 invoke/resume/interrupt 时调用）。
    * 用于 TTL 清理的判断依据。
    */
-  recordActivity(threadId: string, status: ThreadStatus): void;
+  recordActivity(threadId: string, status: ThreadStatus): void
 
   /**
    * 启动 store（含清理定时任务等后台工作）。
    * 应在服务监听成功后调用。
    */
-  start(): void;
+  start(): void
 
   /**
    * 停止 store（释放连接、停止定时器）。
    * 应在 graceful shutdown 时调用。
    */
-  stop(): Promise<void>;
+  stop(): Promise<void>
 
   /** 存储后端标识（用于日志） */
-  readonly backend: string;
+  readonly backend: string
 }

@@ -12,35 +12,35 @@ import type { Context, Next } from 'koa'
 import { createRequestLogger } from '../logger.js'
 
 export async function logger(ctx: Context, next: Next) {
-    // 生成或提取 requestId
-    const requestId = (ctx.get('x-request-id') || crypto.randomUUID())
-    ctx.state.requestId = requestId
+  // 生成或提取 requestId
+  const requestId = ctx.get('x-request-id') || crypto.randomUUID()
+  ctx.state.requestId = requestId
 
-    // 设置响应头，方便调用方追踪
-    ctx.set('X-Request-Id', requestId)
+  // 设置响应头，方便调用方追踪
+  ctx.set('X-Request-Id', requestId)
 
-    const reqLogger = createRequestLogger(requestId)
-    ctx.state.logger = reqLogger
+  const reqLogger = createRequestLogger(requestId)
+  ctx.state.logger = reqLogger
 
-    reqLogger.info('Request started', {
-        method: ctx.method,
-        url: ctx.url,
-        userAgent: ctx.get('user-agent') || undefined,
+  reqLogger.info('Request started', {
+    method: ctx.method,
+    url: ctx.url,
+    userAgent: ctx.get('user-agent') || undefined,
+  })
+
+  const start = Date.now()
+  try {
+    await next()
+  } catch (err) {
+    // 让错误继续传播给 errorHandler 中间件
+    throw err
+  } finally {
+    const ms = Date.now() - start
+    reqLogger.info('Request completed', {
+      method: ctx.method,
+      url: ctx.url,
+      status: ctx.status,
+      duration: ms,
     })
-
-    const start = Date.now()
-    try {
-        await next()
-    } catch (err) {
-        // 让错误继续传播给 errorHandler 中间件
-        throw err
-    } finally {
-        const ms = Date.now() - start
-        reqLogger.info('Request completed', {
-            method: ctx.method,
-            url: ctx.url,
-            status: ctx.status,
-            duration: ms,
-        })
-    }
+  }
 }

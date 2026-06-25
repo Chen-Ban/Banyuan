@@ -28,10 +28,7 @@
 import type { ServerResponse } from 'http'
 import crypto from 'node:crypto'
 import Router from '@koa/router'
-import {
-  createOrchestratorGraph,
-  buildSystemPrompt,
-} from '@banyuan/xiangdi-agent'
+import { createOrchestratorGraph, buildSystemPrompt } from '@banyuan/xiangdi-agent'
 import type { OrchestratorSSEEvent, OrchestratorMode } from '@banyuan/xiangdi-agent'
 import { RemoteKnowledgeStore } from '../knowledge/RemoteKnowledgeStore.js'
 import { BanyanClient, RemoteMaterialStore } from '../banyan/index.js'
@@ -76,7 +73,9 @@ function startSSEHeartbeat(res: ServerResponse): () => void {
   }, SSE_HEARTBEAT_INTERVAL)
   timer.unref()
 
-  const cleanup = () => { clearInterval(timer) }
+  const cleanup = () => {
+    clearInterval(timer)
+  }
   res.on('close', cleanup)
   return cleanup
 }
@@ -98,8 +97,14 @@ function createOrchestratorSSEBridge(res: ServerResponse): (event: OrchestratorS
 
 router.post('/run', async (ctx) => {
   const {
-    appId, prompt, mode, threadId: clientThreadId,
-    previousMessages, agentMemory, memoryHint, images,
+    appId,
+    prompt,
+    mode,
+    threadId: clientThreadId,
+    previousMessages,
+    agentMemory,
+    memoryHint,
+    images,
   } = ctx.request.body as {
     appId?: string
     prompt?: string
@@ -132,7 +137,7 @@ router.post('/run', async (ctx) => {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
+    Connection: 'keep-alive',
     'X-Accel-Buffering': 'no',
   })
   res.socket?.setNoDelay(true)
@@ -164,7 +169,9 @@ router.post('/run', async (ctx) => {
       try {
         const parsed = JSON.parse(uiJSON)
         if (parsed.version) version = parsed.version
-      } catch { /* 使用默认版本 */ }
+      } catch {
+        /* 使用默认版本 */
+      }
     }
 
     // 3. 构建运行时状态（整个请求生命周期内可变）
@@ -200,7 +207,9 @@ router.post('/run', async (ctx) => {
 
     // 当前用户 prompt（支持多模态）
     if (Array.isArray(images) && images.length > 0) {
-      const multimodalContent: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = [
+      const multimodalContent: Array<
+        { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
+      > = [
         { type: 'text', text: prompt },
         ...images.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
       ]
@@ -227,18 +236,21 @@ router.post('/run', async (ctx) => {
     //    configurable.thread_id 是 Checkpoint 的恢复键，LangGraph 据此加载/保存 state。
     checkpointStore.recordActivity(threadId, 'running')
     const systemPrompt = buildSystemPrompt()
-    await graph.invoke({
-      mode: (mode ?? 'task') as OrchestratorMode,
-      userMessage: prompt,
-      messages: initialMessages,
-      systemPrompt,
-      agentMemory: agentMemory ?? '',
-      contextSummary: memoryHint ?? '',
-    }, {
-      recursionLimit: 100,
-      signal: abortController.signal,
-      configurable: { thread_id: threadId },
-    })
+    await graph.invoke(
+      {
+        mode: (mode ?? 'task') as OrchestratorMode,
+        userMessage: prompt,
+        messages: initialMessages,
+        systemPrompt,
+        agentMemory: agentMemory ?? '',
+        contextSummary: memoryHint ?? '',
+      },
+      {
+        recursionLimit: 100,
+        signal: abortController.signal,
+        configurable: { thread_id: threadId },
+      },
+    )
     checkpointStore.recordActivity(threadId, 'completed')
 
     // 8. done 事件已由 summarizeNode 通过 sseCallback 推送
@@ -248,16 +260,23 @@ router.post('/run', async (ctx) => {
       schema: runtimeState.schema,
       cloudFunctions: runtimeState.cloudFunctions,
     })
-
   } catch (err) {
     // 异常/中断：标记 thread 为 interrupted，交由 TTL 清理策略按 interruptedTTL 处理。
-    try { getStore().recordActivity(threadId, 'interrupted') } catch { /* 不阻塞错误处理 */ }
+    try {
+      getStore().recordActivity(threadId, 'interrupted')
+    } catch {
+      /* 不阻塞错误处理 */
+    }
     if (abortController.signal.aborted) {
       // 客户端主动断开，静默处理
       reqLogger.info('Client disconnected, aborting')
     } else if (err instanceof ServiceUnavailableError) {
       reqLogger.error('Service unavailable during orchestrator run', err, { service: err.service, appId })
-      sseWrite(res, 'error', { message: `Service unavailable: ${err.message}`, code: 'SERVICE_UNAVAILABLE', service: err.service })
+      sseWrite(res, 'error', {
+        message: `Service unavailable: ${err.message}`,
+        code: 'SERVICE_UNAVAILABLE',
+        service: err.service,
+      })
     } else {
       const message = err instanceof Error ? err.message : String(err)
       reqLogger.error('Orchestrator run failed', err)

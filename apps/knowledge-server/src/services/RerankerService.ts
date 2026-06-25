@@ -61,7 +61,7 @@ interface ClassificationOutput {
 
 type ClassificationPipeline = (
   inputs: { text: string; text_pair: string } | Array<{ text: string; text_pair: string }>,
-  options?: { topk?: number }
+  options?: { topk?: number },
 ) => Promise<ClassificationOutput | ClassificationOutput[]>
 
 // ─── 常量 ──────────────────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ export class RerankerService {
   async rerank<T extends RerankCandidate>(
     query: string,
     candidates: T[],
-    topK?: number
+    topK?: number,
   ): Promise<RerankResult<T>[]> {
     if (candidates.length === 0) return []
 

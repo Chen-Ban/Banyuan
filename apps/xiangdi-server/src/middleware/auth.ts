@@ -18,18 +18,18 @@ const INTERNAL_TOKEN = process.env.XIANGDI_INTERNAL_TOKEN
 const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 
 if (!INTERNAL_TOKEN) {
-    if (IS_PRODUCTION) {
-        console.error(
-            '[XiangDi Auth] FATAL: XIANGDI_INTERNAL_TOKEN is not set in production mode. ' +
-            'All requests will be rejected.'
-        )
-    } else {
-        console.warn(
-            '[XiangDi Auth] WARNING: XIANGDI_INTERNAL_TOKEN is not set. ' +
-            'Authentication is DISABLED in development mode. ' +
-            'Set XIANGDI_INTERNAL_TOKEN in production to secure this service.'
-        )
-    }
+  if (IS_PRODUCTION) {
+    console.error(
+      '[XiangDi Auth] FATAL: XIANGDI_INTERNAL_TOKEN is not set in production mode. ' +
+        'All requests will be rejected.',
+    )
+  } else {
+    console.warn(
+      '[XiangDi Auth] WARNING: XIANGDI_INTERNAL_TOKEN is not set. ' +
+        'Authentication is DISABLED in development mode. ' +
+        'Set XIANGDI_INTERNAL_TOKEN in production to secure this service.',
+    )
+  }
 }
 
 /**
@@ -38,37 +38,37 @@ if (!INTERNAL_TOKEN) {
  * 跳过 /health 路由（健康检查无需认证）
  */
 export async function internalAuth(ctx: Context, next: Next): Promise<void> {
-    // 健康检查路由无需认证
-    if (ctx.path === '/health') {
-        await next()
-        return
-    }
-
-    // 未配置 token
-    if (!INTERNAL_TOKEN) {
-        if (IS_PRODUCTION) {
-            ctx.status = 503
-            ctx.body = {
-                success: false,
-                error: 'Service unavailable: authentication not configured',
-            }
-            return
-        }
-        // 开发模式：跳过认证
-        await next()
-        return
-    }
-
-    // 验证 X-Internal-Token header
-    const token = ctx.get('X-Internal-Token')
-    if (!token || token !== INTERNAL_TOKEN) {
-        ctx.status = 401
-        ctx.body = {
-            success: false,
-            error: 'Unauthorized: invalid or missing X-Internal-Token',
-        }
-        return
-    }
-
+  // 健康检查路由无需认证
+  if (ctx.path === '/health') {
     await next()
+    return
+  }
+
+  // 未配置 token
+  if (!INTERNAL_TOKEN) {
+    if (IS_PRODUCTION) {
+      ctx.status = 503
+      ctx.body = {
+        success: false,
+        error: 'Service unavailable: authentication not configured',
+      }
+      return
+    }
+    // 开发模式：跳过认证
+    await next()
+    return
+  }
+
+  // 验证 X-Internal-Token header
+  const token = ctx.get('X-Internal-Token')
+  if (!token || token !== INTERNAL_TOKEN) {
+    ctx.status = 401
+    ctx.body = {
+      success: false,
+      error: 'Unauthorized: invalid or missing X-Internal-Token',
+    }
+    return
+  }
+
+  await next()
 }

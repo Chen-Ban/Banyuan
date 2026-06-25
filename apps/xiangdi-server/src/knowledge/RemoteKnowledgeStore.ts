@@ -21,95 +21,97 @@ import { logger } from '../logger.js'
 // ─── 配置 ──────────────────────────────────────────────────────────────────────
 
 export interface RemoteKnowledgeStoreConfig {
-    /** 知识服务基础 URL，默认 http://localhost:3003 */
-    baseUrl?: string
-    /** 内部认证 token */
-    internalToken?: string
-    /** 请求超时（ms），默认 10000 */
-    timeout?: number
+  /** 知识服务基础 URL，默认 http://localhost:3003 */
+  baseUrl?: string
+  /** 内部认证 token */
+  internalToken?: string
+  /** 请求超时（ms），默认 10000 */
+  timeout?: number
 }
 
 // ─── 实现 ──────────────────────────────────────────────────────────────────────
 
 export class RemoteKnowledgeStore implements KnowledgeStore {
-    private readonly baseUrl: string
-    private readonly internalToken?: string
-    private readonly timeout: number
+  private readonly baseUrl: string
+  private readonly internalToken?: string
+  private readonly timeout: number
 
-    constructor(config: RemoteKnowledgeStoreConfig = {}) {
-        this.baseUrl = config.baseUrl ?? (process.env.KNOWLEDGE_URL ?? 'http://localhost:3003')
-        this.internalToken = config.internalToken ?? process.env.KNOWLEDGE_INTERNAL_TOKEN
-        this.timeout = config.timeout ?? 10000
-    }
+  constructor(config: RemoteKnowledgeStoreConfig = {}) {
+    this.baseUrl = config.baseUrl ?? process.env.KNOWLEDGE_URL ?? 'http://localhost:3003'
+    this.internalToken = config.internalToken ?? process.env.KNOWLEDGE_INTERNAL_TOKEN
+    this.timeout = config.timeout ?? 10000
+  }
 
-    async query(query: string, options?: KnowledgeQueryOptions): Promise<KnowledgeChunk[]> {
-        const topK = options?.topK ?? 5
-        const category = options?.filter?.['category'] as string | undefined
+  async query(query: string, options?: KnowledgeQueryOptions): Promise<KnowledgeChunk[]> {
+    const topK = options?.topK ?? 5
+    const category = options?.filter?.['category'] as string | undefined
 
-        const body = JSON.stringify({ query, topK, category })
-        const url = new URL('/knowledge/search', this.baseUrl)
-        const isHttps = url.protocol === 'https:'
-        const transport = isHttps ? https : http
+    const body = JSON.stringify({ query, topK, category })
+    const url = new URL('/knowledge/search', this.baseUrl)
+    const isHttps = url.protocol === 'https:'
+    const transport = isHttps ? https : http
 
-        return new Promise((resolve) => {
-            const reqOptions: http.RequestOptions = {
-                hostname: url.hostname,
-                port: url.port || (isHttps ? 443 : 3003),
-                path: url.pathname,
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(body),
-                    'Accept': 'application/json',
-                    ...(this.internalToken ? { 'X-Internal-Token': this.internalToken } : {}),
-                },
-                timeout: this.timeout,
-            }
+    return new Promise((resolve) => {
+      const reqOptions: http.RequestOptions = {
+        hostname: url.hostname,
+        port: url.port || (isHttps ? 443 : 3003),
+        path: url.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          Accept: 'application/json',
+          ...(this.internalToken ? { 'X-Internal-Token': this.internalToken } : {}),
+        },
+        timeout: this.timeout,
+      }
 
-            const req = transport.request(reqOptions, (res) => {
-                let data = ''
-                res.on('data', (chunk: Buffer) => { data += chunk.toString() })
-                res.on('end', () => {
-                    try {
-                        const parsed = JSON.parse(data) as { chunks?: KnowledgeChunk[] }
-                        resolve(parsed.chunks ?? [])
-                    } catch (parseErr) {
-                        logger.warn('[RemoteKnowledgeStore] Failed to parse response, degrading to empty results', {
-                            error: parseErr instanceof Error ? parseErr.message : String(parseErr),
-                            query: query.slice(0, 100),
-                        })
-                        resolve([])
-                    }
-                })
-                res.on('error', (err) => {
-                    logger.warn('[RemoteKnowledgeStore] Response stream error, degrading to empty results', {
-                        error: err.message,
-                        query: query.slice(0, 100),
-                    })
-                    resolve([])
-                })
-            })
-
-            req.on('error', (err) => {
-                logger.warn('[RemoteKnowledgeStore] Request failed, degrading to empty results', {
-                    error: err.message,
-                    baseUrl: this.baseUrl,
-                    query: query.slice(0, 100),
-                })
-                resolve([])
-            })
-
-            req.on('timeout', () => {
-                req.destroy()
-                logger.warn('[RemoteKnowledgeStore] Request timeout, degrading to empty results', {
-                    timeout: this.timeout,
-                    query: query.slice(0, 100),
-                })
-                resolve([])
-            })
-
-            req.write(body)
-            req.end()
+      const req = transport.request(reqOptions, (res) => {
+        let data = ''
+        res.on('data', (chunk: Buffer) => {
+          data += chunk.toString()
         })
-    }
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data) as { chunks?: KnowledgeChunk[] }
+            resolve(parsed.chunks ?? [])
+          } catch (parseErr) {
+            logger.warn('[RemoteKnowledgeStore] Failed to parse response, degrading to empty results', {
+              error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+              query: query.slice(0, 100),
+            })
+            resolve([])
+          }
+        })
+        res.on('error', (err) => {
+          logger.warn('[RemoteKnowledgeStore] Response stream error, degrading to empty results', {
+            error: err.message,
+            query: query.slice(0, 100),
+          })
+          resolve([])
+        })
+      })
+
+      req.on('error', (err) => {
+        logger.warn('[RemoteKnowledgeStore] Request failed, degrading to empty results', {
+          error: err.message,
+          baseUrl: this.baseUrl,
+          query: query.slice(0, 100),
+        })
+        resolve([])
+      })
+
+      req.on('timeout', () => {
+        req.destroy()
+        logger.warn('[RemoteKnowledgeStore] Request timeout, degrading to empty results', {
+          timeout: this.timeout,
+          query: query.slice(0, 100),
+        })
+        resolve([])
+      })
+
+      req.write(body)
+      req.end()
+    })
+  }
 }

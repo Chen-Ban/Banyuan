@@ -25,21 +25,23 @@ const app = new Koa()
 
 // 全局错误处理
 app.on('error', (err, ctx) => {
-    structuredLogger.error('[XiangDi Server] Unhandled error', err, {
-        url: ctx?.url,
-        method: ctx?.method,
-    })
+  structuredLogger.error('[XiangDi Server] Unhandled error', err, {
+    url: ctx?.url,
+    method: ctx?.method,
+  })
 })
 
 // 中间件
 app.use(errorHandler)
 app.use(logger)
 app.use(cors())
-app.use(koaBody({
-    jsonLimit: '20mb',   // appJSON 可能较大
+app.use(
+  koaBody({
+    jsonLimit: '20mb', // appJSON 可能较大
     formLimit: '1mb',
     textLimit: '1mb',
-}))
+  }),
+)
 app.use(internalAuth)
 
 // 路由

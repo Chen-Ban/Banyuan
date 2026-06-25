@@ -21,13 +21,13 @@ if (!INTERNAL_TOKEN) {
   if (IS_PRODUCTION) {
     console.error(
       '[Knowledge Auth] FATAL: KNOWLEDGE_INTERNAL_TOKEN is not set in production mode. ' +
-      'All requests will be rejected.'
+        'All requests will be rejected.',
     )
   } else {
     console.warn(
       '[Knowledge Auth] WARNING: KNOWLEDGE_INTERNAL_TOKEN is not set. ' +
-      'Authentication is DISABLED in development mode. ' +
-      'Set KNOWLEDGE_INTERNAL_TOKEN in production to secure this service.'
+        'Authentication is DISABLED in development mode. ' +
+        'Set KNOWLEDGE_INTERNAL_TOKEN in production to secure this service.',
     )
   }
 }

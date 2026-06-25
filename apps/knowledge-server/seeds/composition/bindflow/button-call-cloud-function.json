@@ -7,7 +7,12 @@
     "domain": "bindflow",
     "pattern": "button-call-cloud-function",
     "description": "按钮 onClick → callFlow 云函数 → setData 回写",
-    "dependencies": ["primitive-flow-common", "primitive-flow-shared-nodes", "primitive-flow-client-nodes", "primitive-data-cloud-function"],
+    "dependencies": [
+      "primitive-flow-common",
+      "primitive-flow-shared-nodes",
+      "primitive-flow-client-nodes",
+      "primitive-data-cloud-function"
+    ],
     "version": "0.1.0"
   }
 }

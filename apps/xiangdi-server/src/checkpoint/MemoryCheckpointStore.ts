@@ -7,33 +7,33 @@
  * 通过设置 CHECKPOINT_BACKEND=memory 启用。
  */
 
-import { MemorySaver } from "@langchain/langgraph";
-import type { BaseCheckpointSaver } from "@langchain/langgraph";
-import type { CheckpointStore, ThreadStatus } from "./types.js";
+import { MemorySaver } from '@langchain/langgraph'
+import type { BaseCheckpointSaver } from '@langchain/langgraph'
+import type { CheckpointStore, ThreadStatus } from './types.js'
 
 export class MemoryCheckpointStore implements CheckpointStore {
-  readonly backend = "memory";
+  readonly backend = 'memory'
 
-  private saver: MemorySaver | null = null;
-  private activity: Map<string, { status: ThreadStatus; lastActiveAt: number }> = new Map();
+  private saver: MemorySaver | null = null
+  private activity: Map<string, { status: ThreadStatus; lastActiveAt: number }> = new Map()
 
   getCheckpointer(): BaseCheckpointSaver {
     if (!this.saver) {
-      this.saver = new MemorySaver();
+      this.saver = new MemorySaver()
     }
-    return this.saver;
+    return this.saver
   }
 
   recordActivity(threadId: string, status: ThreadStatus): void {
-    this.activity.set(threadId, { status, lastActiveAt: Date.now() });
+    this.activity.set(threadId, { status, lastActiveAt: Date.now() })
   }
 
   start(): void {
-    console.log("[MemoryCheckpointStore] Started (in-memory, no persistence)");
+    console.log('[MemoryCheckpointStore] Started (in-memory, no persistence)')
   }
 
   async stop(): Promise<void> {
-    this.saver = null;
-    this.activity.clear();
+    this.saver = null
+    this.activity.clear()
   }
 }

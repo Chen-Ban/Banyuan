@@ -50,13 +50,17 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
       }
 
       if (input.pageId) {
-        const page = appProjection.scenes.find(s => s.id === input.pageId)
+        const page = appProjection.scenes.find((s) => s.id === input.pageId)
         if (!page) return JSON.stringify({ error: `页面 ${input.pageId} 不存在` })
         return JSON.stringify(page)
       }
 
       // 返回摘要列表（含 App lifetimes 信息）
-      const summary = appProjection.scenes.map(s => ({ id: s.id, name: s.name, nodeCount: s.children.length }))
+      const summary = appProjection.scenes.map((s) => ({
+        id: s.id,
+        name: s.name,
+        nodeCount: s.children.length,
+      }))
       return JSON.stringify({ pages: summary, lifetimes: appProjection.lifetimes })
     },
 
@@ -66,12 +70,13 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
       scene.id = input.pageId
 
       const { uiJSON: patched, result } = patchProjection(
-        state.uiJSON || JSON.stringify({
-          type: 'APP',
-          version: state.version,
-          data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
-          metadata: { timestamp: Date.now(), source: 'AI Projection Patch' },
-        }),
+        state.uiJSON ||
+          JSON.stringify({
+            type: 'APP',
+            version: state.version,
+            data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
+            metadata: { timestamp: Date.now(), source: 'AI Projection Patch' },
+          }),
         { scenes: [scene] },
         state.version,
       )
@@ -88,12 +93,13 @@ export function buildFrontendToolHandlers(config: BuildFrontendHandlersConfig): 
         children: [],
       }
       const { uiJSON: patched } = patchProjection(
-        state.uiJSON || JSON.stringify({
-          type: 'APP',
-          version: state.version,
-          data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
-          metadata: { timestamp: Date.now(), source: 'AI Projection Patch' },
-        }),
+        state.uiJSON ||
+          JSON.stringify({
+            type: 'APP',
+            version: state.version,
+            data: { lifetimes: { onLaunch: null, onUnlaunch: null }, scenes: [] },
+            metadata: { timestamp: Date.now(), source: 'AI Projection Patch' },
+          }),
         { scenes: [emptyScene] },
         state.version,
       )
@@ -153,12 +159,12 @@ export function buildBackendToolHandlers(config: BuildBackendHandlersConfig): Ba
 
     async readCloudFunctions(input: { functionId?: string }) {
       if (input.functionId) {
-        const fn = state.cloudFunctions.find(f => f.functionId === input.functionId)
+        const fn = state.cloudFunctions.find((f) => f.functionId === input.functionId)
         if (!fn) return JSON.stringify({ error: `云函数 ${input.functionId} 不存在` })
         return JSON.stringify(fn)
       }
       // 摘要列表
-      const summary = state.cloudFunctions.map(f => ({
+      const summary = state.cloudFunctions.map((f) => ({
         functionId: f.functionId,
         name: f.name,
         displayName: f.displayName,
@@ -180,26 +186,30 @@ export function buildBackendToolHandlers(config: BuildBackendHandlersConfig): Ba
       description: string
       flowSchema: Record<string, unknown>
     }) {
-      const existing = state.cloudFunctions.findIndex(f => f.functionId === input.functionId)
+      const existing = state.cloudFunctions.findIndex((f) => f.functionId === input.functionId)
       const entry: CloudFunctionInfo = {
         functionId: input.functionId,
         name: input.name,
         displayName: input.displayName,
         description: input.description,
         flowSchema: input.flowSchema,
-        version: existing >= 0 ? (state.cloudFunctions[existing].version + 1) : 1,
+        version: existing >= 0 ? state.cloudFunctions[existing].version + 1 : 1,
       }
       if (existing >= 0) {
         state.cloudFunctions[existing] = entry
       } else {
         state.cloudFunctions.push(entry)
       }
-      return JSON.stringify({ success: true, functionId: input.functionId, action: existing >= 0 ? 'updated' : 'created' })
+      return JSON.stringify({
+        success: true,
+        functionId: input.functionId,
+        action: existing >= 0 ? 'updated' : 'created',
+      })
     },
 
     async deleteCloudFunction(input: { functionId: string }) {
       const before = state.cloudFunctions.length
-      state.cloudFunctions = state.cloudFunctions.filter(f => f.functionId !== input.functionId)
+      state.cloudFunctions = state.cloudFunctions.filter((f) => f.functionId !== input.functionId)
       const deleted = state.cloudFunctions.length < before
       return JSON.stringify({ success: deleted, functionId: input.functionId })
     },

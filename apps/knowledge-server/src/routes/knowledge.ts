@@ -148,9 +148,10 @@ router.post('/embed', async (ctx) => {
     return
   }
 
-  const embeddings = mode === 'query'
-    ? await embeddingService.embedQueryBatch(texts)
-    : await embeddingService.embedPassageBatch(texts)
+  const embeddings =
+    mode === 'query'
+      ? await embeddingService.embedQueryBatch(texts)
+      : await embeddingService.embedPassageBatch(texts)
 
   ctx.body = { embeddings }
 })
