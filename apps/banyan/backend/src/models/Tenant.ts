@@ -10,6 +10,7 @@ const TenantSchema = new Schema<ITenantDoc>(
     tenantId: { type: String, required: true, unique: true, index: true },
     name: { type: String, required: true },
     plan: { type: String, enum: ['free', 'pro'], default: 'free' },
+    planId: { type: String, default: undefined },
 
     // ECS 开通信息
     ecsInstanceId: { type: String, default: undefined },

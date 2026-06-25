@@ -30,6 +30,8 @@ export type { UserRole, UserStatus, IUser } from './user.js'
 
 export type { ProvisionStatus, ITenant } from './tenant.js'
 
+export type { IPlan, ICreditUsage, CreditUsageDetail } from './plan.js'
+
 export type { EpisodeOutcome, IEpisode, FactCategory, IFact, IAgentMemory } from './agent-memory.js'
 
 export type { FullAgentRole, IAgentPrompt } from './agent-prompt.js'

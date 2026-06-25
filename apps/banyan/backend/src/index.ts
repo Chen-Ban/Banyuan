@@ -4,6 +4,7 @@ import app from './app'
 import { connectDatabase } from './config/database'
 import { agentGateway } from './services/AgentGateway.js'
 import { seedBuiltinMaterials } from './seeds/builtinMaterials.js'
+import { seedPlans } from './seeds/seedPlans.js'
 
 const PORT = process.env.PORT || 3001
 
@@ -15,6 +16,9 @@ async function startServer() {
     // Seed 内置物料（重建内置物料集合，不做向后兼容）
     const seeded = await seedBuiltinMaterials()
     console.log(`✅ Builtin materials seeded (${seeded} items)`)
+
+    const seededPlans = await seedPlans()
+    console.log(`✅ Builtin plans seeded (${seededPlans} plans)`)
 
     // 创建 HTTP server 并附加 WebSocket 网关（ADR-028）
     const server = http.createServer(app.callback())

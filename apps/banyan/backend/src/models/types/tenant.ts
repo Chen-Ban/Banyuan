@@ -17,6 +17,9 @@ export interface ITenant {
   name: string
   plan: 'free' | 'pro'
 
+  /** 当前生效的套餐 ID （引用 Plan.planId） */
+  planId?: string
+
   // ─── ECS 开通信息 ───────────────────────────────────────────────────────────
   /** ECS 实例 ID（如 i-2ze...） */
   ecsInstanceId?: string

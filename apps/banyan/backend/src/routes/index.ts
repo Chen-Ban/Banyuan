@@ -14,6 +14,7 @@ import materialRouter from './materials.js'
 import planningRouter from './planning.js'
 import internalRouter from './internal.js'
 import deployRouter from './deploy.js'
+import creditRouter from './credits.js'
 import { authMiddleware } from '../middleware/auth.js'
 
 const router = new Router()
@@ -71,5 +72,8 @@ router.use(planningRouter.routes(), planningRouter.allowedMethods())
 
 // Web 部署（ADR-028）
 router.use(deployRouter.routes(), deployRouter.allowedMethods())
+
+// AI Credit 用量查询
+router.use(creditRouter.routes(), creditRouter.allowedMethods())
 
 export default router
