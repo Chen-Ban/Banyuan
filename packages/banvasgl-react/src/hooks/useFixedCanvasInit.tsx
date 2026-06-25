@@ -14,33 +14,33 @@
  * 注意：uiJSON 和 designSize 已从此 hook 剥离，由调用方通过 actions.app.loadAppJSON() / actions.app.setDesignSize() 命令式注入。
  */
 
-import React, { useEffect, useMemo, useRef } from "react";
-import { OrthographicCamera } from "@banyuan/banvasgl";
-import { Scene } from "@banyuan/banvasgl";
-import type { IAppOptions } from "@banyuan/banvasgl";
-import type { WebSurfaceOptions } from "../platform/WebSurface.js";
-import type { IBanvasActions } from "@banyuan/banvasgl";
-import { useCanvasCore } from "./useCanvasCore.js";
-import { useBOMProperties } from "./useBOMProperties.js";
-import type { UseCanvasCoreOptions } from "./useCanvasCore.js";
+import React, { useEffect, useMemo, useRef } from 'react'
+import { OrthographicCamera } from '@banyuan/banvasgl'
+import { Scene } from '@banyuan/banvasgl'
+import type { IAppOptions } from '@banyuan/banvasgl'
+import type { WebSurfaceOptions } from '../platform/WebSurface.js'
+import type { IBanvasActions } from '@banyuan/banvasgl'
+import { useCanvasCore } from './useCanvasCore.js'
+import { useBOMProperties } from './useBOMProperties.js'
+import type { UseCanvasCoreOptions } from './useCanvasCore.js'
 
 // ── 公共类型 ──
 
 /** 选中视图在 viewport 中的 CSS 坐标和尺寸 */
 export interface SelectedViewPos {
   /** 视图左上角相对于 viewport 的 CSS x 坐标 */
-  x: number;
+  x: number
   /** 视图左上角相对于 viewport 的 CSS y 坐标 */
-  y: number;
+  y: number
   /** 视图 CSS 宽度 */
-  width: number;
+  width: number
   /** 视图 CSS 高度 */
-  height: number;
+  height: number
 }
 
 export interface UseFixedCanvasOptions {
-  appOptions?: Partial<IAppOptions>;
-  rendererOptions?: WebSurfaceOptions;
+  appOptions?: Partial<IAppOptions>
+  rendererOptions?: WebSurfaceOptions
   /**
    * 是否启用文本输入（隐藏的 input 元素）
    *
@@ -49,44 +49,44 @@ export interface UseFixedCanvasOptions {
    *
    * 默认 false。
    */
-  textInput?: boolean;
+  textInput?: boolean
   /**
    * 画布外边距（px），用于 contain-fit 缩放时预留空间。
    * 设备框装饰会占用此空间，默认 36。
    */
-  canvasMargin?: number;
+  canvasMargin?: number
   /**
    * 目标设备像素比（devicePixelRatio）。
    *
    * 编辑/预览模式下由机型选择器传入，用于模拟目标设备的渲染密度。
    * 不传（undefined）时回退到本机 window.devicePixelRatio，适用于运行态。
    */
-  dpr?: number;
+  dpr?: number
 }
 
 export interface UseFixedCanvasResult {
   /** 安全受限的操作接口，app 未就绪时为 null */
-  actions: IBanvasActions | null;
+  actions: IBanvasActions | null
   /** 渲染元素 */
   elements: {
     /** 画布容器（含 canvas + textInput），直接放到 JSX 中 */
-    container: React.ReactElement;
-  };
+    container: React.ReactElement
+  }
   /** version 驱动的派生值与 DOM 引用 */
   derived: {
     /** 画布状态修订号，每次 Scene 变更递增，可用作 useMemo 依赖 */
-    revision: number;
+    revision: number
     /** 当前选中视图 ID（空字符串表示未选中） */
-    selectedViewId: string;
+    selectedViewId: string
     /** 当前活跃页面 ID（null 表示无页面） */
-    currentPageId: string | null;
+    currentPageId: string | null
     /** 当前选中视图在 viewport 中的 CSS 坐标和尺寸（null 表示无选中） */
-    selectedViewPos: SelectedViewPos | null;
+    selectedViewPos: SelectedViewPos | null
     /** canvas DOM 节点（供交互 hook 绑定事件） */
-    canvas: HTMLCanvasElement | null;
+    canvas: HTMLCanvasElement | null
     /** 文本输入 input DOM 节点（供交互 hook 绑定 IME 事件，未启用时为 null） */
-    inputElement: HTMLInputElement | null;
-  };
+    inputElement: HTMLInputElement | null
+  }
 }
 
 /**
@@ -99,16 +99,14 @@ export interface UseFixedCanvasResult {
  * 相机在逻辑空间操作，bounds = [0, designSize.width] × [0, designSize.height]。
  * CSS 样式尺寸在容器内做长边适配（contain fit）居中展示。
  */
-export function useFixedCanvasInit(
-  options: UseFixedCanvasOptions,
-): UseFixedCanvasResult {
-  const { appOptions, rendererOptions, textInput, canvasMargin = 36 } = options;
+export function useFixedCanvasInit(options: UseFixedCanvasOptions): UseFixedCanvasResult {
+  const { appOptions, rendererOptions, textInput, canvasMargin = 36 } = options
 
   // ── 共享底座（options 由调用方保证引用稳定） ──
   const coreOptions: UseCanvasCoreOptions = useMemo(
     () => ({ appOptions, rendererOptions, textInput }),
     [appOptions, rendererOptions, textInput],
-  );
+  )
   const {
     actions,
     app,
@@ -121,137 +119,135 @@ export function useFixedCanvasInit(
     canvasCallbackRef,
     inputElement,
     textInputOverlay,
-  } = useCanvasCore(coreOptions);
+  } = useCanvasCore(coreOptions)
 
-  const { dpr: bomDpr } = useBOMProperties();
+  const { dpr: bomDpr } = useBOMProperties()
   // 外部 DPR 覆盖本机 DPR（编辑/预览模式下的目标设备模拟），
   // 不传时回退到本机 window.devicePixelRatio（运行态）
-  const dpr = options.dpr ?? bomDpr;
-  const dprRef = useRef(dpr);
-  dprRef.current = dpr; // 保持 ref 与 state 同步，供 Effect 2 同步读取
+  const dpr = options.dpr ?? bomDpr
+  const dprRef = useRef(dpr)
+  dprRef.current = dpr // 保持 ref 与 state 同步，供 Effect 2 同步读取
 
   // ── Effect 2: 空应用初始化 ──
   // 固定模式：相机锁定为 App.designSize（使用 App 内置默认值 1280×800）
   // designSize / JSON 恢复由调用方通过 actions.app.setDesignSize() / loadAppJSON() 命令式注入
   useEffect(() => {
-    if (!app || !actions) return;
-    if (!app.renderer) return;
+    if (!app || !actions) return
+    if (!app.renderer) return
 
     // ── 空应用 ──
     // camera 用 App 内置默认 designSize
     // 先 resize canvas 再 navigateTo，避免 FlowSchema 在未初始化的 canvas 上触发渲染
-    const ds = app.getDesignSize();
-    app.renderer.setDPR(dprRef.current);
-    app.handleResize(ds.width, ds.height);
+    const ds = app.getDesignSize()
+    app.renderer.setDPR(dprRef.current)
+    app.handleResize(ds.width, ds.height)
     const camera = new OrthographicCamera({
       left: 0,
       right: ds.width,
       top: 0,
       bottom: ds.height,
-    });
-    const scene = new Scene(camera);
-    app.addScene(scene);
-    app.navigateTo(scene);
-  }, [app, actions]);
+    })
+    const scene = new Scene(camera)
+    app.addScene(scene)
+    app.navigateTo(scene)
+  }, [app, actions])
 
   // ── Effect 3: 容器 resize / DPR 变化时同步 ──
   // 固定模式：用 App.designSize 更新物理像素（DPR 变化或跨屏时），camera 不动
   useEffect(() => {
-    if (!app || containerSize.width <= 0 || containerSize.height <= 0) return;
-    if (!app.renderer) return;
+    if (!app || containerSize.width <= 0 || containerSize.height <= 0) return
+    if (!app.renderer) return
 
-    const { width: dw, height: dh } = app.getDesignSize();
-    app.renderer.setDPR(dpr);
-    app.handleResize(dw, dh);
-    const scene = app.getCurrentScene();
-    if (scene) scene.markDirty();
-  }, [app, containerSize, dpr, version]); // version: designSize 变更后重新同步
+    const { width: dw, height: dh } = app.getDesignSize()
+    app.renderer.setDPR(dpr)
+    app.handleResize(dw, dh)
+    const scene = app.getCurrentScene()
+    if (scene) scene.markDirty()
+  }, [app, containerSize, dpr, version]) // version: designSize 变更后重新同步
 
   // ── Effect 4: 页面切换时强制同步 camera bounds 到 designSize ──
   // currentPageId 是 version 的派生值，仅在 scene 切换时变化
   useEffect(() => {
-    if (!app || !currentPageId) return;
-    const { width: dw, height: dh } = app.getDesignSize();
-    const scene = app.getCurrentScene();
+    if (!app || !currentPageId) return
+    const { width: dw, height: dh } = app.getDesignSize()
+    const scene = app.getCurrentScene()
     if (scene && scene.camera instanceof OrthographicCamera) {
-      scene.camera.setBounds(0, dw, dh, 0);
-      scene.markDirty();
+      scene.camera.setBounds(0, dw, dh, 0)
+      scene.markDirty()
     } else if (scene) {
-      console.warn(
-        "[useFixedCanvasInit] Camera is not OrthographicCamera, page-switch bounds sync skipped.",
-      );
+      console.warn('[useFixedCanvasInit] Camera is not OrthographicCamera, page-switch bounds sync skipped.')
     }
-  }, [app, currentPageId]);
+  }, [app, currentPageId])
 
   // ── 派生：selectedViewPos ──
   const selectedViewPos = useMemo((): SelectedViewPos | null => {
-    if (!actions || !selectedViewId || !canvasNode || !app) return null;
-    const view = actions.view.getViewInstance(selectedViewId);
-    if (!view) return null;
+    if (!actions || !selectedViewId || !canvasNode || !app) return null
+    const view = actions.view.getViewInstance(selectedViewId)
+    if (!view) return null
 
-    const tx = view.matrix.get(0, 3);
-    const ty = view.matrix.get(1, 3);
-    const w = (view.style?.width as number | undefined) ?? 0;
-    const h = (view.style?.height as number | undefined) ?? 0;
+    const tx = view.matrix.get(0, 3)
+    const ty = view.matrix.get(1, 3)
+    const w = (view.style?.width as number | undefined) ?? 0
+    const h = (view.style?.height as number | undefined) ?? 0
 
     // 世界坐标 → viewport CSS 坐标
     // 固定模式：逻辑画布尺寸用 designSize
-    const rect = canvasNode.getBoundingClientRect();
-    const designSize = app.getDesignSize();
-    const logicalW = designSize.width;
-    const logicalH = designSize.height;
-    const scaleX = rect.width / logicalW;
-    const scaleY = rect.height / logicalH;
+    const rect = canvasNode.getBoundingClientRect()
+    const designSize = app.getDesignSize()
+    const logicalW = designSize.width
+    const logicalH = designSize.height
+    const scaleX = rect.width / logicalW
+    const scaleY = rect.height / logicalH
 
     return {
       x: rect.left + tx * scaleX,
       y: rect.top + ty * scaleY,
       width: w * scaleX,
       height: h * scaleY,
-    };
-  }, [actions, app, selectedViewId, canvasNode, version]);
+    }
+  }, [actions, app, selectedViewId, canvasNode, version])
 
   // ── Canvas 样式：contain-fit 长边适配 ──
   const canvasStyle: React.CSSProperties = useMemo(() => {
-    const designSize = app?.getDesignSize() ?? { width: 1280, height: 800 };
+    const designSize = app?.getDesignSize() ?? { width: 1280, height: 800 }
     if (containerSize.width <= 0 || containerSize.height <= 0) {
-      return { display: "block", width: "100%", height: "100%" };
+      return { display: 'block', width: '100%', height: '100%' }
     }
-    const pageAspect = designSize.width / designSize.height;
-    const containerAspect = containerSize.width / containerSize.height;
+    const pageAspect = designSize.width / designSize.height
+    const containerAspect = containerSize.width / containerSize.height
 
-    let styleWidth: number;
-    let styleHeight: number;
+    let styleWidth: number
+    let styleHeight: number
     if (containerAspect > pageAspect) {
-      styleHeight = containerSize.height - canvasMargin;
-      styleWidth = styleHeight * pageAspect;
+      styleHeight = containerSize.height - canvasMargin
+      styleWidth = styleHeight * pageAspect
     } else {
-      styleWidth = containerSize.width - canvasMargin;
-      styleHeight = styleWidth / pageAspect;
+      styleWidth = containerSize.width - canvasMargin
+      styleHeight = styleWidth / pageAspect
     }
 
     return {
-      display: "block",
+      display: 'block',
       width: `${styleWidth}px`,
       height: `${styleHeight}px`,
-    };
-  }, [app, containerSize, version]);
+    }
+  }, [app, containerSize, version])
 
   // ── 容器样式：flex 居中 ──
   const containerStyle: React.CSSProperties = useMemo(
     () => ({
-      position: "relative",
-      overflow: "hidden",
-      width: "100%",
-      height: "100%",
+      position: 'relative',
+      overflow: 'hidden',
+      width: '100%',
+      height: '100%',
       flex: 1,
       minHeight: 0,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
     }),
     [],
-  );
+  )
 
   // ── 容器 JSX ──
   const container = useMemo(
@@ -261,14 +257,8 @@ export function useFixedCanvasInit(
         {textInputOverlay}
       </div>
     ),
-    [
-      mergedContainerRef,
-      canvasCallbackRef,
-      canvasStyle,
-      containerStyle,
-      textInputOverlay,
-    ],
-  );
+    [mergedContainerRef, canvasCallbackRef, canvasStyle, containerStyle, textInputOverlay],
+  )
 
   return {
     actions,
@@ -281,5 +271,5 @@ export function useFixedCanvasInit(
       canvas: canvasNode,
       inputElement,
     },
-  };
+  }
 }

@@ -12,17 +12,10 @@
 
 // ── 新 hook（推荐使用） ──
 export { useFixedCanvasInit } from './useFixedCanvasInit.js'
-export type {
-  UseFixedCanvasOptions,
-  UseFixedCanvasResult,
-  SelectedViewPos,
-} from './useFixedCanvasInit.js'
+export type { UseFixedCanvasOptions, UseFixedCanvasResult, SelectedViewPos } from './useFixedCanvasInit.js'
 
 export { useAdaptiveCanvasInit } from './useAdaptiveCanvasInit.js'
-export type {
-  UseAdaptiveCanvasOptions,
-  UseAdaptiveCanvasResult,
-} from './useAdaptiveCanvasInit.js'
+export type { UseAdaptiveCanvasOptions, UseAdaptiveCanvasResult } from './useAdaptiveCanvasInit.js'
 
 // ── 相机与坐标转换 ──
 export { useCanvasCamera } from './useCanvasCamera.js'

@@ -20,26 +20,26 @@ BanvasGL 核心不依赖任何 DOM 或 React 类型，因此不能在 Web 环境
 
 ### Web 平台适配器
 
-| 导出 | 说明 |
-|------|------|
-| `WebSurface` | `IDrawingSurface` 的 Web 实现。封装 HTMLCanvasElement + OffscreenCanvas 双缓冲，管理尺寸/DPR/帧调度/合成输出 |
-| `WebSurfaceOptions` | `WebSurface` 构造选项类型（`antialias`、`clearColor`） |
-| `createWebDrawingContext` | `CanvasRenderingContext2D` → `IDrawingContext` 适配器工厂（~50 方法） |
+| 导出                      | 说明                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `WebSurface`              | `IDrawingSurface` 的 Web 实现。封装 HTMLCanvasElement + OffscreenCanvas 双缓冲，管理尺寸/DPR/帧调度/合成输出 |
+| `WebSurfaceOptions`       | `WebSurface` 构造选项类型（`antialias`、`clearColor`）                                                       |
+| `createWebDrawingContext` | `CanvasRenderingContext2D` → `IDrawingContext` 适配器工厂（~50 方法）                                        |
 
 ### React Hook
 
-| 导出 | 说明 |
-|------|------|
-| `useFixedCanvasInit` | 固定尺寸画布的 App 初始化（编辑态常用） |
+| 导出                    | 说明                                      |
+| ----------------------- | ----------------------------------------- |
+| `useFixedCanvasInit`    | 固定尺寸画布的 App 初始化（编辑态常用）   |
 | `useAdaptiveCanvasInit` | 自适应尺寸画布的 App 初始化（运行态常用） |
-| `useCanvasCamera` | 相机交互 Hook（平移/缩放/旋转） |
+| `useCanvasCamera`       | 相机交互 Hook（平移/缩放/旋转）           |
 
 ### 坐标转换工具
 
-| 导出 | 说明 |
-|------|------|
-| `screenToWorld` | 屏幕坐标 → 世界坐标 |
-| `worldToScreen` | 世界坐标 → 屏幕坐标 |
+| 导出                 | 说明                 |
+| -------------------- | -------------------- |
+| `screenToWorld`      | 屏幕坐标 → 世界坐标  |
+| `worldToScreen`      | 世界坐标 → 屏幕坐标  |
 | `getCameraZoomLevel` | 获取当前相机缩放级别 |
 
 ---
@@ -49,41 +49,41 @@ BanvasGL 核心不依赖任何 DOM 或 React 类型，因此不能在 Web 环境
 ### 编辑态（固定画布）
 
 ```tsx
-import { useFixedCanvasInit, WebSurface } from '@banyuan/banvasgl-react';
+import { useFixedCanvasInit, WebSurface } from '@banyuan/banvasgl-react'
 
 function Editor() {
   const { app, canvasRef } = useFixedCanvasInit({
     appJSON: savedAppJSON,
-  });
+  })
 
-  return <canvas ref={canvasRef} />;
+  return <canvas ref={canvasRef} />
 }
 ```
 
 ### 运行态（自适应画布 + 相机）
 
 ```tsx
-import { useAdaptiveCanvasInit, useCanvasCamera } from '@banyuan/banvasgl-react';
+import { useAdaptiveCanvasInit, useCanvasCamera } from '@banyuan/banvasgl-react'
 
 function Preview() {
   const { app, canvasRef } = useAdaptiveCanvasInit({
     appJSON: savedAppJSON,
-  });
+  })
 
-  useCanvasCamera({ app });
+  useCanvasCamera({ app })
 
-  return <canvas ref={canvasRef} />;
+  return <canvas ref={canvasRef} />
 }
 ```
 
 ### 坐标转换
 
 ```tsx
-import { screenToWorld, worldToScreen } from '@banyuan/banvasgl-react';
+import { screenToWorld, worldToScreen } from '@banyuan/banvasgl-react'
 
 // 点击事件中转换坐标
 function onCanvasClick(e: MouseEvent, scene: IScene, canvas: HTMLCanvasElement) {
-  const worldPos = screenToWorld(e.clientX, e.clientY, scene, canvas);
+  const worldPos = screenToWorld(e.clientX, e.clientY, scene, canvas)
   // worldPos 现在可用来做命中检测等
 }
 ```
