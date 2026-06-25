@@ -27,7 +27,8 @@ export class TenantProvisionService {
    */
   async provision(tenantId: string): Promise<void> {
     const subdomain = tenantId.slice(-8)
-    const domain = `${subdomain}.banyuan.club`
+    const baseDomain = process.env.DNS_DOMAIN || ''
+    const domain = `${subdomain}.${baseDomain}`
     const backendUrl = process.env.BACKEND_PUBLIC_URL || 'http://localhost:3001'
 
     try {
@@ -116,6 +117,7 @@ export class TenantProvisionService {
    * 配置：nginx 基础配置、SSL 证书申请（通配符）
    */
   private generateInitScript(tenantId: string, domain: string): string {
+    const dnsDomain = process.env.DNS_DOMAIN || ''
     return `#!/bin/bash
 set -e
 
@@ -190,7 +192,7 @@ nginx -t && systemctl reload nginx
 
 # 安装 acme.sh
 echo "[Provision ${tenantId}] Installing acme.sh..."
-curl https://get.acme.sh | sh -s email=admin@banyuan.club
+curl https://get.acme.sh | sh -s email=admin@${dnsDomain}
 
 echo "[Provision ${tenantId}] Initialization completed."
 `

@@ -1,15 +1,16 @@
 import Router from '@koa/router'
 import { deployController } from '../controllers/DeployController.js'
+import { requirePermission } from '../middleware/requirePermission.js'
 
 const deployRouter = new Router({ prefix: '/api/deploy' })
 
-// 发布应用到 Web
-deployRouter.post('/publish', async (ctx) => {
+// 发布应用到 Web（需要 deploy:publish 权限）
+deployRouter.post('/publish', requirePermission('deploy:publish'), async (ctx) => {
   await deployController.publish(ctx)
 })
 
-// 回滚到历史发布版本
-deployRouter.post('/rollback', async (ctx) => {
+// 回滚到历史发布版本（需要 deploy:publish 权限）
+deployRouter.post('/rollback', requirePermission('deploy:publish'), async (ctx) => {
   await deployController.rollback(ctx)
 })
 

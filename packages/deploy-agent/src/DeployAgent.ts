@@ -162,14 +162,15 @@ export class DeployAgent {
     const wwwDir = '/opt/banyuan/www'
     const siteDir = join(wwwDir, request.appSlug)
 
-    // Step 1: Scaffold 项目
+    // Step 1: 清理旧目录 + Scaffold 项目
     this.sendProgress(request.requestId, 'scaffold', 10, '生成项目文件...')
+    await rm(projectDir, { recursive: true, force: true })
     await mkdir(projectDir, { recursive: true })
     await scaffoldProject(projectDir, request.uiJSON)
 
     // Step 2: 安装依赖
     this.sendProgress(request.requestId, 'install', 30, '安装依赖...')
-    await this.exec('pnpm', ['install', '--frozen-lockfile'], projectDir)
+    await this.exec('pnpm', ['install'], projectDir)
 
     // Step 3: 构建
     this.sendProgress(request.requestId, 'build', 50, '构建应用...')
@@ -206,14 +207,15 @@ export class DeployAgent {
     const containerPort = request.containerPort ?? 4000
     const containerName = `banyuan-${request.appSlug}`
 
-    // Step 1: Scaffold 前端项目
+    // Step 1: 清理旧目录 + Scaffold 前端项目
     this.sendProgress(request.requestId, 'scaffold-frontend', 5, '生成前端项目文件...')
+    await rm(projectDir, { recursive: true, force: true })
     await mkdir(projectDir, { recursive: true })
     await scaffoldProject(projectDir, request.uiJSON)
 
     // Step 2: 安装依赖并构建前端
     this.sendProgress(request.requestId, 'install', 15, '安装前端依赖...')
-    await this.exec('pnpm', ['install', '--frozen-lockfile'], projectDir)
+    await this.exec('pnpm', ['install'], projectDir)
 
     this.sendProgress(request.requestId, 'build-frontend', 30, '构建前端...')
     await this.exec('pnpm', ['build'], projectDir)
