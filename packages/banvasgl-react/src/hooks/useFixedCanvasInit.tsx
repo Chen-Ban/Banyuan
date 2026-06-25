@@ -14,11 +14,11 @@
  * 注意：uiJSON 和 designSize 已从此 hook 剥离，由调用方通过 actions.app.loadAppJSON() / actions.app.setDesignSize() 命令式注入。
  */
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { OrthographicCamera } from "@banyuan/banvasgl";
 import { Scene } from "@banyuan/banvasgl";
 import type { IAppOptions } from "@banyuan/banvasgl";
-import type { WebCanvasOptions } from "../platform/WebCanvas.js";
+import type { WebSurfaceOptions } from "../platform/WebSurface.js";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useCanvasCore } from "./useCanvasCore.js";
 import { useBOMProperties } from "./useBOMProperties.js";
@@ -40,7 +40,7 @@ export interface SelectedViewPos {
 
 export interface UseFixedCanvasOptions {
   appOptions?: Partial<IAppOptions>;
-  rendererOptions?: WebCanvasOptions;
+  rendererOptions?: WebSurfaceOptions;
   /**
    * 是否启用文本输入（隐藏的 input 元素）
    *
@@ -55,6 +55,13 @@ export interface UseFixedCanvasOptions {
    * 设备框装饰会占用此空间，默认 36。
    */
   canvasMargin?: number;
+  /**
+   * 目标设备像素比（devicePixelRatio）。
+   *
+   * 编辑/预览模式下由机型选择器传入，用于模拟目标设备的渲染密度。
+   * 不传（undefined）时回退到本机 window.devicePixelRatio，适用于运行态。
+   */
+  dpr?: number;
 }
 
 export interface UseFixedCanvasResult {
@@ -116,7 +123,12 @@ export function useFixedCanvasInit(
     textInputOverlay,
   } = useCanvasCore(coreOptions);
 
-  const { dpr, dprRef } = useBOMProperties();
+  const { dpr: bomDpr } = useBOMProperties();
+  // 外部 DPR 覆盖本机 DPR（编辑/预览模式下的目标设备模拟），
+  // 不传时回退到本机 window.devicePixelRatio（运行态）
+  const dpr = options.dpr ?? bomDpr;
+  const dprRef = useRef(dpr);
+  dprRef.current = dpr; // 保持 ref 与 state 同步，供 Effect 2 同步读取
 
   // ── Effect 2: 空应用初始化 ──
   // 固定模式：相机锁定为 App.designSize（使用 App 内置默认值 1280×800）

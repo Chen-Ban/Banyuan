@@ -1,5 +1,5 @@
 /**
- * WebCanvas — IDrawingSurface 的 Web 实现
+ * WebSurface — IDrawingSurface 的 Web 实现
  *
  * 基于 HTMLCanvasElement + OffscreenCanvas（双缓冲），
  * 通过 WebDrawingContext 适配器暴露 IDrawingContext。
@@ -11,15 +11,15 @@
 import type { IDrawingSurface, IDrawingContext } from "@banyuan/banvasgl";
 import { createWebDrawingContext } from "./WebDrawingContext.js";
 
-/** WebCanvas 构造选项 */
-export interface WebCanvasOptions {
+/** WebSurface 构造选项 */
+export interface WebSurfaceOptions {
   /** 是否启用抗锯齿（默认 true） */
   antialias?: boolean;
   /** 清空画布时的填充色（默认 "#fff"） */
   clearColor?: string;
 }
 
-export class WebCanvas implements IDrawingSurface {
+export class WebSurface implements IDrawingSurface {
   private _canvas: HTMLCanvasElement;
   private _offscreen: OffscreenCanvas;
 
@@ -29,7 +29,7 @@ export class WebCanvas implements IDrawingSurface {
   private _dpr: number;
   private _clearColor: string;
 
-  constructor(canvas: HTMLCanvasElement, options: WebCanvasOptions = {}) {
+  constructor(canvas: HTMLCanvasElement, options: WebSurfaceOptions = {}) {
     this._canvas = canvas;
     this._clearColor = options.clearColor ?? "#fff";
     this._dpr =
@@ -81,6 +81,8 @@ export class WebCanvas implements IDrawingSurface {
   }
 
   resize(logicalWidth: number, logicalHeight: number): void {
+    // 防御性检查：dispose 后 _offscreen 为 null，不应继续操作
+    if (!this._offscreen) return;
     const w = Math.round(logicalWidth * this._dpr);
     const h = Math.round(logicalHeight * this._dpr);
     if (this._canvas.width === w && this._canvas.height === h) return;
@@ -91,6 +93,7 @@ export class WebCanvas implements IDrawingSurface {
   }
 
   clear(): void {
+    if (!this._offscreen) return;
     this.main.clearRect(0, 0, this._canvas.width, this._canvas.height);
     if (this._clearColor !== "transparent") {
       this.main.fillStyle = this._clearColor;
@@ -105,6 +108,7 @@ export class WebCanvas implements IDrawingSurface {
   }
 
   present(): void {
+    if (!this._offscreen) return;
     // 双缓冲合成：将离屏 buffer 以 ImageBitmap 形式绘制到主 canvas。
     // 使用原生 Canvas API 避免经过 IDrawingContext 抽象层（ImageBitmap 不是 IImageSource）。
     const mainCtx = this._canvas.getContext('2d');
@@ -121,6 +125,16 @@ export class WebCanvas implements IDrawingSurface {
 
   export(type?: string, quality?: number): string | null {
     return this._canvas.toDataURL(type, quality) ?? null;
+  }
+
+  // ── 帧调度 ──
+
+  requestFrame(callback: (timestamp: number) => void): number {
+    return requestAnimationFrame(callback);
+  }
+
+  cancelFrame(handle: number): void {
+    cancelAnimationFrame(handle);
   }
 
   // ── Web 特定方法 ──

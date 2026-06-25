@@ -27,8 +27,8 @@ import { createBanvasActions } from "@banyuan/banvasgl";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import type { IAppOptions } from "@banyuan/banvasgl";
 import type { FrontendCapProxy } from "@banyuan/banvasgl";
-import { WebCanvas } from "../platform/WebCanvas.js";
-import type { WebCanvasOptions } from "../platform/WebCanvas.js";
+import { WebSurface } from "../platform/WebSurface.js";
+import type { WebSurfaceOptions } from "../platform/WebSurface.js";
 
 // ── 构建前端能力代理（闭包捕获 App 实例，供 FlowRunner 调用） ──
 function buildFrontendCap(app: App): FrontendCapProxy {
@@ -75,7 +75,7 @@ function buildFrontendCap(app: App): FrontendCapProxy {
 
 export interface UseCanvasCoreOptions {
   appOptions?: Partial<IAppOptions>;
-  rendererOptions?: WebCanvasOptions;
+  rendererOptions?: WebSurfaceOptions;
   /** 是否启用文本输入（隐藏的 input 元素） */
   textInput?: boolean;
 }
@@ -158,7 +158,7 @@ export function useCanvasCore(
     if (!canvasNode) return;
 
     const _app = App.create(
-      new WebCanvas(canvasNode, options.rendererOptions),
+      new WebSurface(canvasNode, options.rendererOptions),
       options.appOptions ?? {},
     );
     _app.launch({});

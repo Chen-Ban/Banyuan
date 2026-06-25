@@ -17,7 +17,7 @@ import React, { useEffect, useMemo } from "react";
 import { OrthographicCamera } from "@banyuan/banvasgl";
 import { Scene } from "@banyuan/banvasgl";
 import type { IAppOptions } from "@banyuan/banvasgl";
-import type { WebCanvasOptions } from "../platform/WebCanvas.js";
+import type { WebSurfaceOptions } from "../platform/WebSurface.js";
 import type { IBanvasActions } from "@banyuan/banvasgl";
 import { useCanvasCore } from "./useCanvasCore.js";
 import { useBOMProperties } from "./useBOMProperties.js";
@@ -29,9 +29,16 @@ import type { SelectedViewPos } from "./useFixedCanvasInit.js";
 
 export interface UseAdaptiveCanvasOptions {
   appOptions?: Partial<IAppOptions>;
-  rendererOptions?: WebCanvasOptions;
+  rendererOptions?: WebSurfaceOptions;
   /** 是否启用文本输入（默认 false，流程设计态不需要） */
   textInput?: boolean;
+  /**
+   * 目标设备像素比（devicePixelRatio）。
+   *
+   * 编辑模式下由外部传入，用于模拟目标设备的渲染密度。
+   * 不传（undefined）时回退到本机 window.devicePixelRatio。
+   */
+  dpr?: number;
 }
 
 export interface UseAdaptiveCanvasResult {
@@ -89,7 +96,10 @@ export function useAdaptiveCanvasInit(
     textInputOverlay,
   } = useCanvasCore(coreOptions);
 
-  const { dpr } = useBOMProperties();
+  const { dpr: bomDpr } = useBOMProperties();
+  // 外部 DPR 覆盖本机 DPR（编辑模式下的目标设备模拟），
+  // 不传时回退到本机 window.devicePixelRatio
+  const dpr = options.dpr ?? bomDpr;
 
   // ── 相机驱动的无限画布交互 ──
   const { syncCameraToContainer } = useCanvasCamera({
