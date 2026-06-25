@@ -50,6 +50,8 @@ export interface DevicePreset {
   height: number;
   /** 设备类型，用于画布装饰 */
   deviceType: DeviceType;
+  /** 目标设备像素比（devicePixelRatio），用于模拟目标设备的渲染密度 */
+  dpr: number;
 }
 
 export interface DeviceGroup {
@@ -65,68 +67,68 @@ export const DEVICE_GROUPS: DeviceGroup[] = [
     group: "PC",
     icon: LaptopOutlined,
     items: [
-      { key: "1280x800", label: "PC 标准 (1280×800)", width: 1280, height: 800, deviceType: "windows" },
-      { key: "1366x768", label: "PC 宽屏 (1366×768)", width: 1366, height: 768, deviceType: "windows" },
-      { key: "1920x1080", label: "PC 全高清 (1920×1080)", width: 1920, height: 1080, deviceType: "windows" },
+      { key: "1280x800", label: "PC 标准 (1280×800)", width: 1280, height: 800, deviceType: "windows", dpr: 1 },
+      { key: "1366x768", label: "PC 宽屏 (1366×768)", width: 1366, height: 768, deviceType: "windows", dpr: 1 },
+      { key: "1920x1080", label: "PC 全高清 (1920×1080)", width: 1920, height: 1080, deviceType: "windows", dpr: 1 },
     ],
   },
   {
     group: "Mac",
     icon: DesktopOutlined,
     items: [
-      { key: "1440x900", label: "Apple MacBook Air 13\" (M4)", width: 1440, height: 900, deviceType: "mac" },
-      { key: "1710x1080", label: "Apple MacBook Air 15\" (M4)", width: 1710, height: 1080, deviceType: "mac" },
-      { key: "1512x982", label: "Apple MacBook Pro 14\" (M5)", width: 1512, height: 982, deviceType: "mac" },
-      { key: "1728x1117", label: "Apple MacBook Pro 16\" (M5)", width: 1728, height: 1117, deviceType: "mac" },
+      { key: "1440x900", label: "Apple MacBook Air 13\" (M4)", width: 1440, height: 900, deviceType: "mac", dpr: 2 },
+      { key: "1710x1080", label: "Apple MacBook Air 15\" (M4)", width: 1710, height: 1080, deviceType: "mac", dpr: 2 },
+      { key: "1512x982", label: "Apple MacBook Pro 14\" (M5)", width: 1512, height: 982, deviceType: "mac", dpr: 2 },
+      { key: "1728x1117", label: "Apple MacBook Pro 16\" (M5)", width: 1728, height: 1117, deviceType: "mac", dpr: 2 },
     ],
   },
   {
     group: "iPad",
     icon: TabletOutlined,
     items: [
-      { key: "820x1180", label: "Apple iPad (11th gen)", width: 820, height: 1180, deviceType: "ipad" },
-      { key: "744x1133", label: "Apple iPad mini (A17 Pro)", width: 744, height: 1133, deviceType: "ipad" },
-      { key: "820x1180-m3", label: "Apple iPad Air 11\" (M3)", width: 820, height: 1180, deviceType: "ipad" },
-      { key: "1024x1366-m3", label: "Apple iPad Air 13\" (M3)", width: 1024, height: 1366, deviceType: "ipad" },
-      { key: "834x1194", label: "Apple iPad Pro 11\" (M5)", width: 834, height: 1194, deviceType: "ipad" },
-      { key: "1024x1366-m5", label: "Apple iPad Pro 13\" (M5)", width: 1024, height: 1366, deviceType: "ipad" },
+      { key: "820x1180", label: "Apple iPad (11th gen)", width: 820, height: 1180, deviceType: "ipad", dpr: 2 },
+      { key: "744x1133", label: "Apple iPad mini (A17 Pro)", width: 744, height: 1133, deviceType: "ipad", dpr: 2 },
+      { key: "820x1180-m3", label: "Apple iPad Air 11\" (M3)", width: 820, height: 1180, deviceType: "ipad", dpr: 2 },
+      { key: "1024x1366-m3", label: "Apple iPad Air 13\" (M3)", width: 1024, height: 1366, deviceType: "ipad", dpr: 2 },
+      { key: "834x1194", label: "Apple iPad Pro 11\" (M5)", width: 834, height: 1194, deviceType: "ipad", dpr: 2 },
+      { key: "1024x1366-m5", label: "Apple iPad Pro 13\" (M5)", width: 1024, height: 1366, deviceType: "ipad", dpr: 2 },
     ],
   },
   {
     group: "Pad",
     icon: TabletOutlined,
     items: [
-      { key: "800x1280", label: "Samsung Galaxy Tab S10", width: 800, height: 1280, deviceType: "android-tablet" },
-      { key: "1133x744-pad", label: "小米 Pad 7", width: 1133, height: 744, deviceType: "android-tablet" },
+      { key: "800x1280", label: "Samsung Galaxy Tab S10", width: 800, height: 1280, deviceType: "android-tablet", dpr: 2 },
+      { key: "1133x744-pad", label: "小米 Pad 7", width: 1133, height: 744, deviceType: "android-tablet", dpr: 2 },
     ],
   },
   {
     group: "iPhone",
     icon: MobileOutlined,
     items: [
-      { key: "390x844-se", label: "Apple iPhone 16e", width: 390, height: 844, deviceType: "iphone" },
-      { key: "393x852", label: "Apple iPhone 17", width: 393, height: 852, deviceType: "iphone" },
-      { key: "402x874-air", label: "Apple iPhone 17 Air", width: 402, height: 874, deviceType: "iphone" },
-      { key: "402x874", label: "Apple iPhone 17 Pro", width: 402, height: 874, deviceType: "iphone" },
-      { key: "440x956", label: "Apple iPhone 17 Pro Max", width: 440, height: 956, deviceType: "iphone" },
+      { key: "390x844-se", label: "Apple iPhone 16e", width: 390, height: 844, deviceType: "iphone", dpr: 3 },
+      { key: "393x852", label: "Apple iPhone 17", width: 393, height: 852, deviceType: "iphone", dpr: 3 },
+      { key: "402x874-air", label: "Apple iPhone 17 Air", width: 402, height: 874, deviceType: "iphone", dpr: 3 },
+      { key: "402x874", label: "Apple iPhone 17 Pro", width: 402, height: 874, deviceType: "iphone", dpr: 3 },
+      { key: "440x956", label: "Apple iPhone 17 Pro Max", width: 440, height: 956, deviceType: "iphone", dpr: 3 },
     ],
   },
   {
     group: "Phone",
     icon: MobileOutlined,
     items: [
-      { key: "360x780-s26", label: "Samsung Galaxy S26", width: 360, height: 780, deviceType: "android" },
-      { key: "412x932", label: "Samsung Galaxy S26 Ultra", width: 412, height: 932, deviceType: "android" },
-      { key: "412x915-p10", label: "Google Pixel 10 / 10 Pro", width: 412, height: 915, deviceType: "android" },
-      { key: "432x960", label: "Google Pixel 10 Pro XL", width: 432, height: 960, deviceType: "android" },
-      { key: "412x905", label: "OnePlus 13", width: 412, height: 905, deviceType: "android" },
-      { key: "424x913", label: "华为 Mate 70 Pro", width: 424, height: 913, deviceType: "android" },
-      { key: "408x904", label: "华为 Pura 70 Ultra", width: 408, height: 904, deviceType: "android" },
-      { key: "393x852-xm17", label: "小米 Xiaomi 17", width: 393, height: 852, deviceType: "android" },
-      { key: "432x960-xm", label: "小米 Xiaomi 17 Pro", width: 432, height: 960, deviceType: "android" },
-      { key: "432x960-oppo", label: "OPPO Find X9 Pro", width: 432, height: 960, deviceType: "android" },
-      { key: "432x960-honor", label: "荣耀 Magic 7 Pro", width: 432, height: 960, deviceType: "android" },
-      { key: "420x933", label: "vivo X300 Pro", width: 420, height: 933, deviceType: "android" },
+      { key: "360x780-s26", label: "Samsung Galaxy S26", width: 360, height: 780, deviceType: "android", dpr: 3.0 },
+      { key: "412x932", label: "Samsung Galaxy S26 Ultra", width: 412, height: 932, deviceType: "android", dpr: 3.5 },
+      { key: "412x915-p10", label: "Google Pixel 10 / 10 Pro", width: 412, height: 915, deviceType: "android", dpr: 2.625 },
+      { key: "432x960", label: "Google Pixel 10 Pro XL", width: 432, height: 960, deviceType: "android", dpr: 3.25 },
+      { key: "412x905", label: "OnePlus 13", width: 412, height: 905, deviceType: "android", dpr: 3.5 },
+      { key: "424x913", label: "华为 Mate 70 Pro", width: 424, height: 913, deviceType: "android", dpr: 3.2 },
+      { key: "408x904", label: "华为 Pura 70 Ultra", width: 408, height: 904, deviceType: "android", dpr: 3.2 },
+      { key: "393x852-xm17", label: "小米 Xiaomi 17", width: 393, height: 852, deviceType: "android", dpr: 3.0 },
+      { key: "432x960-xm", label: "小米 Xiaomi 17 Pro", width: 432, height: 960, deviceType: "android", dpr: 3.0 },
+      { key: "432x960-oppo", label: "OPPO Find X9 Pro", width: 432, height: 960, deviceType: "android", dpr: 3.2 },
+      { key: "432x960-honor", label: "荣耀 Magic 7 Pro", width: 432, height: 960, deviceType: "android", dpr: 3.2 },
+      { key: "420x933", label: "vivo X300 Pro", width: 420, height: 933, deviceType: "android", dpr: 3.2 },
     ],
   },
 ];

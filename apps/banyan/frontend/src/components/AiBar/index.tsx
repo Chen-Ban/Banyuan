@@ -61,6 +61,7 @@ const AiBar: React.FC = () => {
   // ─── 模型选择 ──────────────────────────────────────────────────────────────
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [activeProvider, setActiveProvider] = useState<string>("");
+  const [modelsError, setModelsError] = useState(false);
 
   useEffect(() => {
     aiApi
@@ -68,8 +69,12 @@ const AiBar: React.FC = () => {
       .then((data) => {
         setProviders(data?.providers ?? []);
         setActiveProvider(data?.activeProvider ?? "");
+        setModelsError(false);
       })
-      .catch(() => { /* 静默失败 */ });
+      .catch((err) => {
+        console.warn('[模型] 加载模型列表失败:', err.message ?? err);
+        setModelsError(true);
+      });
   }, []);
 
   const handleModelChange = useCallback((provider: string) => {

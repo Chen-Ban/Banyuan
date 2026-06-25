@@ -1,7 +1,7 @@
 import React from "react";
 import { useFixedCanvasInit } from "@banyuan/banvasgl-react";
 import type { IBanvasActions, IAppOptions } from "@banyuan/banvasgl";
-import type { WebCanvasOptions } from "@banyuan/banvasgl-react";
+import type { WebSurfaceOptions } from "@banyuan/banvasgl-react";
 import { useInteraction } from "@/hooks/useInteraction";
 import { useDesignContextMenu } from "./useDesignContextMenu";
 import type { UseDesignContextMenuResult } from "./useDesignContextMenu";
@@ -37,7 +37,7 @@ export interface IUseBanvasResult<TElement = unknown> {
 
 export interface UseDesignBanvasOptions {
   appOptions?: Partial<IAppOptions>;
-  rendererOptions?: WebCanvasOptions;
+  rendererOptions?: WebSurfaceOptions;
   /** 画布外边距（px），透传给 useFixedCanvasInit，默认 36 */
   canvasMargin?: number;
 }
@@ -49,6 +49,7 @@ export default function useDesignBanvas(
 
   // ── Store 桥接源 ──
   const designSize = useApplicationStore((s) => s.designSize);
+  const designDpr = useApplicationStore((s) => s.designDpr);
   const uiJSON = useApplicationStore((s) => s.uiJSON);
   const { registerActions, setDesignSize } = useApplicationStore();
 
@@ -67,6 +68,7 @@ export default function useDesignBanvas(
     rendererOptions: rendererOptions ?? fallbackRendererOptions,
     textInput: true,
     canvasMargin,
+    dpr: designDpr,
   });
 
   // ════════════════════════════════════════════════════════════════

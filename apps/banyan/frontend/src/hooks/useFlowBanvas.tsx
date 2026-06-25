@@ -16,6 +16,7 @@ import {
     EdgeView,
 } from '@banyuan/banvasgl'
 import type { FlowContextMenuState } from '../components/FlowKit/FlowContextMenu'
+import { useApplicationStore } from '@/stores/applicationStore'
 
 // ── 公共配置类型 ──
 
@@ -90,8 +91,10 @@ export default function useFlowBanvas(
             : undefined,
         [backgroundColor],
     );
+    const designDpr = useApplicationStore((s) => s.designDpr);
     const { actions, elements, derived } = useAdaptiveCanvasInit({
         rendererOptions,
+        dpr: designDpr,
     })
 
     const { selectedViewId, selectedViewPos, canvas } = derived

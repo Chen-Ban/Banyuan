@@ -25,7 +25,7 @@ import { usePreviewServerStore } from "@/stores/previewServerStore";
 import styles from "./index.module.scss";
 
 const PreviewPage: React.FC = () => {
-  const { registerActions, setDesignSize, designSize } = useApplicationStore();
+  const { registerActions, setDesignSize, designSize, designDpr } = useApplicationStore();
   const uiJSON = useApplicationStore((s) => s.uiJSON);
   const serverInfo = usePreviewServerStore((s) => s.serverInfo);
   const serverStatus = usePreviewServerStore((s) => s.status);
@@ -33,7 +33,7 @@ const PreviewPage: React.FC = () => {
   // ── 画布初始化（运行策略：useRuntimeBanvas = 机制底座 + 交互识别 + FlowSchema 触发） ──
   // designSize 通过 actions.app.setDesignSize() 命令式注入
   const rendererOptions = useMemo(() => ({ clearColor: "#fff" }), []);
-  const { Banvas, actions } = useRuntimeBanvas({ rendererOptions });
+  const { Banvas, actions } = useRuntimeBanvas({ rendererOptions, dpr: designDpr });
 
   // ── designSize 命令式注入引擎 ──
   useEffect(() => {

@@ -601,7 +601,7 @@ export function useInteraction({
             fetchMaterial(parsed.materialId!)
               .then((res) => {
                 if (res.data) {
-                  actions.view.instantiateTemplate(res.data.template, { x, y });
+                  actions.template.instantiate(res.data.template, { x, y });
                 }
               })
               .catch((err) => {
@@ -609,7 +609,7 @@ export function useInteraction({
               });
           });
         } else if (parsed.template) {
-          actions.view.instantiateTemplate(parsed.template, { x, y });
+          actions.template.instantiate(parsed.template, { x, y });
         }
       } catch (error) {
         console.error("[useInteraction] 拖拽创建组件失败:", error);

@@ -97,20 +97,29 @@ const UIPage = () => {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const prevSelectedViewIdRef = useRef<string>("");
 
+  // 稳定引用（空依赖：仅创建一次，避免因 canvasMargin 变化导致 App 不必要重建）
+  const stableAppOptions = useMemo(
+    () => ({
+      enablePageStack: true,
+      maxPageStackSize: 50,
+      flowEnabled: false,
+    }),
+    [],
+  );
+
+  const stableRendererOptions = useMemo(
+    () => ({ clearColor: "#fff" }),
+    [],
+  );
+
   // banvasOptions 仅含配置（appOptions/rendererOptions）
   const banvasOptions = useMemo(
     () => ({
-      appOptions: {
-        enablePageStack: true,
-        maxPageStackSize: 50,
-        flowEnabled: false,
-      },
-      rendererOptions: {
-        clearColor: "#fff",
-      },
+      appOptions: stableAppOptions,
+      rendererOptions: stableRendererOptions,
       canvasMargin,
     }),
-    [canvasMargin],
+    [stableAppOptions, stableRendererOptions, canvasMargin],
   );
 
   const {

@@ -12,21 +12,28 @@
   display: flex;
   flex-direction: column;
   background: transparent; // 屏幕区域必须透明
-  border: 1px solid #e0e0e0; // 用 border 而非 outline，保证与画布居中对齐
+  border: 1px solid #222; // 用 border 而非 outline，保证与画布居中对齐
   box-shadow:
     0 1px 3px rgba(0, 0, 0, 0.06),
     0 4px 12px rgba(0, 0, 0, 0.08),
-    0 12px 40px rgba(0, 0, 0, 0.10);
+    0 12px 40px rgba(0, 0, 0, 0.1);
 }
 
 // 各设备 class 仅用于标记，无额外样式
-.iphone {}
-.android {}
-.ipad {}
-.android-tablet {}
-.mac {}
-.windows {}
-.foldable {}
+.iphone {
+}
+.android {
+}
+.ipad {
+}
+.android-tablet {
+}
+.mac {
+}
+.windows {
+}
+.foldable {
+}
 
 // ── 顶部栏公共 ────────────────────────────────────────────────────────────────
 
@@ -34,7 +41,8 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
   font-size: 11px;
   font-weight: 600;
   color: #333;
@@ -48,10 +56,16 @@
   position: relative;
   background: rgba(0, 0, 0, 0.04);
 
-  .statusTime { font-weight: 600; letter-spacing: 0.3px; }
+  .statusTime {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
   .statusIcons {
-    position: absolute; right: 18px;
-    display: flex; align-items: center; gap: 5px;
+    position: absolute;
+    right: 18px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
   }
 }
 
@@ -62,145 +76,260 @@
   padding: 0 14px 0 18px;
   background: rgba(0, 0, 0, 0.03);
 
-  .statusTime { font-weight: 500; }
+  .statusTime {
+    font-weight: 500;
+  }
 }
 
 .androidIconsRight {
-  display: flex; align-items: center; gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
-.androidIconsRight { justify-content: flex-end; }
+.androidIconsRight {
+  justify-content: flex-end;
+}
 
 // ── macOS 标题栏 ─────────────────────────────────────────────────────────────
 
 .macTitleBar {
-  display: flex; align-items: center;
+  display: flex;
+  align-items: center;
   padding: 0 12px;
   background: rgba(0, 0, 0, 0.05);
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   flex-shrink: 0;
 }
 
-.trafficLights { display: flex; gap: 6px; }
+.trafficLights {
+  display: flex;
+  gap: 6px;
+}
 
 .trafficDot {
-  width: 10px; height: 10px; border-radius: 50%;
-  &:nth-child(1) { background: #ee5a5a; }
-  &:nth-child(2) { background: #f5bd4f; }
-  &:nth-child(3) { background: #61c454; }
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  &:nth-child(1) {
+    background: #ee5a5a;
+  }
+  &:nth-child(2) {
+    background: #f5bd4f;
+  }
+  &:nth-child(3) {
+    background: #61c454;
+  }
 }
 
 // ── Windows 11 标题栏 ────────────────────────────────────────────────────────
 
 .winTitleBar {
-  display: flex; align-items: center;
+  display: flex;
+  align-items: center;
   background: rgba(0, 0, 0, 0.03);
   border-bottom: 1px solid rgba(0, 0, 0, 0.07);
   flex-shrink: 0;
   padding: 0;
 }
 
-.winSpacer { flex: 1; }
+.winSpacer {
+  flex: 1;
+}
 
-.winCtrls { display: flex; height: 100%; }
+.winCtrls {
+  display: flex;
+  height: 100%;
+}
 
 .winBtn {
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 46px;
-  font-family: 'Segoe UI', 'Segoe MDL2 Assets', sans-serif;
-  font-size: 10px; color: #555;
+  font-family: "Segoe UI", "Segoe MDL2 Assets", sans-serif;
+  font-size: 10px;
+  color: #555;
   transition: background 0.1s;
 
-  &:hover { background: rgba(0, 0, 0, 0.06); }
-  &[data-close]:hover { background: #c42b1c; color: #fff; }
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+  &[data-close]:hover {
+    background: #c42b1c;
+    color: #fff;
+  }
 }
 
 // ── Dynamic Island ───────────────────────────────────────────────────────────
 
 .dynamicIsland {
-  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
-  width: 68px; height: 22px;
-  background: #222; border-radius: 14px; z-index: 3;
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 68px;
+  height: 22px;
+  background: #222;
+  border-radius: 14px;
+  z-index: 3;
 }
 
 // ── 打孔摄像头 ────────────────────────────────────────────────────────────────
 
 .punchHole {
-  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-  width: 6px; height: 6px;
-  background: #222; border-radius: 50%; z-index: 3;
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: #222;
+  border-radius: 50%;
+  z-index: 3;
   box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.2);
 }
 
 // ── Mac notch ────────────────────────────────────────────────────────────────
 
 .macNotch {
-  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-  width: 88px; height: 18px;
-  background: #222; border-radius: 0 0 10px 10px; z-index: 3;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 88px;
+  height: 18px;
+  background: #222;
+  border-radius: 0 0 10px 10px;
+  z-index: 3;
 }
 
 // ── UDC 屏下摄像头区域 ───────────────────────────────────────────────────────
 
 .udcZone {
-  position: absolute; top: 8px; right: 20px;
-  width: 12px; height: 12px; border-radius: 50%; z-index: 3;
+  position: absolute;
+  top: 8px;
+  right: 20px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  z-index: 3;
   background: radial-gradient(circle, rgba(0, 0, 0, 0.1) 40%, transparent 70%);
 }
 
 // ── 折叠屏折痕 ───────────────────────────────────────────────────────────────
 
 .crease {
-  position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
-  width: 2px; z-index: 3;
-  background: linear-gradient(to bottom, transparent 5%, rgba(0,0,0,0.03) 30%, rgba(0,0,0,0.05) 50%, rgba(0,0,0,0.03) 70%, transparent 95%);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  z-index: 3;
+  background: linear-gradient(
+    to bottom,
+    transparent 5%,
+    rgba(0, 0, 0, 0.03) 30%,
+    rgba(0, 0, 0, 0.05) 50%,
+    rgba(0, 0, 0, 0.03) 70%,
+    transparent 95%
+  );
 }
 
 // ── 信号 / Wi-Fi / 电池图标 ──────────────────────────────────────────────────
 
 .statusSignal {
-  display: block; width: 13px; height: 9px;
+  display: block;
+  width: 13px;
+  height: 9px;
   background:
-    linear-gradient(to top, #555 3px, transparent 3px) 0 100% / 2.2px 3px no-repeat,
-    linear-gradient(to top, #555 6px, transparent 6px) 3.3px 100% / 2.2px 6px no-repeat,
-    linear-gradient(to top, #555 7.5px, transparent 7.5px) 6.6px 100% / 2.2px 9px no-repeat,
-    linear-gradient(to top, #555 8px, transparent 8px) 10px 100% / 2.2px 9px no-repeat;
+    linear-gradient(to top, #555 3px, transparent 3px) 0 100% / 2.2px 3px
+      no-repeat,
+    linear-gradient(to top, #555 6px, transparent 6px) 3.3px 100% / 2.2px 6px
+      no-repeat,
+    linear-gradient(to top, #555 7.5px, transparent 7.5px) 6.6px 100% / 2.2px
+      9px no-repeat,
+    linear-gradient(to top, #555 8px, transparent 8px) 10px 100% / 2.2px 9px
+      no-repeat;
 }
 
 .statusWifi {
-  display: block; width: 12px; height: 9px;
+  display: block;
+  width: 12px;
+  height: 9px;
   background:
-    radial-gradient(circle at 50% 100%, transparent 2.5px, #555 3px, #555 3.5px, transparent 3.5px),
-    radial-gradient(circle at 50% 100%, transparent 5.5px, #555 6px, #555 6.5px, transparent 6.5px);
+    radial-gradient(
+      circle at 50% 100%,
+      transparent 2.5px,
+      #555 3px,
+      #555 3.5px,
+      transparent 3.5px
+    ),
+    radial-gradient(
+      circle at 50% 100%,
+      transparent 5.5px,
+      #555 6px,
+      #555 6.5px,
+      transparent 6.5px
+    );
 }
 
 .statusBattery {
-  display: block; width: 18px; height: 9px;
-  border: 1px solid #999; border-radius: 1.5px; position: relative;
+  display: block;
+  width: 18px;
+  height: 9px;
+  border: 1px solid #999;
+  border-radius: 1.5px;
+  position: relative;
 
   &::after {
-    content: ''; position: absolute; right: -2.2px; top: 50%; transform: translateY(-50%);
-    width: 1.5px; height: 3px; background: #999; border-radius: 0 0.8px 0.8px 0;
+    content: "";
+    position: absolute;
+    right: -2.2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1.5px;
+    height: 3px;
+    background: #999;
+    border-radius: 0 0.8px 0.8px 0;
   }
 }
 
 // ── 屏幕区域 ─────────────────────────────────────────────────────────────────
 
-.screenArea { flex-shrink: 0; background: transparent; position: relative; z-index: 1; }
+.screenArea {
+  flex-shrink: 0;
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
 
 // ── Home Indicator ────────────────────────────────────────────────────────────
 
 .homeBar {
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(0, 0, 0, 0.04); flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
 }
 
 .homeIndicator {
-  display: block; width: 120px; height: 4px; border-radius: 3px;
-  background: rgba(0, 0, 0, 0.15); margin-top: 2px;
+  display: block;
+  width: 120px;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.15);
+  margin-top: 2px;
 }
 
-.homeBarAndroid { background: transparent; }
+.homeBarAndroid {
+  background: transparent;
+}
 .homeIndicatorAndroid {
-  width: 22px; height: 4px; border-radius: 2px;
-  background: rgba(0, 0, 0, 0.12); margin-top: 4px;
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.12);
+  margin-top: 4px;
 }

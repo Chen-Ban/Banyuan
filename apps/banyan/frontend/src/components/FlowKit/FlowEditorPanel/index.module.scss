@@ -1,7 +1,7 @@
 // FlowEditorPanel — 右侧流程编辑面板样式
 // flex item + 渐入动画 + 圆角卡片
-@use '../../../styles/tokens/typography' as *;
-@use '../../../styles/mixins' as *;
+@use "../../../styles/tokens/typography" as *;
+@use "../../../styles/mixins" as *;
 
 // ── 外层包裹（控制宽度动画，避免突兀挤压画布） ────────────────────────────────
 
@@ -10,7 +10,6 @@
   flex-shrink: 0;
   height: 100%;
   overflow: hidden;
-  padding: 12px;
   box-sizing: content-box;
   position: relative;
   z-index: 1010; // 高于属性面板抽屉，避免抽屉关闭动画遮挡
@@ -37,8 +36,9 @@
   // 从右侧滑入
   transform: translateX(20px);
   opacity: 0;
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   .panelWrapperOpen & {
     transform: translateX(0);
@@ -74,7 +74,9 @@
   font-size: 13px;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--duration-normal), color var(--duration-normal);
+  transition:
+    background var(--duration-normal),
+    color var(--duration-normal);
 
   &:hover {
     background: var(--color-bg-hover);
@@ -131,11 +133,12 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: left var(--duration-drawer) var(--easing-default),
-              background var(--duration-normal),
-              border-color var(--duration-normal),
-              color var(--duration-normal),
-              transform var(--duration-fast);
+  transition:
+    left var(--duration-drawer) var(--easing-default),
+    background var(--duration-normal),
+    border-color var(--duration-normal),
+    color var(--duration-normal),
+    transform var(--duration-fast);
 
   &:hover {
     background: var(--color-info-subtle-hover);

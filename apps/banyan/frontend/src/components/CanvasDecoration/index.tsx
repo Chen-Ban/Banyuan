@@ -172,7 +172,7 @@ const CanvasDecoration: React.FC<CanvasDecorationProps> = ({
       }}
     >
       {config.showTopBar && config.topBarStyle === 'ios-status' && (
-        <div className={`${styles.topBar} ${styles.iosStatusBar}`} style={{ height: config.topBarHeight }}>
+        <div className={`${styles.topBar} ${styles.iosStatusBar}`} style={{ height: config.topBarHeight, borderRadius: `${config.borderRadius}px ${config.borderRadius}px 0 0` }}>
           <span className={styles.statusTime}>{time}</span>
           <span className={styles.statusIcons}>
             {online && <span className={styles.statusWifi} />}
@@ -182,18 +182,18 @@ const CanvasDecoration: React.FC<CanvasDecorationProps> = ({
         </div>
       )}
       {config.showTopBar && config.topBarStyle === 'android-status' && (
-        <div className={`${styles.topBar} ${styles.androidStatusBar}`} style={{ height: config.topBarHeight }}>
+        <div className={`${styles.topBar} ${styles.androidStatusBar}`} style={{ height: config.topBarHeight, borderRadius: `${config.borderRadius}px ${config.borderRadius}px 0 0` }}>
           <span className={styles.statusTime}>{time}</span>
           <span className={styles.androidIconsRight}><span className={styles.statusSignal} />{online && <span className={styles.statusWifi} />}<span className={styles.statusBattery} style={battStyle} /></span>
         </div>
       )}
       {config.showTopBar && config.topBarStyle === 'mac-title' && (
-        <div className={styles.macTitleBar} style={{ height: config.topBarHeight }}>
+        <div className={styles.macTitleBar} style={{ height: config.topBarHeight, borderRadius: `${config.borderRadius}px ${config.borderRadius}px 0 0` }}>
           <span className={styles.trafficLights}><span className={styles.trafficDot} /><span className={styles.trafficDot} /><span className={styles.trafficDot} /></span>
         </div>
       )}
       {config.showTopBar && config.topBarStyle === 'windows-title' && (
-        <div className={styles.winTitleBar} style={{ height: config.topBarHeight }}>
+        <div className={styles.winTitleBar} style={{ height: config.topBarHeight, borderRadius: `${config.borderRadius}px ${config.borderRadius}px 0 0` }}>
           <span className={styles.winSpacer} />
           <span className={styles.winCtrls}><span className={styles.winBtn}>─</span><span className={styles.winBtn}>□</span><span className={styles.winBtn} data-close>✕</span></span>
         </div>
@@ -205,7 +205,7 @@ const CanvasDecoration: React.FC<CanvasDecorationProps> = ({
       {config.showCrease && <div className={styles.crease} />}
       <div className={styles.screenArea} style={{ width: canvasRect.width, height: canvasRect.height }} />
       {config.showHomeIndicator && (
-        <div className={`${styles.homeBar} ${config.homeIndicatorStyle === 'android-pill' ? styles.homeBarAndroid : ''}`} style={{ height: config.bottomBarHeight }}>
+        <div className={`${styles.homeBar} ${config.homeIndicatorStyle === 'android-pill' ? styles.homeBarAndroid : ''}`} style={{ height: config.bottomBarHeight, borderRadius: `0 0 ${config.borderRadius}px ${config.borderRadius}px` }}>
           <span className={`${styles.homeIndicator} ${config.homeIndicatorStyle === 'android-pill' ? styles.homeIndicatorAndroid : ''}`} />
         </div>
       )}

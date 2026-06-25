@@ -81,6 +81,14 @@ export interface ApplicationState {
   /** 当前应用设计尺寸 */
   designSize: DesignSize;
 
+  // ── 设计 DPR ───────────────────────────────────────────────────────────────
+  /**
+   * 目标设备像素比（由机型选择器设置）。
+   * 编辑/预览时使用此值模拟目标设备的渲染密度；
+   * 运行态（部署到真机）不使用此值，从 window.devicePixelRatio 获取。
+   */
+  designDpr: number;
+
   // ── 设备类型 ───────────────────────────────────────────────────────────────
   /** 当前设备类型，驱动画布装饰渲染 */
   deviceType: DeviceType;
@@ -124,8 +132,15 @@ export interface ApplicationActions {
 
   // ── 设计尺寸 ───────────────────────────────────────────────────────────────
   setDesignSize: (size: DesignSize) => void;
-  /** Layout 机型选择器调用：更新 store 状态 + 通过 actions 通知画布引擎 */
-  changeDesignSize: (size: DesignSize) => void;
+  /**
+   * Layout 机型选择器调用：更新 store 状态 + 通过 actions 通知画布引擎。
+   * @param size 逻辑像素尺寸
+   * @param dpr  目标设备像素比（可选，不传则保持当前 designDpr）
+   */
+  changeDesignSize: (size: DesignSize, dpr?: number) => void;
+
+  // ── 设计 DPR ───────────────────────────────────────────────────────────────
+  setDesignDpr: (dpr: number) => void;
 
   // ── 设备类型 ───────────────────────────────────────────────────────────────
   setDeviceType: (type: DeviceType) => void;
@@ -171,6 +186,7 @@ const initialState: ApplicationState = {
   dataLoading: false,
   appName: "",
   designSize: { width: 1280, height: 800 },
+  designDpr: 1,
   deviceType: "windows",
   actions: null,
   initialPrompt: new Map(),
@@ -302,11 +318,24 @@ export const useApplicationStore = create<
 
   // ── 设计尺寸 ───────────────────────────────────────────────────────────────
   setDesignSize: (size) => set({ designSize: size }),
-  changeDesignSize: (size) => {
-    set({ designSize: size });
+  changeDesignSize: (size, dpr) => {
+    const update: Partial<ApplicationState> = { designSize: size };
+    if (dpr !== undefined) {
+      update.designDpr = dpr;
+    }
+    set(update);
     // 直接通知画布引擎
-    get().actions?.app.setDesignSize(size.width, size.height);
+    const { actions } = get();
+    if (actions?.app) {
+      actions.app.setDesignSize(size.width, size.height);
+      // DPR 流入引擎：有传入则用传入值，否则从当前 store 读取
+      const effectiveDpr = dpr !== undefined ? dpr : get().designDpr;
+      actions.app.renderer?.setDPR(effectiveDpr);
+    }
   },
+
+  // ── 设计 DPR ───────────────────────────────────────────────────────────────
+  setDesignDpr: (dpr) => set({ designDpr: dpr }),
 
   // ── 设备类型 ───────────────────────────────────────────────────────────────
   setDeviceType: (type) => set({ deviceType: type }),

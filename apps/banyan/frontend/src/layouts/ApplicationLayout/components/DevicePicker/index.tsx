@@ -27,7 +27,7 @@ const DevicePicker: React.FC = () => {
         icon: <GroupIcon />,
         label: `${preset.label}（${preset.width}×${preset.height}）`,
         onClick: () => {
-          changeDesignSize({ width: preset.width, height: preset.height });
+          changeDesignSize({ width: preset.width, height: preset.height }, preset.dpr);
           setDeviceType(preset.deviceType);
         },
       })),
