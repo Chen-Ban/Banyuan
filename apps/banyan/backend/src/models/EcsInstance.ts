@@ -1,7 +1,17 @@
 import mongoose, { Schema, Document } from 'mongoose'
-import type { IEcsInstance } from './types/index.js'
+import type { IEcsInstance, IEcsMetric } from './types/index.js'
 
 type IEcsInstanceDoc = IEcsInstance & Document
+
+const EcsMetricSchema = new Schema<IEcsMetric>(
+  {
+    timestamp: { type: Date, required: true, default: Date.now },
+    cpu: { type: Number, required: true },
+    memory: { type: Number, required: true },
+    disk: { type: Number, required: true },
+  },
+  { _id: false },
+)
 
 const EcsInstanceSchema = new Schema<IEcsInstanceDoc>(
   {
@@ -20,6 +30,7 @@ const EcsInstanceSchema = new Schema<IEcsInstanceDoc>(
     provisionError: { type: String, default: undefined },
     provisionedAt: { type: Date, default: undefined },
     terminatedAt: { type: Date, default: undefined },
+    metrics: { type: [EcsMetricSchema], default: [] },
   },
   { timestamps: true, collection: 'ecs_instances' },
 )

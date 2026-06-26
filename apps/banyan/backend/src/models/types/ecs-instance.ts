@@ -14,6 +14,18 @@ export type EcsInstanceStatus =
   | 'deprovisioning'  // 回收中
   | 'terminated'      // 已释放
 
+/** 单条 ECS 监控指标快照 */
+export interface IEcsMetric {
+  /** 采集时间 */
+  timestamp: Date
+  /** CPU 使用率（0-100） */
+  cpu: number
+  /** 内存使用率（0-100） */
+  memory: number
+  /** 磁盘使用率（0-100） */
+  disk: number
+}
+
 export interface IEcsInstance {
   /** 阿里云 ECS 实例 ID（如 i-2ze...），作为主键 */
   instanceId: string
@@ -37,6 +49,8 @@ export interface IEcsInstance {
   provisionedAt?: Date
   /** 释放时间 */
   terminatedAt?: Date
+  /** 监控指标时间序列（最近 100 条） */
+  metrics: IEcsMetric[]
   createdAt: Date
   updatedAt: Date
 }

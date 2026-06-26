@@ -22,6 +22,10 @@ export interface IPlan {
 export interface ICreditUsage {
   usageId: string
   tenantId: string
+  /** 可选：应用级用量限定（应用维度过滤，未设置则为租户级） */
+  applicationId?: string
+  /** 应用级 AI 额度上限（仅在 applicationId 存在时有意义） */
+  appAiLimit?: number
   /** 计费周期标识：'2026-06' 格式 */
   yearMonth: string
   /** 已消耗 credits */

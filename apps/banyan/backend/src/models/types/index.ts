@@ -32,7 +32,7 @@ export type { MembershipRole, MembershipStatus, IMembership } from './membership
 
 export type { ITenant } from './tenant.js'
 
-export type { EcsInstanceStatus, IEcsInstance } from './ecs-instance.js'
+export type { EcsInstanceStatus, IEcsMetric, IEcsInstance } from './ecs-instance.js'
 
 export type { IPlan, ICreditUsage, CreditUsageDetail } from './plan.js'
 
@@ -75,3 +75,11 @@ export type {
   IAssistantContent,
   IMessage,
 } from './message-types.js'
+
+export type { IPaymentOrder, PaymentChannel, PaymentStatus } from './payment.js'
+
+export type { IBill, BillStatus } from './bill.js'
+
+export type { INotification, NotificationType } from './notification.js'
+
+export type { ILLMCallRecord } from './llm-call-record.js'

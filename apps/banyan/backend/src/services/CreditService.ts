@@ -16,6 +16,8 @@ import { CreditUsage } from '../models/CreditUsage.js'
 import { Plan } from '../models/Plan.js'
 import { Tenant } from '../models/Tenant.js'
 import type { CreditUsageDetail } from '../models/types/index.js'
+import { logger } from '../utils/logger.js'
+import type { NotificationService } from './NotificationService.js'
 
 /** 旧版 pro 套餐（无 planId）的月 credit 额度 */
 const LEGACY_PRO_MONTHLY_CREDITS = 50_000
@@ -33,6 +35,27 @@ const CREDIT_PRICE_TABLE: Record<string, { inputPer1K: number; outputPer1K: numb
 
 /** 平台加价倍率 */
 const MARKUP_FACTOR = 2.0
+
+/**
+ * 超量 credit 单价（分/credit）。
+ * 当租户月用量超出套餐额度时，按此单价计费。
+ * BillingService 使用此常量计算超量费用。
+ */
+export const OVERAGE_UNIT_PRICE = 1 // 分/credit
+
+/**
+ * 延迟加载 NotificationService，避免循环依赖。
+ * CreditService → NotificationService（单向），但为安全起见使用懒加载。
+ */
+let _notificationService: NotificationService | null = null
+
+async function getNotificationService(): Promise<NotificationService> {
+  if (!_notificationService) {
+    const mod = await import('./NotificationService.js')
+    _notificationService = mod.notificationService
+  }
+  return _notificationService
+}
 
 function getCurrentYearMonth(): string {
   const now = new Date()
@@ -62,6 +85,8 @@ export class CreditService {
 
   /**
    * 记录一次 credit 消耗
+   *
+   * @param applicationId 可选：应用 ID，传入时计入应用级用量
    */
   async recordUsage(
     tenantId: string,
@@ -69,6 +94,7 @@ export class CreditService {
     model: string,
     inputTokens: number,
     outputTokens: number,
+    applicationId?: string,
   ): Promise<void> {
     const yearMonth = getCurrentYearMonth()
     const credits = this.calculateCredits(model, inputTokens, outputTokens)
@@ -81,15 +107,68 @@ export class CreditService {
       timestamp: new Date(),
     }
 
+    const query: Record<string, string> = { tenantId, yearMonth }
+    if (applicationId) {
+      query.applicationId = applicationId
+    } else {
+      query.applicationId = { $exists: false } as unknown as string
+    }
+
     await CreditUsage.findOneAndUpdate(
-      { tenantId, yearMonth },
+      query,
       {
         $inc: { creditsUsed: credits },
         $push: { detail },
-        $setOnInsert: { usageId: generateId('cu') },
+        $setOnInsert: {
+          usageId: generateId('cu'),
+          ...(applicationId ? { applicationId } : {}),
+        },
       },
       { upsert: true },
     )
+
+    // ─── 配额告警检查 ──────────────────────────────────────────────────────
+    try {
+      const usage = await CreditUsage.findOne(query).lean()
+      const used = usage?.creditsUsed ?? credits
+
+      let total = 0
+      if (applicationId) {
+        // 应用级：从 Application 模型获取 aiLimit
+        const { default: Application } = await import('../models/Application.js')
+        const app = await Application.findOne({ application_id: applicationId }).lean()
+        total = app?.aiLimit ?? 0
+      }
+
+      if (total === 0) {
+        // 回落租户级额度
+        const tenant = await Tenant.findOne({ tenantId }).lean()
+        if (tenant?.planId) {
+          const plan = await Plan.findOne({ planId: tenant.planId }).lean()
+          total = plan?.monthlyCredits ?? 0
+        } else if (tenant?.plan === 'pro') {
+          total = LEGACY_PRO_MONTHLY_CREDITS
+        }
+      }
+
+      // 仅对付费套餐进行告警
+      if (total > 0) {
+        const remaining = Math.max(0, total - used)
+        const ratio = remaining / total
+
+        if (ratio <= 0.10) {
+          const ns = await getNotificationService()
+          await ns.sendQuotaAlert(tenantId, 'critical', remaining, total)
+        } else if (ratio <= 0.20) {
+          const ns = await getNotificationService()
+          await ns.sendQuotaAlert(tenantId, 'warning', remaining, total)
+        }
+      }
+    } catch (alertErr) {
+      // 告警失败不影响主流程
+      const errorMsg = alertErr instanceof Error ? alertErr.message : String(alertErr)
+      logger.error({ tenantId, error: errorMsg }, 'Quota alert check failed')
+    }
   }
 
   /**
@@ -97,7 +176,7 @@ export class CreditService {
    */
   async getMonthlyUsage(tenantId: string): Promise<{ used: number; total: number; remaining: number }> {
     const yearMonth = getCurrentYearMonth()
-    const usage = await CreditUsage.findOne({ tenantId, yearMonth }).lean()
+    const usage = await CreditUsage.findOne({ tenantId, yearMonth, applicationId: { $exists: false } }).lean()
     const used = usage?.creditsUsed ?? 0
 
     // 查询套餐额度
@@ -119,6 +198,45 @@ export class CreditService {
   async isQuotaExceeded(tenantId: string): Promise<boolean> {
     const { remaining, total } = await this.getMonthlyUsage(tenantId)
     // total === 0 表示无限制（免费版）
+    if (total === 0) return false
+    return remaining <= 0
+  }
+
+  /**
+   * 查询应用级当月已用 credit
+   */
+  async getAppMonthlyUsage(
+    tenantId: string,
+    appId: string,
+  ): Promise<{ used: number; total: number; remaining: number }> {
+    const yearMonth = getCurrentYearMonth()
+    const usage = await CreditUsage.findOne({ tenantId, applicationId: appId, yearMonth }).lean()
+    const used = usage?.creditsUsed ?? 0
+
+    // 查询应用级额度
+    const { default: Application } = await import('../models/Application.js')
+    const app = await Application.findOne({ application_id: appId }).lean()
+    let total = app?.aiLimit ?? 0
+
+    // 回落租户级额度
+    if (total === 0) {
+      const tenant = await Tenant.findOne({ tenantId }).lean()
+      if (tenant?.planId) {
+        const plan = await Plan.findOne({ planId: tenant.planId }).lean()
+        total = plan?.monthlyCredits ?? 0
+      } else if (tenant?.plan === 'pro') {
+        total = LEGACY_PRO_MONTHLY_CREDITS
+      }
+    }
+
+    return { used, total, remaining: Math.max(0, total - used) }
+  }
+
+  /**
+   * 检查应用级配额是否超限
+   */
+  async isAppQuotaExceeded(tenantId: string, appId: string): Promise<boolean> {
+    const { remaining, total } = await this.getAppMonthlyUsage(tenantId, appId)
     if (total === 0) return false
     return remaining <= 0
   }

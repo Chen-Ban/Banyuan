@@ -11,6 +11,7 @@ export {
   AiAppNotFoundError,
   AiDialogueConflictError,
   AiNoConfirmableDialogueError,
+  AiQuotaExceededError,
   AiContextBudgetError,
   AiUpstreamConnectError,
   AiUpstreamTimeoutError,

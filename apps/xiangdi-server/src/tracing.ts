@@ -65,15 +65,18 @@ export function initLangSmithTracing(): void {
  *
  * 在每次 graph.invoke() 时使用，将 MongoDB 侧的业务 ID 注入 trace，
  * 实现 trace ↔ dialogue 的双向关联。
+ * traceId 来自上游 banyan 后端，用于跨服务全链路追踪。
  */
 export function createTraceMetadata(metadata: {
   appId: string
   dialogueId?: string
   mode?: string
+  traceId?: string
 }): Record<string, unknown> {
   return {
     appId: metadata.appId,
     ...(metadata.dialogueId ? { dialogueId: metadata.dialogueId } : {}),
     ...(metadata.mode ? { mode: metadata.mode } : {}),
+    ...(metadata.traceId ? { traceId: metadata.traceId } : {}),
   }
 }

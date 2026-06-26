@@ -22,6 +22,7 @@
     "@banyuan/xiangdi-agent": "workspace:*",
     "@koa/cors": "^5.0.0",
     "@koa/router": "^13.1.0",
+    "@sentry/node": "^9.0.0",
     "@langchain/core": "^0.3.26",
     "@langchain/langgraph": "^0.2.36",
     "@langchain/langgraph-checkpoint-sqlite": "^0.1.0",

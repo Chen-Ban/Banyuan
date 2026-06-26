@@ -107,3 +107,13 @@ export function requireTenant(): Middleware {
     await next()
   }
 }
+
+/**
+ * clearPermissionCache — 清除指定租户的权限缓存
+ *
+ * 在套餐变更（升级/降级/支付激活）后调用，
+ * 确保下次请求时重新从数据库加载最新权限。
+ */
+export function clearPermissionCache(tenantId: string): void {
+  permissionCache.delete(tenantId)
+}

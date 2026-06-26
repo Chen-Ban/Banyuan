@@ -16,6 +16,8 @@ import internalRouter from './internal.js'
 import deployRouter from './deploy.js'
 import tenantRouter from './tenants.js'
 import creditRouter from './credits.js'
+import paymentRouter, { paymentNotifyRouter } from './payment.js'
+import notificationRouter from './notification.js'
 import { authMiddleware } from '../middleware/auth.js'
 import { requireTenant } from '../middleware/requirePermission.js'
 
@@ -26,6 +28,8 @@ router.get('/health', async (ctx) => {
   ctx.body = {
     success: true,
     message: 'Banyan server is running',
+    service: process.env.SERVICE_NAME ?? 'banyan-backend',
+    version: '0.0.1',
     timestamp: new Date().toISOString(),
   }
 })
@@ -38,6 +42,9 @@ router.use(publicAiRouter.routes(), publicAiRouter.allowedMethods())
 
 // 内部 API（供 XiangDi 服务回调，使用 X-Internal-Token 鉴权，不走 JWT）
 router.use(internalRouter.routes(), internalRouter.allowedMethods())
+
+// 支付回调通知（聚合商回调，使用 X-Internal-Token 鉴权，不走 JWT）
+router.use(paymentNotifyRouter.routes(), paymentNotifyRouter.allowedMethods())
 
 // ─── 以下路由全部需要 JWT 认证 ─────────────────────────────────────────────────
 router.use(authMiddleware)
@@ -92,5 +99,11 @@ router.use(tenantRouter.routes(), tenantRouter.allowedMethods())
 
 // AI Credit 用量查询
 router.use(creditRouter.routes(), creditRouter.allowedMethods())
+
+// 聚合支付
+router.use(paymentRouter.routes(), paymentRouter.allowedMethods())
+
+// 通知
+router.use(notificationRouter.routes(), notificationRouter.allowedMethods())
 
 export default router
