@@ -1,4 +1,4 @@
-// SettingsPage 样式
+// AiModelsSettings 样式
 @use '../../styles/tokens/typography' as *;
 
 .page {
@@ -40,7 +40,11 @@
   margin-bottom: 16px;
 }
 
-// ─── AI 角色配置 ──────────────────────────────────────────────────────────────
+.placeholder {
+  padding: 40px 0;
+}
+
+// ─── Agent Prompts ────────────────────────────────────────────────────────────
 
 .roleTabs {
   :global(.ant-tabs-tab) {
@@ -78,8 +82,6 @@
   gap: 8px;
 }
 
-// ─── 加载 ─────────────────────────────────────────────────────────────────────
-
 .loadingWrap {
   display: flex;
   align-items: center;
@@ -87,4 +89,8 @@
   padding: 24px 0;
   color: var(--color-text-tertiary);
   font-size: $text-sm;
+}
+
+.noticeWrap {
+  padding: 24px 0;
 }

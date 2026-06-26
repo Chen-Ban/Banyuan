@@ -3,6 +3,12 @@ import RootLayout from '@/layouts/RootLayout'
 import HomePage from '@/pages/HomePage'
 import ApplicationListPage from '@/pages/ApplicationListPage'
 import SettingsPage from '@/pages/SettingsPage'
+import GeneralSettings from '@/pages/SettingsPage/GeneralSettings'
+import AiModelsSettings from '@/pages/SettingsPage/AiModelsSettings'
+import AppearanceSettings from '@/pages/SettingsPage/AppearanceSettings'
+import AccountSettings from '@/pages/SettingsPage/AccountSettings'
+import TenantSettings from '@/pages/SettingsPage/TenantSettings'
+import NotificationSettings from '@/pages/SettingsPage/NotificationSettings'
 import ApplicationLayout from '@/layouts/ApplicationLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import UIPage from '@/pages/UIPage'
@@ -23,7 +29,20 @@ const routes: RouteObject[] = [
         element: <ProtectedRoute />,
         children: [
           { path: 'applications', element: <ApplicationListPage /> },
-          { path: 'settings', element: <SettingsPage /> },
+          // 设置页：子路由模式，左侧导航由 Sidebar SettingsNav 控制
+          {
+            path: 'settings',
+            element: <SettingsPage />,
+            children: [
+              { index: true, element: <Navigate to="general" replace /> },
+              { path: 'general', element: <GeneralSettings /> },
+              { path: 'ai-models', element: <AiModelsSettings /> },
+              { path: 'appearance', element: <AppearanceSettings /> },
+              { path: 'account', element: <AccountSettings /> },
+              { path: 'tenant', element: <TenantSettings /> },
+              { path: 'notifications', element: <NotificationSettings /> },
+            ],
+          },
           // 应用详情：Outlet 嵌套路由模式
           {
             path: 'application/:id',

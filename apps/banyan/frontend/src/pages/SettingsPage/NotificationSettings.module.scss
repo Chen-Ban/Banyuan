@@ -1,0 +1,39 @@
+// NotificationSettings 样式
+@use '../../styles/tokens/typography' as *;
+
+.page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.content {
+  padding: 40px 32px;
+  max-width: 800px;
+}
+
+.title {
+  font-size: $text-2xl;
+  font-weight: $font-semibold;
+  color: var(--color-text-primary);
+  margin: 0 0 24px !important;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: $text-lg;
+  font-weight: $font-medium;
+  color: var(--color-text-primary);
+  margin: 0 0 6px !important;
+}
+
+.sectionDesc {
+  display: block;
+  font-size: $text-sm;
+  margin-bottom: 16px;
+}
