@@ -65,6 +65,50 @@ paymentNotifyRouter.post('/api/payments/notify', async (ctx) => {
   }
 })
 
+/**
+ * POST /api/payments/:orderId/confirm
+ * Admin 手动确认收款（MVP 阶段：不走支付回调，内部 token 鉴权）
+ */
+paymentNotifyRouter.post('/api/payments/:orderId/confirm', async (ctx) => {
+  const token = ctx.get('X-Internal-Token')
+  if (token !== INTERNAL_TOKEN) {
+    ctx.status = 401
+    ctx.body = { success: false, message: 'Unauthorized: invalid internal token' }
+    return
+  }
+
+  const { orderId } = ctx.params
+
+  try {
+    const order = await paymentService.getOrderById(orderId)
+    if (!order) {
+      ctx.status = 404
+      ctx.body = { success: false, message: `订单不存在: ${orderId}` }
+      return
+    }
+
+    if (order.status === 'paid') {
+      ctx.body = { success: true, message: '订单已支付，无需重复确认' }
+      return
+    }
+
+    if (order.status !== 'pending') {
+      ctx.status = 400
+      ctx.body = { success: false, message: `订单状态异常: ${order.status}，仅 pending 状态可确认` }
+      return
+    }
+
+    await paymentService.processPayment(order.outTradeNo)
+    logger.info(`[Payment] Admin confirmed payment for order ${orderId}, tenant ${order.tenantId}`)
+    ctx.body = { success: true, message: 'Payment confirmed — tenant plan activated' }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    logger.error(`[Payment] Admin confirm failed for ${orderId}: ${message}`)
+    ctx.status = 500
+    ctx.body = { success: false, message }
+  }
+})
+
 // ─── 前端支付 Router（需要 JWT，在 authMiddleware 之后挂载）────────────────────
 
 const paymentRouter = new Router({ prefix: '/api/payments' })

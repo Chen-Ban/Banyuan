@@ -21,6 +21,13 @@ function generateId(prefix: string): string {
 
 export class PaymentService {
   /**
+   * 按 orderId 查询订单
+   */
+  async getOrderById(orderId: string) {
+    return PaymentOrder.findOne({ orderId }).lean()
+  }
+
+  /**
    * 创建支付订单
    *
    * @returns 订单基本信息 + 支付链接（聚合商占位 mock URL）
