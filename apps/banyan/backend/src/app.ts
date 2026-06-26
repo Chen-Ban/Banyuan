@@ -6,6 +6,26 @@ import router from './routes'
 import authRouter from './routes/auth.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { httpLogger } from './middleware/httpLogger.js'
+import { logger } from './utils/logger.js'
+
+// Sentry 异常上报（可选，由 SENTRY_DSN 环境变量驱动）
+const SENTRY_DSN = process.env.SENTRY_DSN
+if (SENTRY_DSN) {
+  import('@sentry/node')
+    .then((Sentry) => {
+      Sentry.init({
+        dsn: SENTRY_DSN,
+        environment: process.env.NODE_ENV ?? 'development',
+        tracesSampleRate: 1.0,
+      })
+      logger.info('Sentry initialized')
+    })
+    .catch((err) => {
+      logger.warn('Sentry initialization failed, skipping:', err)
+    })
+} else {
+  logger.warn('SENTRY_DSN not set, skipping Sentry initialization')
+}
 
 const app = new Koa()
 

@@ -26,6 +26,8 @@ const CreditUsageSchema = new Schema<ICreditUsageDoc>(
   {
     usageId: { type: String, required: true, unique: true, index: true },
     tenantId: { type: String, required: true, index: true },
+    applicationId: { type: String, default: undefined, sparse: true },
+    appAiLimit: { type: Number, default: undefined },
     yearMonth: { type: String, required: true },
     creditsUsed: { type: Number, required: true, default: 0 },
     detail: { type: [CreditUsageDetailSchema], default: [] },
@@ -33,6 +35,13 @@ const CreditUsageSchema = new Schema<ICreditUsageDoc>(
   { timestamps: true, collection: 'credit_usage' },
 )
 
-CreditUsageSchema.index({ tenantId: 1, yearMonth: 1 }, { unique: true })
+CreditUsageSchema.index(
+  { tenantId: 1, yearMonth: 1 },
+  { unique: true, partialFilterExpression: { applicationId: { $exists: false } } },
+)
+CreditUsageSchema.index(
+  { tenantId: 1, applicationId: 1, yearMonth: 1 },
+  { unique: true, partialFilterExpression: { applicationId: { $type: 'string' } } },
+)
 
 export const CreditUsage = mongoose.model<ICreditUsageDoc>('CreditUsage', CreditUsageSchema)

@@ -43,6 +43,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import http from 'http'
 import https from 'https'
+import crypto from 'node:crypto'
 import { Types } from 'mongoose'
 import applicationService from './ApplicationService.js'
 import uiDefinitionService from './UIDefinitionService.js'
@@ -462,8 +463,9 @@ class AiService {
     type: DialogueType,
     images: Array<{ url: string; alt?: string }>,
     res: ServerResponse,
+    traceId?: string,
   ): Promise<void> {
-    return withAppLock(appId, () => this._runWithSSECore(appId, prompt, type, images, res))
+    return withAppLock(appId, () => this._runWithSSECore(appId, prompt, type, images, res, traceId))
   }
 
   private async _runWithSSECore(
@@ -472,6 +474,7 @@ class AiService {
     type: DialogueType,
     images: Array<{ url: string; alt?: string }>,
     res: ServerResponse,
+    traceId?: string,
   ): Promise<void> {
     if (!res.headersSent) {
       res.writeHead(200, {
@@ -488,7 +491,7 @@ class AiService {
       if (!app) throw new AiAppNotFoundError(appId)
 
       await conversationService.getOrCreate(appId)
-      await this._runDialogue(appId, app.tenantId, prompt, type, images, res)
+      await this._runDialogue(appId, app.tenantId, prompt, type, images, res, traceId)
     } catch (err) {
       if (err instanceof ContextBudgetOverflowError) {
         sseWriteError(res, new AiContextBudgetError(err.details))
@@ -512,6 +515,7 @@ class AiService {
     type: DialogueType,
     images: Array<{ url: string; alt?: string }>,
     res: ServerResponse,
+    traceId?: string,
   ): Promise<void> {
     // 1. 创建 Dialogue（同时给三张内容表 append 草稿版本）
     const conv = await conversationService.getOrCreate(appId)
@@ -542,13 +546,15 @@ class AiService {
     const layeredContext = await contextBuilder.build(appId, prompt, contextOptions)
     const { contextSummary, recentMessages: historyMessages } = layeredContext
 
-    // 4. 构造 requestBody（ADR-041 协议：传入 dialogueId 用于 LangSmith 链路关联）
+    // 4. 构造 requestBody（ADR-041 协议：传入 dialogueId 用于 LangSmith 链路关联，传入 traceId 用于跨服务追踪）
+    const resolvedTraceId = traceId ?? crypto.randomUUID()
     const imageUrls = images.length > 0 ? images.map((img) => img.url) : undefined
     const requestBody = JSON.stringify({
       appId,
       prompt,
       mode: type,
       dialogueId: dialogueId.toString(),
+      traceId: resolvedTraceId,
       previousMessages: historyMessages,
       ...(contextSummary ? { memoryHint: contextSummary } : {}),
       ...(agentMemoryText ? { agentMemory: agentMemoryText } : {}),

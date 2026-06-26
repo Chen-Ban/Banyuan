@@ -11,6 +11,7 @@ const TenantSchema = new Schema<ITenantDoc>(
     name: { type: String, required: true },
     plan: { type: String, enum: ['free', 'pro'], default: 'free' },
     planId: { type: String, default: undefined },
+    subscriptionExpiresAt: { type: Date, default: undefined },
   },
   { timestamps: true, collection: 'tenants' },
 )

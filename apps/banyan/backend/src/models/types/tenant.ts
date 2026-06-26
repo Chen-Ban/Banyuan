@@ -14,6 +14,9 @@ export interface ITenant {
   /** 当前生效的套餐 ID （引用 Plan.planId） */
   planId?: string
 
+  /** 订阅到期时间（付费套餐有效期） */
+  subscriptionExpiresAt?: Date
+
   createdAt: Date
   updatedAt: Date
 }

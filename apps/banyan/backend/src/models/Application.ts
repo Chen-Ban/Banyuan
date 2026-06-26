@@ -86,6 +86,10 @@ const ApplicationSchema = new Schema<IApplicationDoc>(
       enum: ['static', 'fullstack'],
       default: undefined,
     },
+    aiLimit: {
+      type: Number,
+      default: undefined,
+    },
   },
   {
     timestamps: true,

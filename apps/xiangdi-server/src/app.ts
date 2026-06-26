@@ -25,6 +25,25 @@ import { initLangSmithTracing } from './tracing.js'
 // 启动时初始化 LangSmith Tracing（环境变量驱动）
 initLangSmithTracing()
 
+// Sentry 异常上报（可选，由 SENTRY_DSN 环境变量驱动）
+const SENTRY_DSN = process.env.SENTRY_DSN
+if (SENTRY_DSN) {
+  import('@sentry/node')
+    .then((Sentry) => {
+      Sentry.init({
+        dsn: SENTRY_DSN,
+        environment: process.env.NODE_ENV ?? 'development',
+        tracesSampleRate: 1.0,
+      })
+      structuredLogger.info('Sentry initialized')
+    })
+    .catch((err) => {
+      structuredLogger.warn('Sentry initialization failed, skipping:', err)
+    })
+} else {
+  structuredLogger.warn('SENTRY_DSN not set, skipping Sentry initialization')
+}
+
 const app = new Koa()
 
 // 全局错误处理

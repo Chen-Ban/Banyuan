@@ -39,6 +39,9 @@ export interface IApplication {
   /** 部署类型 */
   deployType?: 'static' | 'fullstack'
 
+  /** 应用级 AI 额度上限（不设置则回落租户额度） */
+  aiLimit?: number
+
   /** 创建时间 */
   createdAt: Date
   /** 更新时间 */

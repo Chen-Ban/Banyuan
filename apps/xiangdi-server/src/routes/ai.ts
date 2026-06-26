@@ -138,7 +138,8 @@ router.post('/run', async (ctx) => {
   }
 
   const threadId = clientThreadId ?? crypto.randomUUID()
-  const traceId = crypto.randomUUID()
+  // traceId 由上游 banyan 后端注入，用于跨服务全链路追踪；若缺失则降级生成一个
+  const traceId = (ctx.request.body as Record<string, unknown>).traceId as string | undefined ?? crypto.randomUUID()
   const reqLogger = createRequestLogger({ requestId: threadId, traceId })
   reqLogger.info('Orchestrator run started', { appId, threadId, mode: mode ?? 'task' })
 
@@ -257,7 +258,7 @@ router.post('/run', async (ctx) => {
     //    metadata 注入对话上下文到 LangSmith trace，实现 trace ↔ dialogue 双向关联。
     checkpointStore.recordActivity(threadId, 'running')
     const systemPrompt = buildSystemPrompt()
-    const langsmithMetadata = createTraceMetadata({ appId, dialogueId, mode: mode ?? 'task' })
+    const langsmithMetadata = createTraceMetadata({ appId, dialogueId, mode: mode ?? 'task', traceId })
     try {
       await graph.invoke(
         {

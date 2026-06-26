@@ -25,6 +25,11 @@ export { RefreshToken } from './RefreshToken.js'
 export { Deployment } from './Deployment.js'
 export { Plan } from './Plan.js'
 export { CreditUsage } from './CreditUsage.js'
+export { PaymentOrder } from './PaymentOrder.js'
+export { Bill } from './Bill.js'
+export { Notification } from './Notification.js'
+
+export { LLMCallRecord } from './LLMCallRecord.js'
 
 // ─── Schemas（供嵌入复用）───────────────────────────────────────────────────────
 

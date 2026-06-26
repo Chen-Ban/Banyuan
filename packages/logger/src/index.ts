@@ -23,11 +23,54 @@ export interface LoggerOpts {
 }
 
 export interface Logger {
+  // pino 原生兼容：obj 在前
+  debug(obj: Record<string, unknown>, message: string): void
+  info(obj: Record<string, unknown>, message: string): void
+  warn(obj: Record<string, unknown>, message: string): void
+  error(obj: Record<string, unknown>, message: string): void
+  // 便捷模式：message 在前
   debug(message: string, ...args: unknown[]): void
   info(message: string, ...args: unknown[]): void
   warn(message: string, ...args: unknown[]): void
   error(message: string, ...args: unknown[]): void
   child(opts: LoggerOpts): Logger
+}
+
+// ─── 实现工具 ─────────────────────────────────────────────────────────────────
+
+/**
+ * 将混参格式统一为 pino 的原生 (obj?, msg, ...args) 格式再分发
+ */
+function invokePino(method: 'debug' | 'info' | 'warn' | 'error', pino: pino.Logger, ...args: unknown[]): void {
+  if (args.length === 0) return
+  // 解析首参：如果首参是字符串 → 当作 msg；如果是对象 → 当作 obj
+  if (typeof args[0] === 'string') {
+    const msg = args[0]
+    const rest = args.slice(1)
+    if (rest.length > 0) {
+      ;(pino[method] as unknown as (...a: unknown[]) => void)(msg, ...rest)
+    } else {
+      ;(pino[method] as unknown as (...a: unknown[]) => void)(msg)
+    }
+  } else {
+    // obj 在前 → pino 原生格式
+    const obj = args[0]
+    const msg = args.length > 1 && typeof args[1] === 'string' ? args[1] : undefined
+    const rest = args.slice(msg ? 2 : 1)
+    if (msg) {
+      if (rest.length > 0) {
+        ;(pino[method] as unknown as (...a: unknown[]) => void)(obj, msg, ...rest)
+      } else {
+        ;(pino[method] as unknown as (...a: unknown[]) => void)(obj, msg)
+      }
+    } else {
+      if (rest.length > 0) {
+        ;(pino[method] as unknown as (...a: unknown[]) => void)(obj, ...rest)
+      } else {
+        ;(pino[method] as unknown as (...a: unknown[]) => void)(obj)
+      }
+    }
+  }
 }
 
 // ─── pino 实例工厂 ───────────────────────────────────────────────────────────
@@ -145,22 +188,10 @@ export function createRequestLogger(opts?: string | LoggerOpts): Logger {
  */
 function toLoggerInterface(pino: pino.Logger): Logger {
   return {
-    debug(message: string, ...args: unknown[]) {
-      if (args.length > 0) (pino.debug as unknown as (...a: unknown[]) => void)(message, ...args)
-      else pino.debug(message)
-    },
-    info(message: string, ...args: unknown[]) {
-      if (args.length > 0) (pino.info as unknown as (...a: unknown[]) => void)(message, ...args)
-      else pino.info(message)
-    },
-    warn(message: string, ...args: unknown[]) {
-      if (args.length > 0) (pino.warn as unknown as (...a: unknown[]) => void)(message, ...args)
-      else pino.warn(message)
-    },
-    error(message: string, ...args: unknown[]) {
-      if (args.length > 0) (pino.error as unknown as (...a: unknown[]) => void)(message, ...args)
-      else pino.error(message)
-    },
+    debug(...args: unknown[]) { invokePino('debug', pino, ...args) },
+    info(...args: unknown[]) { invokePino('info', pino, ...args) },
+    warn(...args: unknown[]) { invokePino('warn', pino, ...args) },
+    error(...args: unknown[]) { invokePino('error', pino, ...args) },
     child(opts: LoggerOpts): Logger {
       return toLoggerInterface(pino.child({
         requestId: opts?.requestId,

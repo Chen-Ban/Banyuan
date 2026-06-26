@@ -60,6 +60,23 @@ export class AiNoConfirmableDialogueError extends BanyanError {
   }
 }
 
+// ─── 配额超限 ─────────────────────────────────────────────────────────────────
+
+export class AiQuotaExceededError extends BanyanError {
+  constructor(scope: 'tenant' | 'app', used: number, limit: number) {
+    const scopeLabel = scope === 'app' ? '应用' : '租户'
+    super({
+      code: 'AI_QUOTA_EXCEEDED',
+      category: 'budget',
+      message: `AI quota exceeded (${scope}): ${used}/${limit}`,
+      userMessage: `${scopeLabel} AI 额度已用尽（${used}/${limit}），请升级套餐或等待下月重置`,
+      httpStatus: 402,
+      retryable: false,
+      details: { scope, used, limit },
+    })
+  }
+}
+
 // ─── 预算超限 ─────────────────────────────────────────────────────────────────
 
 export class AiContextBudgetError extends BanyanError {
