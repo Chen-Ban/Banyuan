@@ -23,6 +23,10 @@ import {
   AppstoreOutlined,
   SettingOutlined,
   UserOutlined,
+  RobotOutlined,
+  BgColorsOutlined,
+  TeamOutlined,
+  BellOutlined,
   LogoutOutlined,
   DownOutlined,
   DeleteOutlined,
@@ -243,20 +247,44 @@ const NavMenu: React.FC = () => {
 // ─── 子组件：设置项列表（复用 navItem 样式，保持一致） ──────────────────────────────
 
 const SettingsNav: React.FC = () => {
-  const [activeKey, setActiveKey] = useState('general')
+  const navigate = useNavigate()
+  const location = useLocation()
 
-  const settingsItems = [
-    { key: 'general', label: '通用设置', icon: <SettingOutlined /> },
-    { key: 'account', label: '账户设置', icon: <UserOutlined /> },
+  // 从当前路径提取 active key
+  const activeKey = location.pathname.split('/').pop() ?? 'general'
+
+  const personalItems = [
+    { key: 'general', label: '偏好设置', icon: <SettingOutlined /> },
+    { key: 'appearance', label: '主题与外观', icon: <BgColorsOutlined /> },
+    { key: 'account', label: '账户安全', icon: <UserOutlined /> },
+    { key: 'notifications', label: '通知管理', icon: <BellOutlined /> },
+  ]
+
+  const workspaceItems = [
+    { key: 'ai-models', label: 'AI 配置', icon: <RobotOutlined /> },
+    { key: 'tenant', label: '团队与租户', icon: <TeamOutlined /> },
   ]
 
   return (
     <>
-      {settingsItems.map((item) => (
+      <div className={styles.navSectionHeader}>个人设置</div>
+      {personalItems.map((item) => (
         <button
           key={item.key}
           className={`${styles.navItem} ${activeKey === item.key ? styles.navItemActive : ''}`}
-          onClick={() => setActiveKey(item.key)}
+          onClick={() => navigate(`/settings/${item.key}`)}
+        >
+          <span className={styles.navIcon}>{item.icon}</span>
+          <span>{item.label}</span>
+        </button>
+      ))}
+
+      <div className={styles.navSectionHeader}>工作空间</div>
+      {workspaceItems.map((item) => (
+        <button
+          key={item.key}
+          className={`${styles.navItem} ${activeKey === item.key ? styles.navItemActive : ''}`}
+          onClick={() => navigate(`/settings/${item.key}`)}
         >
           <span className={styles.navIcon}>{item.icon}</span>
           <span>{item.label}</span>

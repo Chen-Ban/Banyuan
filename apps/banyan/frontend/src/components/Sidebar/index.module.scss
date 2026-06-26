@@ -218,6 +218,21 @@
   @include scrollbar-dark;
 }
 
+// ── 导航分组标题 ──────────────────────────────────────────────────────────────
+
+.navSectionHeader {
+  font-size: $text-xs;
+  font-weight: $font-semibold;
+  color: var(--color-text-disabled);
+  padding: 14px 12px 4px;
+  letter-spacing: 0.03em;
+  user-select: none;
+
+  &:first-child {
+    padding-top: 2px;
+  }
+}
+
 // ── 导航菜单项 ────────────────────────────────────────────────────────────────
 
 .navItem {
