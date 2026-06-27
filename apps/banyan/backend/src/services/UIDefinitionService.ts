@@ -12,7 +12,7 @@
 
 import type { Types } from 'mongoose'
 import { UIDefinition } from '../models/index.js'
-import type { IUIDefinition } from '../models/types/versioned-content.js'
+import type { IUIDefinition } from '../models/types/index.js'
 
 class UIDefinitionService {
   // ─── 读取 ──────────────────────────────────────────────────────────────────

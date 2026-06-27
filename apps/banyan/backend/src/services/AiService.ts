@@ -54,7 +54,7 @@ import type { ContextBuildOptions } from './ContextBuilder.js'
 import { SchemaService } from './SchemaService.js'
 import memoryService from './MemoryService.js'
 import type { ICollectionDef, IAssistantContent, DialogueType } from '../models/types/index.js'
-import type { ICloudFunctionDef } from '../models/types/versioned-content.js'
+import type { ICloudFunctionDef } from '../models/types/index.js'
 import dialogueService from './DialogueService.js'
 import { PhaseController } from './PhaseController.js'
 import {
@@ -491,7 +491,7 @@ class AiService {
       if (!app) throw new AiAppNotFoundError(appId)
 
       await conversationService.getOrCreate(appId)
-      await this._runDialogue(appId, app.tenantId, prompt, type, images, res, traceId)
+      await this._runDialogue(appId, app.teamId, prompt, type, images, res, traceId)
     } catch (err) {
       if (err instanceof ContextBudgetOverflowError) {
         sseWriteError(res, new AiContextBudgetError(err.details))
@@ -510,7 +510,7 @@ class AiService {
    */
   private async _runDialogue(
     appId: string,
-    tenantId: string,
+    teamId: string,
     prompt: string,
     type: DialogueType,
     images: Array<{ url: string; alt?: string }>,
@@ -594,7 +594,7 @@ class AiService {
             }
             const modelName = getActiveModelName()
             const sessionId = dialogueId.toString()
-            await creditService.recordUsage(tenantId, sessionId, modelName, inputTokens, outputTokens)
+            await creditService.recordUsage(teamId, sessionId, modelName, inputTokens, outputTokens)
           } catch (err) {
             logger.error('[AiService] credit 记录失败:', err)
           }

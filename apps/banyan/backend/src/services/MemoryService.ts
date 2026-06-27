@@ -17,7 +17,7 @@
  *   - 维护惰性触发：recall 时检查距上次维护 > 7 天则异步执行
  */
 
-import AgentMemory, { type IAgentMemoryDoc } from '../models/AgentMemory.js'
+import AgentMemory, { type IAgentMemoryDoc } from '../models/conversation/AgentMemory.js'
 import type { IEpisode, IFact, EpisodeOutcome, FactCategory } from '../models/types/index.js'
 import knowledgeClient from './KnowledgeClient.js'
 import { logger } from '../utils/logger.js'

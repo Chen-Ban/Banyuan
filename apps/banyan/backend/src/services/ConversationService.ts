@@ -11,8 +11,8 @@
  */
 
 import { Types } from 'mongoose'
-import Conversation, { type IConversationDoc } from '../models/Conversation.js'
-import Dialogue from '../models/Dialogue.js'
+import Conversation, { type IConversationDoc } from '../models/conversation/Conversation.js'
+import Dialogue from '../models/conversation/Dialogue.js'
 
 // ─── ConversationService ──────────────────────────────────────────────────────
 

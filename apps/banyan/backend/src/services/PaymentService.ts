@@ -4,13 +4,13 @@
  * 职责：
  *   - 创建支付订单，返回聚合商支付链接（当前为占位 mock）
  *   - 验证支付回调通知
- *   - 处理支付成功：更新订单状态 + 激活租户套餐
+ *   - 处理支付成功：更新订单状态 + 激活团队套餐
  */
 
 import crypto from 'crypto'
-import { PaymentOrder } from '../models/PaymentOrder.js'
-import { Tenant } from '../models/Tenant.js'
-import { Plan } from '../models/Plan.js'
+import { PaymentOrder } from '../models/billing/PaymentOrder.js'
+import { Team } from '../models/auth/Team.js'
+import { Plan } from '../models/billing/Plan.js'
 import { logger } from '../utils/logger.js'
 import { clearPermissionCache } from '../middleware/requirePermission.js'
 import type { PaymentChannel } from '../models/types/index.js'
@@ -33,7 +33,7 @@ export class PaymentService {
    * @returns 订单基本信息 + 支付链接（聚合商占位 mock URL）
    */
   async createOrder(
-    tenantId: string,
+    teamId: string,
     planId: string,
     channel: PaymentChannel,
   ): Promise<{ orderId: string; paymentUrl: string }> {
@@ -48,7 +48,7 @@ export class PaymentService {
 
     await PaymentOrder.create({
       orderId,
-      tenantId,
+      teamId,
       planId,
       amount: plan.priceInCents,
       channel,
@@ -56,7 +56,7 @@ export class PaymentService {
       outTradeNo,
     })
 
-    logger.info(`[Payment] Order created: ${orderId} for tenant ${tenantId}, plan ${planId}`)
+    logger.info(`[Payment] Order created: ${orderId} for team ${teamId}, plan ${planId}`)
 
     // 聚合商占位 mock URL
     const paymentUrl = `https://pay.example.com/checkout?outTradeNo=${outTradeNo}&amount=${plan.priceInCents}&channel=${channel}`
@@ -92,7 +92,7 @@ export class PaymentService {
    * 处理支付成功
    *
    * 1. 更新订单状态为 'paid'
-   * 2. 更新租户 planId + plan + subscriptionExpiresAt（一个月后到期）
+   * 2. 更新团队 planId + plan + subscriptionExpiresAt（一个月后到期）
    * 3. 清除权限缓存
    */
   async processPayment(outTradeNo: string): Promise<void> {
@@ -126,9 +126,9 @@ export class PaymentService {
 
     const planField: 'free' | 'pro' = plan.priceInCents > 0 ? 'pro' : 'free'
 
-    // 更新租户套餐
-    await Tenant.updateOne(
-      { tenantId: order.tenantId },
+    // 更新团队套餐
+    await Team.updateOne(
+      { teamId: order.teamId },
       {
         $set: {
           planId: order.planId,
@@ -139,9 +139,9 @@ export class PaymentService {
     )
 
     // 清除权限缓存
-    clearPermissionCache(order.tenantId)
+    clearPermissionCache(order.teamId)
 
-    logger.info(`[Payment] Payment processed for tenant ${order.tenantId}: plan=${plan.planId}, expires=${subscriptionExpiresAt.toISOString()}`)
+    logger.info(`[Payment] Payment processed for team ${order.teamId}: plan=${plan.planId}, expires=${subscriptionExpiresAt.toISOString()}`)
   }
 }
 

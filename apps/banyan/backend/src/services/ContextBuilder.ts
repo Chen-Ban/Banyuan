@@ -34,7 +34,7 @@
  *   - 如果 dialogue 无 embedding（embedding 生成失败过），仅参与时间近因排序
  */
 
-import Dialogue, { type IDialogueDoc } from '../models/Dialogue.js'
+import Dialogue, { type IDialogueDoc } from '../models/conversation/Dialogue.js'
 import type { IMessage } from '../models/types/index.js'
 import knowledgeClient from './KnowledgeClient.js'
 import { logger } from '../utils/logger.js'

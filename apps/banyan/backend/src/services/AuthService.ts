@@ -1,10 +1,10 @@
 import crypto from 'crypto'
 import jwt from 'jsonwebtoken'
-import { User, type IUserDoc } from '../models/User.js'
-import { Tenant } from '../models/Tenant.js'
-import { Membership } from '../models/Membership.js'
+import { User, type IUserDoc } from '../models/auth/User.js'
+import { Team } from '../models/auth/Team.js'
+import { Membership } from '../models/auth/Membership.js'
 import type { IUser, MembershipRole, MembershipStatus } from '../models/types/index.js'
-import { RefreshToken } from '../models/RefreshToken.js'
+import { RefreshToken } from '../models/auth/RefreshToken.js'
 import { smsService } from './SmsService.js'
 
 // ─── 环境变量 ─────────────────────────────────────────────────────────────────
@@ -22,18 +22,18 @@ export interface TokenPair {
 
 /**
  * JWT 载荷
- * tenantId 为可选：用户注册后尚未加入任何租户时，JWT 只携带 userId。
- * 前端检测到无 tenantId 时，引导用户创建或加入租户。
+ * teamId 为可选：用户注册后尚未加入任何团队时，JWT 只携带 userId。
+ * 前端检测到无 teamId 时，引导用户创建或加入团队。
  */
 export interface AuthPayload {
   userId: string
-  tenantId?: string
+  teamId?: string
   membershipRole?: MembershipRole
 }
 
-/** 用户可用的租户列表项 */
-export interface TenantInfo {
-  tenantId: string
+/** 用户可用的团队列表项 */
+export interface TeamInfo {
+  teamId: string
   name: string
   plan: 'free' | 'pro'
   role: MembershipRole
@@ -50,7 +50,7 @@ function generateAccessToken(payload: AuthPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions)
 }
 
-async function generateRefreshToken(userId: string, tenantId?: string): Promise<string> {
+async function generateRefreshToken(userId: string, teamId?: string): Promise<string> {
   const tokenId = generateId('rt')
   const rawToken = crypto.randomBytes(64).toString('hex')
   const expiresAt = new Date()
@@ -62,8 +62,8 @@ async function generateRefreshToken(userId: string, tenantId?: string): Promise<
     token: rawToken,
     expiresAt,
   }
-  if (tenantId) {
-    doc.tenantId = tenantId
+  if (teamId) {
+    doc.teamId = teamId
   }
 
   await RefreshToken.create(doc)
@@ -96,8 +96,8 @@ export class AuthService {
     // 吊销旧 token（rotation 策略）
     await RefreshToken.updateOne({ tokenId: record.tokenId }, { revokedAt: new Date() })
 
-    // 从原 refresh token 中继承 tenant context
-    return this._issueTokens(user.userId, record.tenantId)
+    // 从原 refresh token 中继承 team context
+    return this._issueTokens(user.userId, record.teamId)
   }
 
   /**
@@ -121,10 +121,10 @@ export class AuthService {
    * 手机号验证码登录/注册
    *
    * 新用户注册时自动创建：
-   *   - 个人默认租户（name = "{username}的个人空间", plan='free', planId='plan_free'）
+   *   - 个人默认团队（name = "{username}的团队", plan='free', planId='plan_free'）
    *   - Membership（role='owner'）
-   *   - JWT 直接携带 tenantId，前端无需额外引导
-   * 已有用户直接登录，JWT 不携带 tenantId（需通过 /auth/switch-tenant 切换）
+   *   - JWT 直接携带 teamId，前端无需额外引导
+   * 已有用户直接登录，JWT 不携带 teamId（需通过 /auth/switch-team 切换）
    */
   async loginByPhone(
     phone: string,
@@ -138,10 +138,10 @@ export class AuthService {
     let isNewUser = false
 
     if (!user) {
-      // 创建 User + 默认个人租户 + Membership(role=owner) + 关联 plan_free
+      // 创建 User + 默认个人团队 + Membership(role=owner) + 关联 plan_free
       isNewUser = true
       const userId = generateId('user')
-      const tenantId = generateId('tenant')
+      const teamId = generateId('team')
       const membershipId = generateId('ms')
       const username = `用户${phone.slice(-4)}`
 
@@ -152,8 +152,8 @@ export class AuthService {
         status: 'active',
       })
 
-      await Tenant.create({
-        tenantId,
+      await Team.create({
+        teamId,
         name: `${username}的个人空间`,
         plan: 'free',
         planId: 'plan_free',
@@ -162,13 +162,13 @@ export class AuthService {
       await Membership.create({
         membershipId,
         userId,
-        tenantId,
+        teamId,
         role: 'owner',
         status: 'active',
         joinedAt: new Date(),
       })
 
-      const tokens = await this._issueTokens(userId, tenantId)
+      const tokens = await this._issueTokens(userId, teamId)
       return { user: this._sanitizeUser(user), tokens, isNewUser }
     }
 
@@ -186,30 +186,30 @@ export class AuthService {
   verifyAccessToken(token: string): AuthPayload {
     try {
       const payload = jwt.verify(token, JWT_SECRET) as AuthPayload & jwt.JwtPayload
-      return { userId: payload.userId, tenantId: payload.tenantId, membershipRole: payload.membershipRole }
+      return { userId: payload.userId, teamId: payload.teamId, membershipRole: payload.membershipRole }
     } catch {
       throw Object.assign(new Error('Token 无效或已过期'), { statusCode: 401 })
     }
   }
 
-  // ─── 多租户相关 ─────────────────────────────────────────────────────────────
+  // ─── 多团队相关 ─────────────────────────────────────────────────────────────
 
   /**
-   * 查询用户可用的租户列表
+   * 查询用户可用的团队列表
    */
-  async getUserTenants(userId: string): Promise<TenantInfo[]> {
+  async getUserTeams(userId: string): Promise<TeamInfo[]> {
     const memberships = await Membership.find({ userId, status: 'active' }).lean()
 
     if (memberships.length === 0) return []
 
-    const tenantIds = memberships.map((m) => m.tenantId)
-    const tenants = await Tenant.find({ tenantId: { $in: tenantIds } }).lean()
-    const tenantMap = new Map(tenants.map((t) => [t.tenantId, t]))
+    const teamIds = memberships.map((m) => m.teamId)
+    const teams = await Team.find({ teamId: { $in: teamIds } }).lean()
+    const teamMap = new Map(teams.map((t) => [t.teamId, t]))
 
     return memberships.map((m) => {
-      const t = tenantMap.get(m.tenantId)
+      const t = teamMap.get(m.teamId)
       return {
-        tenantId: m.tenantId,
+        teamId: m.teamId,
         name: t?.name ?? '未知团队',
         plan: t?.plan ?? 'free',
         role: m.role as MembershipRole,
@@ -219,33 +219,33 @@ export class AuthService {
   }
 
   /**
-   * 切换当前会话的租户上下文，签发新 token
+   * 切换当前会话的团队上下文，签发新 token
    */
-  async switchTenant(userId: string, tenantId: string): Promise<TokenPair> {
-    const membership = await Membership.findOne({ userId, tenantId, status: 'active' }).lean()
+  async switchTeam(userId: string, teamId: string): Promise<TokenPair> {
+    const membership = await Membership.findOne({ userId, teamId, status: 'active' }).lean()
     if (!membership) {
-      throw Object.assign(new Error('你不在该租户中或已被禁用'), { statusCode: 403 })
+      throw Object.assign(new Error('你不在该团队中或已被禁用'), { statusCode: 403 })
     }
 
     const accessToken = generateAccessToken({
       userId,
-      tenantId: membership.tenantId,
+      teamId: membership.teamId,
       membershipRole: membership.role as MembershipRole,
     })
-    const refreshToken = await generateRefreshToken(userId, membership.tenantId)
+    const refreshToken = await generateRefreshToken(userId, membership.teamId)
 
     return { accessToken, refreshToken }
   }
 
   // ─── 私有方法 ───────────────────────────────────────────────────────────────
 
-  private async _issueTokens(userId: string, tenantId?: string): Promise<TokenPair> {
+  private async _issueTokens(userId: string, teamId?: string): Promise<TokenPair> {
     const payload: AuthPayload = { userId }
-    if (tenantId) {
-      payload.tenantId = tenantId
+    if (teamId) {
+      payload.teamId = teamId
     }
     const accessToken = generateAccessToken(payload)
-    const refreshToken = await generateRefreshToken(userId, tenantId)
+    const refreshToken = await generateRefreshToken(userId, teamId)
     return { accessToken, refreshToken }
   }
 

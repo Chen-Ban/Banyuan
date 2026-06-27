@@ -8,9 +8,10 @@
  */
 
 import crypto from 'crypto'
-import { Notification } from '../models/Notification.js'
+import { Notification } from '../models/billing/Notification.js'
 import { logger } from '../utils/logger.js'
 import type { NotificationType } from '../models/types/index.js'
+import { Membership } from '../models/index.js'
 
 function generateId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`
@@ -21,7 +22,7 @@ export class NotificationService {
    * 创建一条通知
    */
   async create(
-    tenantId: string,
+    teamId: string,
     userId: string,
     type: NotificationType,
     title: string,
@@ -32,7 +33,7 @@ export class NotificationService {
       const notificationId = generateId('notif')
       await Notification.create({
         notificationId,
-        tenantId,
+        teamId,
         userId,
         type,
         title,
@@ -41,13 +42,13 @@ export class NotificationService {
         meta: meta ?? {},
       })
       logger.info(
-        { notificationId, tenantId, userId, type },
+        { notificationId, teamId, userId, type },
         `Notification created: ${type}`,
       )
       return notificationId
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
-      logger.error({ tenantId, userId, type, error: errorMsg }, 'Failed to create notification')
+      logger.error({ teamId, userId, type, error: errorMsg }, 'Failed to create notification')
       throw err
     }
   }
@@ -55,9 +56,9 @@ export class NotificationService {
   /**
    * 标记通知为已读（校验通知归属）
    */
-  async markAsRead(notificationId: string, tenantId: string, userId: string): Promise<boolean> {
+  async markAsRead(notificationId: string, teamId: string, userId: string): Promise<boolean> {
     const result = await Notification.findOneAndUpdate(
-      { notificationId, tenantId, userId },
+      { notificationId, teamId, userId },
       { $set: { read: true } },
       { new: true },
     )
@@ -71,11 +72,11 @@ export class NotificationService {
    * 查询用户通知列表
    */
   async listByUser(
-    tenantId: string,
+    teamId: string,
     userId: string,
     unreadOnly?: boolean,
   ): Promise<Array<Record<string, unknown>>> {
-    const filter: Record<string, unknown> = { tenantId, userId }
+    const filter: Record<string, unknown> = { teamId, userId }
     if (unreadOnly) {
       filter.read = false
     }
@@ -95,13 +96,13 @@ export class NotificationService {
 
   /**
    * 发送配额告警通知（便捷方法）
-   * @param tenantId 租户 ID
+   * @param teamId 团队 ID
    * @param level 告警级别：'warning' | 'critical'
    * @param remaining 剩余 credits
    * @param total 总 credits
    */
   async sendQuotaAlert(
-    tenantId: string,
+    teamId: string,
     level: 'warning' | 'critical',
     remaining: number,
     total: number,
@@ -116,21 +117,19 @@ export class NotificationService {
       : `您已使用 ${100 - percentage}% 的月配额（剩余 ${remaining.toLocaleString()} / ${total.toLocaleString()} credits）。`
 
     try {
-      // 查找租户下所有成员，为每人创建通知
-      const { Membership } = await import('../models/Membership.js')
-      const members = await Membership.find({ tenantId }).lean()
+      const members = await Membership.find({ teamId }).lean()
       for (const member of members) {
-        await this.create(tenantId, member.userId, type, title, message, {
+        await this.create(teamId, member.userId, type, title, message, {
           remaining,
           total,
           percentage,
         })
       }
-      logger.info({ tenantId, level, remaining, total }, 'Quota alerts sent')
+      logger.info({ teamId, level, remaining, total }, 'Quota alerts sent')
     } catch (err) {
       // 告警发送失败不抛异常，避免影响主流程
       const errorMsg = err instanceof Error ? err.message : String(err)
-      logger.error({ tenantId, level, error: errorMsg }, 'Failed to send quota alert')
+      logger.error({ teamId, level, error: errorMsg }, 'Failed to send quota alert')
     }
   }
 }

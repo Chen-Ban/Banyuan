@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import { Application } from '../models/index.js'
 import type { IApplication } from '../models/types/index.js'
 import type { ICollectionDef } from '../models/types/index.js'
-import type { ICloudFunctionDef } from '../models/types/versioned-content.js'
+import type { ICloudFunctionDef } from '../models/types/index.js'
 import uiDefinitionService from './UIDefinitionService.js'
 import cloudFunctionService from './CloudFunctionService.js'
 import { SchemaService } from './SchemaService.js'
@@ -13,9 +13,9 @@ export interface IApplicationQuery {
   application_id?: string
   tags?: string
   createdBy?: string
-  tenantId?: string
-  /** 成员视角：同租户下自己创建或标记为 team 可见的应用 */
-  createdOrVisibleToTeam?: { tenantId: string; userId: string }
+  teamId?: string
+  /** 成员视角：同团队下自己创建或标记为 team 可见的应用 */
+  createdOrVisibleToTeam?: { teamId: string; userId: string }
 }
 
 export interface IApplicationListResult {
@@ -67,19 +67,19 @@ class ApplicationService {
       filter.tags = { $in: [query.tags] }
     }
     if (query.createdOrVisibleToTeam) {
-      // 成员视角：同租户下自己创建或 team 可见的应用
-      const { tenantId, userId } = query.createdOrVisibleToTeam
-      filter.tenantId = tenantId
+      // 成员视角：同团队下自己创建或 team 可见的应用
+      const { teamId, userId } = query.createdOrVisibleToTeam
+      filter.teamId = teamId
       filter.$or = [{ createdBy: userId }, { visibility: 'team' }]
-    } else if (query.tenantId && query.createdBy) {
-      // 旧成员视角：同一租户下仅看自己的应用
-      filter.tenantId = query.tenantId
+    } else if (query.teamId && query.createdBy) {
+      // 旧成员视角：同一团队下仅看自己的应用
+      filter.teamId = query.teamId
       filter.createdBy = query.createdBy
-    } else if (query.tenantId) {
-      // 管理员视角：看租户内所有应用
-      filter.tenantId = query.tenantId
+    } else if (query.teamId) {
+      // 管理员视角：看团队内所有应用
+      filter.teamId = query.teamId
     } else if (query.createdBy) {
-      // 兼容旧逻辑：无租户时按 createdBy 过滤
+      // 兼容旧逻辑：无团队时按 createdBy 过滤
       filter.createdBy = query.createdBy
     }
 
@@ -163,14 +163,14 @@ class ApplicationService {
    *
    * 服务端自动生成 application_id，默认 name 为「未命名应用」，默认 UI 定义 JSON 为空字符串。
    */
-  async createApplication(userId: string, tenantId: string): Promise<IApplication> {
+  async createApplication(userId: string, teamId: string): Promise<IApplication> {
     const application_id = `app_${crypto.randomUUID()}`
     const application = new Application({
       application_id,
       name: '未命名应用',
       tags: [],
       version: 1,
-      tenantId,
+      teamId,
       createdBy: userId,
       updatedBy: '',
     })

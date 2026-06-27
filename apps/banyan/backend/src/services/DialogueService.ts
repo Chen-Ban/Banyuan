@@ -16,7 +16,7 @@
  */
 
 import { Types } from 'mongoose'
-import Dialogue, { type IDialogueDoc } from '../models/Dialogue.js'
+import Dialogue, { type IDialogueDoc } from '../models/conversation/Dialogue.js'
 import {
   PHASE_TRANSITIONS,
   type DialoguePhase,

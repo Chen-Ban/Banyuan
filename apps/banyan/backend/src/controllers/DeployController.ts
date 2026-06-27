@@ -1,8 +1,8 @@
 import { Context } from 'koa'
 import crypto from 'crypto'
-import { Deployment } from '../models/Deployment.js'
+import { Deployment } from '../models/index.js'
 import { Application } from '../models/index.js'
-import { EcsInstance } from '../models/EcsInstance.js'
+import { EcsInstance } from '../models/index.js'
 import { agentGateway } from '../services/AgentGateway.js'
 import { logger } from '../utils/logger.js'
 import type { DeployRequest, CollectionDef, CloudFunctionDef } from '../services/AgentGateway.js'
@@ -50,8 +50,8 @@ export class DeployController {
       ctx.body = { success: false, message: '未认证' }
       return
     }
-    const { tenantId, userId } = user
-    if (!tenantId) {
+    const { teamId, userId } = user
+    if (!teamId) {
       ctx.status = 403
       ctx.body = { success: false, message: '请先创建或加入一个团队' }
       return
@@ -62,23 +62,23 @@ export class DeployController {
     }
 
     // 1. 查找应用
-    const app = await Application.findOne({ application_id: applicationId, tenantId })
+    const app = await Application.findOne({ application_id: applicationId, teamId })
     if (!app) {
       ctx.status = 404
       ctx.body = { success: false, message: '应用不存在' }
       return
     }
 
-    // 2. 查找租户绑定的 ECS 实例，确认已就绪
-    const ecsInstance = await EcsInstance.findOne({ tenantId })
+    // 2. 查找团队绑定的 ECS 实例，确认已就绪
+    const ecsInstance = await EcsInstance.findOne({ teamId })
     if (!ecsInstance || ecsInstance.status !== 'ready') {
       ctx.status = 400
-      ctx.body = { success: false, message: '租户环境尚未就绪，请等待开通完成' }
+      ctx.body = { success: false, message: '团队环境尚未就绪，请等待开通完成' }
       return
     }
 
     // 3. 检查 agent 是否在线
-    if (!agentGateway.isAgentOnline(tenantId)) {
+    if (!agentGateway.isAgentOnline(teamId)) {
       ctx.status = 503
       ctx.body = { success: false, message: '部署代理离线，请稍后重试' }
       return
@@ -138,7 +138,7 @@ export class DeployController {
     await Deployment.create({
       deploymentId,
       applicationId,
-      tenantId,
+      teamId,
       version: app.version,
       deployType: effectiveDeployType,
       status: 'pending',
@@ -175,7 +175,7 @@ export class DeployController {
       appId: applicationId,
       appSlug: app.appSlug!,
       uiJSON,
-      tenantDomain: ecsInstance.domain!,
+      teamDomain: ecsInstance.domain!,
       width: 375, // 默认移动端宽度，后续可从 uiJSON 中提取
       height: 812,
       canvasVersion: '0.1.0', // TODO: 从 package.json 或环境变量读取
@@ -185,7 +185,7 @@ export class DeployController {
     }
 
     // 7. 异步发送部署指令（不阻塞响应）
-    this._executeDeploy(tenantId, deployRequest, applicationId, deploymentId).catch((err) => {
+    this._executeDeploy(teamId, deployRequest, applicationId, deploymentId).catch((err) => {
       logger.error(`[Deploy ${deploymentId}] unexpected error:`, err)
     })
 
@@ -215,8 +215,8 @@ export class DeployController {
       ctx.body = { success: false, message: '未认证' }
       return
     }
-    const { tenantId, userId } = user
-    if (!tenantId) {
+    const { teamId, userId } = user
+    if (!teamId) {
       ctx.status = 403
       ctx.body = { success: false, message: '请先创建或加入一个团队' }
       return
@@ -224,7 +224,7 @@ export class DeployController {
     const { deploymentId: targetDeploymentId } = ctx.request.body as { deploymentId: string }
 
     // 1. 查找目标部署记录
-    const targetDeployment = await Deployment.findOne({ deploymentId: targetDeploymentId, tenantId }).lean()
+    const targetDeployment = await Deployment.findOne({ deploymentId: targetDeploymentId, teamId }).lean()
     if (!targetDeployment) {
       ctx.status = 404
       ctx.body = { success: false, message: '部署记录不存在' }
@@ -243,22 +243,22 @@ export class DeployController {
       return
     }
 
-    // 2. 查找应用和租户
-    const app = await Application.findOne({ application_id: targetDeployment.applicationId, tenantId })
+    // 2. 查找应用和团队
+    const app = await Application.findOne({ application_id: targetDeployment.applicationId, teamId })
     if (!app) {
       ctx.status = 404
       ctx.body = { success: false, message: '应用不存在' }
       return
     }
 
-    const ecsInstance = await EcsInstance.findOne({ tenantId })
+    const ecsInstance = await EcsInstance.findOne({ teamId })
     if (!ecsInstance || ecsInstance.status !== 'ready') {
       ctx.status = 400
-      ctx.body = { success: false, message: '租户环境尚未就绪' }
+      ctx.body = { success: false, message: '团队环境尚未就绪' }
       return
     }
 
-    if (!agentGateway.isAgentOnline(tenantId)) {
+    if (!agentGateway.isAgentOnline(teamId)) {
       ctx.status = 503
       ctx.body = { success: false, message: '部署代理离线，请稍后重试' }
       return
@@ -275,7 +275,7 @@ export class DeployController {
     await Deployment.create({
       deploymentId: rollbackDeploymentId,
       applicationId: targetDeployment.applicationId,
-      tenantId,
+      teamId,
       version: targetDeployment.version,
       deployType: effectiveDeployType,
       status: 'pending',
@@ -289,7 +289,7 @@ export class DeployController {
       appId: targetDeployment.applicationId,
       appSlug: app.appSlug!,
       uiJSON,
-      tenantDomain: ecsInstance.domain!,
+      teamDomain: ecsInstance.domain!,
       width: 375,
       height: 812,
       canvasVersion: '0.1.0',
@@ -299,7 +299,7 @@ export class DeployController {
     }
 
     // 6. 异步执行部署
-    this._executeDeploy(tenantId, deployRequest, targetDeployment.applicationId, rollbackDeploymentId).catch(
+    this._executeDeploy(teamId, deployRequest, targetDeployment.applicationId, rollbackDeploymentId).catch(
       (err) => {
         logger.error(`[Rollback ${rollbackDeploymentId}] unexpected error:`, err)
       },
@@ -330,14 +330,14 @@ export class DeployController {
       return
     }
     const { deploymentId } = ctx.params
-    const { tenantId } = user
-    if (!tenantId) {
+    const { teamId } = user
+    if (!teamId) {
       ctx.status = 403
       ctx.body = { success: false, message: '请先创建或加入一个团队' }
       return
     }
 
-    const deployment = await Deployment.findOne({ deploymentId, tenantId }).lean()
+    const deployment = await Deployment.findOne({ deploymentId, teamId }).lean()
     if (!deployment) {
       ctx.status = 404
       ctx.body = { success: false, message: '部署记录不存在' }
@@ -359,15 +359,15 @@ export class DeployController {
       return
     }
     const { applicationId } = ctx.params
-    const { tenantId } = user
-    if (!tenantId) {
+    const { teamId } = user
+    if (!teamId) {
       ctx.status = 403
       ctx.body = { success: false, message: '请先创建或加入一个团队' }
       return
     }
     const limit = Math.min(parseInt(ctx.query.limit as string) || 20, 50)
 
-    const deployments = await Deployment.find({ applicationId, tenantId })
+    const deployments = await Deployment.find({ applicationId, teamId })
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean()
@@ -377,7 +377,7 @@ export class DeployController {
 
   /**
    * GET /api/deploy/agent-status
-   * 查询当前租户 agent 在线状态
+   * 查询当前团队 agent 在线状态
    */
   async getAgentStatus(ctx: Context): Promise<void> {
     const user = ctx.state.user
@@ -386,18 +386,18 @@ export class DeployController {
       ctx.body = { success: false, message: '未认证' }
       return
     }
-    const { tenantId } = user
-    if (!tenantId) {
+    const { teamId } = user
+    if (!teamId) {
       ctx.status = 403
       ctx.body = { success: false, message: '请先创建或加入一个团队' }
       return
     }
-    const ecsInstance = await EcsInstance.findOne({ tenantId }).lean()
+    const ecsInstance = await EcsInstance.findOne({ teamId }).lean()
 
     ctx.body = {
       success: true,
       data: {
-        online: agentGateway.isAgentOnline(tenantId),
+        online: agentGateway.isAgentOnline(teamId),
         provisionStatus: ecsInstance?.status ?? 'none',
         domain: ecsInstance?.domain,
       },
@@ -407,7 +407,7 @@ export class DeployController {
   // ─── 私有方法 ───────────────────────────────────────────────────────────────
 
   private async _executeDeploy(
-    tenantId: string,
+    teamId: string,
     request: DeployRequest,
     applicationId: string,
     deploymentId: string,
@@ -417,7 +417,7 @@ export class DeployController {
       await Deployment.updateOne({ deploymentId }, { $set: { status: 'building', startedAt: new Date() } })
 
       // 发送部署指令，监听进度
-      const result = await agentGateway.deploy(tenantId, request, async (progress) => {
+      const result = await agentGateway.deploy(teamId, request, async (progress) => {
         await Deployment.updateOne(
           { deploymentId },
           { $set: { currentStep: progress.message, progress: progress.progress } },

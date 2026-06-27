@@ -1,5 +1,6 @@
 import { Context } from 'koa'
 import { authService } from '../services/AuthService.js'
+import { User } from '../models/index.js'
 
 export class AuthController {
   /**
@@ -55,8 +56,8 @@ export class AuthController {
    * POST /api/auth/sms/verify
    * Body: { phone, code }
    *
-   * 注册成功后返回的 user 不携带 tenantId。
-   * 新用户需要创建或加入租户后才能使用大部分功能。
+   * 注册成功后返回的 user 不携带 teamId。
+   * 新用户需要创建或加入团队后才能使用大部分功能。
    */
   async loginByPhone(ctx: Context): Promise<void> {
     const { phone, code } = ctx.request.body as Record<string, string>
@@ -74,43 +75,49 @@ export class AuthController {
    * 需要 authMiddleware
    */
   async me(ctx: Context): Promise<void> {
-    const { userId } = ctx.state.user!
-    const { User } = await import('../models/User.js')
+    const { userId, teamId, membershipRole } = ctx.state.user!
     const user = await User.findOne({ userId })
     if (!user) {
       ctx.status = 404
       ctx.body = { success: false, message: '用户不存在' }
       return
     }
-    ctx.body = { success: true, data: user }
+    ctx.body = {
+      success: true,
+      data: {
+        ...user.toObject(),
+        teamId: teamId ?? '',
+        role: membershipRole ?? 'member',
+      },
+    }
   }
 
   /**
-   * GET /api/auth/tenants
-   * 返回当前用户可用的租户列表
+   * GET /api/auth/teams
+   * 返回当前用户可用的团队列表
    */
-  async listTenants(ctx: Context): Promise<void> {
+  async listTeams(ctx: Context): Promise<void> {
     const { userId } = ctx.state.user!
-    const tenants = await authService.getUserTenants(userId)
-    ctx.body = { success: true, data: tenants }
+    const teams = await authService.getUserTeams(userId)
+    ctx.body = { success: true, data: teams }
   }
 
   /**
-   * POST /api/auth/switch-tenant
-   * Body: { tenantId }
-   * 切换当前会话的租户上下文，重新签发 token pair
+   * POST /api/auth/switch-team
+   * Body: { teamId }
+   * 切换当前会话的团队上下文，重新签发 token pair
    */
-  async switchTenant(ctx: Context): Promise<void> {
+  async switchTeam(ctx: Context): Promise<void> {
     const { userId } = ctx.state.user!
-    const { tenantId } = ctx.request.body as Record<string, string>
+    const { teamId } = ctx.request.body as Record<string, string>
 
-    if (!tenantId) {
+    if (!teamId) {
       ctx.status = 400
-      ctx.body = { success: false, message: '缺少 tenantId' }
+      ctx.body = { success: false, message: '缺少 teamId' }
       return
     }
 
-    const tokens = await authService.switchTenant(userId, tenantId)
+    const tokens = await authService.switchTeam(userId, teamId)
     ctx.body = { success: true, data: tokens }
   }
 }

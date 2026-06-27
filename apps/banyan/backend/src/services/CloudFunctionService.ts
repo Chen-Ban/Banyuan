@@ -13,7 +13,7 @@
 import crypto from 'node:crypto'
 import type { Types } from 'mongoose'
 import { CloudFunction } from '../models/index.js'
-import type { ICloudFunctionDef, ICloudFunctionGroup } from '../models/types/versioned-content.js'
+import type { ICloudFunctionDef, ICloudFunctionGroup } from '../models/types/index.js'
 import { validateIdentifier } from '../utils/nameValidation.js'
 
 export interface ICloudFunctionListResult {

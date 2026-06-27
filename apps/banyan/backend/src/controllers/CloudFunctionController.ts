@@ -3,7 +3,7 @@ import { Types } from 'mongoose'
 import cloudFunctionService, { CloudFunctionService } from '../services/CloudFunctionService.js'
 import dialogueService from '../services/DialogueService.js'
 import conversationService from '../services/ConversationService.js'
-import type { ICloudFunctionDef } from '../models/types/versioned-content.js'
+import type { ICloudFunctionDef } from '../models/types/index.js'
 import { validateIdentifier } from '../utils/nameValidation.js'
 
 /**
