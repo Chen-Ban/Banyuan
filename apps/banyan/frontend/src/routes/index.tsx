@@ -7,7 +7,7 @@ import GeneralSettings from '@/pages/SettingsPage/GeneralSettings'
 import AiModelsSettings from '@/pages/SettingsPage/AiModelsSettings'
 import AppearanceSettings from '@/pages/SettingsPage/AppearanceSettings'
 import AccountSettings from '@/pages/SettingsPage/AccountSettings'
-import TenantSettings from '@/pages/SettingsPage/TenantSettings'
+import TeamSettings from '@/pages/SettingsPage/TeamSettings'
 import NotificationSettings from '@/pages/SettingsPage/NotificationSettings'
 import ApplicationLayout from '@/layouts/ApplicationLayout'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -39,7 +39,7 @@ const routes: RouteObject[] = [
               { path: 'ai-models', element: <AiModelsSettings /> },
               { path: 'appearance', element: <AppearanceSettings /> },
               { path: 'account', element: <AccountSettings /> },
-              { path: 'tenant', element: <TenantSettings /> },
+              { path: 'team', element: <TeamSettings /> },
               { path: 'notifications', element: <NotificationSettings /> },
             ],
           },

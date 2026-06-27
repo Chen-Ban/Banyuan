@@ -14,12 +14,12 @@ import materialRouter from './materials.js'
 import planningRouter from './planning.js'
 import internalRouter from './internal.js'
 import deployRouter from './deploy.js'
-import tenantRouter from './tenants.js'
+import teamRouter from './teams.js'
 import creditRouter from './credits.js'
 import paymentRouter, { paymentNotifyRouter } from './payment.js'
 import notificationRouter from './notification.js'
 import { authMiddleware } from '../middleware/auth.js'
-import { requireTenant } from '../middleware/requirePermission.js'
+import { requireTeam } from '../middleware/requirePermission.js'
 
 const router = new Router()
 
@@ -49,15 +49,15 @@ router.use(paymentNotifyRouter.routes(), paymentNotifyRouter.allowedMethods())
 // ─── 以下路由全部需要 JWT 认证 ─────────────────────────────────────────────────
 router.use(authMiddleware)
 
-// ─── 以下路由需要租户上下文（除租户管理外的所有业务路由）────────────────────────
+// ─── 以下路由需要团队上下文（除团队管理外的所有业务路由）────────────────────────
 router.use(async (ctx, next) => {
-  // 跳过 tenantRouter 路由路径（创建租户不需要租户上下文）
-  if (ctx.path.startsWith('/api/tenants')) {
+  // 跳过 teamRouter 路由路径（创建团队不需要团队上下文）
+  if (ctx.path.startsWith('/api/teams')) {
     await next()
     return
   }
-  // 其余路由使用 requireTenant 中间件
-  const middleware = requireTenant()
+  // 其余路由使用 requireTeam 中间件
+  const middleware = requireTeam()
   await middleware(ctx, next)
 })
 
@@ -94,8 +94,8 @@ router.use(planningRouter.routes(), planningRouter.allowedMethods())
 // Web 部署（ADR-028）
 router.use(deployRouter.routes(), deployRouter.allowedMethods())
 
-// 租户管理（多租户 N:N，Phase 1 重构）
-router.use(tenantRouter.routes(), tenantRouter.allowedMethods())
+// 团队管理（多团队 N:N，Phase 1 重构）
+router.use(teamRouter.routes(), teamRouter.allowedMethods())
 
 // AI Credit 用量查询
 router.use(creditRouter.routes(), creditRouter.allowedMethods())

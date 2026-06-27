@@ -6,7 +6,7 @@
  *   - /settings/ai-models     → AiModelsSettings
  *   - /settings/appearance    → AppearanceSettings
  *   - /settings/account       → AccountSettings
- *   - /settings/tenant        → TenantSettings
+ *   - /settings/team         → TeamSettings
  *   - /settings/notifications → NotificationSettings
  *
  * 左侧导航由全局 Sidebar 的 SettingsNav 负责（含个人设置/工作空间分组）。

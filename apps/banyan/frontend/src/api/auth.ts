@@ -8,7 +8,7 @@ export interface TokenPair {
 
 export interface AuthUser {
   userId: string
-  tenantId: string
+  teamId: string
   email?: string
   phone?: string
   username: string

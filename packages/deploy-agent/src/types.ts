@@ -6,8 +6,8 @@
 export interface AgentConfig {
   /** 认证 token */
   agentToken: string
-  /** 租户 ID */
-  tenantId: string
+  /** 团队 ID */
+  teamId: string
   /** 后端 WebSocket 地址 */
   backendWsUrl: string
   /** 部署根目录 */
@@ -68,7 +68,7 @@ export interface AgentMessage {
 /** 认证消息 payload */
 export interface AuthPayload {
   agentToken: string
-  tenantId: string
+  teamId: string
 }
 
 /** 部署请求 */
@@ -81,8 +81,8 @@ export interface DeployRequest {
   appSlug: string
   /** 部署类型 */
   deployType: DeployType
-  /** 租户域名 */
-  tenantDomain: string
+  /** 团队域名 */
+  teamDomain: string
   /** UI 定义 JSON 数据（pages、theme 等） */
   uiJSON: UIDefinition
   /** 画布宽度 */

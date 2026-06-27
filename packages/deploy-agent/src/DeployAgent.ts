@@ -58,7 +58,7 @@ export class DeployAgent {
       // 发送认证
       this.send('auth', {
         agentToken: this.config.agentToken,
-        tenantId: this.config.tenantId,
+        teamId: this.config.teamId,
       })
 
       // 启动心跳
@@ -185,8 +185,8 @@ export class DeployAgent {
 
     // Step 5: 生成 nginx 配置
     this.sendProgress(request.requestId, 'nginx', 85, '配置 Nginx...')
-    const nginxConf = this.generateNginxStaticConf(request.appSlug, request.tenantDomain, siteDir)
-    const confPath = join(this.config.nginxSitesDir, `${request.appSlug}.${request.tenantDomain}.conf`)
+    const nginxConf = this.generateNginxStaticConf(request.appSlug, request.teamDomain, siteDir)
+    const confPath = join(this.config.nginxSitesDir, `${request.appSlug}.${request.teamDomain}.conf`)
     await writeFile(confPath, nginxConf)
 
     // Step 6: Reload nginx
@@ -194,7 +194,7 @@ export class DeployAgent {
     await this.exec('nginx', ['-s', 'reload'])
 
     // Step 7: 返回 URL
-    const url = `https://${request.appSlug}.${request.tenantDomain}`
+    const url = `https://${request.appSlug}.${request.teamDomain}`
     this.sendProgress(request.requestId, 'done', 100, '部署完成')
     return url
   }
@@ -274,11 +274,11 @@ export class DeployAgent {
     this.sendProgress(request.requestId, 'nginx', 90, '配置 Nginx...')
     const nginxConf = this.generateNginxFullstackConf(
       request.appSlug,
-      request.tenantDomain,
+      request.teamDomain,
       siteDir,
       containerPort,
     )
-    const confPath = join(this.config.nginxSitesDir, `${request.appSlug}.${request.tenantDomain}.conf`)
+    const confPath = join(this.config.nginxSitesDir, `${request.appSlug}.${request.teamDomain}.conf`)
     await writeFile(confPath, nginxConf)
 
     // Step 8: Reload nginx
@@ -286,7 +286,7 @@ export class DeployAgent {
     await this.exec('nginx', ['-s', 'reload'])
 
     // Step 9: 返回 URL
-    const url = `https://${request.appSlug}.${request.tenantDomain}`
+    const url = `https://${request.appSlug}.${request.teamDomain}`
     this.sendProgress(request.requestId, 'done', 100, '全栈部署完成')
     return url
   }
@@ -335,10 +335,10 @@ export class DeployAgent {
     return stdout
   }
 
-  private generateNginxStaticConf(appSlug: string, tenantDomain: string, siteDir: string): string {
+  private generateNginxStaticConf(appSlug: string, teamDomain: string, siteDir: string): string {
     return `server {
     listen 80;
-    server_name ${appSlug}.${tenantDomain};
+    server_name ${appSlug}.${teamDomain};
 
     root ${siteDir};
     index index.html;
@@ -360,13 +360,13 @@ export class DeployAgent {
 
   private generateNginxFullstackConf(
     appSlug: string,
-    tenantDomain: string,
+    teamDomain: string,
     siteDir: string,
     containerPort: number,
   ): string {
     return `server {
     listen 80;
-    server_name ${appSlug}.${tenantDomain};
+    server_name ${appSlug}.${teamDomain};
 
     root ${siteDir};
     index index.html;

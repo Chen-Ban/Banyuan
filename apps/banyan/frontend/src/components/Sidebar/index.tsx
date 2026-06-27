@@ -262,7 +262,7 @@ const SettingsNav: React.FC = () => {
 
   const workspaceItems = [
     { key: 'ai-models', label: 'AI 配置', icon: <RobotOutlined /> },
-    { key: 'tenant', label: '团队与租户', icon: <TeamOutlined /> },
+    { key: 'team', label: '团队管理', icon: <TeamOutlined /> },
   ]
 
   return (

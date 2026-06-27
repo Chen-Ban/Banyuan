@@ -23,7 +23,7 @@ function getOptionalEnv(name: string, defaultValue: string): string {
 
 const config: AgentConfig = {
   agentToken: getRequiredEnv('AGENT_TOKEN'),
-  tenantId: getRequiredEnv('TENANT_ID'),
+  teamId: getRequiredEnv('TEAM_ID'),
   backendWsUrl: getRequiredEnv('BACKEND_WS_URL'),
   deployRoot: getOptionalEnv('DEPLOY_ROOT', '/opt/banyuan/apps'),
   nginxSitesDir: getOptionalEnv('NGINX_SITES_DIR', '/etc/nginx/sites-enabled'),
@@ -54,7 +54,7 @@ process.on('unhandledRejection', (reason) => {
 
 // 启动
 console.log('[DeployAgent] Starting...')
-console.log(`[DeployAgent] Tenant: ${config.tenantId}`)
+console.log(`[DeployAgent] Team: ${config.teamId}`)
 console.log(`[DeployAgent] Backend: ${config.backendWsUrl}`)
 console.log(`[DeployAgent] Deploy Root: ${config.deployRoot}`)
 console.log(`[DeployAgent] Nginx Sites: ${config.nginxSitesDir}`)

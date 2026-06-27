@@ -42,14 +42,14 @@ class AiController {
     if (!appId) throw new AiMissingParamError('appId')
     if (!prompt) throw new AiMissingParamError('prompt')
 
-    // ─── 应用级 / 租户级 credit 配额检查 ──────────────────────────────────
+    // ─── 应用级 / 团队级 credit 配额检查 ──────────────────────────────────
     const app = await applicationService.getApplicationById(appId)
     if (app) {
-      const tenantId = app.tenantId
-      const exceeded = await creditService.isAppQuotaExceeded(tenantId, appId)
+      const teamId = app.teamId
+      const exceeded = await creditService.isAppQuotaExceeded(teamId, appId)
       if (exceeded) {
-        const { used, total } = await creditService.getAppMonthlyUsage(tenantId, appId)
-        throw new AiQuotaExceededError(app.aiLimit ? 'app' : 'tenant', used, total)
+        const { used, total } = await creditService.getAppMonthlyUsage(teamId, appId)
+        throw new AiQuotaExceededError(app.aiLimit ? 'app' : 'team', used, total)
       }
     }
 

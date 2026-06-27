@@ -99,8 +99,8 @@ paymentNotifyRouter.post('/api/payments/:orderId/confirm', async (ctx) => {
     }
 
     await paymentService.processPayment(order.outTradeNo)
-    logger.info(`[Payment] Admin confirmed payment for order ${orderId}, tenant ${order.tenantId}`)
-    ctx.body = { success: true, message: 'Payment confirmed — tenant plan activated' }
+    logger.info(`[Payment] Admin confirmed payment for order ${orderId}, team ${order.teamId}`)
+    ctx.body = { success: true, message: 'Payment confirmed — team plan activated' }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     logger.error(`[Payment] Admin confirm failed for ${orderId}: ${message}`)
@@ -126,7 +126,7 @@ paymentRouter.post('/create-order', async (ctx) => {
     return
   }
 
-  if (!user.tenantId) {
+  if (!user.teamId) {
     ctx.status = 403
     ctx.body = { success: false, message: '请先创建或加入一个团队' }
     return
@@ -147,7 +147,7 @@ paymentRouter.post('/create-order', async (ctx) => {
   }
 
   try {
-    const result = await paymentService.createOrder(user.tenantId, planId, channel as 'alipay' | 'wechat' | 'aggregator')
+    const result = await paymentService.createOrder(user.teamId, planId, channel as 'alipay' | 'wechat' | 'aggregator')
     ctx.body = { success: true, data: result }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
