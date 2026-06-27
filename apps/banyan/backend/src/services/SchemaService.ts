@@ -13,7 +13,7 @@
 
 import mongoose from 'mongoose'
 import type { Types } from 'mongoose'
-import CollectionSchemaModel from '../models/CollectionSchema.js'
+import CollectionSchemaModel from '../models/application/CollectionSchema.js'
 import type { ICollectionDef, IFieldDef } from '../models/types/index.js'
 import { validateIdentifier } from '../utils/nameValidation.js'
 

@@ -16,7 +16,7 @@
  */
 
 import { Types } from 'mongoose'
-import Dialogue, { type IDialogueDoc } from '../models/Dialogue.js'
+import Dialogue, { type IDialogueDoc } from '../models/conversation/Dialogue.js'
 import {
   PHASE_TRANSITIONS,
   type DialoguePhase,
@@ -102,7 +102,7 @@ class DialogueService {
       messages: [
         {
           role: 'user',
-          userContent: {
+          content: {
             prompt: params.userMessage.prompt,
             images: params.userMessage.images,
           },
@@ -224,7 +224,7 @@ class DialogueService {
       messages: [
         {
           role: 'user',
-          userContent: { prompt: params.summary, images: [] },
+          content: { prompt: params.summary, images: [] },
           createdAt: new Date(),
         },
       ],
@@ -328,7 +328,7 @@ class DialogueService {
   /**
    * 追加 assistant 内容块
    *
-   * 策略：如果最后一条消息是 assistant 角色，追加到其 assistantContent；
+   * 策略：如果最后一条消息是 assistant 角色，追加到其 content；
    * 否则创建新的 assistant 消息。
    */
   async appendAssistantContent(dialogueId: Types.ObjectId, content: IAssistantContent[]): Promise<void> {
@@ -342,7 +342,7 @@ class DialogueService {
       // 追加到现有 assistant 消息
       await Dialogue.updateOne(
         { _id: dialogueId },
-        { $push: { [`messages.${doc.messages.length - 1}.assistantContent`]: { $each: content } } },
+        { $push: { [`messages.${doc.messages.length - 1}.content`]: { $each: content } } },
       )
     } else {
       // 创建新的 assistant 消息
@@ -352,7 +352,7 @@ class DialogueService {
           $push: {
             messages: {
               role: 'assistant',
-              assistantContent: content,
+              content: content,
               createdAt: new Date(),
             },
           },

@@ -5,7 +5,7 @@
  * 确保种子更新后重新 seed 能同步到已有文档。
  */
 
-import { Plan } from '../models/Plan.js'
+import { Plan } from '../models/billing/Plan.js'
 
 const BUILTIN_PLANS = [
   {

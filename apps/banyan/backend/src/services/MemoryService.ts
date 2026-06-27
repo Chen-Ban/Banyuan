@@ -17,7 +17,7 @@
  *   - 维护惰性触发：recall 时检查距上次维护 > 7 天则异步执行
  */
 
-import AgentMemory, { type IAgentMemoryDoc } from '../models/AgentMemory.js'
+import AgentMemory, { type IAgentMemoryDoc } from '../models/conversation/AgentMemory.js'
 import type { IEpisode, IFact, EpisodeOutcome, FactCategory } from '../models/types/index.js'
 import knowledgeClient from './KnowledgeClient.js'
 import { logger } from '../utils/logger.js'
@@ -88,6 +88,7 @@ class MemoryService {
         tags: data.episode.tags,
         importance: data.episode.importance,
         embedding,
+        embeddingStatus: 'ready',
         createdAt: new Date(),
         lastAccessedAt: new Date(),
       }
@@ -128,7 +129,7 @@ class MemoryService {
       similar.confidence = Math.min(1, similar.confidence + input.confidence * 0.2)
       similar.referenceCount++
       similar.derivedFrom.push(...derivedFrom)
-      similar.updatedAt = new Date()
+      similar.factUpdatedAt = new Date()
     } else {
       // 新增
       const embedding = await knowledgeClient.embedPassage(input.content)
@@ -141,8 +142,9 @@ class MemoryService {
         referenceCount: 0,
         derivedFrom,
         embedding,
+        embeddingStatus: 'ready',
         createdAt: new Date(),
-        updatedAt: new Date(),
+        factUpdatedAt: new Date(),
       })
     }
 
@@ -328,10 +330,10 @@ class MemoryService {
     // Fact 衰减
     const now = Date.now()
     memory.facts = memory.facts.filter((f) => {
-      const daysSinceUpdate = (now - new Date(f.updatedAt).getTime()) / 86400000
+      const daysSinceUpdate = (now - new Date(f.factUpdatedAt).getTime()) / 86400000
       if (daysSinceUpdate > FACT_DECAY_DAYS && f.referenceCount < FACT_DECAY_MIN_REFS) {
         f.confidence -= FACT_DECAY_AMOUNT
-        f.updatedAt = new Date()
+        f.factUpdatedAt = new Date()
         return f.confidence > 0
       }
       return true

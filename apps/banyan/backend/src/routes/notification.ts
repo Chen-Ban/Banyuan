@@ -21,7 +21,7 @@ notificationRouter.get('/', async (ctx) => {
     return
   }
 
-  if (!user.tenantId) {
+  if (!user.teamId) {
     ctx.status = 403
     ctx.body = { success: false, message: '请先创建或加入一个团队' }
     return
@@ -30,7 +30,7 @@ notificationRouter.get('/', async (ctx) => {
   try {
     const unreadOnly = ctx.query.unread === 'true'
     const notifications = await notificationService.listByUser(
-      user.tenantId,
+      user.teamId,
       user.userId,
       unreadOnly,
     )
@@ -55,14 +55,14 @@ notificationRouter.post('/:id/read', async (ctx) => {
     return
   }
 
-  if (!user.tenantId) {
+  if (!user.teamId) {
     ctx.status = 403
     ctx.body = { success: false, message: '请先创建或加入一个团队' }
     return
   }
 
   const { id } = ctx.params
-  const updated = await notificationService.markAsRead(id, user.tenantId, user.userId)
+  const updated = await notificationService.markAsRead(id, user.teamId, user.userId)
 
   if (!updated) {
     ctx.status = 404

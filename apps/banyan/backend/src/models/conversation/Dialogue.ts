@@ -1,0 +1,190 @@
+/**
+ * 对话模型（Dialogue）— 独立顶层集合
+ *
+ * Dialogue 是一次完整用户-AI 交互的权威载体，承载状态机、消息、内容版本号引用、规划产物。
+ * 对话持有三张 append-only 内容表的版本号（uiDefinitionVersion/schemaVersion/cloudFunctionVersion），
+ * agent / 用户通过版本号定位内容表记录原地修改，无需 confirm 落库。
+ *
+ * 生命周期（task 路径）：
+ *   start → requirements → ui_design → contract → building → awaiting_confirm → committing → done
+ *   awaiting_confirm 可回退到任意规划阶段（用户不满意时 rollback）
+ *   任何进行中 phase 均可被中断 → discarded
+ *   start / building / committing 出错 → failed
+ *
+ * 生命周期（chat 路径）：
+ *   start → responding → done
+ *
+ * 索引设计：
+ *   - { appId, createdAt }：按应用查询对话历史
+ *   - { conversationId, createdAt }：通过 Conversation 查对话列表
+ *   - { appId, phase }：查找进行中的对话（初始化降级流）
+ *   - { phase, updatedAt }：TTL 清理卡在非终态的孤儿对话
+ */
+
+import mongoose, { Schema, type Document } from 'mongoose'
+import type { IDialogueSummary, IInterruptMetadata, IDialogue } from '../types/index.js'
+import { MessageSchema } from './Message.js'
+
+// ─── Dialogue Mongoose 文档类型 ───────────────────────────────────────────────
+
+/** Dialogue Mongoose 文档类型 */
+export type IDialogueDoc = IDialogue & Document
+
+// ─── Schema 定义 ──────────────────────────────────────────────────────────────
+
+const DialogueSummarySchema = new Schema<IDialogueSummary>(
+  {
+    text: { type: String, required: true },
+    embedding: { type: [Number], default: null },
+    pageIds: { type: [String], default: [] },
+    viewIds: { type: [String], default: [] },
+    changeTags: { type: [String], default: [] },
+  },
+  { _id: false },
+)
+
+const InterruptMetadataSchema = new Schema<IInterruptMetadata>(
+  {
+    reason: {
+      type: String,
+      enum: ['user_aborted', 'connection_lost'],
+      required: true,
+    },
+    interruptedAtPhase: {
+      type: String,
+      enum: [
+        'start',
+        'requirements',
+        'ui_design',
+        'contract',
+        'building',
+        'awaiting_confirm',
+        'committing',
+        'responding',
+      ],
+      required: true,
+    },
+    interruptedAt: {
+      type: Date,
+      default: () => new Date(),
+    },
+  },
+  { _id: false },
+)
+
+/**
+ * PlanningEntry 子文档 Schema
+ *
+ * 各阶段 SubAgent（requirements/ui_design/contract/building）的规划产出记录。
+ */
+const PlanningEntrySchema = new Schema(
+  {
+    agent: { type: String, required: true },
+    output: { type: Schema.Types.Mixed, required: true },
+    reasoning: { type: String },
+    tokenUsage: {
+      type: new Schema(
+        { input: { type: Number, default: 0 }, output: { type: Number, default: 0 } },
+        { _id: false },
+      ),
+      default: () => ({ input: 0, output: 0 }),
+    },
+    durationMs: { type: Number, default: 0 },
+    createdAt: { type: Date, default: () => new Date() },
+  },
+  { _id: false },
+)
+
+const DialogueSchema = new Schema<IDialogueDoc>(
+  {
+    appId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    conversationId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ['chat', 'task', 'edit'],
+      required: true,
+    },
+    phase: {
+      type: String,
+      enum: [
+        'start',
+        'requirements',
+        'ui_design',
+        'contract',
+        'building',
+        'awaiting_confirm',
+        'committing',
+        'responding',
+        'done',
+        'discarded',
+        'failed',
+      ],
+      required: true,
+      default: 'start',
+    },
+    threadId: { type: String },
+    messages: {
+      type: [MessageSchema],
+      default: [],
+    },
+
+    // ─── 应用内容版本引用（持有三张 append-only 内容表的版本号）─────────────────
+    uiDefinitionVersion: {
+      type: Number,
+      required: true,
+    },
+    schemaVersion: {
+      type: Number,
+      required: true,
+    },
+    cloudFunctionVersion: {
+      type: Number,
+      required: true,
+    },
+
+    // ─── 规划产物 ──────────────────────────────────────────────────────────
+    planningEntries: {
+      type: [PlanningEntrySchema],
+      default: [],
+    },
+    // ─── Agent 记忆暂存 ───────────────────────────────────────────────────
+    memoryUpdates: { type: Schema.Types.Mixed },
+
+    // ─── 摘要 ──────────────────────────────────────────────────────────────────
+    summary: { type: DialogueSummarySchema },
+
+    // ─── 中断归因 ────────────────────────────────────────────────────────────
+    interruptMetadata: { type: InterruptMetadataSchema },
+  },
+  {
+    timestamps: true,
+    collection: 'dialogues',
+  },
+)
+
+// ─── 索引 ─────────────────────────────────────────────────────────────────────
+
+// 按应用查询对话历史（高频）
+DialogueSchema.index({ appId: 1, createdAt: -1 })
+
+// 通过 Conversation 查对话列表
+DialogueSchema.index({ conversationId: 1, createdAt: -1 })
+
+// 查找进行中的对话（单活跃约束校验 + 读取聚合时定位最新 done Dialogue）
+DialogueSchema.index({ appId: 1, phase: 1 })
+
+// TTL 清理卡在非终态的孤儿对话
+DialogueSchema.index({ phase: 1, updatedAt: 1 })
+
+// ─── 模型 ─────────────────────────────────────────────────────────────────────
+
+const Dialogue = mongoose.model<IDialogueDoc>('Dialogue', DialogueSchema)
+
+export default Dialogue

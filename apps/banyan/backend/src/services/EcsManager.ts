@@ -141,10 +141,10 @@ function sleep(ms: number): Promise<void> {
 export class EcsManager {
   /**
    * 创建 ECS 实例
-   * @param tenantId 租户 ID，用于标记实例
+   * @param teamId 团队 ID，用于标记实例
    * @returns 实例 ID 和内网 IP
    */
-  async createInstance(tenantId: string): Promise<RunInstanceResult> {
+  async createInstance(teamId: string): Promise<RunInstanceResult> {
     const instanceType = getEnv('ECS_INSTANCE_TYPE', 'ecs.t6-c1m2.large')
     const imageId = getEnv('ECS_IMAGE_ID')
     const securityGroupId = getEnv('ECS_SECURITY_GROUP_ID')
@@ -155,9 +155,9 @@ export class EcsManager {
       InstanceType: instanceType,
       SecurityGroupId: securityGroupId,
       VSwitchId: vswitchId,
-      InstanceName: `banyuan-tenant-${tenantId}`,
-      'Tag.1.Key': 'TenantId',
-      'Tag.1.Value': tenantId,
+      InstanceName: `banyuan-team-${teamId}`,
+      'Tag.1.Key': 'TeamId',
+      'Tag.1.Value': teamId,
       'Tag.2.Key': 'ManagedBy',
       'Tag.2.Value': 'banyuan',
       InternetMaxBandwidthOut: '0',

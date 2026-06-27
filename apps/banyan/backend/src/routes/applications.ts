@@ -1,5 +1,5 @@
 import Router from '@koa/router'
-import applicationController from '../controllers/ApplicationController'
+import applicationController from '../controllers/ApplicationController.js'
 
 const router = new Router({
   prefix: '/api/applications',

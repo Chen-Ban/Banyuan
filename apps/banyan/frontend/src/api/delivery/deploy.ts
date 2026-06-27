@@ -22,7 +22,7 @@ export type ProvisionStatus =
 export interface DeploymentRecord {
   deploymentId: string
   applicationId: string
-  tenantId: string
+  teamId: string
   version: number
   deployType: DeployType
   status: DeployStatus

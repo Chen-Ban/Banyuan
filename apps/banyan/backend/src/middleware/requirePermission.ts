@@ -4,40 +4,40 @@
  * 用法：
  *   router.post('/deploy/publish', requirePermission('deploy:publish'), handler)
  *
- * 原理：从 JWT 解析 tenantId → 查 Tenant.planId → 查 Plan.permissions
- * 如果 JWT 不携带 tenantId（用户未选择租户上下文），返回 403。
+ * 原理：从 JWT 解析 teamId → 查 Team.planId → 查 Plan.permissions
+ * 如果 JWT 不携带 teamId（用户未选择团队上下文），返回 403。
  *
  * 缓存策略：每次请求查库（Plan 表极少变更，后续可加内存缓存）。
  */
 
 import type { Middleware } from 'koa'
-import { Tenant } from '../models/Tenant.js'
-import { Plan } from '../models/Plan.js'
+import { Team } from '../models/auth/Team.js'
+import { Plan } from '../models/billing/Plan.js'
 
 const PERMISSION_CACHE_TTL = 60_000 // 1 分钟
 const permissionCache = new Map<string, { permissions: string[]; expiresAt: number }>()
 
-async function getPlanPermissions(tenantId: string): Promise<string[]> {
-  const cached = permissionCache.get(tenantId)
+async function getPlanPermissions(teamId: string): Promise<string[]> {
+  const cached = permissionCache.get(teamId)
   if (cached && cached.expiresAt > Date.now()) {
     return cached.permissions
   }
 
-  const tenant = await Tenant.findOne({ tenantId }).lean()
-  if (!tenant) return []
+  const team = await Team.findOne({ teamId }).lean()
+  if (!team) return []
 
   // 无 planId 时，按 plan 字段的旧逻辑处理：pro = 所有权限，free = 基础权限
-  if (!tenant.planId) {
+  if (!team.planId) {
     const basePermissions = ['app:create', 'app:edit', 'ai:chat', 'data:browse', 'material:use']
     const proPermissions = [...basePermissions, 'deploy:publish', 'schema:manage', 'material:use']
-    const perms = tenant.plan === 'pro' ? proPermissions : basePermissions
-    permissionCache.set(tenantId, { permissions: perms, expiresAt: Date.now() + PERMISSION_CACHE_TTL })
+    const perms = team.plan === 'pro' ? proPermissions : basePermissions
+    permissionCache.set(teamId, { permissions: perms, expiresAt: Date.now() + PERMISSION_CACHE_TTL })
     return perms
   }
 
-  const plan = await Plan.findOne({ planId: tenant.planId, active: true }).lean()
+  const plan = await Plan.findOne({ planId: team.planId, active: true }).lean()
   const permissions = plan?.permissions ?? []
-  permissionCache.set(tenantId, { permissions, expiresAt: Date.now() + PERMISSION_CACHE_TTL })
+  permissionCache.set(teamId, { permissions, expiresAt: Date.now() + PERMISSION_CACHE_TTL })
   return permissions
 }
 
@@ -54,17 +54,17 @@ export function requirePermission(permission: string): Middleware {
       return
     }
 
-    if (!user.tenantId) {
+    if (!user.teamId) {
       ctx.status = 403
       ctx.body = {
         success: false,
         message: '请先创建或加入一个团队',
-        code: 'NO_TENANT_CONTEXT',
+        code: 'NO_TEAM_CONTEXT',
       }
       return
     }
 
-    const perms = await getPlanPermissions(user.tenantId)
+    const perms = await getPlanPermissions(user.teamId)
     if (!perms.includes(permission)) {
       ctx.status = 403
       ctx.body = {
@@ -81,11 +81,11 @@ export function requirePermission(permission: string): Middleware {
 }
 
 /**
- * requireTenant — 强制要求 JWT 携带 tenantId
- * 用于所有需要租户上下文的接口。
+ * requireTeam — 强制要求 JWT 携带 teamId
+ * 用于所有需要团队上下文的接口。
  * 必须在 authMiddleware 之后使用。
  */
-export function requireTenant(): Middleware {
+export function requireTeam(): Middleware {
   return async (ctx, next) => {
     const user = ctx.state.user
     if (!user) {
@@ -94,12 +94,12 @@ export function requireTenant(): Middleware {
       return
     }
 
-    if (!user.tenantId) {
+    if (!user.teamId) {
       ctx.status = 403
       ctx.body = {
         success: false,
         message: '请先创建或加入一个团队',
-        code: 'NO_TENANT_CONTEXT',
+        code: 'NO_TEAM_CONTEXT',
       }
       return
     }
@@ -109,11 +109,11 @@ export function requireTenant(): Middleware {
 }
 
 /**
- * clearPermissionCache — 清除指定租户的权限缓存
+ * clearPermissionCache — 清除指定团队的权限缓存
  *
  * 在套餐变更（升级/降级/支付激活）后调用，
  * 确保下次请求时重新从数据库加载最新权限。
  */
-export function clearPermissionCache(tenantId: string): void {
-  permissionCache.delete(tenantId)
+export function clearPermissionCache(teamId: string): void {
+  permissionCache.delete(teamId)
 }

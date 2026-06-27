@@ -63,8 +63,8 @@ export class AiNoConfirmableDialogueError extends BanyanError {
 // ─── 配额超限 ─────────────────────────────────────────────────────────────────
 
 export class AiQuotaExceededError extends BanyanError {
-  constructor(scope: 'tenant' | 'app', used: number, limit: number) {
-    const scopeLabel = scope === 'app' ? '应用' : '租户'
+  constructor(scope: 'team' | 'app', used: number, limit: number) {
+    const scopeLabel = scope === 'app' ? '应用' : '团队'
     super({
       code: 'AI_QUOTA_EXCEEDED',
       category: 'budget',

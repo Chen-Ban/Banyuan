@@ -1,45 +1,60 @@
 /**
  * models barrel 文件
  *
- * 导出所有 Mongoose Model 实例和嵌入用 Schemas。
+ * 按领域分层导出所有 Mongoose Model 实例和嵌入用 Schemas。
  * 类型定义统一从 models/types/ 导入，此文件不做类型转发。
  */
 
-// ─── Models ────────────────────────────────────────────────────────────────────
+// ─── auth ────────────────────────────────────────────────────────────────────
 
-export { default as Application } from './Application.js'
-export { default as Conversation } from './Conversation.js'
-export { default as Dialogue } from './Dialogue.js'
-export { default as AgentPrompt } from './AgentPrompt.js'
-export { default as PackageTaskModel } from './PackageTask.js'
-export { default as CollectionSchemaModel } from './CollectionSchema.js'
-export { default as CloudFunction } from './CloudFunction.js'
-export { default as UIDefinition } from './UIDefinition.js'
-export { default as AgentMemory } from './AgentMemory.js'
-export { default as Material } from './Material.js'
-export { EcsInstance } from './EcsInstance.js'
-export { Tenant } from './Tenant.js'
-export { User } from './User.js'
-export { Membership } from './Membership.js'
-export { RefreshToken } from './RefreshToken.js'
-export { Deployment } from './Deployment.js'
-export { Plan } from './Plan.js'
-export { CreditUsage } from './CreditUsage.js'
-export { PaymentOrder } from './PaymentOrder.js'
-export { Bill } from './Bill.js'
-export { Notification } from './Notification.js'
+export { User } from './auth/User.js'
+export { Team } from './auth/Team.js'
+export { Membership } from './auth/Membership.js'
+export { RefreshToken } from './auth/RefreshToken.js'
 
-export { LLMCallRecord } from './LLMCallRecord.js'
+// ─── application ─────────────────────────────────────────────────────────────
+
+export { default as Application } from './application/Application.js'
+export { default as UIDefinition } from './application/UIDefinition.js'
+export { default as CollectionSchemaModel } from './application/CollectionSchema.js'
+export { default as CloudFunction } from './application/CloudFunction.js'
+
+// ─── conversation ────────────────────────────────────────────────────────────
+
+export { default as Conversation } from './conversation/Conversation.js'
+export { default as Dialogue } from './conversation/Dialogue.js'
+export { default as AgentMemory } from './conversation/AgentMemory.js'
+export { default as AgentPrompt } from './conversation/AgentPrompt.js'
+// ─── deployment ──────────────────────────────────────────────────────────────
+
+export { Deployment } from './deployment/Deployment.js'
+export { default as PackageTaskModel } from './deployment/PackageTask.js'
+
+// ─── ecs ─────────────────────────────────────────────────────────────────────
+
+export { EcsInstance } from './ecs/EcsInstance.js'
+
+// ─── billing ─────────────────────────────────────────────────────────────────
+
+export { Plan } from './billing/Plan.js'
+export { CreditUsage } from './billing/CreditUsage.js'
+export { Bill } from './billing/Bill.js'
+export { PaymentOrder } from './billing/PaymentOrder.js'
+export { Notification } from './billing/Notification.js'
+
+// ─── material ────────────────────────────────────────────────────────────────
+
+export { default as Material } from './material/Material.js'
 
 // ─── Schemas（供嵌入复用）───────────────────────────────────────────────────────
 
-export { FieldDefSchema, CollectionDefSchema } from './CollectionSchema.js'
-export { CloudFunctionDefSchema } from './CloudFunction.js'
+export { FieldDefSchema, CollectionDefSchema } from './application/CollectionSchema.js'
+export { CloudFunctionDefSchema } from './application/CloudFunction.js'
 
 // ─── Doc 类型（Model 层定义的 Document 交叉类型）──────────────────────────────────
 
-export type { IDialogueDoc } from './Dialogue.js'
-export type { IConversationDoc } from './Conversation.js'
-export type { IUserDoc } from './User.js'
-export type { IMembershipDoc } from './Membership.js'
-export type { IAgentMemoryDoc } from './AgentMemory.js'
+export type { IDialogueDoc } from './conversation/Dialogue.js'
+export type { IConversationDoc } from './conversation/Conversation.js'
+export type { IUserDoc } from './auth/User.js'
+export type { IMembershipDoc } from './auth/Membership.js'
+export type { IAgentMemoryDoc } from './conversation/AgentMemory.js'

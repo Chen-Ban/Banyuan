@@ -12,9 +12,10 @@
  */
 
 import crypto from 'crypto'
-import { CreditUsage } from '../models/CreditUsage.js'
-import { Plan } from '../models/Plan.js'
-import { Tenant } from '../models/Tenant.js'
+import { CreditUsage } from '../models/billing/CreditUsage.js'
+import { Plan } from '../models/billing/Plan.js'
+import { Team } from '../models/auth/Team.js'
+import { Application } from '../models/index.js'
 import type { CreditUsageDetail } from '../models/types/index.js'
 import { logger } from '../utils/logger.js'
 import type { NotificationService } from './NotificationService.js'
@@ -38,7 +39,7 @@ const MARKUP_FACTOR = 2.0
 
 /**
  * 超量 credit 单价（分/credit）。
- * 当租户月用量超出套餐额度时，按此单价计费。
+ * 当团队月用量超出套餐额度时，按此单价计费。
  * BillingService 使用此常量计算超量费用。
  */
 export const OVERAGE_UNIT_PRICE = 1 // 分/credit
@@ -89,7 +90,7 @@ export class CreditService {
    * @param applicationId 可选：应用 ID，传入时计入应用级用量
    */
   async recordUsage(
-    tenantId: string,
+    teamId: string,
     sessionId: string,
     model: string,
     inputTokens: number,
@@ -107,7 +108,7 @@ export class CreditService {
       timestamp: new Date(),
     }
 
-    const query: Record<string, string> = { tenantId, yearMonth }
+    const query: Record<string, string> = { teamId, yearMonth }
     if (applicationId) {
       query.applicationId = applicationId
     } else {
@@ -134,19 +135,17 @@ export class CreditService {
 
       let total = 0
       if (applicationId) {
-        // 应用级：从 Application 模型获取 aiLimit
-        const { default: Application } = await import('../models/Application.js')
         const app = await Application.findOne({ application_id: applicationId }).lean()
         total = app?.aiLimit ?? 0
       }
 
       if (total === 0) {
-        // 回落租户级额度
-        const tenant = await Tenant.findOne({ tenantId }).lean()
-        if (tenant?.planId) {
-          const plan = await Plan.findOne({ planId: tenant.planId }).lean()
+        // 回落团队级额度
+        const team = await Team.findOne({ teamId }).lean()
+        if (team?.planId) {
+          const plan = await Plan.findOne({ planId: team.planId }).lean()
           total = plan?.monthlyCredits ?? 0
-        } else if (tenant?.plan === 'pro') {
+        } else if (team?.plan === 'pro') {
           total = LEGACY_PRO_MONTHLY_CREDITS
         }
       }
@@ -158,34 +157,34 @@ export class CreditService {
 
         if (ratio <= 0.10) {
           const ns = await getNotificationService()
-          await ns.sendQuotaAlert(tenantId, 'critical', remaining, total)
+          await ns.sendQuotaAlert(teamId, 'critical', remaining, total)
         } else if (ratio <= 0.20) {
           const ns = await getNotificationService()
-          await ns.sendQuotaAlert(tenantId, 'warning', remaining, total)
+          await ns.sendQuotaAlert(teamId, 'warning', remaining, total)
         }
       }
     } catch (alertErr) {
       // 告警失败不影响主流程
       const errorMsg = alertErr instanceof Error ? alertErr.message : String(alertErr)
-      logger.error({ tenantId, error: errorMsg }, 'Quota alert check failed')
+      logger.error({ teamId, error: errorMsg }, 'Quota alert check failed')
     }
   }
 
   /**
    * 查询当月已用 credit
    */
-  async getMonthlyUsage(tenantId: string): Promise<{ used: number; total: number; remaining: number }> {
+  async getMonthlyUsage(teamId: string): Promise<{ used: number; total: number; remaining: number }> {
     const yearMonth = getCurrentYearMonth()
-    const usage = await CreditUsage.findOne({ tenantId, yearMonth, applicationId: { $exists: false } }).lean()
+    const usage = await CreditUsage.findOne({ teamId, yearMonth, applicationId: { $exists: false } }).lean()
     const used = usage?.creditsUsed ?? 0
 
     // 查询套餐额度
-    const tenant = await Tenant.findOne({ tenantId }).lean()
+    const team = await Team.findOne({ teamId }).lean()
     let total = 0
-    if (tenant?.planId) {
-      const plan = await Plan.findOne({ planId: tenant.planId }).lean()
+    if (team?.planId) {
+      const plan = await Plan.findOne({ planId: team.planId }).lean()
       total = plan?.monthlyCredits ?? 0
-    } else if (tenant?.plan === 'pro') {
+    } else if (team?.plan === 'pro') {
       total = LEGACY_PRO_MONTHLY_CREDITS
     }
 
@@ -195,8 +194,8 @@ export class CreditService {
   /**
    * 检查是否超出月额度
    */
-  async isQuotaExceeded(tenantId: string): Promise<boolean> {
-    const { remaining, total } = await this.getMonthlyUsage(tenantId)
+  async isQuotaExceeded(teamId: string): Promise<boolean> {
+    const { remaining, total } = await this.getMonthlyUsage(teamId)
     // total === 0 表示无限制（免费版）
     if (total === 0) return false
     return remaining <= 0
@@ -206,25 +205,23 @@ export class CreditService {
    * 查询应用级当月已用 credit
    */
   async getAppMonthlyUsage(
-    tenantId: string,
+    teamId: string,
     appId: string,
   ): Promise<{ used: number; total: number; remaining: number }> {
     const yearMonth = getCurrentYearMonth()
-    const usage = await CreditUsage.findOne({ tenantId, applicationId: appId, yearMonth }).lean()
+    const usage = await CreditUsage.findOne({ teamId, applicationId: appId, yearMonth }).lean()
     const used = usage?.creditsUsed ?? 0
 
-    // 查询应用级额度
-    const { default: Application } = await import('../models/Application.js')
     const app = await Application.findOne({ application_id: appId }).lean()
     let total = app?.aiLimit ?? 0
 
-    // 回落租户级额度
+    // 回落团队级额度
     if (total === 0) {
-      const tenant = await Tenant.findOne({ tenantId }).lean()
-      if (tenant?.planId) {
-        const plan = await Plan.findOne({ planId: tenant.planId }).lean()
+      const team = await Team.findOne({ teamId }).lean()
+      if (team?.planId) {
+        const plan = await Plan.findOne({ planId: team.planId }).lean()
         total = plan?.monthlyCredits ?? 0
-      } else if (tenant?.plan === 'pro') {
+      } else if (team?.plan === 'pro') {
         total = LEGACY_PRO_MONTHLY_CREDITS
       }
     }
@@ -235,8 +232,8 @@ export class CreditService {
   /**
    * 检查应用级配额是否超限
    */
-  async isAppQuotaExceeded(tenantId: string, appId: string): Promise<boolean> {
-    const { remaining, total } = await this.getAppMonthlyUsage(tenantId, appId)
+  async isAppQuotaExceeded(teamId: string, appId: string): Promise<boolean> {
+    const { remaining, total } = await this.getAppMonthlyUsage(teamId, appId)
     if (total === 0) return false
     return remaining <= 0
   }

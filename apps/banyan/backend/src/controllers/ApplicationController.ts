@@ -1,5 +1,5 @@
 import { Context } from 'koa'
-import applicationService from '../services/ApplicationService'
+import applicationService from '../services/ApplicationService.js'
 
 // ADR-042：本端点只更新应用「元信息」（name/thumbnail/tags）。
 // UI 定义 JSON 是版本化内容（UIDefinition 表），不在此更新——
@@ -19,7 +19,7 @@ class ApplicationController {
       const { name, application_id, tags, page = '1', pageSize = '12' } = ctx.query
       const user = ctx.state.user!
 
-      if (!user.tenantId) {
+      if (!user.teamId) {
         ctx.status = 200
         ctx.body = { success: true, data: { applications: [], total: 0, page: 1, pageSize: 12 } }
         return
@@ -34,11 +34,11 @@ class ApplicationController {
       let query: import('../services/ApplicationService').IApplicationQuery
 
       if (user.membershipRole === 'member') {
-        // 成员：看同租户下自己的应用 + team 可见的应用
-        query = { ...baseQuery, createdOrVisibleToTeam: { tenantId: user.tenantId, userId: user.userId } }
+        // 成员：看同团队下自己的应用 + team 可见的应用
+        query = { ...baseQuery, createdOrVisibleToTeam: { teamId: user.teamId, userId: user.userId } }
       } else {
-        // admin / owner：看租户内所有应用
-        query = { ...baseQuery, tenantId: user.tenantId }
+        // admin / owner：看团队内所有应用
+        query = { ...baseQuery, teamId: user.teamId }
       }
 
       // 去除 undefined 键
@@ -74,8 +74,8 @@ class ApplicationController {
         return
       }
 
-      // 租户归属校验
-      if (result.application.tenantId !== user.tenantId) {
+      // 团队归属校验
+      if (result.application.teamId !== user.teamId) {
         ctx.status = 403
         ctx.body = { success: false, message: '无权访问该应用' }
         return
@@ -100,12 +100,12 @@ class ApplicationController {
   async createApplication(ctx: Context) {
     try {
       const user = ctx.state.user!
-      if (!user.tenantId) {
+      if (!user.teamId) {
         ctx.status = 403
         ctx.body = { success: false, message: '请先创建或加入一个团队' }
         return
       }
-      const application = await applicationService.createApplication(user.userId, user.tenantId)
+      const application = await applicationService.createApplication(user.userId, user.teamId)
 
       ctx.status = 201
       ctx.body = { success: true, data: application, message: 'Application created successfully' }
@@ -127,14 +127,14 @@ class ApplicationController {
         return
       }
 
-      // 租户归属校验
+      // 团队归属校验
       const existing = await applicationService.getApplicationById(id)
       if (!existing) {
         ctx.status = 404
         ctx.body = { success: false, message: 'Application not found' }
         return
       }
-      if (existing.tenantId !== user.tenantId) {
+      if (existing.teamId !== user.teamId) {
         ctx.status = 403
         ctx.body = { success: false, message: '无权修改该应用' }
         return
@@ -155,14 +155,14 @@ class ApplicationController {
       const { id } = ctx.params
       const user = ctx.state.user!
 
-      // 租户归属校验
+      // 团队归属校验
       const existing = await applicationService.getApplicationById(id)
       if (!existing) {
         ctx.status = 404
         ctx.body = { success: false, message: 'Application not found' }
         return
       }
-      if (existing.tenantId !== user.tenantId) {
+      if (existing.teamId !== user.teamId) {
         ctx.status = 403
         ctx.body = { success: false, message: '无权删除该应用' }
         return

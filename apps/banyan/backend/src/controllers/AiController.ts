@@ -42,14 +42,14 @@ class AiController {
     if (!appId) throw new AiMissingParamError('appId')
     if (!prompt) throw new AiMissingParamError('prompt')
 
-    // ─── 应用级 / 租户级 credit 配额检查 ──────────────────────────────────
+    // ─── 应用级 / 团队级 credit 配额检查 ──────────────────────────────────
     const app = await applicationService.getApplicationById(appId)
     if (app) {
-      const tenantId = app.tenantId
-      const exceeded = await creditService.isAppQuotaExceeded(tenantId, appId)
+      const teamId = app.teamId
+      const exceeded = await creditService.isAppQuotaExceeded(teamId, appId)
       if (exceeded) {
-        const { used, total } = await creditService.getAppMonthlyUsage(tenantId, appId)
-        throw new AiQuotaExceededError(app.aiLimit ? 'app' : 'tenant', used, total)
+        const { used, total } = await creditService.getAppMonthlyUsage(teamId, appId)
+        throw new AiQuotaExceededError(app.aiLimit ? 'app' : 'team', used, total)
       }
     }
 
@@ -117,7 +117,7 @@ class AiController {
       const userMsg = dlg.messages.find((m) => m.role === 'user')
       const assistantMsgs = dlg.messages.filter((m) => m.role === 'assistant')
       const assistantText = assistantMsgs
-        .flatMap((m) => m.assistantContent ?? [])
+        .flatMap((m) => m.content ?? [])
         .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
         .map((c) => c.text)
         .join('')
@@ -128,7 +128,7 @@ class AiController {
           dialogueId: (dlg._id as Types.ObjectId).toString(),
           type: dlg.type,
           status: 'done',
-          userContent: userMsg?.userContent?.prompt ?? '',
+          userContent: userMsg?.content?.prompt ?? '',
           assistantContent: assistantText || null,
           createdAt: dlg.createdAt.toISOString(),
         },

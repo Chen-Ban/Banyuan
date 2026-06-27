@@ -1,8 +1,8 @@
 import mongoose from 'mongoose'
-import { User } from '../models/User.js'
-import Conversation from '../models/Conversation.js'
-import Material from '../models/Material.js'
-import Application from '../models/Application.js'
+import { User } from '../models/auth/User.js'
+import Conversation from '../models/conversation/Conversation.js'
+import Material from '../models/material/Material.js'
+import Application from '../models/application/Application.js'
 import { logger } from '../utils/logger.js'
 
 const MONGODB_HOST = process.env.MONGODB_HOST || 'localhost'
@@ -25,7 +25,7 @@ export async function connectDatabase() {
     await Conversation.syncIndexes()
     // 清除旧版 material_id_1 唯一索引（当前 schema 改用 meta.id）
     await Material.syncIndexes()
-    // 清除旧版 tenantId_appSlug sparse 索引，替换为 partialFilterExpression
+    // 清除旧版 teamId_appSlug sparse 索引，替换为 partialFilterExpression
     await Application.syncIndexes()
   } catch (error) {
     logger.error('MongoDB connection error', error)

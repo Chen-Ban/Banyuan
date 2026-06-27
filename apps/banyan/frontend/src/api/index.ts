@@ -26,6 +26,7 @@ export * as dataApi from './runtime/data'
 export * as cloudFunctionApi from './cloudFunctions/index'
 export * as materialApi from './materials/index'
 export * as deployApi from './delivery/deploy'
+export * as teamApi from './teams'
 export type { Application, ApplicationFormData } from './application/metadata'
 export type { UIDefinitionData } from './ui/definition'
 export type {

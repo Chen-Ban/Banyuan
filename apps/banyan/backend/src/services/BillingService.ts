@@ -2,16 +2,16 @@
  * BillingService — 月度账单生成
  *
  * 职责：
- *   - 每月 1 日自动为所有付费租户生成上月账单
+ *   - 每月 1 日自动为所有付费团队生成上月账单
  *   - 计算超量 credit 费用
  *   - 创建 Bill 记录
  */
 
 import crypto from 'crypto'
-import { Bill } from '../models/Bill.js'
-import { CreditUsage } from '../models/CreditUsage.js'
-import { Plan } from '../models/Plan.js'
-import { Tenant } from '../models/Tenant.js'
+import { Bill } from '../models/billing/Bill.js'
+import { CreditUsage } from '../models/billing/CreditUsage.js'
+import { Plan } from '../models/billing/Plan.js'
+import { Team } from '../models/auth/Team.js'
 import { OVERAGE_UNIT_PRICE } from './CreditService.js'
 import { logger } from '../utils/logger.js'
 
@@ -31,34 +31,34 @@ function getCurrentYearMonth(): string {
 
 export class BillingService {
   /**
-   * 为指定月份生成所有付费租户的账单
+   * 为指定月份生成所有付费团队的账单
    * @param yearMonth 计费周期，格式 '2026-07'
    */
   async generateMonthlyBill(yearMonth: string): Promise<number> {
     logger.info({ yearMonth }, 'Starting monthly bill generation')
 
-    // 查找所有付费租户（planId 不为空或 plan === 'pro'）
-    const proTenants = await Tenant.find({
+    // 查找所有付费团队（planId 不为空或 plan === 'pro'）
+    const proTeams = await Team.find({
       $or: [
         { planId: { $exists: true, $nin: [null, ''] } },
         { plan: 'pro' },
       ],
     }).lean()
 
-    logger.info({ yearMonth, tenantCount: proTenants.length }, 'Found pro tenants for billing')
+    logger.info({ yearMonth, teamCount: proTeams.length }, 'Found pro teams for billing')
 
     let billCount = 0
 
-    for (const tenant of proTenants) {
+    for (const team of proTeams) {
       try {
         // 检查是否已存在该月账单（幂等）
         const existing = await Bill.findOne({
-          tenantId: tenant.tenantId,
+          teamId: team.teamId,
           yearMonth,
         })
         if (existing) {
           logger.info(
-            { tenantId: tenant.tenantId, yearMonth },
+            { teamId: team.teamId, yearMonth },
             'Bill already exists, skipping',
           )
           continue
@@ -66,7 +66,7 @@ export class BillingService {
 
         // 查询该月 credit 用量
         const usage = await CreditUsage.findOne({
-          tenantId: tenant.tenantId,
+          teamId: team.teamId,
           yearMonth,
         }).lean()
 
@@ -76,11 +76,11 @@ export class BillingService {
         let monthlyCredits = 0
         let basePrice = 0
 
-        if (tenant.planId) {
-          const plan = await Plan.findOne({ planId: tenant.planId }).lean()
+        if (team.planId) {
+          const plan = await Plan.findOne({ planId: team.planId }).lean()
           monthlyCredits = plan?.monthlyCredits ?? 0
           basePrice = plan?.priceInCents ?? 0
-        } else if (tenant.plan === 'pro') {
+        } else if (team.plan === 'pro') {
           // 旧版 pro 套餐（无 planId）
           monthlyCredits = 50_000
           basePrice = 9_900 // ¥99
@@ -95,7 +95,7 @@ export class BillingService {
         const billId = generateId('bill')
         await Bill.create({
           billId,
-          tenantId: tenant.tenantId,
+          teamId: team.teamId,
           yearMonth,
           basePrice,
           overageCredits,
@@ -107,7 +107,7 @@ export class BillingService {
         logger.info(
           {
             billId,
-            tenantId: tenant.tenantId,
+            teamId: team.teamId,
             yearMonth,
             basePrice,
             overageCredits,
@@ -120,8 +120,8 @@ export class BillingService {
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err)
         logger.error(
-          { tenantId: tenant.tenantId, yearMonth, error: errorMsg },
-          'Failed to generate bill for tenant',
+          { teamId: team.teamId, yearMonth, error: errorMsg },
+          'Failed to generate bill for team',
         )
       }
     }
