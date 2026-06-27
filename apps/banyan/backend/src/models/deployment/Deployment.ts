@@ -26,7 +26,7 @@ const DeploySnapshotSubSchema = new Schema<IDeploySnapshot>(
 
 const DeploymentSchema = new Schema<IDeploymentDoc>(
   {
-    deploymentId: { type: String, required: true, unique: true, index: true },
+    deploymentId: { type: String, required: true, unique: true },
     applicationId: { type: String, required: true, index: true },
     teamId: { type: String, required: true, index: true },
     version: { type: Number, required: true },
@@ -36,14 +36,14 @@ const DeploymentSchema = new Schema<IDeploymentDoc>(
       enum: ['pending', 'building', 'deploying', 'success', 'failed'],
       default: 'pending',
     },
-    currentStep: { type: String, default: undefined },
+    currentStep: { type: String },
     progress: { type: Number, default: 0, min: 0, max: 100 },
-    url: { type: String, default: undefined },
-    error: { type: String, default: undefined },
+    url: { type: String },
+    error: { type: String },
     triggeredBy: { type: String, required: true },
-    snapshot: { type: DeploySnapshotSubSchema, default: undefined },
-    startedAt: { type: Date, default: undefined },
-    finishedAt: { type: Date, default: undefined },
+    snapshot: { type: DeploySnapshotSubSchema },
+    startedAt: { type: Date },
+    finishedAt: { type: Date },
   },
   { timestamps: true, collection: 'deployments' },
 )

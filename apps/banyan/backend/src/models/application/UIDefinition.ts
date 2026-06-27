@@ -6,9 +6,9 @@
  */
 
 import mongoose, { Schema } from 'mongoose'
-import type { IUIDefinition } from '../types/application/versioned-content.js'
+import type { IUiDefinition } from '../types/application/uid-definition.js'
 
-const UIDefinitionSchema = new Schema<IUIDefinition>(
+const UIDefinitionSchema = new Schema<IUiDefinition>(
   {
     appId: { type: String, required: true, trim: true, index: true },
     version: { type: Number, required: true, min: 1, default: 1 },
@@ -23,6 +23,6 @@ const UIDefinitionSchema = new Schema<IUIDefinition>(
 // 联合唯一索引：同一 app 的版本号不可重复
 UIDefinitionSchema.index({ appId: 1, version: -1 }, { unique: true })
 
-const UIDefinition = mongoose.model<IUIDefinition>('UIDefinition', UIDefinitionSchema)
+const UIDefinition = mongoose.model<IUiDefinition>('UIDefinition', UIDefinitionSchema, 'uid_definitions')
 
 export default UIDefinition

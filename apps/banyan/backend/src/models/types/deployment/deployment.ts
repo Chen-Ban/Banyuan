@@ -3,7 +3,7 @@
  */
 
 import type { ICollectionDef } from '../application/collection.js'
-import type { ICloudFunctionDef } from '../application/versioned-content.js'
+import type { ICloudFunctionDef } from '../application/cloud-function.js'
 
 // ─── 部署状态 ─────────────────────────────────────────────────────────────────
 

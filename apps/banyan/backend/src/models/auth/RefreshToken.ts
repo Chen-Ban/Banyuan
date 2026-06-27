@@ -5,9 +5,9 @@ type IRefreshTokenDoc = IRefreshToken & Document
 
 const RefreshTokenSchema = new Schema<IRefreshTokenDoc>(
   {
-    tokenId: { type: String, required: true, unique: true, index: true },
+    tokenId: { type: String, required: true, unique: true },
     userId: { type: String, required: true, index: true },
-    teamId: { type: String, default: undefined },
+    teamId: { type: String },
     token: { type: String, required: true, unique: true },
     expiresAt: { type: Date, required: true },
     revokedAt: { type: Date },

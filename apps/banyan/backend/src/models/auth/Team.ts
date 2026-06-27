@@ -7,13 +7,15 @@ type ITeamDoc = ITeam & Document
 
 const TeamSchema = new Schema<ITeamDoc>(
   {
-    teamId: { type: String, required: true, unique: true, index: true },
+    teamId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     plan: { type: String, enum: ['free', 'pro'], default: 'free' },
-    planId: { type: String, default: undefined },
-    subscriptionExpiresAt: { type: Date, default: undefined },
+    planId: { type: String },
+    subscriptionExpiresAt: { type: Date },
   },
   { timestamps: true, collection: 'teams' },
 )
+
+TeamSchema.index({ planId: 1 })
 
 export const Team = mongoose.model<ITeamDoc>('Team', TeamSchema)

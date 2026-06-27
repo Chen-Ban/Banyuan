@@ -16,7 +16,8 @@ export type { IRefreshToken } from './auth/refresh-token.js'
 
 export type { IApplication } from './application/application.js'
 export type { FieldType, IFieldDef, ICollectionDef, ICollectionSchema } from './application/collection.js'
-export type { IUIDefinition, ICloudFunctionDef, ICloudFunctionGroup } from './application/versioned-content.js'
+export type { IUiDefinition } from './application/uid-definition.js'
+export type { ICloudFunctionDef, ICloudFunction } from './application/cloud-function.js'
 
 // ─── conversation ────────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ export type {
   IErrorContent,
   IAssistantContent,
   IMessage,
-} from './conversation/message-types.js'
+} from './conversation/message.js'
 
 // ─── deployment ──────────────────────────────────────────────────────────────
 

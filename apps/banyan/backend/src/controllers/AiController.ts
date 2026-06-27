@@ -117,7 +117,7 @@ class AiController {
       const userMsg = dlg.messages.find((m) => m.role === 'user')
       const assistantMsgs = dlg.messages.filter((m) => m.role === 'assistant')
       const assistantText = assistantMsgs
-        .flatMap((m) => m.assistantContent ?? [])
+        .flatMap((m) => m.content ?? [])
         .filter((c): c is { type: 'text'; text: string } => c.type === 'text')
         .map((c) => c.text)
         .join('')
@@ -128,7 +128,7 @@ class AiController {
           dialogueId: (dlg._id as Types.ObjectId).toString(),
           type: dlg.type,
           status: 'done',
-          userContent: userMsg?.userContent?.prompt ?? '',
+          userContent: userMsg?.content?.prompt ?? '',
           assistantContent: assistantText || null,
           createdAt: dlg.createdAt.toISOString(),
         },

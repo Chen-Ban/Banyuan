@@ -63,36 +63,12 @@ const ApplicationSchema = new Schema<IApplicationDoc>(
     },
 
     // Web 发布相关（ADR-028）
-    appSlug: {
-      type: String,
-      default: undefined,
-      trim: true,
-    },
-    publishedVersion: {
-      type: Number,
-      default: undefined,
-    },
-    webUrl: {
-      type: String,
-      default: undefined,
-      trim: true,
-    },
-    lastDeployedAt: {
-      type: Date,
-      default: undefined,
-    },
-    deployType: {
-      type: String,
-      enum: ['static', 'fullstack'],
-      default: undefined,
-    },
-    aiLimit: {
-      type: Number,
-      default: undefined,
-    },
+    appSlug: { type: String, trim: true },
+    aiLimit: { type: Number },
   },
   {
     timestamps: true,
+    collection: 'applications',
   },
 )
 

@@ -13,7 +13,7 @@
 import crypto from 'node:crypto'
 import type { Types } from 'mongoose'
 import { CloudFunction } from '../models/index.js'
-import type { ICloudFunctionDef, ICloudFunctionGroup } from '../models/types/index.js'
+import type { ICloudFunctionDef, ICloudFunction } from '../models/types/index.js'
 import { validateIdentifier } from '../utils/nameValidation.js'
 
 export interface ICloudFunctionListResult {
@@ -41,17 +41,17 @@ export class CloudFunctionService {
   /**
    * 获取应用的最新云函数组
    */
-  async getLatestGroup(appId: string): Promise<ICloudFunctionGroup | null> {
+  async getLatestGroup(appId: string): Promise<ICloudFunction | null> {
     const doc = await CloudFunction.findOne({ appId }).sort({ version: -1 }).lean()
-    return doc as ICloudFunctionGroup | null
+    return doc as ICloudFunction | null
   }
 
   /**
    * 获取指定版本的云函数组
    */
-  async getByVersion(appId: string, version: number): Promise<ICloudFunctionGroup | null> {
+  async getByVersion(appId: string, version: number): Promise<ICloudFunction | null> {
     const doc = await CloudFunction.findOne({ appId, version }).lean()
-    return doc as ICloudFunctionGroup | null
+    return doc as ICloudFunction | null
   }
 
   /**

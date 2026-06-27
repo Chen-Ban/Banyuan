@@ -106,6 +106,7 @@ const MaterialSchema = new Schema<IMaterialDoc>(
     // 时间戳由 service 层写入 meta.createdAt / meta.updatedAt（ISO 字符串），
     // 不使用 Mongoose 顶层 timestamps，避免与嵌套 meta 重复。
     timestamps: false,
+    collection: 'materials',
   },
 )
 

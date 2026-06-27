@@ -4,7 +4,7 @@
  * 一个 Application 对应一个 Conversation（1:1 关系）。
  * 以 appId 为唯一索引，维护 appId → Dialogue[] 的引用关系。
  * 所有对话内容、状态机、快照由独立 Dialogue 集合承载。
- * 消息类型契约定义在 models/types/message-types.ts。
+ * 消息类型契约定义在 models/types/message.ts。
  */
 
 import mongoose, { Schema, Document } from 'mongoose'
@@ -31,6 +31,7 @@ const ConversationSchema = new Schema<IConversationDoc>(
   },
   {
     timestamps: true,
+    collection: 'conversations',
   },
 )
 

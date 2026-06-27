@@ -120,15 +120,11 @@ export type IAssistantContent =
 
 // ─── 消息 ─────────────────────────────────────────────────────────────────────
 
-/** 单条消息 */
-export interface IMessage {
+/** 单条消息（Discriminated Union） */
+export type IMessage = {
   _id?: Types.ObjectId
-  /** 消息角色 */
-  role: 'user' | 'assistant'
-  /** 用户消息内容（仅 role=user 时有值） */
-  userContent?: IUserContent
-  /** 助手消息内容块列表（仅 role=assistant 时有值） */
-  assistantContent?: IAssistantContent[]
-  /** 消息创建时间 */
   createdAt: Date
-}
+} & (
+  | { role: 'user'; content: IUserContent }
+  | { role: 'assistant'; content: IAssistantContent[] }
+)

@@ -24,10 +24,10 @@ const CreditUsageDetailSchema = new Schema(
 
 const CreditUsageSchema = new Schema<ICreditUsageDoc>(
   {
-    usageId: { type: String, required: true, unique: true, index: true },
+    usageId: { type: String, required: true, unique: true },
     teamId: { type: String, required: true, index: true },
-    applicationId: { type: String, default: undefined, sparse: true },
-    appAiLimit: { type: Number, default: undefined },
+    applicationId: { type: String, sparse: true },
+    appAiLimit: { type: Number },
     yearMonth: { type: String, required: true },
     creditsUsed: { type: Number, required: true, default: 0 },
     detail: { type: [CreditUsageDetailSchema], default: [] },

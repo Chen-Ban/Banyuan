@@ -46,10 +46,10 @@ const CollectionSchemaDefinition = new Schema<ICollectionSchemaDoc>(
   {
     appId: { type: String, required: true, index: true },
     collections: { type: [CollectionDefSchema], default: [] },
-    version: { type: Number, required: true, default: 1 },
+    version: { type: Number, required: true, min: 1, default: 1 },
     dialogueId: { type: Schema.Types.ObjectId, required: true, index: true },
   },
-  { timestamps: { createdAt: true, updatedAt: false } },
+  { timestamps: { createdAt: true, updatedAt: false }, collection: 'collection_schemas' },
 )
 
 // ADR-042: 联合唯一索引（同一 app 的版本号不可重复）

@@ -5,9 +5,9 @@
       "@/*": ["./src/*"]
     },
     "outDir": "./dist",
-    "module": "ESNext",
+    "module": "node16",
     "target": "ES2021",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "noEmit": false

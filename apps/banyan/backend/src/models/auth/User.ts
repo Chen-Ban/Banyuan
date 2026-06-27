@@ -5,7 +5,7 @@ export type IUserDoc = IUser & Document
 
 const UserSchema = new Schema<IUserDoc>(
   {
-    userId: { type: String, required: true, unique: true, index: true },
+    userId: { type: String, required: true, unique: true },
     email: { type: String, lowercase: true, trim: true },
     phone: { type: String, trim: true },
     username: { type: String, required: true, trim: true },

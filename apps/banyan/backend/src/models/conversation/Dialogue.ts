@@ -23,6 +23,7 @@
 
 import mongoose, { Schema, type Document } from 'mongoose'
 import type { IDialogueSummary, IInterruptMetadata, IDialogue } from '../types/index.js'
+import { MessageSchema } from './Message.js'
 
 // ─── Dialogue Mongoose 文档类型 ───────────────────────────────────────────────
 
@@ -72,71 +73,26 @@ const InterruptMetadataSchema = new Schema<IInterruptMetadata>(
 )
 
 /**
- * 消息子文档 Schema
+ * PlanningEntry 子文档 Schema
  *
- * 接口类型（IMessage）定义在 models/types/message-types.ts，
- * Mongoose Schema 在此定义，供 Dialogue 模型使用。
+ * 各阶段 SubAgent（requirements/ui_design/contract/building）的规划产出记录。
  */
-const AssistantContentSchema = new Schema(
+const PlanningEntrySchema = new Schema(
   {
-    type: {
-      type: String,
-      enum: [
-        'text',
-        'tool_call',
-        'tool_result',
-        'app_snapshot',
-        'schema_update',
-        'disambiguation',
-        'planning_progress',
-        'error',
-      ],
-      required: true,
+    agent: { type: String, required: true },
+    output: { type: Schema.Types.Mixed, required: true },
+    reasoning: { type: String },
+    tokenUsage: {
+      type: new Schema(
+        { input: { type: Number, default: 0 }, output: { type: Number, default: 0 } },
+        { _id: false },
+      ),
+      default: () => ({ input: 0, output: 0 }),
     },
-  },
-  {
-    _id: false,
-    strict: false, // 允许存储 type 之外的动态字段
-  },
-)
-
-const UserContentSchema = new Schema(
-  {
-    prompt: { type: String, required: true },
-    images: {
-      type: [
-        new Schema(
-          { url: { type: String, required: true }, alt: { type: String, default: undefined } },
-          { _id: false },
-        ),
-      ],
-      default: [],
-    },
+    durationMs: { type: Number, default: 0 },
+    createdAt: { type: Date, default: () => new Date() },
   },
   { _id: false },
-)
-
-const MessageSchema = new Schema(
-  {
-    role: {
-      type: String,
-      enum: ['user', 'assistant'],
-      required: true,
-    },
-    userContent: {
-      type: UserContentSchema,
-      default: undefined,
-    },
-    assistantContent: {
-      type: [AssistantContentSchema],
-      default: undefined,
-    },
-    createdAt: {
-      type: Date,
-      default: () => new Date(),
-    },
-  },
-  // NOTE: 不设置 { _id: false }，让 mongoose 为每条消息自动生成 _id
 )
 
 const DialogueSchema = new Schema<IDialogueDoc>(
@@ -173,10 +129,7 @@ const DialogueSchema = new Schema<IDialogueDoc>(
       required: true,
       default: 'start',
     },
-    threadId: {
-      type: String,
-      default: undefined,
-    },
+    threadId: { type: String },
     messages: {
       type: [MessageSchema],
       default: [],
@@ -198,44 +151,17 @@ const DialogueSchema = new Schema<IDialogueDoc>(
 
     // ─── 规划产物 ──────────────────────────────────────────────────────────
     planningEntries: {
-      type: [
-        new Schema(
-          {
-            agent: { type: String, required: true },
-            output: { type: Schema.Types.Mixed, default: null },
-            reasoning: { type: String, default: undefined },
-            tokenUsage: {
-              type: new Schema(
-                { input: { type: Number, default: 0 }, output: { type: Number, default: 0 } },
-                { _id: false },
-              ),
-              default: () => ({ input: 0, output: 0 }),
-            },
-            durationMs: { type: Number, default: 0 },
-            createdAt: { type: Date, default: () => new Date() },
-          },
-          { _id: false },
-        ),
-      ],
+      type: [PlanningEntrySchema],
       default: [],
     },
     // ─── Agent 记忆暂存 ───────────────────────────────────────────────────
-    memoryUpdates: {
-      type: Schema.Types.Mixed,
-      default: undefined,
-    },
+    memoryUpdates: { type: Schema.Types.Mixed },
 
     // ─── 摘要 ──────────────────────────────────────────────────────────────────
-    summary: {
-      type: DialogueSummarySchema,
-      default: undefined,
-    },
+    summary: { type: DialogueSummarySchema },
 
     // ─── 中断归因 ────────────────────────────────────────────────────────────
-    interruptMetadata: {
-      type: InterruptMetadataSchema,
-      default: undefined,
-    },
+    interruptMetadata: { type: InterruptMetadataSchema },
   },
   {
     timestamps: true,

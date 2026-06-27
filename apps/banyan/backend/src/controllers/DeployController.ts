@@ -430,15 +430,6 @@ export class DeployController {
           { deploymentId },
           { $set: { status: 'success', url: result.url, progress: 100, finishedAt: new Date() } },
         )
-        // 更新应用记录（publishedVersion + webUrl）
-        const app = await Application.findOne({ application_id: applicationId })
-        if (app) {
-          app.publishedVersion = app.version
-          app.webUrl = result.url
-          app.lastDeployedAt = new Date()
-          app.deployType = request.deployType
-          await app.save()
-        }
       } else {
         // 部署失败
         await Deployment.updateOne(

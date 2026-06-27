@@ -12,7 +12,7 @@
  */
 
 import type { Types } from 'mongoose'
-import type { IMessage } from './message-types.js'
+import type { IMessage } from './message.js'
 
 // ─── 枚举类型 ─────────────────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ export interface IPlanningEntry {
   /** 耗时（毫秒） */
   durationMs: number
   /** 产出时间 */
-  createdAt?: Date
+  createdAt: Date
 }
 
 // ─── 中断归因 Metadata ─────────────────────────────────────────────────────────

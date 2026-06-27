@@ -11,7 +11,7 @@ type IPackageTaskDoc = IPackageTask & Document
 
 const PackageTaskSchema = new Schema<IPackageTaskDoc>(
   {
-    taskId: { type: String, required: true, unique: true, index: true },
+    taskId: { type: String, required: true, unique: true },
     appName: { type: String, required: true },
     platform: { type: String, required: true, enum: ['mac', 'win', 'linux'] },
     status: {
@@ -25,6 +25,7 @@ const PackageTaskSchema = new Schema<IPackageTaskDoc>(
   },
   {
     timestamps: true,
+    collection: 'package_tasks',
     // 30 天后自动过期（TTL 索引），避免历史任务无限堆积
     // 注意：TTL 索引基于 updatedAt，任务完成后不再更新，30 天后自动清理
   },

@@ -11,7 +11,7 @@
  */
 
 import mongoose, { Schema } from 'mongoose'
-import type { ICloudFunctionDef, ICloudFunctionGroup } from '../types/application/versioned-content.js'
+import type { ICloudFunctionDef, ICloudFunction } from '../types/application/cloud-function.js'
 
 // ─── 云函数定义子文档 Schema（嵌入用）────────────────────────────────────────────
 
@@ -28,7 +28,7 @@ export const CloudFunctionDefSchema = new Schema<ICloudFunctionDef>(
 
 // ─── 顶层 Schema（append-only 版本化集合）──────────────────────────────────────
 
-const CloudFunctionSchema = new Schema<ICloudFunctionGroup>(
+const CloudFunctionSchema = new Schema<ICloudFunction>(
   {
     appId: { type: String, required: true, trim: true, index: true },
     version: { type: Number, required: true, min: 1, default: 1 },
@@ -43,6 +43,6 @@ const CloudFunctionSchema = new Schema<ICloudFunctionGroup>(
 // 联合唯一索引：同一 app 的版本号不可重复
 CloudFunctionSchema.index({ appId: 1, version: -1 }, { unique: true })
 
-const CloudFunction = mongoose.model<ICloudFunctionGroup>('CloudFunction', CloudFunctionSchema)
+const CloudFunction = mongoose.model<ICloudFunction>('CloudFunction', CloudFunctionSchema, 'cloud_functions')
 
 export default CloudFunction

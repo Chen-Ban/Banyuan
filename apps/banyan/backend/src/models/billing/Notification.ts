@@ -12,7 +12,7 @@ type INotificationDoc = INotification & Document
 
 const NotificationSchema = new Schema<INotificationDoc>(
   {
-    notificationId: { type: String, required: true, unique: true, index: true },
+    notificationId: { type: String, required: true, unique: true },
     teamId: { type: String, required: true, index: true },
     userId: { type: String, required: true, index: true },
     type: {

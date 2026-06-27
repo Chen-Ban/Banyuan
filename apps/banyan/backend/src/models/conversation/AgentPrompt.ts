@@ -43,6 +43,7 @@ const AgentPromptSchema = new Schema<IAgentPromptDoc>(
   },
   {
     timestamps: true,
+    collection: 'agent_prompts',
   },
 )
 

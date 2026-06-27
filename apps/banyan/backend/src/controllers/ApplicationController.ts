@@ -1,5 +1,5 @@
 import { Context } from 'koa'
-import applicationService from '../services/ApplicationService'
+import applicationService from '../services/ApplicationService.js'
 
 // ADR-042：本端点只更新应用「元信息」（name/thumbnail/tags）。
 // UI 定义 JSON 是版本化内容（UIDefinition 表），不在此更新——

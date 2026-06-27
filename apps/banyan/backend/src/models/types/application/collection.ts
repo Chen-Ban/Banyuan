@@ -42,5 +42,4 @@ export interface ICollectionSchema {
   /** 持有该版本的 Dialogue ID（反向引用 / 审计） */
   dialogueId: Types.ObjectId
   createdAt: Date
-  updatedAt: Date
 }

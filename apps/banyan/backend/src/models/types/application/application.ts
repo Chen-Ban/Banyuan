@@ -30,14 +30,6 @@ export interface IApplication {
   // ─── Web 发布相关 ─────────────────────────────────────────────────────────
   /** 应用 URL slug（用于子域名路由，如 my-app → my-app.team.banyuan.club） */
   appSlug?: string
-  /** 已发布的版本号（null 表示从未发布） */
-  publishedVersion?: number
-  /** Web 访问 URL（发布后填充） */
-  webUrl?: string
-  /** 最近一次部署时间 */
-  lastDeployedAt?: Date
-  /** 部署类型 */
-  deployType?: 'static' | 'fullstack'
 
   /** 应用级 AI 额度上限（不设置则回落团队额度） */
   aiLimit?: number

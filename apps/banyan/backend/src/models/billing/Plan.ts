@@ -12,7 +12,7 @@ type IPlanDoc = IPlan & Document
 
 const PlanSchema = new Schema<IPlanDoc>(
   {
-    planId: { type: String, required: true, unique: true, index: true },
+    planId: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     monthlyCredits: { type: Number, required: true, default: 0 },
     priceInCents: { type: Number, required: true, default: 0 },

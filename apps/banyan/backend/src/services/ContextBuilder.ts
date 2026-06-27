@@ -98,16 +98,15 @@ function estimateTokens(text: string): number {
 
 /**
  * 估算单条消息的 token 数
- * V2：消息内容从 IMessage 中提取（userContent.prompt 或 assistantContent 序列化）
+ * V2：消息内容从 IMessage.content 中提取（按 role 区分类型）
  */
 function estimateMessageTokens(msg: IMessage): number {
-  if (msg.role === 'user' && msg.userContent) {
-    return estimateTokens(msg.userContent.prompt) + 4
+  if (msg.role === 'user') {
+    return estimateTokens(msg.content.prompt) + 4
   }
-  if (msg.role === 'assistant' && msg.assistantContent) {
-    // 只计算 text 类型的内容块（工具调用等不作为上下文传递）
-    const textBlocks = msg.assistantContent.filter((b) => b.type === 'text')
-    const text = textBlocks.map((b) => (b as { type: 'text'; text: string }).text).join('')
+  if (msg.role === 'assistant') {
+    const textBlocks = msg.content.filter((b) => b.type === 'text')
+    const text = textBlocks.map((b) => b.text).join('')
     return estimateTokens(text) + 4
   }
   return 4
@@ -117,12 +116,12 @@ function estimateMessageTokens(msg: IMessage): number {
  * 将 IMessage 转换为 LLM 上下文格式
  */
 function messageToContextFormat(msg: IMessage): { role: 'user' | 'assistant'; content: string } | null {
-  if (msg.role === 'user' && msg.userContent) {
-    return { role: 'user', content: msg.userContent.prompt }
+  if (msg.role === 'user') {
+    return { role: 'user', content: msg.content.prompt }
   }
-  if (msg.role === 'assistant' && msg.assistantContent) {
-    const textBlocks = msg.assistantContent.filter((b) => b.type === 'text')
-    const text = textBlocks.map((b) => (b as { type: 'text'; text: string }).text).join('')
+  if (msg.role === 'assistant') {
+    const textBlocks = msg.content.filter((b) => b.type === 'text')
+    const text = textBlocks.map((b) => b.text).join('')
     if (text) {
       return { role: 'assistant', content: text }
     }

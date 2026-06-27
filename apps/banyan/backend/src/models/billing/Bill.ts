@@ -13,7 +13,7 @@ type IBillDoc = IBill & Document
 
 const BillSchema = new Schema<IBillDoc>(
   {
-    billId: { type: String, required: true, unique: true, index: true },
+    billId: { type: String, required: true, unique: true },
     teamId: { type: String, required: true, index: true },
     yearMonth: { type: String, required: true },
     basePrice: { type: Number, required: true, default: 0 },

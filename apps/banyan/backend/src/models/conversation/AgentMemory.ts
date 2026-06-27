@@ -40,6 +40,7 @@ const EpisodeSchema = new Schema<IEpisode>(
     involvedEntities: { type: [String], default: [] },
     tags: { type: [String], default: [] },
     importance: { type: Number, required: true, min: 0, max: 1 },
+    embeddingStatus: { type: String, enum: ['pending', 'ready'], default: 'pending' },
     embedding: { type: [Number], default: null },
     createdAt: { type: Date, default: () => new Date() },
     lastAccessedAt: { type: Date, default: () => new Date() },
@@ -67,9 +68,10 @@ const FactSchema = new Schema<IFact>(
     confidence: { type: Number, required: true, min: 0, max: 1 },
     referenceCount: { type: Number, default: 0, min: 0 },
     derivedFrom: { type: [String], default: [] },
+    embeddingStatus: { type: String, enum: ['pending', 'ready'], default: 'pending' },
     embedding: { type: [Number], default: null },
     createdAt: { type: Date, default: () => new Date() },
-    updatedAt: { type: Date, default: () => new Date() },
+    factUpdatedAt: { type: Date, default: () => new Date() },
   },
   { _id: false },
 )
@@ -97,6 +99,7 @@ const AgentMemorySchema = new Schema<IAgentMemoryDoc>(
   },
   {
     timestamps: true,
+    collection: 'agent_memories',
   },
 )
 

@@ -121,12 +121,14 @@ class ConversationService {
 
     for (const dialogue of dialogues) {
       for (const msg of dialogue.messages) {
-        if (msg.role === 'user' && msg.userContent) {
-          messages.push({ role: 'user', content: msg.userContent.prompt })
-        } else if (msg.role === 'assistant' && msg.assistantContent) {
-          const textParts = msg.assistantContent
+        if (msg.role === 'user') {
+          const c = msg.content as { prompt: string; images: unknown[] }
+          messages.push({ role: 'user', content: c.prompt })
+        } else if (msg.role === 'assistant') {
+          const blocks = msg.content as Array<{ type: string; text?: string }>
+          const textParts = blocks
             .filter((c) => c.type === 'text')
-            .map((c) => (c as { type: 'text'; text: string }).text)
+            .map((c) => c.text ?? '')
           if (textParts.length > 0) {
             messages.push({ role: 'assistant', content: textParts.join('') })
           }

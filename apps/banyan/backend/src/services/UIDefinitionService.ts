@@ -12,7 +12,7 @@
 
 import type { Types } from 'mongoose'
 import { UIDefinition } from '../models/index.js'
-import type { IUIDefinition } from '../models/types/index.js'
+import type { IUiDefinition } from '../models/types/index.js'
 
 class UIDefinitionService {
   // ─── 读取 ──────────────────────────────────────────────────────────────────
@@ -20,9 +20,9 @@ class UIDefinitionService {
   /**
    * 获取指定版本的 UIDefinition
    */
-  async getByVersion(appId: string, version: number): Promise<IUIDefinition | null> {
+  async getByVersion(appId: string, version: number): Promise<IUiDefinition | null> {
     const doc = await UIDefinition.findOne({ appId, version }).lean()
-    return doc as IUIDefinition | null
+    return doc as IUiDefinition | null
   }
 
   /**

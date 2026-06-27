@@ -11,4 +11,5 @@ export interface IRefreshToken {
   expiresAt: Date
   revokedAt?: Date
   createdAt: Date
+  updatedAt: Date
 }

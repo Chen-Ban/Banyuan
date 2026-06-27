@@ -33,7 +33,9 @@ export interface IEpisode {
   tags: string[]
   /** 重要性评分 0-1（由 LLM 评估） */
   importance: number
-  /** 经验内容的向量嵌入（384 维，用于语义检索） */
+  /** 向量嵌入状态 */
+  embeddingStatus: 'pending' | 'ready'
+  /** 经验内容的向量嵌入（384 维，用于语义检索；仅 embeddingStatus=ready 时有值） */
   embedding: number[] | null
   /** 创建时间 */
   createdAt: Date
@@ -72,12 +74,14 @@ export interface IFact {
   referenceCount: number
   /** 来源 episodeId 列表（可追溯） */
   derivedFrom: string[]
-  /** 事实内容的向量嵌入（384 维，用于语义检索） */
+  /** 向量嵌入状态 */
+  embeddingStatus: 'pending' | 'ready'
+  /** 事实内容的向量嵌入（384 维，用于语义检索；仅 embeddingStatus=ready 时有值） */
   embedding: number[] | null
   /** 创建时间 */
   createdAt: Date
-  /** 最后更新时间（合并/增强/衰减时更新） */
-  updatedAt: Date
+  /** 该事实的最后更新时间（合并/增强/衰减时更新） */
+  factUpdatedAt: Date
 }
 
 // ─── AgentMemory 文档数据接口 ─────────────────────────────────────────────────

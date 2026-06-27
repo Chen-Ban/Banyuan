@@ -1,25 +1,37 @@
 /**
- * 云函数类型定义
+ * CloudFunction 类型定义（ADR-042）
  *
- * 每个云函数对应一个可视化编排的 FlowSchema，属于应用级资源，多页面共享。
+ * 云函数定义的 append-only 版本化集合。
+ * 一个版本文档打包该应用的所有云函数定义 functions[]。
+ * 每次变更写入新版本，旧版本永不修改。
  */
 
-/** 云函数数据接口 */
-export interface ICloudFunction {
+import type { Types } from 'mongoose'
+
+/** 单个云函数定义（嵌入 CloudFunction.functions[] 中） */
+export interface ICloudFunctionDef {
   /** 云函数唯一标识（UUID） */
   functionId: string
-  /** 所属应用 ID */
-  appId: string
-  /** 云函数名称（英文标识符，如 submitOrder） */
+  /** 云函数名称（英文标识符） */
   name: string
-  /** 显示名称（中文） */
+  /** 显示名称 */
   displayName: string
   /** 描述 */
   description: string
-  /** FlowSchema JSON（{ nodes: [], edges: [] }） */
+  /** FlowSchema JSON */
   flowSchema: Record<string, unknown>
-  /** 版本号 */
+}
+
+/** CloudFunction 版本化文档数据接口 */
+export interface ICloudFunction {
+  /** 关联 Application */
+  appId: string
+  /** 自增版本号 */
   version: number
+  /** 持有该版本的 Dialogue ID（反向引用 / 审计） */
+  dialogueId: Types.ObjectId
+  /** 该版本下所有云函数定义 */
+  functions: ICloudFunctionDef[]
+  /** 创建时间 */
   createdAt: Date
-  updatedAt: Date
 }
